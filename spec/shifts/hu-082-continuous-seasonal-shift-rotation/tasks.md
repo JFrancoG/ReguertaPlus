@@ -392,11 +392,26 @@ occurred. Protected technical evidence remains outside the repository.
   rotation/cursors, active bundle metadata, digest-bound sync commands, and held
   intents. Measure forward and inverse serialized requests with the real adapter;
   fail closed above the conservative 500-write/10-MiB gate.
-- [ ] Persist sync commands as claimable pending state and define explicit post-
+- [x] Persist sync commands as claimable pending state and define explicit post-
   commit pull/invocation plus discovery/retry; never depend on an Eventarc creation
   delivery that occurred while its consumer was disabled. CAS workbook/revision,
   partition state revision, expected/command partition epoch, and claim lease
   immediately before every external batch.
+  - [x] Version and strictly parse pending/processing/completed commands; bind the
+    immutable intent with `commandDigest`, retain exact read-back terminal evidence,
+    and reject extra, malformed, cross-lineage, or expired completion data.
+  - [x] Add the Firestore polling repository and SDK-free executor. Discovery is
+    read-only and bounded; claim/takeover increments the partition fencing epoch;
+    pre-batch authorization and completion transactionally recheck active lineage,
+    workbook revision, partition state/epoch, and exact lease ownership.
+  - [x] Prove an unexpired competitor is busy, an expired worker is fenced, active
+    or partition drift writes nothing, terminal replay performs no external call,
+    and a lost completion is rediscovered and converges through an idempotent fake
+    consumer. The real multi-season Sheets adapter/read-back remains HU-083 scope.
+  - [x] Validation: Node 22 Functions lint/build, 196 planning vectors with eleven
+    emulator-only skips, 3/3 focused lifecycle vectors, 5/5 sync-repository and 3/3
+    governed activation/recovery Firestore-emulator vectors pass. No shared
+    Firebase/Sheets write, trigger export, deployment, or live sync occurred.
 - [ ] Define operation-registry/marker and fake-consumer vectors requiring
   candidate `onShiftWritten` to validate before/after changes for creates/updates
   and exact before-image marker/version/path for recovery deletes, no-op only that

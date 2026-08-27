@@ -60,6 +60,7 @@ export type ShiftPlanningFailureCode =
   | "invalid_planning_forward_materialization"
   | "invalid_planning_inverse_materialization"
   | "invalid_planning_attempt_outcome"
+  | "invalid_planning_sync_command"
   | "frozen_cohort_mismatch"
   | "invalid_rotation_cohort"
   | "invalid_rotation_cursor"

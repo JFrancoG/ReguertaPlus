@@ -755,6 +755,29 @@ exact endpoint-only invocation, and proving IAM denial for mobile/admin principa
 plus absence of direct Firestore/Sheets, impersonation, and token-minting roles.
 Nothing is deployed or activated in a shared Firebase project.
 
+## Local implementation checkpoint — sync command lifecycle (2026-08-27)
+
+Activation sync commands are now explicitly versioned and parsed as exact
+`pending`, `processing`, or `completed` documents. The mutable lifecycle retains
+an immutable `commandDigest`; processing owns one worker/attempt/fencing lease,
+and completion replaces that live claim with exact timestamped workbook-revision
+and partition-digest read-back evidence.
+
+The Firestore repository discovers pending and expired work through bounded
+polling, transactionally claims or takes over with a higher partition epoch,
+rechecks active lineage and exact workbook partition immediately before I/O, and
+clears the lease only after another transactional read-back completion. A stale
+worker cannot authorize or complete. Exceptions leave the lease retained rather
+than claiming that an external result is known. The SDK-free executor proves a
+lost completion is rediscovered and converges through an idempotent fake consumer;
+HU-083 still owns real multi-season Sheets I/O and durable ambiguous-attempt
+reconciliation.
+
+Node 22 Functions lint/build, 196 planning vectors with eleven emulator-only
+skips, 3/3 focused sync-codec vectors, 5/5 sync-repository and 3/3 governed
+activation/recovery Firestore-emulator vectors pass. No shared Firebase/Sheets
+write, trigger export, deployment, or live sync occurred.
+
 ## Suggested labels
 
 - `type:feature`

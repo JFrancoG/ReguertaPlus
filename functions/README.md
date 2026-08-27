@@ -578,6 +578,16 @@ datos de miembros ni diagnosticos internos. No selecciona una service account de
 runtime. HU-085 aun debe aprovisionar el operador, otorgar y releer solo invocacion,
 probar permisos negativos, desplegar y ensayar; no existe escritura compartida.
 
+`shift-planning-sync-command.ts` versiona y valida estrictamente los comandos de
+sync creados por activacion. `shift-planning-firestore-sync-command-repository.ts`
+los descubre mediante polling acotado, reclama o recupera leases expirados con un
+epoch de fencing superior, revalida linaje activo y particion inmediatamente antes
+del batch externo, y solo completa/libera el lease con read-back de revision y
+digest. `shift-planning-sync-command-executor.ts` mantiene la I/O fuera del
+repositorio y demuestra con un consumidor falso que una confirmacion perdida se
+redescubre sin duplicar el efecto idempotente. HU-083 implementara la I/O real y
+la evidencia durable de resultados ambiguos; no se exporta aqui ningun trigger.
+
 ### Fronteras, manifests y side effects diferidos
 
 - `futureProjectionOccupancy` se aporta por separado para reparto y mercado con

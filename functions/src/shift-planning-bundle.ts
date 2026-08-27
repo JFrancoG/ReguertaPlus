@@ -307,6 +307,8 @@ export type ShiftPlanningRecoveryManifest = {
 };
 
 export type ShiftPlanningSyncCommand = {
+  schemaVersion: 1;
+  operationKind: "sheetsSync";
   commandId: string;
   idempotencyKey: string;
   state: "pending";
@@ -1921,6 +1923,8 @@ const syncCommands = (input: {
   ): ShiftPlanningSyncCommand => {
     const partition = input.snapshot.workbookPartitions[type];
     return {
+      schemaVersion: 1,
+      operationKind: "sheetsSync",
       commandId: `${input.revision}-${type}`,
       idempotencyKey: `${input.revision}:sheets:${type}`,
       state: "pending",

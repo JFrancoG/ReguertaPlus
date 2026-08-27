@@ -301,6 +301,10 @@ documented in the English and Spanish Firestore references before code lands.
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending
   commands remain discoverable after commit; no enable-after-create trigger is used.
+  The local command repository now provides bounded polling, fenced claim/takeover,
+  an immediate pre-batch active-lineage/partition authorization, and read-back-
+  guarded completion. Its SDK-free executor proves idempotent lost-ack convergence
+  with a fake consumer; real Sheets I/O and ambiguity evidence remain in HU-083.
 - Publish processing and stable terminal results idempotently.
 - Hold notifications for governed activation and release them idempotently only
   after the approved read-back gate.

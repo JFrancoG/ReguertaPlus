@@ -619,7 +619,11 @@ Los nombres siguientes quedan congelados para el plano de control privado:
 - `shiftPlanningBundles`: metadatos, manifiestos, presupuestos y linaje inmutables.
 - `shiftPlanningSyncCommands`: comandos backend de Sheets ligados a
   workbook/revision, particion/revision de estado, epocas esperada y de comando,
-  e intento de lease de claim.
+  e intento de lease de claim. El schema local usa estados exactos
+  `pending -> processing -> completed`. Processing conserva `commandDigest` y el
+  claim con fencing; completed reemplaza el claim vivo por evidencia exacta de
+  worker/intento/fencing/tiempos y read-back de revision de workbook y digest de
+  particion. Ningun cliente puede leer ni mutar estos estados.
 - `shiftPlanningNotificationIntents`: una intencion generica retenida por
   posicion asignada, ligada a UID destinatario, turno y revisiones esperadas de
   asignacion, membership, elegibilidad y destino.

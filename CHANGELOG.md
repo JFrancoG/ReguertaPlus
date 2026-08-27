@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-27 | ✨ feat(shifts): govern sync command retries
 - 2026-08-27 | ✨ feat(shifts): restrict recovery operator endpoint
 - 2026-08-26 | ✨ feat(shifts): authorize recovery execution
 - 2026-08-26 | ✨ feat(shifts): persist activation failures

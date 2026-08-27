@@ -353,6 +353,13 @@ backend mutation marker/manifest and audits it as a no-op. Retained provenance o
 a later ordinary edit does not suppress that edit. Terminal operation tombstones
 and event ledgers outlive every configured retry window.
 
+The local HU-082 command substrate implements exact pending/processing/completed
+codecs, immutable-command digests, bounded polling, transactional claim or expired-
+lease takeover, pre-batch active-lineage/partition authorization, and read-back-
+guarded completion. A stale worker loses its monotonically advanced partition
+fence. External I/O exceptions retain the lease; HU-083 supplies the real Sheets
+adapter plus durable ambiguity/read-back reconciliation.
+
 Sheets commands are serialized by a monotonic epoch and lease per workbook/
 partition. A worker validates command plus active revision/digest before each batch
 and records read-back afterward. Recovery first supersedes and drains the activation

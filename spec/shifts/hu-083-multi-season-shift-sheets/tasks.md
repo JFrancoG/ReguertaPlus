@@ -40,6 +40,11 @@
   and stable idempotency key through explicit post-commit pull/invocation.
 - [ ] Claim pending commands transactionally and rediscover/retry them after lost
   invocation; prove no sync depends on enable-after-create Eventarc delivery.
+  - HU-082 now supplies the versioned command codecs, Firestore discovery/claim/
+    fencing/pre-batch authorization/completion repository, SDK-free executor, and
+    idempotent fake-consumer evidence. HU-083 must integrate the real multi-season
+    Sheets adapter, record durable external attempt/read-back evidence, and handle
+    ambiguous outcomes without weakening that boundary.
 - [ ] Serialize commands with a workbook/partition epoch and lease; check current
   command/revision/digest before every batch, read back afterward, reject old-epoch
   retries, and block recovery until prior external work is proved terminal.

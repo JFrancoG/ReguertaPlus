@@ -344,6 +344,13 @@ does not populate Firestore public shifts or activate either mobile app.
   external batch and records read-back. Recovery may supersede an activation
   command only after its lease is released and no Sheets call remains in flight;
   a late retry with an old epoch fails closed.
+  The implemented local lifecycle uses exact pending/processing/completed codecs,
+  a digest of the immutable command, bounded explicit polling, transactional claim
+  or expired-lease takeover, and a second transactional authorization immediately
+  before I/O. Completion clears the partition lease only with exact workbook-
+  revision and partition-digest read-back. An exception or ambiguous external
+  result leaves the lease retained. HU-083 owns the real Sheets call, durable
+  external-attempt evidence, and controlled ambiguity reconciliation.
 - Existing Android/iOS releases read the flat public `shifts` collection rather
   than an active-revision pointer. The initial rollout therefore keeps stage in
   a separate collection and requires the entire public create/update/delete

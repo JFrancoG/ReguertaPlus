@@ -367,6 +367,13 @@ no-op. Conservar procedencia en una edición ordinaria posterior no suprime esa
 edición. Los tombstones de operación y ledgers de evento sobreviven a todas las
 ventanas de reintento configuradas.
 
+El sustrato local de HU-082 implementa codecs exactos pending/processing/completed,
+digest del comando inmutable, polling acotado, claim o takeover transaccional de
+lease expirado, autorización de linaje/partición inmediatamente antes del batch y
+completion protegida por read-back. Un worker obsoleto pierde el fence monótono de
+partición. Las excepciones de I/O conservan el lease; HU-083 aporta el adaptador
+real de Sheets y la reconciliación durable de ambigüedad/read-back.
+
 Los comandos Sheets se serializan con epoch monotónico y lease por libro/partición.
 El worker valida comando y revisión/digest activos antes de cada batch y registra
 read-back. Recovery sustituye y drena primero worker/llamada externa de activación;

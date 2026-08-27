@@ -508,7 +508,11 @@ The following collection names are frozen for the private control plane:
 - `shiftPlanningBundles`: immutable bundle metadata, manifests, budgets, and lineage.
 - `shiftPlanningSyncCommands`: backend-owned Sheets commands bound to
   workbook/revision, partition/state revision, expected and command partition
-  epochs, and a claim lease intent.
+  epochs, and a claim lease intent. The local schema has exact
+  `pending -> processing -> completed` states. Processing retains the immutable
+  `commandDigest` and fenced claim; completed replaces that live claim with exact
+  worker/attempt/fencing timestamps plus workbook-revision and partition-digest
+  read-back evidence. Clients cannot read or mutate any state.
 - `shiftPlanningNotificationIntents`: one held generic intent per assignment
   position, bound to recipient UID, shift identity, and expected assignment,
   membership, eligibility, and destination revisions.

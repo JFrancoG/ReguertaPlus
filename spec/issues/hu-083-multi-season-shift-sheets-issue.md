@@ -43,6 +43,15 @@ with the current deployed contract; HU-083 deploys no shared Function or Rule.
 - Tasks: `spec/shifts/hu-083-multi-season-shift-sheets/tasks.md`
 - ADR: `docs/decisions/0013-model-shifts-as-continuous-rotations-with-seasonal-projections.md`
 
+## Upstream implementation checkpoint
+
+HU-082 now provides the versioned sync-command codecs, bounded Firestore polling,
+fenced claim/takeover, immediate pre-batch active-lineage/partition authorization,
+read-back completion, SDK-free executor, and idempotent fake-consumer proof. HU-083
+must integrate the real multi-season Sheets adapter, durable external-attempt and
+read-back evidence, and ambiguous-outcome reconciliation; its overall dependency
+on the unfinished HU-082 story remains open.
+
 ## Delivery gate
 
 - [ ] HU-082 and ADR-0013 integrated.

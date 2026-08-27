@@ -13,6 +13,9 @@ const {
   createShiftPlanningDigest,
 } = require("../lib/shift-planning-digest.js");
 const {
+  parseShiftPlanningPersistedSyncCommand,
+} = require("../lib/shift-planning-sync-command.js");
+const {
   buildShiftPlanningCandidatePositionSet,
   parseShiftPlanningCandidatePosition,
 } = require("../lib/shift-planning-candidate.js");
@@ -254,6 +257,12 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
     command.expectedActiveRevision === result.bundleRevision &&
     command.expectedActiveDigest === result.bundleDigest
   ), true);
+  assert.deepEqual(
+    result.syncCommands.map((command) =>
+      parseShiftPlanningPersistedSyncCommand(command)
+    ),
+    result.syncCommands,
+  );
   assert.deepEqual(
     [...new Set(result.heldNotificationIntents.map(
       (intent) => intent.recipientUserId,
