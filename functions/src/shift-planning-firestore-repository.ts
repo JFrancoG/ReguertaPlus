@@ -30,7 +30,7 @@ import {
   SHIFT_PLANNING_PERSISTENCE_SCHEMA_VERSION,
   ShiftPlanningActivationFailurePersistenceResult,
   ShiftPlanningActivationPreflight,
-  ShiftPlanningActivationRequestState,
+  ShiftPlanningActivationRequestClaim,
   ShiftPlanningClaimToken,
   ShiftPlanningPersistedArtifact,
   ShiftPlanningPersistedBundle,
@@ -45,6 +45,9 @@ import {
   ShiftPlanningTerminalSummary,
   buildShiftPlanningCompletedSummary,
 } from "./shift-planning-persistence.js";
+import {
+  parseShiftPlanningActivationOperationTerminal,
+} from "./shift-planning-publication-contract.js";
 import {
   SHIFT_PLANNING_COLLECTIONS,
   SHIFT_PLANNING_WIRE_SCHEMA_VERSION,
@@ -1203,6 +1206,38 @@ export const createFirestoreShiftPlanningRepository = (
     operation,
   );
 
+  const validateCommittedActivation = async (
+    transaction: Transaction,
+    envelope: ParsedRequestEnvelope,
+    operationSnapshot: DocumentSnapshot,
+  ): Promise<void> => {
+    const lifecycle = envelope.lifecycle;
+    if (
+      lifecycle === null ||
+      lifecycle.state !== "completed" ||
+      lifecycle.summary?.status !== "completed" ||
+      lifecycle.artifact?.kind !== "candidate" ||
+      !operationSnapshot.exists
+    ) {
+      return failPersistence("Activation terminal lineage is incomplete.");
+    }
+    const operation = parseShiftPlanningActivationOperationTerminal(
+      operationSnapshot.data(),
+    );
+    if (
+      envelope.request.mode !== "activate" ||
+      operation.environment !== envelope.request.environment ||
+      operation.requestId !== envelope.request.requestId ||
+      operation.operationId !== lifecycle.operationId ||
+      operation.candidateId !== lifecycle.artifact.candidateId ||
+      operation.bundleRevision !== lifecycle.summary.bundleRevision ||
+      operation.bundleDigest !== lifecycle.summary.bundleDigest
+    ) {
+      return failPersistence("Activation terminal operation has drifted.");
+    }
+    await validateTerminalArtifact(transaction, envelope, lifecycle);
+  };
+
   const readClaimed = async (
     transaction: Transaction,
     token: ShiftPlanningClaimToken,
@@ -1394,6 +1429,176 @@ export const createFirestoreShiftPlanningRepository = (
           workerId,
           fencingEpoch,
           requestIntentDigest: operation.requestIntentDigest,
+        },
+      };
+    });
+  };
+
+  const claimActivationRequest = async (input: {
+    environment: ShiftPlanningEnvironment;
+    requestId: string;
+    operationId: string;
+    workerId: string;
+    leaseDurationMillis: number;
+  }): Promise<ShiftPlanningActivationRequestClaim> => {
+    const environment = requireEnvironment(input.environment);
+    const requestId = requirePlanningRequestId(input.requestId);
+    const operationId = requireIdentifier(input.operationId, "operationId");
+    const workerId = requireIdentifier(input.workerId, "workerId");
+    if (
+      operationId !== `request-${requestId}` ||
+      !Number.isSafeInteger(input.leaseDurationMillis) ||
+      input.leaseDurationMillis < 1 ||
+      input.leaseDurationMillis > 24 * 60 * 60 * 1000
+    ) {
+      return failPersistence("Activation claim input is invalid.");
+    }
+    return firestore.runTransaction(async (transaction) => {
+      const requestReference = requestRef(environment, requestId);
+      const operationReference = operationRef(environment, requestId);
+      const [requestSnapshot, operationSnapshot] = await Promise.all([
+        transaction.get(requestReference),
+        transaction.get(operationReference),
+      ]);
+      const envelope = parseRequestEnvelope(requestSnapshot, environment);
+      if (envelope.request.mode !== "activate") {
+        return failPersistence("Activation claim received another mode.");
+      }
+      const nowMillis = readClockMillis();
+      const expiresAtMillis = nowMillis + input.leaseDurationMillis;
+      if (!Number.isSafeInteger(expiresAtMillis)) {
+        return failPersistence("Activation lease expiry is unsafe.");
+      }
+      if (envelope.lifecycle === null) {
+        if (operationSnapshot.exists) {
+          return failPersistence(
+            "Requested activation already has an orphaned operation.",
+          );
+        }
+        const requestIntentDigest = createShiftPlanningDigest(
+          envelope.request,
+        );
+        const lifecycle: ShiftPlanningPersistedLifecycle = {
+          schemaVersion: SHIFT_PLANNING_PERSISTENCE_SCHEMA_VERSION,
+          operationId,
+          requestIntentDigest,
+          state: "processing",
+          lease: {
+            workerId,
+            fencingEpoch: 1,
+            acquiredAtMillis: nowMillis,
+            expiresAtMillis,
+          },
+          terminalDigest: null,
+          summary: null,
+          artifact: null,
+        };
+        transaction.set(
+          requestReference,
+          requestEnvelopeData(envelope.request, lifecycle),
+        );
+        return {
+          kind: "process",
+          request: envelope.request,
+          token: {
+            environment,
+            requestId,
+            operationId,
+            workerId,
+            fencingEpoch: 1,
+            requestIntentDigest,
+          },
+        };
+      }
+      const lifecycle = envelope.lifecycle;
+      if (lifecycle.operationId !== operationId) {
+        return failPersistence(
+          "Activation is already bound to another operation.",
+        );
+      }
+      if (lifecycle.state === "completed") {
+        await validateCommittedActivation(
+          transaction,
+          envelope,
+          operationSnapshot,
+        );
+        return {
+          kind: "activationCommitted",
+          request: envelope.request,
+          workerId: lifecycle.lease.workerId,
+          fencingEpoch: lifecycle.lease.fencingEpoch,
+        };
+      }
+      if (lifecycle.state === "failed") {
+        const operation = parseOperation(operationSnapshot);
+        assertOperationMatchesRequest(operation, envelope);
+        await validateTerminalReplay(transaction, envelope, operation);
+        if (
+          lifecycle.summary?.status !== "failed" ||
+          lifecycle.artifact !== null
+        ) {
+          return failPersistence("Activation failure replay is invalid.");
+        }
+        return {
+          kind: "terminalReplay",
+          request: envelope.request,
+          summary: lifecycle.summary,
+          artifact: null,
+        };
+      }
+      if (operationSnapshot.exists) {
+        return failPersistence(
+          "Processing activation already has a terminal operation.",
+        );
+      }
+      if (lifecycle.lease.expiresAtMillis > nowMillis) {
+        if (lifecycle.lease.workerId === workerId) {
+          return {
+            kind: "resume",
+            request: envelope.request,
+            token: {
+              environment,
+              requestId,
+              operationId,
+              workerId,
+              fencingEpoch: lifecycle.lease.fencingEpoch,
+              requestIntentDigest: lifecycle.requestIntentDigest,
+            },
+          };
+        }
+        return {
+          kind: "busy",
+          request: envelope.request,
+          retryAfterMillis: lifecycle.lease.expiresAtMillis - nowMillis,
+        };
+      }
+      const fencingEpoch = lifecycle.lease.fencingEpoch + 1;
+      if (!Number.isSafeInteger(fencingEpoch)) {
+        return failPersistence("Activation fencing epoch cannot advance.");
+      }
+      const takenOver: ShiftPlanningPersistedLifecycle = {
+        ...lifecycle,
+        lease: {
+          workerId,
+          fencingEpoch,
+          acquiredAtMillis: nowMillis,
+          expiresAtMillis,
+        },
+      };
+      transaction.set(
+        requestReference,
+        requestEnvelopeData(envelope.request, takenOver),
+      );
+      return {
+        kind: "process",
+        request: envelope.request,
+        token: {
+          environment,
+          requestId,
+          operationId,
+          workerId,
+          fencingEpoch,
+          requestIntentDigest: lifecycle.requestIntentDigest,
         },
       };
     });
@@ -1780,151 +1985,84 @@ export const createFirestoreShiftPlanningRepository = (
     });
   };
 
-  const inspectActivationRequest = async (input: {
-    environment: ShiftPlanningEnvironment;
-    requestId: string;
-  }): Promise<ShiftPlanningActivationRequestState> => {
-    const environment = requireEnvironment(input.environment);
-    const requestId = requirePlanningRequestId(input.requestId);
+  const failClaimedActivationRequest = async (input: {
+    token: ShiftPlanningClaimToken;
+    summary: ShiftPlanningFailedSummary;
+  }): Promise<ShiftPlanningActivationFailurePersistenceResult> => {
+    const summary = requireFailedSummaryValue(input.summary);
+    if (
+      summary.mode !== "activate" ||
+      input.token.operationId !== `request-${input.token.requestId}`
+    ) {
+      return failPersistence("Claimed activation failure input is invalid.");
+    }
+    const expectedTerminalDigest = terminalDigest(summary, null);
     return firestore.runTransaction(async (transaction) => {
-      const requestReference = requestRef(environment, requestId);
-      const operationReference = operationRef(environment, requestId);
+      const requestReference = requestRef(
+        input.token.environment,
+        input.token.requestId,
+      );
+      const operationReference = operationRef(
+        input.token.environment,
+        input.token.requestId,
+      );
       const [requestSnapshot, operationSnapshot] = await Promise.all([
         transaction.get(requestReference),
         transaction.get(operationReference),
       ]);
-      const envelope = parseRequestEnvelope(requestSnapshot, environment);
-      if (envelope.request.mode !== "activate") {
-        return failPersistence("Inspected request is not an activation.");
+      const envelope = parseRequestEnvelope(
+        requestSnapshot,
+        input.token.environment,
+      );
+      if (
+        envelope.request.mode !== "activate" ||
+        envelope.request.bundleId !== summary.bundleId ||
+        envelope.lifecycle === null
+      ) {
+        return failPersistence(
+          "Claimed activation failure does not match its request.",
+        );
       }
       const lifecycle = envelope.lifecycle;
-      if (lifecycle === null) {
-        if (operationSnapshot.exists) {
-          return failPersistence(
-            "Requested activation already has an orphaned operation.",
-          );
-        }
-        return {kind: "requested", request: envelope.request};
-      }
-      if (
-        lifecycle.state === "processing" ||
-        lifecycle.summary === null ||
-        lifecycle.operationId !== `request-${requestId}` ||
-        !operationSnapshot.exists
-      ) {
-        return failPersistence("Activation terminal lineage is incomplete.");
+      if (lifecycle.state === "completed") {
+        await validateCommittedActivation(
+          transaction,
+          envelope,
+          operationSnapshot,
+        );
+        return "activationCommitted";
       }
       if (lifecycle.state === "failed") {
         const operation = parseOperation(operationSnapshot);
         assertOperationMatchesRequest(operation, envelope);
         await validateTerminalReplay(transaction, envelope, operation);
-      } else {
-        await validateTerminalArtifact(transaction, envelope, lifecycle);
-      }
-      return {
-        kind: "terminal",
-        request: envelope.request,
-        summary: lifecycle.summary,
-        artifact: lifecycle.artifact,
-      };
-    });
-  };
-
-  const failActivationRequest = async (input: {
-    environment: ShiftPlanningEnvironment;
-    requestId: string;
-    operationId: string;
-    workerId: string;
-    leaseDurationMillis: number;
-    summary: ShiftPlanningFailedSummary;
-  }): Promise<ShiftPlanningActivationFailurePersistenceResult> => {
-    const environment = requireEnvironment(input.environment);
-    const requestId = requirePlanningRequestId(input.requestId);
-    const operationId = requireIdentifier(input.operationId, "operationId");
-    const workerId = requireIdentifier(input.workerId, "workerId");
-    const summary = requireFailedSummaryValue(input.summary);
-    if (
-      operationId !== `request-${requestId}` ||
-      summary.mode !== "activate" ||
-      !Number.isSafeInteger(input.leaseDurationMillis) ||
-      input.leaseDurationMillis < 1 ||
-      input.leaseDurationMillis > 24 * 60 * 60 * 1000
-    ) {
-      return failPersistence("Activation failure terminal input is invalid.");
-    }
-    const expectedTerminalDigest = terminalDigest(summary, null);
-    return firestore.runTransaction(async (transaction) => {
-      const requestReference = requestRef(environment, requestId);
-      const operationReference = operationRef(environment, requestId);
-      const [requestSnapshot, operationSnapshot] = await Promise.all([
-        transaction.get(requestReference),
-        transaction.get(operationReference),
-      ]);
-      const envelope = parseRequestEnvelope(requestSnapshot, environment);
-      if (
-        envelope.request.mode !== "activate" ||
-        envelope.request.bundleId !== summary.bundleId
-      ) {
-        return failPersistence(
-          "Activation failure summary does not match its request.",
-        );
-      }
-      const lifecycle = envelope.lifecycle;
-      if (lifecycle !== null) {
-        if (
-          lifecycle.operationId !== operationId ||
-          !operationSnapshot.exists
-        ) {
-          return failPersistence("Activation terminal lineage is incomplete.");
-        }
-        if (lifecycle.state === "completed") {
-          await validateTerminalArtifact(transaction, envelope, lifecycle);
-          return "activationCommitted";
-        }
-        if (lifecycle.state === "failed") {
-          const operation = parseOperation(operationSnapshot);
-          assertOperationMatchesRequest(operation, envelope);
-          await validateTerminalReplay(transaction, envelope, operation);
-          sameTerminal(operation, expectedTerminalDigest);
-          sameTerminal(lifecycle, expectedTerminalDigest);
-          return "replayed";
-        }
-        return failPersistence(
-          "Activation cannot terminalize a processing lifecycle.",
-        );
+        sameTerminal(operation, expectedTerminalDigest);
+        sameTerminal(lifecycle, expectedTerminalDigest);
+        return "replayed";
       }
       if (operationSnapshot.exists) {
         return failPersistence(
-          "Requested activation already has an orphaned operation.",
+          "Processing activation already has a terminal operation.",
         );
       }
-      const nowMillis = readClockMillis();
-      const expiresAtMillis = nowMillis + input.leaseDurationMillis;
-      if (!Number.isSafeInteger(expiresAtMillis)) {
-        return failPersistence("Activation failure lease expiry is unsafe.");
-      }
-      const terminalLifecycle: ShiftPlanningPersistedLifecycle = {
-        schemaVersion: SHIFT_PLANNING_PERSISTENCE_SCHEMA_VERSION,
-        operationId,
-        requestIntentDigest: createShiftPlanningDigest(envelope.request),
+      assertClaimOwnsLifecycle(
+        input.token,
+        lifecycle,
+        readClockMillis(),
+      );
+      const failedLifecycle = terminalLifecycle({
+        current: lifecycle,
         state: "failed",
-        lease: {
-          workerId,
-          fencingEpoch: 1,
-          acquiredAtMillis: nowMillis,
-          expiresAtMillis,
-        },
-        terminalDigest: expectedTerminalDigest,
         summary,
         artifact: null,
-      };
+      });
       transaction.create(
         operationReference,
-        operationData(envelope.request, terminalLifecycle),
+        operationData(envelope.request, failedLifecycle),
       );
       transaction.set(
         requestReference,
-        requestEnvelopeData(envelope.request, terminalLifecycle),
+        requestEnvelopeData(envelope.request, failedLifecycle),
       );
       return "committed";
     });
@@ -2004,11 +2142,11 @@ export const createFirestoreShiftPlanningRepository = (
 
   return {
     claimRequest,
+    claimActivationRequest,
     completePreview,
     completeStage,
     failRequest,
-    inspectActivationRequest,
-    failActivationRequest,
+    failClaimedActivationRequest,
     loadPersistedPreview,
     preflightActivation,
   };

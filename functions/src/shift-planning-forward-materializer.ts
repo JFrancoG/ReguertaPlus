@@ -24,10 +24,12 @@ import {
 } from "./shift-planning-firestore-transaction-attempt.js";
 import {
   ShiftPlanningActivationPreflight,
+  ShiftPlanningActivationProcessingRequest,
   SHIFT_PLANNING_PERSISTENCE_SCHEMA_VERSION,
   ShiftPlanningPersistedBundleArtifact,
   ShiftPlanningPersistedArtifact,
   buildShiftPlanningCompletedSummary,
+  parseShiftPlanningActivationProcessingRequest,
 } from "./shift-planning-persistence.js";
 import {
   ShiftPlanningActivationOperationTerminal,
@@ -281,24 +283,6 @@ const readDocumentsByPath = (input: {
   return documents;
 };
 
-const requireSafeExpiry = (
-  attemptedAt: Timestamp,
-  durationMillis: number,
-): number => {
-  const startMillis = attemptedAt.toMillis();
-  if (
-    !Number.isSafeInteger(durationMillis) ||
-    durationMillis < 1 ||
-    durationMillis > 24 * 60 * 60 * 1000 ||
-    !Number.isSafeInteger(startMillis) ||
-    startMillis < 0 ||
-    !Number.isSafeInteger(startMillis + durationMillis)
-  ) {
-    return failForward("Activation attempt lease interval is invalid.");
-  }
-  return startMillis + durationMillis;
-};
-
 const nextRotationState = (input: {
   type: "delivery" | "market";
   artifact: ShiftPlanningPersistedBundleArtifact;
@@ -462,10 +446,7 @@ const requestTerminalDocument = (input: {
   artifact: ShiftPlanningPersistedBundleArtifact;
   liveResult: ShiftPlanningBundleResult;
   operationId: string;
-  workerId: string;
-  fencingEpoch: number;
-  attemptedAt: Timestamp;
-  leaseExpiresAtMillis: number;
+  processingLifecycle: ShiftPlanningActivationProcessingRequest["lifecycle"];
   candidateId: string;
   candidateDigest: string;
   bundleArtifactDigest: string;
@@ -483,10 +464,14 @@ const requestTerminalDocument = (input: {
     requestIntentDigest: createShiftPlanningDigest(input.request),
     state: "completed",
     lease: {
-      workerId: input.workerId,
-      fencingEpoch: input.fencingEpoch,
-      acquiredAt: input.attemptedAt,
-      expiresAt: Timestamp.fromMillis(input.leaseExpiresAtMillis),
+      workerId: input.processingLifecycle.lease.workerId,
+      fencingEpoch: input.processingLifecycle.lease.fencingEpoch,
+      acquiredAt: Timestamp.fromMillis(
+        input.processingLifecycle.lease.acquiredAtMillis,
+      ),
+      expiresAt: Timestamp.fromMillis(
+        input.processingLifecycle.lease.expiresAtMillis,
+      ),
     },
     terminalDigest: createShiftPlanningDigest({summary, artifact}),
     summary,
@@ -536,10 +521,6 @@ export const materializeShiftPlanningForwardActivation = (
     input.fencingEpoch,
     "fencingEpoch",
   );
-  const leaseExpiresAtMillis = requireSafeExpiry(
-    attemptedAt,
-    input.leaseDurationMillis,
-  );
   const {request, artifact, positions} = requireLiveLineage(input);
   const root = `${request.environment}/plus-collections`;
   if (operationId !== `request-${request.requestId}`) {
@@ -547,16 +528,30 @@ export const materializeShiftPlanningForwardActivation = (
   }
   const requestPath = `${root}/shiftPlanningRequests/${request.requestId}`;
   const operationPath = `${root}/shiftPlanningOperations/${operationId}`;
+  let processing: ShiftPlanningActivationProcessingRequest;
+  try {
+    processing = parseShiftPlanningActivationProcessingRequest(
+      input.requestDocument.data,
+    );
+  } catch {
+    return failForward("Activation request lifecycle is invalid.");
+  }
+  const processingLease = processing.lifecycle.lease;
+  const attemptedAtMillis = attemptedAt.toMillis();
   if (
     requireDocumentPath(
       input.requestDocument.targetPath,
       request.environment,
       "Activation request target",
     ) !== requestPath ||
-    !sameDigest(
-      parseShiftPlanningRequestV2(input.requestDocument.data),
-      request,
-    )
+    !sameDigest(processing.request, request) ||
+    processing.lifecycle.operationId !== operationId ||
+    processingLease.workerId !== workerId ||
+    processingLease.fencingEpoch !== fencingEpoch ||
+    processingLease.expiresAtMillis - processingLease.acquiredAtMillis !==
+      input.leaseDurationMillis ||
+    attemptedAtMillis < processingLease.acquiredAtMillis ||
+    attemptedAtMillis >= processingLease.expiresAtMillis
   ) {
     return failForward("Activation request changed after preflight.");
   }
@@ -691,10 +686,7 @@ export const materializeShiftPlanningForwardActivation = (
     artifact,
     liveResult: input.liveResult,
     operationId,
-    workerId,
-    fencingEpoch,
-    attemptedAt,
-    leaseExpiresAtMillis,
+    processingLifecycle: processing.lifecycle,
     candidateId: input.preflight.candidate.bundleId,
     candidateDigest: input.preflight.candidate.candidateDigest,
     bundleArtifactDigest: input.preflight.bundle.artifactDigest,

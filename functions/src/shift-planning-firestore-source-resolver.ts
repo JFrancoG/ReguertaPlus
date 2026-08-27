@@ -38,6 +38,9 @@ import {
   parseShiftPlanningActivationOperationTerminal,
 } from "./shift-planning-publication-contract.js";
 import {
+  parseShiftPlanningActivationProcessingRequest,
+} from "./shift-planning-persistence.js";
+import {
   buildShiftPlanningAuthoritativeState,
 } from "./shift-planning-state-persistence.js";
 import {
@@ -352,7 +355,9 @@ export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
       requestSnapshot,
       "activation request",
     );
-    const request = parseShiftPlanningRequestV2(requestDocument.data);
+    const request = parseShiftPlanningActivationProcessingRequest(
+      requestDocument.data,
+    ).request;
     if (
       request.environment !== environment ||
       request.requestId !== requestId ||

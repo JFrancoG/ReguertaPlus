@@ -40,10 +40,6 @@ const {
 const {
   buildShiftPlanningAuthoritativeState,
 } = require("../lib/shift-planning-state-persistence.js");
-const {
-  buildShiftPlanningFailureSummary,
-} = require("../lib/shift-planning-wire.js");
-
 const projectId = "demo-reguerta-hu082-source-producer";
 const environment = "develop";
 const root = `${environment}/plus-collections`;
@@ -549,6 +545,15 @@ emulatorTest(
     });
     const chain = buildPlanningChain(produced.source);
     await seedStagedActivation(database, chain);
+    const repository = createFirestoreShiftPlanningRepository(database);
+    const initialClaim = await repository.claimActivationRequest({
+      environment,
+      requestId: chain.activateRequest.requestId,
+      operationId: `request-${chain.activateRequest.requestId}`,
+      workerId: "source-runtime-worker",
+      leaseDurationMillis: 300_000,
+    });
+    assert.equal(initialClaim.kind, "process");
     const resolver = createGovernedShiftPlanningForwardActivationResolver({
       environment,
       requestId: chain.activateRequest.requestId,
@@ -631,21 +636,14 @@ emulatorTest(
     assert.equal(replayed.result.kind, "terminalReplay");
 
     const operationId = `request-${retryRequest.requestId}`;
-    const repository = createFirestoreShiftPlanningRepository(database);
-    const lateFailure = await repository.failActivationRequest({
+    const lateClaim = await repository.claimActivationRequest({
       environment,
       requestId: retryRequest.requestId,
       operationId,
       workerId: "late-failure-worker",
       leaseDurationMillis: 300_000,
-      summary: buildShiftPlanningFailureSummary({
-        mode: "activate",
-        bundleId: retryRequest.bundleId,
-        scope: "bundle",
-        code: "invalid_planning_transaction",
-      }),
     });
-    assert.equal(lateFailure, "activationCommitted");
+    assert.equal(lateClaim.kind, "activationCommitted");
     assert.equal(
       (await database.doc(
         `${root}/shiftPlanningRequests/${retryRequest.requestId}`,

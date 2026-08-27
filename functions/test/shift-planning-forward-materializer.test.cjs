@@ -411,6 +411,30 @@ const readDocument = (targetPath, data, millis) => ({
 
 const materializerInput = (value = fixture()) => {
   const expected = value.liveResult.expectedState.authoritativeState;
+  const requestIntentDigest = createShiftPlanningDigest(
+    value.preflight.request,
+  );
+  const acquiredAt = Timestamp.fromMillis(attemptedAt.toMillis() - 1_000);
+  const expiresAt = Timestamp.fromMillis(acquiredAt.toMillis() + 60_000);
+  const processingRequest = {
+    ...value.requestDocumentData,
+    status: "processing",
+    lifecycle: {
+      schemaVersion: 1,
+      operationId: `request-${value.preflight.request.requestId}`,
+      requestIntentDigest,
+      state: "processing",
+      lease: {
+        workerId: "worker-activation-1",
+        fencingEpoch: 1,
+        acquiredAt,
+        expiresAt,
+      },
+      terminalDigest: null,
+      summary: null,
+      artifact: null,
+    },
+  };
   return {
     operationId: `request-${value.preflight.request.requestId}`,
     workerId: "worker-activation-1",
@@ -422,7 +446,7 @@ const materializerInput = (value = fixture()) => {
     requestDocument: readDocument(
       `develop/plus-collections/shiftPlanningRequests/` +
         value.preflight.request.requestId,
-      value.requestDocumentData,
+      processingRequest,
       1_788_307_100_000,
     ),
     beforeImageDocuments: [
@@ -504,6 +528,24 @@ test("rejects live bundle drift and incomplete before-images", () => {
     missingBeforeImage.beforeImageDocuments.slice(1);
   assert.throws(
     () => materializeShiftPlanningForwardActivation(missingBeforeImage),
+    errorCode("invalid_planning_forward_materialization"),
+  );
+});
+
+test("rejects stale and expired activation claims before publication", () => {
+  const staleWorker = materializerInput();
+  staleWorker.workerId = "stale-activation-worker";
+  assert.throws(
+    () => materializeShiftPlanningForwardActivation(staleWorker),
+    errorCode("invalid_planning_forward_materialization"),
+  );
+
+  const expired = materializerInput();
+  expired.requestDocument.data.lifecycle.lease.acquiredAt =
+    Timestamp.fromMillis(attemptedAt.toMillis() - 60_000);
+  expired.requestDocument.data.lifecycle.lease.expiresAt = attemptedAt;
+  assert.throws(
+    () => materializeShiftPlanningForwardActivation(expired),
     errorCode("invalid_planning_forward_materialization"),
   );
 });

@@ -372,6 +372,15 @@ does not populate Firestore public shifts or activate either mobile app.
   per-type or visible multi-batch promotion is forbidden.
 - Each mode has one exact bundle request that transitions through `requested`,
   `processing`, and one terminal state: `completed` or `failed`.
+- Activation owns a transactional request-only lease before entering the public
+  CAS. The operation document remains absent while processing because the same
+  path is created atomically as the committed activation terminal. A live
+  competing worker receives `busy`; the same worker resumes; expiry permits a
+  monotonically fenced takeover. Every CAS retry revalidates the exact worker,
+  fencing epoch, lease interval, and immutable request digest. Recovery never
+  reopens that request or creates a competing lifecycle authority: it consumes
+  the immutable activation terminal and retains/replays its own directional
+  attempt outcome.
 - Activation may persist `failed` only for a typed deterministic planning error
   thrown inside the Firestore transaction callback before it returns for commit.
   That failure write uses request/operation CAS: a concurrent committed activation

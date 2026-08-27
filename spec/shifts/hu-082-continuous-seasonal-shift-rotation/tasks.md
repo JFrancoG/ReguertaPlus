@@ -444,7 +444,7 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Validation: Node 22 Functions lint/build, 5/5 focused retention vectors,
     and 206 planning vectors with eleven emulator-only skips pass. No shared
     Firebase/Sheets write, trigger export, deployment, or live event occurred.
-- [ ] Make `requested -> processing -> completed|failed` idempotent and safe
+- [x] Make `requested -> processing -> completed|failed` idempotent and safe
   under retry or competing triggers.
   - [x] Implement and test that lifecycle for private `preview` and `stage`,
     including busy/resume, expired takeover, fencing, exact terminal summaries,
@@ -453,8 +453,18 @@ occurred. Protected technical evidence remains outside the repository.
     short-circuit busy/replay, load persisted preview for stage, terminalize only
     typed deterministic failures, load the authoritative state for preview/stage,
     and keep activate read-only over the exact candidate/bundle/position package.
-  - [ ] Extend the lifecycle to the future v2 activation runtime and its recovery
-    and retention policy before checking the parent task.
+  - [x] Extend the lifecycle to the v2 activation runtime. Activation claims only
+    the request while the operation path remains absent for the atomic CAS;
+    busy/resume, expired takeover, fencing, deterministic pre-commit failure,
+    completed replay, and stale/expired claim rejection are covered locally and
+    in Firestore emulators. Recovery does not open a second request lifecycle:
+    it reuses the immutable activation terminal plus independently retained
+    directional outcomes, while the previously frozen operation/event retention
+    policy remains the HU-083 persistence handoff.
+  - [x] Validation: Node 22 Functions lint/build, 5/5 focused forward-materializer
+    vectors, 14/14 repository-emulator vectors, 2/2 source-resolver activation/
+    recovery vectors, and 3/3 governed source/runtime vectors pass. No deploy,
+    live Firestore write, trigger export, Sheets call, or notification occurred.
 - [ ] Write client-compatible `source = app` plus planner provenance.
 - [ ] Publish rotation state, shifts, and request summary without partial cursor
   advancement; hold notifications until governed release.

@@ -228,7 +228,15 @@ frontera de inmutabilidad del candidato staged es la misma: activacion/recovery
 nunca lo actualizan ni restauran y nunca lo capturan como before-image. Stage no
 puede poseer una medicion exacta de una transaccion futura porque aun no existen
 los IDs de activacion/recovery, before-images, precondiciones, payloads ni el token
-opaco de la transaccion Firestore. Por ello, el serializador exacto acepta el
+opaco de la transaccion Firestore.
+El runtime gobernado de activacion reclama primero un lease solo en la request; no
+crea el documento de operacion durante processing porque el CAS forward debe crear
+esa misma ruta atomicamente como terminal. Un competidor con lease vivo recibe
+`busy`, el owner puede reanudar y el vencimiento permite un fencing epoch superior.
+Cada retry del CAS verifica digest de request, worker, epoch e intervalo del lease.
+Recovery consume el terminal inmutable de activacion y solo posee su outcome inverse
+retenido por separado, por lo que nunca reabre la request ni establece otra autoridad
+de lifecycle. Por ello, el serializador exacto acepta el
 `WriteBatch` real propiedad de cada intento transaccional completamente resuelto y
 se ejecuta antes de las escrituras publicas; liga el digest de su write-set ordenado
 y el digest/conteo de bytes del `CommitRequest` protobuf completo. El adaptador local

@@ -409,6 +409,15 @@ const claim = (requestId, workerId) => repository.claimRequest({
   leaseDurationMillis: 10_000,
 });
 
+const claimActivation = (requestId, workerId) =>
+  repository.claimActivationRequest({
+    environment: ENVIRONMENT,
+    requestId,
+    operationId: `request-${requestId}`,
+    workerId,
+    leaseDurationMillis: 10_000,
+  });
+
 const completePreview = async (requestId = "preview-001") => {
   await seedRequest({requestId});
   const acquired = await claim(requestId, "worker-preview");
@@ -530,6 +539,82 @@ test("claim is exclusive and an expired takeover fences the old worker", async (
   await assertPlanningDocuments([
     requestPath("preview-claim"),
     operationPath("preview-claim"),
+  ]);
+});
+
+test("activation claim resumes, fences takeover, and replays failure", async () => {
+  const requestId = "activate-claim";
+  await seedRequest({
+    requestId,
+    mode: "activate",
+    binding: {
+      kind: "candidate",
+      candidateId: "bundle-2026",
+      bundleRevision: BUNDLE_REVISION,
+      bundleDigest: BUNDLE_DIGEST,
+      candidateDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+    },
+  });
+  const first = await Promise.all([
+    claimActivation(requestId, "activation-worker-a"),
+    claimActivation(requestId, "activation-worker-b"),
+  ]);
+  assert.deepEqual(first.map(({kind}) => kind).sort(), ["busy", "process"]);
+  const owner = first.find(({kind}) => kind === "process");
+  const competitor = first.find(({kind}) => kind === "busy");
+  assert.equal(competitor.retryAfterMillis, 10_000);
+  assert.equal(
+    (await firestore.doc(operationPath(requestId)).get()).exists,
+    false,
+  );
+  const processing = (await firestore.doc(requestPath(requestId)).get()).data();
+  assert.equal(processing.status, "processing");
+  assert.equal(processing.lifecycle.lease.fencingEpoch, 1);
+
+  const resumed = await claimActivation(requestId, owner.token.workerId);
+  assert.equal(resumed.kind, "resume");
+  assert.deepEqual(resumed.token, owner.token);
+
+  nowMillis += 10_001;
+  const nextWorker = owner.token.workerId === "activation-worker-a" ?
+    "activation-worker-b" : "activation-worker-a";
+  const takeover = await claimActivation(requestId, nextWorker);
+  assert.equal(takeover.kind, "process");
+  assert.equal(takeover.token.fencingEpoch, 2);
+  const failure = buildShiftPlanningFailureSummary({
+    mode: "activate",
+    bundleId: "bundle-2026",
+    scope: "bundle",
+    code: "invalid_planning_transaction",
+  });
+  await assert.rejects(
+    repository.failClaimedActivationRequest({
+      token: owner.token,
+      summary: failure,
+    }),
+    (error) => error.code === "request_intent_conflict",
+  );
+  assert.equal(
+    await repository.failClaimedActivationRequest({
+      token: takeover.token,
+      summary: failure,
+    }),
+    "committed",
+  );
+  assert.equal(
+    await repository.failClaimedActivationRequest({
+      token: takeover.token,
+      summary: failure,
+    }),
+    "replayed",
+  );
+  const replay = await claimActivation(requestId, "activation-worker-c");
+  assert.equal(replay.kind, "terminalReplay");
+  assert.deepEqual(replay.summary, failure);
+  assert.equal(replay.artifact, null);
+  await assertPlanningDocuments([
+    requestPath(requestId),
+    operationPath(requestId),
   ]);
 });
 

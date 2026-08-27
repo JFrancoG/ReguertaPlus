@@ -371,14 +371,14 @@ binds `requestId`, `environment`, and `requestedByUserId` to authenticated path
 state. No client may update or delete a request.
 
 A private Firestore repository now implements the local/emulator lifecycle for
-`preview` and `stage`. A transactional claim binds the immutable intake to an
+all schema-v2 modes. A transactional claim binds the immutable intake to an
 operation and processing lease. The same worker may resume, a different worker
 receives `busy` while the lease is live, and an expired-lease takeover increments
 the fencing epoch so the previous owner can no longer finish. Exact terminal
-state replays without invoking planning or rewriting artifacts. Preview and
-stage therefore persist `requested -> processing -> completed|failed` with a
-stable typed summary and no raw internal error message. This repository is not
-wired to the legacy runtime trigger.
+state replays without invoking planning or rewriting artifacts. Preview, stage,
+and activate therefore persist `requested -> processing -> completed|failed`
+with a stable typed summary and no raw internal error message. The governed
+schema-v2 runtime is isolated from the unchanged legacy route.
 
 ### 4.8.c `shiftPlanningCandidates/{bundleId}`
 
@@ -416,21 +416,26 @@ The pure contract and private repository enforce this artifact chain:
    before-images, and opaque transaction token do not exist yet. Each child carries its canonical payload,
    `positionDigest`, `candidateDigest`, and candidate/bundle lineage. Exact replay
    verifies missing, extra, aliased, or altered children and never rewrites them.
-3. The current `activate` boundary is read-only preflight. It loads and verifies
-   the persisted staged candidate, its immutable preview bundle, and the complete
-   position set against `candidateId`, both artifact digests, bundle lineage,
-   counts, and set/position digests. It does not claim or
-   complete the request and performs no write. The immutable preview bundle
-   remains the planning authority; positions are a queryable inspection
-   projection, not a second authority. The future runtime caller must recompute
-   and revalidate the live input snapshot and bundle digest before any CAS or
-   public activation.
+3. `activate` claims a request-only processing lease before entering the governed
+   CAS. Its operation path remains absent until the same atomic transaction
+   creates the completed activation terminal, so no provisional operation can
+   conflict with that tombstone. The preflight loader verifies the persisted
+   staged candidate, immutable preview bundle, and complete position set; every
+   transaction retry then rebuilds the live source and revalidates request digest,
+   worker, fencing epoch, lease interval, candidate, bundle, and positions before
+   public writes. A deterministic pre-commit rejection terminalizes only the
+   still-owned claim. A committed activation replays from its terminal and
+   retained forward outcome. Inverse recovery consumes that immutable terminal
+   and retains a separate directional outcome instead of reopening the request
+   or introducing a second lifecycle authority. The immutable preview bundle
+   remains the planning authority; positions remain a queryable inspection
+   projection, not a second authority.
 
 The planner remains side-effect free. The local/emulator repository proves
 private receipt, bundle, lifecycle, candidate-header, and inspection-position
-persistence. A separate local forward materializer now builds and seals the exact
-activation mutation set, but the repository/runtime does not yet load every live
-fairness input or execute the production publication CAS.
+persistence. The governed runtime now reloads every live fairness input and
+executes the measured publication CAS in Firestore emulators; production deploy
+and activation remain explicitly pending.
 Bundle, receipt, and candidate use internal artifact schema v2 and
 `bundle-v2-*` revisions. Transaction measurements use their own internal schema
 v1. The request remains `schemaVersion = 2`; the public wire terminal summary

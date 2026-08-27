@@ -122,8 +122,8 @@ const requireRequestIdentity = (input: {
 /**
  * Composes the v2 request lifecycle and measured CAS executors around one
  * Firestore authority. Preview and stage remain private lifecycle operations;
- * activation enters the retry-scoped CAS directly so terminal replays never
- * depend on an out-of-transaction preflight.
+ * activation claims its request-only lease before entering the retry-scoped
+ * CAS, so terminal replays never depend on an out-of-transaction preflight.
  * @param {Firestore} firestore Pinned Firestore authority.
  * @return {ShiftPlanningFirestoreRuntime} Request and recovery runtime ports.
  */
@@ -143,30 +143,47 @@ export const createFirestoreShiftPlanningRuntime = (
       const request = requireRequestIdentity(input);
       const operationId = `request-${request.requestId}`;
       if (request.mode === "activate") {
-        const inspected = await persistence.inspectActivationRequest({
+        const claim = await persistence.claimActivationRequest({
           environment: request.environment,
           requestId: request.requestId,
+          operationId,
+          workerId: input.workerId,
+          leaseDurationMillis:
+            SHIFT_PLANNING_REQUEST_LEASE_DURATION_MILLIS,
         });
         if (
-          createShiftPlanningDigest(inspected.request) !==
+          createShiftPlanningDigest(claim.request) !==
           createShiftPlanningDigest(request)
         ) {
           return failRuntime("Activation event intent has changed in storage.");
         }
-        if (
-          inspected.kind === "terminal" &&
-          inspected.summary.status === "failed"
-        ) {
+        if (claim.kind === "busy") {
+          return {
+            kind: "lifecycle",
+            result: {
+              kind: "busy",
+              request: claim.request,
+              retryAfterMillis: claim.retryAfterMillis,
+            },
+          };
+        }
+        if (claim.kind === "terminalReplay") {
           return {
             kind: "lifecycle",
             result: {
               kind: "terminalReplay",
-              request: inspected.request,
-              summary: inspected.summary,
-              artifact: inspected.artifact,
+              request: claim.request,
+              summary: claim.summary,
+              artifact: claim.artifact,
             },
           };
         }
+        const token = claim.kind === "activationCommitted" ? null :
+          claim.token;
+        const workerId = claim.kind === "activationCommitted" ?
+          claim.workerId : claim.token.workerId;
+        const fencingEpoch = claim.kind === "activationCommitted" ?
+          claim.fencingEpoch : claim.token.fencingEpoch;
         const executeActivation = async (): Promise<
           ShiftPlanningFirestoreRequestRuntimeResult
         > => ({
@@ -174,8 +191,8 @@ export const createFirestoreShiftPlanningRuntime = (
           result: await casRuntime.executeForwardActivation({
             environment: request.environment,
             operationId,
-            workerId: input.workerId,
-            fencingEpoch: 1,
+            workerId,
+            fencingEpoch,
             leaseDurationMillis:
               SHIFT_PLANNING_REQUEST_LEASE_DURATION_MILLIS,
             resolveAttempt:
@@ -191,6 +208,11 @@ export const createFirestoreShiftPlanningRuntime = (
           if (!(error instanceof ShiftPlanningCasRejectedBeforeCommitError)) {
             throw error;
           }
+          if (token === null) {
+            return failRuntime(
+              "Committed activation replay was rejected before commit.",
+            );
+          }
           const summary = buildShiftPlanningDeterministicFailureSummary({
             request,
             error: error.planningError,
@@ -200,15 +222,11 @@ export const createFirestoreShiftPlanningRuntime = (
               "Pre-commit rejection has no deterministic planning summary.",
             );
           }
-          const persistenceResult = await persistence.failActivationRequest({
-            environment: request.environment,
-            requestId: request.requestId,
-            operationId,
-            workerId: input.workerId,
-            leaseDurationMillis:
-              SHIFT_PLANNING_REQUEST_LEASE_DURATION_MILLIS,
-            summary,
-          });
+          const persistenceResult =
+            await persistence.failClaimedActivationRequest({
+              token,
+              summary,
+            });
           if (persistenceResult === "activationCommitted") {
             return executeActivation();
           }

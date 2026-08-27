@@ -475,15 +475,15 @@ enlazado puede crear y leer peticiones; la creacion tambien liga `requestId`,
 cliente puede actualizar ni borrar una peticion.
 
 Un repositorio Firestore privado ya implementa en local/emulador el lifecycle de
-`preview` y `stage`. Un claim transaccional liga el intake inmutable a una
+todos los modos schema-v2. Un claim transaccional liga el intake inmutable a una
 operacion y a su lease de procesamiento. El mismo worker puede reanudar, otro
 recibe `busy` mientras el lease siga vigente y un takeover tras expirar incrementa
 el fencing epoch para que el owner anterior ya no pueda terminar. Un estado
 terminal exacto devuelve replay sin invocar planificacion ni reescribir
-artefactos. Preview y stage persisten asi
+artefactos. Preview, stage y activate persisten asi
 `requested -> processing -> completed|failed` con resumen estable tipado y sin
-mensajes internos de error sin tipar. Este repositorio no esta conectado al
-trigger runtime legacy.
+mensajes internos de error sin tipar. El runtime gobernado schema-v2 queda
+aislado de la ruta legacy sin cambios.
 
 ## 4.8.c `shiftPlanningCandidates/{bundleId}`
 
@@ -524,21 +524,25 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
    contiene payload canonico, `positionDigest`, `candidateDigest` y linaje de
    candidato/bundle. El replay exacto rechaza hijas ausentes, extra, aliasadas o
    alteradas y nunca las reescribe.
-3. La frontera `activate` actual es un preflight de solo lectura. Carga y valida
-   el candidato staged persistido, su bundle preview inmutable y el conjunto
-   completo de posiciones frente a `candidateId`, ambos digests de artefacto,
-   linaje de bundle, conteos y digests de conjunto y
-   posicion. No reclama ni completa la peticion y no escribe. El bundle preview
-   inmutable sigue siendo la autoridad de planificacion; las posiciones son una
-   proyeccion consultable de inspeccion, no otra autoridad. El caller runtime
-   futuro debe recalcular y revalidar el snapshot live de entradas y el digest
-   del bundle antes de cualquier CAS o activacion publica.
+3. `activate` reclama un lease de procesamiento solo en la request antes de entrar
+   en el CAS gobernado. Su ruta de operacion permanece ausente hasta que la misma
+   transaccion atomica crea el terminal completed de activacion, evitando que una
+   operacion provisional colisione con ese tombstone. El preflight valida candidato
+   staged, bundle preview inmutable y posiciones completas; cada retry reconstruye
+   despues la fuente live y revalida digest de request, worker, fencing epoch,
+   intervalo del lease, candidato, bundle y posiciones antes de escribir en
+   publico. Un rechazo determinista pre-commit solo terminaliza el claim que aun
+   posee. Una activacion committed se reproduce desde terminal y outcome forward
+   retenido. Recovery inverse consume ese terminal inmutable y retiene un outcome
+   direccional separado, sin reabrir la request ni crear una segunda autoridad de
+   lifecycle. El bundle preview inmutable sigue siendo la autoridad de planificacion
+   y las posiciones una proyeccion consultable, no otra autoridad.
 
 El planner sigue sin side effects. El repositorio local/emulador prueba la
 persistencia privada de recibo, bundle, lifecycle, cabecera de candidato y
-posiciones de inspeccion. Un materializador forward local separado ya construye
-y sella el conjunto exacto de mutaciones de activacion, pero repositorio/runtime
-aun no carga todos los inputs live de fairness ni ejecuta el CAS productivo.
+posiciones de inspeccion. El runtime gobernado ya recarga todos los inputs live de
+fairness y ejecuta el CAS medido de publicacion en emuladores Firestore; despliegue
+y activacion de produccion siguen pendientes de forma explicita.
 Bundle, recibo y candidato usan schema v2 interno de artefacto y revisiones
 `bundle-v2-*`. Las mediciones transaccionales usan su propio schema v1 interno.
 La peticion conserva `schemaVersion = 2` y el resumen terminal publico wire

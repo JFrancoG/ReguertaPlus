@@ -218,6 +218,14 @@ The staged candidate has the same immutability boundary: activation/recovery nev
 updates or restores it and never captures it as a before-image. Stage cannot own an
 exact future transaction measurement because activation/recovery IDs, before-images,
 preconditions, payloads, and the opaque Firestore transaction token do not exist yet.
+The governed activation runtime first claims a request-only lease; it deliberately
+does not create the operation document while processing because the forward CAS
+must create that same path atomically as its terminal. Live competitors receive
+`busy`, the owner may resume, and expiry permits a higher fencing epoch. Every CAS
+retry verifies the request digest, worker, epoch, and lease interval. Recovery
+consumes the immutable activation terminal and owns only its separately retained
+inverse outcome, so it never reopens the request or establishes another lifecycle
+authority.
 The exact serializer therefore accepts the actual `WriteBatch` owned by each fully
 resolved transaction attempt, runs before public writes, and binds both its ordered
 write-set digest and complete protobuf `CommitRequest` digest/byte count. The local

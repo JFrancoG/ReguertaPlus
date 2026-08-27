@@ -21,6 +21,9 @@ const {
   createFirestoreShiftPlanningCasRuntime,
 } = require("../lib/shift-planning-firestore-cas-runtime.js");
 const {
+  createFirestoreShiftPlanningRepository,
+} = require("../lib/shift-planning-firestore-repository.js");
+const {
   createFirestoreShiftPlanningForwardActivationResolver,
   createFirestoreShiftPlanningInverseRecoveryResolver,
   createShiftPlanningLiveSourceDocument,
@@ -390,6 +393,16 @@ test(
     const chain = planningChain();
     await seedActivation(database, chain);
     const operationId = `request-${chain.activateRequest.requestId}`;
+    const leaseDurationMillis = 300_000;
+    const claim = await createFirestoreShiftPlanningRepository(database)
+      .claimActivationRequest({
+        environment,
+        requestId: chain.activateRequest.requestId,
+        operationId,
+        workerId: "source-resolver-worker",
+        leaseDurationMillis,
+      });
+    assert.equal(claim.kind, "process");
     const runtime = createFirestoreShiftPlanningCasRuntime(database);
     const sourceReference = database.doc(
       `${root}/shiftPlanningState/fairness`,
@@ -410,9 +423,9 @@ test(
       runtime.executeForwardActivation({
         environment,
         operationId,
-        workerId: "source-resolver-worker",
-        fencingEpoch: 1,
-        leaseDurationMillis: 60_000,
+        workerId: claim.token.workerId,
+        fencingEpoch: claim.token.fencingEpoch,
+        leaseDurationMillis,
         resolveAttempt:
           createFirestoreShiftPlanningForwardActivationResolver({
             environment,
@@ -420,7 +433,9 @@ test(
             rebuildLiveSource: rebuildPersistedSource,
           }),
       }),
-      errorCode("candidate_binding_mismatch"),
+      (error) =>
+        error.name === "ShiftPlanningCasRejectedBeforeCommitError" &&
+        error.planningError?.code === "candidate_binding_mismatch",
     );
     assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
     assert.equal(
@@ -437,9 +452,9 @@ test(
     const activation = await runtime.executeForwardActivation({
       environment,
       operationId,
-      workerId: "source-resolver-worker",
-      fencingEpoch: 1,
-      leaseDurationMillis: 60_000,
+      workerId: claim.token.workerId,
+      fencingEpoch: claim.token.fencingEpoch,
+      leaseDurationMillis,
       resolveAttempt:
         createFirestoreShiftPlanningForwardActivationResolver({
           environment,
