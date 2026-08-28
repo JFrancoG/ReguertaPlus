@@ -19,6 +19,11 @@ const {
   parseShiftPlanningBeforeImageEnvelope,
   parseShiftPlanningPublicShiftDocument,
 } = require("../lib/shift-planning-publication-contract.js");
+const {
+  applyMemberSwap,
+  buildShiftSwapCandidates,
+  recomputeDeliveryHelpers,
+} = require("../lib/shift-swap-security.js");
 
 const digest = (character) =>
   `shift-planning:v1:sha256:${character.repeat(64)}`;
@@ -96,6 +101,12 @@ const materialization = (position = deliveryPosition()) =>
     attemptedAt: ATTEMPTED_AT,
   });
 
+const swapShift = (value) => ({
+  ...value.payload,
+  id: value.targetPath.split("/").at(-1),
+  dateMillis: value.payload.date.toMillis(),
+});
+
 const terminal = (publicMutations, beforeImages = []) =>
   createShiftPlanningActivationOperationTerminal({
     operationId: "activate-operation-1",
@@ -166,6 +177,136 @@ test("builds exact client-compatible delivery and market payloads", () => {
   assert.equal(market.payload.positionInRound, null);
   assert.equal(market.payload.planningReason, null);
   assert.equal(market.payload.rotationPositions.length, 3);
+});
+
+test("keeps planner ownership through reciprocal delivery swaps", () => {
+  const first = materialization();
+  const second = materialization({
+    ...deliveryPosition(),
+    positionId: "shift_delivery_20260909",
+    shiftId: "shift_delivery_20260909",
+    scheduledDate: "2026-09-09",
+    rotationOwnerUserIds: ["member-2"],
+    assignedUserIds: ["member-2"],
+    rotationPositions: [{
+      rotationOwnerUserId: "member-2",
+      effectiveAssigneeUserId: "member-2",
+      roundNumber: 2,
+      positionInRound: 5,
+      planningReason: "target",
+    }],
+    helperUserId: "member-3",
+  });
+  const third = materialization({
+    ...deliveryPosition(),
+    positionId: "shift_delivery_20260916",
+    shiftId: "shift_delivery_20260916",
+    scheduledDate: "2026-09-16",
+    rotationOwnerUserIds: ["member-3"],
+    assignedUserIds: ["member-3"],
+    rotationPositions: [{
+      rotationOwnerUserId: "member-3",
+      effectiveAssigneeUserId: "member-3",
+      roundNumber: 2,
+      positionInRound: 6,
+      planningReason: "target",
+    }],
+    helperUserId: null,
+  });
+  const original = [first, second, third].map(swapShift);
+
+  assert.deepEqual(
+    buildShiftSwapCandidates(
+      original[0],
+      original,
+      "member-1",
+      original[0].dateMillis,
+    ),
+    [{userId: "member-3", shiftId: "shift_delivery_20260916"}],
+  );
+
+  const [swappedFirst, swappedThird] = applyMemberSwap(
+    original[0],
+    original[2],
+    "member-1",
+    "member-3",
+  );
+  const recomputed = recomputeDeliveryHelpers([
+    swappedFirst,
+    original[1],
+    swappedThird,
+  ]);
+
+  assert.deepEqual(
+    recomputed.map((shift) => shift.assignedUserIds),
+    [["member-3"], ["member-2"], ["member-1"]],
+  );
+  assert.deepEqual(
+    recomputed.map((shift) => shift.helperUserId),
+    ["member-2", "member-1", null],
+  );
+  assert.deepEqual(
+    recomputed.map((shift) => shift.rotationOwnerUserId),
+    ["member-1", "member-2", "member-3"],
+  );
+  assert.equal(recomputed.every((shift) => shift.origin === "planner"), true);
+  assert.equal(
+    recomputed.every((shift) => shift.bundleDigest === BUNDLE_DIGEST),
+    true,
+  );
+});
+
+test("keeps market groups complete and distinct through reciprocal swaps", () => {
+  const first = swapShift(materialization(marketPosition()));
+  const second = swapShift(materialization({
+    ...marketPosition(),
+    positionId: "shift_market_20261017",
+    shiftId: "shift_market_20261017",
+    scheduledDate: "2026-10-17",
+    rotationOwnerUserIds: ["member-4", "member-5", "member-6"],
+    assignedUserIds: ["member-4", "member-5", "member-6"],
+    rotationPositions: [
+      {
+        rotationOwnerUserId: "member-4",
+        effectiveAssigneeUserId: "member-4",
+        roundNumber: 1,
+        positionInRound: 4,
+        planningReason: "target",
+      },
+      {
+        rotationOwnerUserId: "member-5",
+        effectiveAssigneeUserId: "member-5",
+        roundNumber: 1,
+        positionInRound: 5,
+        planningReason: "target",
+      },
+      {
+        rotationOwnerUserId: "member-6",
+        effectiveAssigneeUserId: "member-6",
+        roundNumber: 1,
+        positionInRound: 6,
+        planningReason: "target",
+      },
+    ],
+  }));
+
+  const [swappedFirst, swappedSecond] = applyMemberSwap(
+    first,
+    second,
+    "member-1",
+    "member-4",
+  );
+
+  assert.deepEqual(swappedFirst.assignedUserIds,
+    ["member-4", "member-2", "member-3"]);
+  assert.deepEqual(swappedSecond.assignedUserIds,
+    ["member-1", "member-5", "member-6"]);
+  assert.equal(new Set(swappedFirst.assignedUserIds).size, 3);
+  assert.equal(new Set(swappedSecond.assignedUserIds).size, 3);
+  assert.deepEqual(swappedFirst.rotationOwnerUserIds,
+    ["member-1", "member-2", "member-3"]);
+  assert.deepEqual(swappedSecond.rotationOwnerUserIds,
+    ["member-4", "member-5", "member-6"]);
 });
 
 test("binds every public marker to its exact payload and operation", () => {

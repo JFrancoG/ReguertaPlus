@@ -784,7 +784,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   an unknown changed backend-only marker fails closed and alerts without side
   effects, while cleanup never removes replay evidence early. HU-083 owns that
   production consumer implementation and integration evidence.
-- [ ] Existing reciprocal swaps remain valid for generated future shifts.
+- [x] Existing reciprocal swaps remain valid for generated future shifts.
 - [ ] Automated and emulator/local acceptance prove all invariants before the
   shared-project deployment governed by HU-085.
 

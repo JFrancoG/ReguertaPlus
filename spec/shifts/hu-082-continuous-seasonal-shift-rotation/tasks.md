@@ -758,11 +758,20 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] OS push-open routing exercises the same refresh, authorization, current-
     assignment, session/environment, and ephemeral-detail policy as inbox opening.
   - [ ] Remaining: complete the old/current/candidate rollout matrix under HU-085.
-- [ ] Store held notification intents outside every currently watched consumer
+- [x] Store held notification intents outside every currently watched consumer
   path; create canonical events only during explicit idempotent release.
+  - [x] The backend-only `shiftPlanningNotificationIntents` outbox is denied to
+    clients by strict Rules; only the explicit release repository creates the
+    canonical event and inbox copy under the stable intent/event identifier.
 - [ ] Test old/current/candidate consumer and rollback combinations against the
   held outbox.
-- [ ] Preserve existing reciprocal swap behavior for newly generated shifts.
+  - [ ] Remaining: execute the installed/candidate consumer and rollback matrix
+    under the controlled HU-085 rollout.
+- [x] Preserve existing reciprocal swap behavior for newly generated shifts.
+  - [x] Cross-contract tests prove generated delivery and market documents remain
+    eligible for reciprocal swaps, retain immutable planner/rotation ownership,
+    recompute delivery helpers from the next effective lead, and keep market groups
+    complete and distinct.
 - [x] Update strict Firestore Rules and bilingual collection documentation for the
   exact local v2 request, admin-readable/backend-written candidate, and eight
   backend-only control-plane partitions; do not deploy either Rules candidate.

@@ -907,6 +907,23 @@ Rules deployment, FCM submission, shared Firebase write, Sheets access, or
 production activation occurred. The old/current/candidate rollout matrix remains
 owned by HU-085.
 
+## Local implementation checkpoint — reciprocal swap compatibility (2026-08-29)
+
+Generated delivery and market public documents now have explicit cross-contract
+coverage against the existing reciprocal swap implementation. Delivery swaps retain
+the immutable planner and rotation-owner lineage while changing only effective
+assignments, and the existing helper recomputation points each uncompleted row to
+the next chronological effective lead. Market swaps retain complete, distinct
+three-person groups and their original fairness ownership.
+
+The audit also confirms that held planning intents live only in the backend-owned
+`shiftPlanningNotificationIntents` outbox and become consumable canonical events
+only through explicit idempotent release. The installed/current/candidate consumer
+and rollback matrix remains a controlled HU-085 rollout responsibility. Focused
+Functions build and all eight publication-contract tests pass. No deployment,
+emulator write, live Firebase mutation, Sheets access, or production activation
+occurred.
+
 ## Suggested labels
 
 - `type:feature`
