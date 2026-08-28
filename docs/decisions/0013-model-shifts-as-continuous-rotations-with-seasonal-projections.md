@@ -458,15 +458,21 @@ re-reading the active bundle, canonical intents, inactive dispatch counters, and
 named attempts. It advances the maintenance epoch and both rotation revisions,
 retains the activation epoch on both incident-owned degraded leases, creates all
 affected-shift fences, and stores immutable digest-bound replay evidence. Any
-partial fence or lineage/evidence drift writes nothing. Terminal persistence and
-cleanup remain separate.
+partial fence or lineage/evidence drift writes nothing. After expiry, a second
+local CAS revalidates the same authority and current inactive dispatch evidence,
+creates one immutable terminal marker per intent, persists exact cancellations,
+deletes every exact affected-shift fence, clears both leases, advances shared
+state, and records digest-bound replay. Release and dispatch read the terminal
+marker and cannot resurrect the intent. Missing/drifting fences, partial markers,
+evidence drift, or incomplete/excess cancellation writes nothing; entry bounds
+the combined intent/fence set so terminalization fits one Firestore transaction.
 Each affected shift now has a deterministic backend-only incident-fence contract
 bound to the incident, bundle lineage, owner, safe-resume digest, and bounded TTL.
 Backend transactional writers and strict Rules inspect it alongside short dispatch
 fences. Active exact evidence blocks only that shift, expiry reopens it, malformed
 evidence fails closed, and Phase 1 keeps the new partition private. Degraded entry
-creates them atomically; the terminal incident CAS remains responsible for deleting
-the exact set atomically with final lease resolution.
+creates them atomically; the terminal incident CAS deletes the exact set
+atomically with final lease resolution.
 An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as

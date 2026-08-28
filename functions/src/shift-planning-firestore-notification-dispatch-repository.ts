@@ -51,6 +51,8 @@ import {
 import {
   ShiftPlanningEnvironment,
 } from "./shift-planning-wire.js";
+import {parseShiftPlanningNotificationTerminalMarker} from
+  "./shift-planning-notification-terminal-marker.js";
 
 export type ShiftPlanningNotificationDispatchClaimResult =
   | {
@@ -274,6 +276,7 @@ const requireReleaseContext = async (input: {
     inboxSnapshot,
     deliverySyncSnapshot,
     marketSyncSnapshot,
+    terminalMarkerSnapshot,
   ] = await input.transaction.getAll(
     intentReference.collection("releases").doc("canonical"),
     input.firestore.doc(`${root}/notificationEvents/${eventId}`),
@@ -286,7 +289,14 @@ const requireReleaseContext = async (input: {
     input.firestore.doc(
       `${root}/shiftPlanningSyncCommands/${intent.bundleRevision}-market`,
     ),
+    intentReference.collection("terminalState").doc("current"),
   );
+  if (terminalMarkerSnapshot.exists) {
+    parseShiftPlanningNotificationTerminalMarker(
+      terminalMarkerSnapshot.data(),
+    );
+    return failDispatch("Notification intent is terminally superseded.");
+  }
   const releasedAt = receiptSnapshot.get("releasedAt");
   if (!(releasedAt instanceof Timestamp)) {
     return failDispatch("Notification release receipt is missing.");

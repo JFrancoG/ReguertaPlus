@@ -473,15 +473,22 @@ inactivos e intentos nombrados. Avanza el epoch de mantenimiento y las revisione
 de ambas rotaciones, conserva el epoch de activación en las dos leases degradadas
 del incidente, crea todos los fences de turnos afectados y guarda replay inmutable
 ligado por digest. Un fence parcial o cualquier deriva de linaje/evidencia no
-escribe nada. La persistencia terminal y su limpieza quedan separadas.
+escribe nada. Tras vencer el TTL, un segundo CAS local revalida la misma autoridad
+y la evidencia actual de dispatch inactivo, crea un marcador terminal inmutable
+por intención, persiste cancelaciones exactas, borra todos los fences de turnos
+afectados, despeja ambas leases, avanza el estado compartido y registra replay
+ligado por digest. Release y dispatch leen el marcador terminal y no pueden
+resucitar la intención. Fences ausentes o desviados, marcadores parciales, deriva
+de evidencia o cancelación incompleta/excesiva no escriben nada; la entrada acota
+la suma de intenciones y fences para que el cierre quepa en una transacción.
 Cada turno afectado tiene ahora un contrato determinista de fence de incidente,
 solo backend, ligado al incidente, linaje del bundle, owner, digest de safe-resume
 y TTL acotado. Los escritores transaccionales backend y las Rules estrictas lo
 inspeccionan junto a los fences cortos de dispatch. Evidencia exacta activa bloquea
 solo ese turno, el vencimiento lo reabre, evidencia malformada falla cerrada y
 Phase 1 mantiene privada la nueva partición. La entrada degradada los crea
-atómicamente; el CAS de incidente terminal sigue siendo responsable de borrar el
-conjunto exacto junto con la resolución final de las leases.
+atómicamente; el CAS de incidente terminal borra el conjunto exacto junto con la
+resolución final de las leases.
 Un resultado
 `unknown` puede haberse entregado, queda como historial inmutable y se trata mediante
 reconciliación/corrección; nunca vuelve a clasificarse como no liberado. El SO puede

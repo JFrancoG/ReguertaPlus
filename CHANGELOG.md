@@ -31,6 +31,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-28 | ✨ feat(shifts): terminalize notification incidents
+
 - 2026-08-28 | ✨ feat(shifts): persist degraded incidents
 
 - 2026-08-28 | ✨ feat(shifts): enforce incident fences

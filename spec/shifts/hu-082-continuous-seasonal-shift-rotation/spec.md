@@ -463,9 +463,9 @@ does not populate Firestore public shifts or activate either mobile app.
   named attempt documents. It advances the shared maintenance epoch and both
   rotation revisions, clears both leases together, and creates one immutable
   replay record; any drift writes nothing. A local pure terminal-incident
-  contract handles the abandoned non-terminal residual separately. Its degraded
-  entry is now persisted by another non-exported Firestore CAS; terminalization
-  and cleanup remain a later cut.
+  contract handles the abandoned non-terminal residual separately. One
+  non-exported Firestore CAS persists degraded entry and another now owns exact
+  terminalization and cleanup.
 - A safe-resume residual is an explicit degraded mode with an owner, TTL, and
   escalation. It mutation-fences affected shifts while unrelated traffic runs.
   Entry requires the expired paired batch leases, the exact canonical intent
@@ -491,8 +491,15 @@ does not populate Firestore public shifts or activate either mobile app.
   to the incident owner without changing their activation epoch, creates every
   exact shift fence, and stores an immutable digest-bound replay record. Existing
   partial fence evidence, lineage drift, active dispatch, or counter/attempt
-  drift writes nothing. A following terminalization CAS owns exact cancellation,
-  fence deletion, and the final dual-lease clear.
+  drift writes nothing. After the TTL, the terminalization CAS revalidates the
+  same authority and current inactive dispatch evidence, creates one immutable
+  terminal marker per intent, deletes the exact fence set, clears both leases,
+  advances the shared state, and stores digest-bound replay in one transaction.
+  The command must name exactly every demonstrably unsubmitted cancellation;
+  incomplete or excessive cancellation, missing/drifting fences, partial markers,
+  or changed evidence writes nothing. Release and dispatch read the marker so a
+  terminalized intent cannot be resurrected; possible-delivery markers retain the
+  separate correction requirement.
 - Held notification intents live in a backend-owned outbox/path that the current
   normal notification trigger cannot consume. Only the explicit release
   operation creates canonical consumable events with stable idempotency keys.

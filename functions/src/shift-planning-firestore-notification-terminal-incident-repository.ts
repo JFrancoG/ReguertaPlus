@@ -16,18 +16,30 @@ import {
   parseShiftPlanningNotificationDispatchState,
 } from "./shift-planning-notification-dispatch.js";
 import {
+  parsePersistedShiftPlanningNotificationSafeResumeRecord,
+} from "./shift-planning-firestore-notification-safe-resume-repository.js";
+import {
   createShiftPlanningNotificationIncidentShiftFence,
+  parseShiftPlanningNotificationIncidentShiftFence,
+  sameShiftPlanningNotificationIncidentShiftFence,
   shiftPlanningNotificationIncidentShiftFenceId,
 } from "./shift-planning-notification-incident-fence.js";
 import {parseShiftPlanningHeldNotificationIntent} from
   "./shift-planning-notification-release.js";
 import {
-  SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_MAX_TTL_MILLIS,
   ShiftPlanningNotificationDispatchEvidence,
   ShiftPlanningNotificationSafeResume,
-  createShiftPlanningNotificationSafeResume,
+  ShiftPlanningNotificationTerminalIncident,
+  ShiftPlanningNotificationTerminalIncidentCancellation,
+  createShiftPlanningNotificationTerminalIncident,
   parseShiftPlanningNotificationSafeResume,
+  parseShiftPlanningNotificationTerminalIncident,
 } from "./shift-planning-notification-terminal-incident.js";
+import {
+  ShiftPlanningNotificationTerminalMarker,
+  createShiftPlanningNotificationTerminalMarker,
+  shiftPlanningNotificationTerminalMarkerPath,
+} from "./shift-planning-notification-terminal-marker.js";
 import {
   ShiftPlanningAuthoritativeState,
   buildShiftPlanningAuthoritativeState,
@@ -41,48 +53,52 @@ import {
   parseShiftRotationAggregateWire,
 } from "./shift-planning-wire.js";
 
-export const SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_RECORD_SCHEMA_VERSION =
+export const SHIFT_PLANNING_NOTIFICATION_TERMINAL_RECORD_SCHEMA_VERSION =
   1 as const;
 
-export type ShiftPlanningNotificationSafeResumeAttemptBinding = {
+export type ShiftPlanningNotificationTerminalAttemptBinding = {
   intentId: string;
   attemptIds: readonly string[];
 };
 
-export type ShiftPlanningNotificationSafeResumeCommand = {
+export type ShiftPlanningNotificationTerminalIncidentCommand = {
   schemaVersion:
-    typeof SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_RECORD_SCHEMA_VERSION;
-  operationKind: "notificationSafeResumeEntry";
+    typeof SHIFT_PLANNING_NOTIFICATION_TERMINAL_RECORD_SCHEMA_VERSION;
+  operationKind: "notificationTerminalIncidentFinalize";
   environment: ShiftPlanningEnvironment;
   incidentId: string;
   bundleRevision: string;
-  ownerUserId: string;
-  escalationTargetId: string;
-  ttlMillis: number;
-  attemptBindings: readonly ShiftPlanningNotificationSafeResumeAttemptBinding[];
+  cancelIntentIds: readonly string[];
+  attemptBindings: readonly ShiftPlanningNotificationTerminalAttemptBinding[];
 };
 
-export type ShiftPlanningNotificationIncidentFenceEvidence = {
+export type ShiftPlanningNotificationTerminalMarkerEvidence = {
+  intentId: string;
   shiftId: string;
   incidentId: string;
   bundleRevision: string;
   bundleDigest: ShiftPlanningDigest;
-  ownerUserId: string;
-  acquiredAtMillis: number;
-  expiresAtMillis: number;
-  safeResumeDigest: ShiftPlanningDigest;
+  resolution:
+    | "cancelledUnsubmitted"
+    | "possibleDeliveryCorrectionRequired"
+    | "definitivelyFailed";
+  attemptIds: readonly string[];
+  dispatchEvidenceDigest: ShiftPlanningDigest;
+  terminalizedAtMillis: number;
+  terminalIncidentDigest: ShiftPlanningDigest;
 };
 
-export type ShiftPlanningNotificationSafeResumeRecord = {
+export type ShiftPlanningNotificationTerminalIncidentRecord = {
   schemaVersion:
-    typeof SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_RECORD_SCHEMA_VERSION;
-  operationKind: "notificationSafeResumeEntryRecord";
+    typeof SHIFT_PLANNING_NOTIFICATION_TERMINAL_RECORD_SCHEMA_VERSION;
+  operationKind: "notificationTerminalIncidentRecord";
   incidentId: string;
   environment: ShiftPlanningEnvironment;
-  command: ShiftPlanningNotificationSafeResumeCommand;
+  command: ShiftPlanningNotificationTerminalIncidentCommand;
   commandDigest: ShiftPlanningDigest;
   safeResume: ShiftPlanningNotificationSafeResume;
-  incidentFences: readonly ShiftPlanningNotificationIncidentFenceEvidence[];
+  terminalIncident: ShiftPlanningNotificationTerminalIncident;
+  terminalMarkers: readonly ShiftPlanningNotificationTerminalMarkerEvidence[];
   authoritativeDigestBefore: ShiftPlanningDigest;
   authoritativeDigestAfter: ShiftPlanningDigest;
   maintenanceBefore: ShiftPlanningMaintenanceState;
@@ -95,13 +111,13 @@ export type ShiftPlanningNotificationSafeResumeRecord = {
     delivery: ShiftRotationAggregateWire;
     market: ShiftRotationAggregateWire;
   };
-  attemptedAtMillis: number;
+  terminalizedAtMillis: number;
   recordDigest: ShiftPlanningDigest;
 };
 
-export type ShiftPlanningNotificationSafeResumeResult = {
+export type ShiftPlanningNotificationTerminalIncidentResult = {
   kind: "committed" | "replayed";
-  record: ShiftPlanningNotificationSafeResumeRecord;
+  record: ShiftPlanningNotificationTerminalIncidentRecord;
 };
 
 type UnknownRecord = Record<string, unknown>;
@@ -112,9 +128,7 @@ const commandFields = [
   "environment",
   "incidentId",
   "bundleRevision",
-  "ownerUserId",
-  "escalationTargetId",
-  "ttlMillis",
+  "cancelIntentIds",
   "attemptBindings",
 ] as const;
 const bindingFields = ["intentId", "attemptIds"] as const;
@@ -126,25 +140,28 @@ const recordFields = [
   "command",
   "commandDigest",
   "safeResume",
-  "incidentFences",
+  "terminalIncident",
+  "terminalMarkers",
   "authoritativeDigestBefore",
   "authoritativeDigestAfter",
   "maintenanceBefore",
   "maintenanceAfter",
   "rotationsBefore",
   "rotationsAfter",
-  "attemptedAt",
+  "terminalizedAt",
   "recordDigest",
 ] as const;
-const fenceEvidenceFields = [
+const markerEvidenceFields = [
+  "intentId",
   "shiftId",
   "incidentId",
   "bundleRevision",
   "bundleDigest",
-  "ownerUserId",
-  "acquiredAtMillis",
-  "expiresAtMillis",
-  "safeResumeDigest",
+  "resolution",
+  "attemptIds",
+  "dispatchEvidenceDigest",
+  "terminalizedAtMillis",
+  "terminalIncidentDigest",
 ] as const;
 
 const failRepository = (message: string): never => {
@@ -208,12 +225,6 @@ const requireNonNegativeInteger = (value: unknown, name: string): number => {
   return value as number;
 };
 
-const requirePositiveInteger = (value: unknown, name: string): number => {
-  const parsed = requireNonNegativeInteger(value, name);
-  if (parsed === 0) return failRepository(`${name} must be positive.`);
-  return parsed;
-};
-
 const requireEnvironment = (value: unknown): ShiftPlanningEnvironment => {
   if (value !== "develop" && value !== "production") {
     return failRepository("Planning environment is invalid.");
@@ -235,29 +246,33 @@ const intentOrdinal = (intentId: string, bundleRevision: string): number => {
   if (!match || match[1] !== bundleRevision) {
     return failRepository("Notification intent ordinal is invalid.");
   }
-  return requirePositiveInteger(Number(match[2]), "notification ordinal");
+  const ordinal = Number(match[2]);
+  if (!Number.isSafeInteger(ordinal)) {
+    return failRepository("Notification intent ordinal is unsafe.");
+  }
+  return ordinal;
 };
 
-export const parseShiftPlanningNotificationSafeResumeCommand = (
+export const parseShiftPlanningNotificationTerminalIncidentCommand = (
   value: unknown,
-): ShiftPlanningNotificationSafeResumeCommand => {
-  const command = requireRecord(value, "safe-resume command");
-  requireExactFields(command, commandFields, "safe-resume command");
+): ShiftPlanningNotificationTerminalIncidentCommand => {
+  const command = requireRecord(value, "terminal-incident command");
+  requireExactFields(command, commandFields, "terminal-incident command");
   if (
     command.schemaVersion !==
-      SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_RECORD_SCHEMA_VERSION ||
-    command.operationKind !== "notificationSafeResumeEntry" ||
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_RECORD_SCHEMA_VERSION ||
+    command.operationKind !== "notificationTerminalIncidentFinalize" ||
     !Array.isArray(command.attemptBindings)
   ) {
-    return failRepository("Safe-resume command discriminator is invalid.");
+    return failRepository("Terminal-incident command is invalid.");
   }
   const bundleRevision = requireIdentifier(
     command.bundleRevision,
     "bundleRevision",
   );
-  const attemptBindings = command.attemptBindings.map((value) => {
-    const binding = requireRecord(value, "safe-resume attempt binding");
-    requireExactFields(binding, bindingFields, "safe-resume attempt binding");
+  const bindings = command.attemptBindings.map((bindingValue) => {
+    const binding = requireRecord(bindingValue, "terminal attempt binding");
+    requireExactFields(binding, bindingFields, "terminal attempt binding");
     const intentId = requireIdentifier(binding.intentId, "binding intentId");
     return {
       intentId,
@@ -266,36 +281,35 @@ export const parseShiftPlanningNotificationSafeResumeCommand = (
     };
   }).sort((left, right) => left.ordinal - right.ordinal);
   if (
-    attemptBindings.length === 0 ||
-    new Set(attemptBindings.map(({intentId}) => intentId)).size !==
-      attemptBindings.length ||
-    attemptBindings.some(({ordinal}, index) => ordinal !== index + 1)
+    bindings.length === 0 ||
+    new Set(bindings.map(({intentId}) => intentId)).size !== bindings.length ||
+    bindings.some(({ordinal}, index) => ordinal !== index + 1)
   ) {
     return failRepository(
-      "Safe-resume bindings are not contiguous and unique.",
+      "Terminal attempt bindings are not contiguous and unique.",
     );
   }
-  const ttlMillis = requirePositiveInteger(
-    command.ttlMillis,
-    "safe-resume TTL",
-  );
-  if (ttlMillis > SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_MAX_TTL_MILLIS) {
-    return failRepository("Safe-resume TTL exceeds its bounded policy.");
-  }
+  const bindingOrder = new Map(bindings.map(({intentId}, index) => [
+    intentId,
+    index,
+  ]));
+  const cancelIntentIds = requireStringArray(
+    command.cancelIntentIds,
+    "cancel intentIds",
+  ).map((intentId) => ({
+    intentId,
+    index: bindingOrder.get(intentId) ??
+      failRepository("Cancelled intent is outside the terminal batch."),
+  })).sort((left, right) => left.index - right.index)
+    .map(({intentId}) => intentId);
   return {
-    schemaVersion:
-      SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_RECORD_SCHEMA_VERSION,
-    operationKind: "notificationSafeResumeEntry",
+    schemaVersion: SHIFT_PLANNING_NOTIFICATION_TERMINAL_RECORD_SCHEMA_VERSION,
+    operationKind: "notificationTerminalIncidentFinalize",
     environment: requireEnvironment(command.environment),
     incidentId: requireIdentifier(command.incidentId, "incidentId"),
     bundleRevision,
-    ownerUserId: requireIdentifier(command.ownerUserId, "ownerUserId"),
-    escalationTargetId: requireIdentifier(
-      command.escalationTargetId,
-      "escalationTargetId",
-    ),
-    ttlMillis,
-    attemptBindings: attemptBindings.map(({intentId, attemptIds}) => ({
+    cancelIntentIds,
+    attemptBindings: bindings.map(({intentId, attemptIds}) => ({
       intentId,
       attemptIds,
     })),
@@ -319,14 +333,14 @@ const pairedLease = (
 ): ShiftPlanningReleaseLease => {
   const lease = state.rotations[type].releaseLease;
   if (lease === null) {
-    return failLeaseConflict(`${type} release lease is not retained.`);
+    return failLeaseConflict(`${type} degraded release lease is missing.`);
   }
   return lease;
 };
 
 const nextAuthoritativeState = (input: {
   before: ShiftPlanningAuthoritativeState;
-  safeResume: ShiftPlanningNotificationSafeResume;
+  incidentId: string;
 }): ShiftPlanningAuthoritativeState => {
   const maintenance = input.before.maintenance;
   const delivery = input.before.rotations.delivery;
@@ -345,89 +359,105 @@ const nextAuthoritativeState = (input: {
       ...maintenance,
       stateRevision: maintenance.stateRevision + 1,
       writeEpoch: maintenance.writeEpoch + 1,
-      lastTransitionId: input.safeResume.incidentId,
+      lastTransitionId: input.incidentId,
     }),
     rotations: {
       delivery: parseShiftRotationAggregateWire({
         ...delivery,
         stateRevision: delivery.stateRevision + 1,
-        lastIdempotencyKey: input.safeResume.incidentId,
-        releaseLease: input.safeResume.releaseLeaseActions[0].replacementLease,
+        lastIdempotencyKey: input.incidentId,
+        releaseLease: null,
       }, "delivery"),
       market: parseShiftRotationAggregateWire({
         ...market,
         stateRevision: market.stateRevision + 1,
-        lastIdempotencyKey: input.safeResume.incidentId,
-        releaseLease: input.safeResume.releaseLeaseActions[1].replacementLease,
+        lastIdempotencyKey: input.incidentId,
+        releaseLease: null,
       }, "market"),
     },
   });
 };
 
-const fenceEvidence = (
-  safeResume: ShiftPlanningNotificationSafeResume,
-): readonly ShiftPlanningNotificationIncidentFenceEvidence[] =>
-  safeResume.affectedShiftIds.map((shiftId) => ({
-    shiftId,
-    incidentId: safeResume.incidentId,
-    bundleRevision: safeResume.bundleRevision,
-    bundleDigest: safeResume.bundleDigest,
-    ownerUserId: safeResume.ownerUserId,
-    acquiredAtMillis: safeResume.enteredAtMillis,
-    expiresAtMillis: safeResume.expiresAtMillis,
-    safeResumeDigest: safeResume.safeResumeDigest,
-  }));
+const markerEvidence = (
+  marker: ShiftPlanningNotificationTerminalMarker,
+): ShiftPlanningNotificationTerminalMarkerEvidence => ({
+  intentId: marker.intentId,
+  shiftId: marker.shiftId,
+  incidentId: marker.incidentId,
+  bundleRevision: marker.bundleRevision,
+  bundleDigest: marker.bundleDigest,
+  resolution: marker.resolution,
+  attemptIds: marker.attemptIds,
+  dispatchEvidenceDigest: marker.dispatchEvidenceDigest,
+  terminalizedAtMillis: marker.terminalizedAt.toMillis(),
+  terminalIncidentDigest: marker.terminalIncidentDigest,
+});
 
-const parseFenceEvidence = (
+const parseMarkerEvidence = (
   value: unknown,
-): ShiftPlanningNotificationIncidentFenceEvidence => {
-  const evidence = requireRecord(value, "incident fence evidence");
-  requireExactFields(evidence, fenceEvidenceFields, "incident fence evidence");
+): ShiftPlanningNotificationTerminalMarkerEvidence => {
+  const evidence = requireRecord(value, "terminal marker evidence");
+  requireExactFields(
+    evidence,
+    markerEvidenceFields,
+    "terminal marker evidence",
+  );
+  if (
+    evidence.resolution !== "cancelledUnsubmitted" &&
+    evidence.resolution !== "possibleDeliveryCorrectionRequired" &&
+    evidence.resolution !== "definitivelyFailed"
+  ) {
+    return failRepository("Terminal marker resolution is invalid.");
+  }
   return {
-    shiftId: requireIdentifier(evidence.shiftId, "fence shiftId"),
-    incidentId: requireIdentifier(evidence.incidentId, "fence incidentId"),
+    intentId: requireIdentifier(evidence.intentId, "marker intentId"),
+    shiftId: requireIdentifier(evidence.shiftId, "marker shiftId"),
+    incidentId: requireIdentifier(evidence.incidentId, "marker incidentId"),
     bundleRevision: requireIdentifier(
       evidence.bundleRevision,
-      "fence bundleRevision",
+      "marker bundleRevision",
     ),
-    bundleDigest: requireDigest(evidence.bundleDigest, "fence bundleDigest"),
-    ownerUserId: requireIdentifier(evidence.ownerUserId, "fence ownerUserId"),
-    acquiredAtMillis: requireNonNegativeInteger(
-      evidence.acquiredAtMillis,
-      "fence acquisition",
+    bundleDigest: requireDigest(evidence.bundleDigest, "marker bundleDigest"),
+    resolution: evidence.resolution,
+    attemptIds: requireStringArray(evidence.attemptIds, "marker attemptIds"),
+    dispatchEvidenceDigest: requireDigest(
+      evidence.dispatchEvidenceDigest,
+      "marker dispatch evidence digest",
     ),
-    expiresAtMillis: requireNonNegativeInteger(
-      evidence.expiresAtMillis,
-      "fence expiry",
+    terminalizedAtMillis: requireNonNegativeInteger(
+      evidence.terminalizedAtMillis,
+      "marker terminal instant",
     ),
-    safeResumeDigest: requireDigest(
-      evidence.safeResumeDigest,
-      "fence safe-resume digest",
+    terminalIncidentDigest: requireDigest(
+      evidence.terminalIncidentDigest,
+      "marker terminal incident digest",
     ),
   };
 };
 
 const recordDigestCore = (
-  record: Omit<ShiftPlanningNotificationSafeResumeRecord, "recordDigest">,
+  record: Omit<ShiftPlanningNotificationTerminalIncidentRecord,
+    "recordDigest">,
 ): object => record;
 
 const createRecord = (input: {
-  command: ShiftPlanningNotificationSafeResumeCommand;
+  command: ShiftPlanningNotificationTerminalIncidentCommand;
   safeResume: ShiftPlanningNotificationSafeResume;
+  terminalIncident: ShiftPlanningNotificationTerminalIncident;
+  terminalMarkers: readonly ShiftPlanningNotificationTerminalMarker[];
   before: ShiftPlanningAuthoritativeState;
   after: ShiftPlanningAuthoritativeState;
-  attemptedAtMillis: number;
-}): ShiftPlanningNotificationSafeResumeRecord => {
+}): ShiftPlanningNotificationTerminalIncidentRecord => {
   const recordWithoutDigest = {
-    schemaVersion:
-      SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_RECORD_SCHEMA_VERSION,
-    operationKind: "notificationSafeResumeEntryRecord" as const,
+    schemaVersion: SHIFT_PLANNING_NOTIFICATION_TERMINAL_RECORD_SCHEMA_VERSION,
+    operationKind: "notificationTerminalIncidentRecord" as const,
     incidentId: input.command.incidentId,
     environment: input.command.environment,
     command: input.command,
     commandDigest: createShiftPlanningDigest(input.command),
     safeResume: input.safeResume,
-    incidentFences: fenceEvidence(input.safeResume),
+    terminalIncident: input.terminalIncident,
+    terminalMarkers: input.terminalMarkers.map(markerEvidence),
     authoritativeDigestBefore: requireDigest(
       input.before.authoritativeDigest,
       "authoritative digest before",
@@ -440,7 +470,7 @@ const createRecord = (input: {
     maintenanceAfter: input.after.maintenance,
     rotationsBefore: input.before.rotations,
     rotationsAfter: input.after.rotations,
-    attemptedAtMillis: input.attemptedAtMillis,
+    terminalizedAtMillis: input.terminalIncident.terminalizedAtMillis,
   };
   return {
     ...recordWithoutDigest,
@@ -450,29 +480,39 @@ const createRecord = (input: {
   };
 };
 
-const serializeRecord = (record: ShiftPlanningNotificationSafeResumeRecord) => {
-  const {attemptedAtMillis, ...persisted} = record;
-  return {...persisted, attemptedAt: Timestamp.fromMillis(attemptedAtMillis)};
+const serializeRecord = (
+  record: ShiftPlanningNotificationTerminalIncidentRecord,
+): object => {
+  const {terminalizedAtMillis, ...persisted} = record;
+  return {
+    ...persisted,
+    terminalizedAt: Timestamp.fromMillis(terminalizedAtMillis),
+  };
 };
 
-export const parsePersistedShiftPlanningNotificationSafeResumeRecord = (
+const parsePersistedRecord = (
   snapshot: DocumentSnapshot,
-): ShiftPlanningNotificationSafeResumeRecord => {
+): ShiftPlanningNotificationTerminalIncidentRecord => {
   const data = requireRecord(
-    requireSnapshot(snapshot, "safe-resume record").data(),
-    "safe-resume record",
+    requireSnapshot(snapshot, "terminal incident record").data(),
+    "terminal incident record",
   );
-  requireExactFields(data, recordFields, "safe-resume record");
+  requireExactFields(data, recordFields, "terminal incident record");
   if (
     data.schemaVersion !==
-      SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_RECORD_SCHEMA_VERSION ||
-    data.operationKind !== "notificationSafeResumeEntryRecord" ||
-    !(data.attemptedAt instanceof Timestamp) ||
-    !Array.isArray(data.incidentFences)
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_RECORD_SCHEMA_VERSION ||
+    data.operationKind !== "notificationTerminalIncidentRecord" ||
+    !(data.terminalizedAt instanceof Timestamp) ||
+    !Array.isArray(data.terminalMarkers)
   ) {
-    return failRepository("Safe-resume record discriminator is invalid.");
+    return failRepository("Terminal incident record is invalid.");
   }
-  const command = parseShiftPlanningNotificationSafeResumeCommand(data.command);
+  const command = parseShiftPlanningNotificationTerminalIncidentCommand(
+    data.command,
+  );
+  const terminalIncident = parseShiftPlanningNotificationTerminalIncident(
+    data.terminalIncident,
+  );
   const safeResume = parseShiftPlanningNotificationSafeResume(data.safeResume);
   const before = buildShiftPlanningAuthoritativeState({
     environment: command.environment,
@@ -485,15 +525,15 @@ export const parsePersistedShiftPlanningNotificationSafeResumeRecord = (
     rotations: data.rotationsAfter,
   });
   const recordWithoutDigest = {
-    schemaVersion:
-      SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_RECORD_SCHEMA_VERSION,
-    operationKind: "notificationSafeResumeEntryRecord" as const,
+    schemaVersion: SHIFT_PLANNING_NOTIFICATION_TERMINAL_RECORD_SCHEMA_VERSION,
+    operationKind: "notificationTerminalIncidentRecord" as const,
     incidentId: requireIdentifier(data.incidentId, "incidentId"),
     environment: requireEnvironment(data.environment),
     command,
     commandDigest: requireDigest(data.commandDigest, "command digest"),
     safeResume,
-    incidentFences: data.incidentFences.map(parseFenceEvidence),
+    terminalIncident,
+    terminalMarkers: data.terminalMarkers.map(parseMarkerEvidence),
     authoritativeDigestBefore: requireDigest(
       data.authoritativeDigestBefore,
       "authoritative digest before",
@@ -506,85 +546,110 @@ export const parsePersistedShiftPlanningNotificationSafeResumeRecord = (
     maintenanceAfter: after.maintenance,
     rotationsBefore: before.rotations,
     rotationsAfter: after.rotations,
-    attemptedAtMillis: data.attemptedAt.toMillis(),
+    terminalizedAtMillis: data.terminalizedAt.toMillis(),
   };
   const recordDigest = requireDigest(data.recordDigest, "record digest");
-  const expectedAfter = nextAuthoritativeState({before, safeResume});
+  const expectedAfter = nextAuthoritativeState({
+    before,
+    incidentId: command.incidentId,
+  });
   const deliveryLease = pairedLease(before, "delivery");
   const marketLease = pairedLease(before, "market");
+  const expectedMarkers = terminalIncident.intents.map((intent) =>
+    markerEvidence(createShiftPlanningNotificationTerminalMarker({
+      terminalIncident,
+      intent,
+    })));
   if (
     recordWithoutDigest.incidentId !== command.incidentId ||
     recordWithoutDigest.environment !== command.environment ||
+    terminalIncident.incidentId !== command.incidentId ||
+    terminalIncident.environment !== command.environment ||
+    terminalIncident.bundleRevision !== command.bundleRevision ||
+    terminalIncident.terminalizedAtMillis !==
+      recordWithoutDigest.terminalizedAtMillis ||
     safeResume.incidentId !== command.incidentId ||
     safeResume.environment !== command.environment ||
     safeResume.bundleRevision !== command.bundleRevision ||
-    safeResume.ownerUserId !== command.ownerUserId ||
-    safeResume.escalationTargetId !== command.escalationTargetId ||
-    safeResume.expiresAtMillis - safeResume.enteredAtMillis !==
-      command.ttlMillis ||
-    safeResume.enteredAtMillis !== recordWithoutDigest.attemptedAtMillis ||
+    terminalIncident.ownerUserId !== safeResume.ownerUserId ||
+    terminalIncident.escalationTargetId !== safeResume.escalationTargetId ||
+    terminalIncident.terminalizedAtMillis < safeResume.expiresAtMillis ||
     !sameValue(
-      safeResume.releaseLeaseActions[0].expectedLease,
+      terminalIncident.releaseLeaseActions.map(({expectedLease}) =>
+        expectedLease),
+      safeResume.releaseLeaseActions.map(({replacementLease}) =>
+        replacementLease),
+    ) ||
+    !sameValue(
+      terminalIncident.intents.map(({intentId, shiftId}) => ({
+        intentId,
+        shiftId,
+      })),
+      safeResume.intents.map(({intentId, shiftId}) => ({intentId, shiftId})),
+    ) ||
+    !sameValue(
+      terminalIncident.releaseLeaseActions[0].expectedLease,
       deliveryLease,
     ) ||
     !sameValue(
-      safeResume.releaseLeaseActions[1].expectedLease,
+      terminalIncident.releaseLeaseActions[1].expectedLease,
       marketLease,
     ) ||
+    !sameValue(terminalIncident.cancelledIntentIds, command.cancelIntentIds) ||
+    !sameValue(
+      terminalIncident.intents.map(({intentId, attemptIds}) => ({
+        intentId,
+        attemptIds,
+      })),
+      command.attemptBindings,
+    ) ||
+    !sameValue(recordWithoutDigest.terminalMarkers, expectedMarkers) ||
     createShiftPlanningDigest(command) !== recordWithoutDigest.commandDigest ||
     before.authoritativeDigest !==
       recordWithoutDigest.authoritativeDigestBefore ||
     after.authoritativeDigest !==
       recordWithoutDigest.authoritativeDigestAfter ||
     !sameValue(after, expectedAfter) ||
-    !sameValue(recordWithoutDigest.incidentFences, fenceEvidence(safeResume)) ||
-    !sameValue(
-      safeResume.intents.map(({intentId}) => intentId),
-      command.attemptBindings.map(({intentId}) => intentId),
-    ) ||
     createShiftPlanningDigest(recordDigestCore(recordWithoutDigest)) !==
       recordDigest
   ) {
-    return failRepository("Safe-resume record evidence is inconsistent.");
+    return failRepository("Terminal incident record evidence is inconsistent.");
   }
   return {...recordWithoutDigest, recordDigest};
 };
 
 /**
- * Persists entry into bounded notification degraded mode through one Firestore
- * CAS. The activation epoch remains on both leases while the maintenance epoch
- * advances, preserving the exact held-intent lineage for terminal resolution.
+ * Terminalizes one expired degraded notification incident in a single CAS.
+ * Every intent receives a terminal marker, every exact incident fence is
+ * removed, both leases clear together, and immutable replay evidence remains.
  * @param {Firestore} firestore Backend-owned Firestore or emulator authority.
- * @param {function(): Timestamp} clock Trusted incident-entry clock.
- * @return {object} Idempotent safe-resume entry repository.
+ * @param {function(): Timestamp} clock Trusted terminalization clock.
+ * @return {object} Idempotent terminal-incident repository.
  */
-export const createFirestoreShiftPlanningNotificationSafeResumeRepository = (
+export const createFirestoreShiftPlanningNotificationTerminalRepository = (
   firestore: Firestore,
   clock: () => Timestamp = () => Timestamp.now(),
 ) => ({
-  async enter(
-    commandValue: ShiftPlanningNotificationSafeResumeCommand,
-  ): Promise<ShiftPlanningNotificationSafeResumeResult> {
-    const command = parseShiftPlanningNotificationSafeResumeCommand(
+  async terminalize(
+    commandValue: ShiftPlanningNotificationTerminalIncidentCommand,
+  ): Promise<ShiftPlanningNotificationTerminalIncidentResult> {
+    const command = parseShiftPlanningNotificationTerminalIncidentCommand(
       commandValue,
     );
     const commandDigest = createShiftPlanningDigest(command);
     const root = `${command.environment}/plus-collections`;
     const operationReference = firestore.doc(
       `${root}/shiftPlanningOperations/` +
-        `notification-safe-resume-${command.incidentId}`,
+        `notification-terminal-${command.incidentId}`,
     );
     return firestore.runTransaction(async (transaction) => {
       const operationSnapshot = await transaction.get(operationReference);
       if (operationSnapshot.exists) {
-        const record =
-          parsePersistedShiftPlanningNotificationSafeResumeRecord(
-            operationSnapshot,
-          );
+        const record = parsePersistedRecord(operationSnapshot);
         if (record.commandDigest !== commandDigest) {
           throw new ShiftPlanningError(
             "request_intent_conflict",
-            "Incident ID is bound to another safe-resume command.",
+            "Incident ID is bound to another terminal command.",
           );
         }
         return {kind: "replayed", record};
@@ -600,13 +665,23 @@ export const createFirestoreShiftPlanningNotificationSafeResumeRepository = (
       const bundleReference = firestore.doc(
         `${root}/shiftPlanningBundles/${command.bundleRevision}`,
       );
-      const [stateSnapshot, deliverySnapshot, marketSnapshot, bundleSnapshot] =
-        await transaction.getAll(
-          stateReference,
-          deliveryReference,
-          marketReference,
-          bundleReference,
-        );
+      const safeResumeReference = firestore.doc(
+        `${root}/shiftPlanningOperations/` +
+          `notification-safe-resume-${command.incidentId}`,
+      );
+      const [
+        stateSnapshot,
+        deliverySnapshot,
+        marketSnapshot,
+        bundleSnapshot,
+        safeResumeSnapshot,
+      ] = await transaction.getAll(
+        stateReference,
+        deliveryReference,
+        marketReference,
+        bundleReference,
+        safeResumeReference,
+      );
       const before = buildShiftPlanningAuthoritativeState({
         environment: command.environment,
         maintenance: requireSnapshot(stateSnapshot, "maintenance state").data(),
@@ -618,43 +693,54 @@ export const createFirestoreShiftPlanningNotificationSafeResumeRepository = (
           market: requireSnapshot(marketSnapshot, "market rotation").data(),
         },
       });
+      const safeResumeRecord =
+        parsePersistedShiftPlanningNotificationSafeResumeRecord(
+          safeResumeSnapshot,
+        );
+      const safeResume = safeResumeRecord.safeResume;
       const bundle = parsePersistedBundle(
         requireSnapshot(bundleSnapshot, "persisted bundle").data(),
       );
       const deliveryLease = pairedLease(before, "delivery");
       const marketLease = pairedLease(before, "market");
       if (
+        safeResumeRecord.environment !== command.environment ||
+        safeResume.incidentId !== command.incidentId ||
+        safeResume.bundleRevision !== command.bundleRevision ||
+        !sameValue(before.maintenance, safeResumeRecord.maintenanceAfter) ||
+        !sameValue(before.rotations, safeResumeRecord.rotationsAfter) ||
         bundle.environment !== command.environment ||
+        bundle.bundleId !== safeResume.bundleId ||
         bundle.bundleRevision !== command.bundleRevision ||
         before.maintenance.activeRevision !== bundle.bundleRevision ||
         before.maintenance.activeDigest !== bundle.bundleDigest ||
-        before.rotations.delivery.activeRevision !== bundle.bundleRevision ||
-        before.rotations.delivery.activeDigest !== bundle.bundleDigest ||
-        before.rotations.market.activeRevision !== bundle.bundleRevision ||
-        before.rotations.market.activeDigest !== bundle.bundleDigest ||
-        bundle.artifact.activationWriteEpoch !==
-          before.maintenance.writeEpoch ||
-        deliveryLease.leaseEpoch !== before.maintenance.writeEpoch ||
-        marketLease.leaseEpoch !== before.maintenance.writeEpoch
+        bundle.artifact.activationWriteEpoch !== safeResume.writeEpoch ||
+        !sameValue(
+          deliveryLease,
+          safeResume.releaseLeaseActions[0].replacementLease,
+        ) ||
+        !sameValue(
+          marketLease,
+          safeResume.releaseLeaseActions[1].replacementLease,
+        )
       ) {
         return failLeaseConflict(
-          "Active planning lineage does not own the safe-resume batch.",
+          "Degraded planning lineage does not own the terminal incident.",
         );
       }
 
       const canonicalIntents = bundle.artifact.heldNotificationIntents.map(
         parseShiftPlanningHeldNotificationIntent,
       );
-      const intentQuery = firestore.collection(
+      const queriedIntents = await transaction.get(firestore.collection(
         `${root}/shiftPlanningNotificationIntents`,
-      ).where("bundleRevision", "==", command.bundleRevision);
-      const queriedIntents = await transaction.get(intentQuery);
+      ).where("bundleRevision", "==", command.bundleRevision));
       if (
         canonicalIntents.length !== command.attemptBindings.length ||
         queriedIntents.size !== canonicalIntents.length
       ) {
         return failLeaseConflict(
-          "Persisted intent set differs from the canonical bundle.",
+          "Persisted intent set differs from the terminal bundle.",
         );
       }
       const intentById = new Map(queriedIntents.docs.map((snapshot) => [
@@ -671,7 +757,7 @@ export const createFirestoreShiftPlanningNotificationSafeResumeRepository = (
           !sameValue(persisted, canonical)
         ) {
           return failLeaseConflict(
-            "Persisted intent evidence differs from its canonical bundle.",
+            "Persisted terminal intent differs from its canonical bundle.",
           );
         }
       }
@@ -708,14 +794,14 @@ export const createFirestoreShiftPlanningNotificationSafeResumeRepository = (
             dispatchState.lastLeaseEpoch !== binding.attemptIds.length
           ) {
             return failLeaseConflict(
-              "Notification dispatch state is not exactly inactive.",
+              "Terminal dispatch state is not exactly inactive.",
             );
           }
           const attempts: ShiftPlanningNotificationDispatchAttempt[] = [];
           for (const attemptId of binding.attemptIds) {
             const snapshot = requireSnapshot(
               attemptSnapshots[attemptOffset],
-              "notification dispatch attempt",
+              "terminal dispatch attempt",
             );
             attemptOffset += 1;
             const attempt = parseShiftPlanningNotificationDispatchAttempt(
@@ -723,71 +809,103 @@ export const createFirestoreShiftPlanningNotificationSafeResumeRepository = (
             );
             if (snapshot.id !== attemptId) {
               return failRepository(
-                "Dispatch attempt path and command differ.",
+                "Terminal attempt path and command differ.",
               );
             }
             attempts.push(attempt);
           }
           return {intentId: binding.intentId, dispatchState, attempts};
         });
-      const attemptedAt = clock();
-      if (!(attemptedAt instanceof Timestamp)) {
-        return failRepository("Repository clock returned an invalid instant.");
-      }
-      const attemptedAtMillis = requireNonNegativeInteger(
-        attemptedAt.toMillis(),
-        "safe-resume attempt instant",
-      );
-      const safeResume = createShiftPlanningNotificationSafeResume({
-        environment: command.environment,
-        incidentId: command.incidentId,
-        ownerUserId: command.ownerUserId,
-        escalationTargetId: command.escalationTargetId,
-        deliveryLease,
-        marketLease,
-        intents: canonicalIntents,
-        dispatchEvidence,
-        enteredAtMillis: attemptedAtMillis,
-        ttlMillis: command.ttlMillis,
-      });
-      if (
-        canonicalIntents.length + safeResume.affectedShiftIds.length > 496
-      ) {
-        return failRepository(
-          "Safe-resume scope cannot be terminalized in one Firestore CAS.",
-        );
-      }
-      const fences = safeResume.affectedShiftIds.map((shiftId) => ({
+
+      const fenceEntries = safeResume.affectedShiftIds.map((shiftId) => ({
         reference: firestore.doc(
           `${root}/shiftPlanningNotificationIncidentFences/` +
             shiftPlanningNotificationIncidentShiftFenceId(shiftId),
         ),
-        value: createShiftPlanningNotificationIncidentShiftFence({
+        expected: createShiftPlanningNotificationIncidentShiftFence({
           safeResume,
           shiftId,
         }),
       }));
+      const markerReferences = canonicalIntents.map((intent) => firestore.doc(
+        `${root}/${shiftPlanningNotificationTerminalMarkerPath(
+          intent.intentId,
+        )}`,
+      ));
       const fenceSnapshots = await transaction.getAll(
-        ...fences.map(({reference}) => reference),
+        ...fenceEntries.map(({reference}) => reference),
       );
-      if (fenceSnapshots.some(({exists}) => exists)) {
+      const markerSnapshots = await transaction.getAll(...markerReferences);
+      if (markerSnapshots.some(({exists}) => exists)) {
         return failLeaseConflict(
-          "Incident fence scope already contains untracked evidence.",
+          "Terminal marker scope already contains untracked evidence.",
         );
       }
-      const after = nextAuthoritativeState({before, safeResume});
+      fenceSnapshots.forEach((snapshot, index) => {
+        const persisted = parseShiftPlanningNotificationIncidentShiftFence(
+          requireSnapshot(snapshot, "incident shift fence").data(),
+        );
+        if (!sameShiftPlanningNotificationIncidentShiftFence(
+          persisted,
+          fenceEntries[index].expected,
+        )) {
+          failLeaseConflict("Incident shift fence drifted before cleanup.");
+        }
+      });
+
+      const terminalizedAt = clock();
+      if (!(terminalizedAt instanceof Timestamp)) {
+        return failRepository("Repository clock returned an invalid instant.");
+      }
+      const terminalizedAtMillis = requireNonNegativeInteger(
+        terminalizedAt.toMillis(),
+        "terminal incident instant",
+      );
+      const cancellations:
+        ShiftPlanningNotificationTerminalIncidentCancellation[] =
+          command.cancelIntentIds.map((intentId) => ({
+            action: "cancelAndSupersede",
+            intentId,
+            incidentId: command.incidentId,
+            cancelledAtMillis: terminalizedAtMillis,
+          }));
+      const terminalIncident = createShiftPlanningNotificationTerminalIncident({
+        safeResume,
+        deliveryLease,
+        marketLease,
+        intents: canonicalIntents,
+        dispatchEvidence,
+        cancellations,
+        terminalizedAtMillis,
+      });
+      const terminalMarkers = terminalIncident.intents.map((intent) =>
+        createShiftPlanningNotificationTerminalMarker({
+          terminalIncident,
+          intent,
+        }));
+      if (terminalMarkers.length + fenceEntries.length > 496) {
+        return failRepository(
+          "Terminal incident exceeds one Firestore CAS write budget.",
+        );
+      }
+      const after = nextAuthoritativeState({
+        before,
+        incidentId: command.incidentId,
+      });
       const record = createRecord({
         command,
         safeResume,
+        terminalIncident,
+        terminalMarkers,
         before,
         after,
-        attemptedAtMillis,
       });
       transaction.update(stateReference, after.maintenance);
       transaction.update(deliveryReference, after.rotations.delivery);
       transaction.update(marketReference, after.rotations.market);
-      fences.forEach(({reference, value}) =>
-        transaction.create(reference, value));
+      terminalMarkers.forEach((marker, index) =>
+        transaction.create(markerReferences[index], marker));
+      fenceEntries.forEach(({reference}) => transaction.delete(reference));
       transaction.create(operationReference, serializeRecord(record));
       return {kind: "committed", record};
     });

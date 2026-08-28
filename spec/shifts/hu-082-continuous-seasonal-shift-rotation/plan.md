@@ -370,8 +370,10 @@ documented in the English and Spanish Firestore references before code lands.
   merely claimed retry. Persist entry through one digest-bound CAS that advances
   the maintenance epoch while retaining the activation epoch on both degraded
   leases, creates every affected-shift fence, and records immutable replay.
-  Persist terminal evidence, exact cancellations, fence deletion, and the atomic
-  dual-lease clear in the following cut. Before entry, establish one deterministic
+  At expiry, use a second digest-bound CAS to create one terminal marker per
+  intent, persist exact cancellations and replay, delete the complete fence set,
+  and clear both leases while advancing shared state. Make release and dispatch
+  fail closed on any terminal marker. Before entry, establish one deterministic
   backend-only incident-fence document per affected shift. Bind it to the incident,
   bundle, owner, TTL, and
   safe-resume digest; make backend transactional writers and strict Rules honor

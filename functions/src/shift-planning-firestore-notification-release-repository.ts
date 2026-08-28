@@ -22,6 +22,8 @@ import {
   ShiftPlanningCompletedSyncCommand,
   parseShiftPlanningPersistedSyncCommand,
 } from "./shift-planning-sync-command.js";
+import {parseShiftPlanningNotificationTerminalMarker} from
+  "./shift-planning-notification-terminal-marker.js";
 import {ShiftPlanningEnvironment} from "./shift-planning-wire.js";
 
 export type ShiftPlanningNotificationReleaseResult = {
@@ -120,16 +122,24 @@ export const createFirestoreShiftPlanningNotificationReleaseRepository = (
         intentSnapshot,
         receiptSnapshot,
         eventSnapshot,
+        terminalMarkerSnapshot,
       ] = await transaction.getAll(
         intentReference,
         receiptReference,
         eventReference,
+        intentReference.collection("terminalState").doc("current"),
       );
       const intent = parseShiftPlanningHeldNotificationIntent(
         requireSnapshot(intentSnapshot, "held notification intent").data(),
       );
       if (intent.intentId !== intentId) {
         return failRelease("Notification intent path and payload differ.");
+      }
+      if (terminalMarkerSnapshot.exists) {
+        parseShiftPlanningNotificationTerminalMarker(
+          terminalMarkerSnapshot.data(),
+        );
+        return failRelease("Notification intent is terminally superseded.");
       }
       const inboxReference = firestore.doc(
         `${root}/users/${intent.recipientUserId}/notificationInbox/${intentId}`,

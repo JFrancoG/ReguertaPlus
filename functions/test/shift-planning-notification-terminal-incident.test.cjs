@@ -9,6 +9,7 @@ const {
   createShiftPlanningNotificationSafeResume,
   createShiftPlanningNotificationTerminalIncident,
   parseShiftPlanningNotificationSafeResume,
+  parseShiftPlanningNotificationTerminalIncident,
 } = require(
   "../lib/shift-planning-notification-terminal-incident.js"
 );
@@ -286,6 +287,11 @@ test("enters bounded degraded mode and fences only affected shifts", () => {
 test("terminalizes only after TTL with exact unsubmitted cancellations", () => {
   const result = createShiftPlanningNotificationTerminalIncident(
     terminalInput(),
+  );
+
+  assert.deepEqual(
+    parseShiftPlanningNotificationTerminalIncident(result),
+    result,
   );
 
   assert.equal(result.state, "terminal");

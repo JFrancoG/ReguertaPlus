@@ -575,7 +575,7 @@ occurred. Protected technical evidence remains outside the repository.
       5/5 focused Firestore-emulator vectors, and 2/2 modular Admin SDK vectors
       pass. No shared-project write, Function export, deploy, FCM submission, or
       notification occurred.
-  - [ ] Add the explicit terminal-incident path and safe-resume degraded-mode
+  - [x] Add the explicit terminal-incident path and safe-resume degraded-mode
     authority before allowing abandoned non-terminal batches to clear.
     - [x] Add the pure safe-resume and terminal-incident contract. Entry requires
       an expired paired batch with exact inactive dispatch evidence, transfers
@@ -590,7 +590,7 @@ occurred. Protected technical evidence remains outside the repository.
         2/2 modular Admin SDK vectors pass. The contract remains absent from
         `index.ts`; no persistence, export, deploy, FCM submission, notification,
         or shared-project write occurred.
-    - [ ] Persist degraded entry, affected-shift fences, terminal evidence,
+    - [x] Persist degraded entry, affected-shift fences, terminal evidence,
       cancellations, replay, and the final atomic dual-lease clear.
       - [x] Define the deterministic incident-shift fence bound to incident,
         bundle lineage, owner, safe-resume digest, and bounded TTL. Backend
@@ -616,9 +616,20 @@ occurred. Protected technical evidence remains outside the repository.
           Admin SDK vectors pass. The repository remains absent from `index.ts`;
           no export, deployment, shared-project write, FCM submission, or
           notification occurred.
-      - [ ] Persist terminal evidence, exact cancellations, atomic incident-fence
-        deletion, immutable replay, and the final dual-lease clear.
-- [ ] Define safe resume as degraded mode with affected-shift mutation fence,
+      - [x] Persist terminal evidence, exact cancellations, one terminal marker
+        per intent, atomic incident-fence deletion, immutable replay, and the
+        final dual-lease clear. Release and dispatch reject terminal markers;
+        missing/drifting fences, partial markers, evidence drift, or incomplete
+        cancellation write nothing. Entry bounds the combined intent/fence set
+        so terminalization always fits one Firestore CAS.
+        - [x] Validation: Node 22 Functions lint/build, 250/250 executed planning
+          vectors with 39 emulator-only skips, 2/2 terminal-marker vectors, 8/8
+          pure terminal-incident vectors, 6/6 terminal repository vectors, 6/6
+          release and 10/10 dispatch regressions, 28/28 strict Rules vectors,
+          5/5 Phase 1 vectors, and 2/2 modular Admin SDK vectors pass. The
+          repository remains absent from `index.ts`; no export, deployment,
+          shared-project write, FCM submission, or notification occurred.
+- [x] Define safe resume as degraded mode with affected-shift mutation fence,
   owner, TTL, escalation, and terminal cancellation/supersession of demonstrably
   unsubmitted intents at expiry; keep `unknown`/accepted/delivered history immutable
   and route possible delivery through reconciliation/correction.
@@ -853,7 +864,7 @@ occurred. Protected technical evidence remains outside the repository.
   them without duplicate export/notification.
 - [ ] Prove rollback/cleanup retains replay evidence until expiry and delayed or
   unknown-marker events cannot be misclassified as ordinary after cleanup.
-- [ ] Prove safe resume retains the release lease, partial release blocks a
+- [x] Prove safe resume retains the release lease, partial release blocks a
   superseding revision, terminal reconciliation clears it, and candidate lineage
   cannot mix migration baselines.
 - [ ] Prove membership mismatch and invalid planning frontier fail atomically.

@@ -1296,6 +1296,7 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
       `${intentPath}/releases/canonical`,
       `${intentPath}/dispatchState/current`,
       `${intentPath}/dispatchAttempts/attempt-1`,
+      `${intentPath}/terminalState/current`,
     ];
     for (const path of nestedPaths) {
       await testEnv.withSecurityRulesDisabled(async (context) => {
