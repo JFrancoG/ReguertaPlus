@@ -7,6 +7,11 @@ import {
 } from "@google-cloud/firestore";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
 import {
+  parseShiftPlanningNotificationIncidentShiftFence,
+  shiftPlanningNotificationIncidentShiftFenceId,
+  shiftPlanningNotificationIncidentShiftFenceIsActive,
+} from "./shift-planning-notification-incident-fence.js";
+import {
   ShiftPlanningNotificationResourceFenceScope,
   parseShiftPlanningNotificationResourceFence,
   shiftPlanningNotificationResourceFenceId,
@@ -86,9 +91,19 @@ export const inspectShiftPlanningNotificationWriterFences = async (input: {
         shiftPlanningNotificationResourceFenceId(scope, resourceId),
     )
   );
-  const snapshots = await input.transaction.getAll(...references);
+  const incidentResources = resources.filter(({scope}) => scope === "shift");
+  const incidentReferences = incidentResources.map(({resourceId}) =>
+    input.firestore.doc(
+      `${input.root}/shiftPlanningNotificationIncidentFences/` +
+        shiftPlanningNotificationIncidentShiftFenceId(resourceId),
+    )
+  );
+  const snapshots = await input.transaction.getAll(
+    ...references,
+    ...incidentReferences,
+  );
   let retryAt: Timestamp | null = null;
-  snapshots.forEach((snapshot, index) => {
+  snapshots.slice(0, references.length).forEach((snapshot, index) => {
     if (!snapshot.exists) return;
     const resource = resources[index];
     const fence = parseShiftPlanningNotificationResourceFence(
@@ -104,6 +119,24 @@ export const inspectShiftPlanningNotificationWriterFences = async (input: {
     }
     if (
       shiftPlanningNotificationResourceFenceIsActive(fence, input.now) &&
+      (retryAt === null || fence.expiresAt.toMillis() > retryAt.toMillis())
+    ) {
+      retryAt = fence.expiresAt;
+    }
+  });
+  snapshots.slice(references.length).forEach((snapshot, index) => {
+    if (!snapshot.exists) return;
+    const resource = incidentResources[index];
+    const fence = parseShiftPlanningNotificationIncidentShiftFence(
+      snapshot.data(),
+    );
+    if (fence.shiftId !== resource.resourceId) {
+      return failWriterFence(
+        "Notification incident fence path binding drifted.",
+      );
+    }
+    if (
+      shiftPlanningNotificationIncidentShiftFenceIsActive(fence, input.now) &&
       (retryAt === null || fence.expiresAt.toMillis() > retryAt.toMillis())
     ) {
       retryAt = fence.expiresAt;

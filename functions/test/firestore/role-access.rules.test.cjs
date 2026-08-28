@@ -628,6 +628,68 @@ test("active notification resource fences block client writers", async () => {
   }
 });
 
+test("active notification incident fences block only affected shifts", async () => {
+  for (const env of envs) {
+    const adminDb = contextFor(actors.admin).firestore();
+    const shiftId = "shift-incident-fenced";
+    const fencePath = `${collectionPath(
+      env,
+      "shiftPlanningNotificationIncidentFences",
+    )}/shift:${shiftId}`;
+    const fence = {
+      schemaVersion: 1,
+      operationKind: "notificationIncidentShiftFence",
+      shiftId,
+      incidentId: "incident-fenced",
+      bundleRevision: "bundle-fenced",
+      bundleDigest: `shift-planning:v1:sha256:${"a".repeat(64)}`,
+      ownerUserId: "operator-fenced",
+      acquiredAt: new Date("2098-12-31T00:00:00Z"),
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      safeResumeDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+    };
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(fencePath).set(fence);
+    });
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).set({
+      type: "delivery",
+      assignedUserIds: [actors.member.memberId],
+      status: "confirmed",
+      source: "app",
+    }));
+    await assertSucceeds(
+      adminDb.doc(docPath(env, "shifts", "shift-not-incident-fenced")).set({
+        type: "delivery",
+        assignedUserIds: [actors.member.memberId],
+        status: "confirmed",
+        source: "app",
+      }),
+    );
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(fencePath).update({
+        acquiredAt: new Date("2019-12-31T00:00:00Z"),
+        expiresAt: new Date("2020-01-01T00:00:00Z"),
+      });
+    });
+    await assertSucceeds(adminDb.doc(docPath(env, "shifts", shiftId)).set({
+      type: "delivery",
+      assignedUserIds: [actors.member.memberId],
+      status: "confirmed",
+      source: "app",
+    }));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(fencePath).update({
+        operationKind: "malformed",
+        acquiredAt: new Date("2098-12-31T00:00:00Z"),
+        expiresAt: new Date("2099-01-01T00:00:00Z"),
+      });
+    });
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).update({
+      status: "completed",
+    }));
+  }
+});
+
 test("catalog writes require producer or common-purchase capability and immutable ownership", async () => {
   for (const env of envs) {
     const ownPayload = {
@@ -1210,6 +1272,7 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
     "shiftPlanningSyncCommands",
     "shiftPlanningNotificationIntents",
     "shiftPlanningNotificationFences",
+    "shiftPlanningNotificationIncidentFences",
     "shiftPlanningOperations",
   ];
   for (const env of envs) {

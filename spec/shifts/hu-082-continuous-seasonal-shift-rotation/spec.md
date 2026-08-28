@@ -480,6 +480,13 @@ does not populate Firestore public shifts or activate either mobile app.
   when followed by a merely claimed retry. Only the complete terminal record or
   valid rollback/reconciliation clears both technical leases, and it does not
   make the rollout story Done.
+  Each affected shift uses a deterministic backend-only incident-fence document
+  bound to the incident, bundle lineage, owner, safe-resume digest, and exact TTL.
+  Backend transactional writers and strict client Rules read that fence in
+  addition to the short dispatch fence. An active exact fence blocks only its
+  shift until expiry; malformed evidence fails closed and unrelated shifts keep
+  running. Phase 1 also keeps the new partition private. The following CAS cut
+  owns creation and exact deletion of these fence documents.
 - Held notification intents live in a backend-owned outbox/path that the current
   normal notification trigger cannot consume. Only the explicit release
   operation creates canonical consumable events with stable idempotency keys.

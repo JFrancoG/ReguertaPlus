@@ -369,6 +369,11 @@ documented in the English and Spanish Firestore references before code lands.
   correction-required possible delivery, including an `unknown` followed by a
   merely claimed retry. Persist the degraded transition, affected-shift fence,
   terminal record, and atomic dual-lease clear in the following cut.
+  Before that CAS, establish one deterministic backend-only incident-fence
+  document per affected shift. Bind it to the incident, bundle, owner, TTL, and
+  safe-resume digest; make backend transactional writers and strict Rules honor
+  it alongside dispatch fences. Expired exact evidence stops blocking, malformed
+  evidence fails closed, and unrelated shifts remain writable.
 - Prove current and candidate notification consumers cannot consume the held
   outbox, including mixed-revision and rollback scenarios.
 - Update Rules and security tests so clients cannot mutate planner-owned state

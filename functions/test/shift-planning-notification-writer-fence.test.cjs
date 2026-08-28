@@ -46,6 +46,22 @@ const resourceFence = ({scope, resourceId, acquiredAtMillis}) => ({
 const fencePath = (scope, resourceId) =>
   `${root}/shiftPlanningNotificationFences/${scope}:${resourceId}`;
 
+const incidentFencePath = (shiftId) =>
+  `${root}/shiftPlanningNotificationIncidentFences/shift:${shiftId}`;
+
+const incidentFence = ({shiftId, acquiredAtMillis, expiresAtMillis}) => ({
+  schemaVersion: 1,
+  operationKind: "notificationIncidentShiftFence",
+  shiftId,
+  incidentId: "incident-1",
+  bundleRevision: "bundle-v1",
+  bundleDigest: digest,
+  ownerUserId: "operator-1",
+  acquiredAt: Timestamp.fromMillis(acquiredAtMillis),
+  expiresAt: Timestamp.fromMillis(expiresAtMillis),
+  safeResumeDigest: digest,
+});
+
 before(async () => {
   if (!EMULATOR_HOST) return;
   firestore = new Firestore({projectId: PROJECT_ID, databaseId: "(default)"});
@@ -133,6 +149,35 @@ test("returns the latest active writer-fence deadline", {
   );
   assert.equal(result.kind, "busy");
   assert.equal(result.retryAt.toMillis(), initialMillis + 25_000);
+});
+
+test("incident shift fence blocks only its affected shift until expiry", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  await firestore.doc(incidentFencePath("shift-1")).set(incidentFence({
+    shiftId: "shift-1",
+    acquiredAtMillis: initialMillis - 1_000,
+    expiresAtMillis: initialMillis + 3_600_000,
+  }));
+  const inspect = (shiftId, nowMillis = initialMillis) =>
+    firestore.runTransaction((transaction) =>
+      inspectShiftPlanningNotificationWriterFences({
+        firestore,
+        transaction,
+        root,
+        resources: [{scope: "shift", resourceId: shiftId}],
+        now: Timestamp.fromMillis(nowMillis),
+      })
+    );
+
+  const affected = await inspect("shift-1");
+  assert.equal(affected.kind, "busy");
+  assert.equal(affected.retryAt.toMillis(), initialMillis + 3_600_000);
+  assert.deepEqual(await inspect("shift-2"), {kind: "writable"});
+  assert.deepEqual(
+    await inspect("shift-1", initialMillis + 3_600_000),
+    {kind: "writable"},
+  );
 });
 
 test("fails closed for a malformed writer fence", {

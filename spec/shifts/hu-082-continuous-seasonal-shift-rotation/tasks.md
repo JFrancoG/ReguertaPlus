@@ -592,6 +592,20 @@ occurred. Protected technical evidence remains outside the repository.
         or shared-project write occurred.
     - [ ] Persist degraded entry, affected-shift fences, terminal evidence,
       cancellations, replay, and the final atomic dual-lease clear.
+      - [x] Define the deterministic incident-shift fence bound to incident,
+        bundle lineage, owner, safe-resume digest, and bounded TTL. Backend
+        transactional writers and strict Rules now inspect it alongside dispatch
+        fences; Phase 1 keeps the partition private. Active exact evidence blocks
+        only the affected shift, expiry reopens it, and malformed evidence fails
+        closed.
+        - [x] Validation: Node 22 Functions lint/build, 246/246 executed planning
+          vectors with 31 emulator-only skips, 3/3 pure fence vectors, 8/8
+          backend writer-fence emulator vectors, 28/28 strict Rules vectors,
+          5/5 Phase 1 compatibility vectors, and 2/2 modular Admin SDK vectors
+          pass. No export, deploy, shared-project write, FCM submission, or
+          notification occurred.
+      - [ ] Persist CAS creation/deletion and immutable degraded/terminal replay
+        records using this fence authority.
 - [ ] Define safe resume as degraded mode with affected-shift mutation fence,
   owner, TTL, escalation, and terminal cancellation/supersession of demonstrably
   unsubmitted intents at expiry; keep `unknown`/accepted/delivered history immutable

@@ -454,6 +454,12 @@ expiry, exact zero counters or attempts that never crossed authenticated submiss
 may be cancelled/superseded. Submitting, `unknown`, and accepted evidence remains
 possible-delivery correction history, including `unknown` followed by a merely
 claimed retry. Persistence of that degraded and terminal authority remains separate.
+Each affected shift now has a deterministic backend-only incident-fence contract
+bound to the incident, bundle lineage, owner, safe-resume digest, and bounded TTL.
+Backend transactional writers and strict Rules inspect it alongside short dispatch
+fences. Active exact evidence blocks only that shift, expiry reopens it, malformed
+evidence fails closed, and Phase 1 keeps the new partition private. The incident
+CAS remains responsible for creating and deleting those documents atomically.
 An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as

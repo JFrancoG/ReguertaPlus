@@ -46,6 +46,54 @@ service cloud.firestore {
       return /databases/$(database)/documents/$(env)/plus-collections/shiftPlanningNotificationFences/$(fenceId);
     }
 
+    function notificationIncidentShiftFencePath(env, shiftId) {
+      let fenceId = "shift:" + shiftId;
+      return /databases/$(database)/documents/$(env)/plus-collections/shiftPlanningNotificationIncidentFences/$(fenceId);
+    }
+
+    function isExactNotificationIncidentShiftFence(fence, shiftId) {
+      return fence.keys().hasOnly([
+          "schemaVersion",
+          "operationKind",
+          "shiftId",
+          "incidentId",
+          "bundleRevision",
+          "bundleDigest",
+          "ownerUserId",
+          "acquiredAt",
+          "expiresAt",
+          "safeResumeDigest",
+        ]) &&
+        fence.schemaVersion == 1 &&
+        fence.operationKind == "notificationIncidentShiftFence" &&
+        fence.shiftId == shiftId &&
+        isPlanningIdentifier(fence.shiftId) &&
+        isPlanningIdentifier(fence.incidentId) &&
+        isPlanningIdentifier(fence.bundleRevision) &&
+        isPlanningIdentifier(fence.ownerUserId) &&
+        fence.bundleDigest is string &&
+        fence.bundleDigest.matches(
+          "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+        ) &&
+        fence.acquiredAt is timestamp &&
+        fence.expiresAt is timestamp &&
+        fence.expiresAt > fence.acquiredAt &&
+        fence.expiresAt <= fence.acquiredAt + duration.value(24, "h") &&
+        fence.safeResumeDigest is string &&
+        fence.safeResumeDigest.matches(
+          "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+        );
+    }
+
+    function notificationIncidentShiftFenceAllowsMutation(env, shiftId) {
+      let fencePath = notificationIncidentShiftFencePath(env, shiftId);
+      let fence = exists(fencePath) ? get(fencePath).data : {};
+      return !exists(fencePath) || (
+        isExactNotificationIncidentShiftFence(fence, shiftId) &&
+        fence.expiresAt <= request.time
+      );
+    }
+
     function isExactNotificationResourceFence(fence, scope, resourceId) {
       return fence.keys().hasOnly([
           "schemaVersion",
@@ -84,9 +132,13 @@ service cloud.firestore {
     function notificationResourceFenceAllowsMutation(env, scope, resourceId) {
       let fencePath = notificationResourceFencePath(env, scope, resourceId);
       let fence = exists(fencePath) ? get(fencePath).data : {};
-      return !exists(fencePath) || (
+      let dispatchAllows = !exists(fencePath) || (
         isExactNotificationResourceFence(fence, scope, resourceId) &&
         fence.expiresAt <= request.time
+      );
+      return dispatchAllows && (
+        scope != "shift" ||
+        notificationIncidentShiftFenceAllowsMutation(env, resourceId)
       );
     }
 

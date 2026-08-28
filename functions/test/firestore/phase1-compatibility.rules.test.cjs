@@ -36,6 +36,7 @@ const privateShiftPlanningCollections = [
   "shiftPlanningSyncCommands",
   "shiftPlanningNotificationIntents",
   "shiftPlanningNotificationFences",
+  "shiftPlanningNotificationIncidentFences",
   "shiftPlanningOperations",
 ];
 

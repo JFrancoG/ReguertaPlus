@@ -38,6 +38,7 @@ service cloud.firestore {
         "shiftPlanningSyncCommands",
         "shiftPlanningNotificationIntents",
         "shiftPlanningNotificationFences",
+        "shiftPlanningNotificationIncidentFences",
         "shiftPlanningOperations",
       ];
     }
