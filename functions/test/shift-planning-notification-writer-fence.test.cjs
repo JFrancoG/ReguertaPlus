@@ -6,6 +6,7 @@ const {Firestore, Timestamp} = require("@google-cloud/firestore");
 
 const {
   inspectShiftPlanningNotificationWriterFences,
+  runShiftPlanningNotificationGuardedShiftWrite,
 } = require(
   "../lib/shift-planning-firestore-notification-writer-fence.js"
 );
@@ -157,6 +158,64 @@ test("fails closed for a malformed writer fence", {
     ),
     (error) => error.code === "invalid_planning_transaction",
   );
+});
+
+test("guarded legacy shift write skips its mutation while dispatch is active", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const target = firestore.doc(`${root}/shifts/shift-1`);
+  await target.set({revision: 1});
+  await firestore.doc(fencePath("shift", "shift-1")).set(
+    resourceFence({
+      scope: "shift",
+      resourceId: "shift-1",
+      acquiredAtMillis: initialMillis,
+    }),
+  );
+  let mutationCalled = false;
+
+  const result = await runShiftPlanningNotificationGuardedShiftWrite({
+    firestore,
+    root,
+    shiftId: "shift-1",
+    clock: () => Timestamp.fromMillis(initialMillis),
+    mutate: ({transaction, reference}) => {
+      mutationCalled = true;
+      transaction.update(reference, {revision: 2});
+    },
+  });
+
+  assert.equal(result.kind, "busy");
+  assert.equal(result.retryAt.toMillis(), initialMillis + 30_000);
+  assert.equal(mutationCalled, false);
+  assert.equal((await target.get()).get("revision"), 1);
+});
+
+test("guarded legacy shift write mutates from its transactional snapshot", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const target = firestore.doc(`${root}/shifts/shift-1`);
+  await target.set({revision: 1});
+
+  const result = await runShiftPlanningNotificationGuardedShiftWrite({
+    firestore,
+    root,
+    shiftId: "shift-1",
+    clock: () => Timestamp.fromMillis(initialMillis),
+    mutate: ({transaction, reference, snapshot, checkedAt}) => {
+      const priorRevision = snapshot.get("revision");
+      transaction.update(reference, {
+        revision: priorRevision + 1,
+        checkedAt,
+      });
+      return priorRevision;
+    },
+  });
+
+  assert.deepEqual(result, {kind: "writable", value: 1});
+  const updated = await target.get();
+  assert.equal(updated.get("revision"), 2);
+  assert.equal(updated.get("checkedAt").toMillis(), initialMillis);
 });
 
 test("a backend writer and racing claim serialize on the same fence", {

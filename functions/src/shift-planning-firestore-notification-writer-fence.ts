@@ -1,4 +1,6 @@
 import {
+  DocumentReference,
+  DocumentSnapshot,
   Firestore,
   Timestamp,
   Transaction,
@@ -21,6 +23,17 @@ export type ShiftPlanningNotificationWriterResource = {
 export type ShiftPlanningNotificationWriterFenceResult =
   | {kind: "writable"}
   | {kind: "busy"; retryAt: Timestamp};
+
+export type ShiftPlanningNotificationGuardedShiftWriteResult<Value> =
+  | {kind: "writable"; value: Value}
+  | {kind: "busy"; retryAt: Timestamp};
+
+type ShiftPlanningNotificationGuardedShiftWriteContext = {
+  transaction: Transaction;
+  reference: DocumentReference;
+  snapshot: DocumentSnapshot;
+  checkedAt: Timestamp;
+};
 
 const failWriterFence = (message: string): never => {
   throw new ShiftPlanningError("invalid_planning_transaction", message);
@@ -98,3 +111,49 @@ export const inspectShiftPlanningNotificationWriterFences = async (input: {
   });
   return retryAt === null ? {kind: "writable"} : {kind: "busy", retryAt};
 };
+
+/**
+ * Serializes one legacy shift mutation with its exact notification fence. The
+ * target and fence reads stay inside the same retryable transaction, and the
+ * mutation callback is never invoked while an exact active fence is present.
+ * This protects the Firestore mutation only; it cannot make an earlier or
+ * later external workbook write part of the same atomic commit.
+ * @param {object} input Firestore root, shift, trusted clock, and mutation.
+ * @return {Promise<ShiftPlanningNotificationGuardedShiftWriteResult<Value>>}
+ * Guarded mutation result or the active lease deadline.
+ */
+export const runShiftPlanningNotificationGuardedShiftWrite = async <Value>(
+  input: {
+    firestore: Firestore;
+    root: string;
+    shiftId: string;
+    clock: () => Timestamp;
+    mutate: (
+      context: ShiftPlanningNotificationGuardedShiftWriteContext,
+    ) => Value | Promise<Value>;
+  },
+): Promise<ShiftPlanningNotificationGuardedShiftWriteResult<Value>> =>
+  input.firestore.runTransaction(async (transaction) => {
+    const reference = input.firestore.doc(
+      `${input.root}/shifts/${input.shiftId}`,
+    );
+    const snapshot = await transaction.get(reference);
+    const checkedAt = input.clock();
+    const fenceResult = await inspectShiftPlanningNotificationWriterFences({
+      firestore: input.firestore,
+      transaction,
+      root: input.root,
+      resources: [{scope: "shift", resourceId: input.shiftId}],
+      now: checkedAt,
+    });
+    if (fenceResult.kind === "busy") {
+      return fenceResult;
+    }
+    const value = await input.mutate({
+      transaction,
+      reference,
+      snapshot,
+      checkedAt,
+    });
+    return {kind: "writable", value};
+  });

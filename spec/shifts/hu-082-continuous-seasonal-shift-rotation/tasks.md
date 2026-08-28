@@ -366,15 +366,26 @@ occurred. Protected technical evidence remains outside the repository.
           executor; correlate sanitized accepted/completed/rejected/unknown audit
           events without logging bodies, authorization digests, member data, or
           internal diagnostics. Do not select a runtime service account here.
-        - [x] Validation: Node 22 Functions lint/build, 193 planning vectors with
-          eleven emulator-only skips, 7/7 focused HTTP boundary vectors, and 3/3
-          governed activation/allowlisted-recovery Firestore-emulator vectors
-          pass. No shared Firebase write, IAM mutation, deployment, or live
-          recovery occurred.
         - [ ] Remaining for the controlled HU-085 rollout: provision the named
           operator principal, grant only exact endpoint invocation, deploy/read
           back the binding, and prove IAM allow/deny plus absence of direct data,
           workbook, impersonation, and token-minting authority.
+      - [x] Validation: Node 22 Functions lint/build, 193 planning vectors with
+        eleven emulator-only skips, 7/7 focused HTTP boundary vectors, and 3/3
+        governed activation/allowlisted-recovery Firestore-emulator vectors
+        pass. No shared Firebase write, IAM mutation, deployment, or live
+        recovery occurred.
+      - [x] Serialize every legacy importer/planner Firestore shift upsert and
+        stale imported-shift deletion with the exact notification-resource fence.
+        Re-read stale-delete ownership inside the transaction and preserve the
+        stable HTTP conflict when dispatch owns the shift. This is deliberately
+        only a Firestore mutation guard: the multi-shift import remains partially
+        applicable and the legacy planner still writes its workbook first, so
+        their intake shutdown/drain and HU-083 replacement remain mandatory.
+      - [x] Validation: Node 22 Functions lint/build and 7/7 focused
+        notification-writer Firestore-emulator vectors pass, including active-
+        fence zero-mutation and snapshot-based guarded write. No workbook,
+        shared Firebase, endpoint, deployment, or live writer changed.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit

@@ -66,8 +66,10 @@ import {
   createShiftPlanningOperatorRecoveryHttpFunction,
 } from "./shift-planning-operator-http.js";
 import {
+  ShiftPlanningNotificationGuardedShiftWriteResult,
   ShiftPlanningNotificationWriterResource,
   inspectShiftPlanningNotificationWriterFences,
+  runShiftPlanningNotificationGuardedShiftWrite,
 } from "./shift-planning-firestore-notification-writer-fence.js";
 
 const firebaseApp = initializeApp();
@@ -350,12 +352,24 @@ const requireShiftPlanningNotificationResourcesWritable = async (
     now,
   });
   if (result.kind === "busy") {
-    throw new HttpRequestError(
-      409,
-      "shift_notification_dispatch_in_progress",
-      "A shift notification is being delivered. Try again shortly.",
-    );
+    throw shiftPlanningNotificationDispatchInProgressError();
   }
+};
+
+const shiftPlanningNotificationDispatchInProgressError = () =>
+  new HttpRequestError(
+    409,
+    "shift_notification_dispatch_in_progress",
+    "A shift notification is being delivered. Try again shortly.",
+  );
+
+const requireShiftPlanningNotificationGuardedWrite = <Value>(
+  result: ShiftPlanningNotificationGuardedShiftWriteResult<Value>,
+): Value => {
+  if (result.kind === "busy") {
+    throw shiftPlanningNotificationDispatchInProgressError();
+  }
+  return result.value;
 };
 
 const parseAdminTargetEnvironments = (
@@ -2713,50 +2727,73 @@ const withDerivedDeliveryHelpers = (
 };
 
 const syncShiftRowsIntoFirestore = async (
-  env: string,
+  env: AppEnvironment,
   rows: NormalizedShiftSheetRow[],
 ): Promise<number> => {
-  const collection = firestore.collection(`${env}/plus-collections/shifts`);
+  const root = `${env}/plus-collections`;
+  const collection = firestore.collection(`${root}/shifts`);
   const importedAt = FieldValue.serverTimestamp();
-  const importedIds = rows.map((row) => row.shiftId);
+  const importedIds = new Set(rows.map((row) => row.shiftId));
   let writes = 0;
 
   for (const row of rows) {
-    const ref = collection.doc(row.shiftId);
-    const existing = await ref.get();
-    const existingCreatedAt = existing.get("createdAt");
-    await ref.set({
-      type: row.type,
-      date: row.date,
-      assignedUserIds: row.assignedUserIds,
-      helperUserId: row.helperUserId,
-      status: row.status,
-      source: row.source,
-      createdAt: existingCreatedAt instanceof Timestamp ?
-        existingCreatedAt :
-        FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      syncMeta: {
-        origin: "google_sheets",
-        rowKey: row.rowKey,
-        rowNumber: row.rowNumber,
-        sheetName: row.sheetName,
-        importedAt,
+    const result = await runShiftPlanningNotificationGuardedShiftWrite({
+      firestore,
+      root,
+      shiftId: row.shiftId,
+      clock: () => Timestamp.now(),
+      mutate: ({transaction, reference, snapshot}) => {
+        const existingCreatedAt = snapshot.get("createdAt");
+        transaction.set(reference, {
+          type: row.type,
+          date: row.date,
+          assignedUserIds: row.assignedUserIds,
+          helperUserId: row.helperUserId,
+          status: row.status,
+          source: row.source,
+          createdAt: existingCreatedAt instanceof Timestamp ?
+            existingCreatedAt :
+            FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          syncMeta: {
+            origin: "google_sheets",
+            rowKey: row.rowKey,
+            rowNumber: row.rowNumber,
+            sheetName: row.sheetName,
+            importedAt,
+          },
+        }, {merge: true});
       },
-    }, {merge: true});
+    });
+    requireShiftPlanningNotificationGuardedWrite(result);
     writes += 1;
   }
 
   const staleSnapshot = await collection
     .where("source", "==", "google_sheets")
     .get();
-  const staleDocs = staleSnapshot.docs.filter((doc) =>
-    !importedIds.includes(doc.id)
+  const staleDocs = staleSnapshot.docs.filter(
+    (doc) => !importedIds.has(doc.id),
   );
-  while (staleDocs.length > 0) {
-    const batch = firestore.batch();
-    staleDocs.splice(0, 400).forEach((doc) => batch.delete(doc.ref));
-    await batch.commit();
+  for (const staleDoc of staleDocs) {
+    const result = await runShiftPlanningNotificationGuardedShiftWrite({
+      firestore,
+      root,
+      shiftId: staleDoc.id,
+      clock: () => Timestamp.now(),
+      mutate: ({transaction, reference, snapshot}) => {
+        if (
+          !snapshot.exists ||
+          snapshot.get("source") !== "google_sheets" ||
+          importedIds.has(snapshot.id)
+        ) {
+          return false;
+        }
+        transaction.delete(reference);
+        return true;
+      },
+    });
+    requireShiftPlanningNotificationGuardedWrite(result);
   }
 
   return writes;
@@ -3513,39 +3550,48 @@ const buildMarketSheetValues = (
 };
 
 const persistPlannedShifts = async (
-  env: string,
+  env: AppEnvironment,
   requestId: string,
   shifts: FirestoreShiftRecord[],
 ): Promise<number> => {
-  const collection = shiftsCollection(env);
+  const root = `${env}/plus-collections`;
   let writes = 0;
 
   for (const shift of shifts) {
-    const ref = collection.doc(shift.id);
-    const existing = await ref.get();
-    const existingCreatedAt = existing.get("createdAt");
-    await ref.set({
-      type: shift.type,
-      date: shift.date,
-      assignedUserIds: shift.assignedUserIds,
-      helperUserId: shift.helperUserId,
-      status: shift.status,
-      source: shift.source,
-      createdAt: existingCreatedAt instanceof Timestamp ?
-        existingCreatedAt :
-        FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      planningMeta: {
-        requestId,
-        seasonLabel:
-          shift.syncSheetName?.replace(/^turnos-(reparto|mercado)\s+/i, "") ||
-          null,
+    const result = await runShiftPlanningNotificationGuardedShiftWrite({
+      firestore,
+      root,
+      shiftId: shift.id,
+      clock: () => Timestamp.now(),
+      mutate: ({transaction, reference, snapshot}) => {
+        const existingCreatedAt = snapshot.get("createdAt");
+        transaction.set(reference, {
+          type: shift.type,
+          date: shift.date,
+          assignedUserIds: shift.assignedUserIds,
+          helperUserId: shift.helperUserId,
+          status: shift.status,
+          source: shift.source,
+          createdAt: existingCreatedAt instanceof Timestamp ?
+            existingCreatedAt :
+            FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          planningMeta: {
+            requestId,
+            seasonLabel:
+              shift.syncSheetName?.replace(
+                /^turnos-(reparto|mercado)\s+/i,
+                "",
+              ) || null,
+          },
+          syncMeta: {
+            origin: "planner",
+            sheetName: shift.syncSheetName,
+          },
+        }, {merge: true});
       },
-      syncMeta: {
-        origin: "planner",
-        sheetName: shift.syncSheetName,
-      },
-    }, {merge: true});
+    });
+    requireShiftPlanningNotificationGuardedWrite(result);
     writes += 1;
   }
 
@@ -3718,7 +3764,7 @@ const exportAllShiftsToGoogleSheets = async (
 };
 
 const syncShiftsFromGoogleSheetsInternal = async (
-  env: string,
+  env: AppEnvironment,
 ): Promise<{
   importedCount: number;
   deliveryCount: number;
@@ -3899,7 +3945,7 @@ export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
 });
 
 const processShiftPlanningRequest = async (
-  env: string,
+  env: AppEnvironment,
   request: ShiftPlanningRequestRecord,
 ): Promise<{
   seasonLabel: string;
@@ -4041,7 +4087,10 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
     }, {merge: true});
 
     try {
-      const summary = await processShiftPlanningRequest(env, request);
+      const summary = await processShiftPlanningRequest(
+        parseAppEnvironment(env),
+        request,
+      );
       await snapshot.ref.set({
         status: "completed",
         completedAt: FieldValue.serverTimestamp(),
