@@ -541,6 +541,18 @@ occurred. Protected technical evidence remains outside the repository.
     that lease. Migrate each Admin SDK/server writer to the same transaction guard,
     define retry behavior for blocked mobile device registration, then connect
     the real FCM transport.
+    - [x] Add one shared Admin SDK transaction guard and bind the authenticated
+      admin member upsert plus reciprocal shift-swap application to the exact
+      member/changed-shift fences. Active leases return stable HTTP conflict;
+      malformed state fails closed; a real emulator race proves the writer and
+      dispatch claim serialize on the same deterministic document.
+      - [x] Validation: Node 22 Functions lint/build, 213/213 executed planning
+        vectors with 28 emulator-only skips, 5/5 focused writer-fence emulator
+        vectors, and 28/28 backend-security/member-directory/shift-swap vectors
+        pass locally. No Firebase, Functions, FCM, or production data deployment
+        occurred.
+    - [ ] Remaining: migrate the legacy Sheets importer/planner and v2 activation
+      serializer, specify mobile device-registration retry, then wire real FCM.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.

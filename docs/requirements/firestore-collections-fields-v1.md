@@ -865,8 +865,12 @@ Dispatch now publishes the deterministic member/shift resource fences described
 above in the same transaction as its attempt. The strict candidate consumes them
 for direct device and shift writes; accepted/definitive failure releases them,
 while `unknown` remains fenced until expiry. Backend Admin SDK writers bypass
-Rules and therefore still require the same explicit transaction guard before any
-production wiring or deployment.
+Rules. A shared transaction guard now serializes the authenticated admin member
+upsert and reciprocal shift-swap application against those exact documents; an
+active fence returns the stable HTTP conflict
+`shift_notification_dispatch_in_progress`, and malformed fence state fails
+closed. The legacy Sheets importer/planner and the v2 activation serializer still
+require the same guard before any production wiring or deployment.
 Still pending and fail-closed are the isolated-clone size/index rehearsal, live
 Google control-plane implementations and trusted intake-barrier wiring, writer
 migration, notification dispatch/reconciliation consumers, production deployment,

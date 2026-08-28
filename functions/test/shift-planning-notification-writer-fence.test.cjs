@@ -1,0 +1,213 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const {after, before, beforeEach, test} = require("node:test");
+const {Firestore, Timestamp} = require("@google-cloud/firestore");
+
+const {
+  inspectShiftPlanningNotificationWriterFences,
+} = require(
+  "../lib/shift-planning-firestore-notification-writer-fence.js"
+);
+
+const PROJECT_ID = "demo-reguerta-hu082-notification-writer-fence";
+const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
+const root = "develop/plus-collections";
+const initialMillis = 1_788_393_900_000;
+const digest = `shift-planning:v1:sha256:${"f".repeat(64)}`;
+
+let firestore;
+
+const clearFirestore = async () => {
+  const response = await fetch(
+    `http://${EMULATOR_HOST}/emulator/v1/projects/${PROJECT_ID}/` +
+      "databases/(default)/documents",
+    {method: "DELETE"},
+  );
+  assert.equal(response.ok, true, await response.text());
+};
+
+const resourceFence = ({scope, resourceId, acquiredAtMillis}) => ({
+  schemaVersion: 1,
+  operationKind: "notificationDispatchResourceFence",
+  scope,
+  resourceId,
+  intentId: "intent-1",
+  eventId: "event-1",
+  attemptId: "attempt-1",
+  workerId: "worker-1",
+  leaseEpoch: 1,
+  acquiredAt: Timestamp.fromMillis(acquiredAtMillis),
+  expiresAt: Timestamp.fromMillis(acquiredAtMillis + 30_000),
+  validationDigest: digest,
+});
+
+const fencePath = (scope, resourceId) =>
+  `${root}/shiftPlanningNotificationFences/${scope}:${resourceId}`;
+
+before(async () => {
+  if (!EMULATOR_HOST) return;
+  firestore = new Firestore({projectId: PROJECT_ID, databaseId: "(default)"});
+});
+
+after(async () => {
+  if (firestore) await firestore.terminate();
+});
+
+beforeEach(async () => {
+  if (EMULATOR_HOST) await clearFirestore();
+});
+
+test("rejects an empty writer resource set before Firestore access", async () => {
+  await assert.rejects(
+    inspectShiftPlanningNotificationWriterFences({
+      firestore: null,
+      transaction: null,
+      root,
+      resources: [],
+      now: Timestamp.fromMillis(initialMillis),
+    }),
+    (error) => error.code === "invalid_planning_transaction",
+  );
+});
+
+test("allows missing and expired exact writer fences", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  await firestore.doc(fencePath("member", "member-1")).set(
+    resourceFence({
+      scope: "member",
+      resourceId: "member-1",
+      acquiredAtMillis: initialMillis - 40_000,
+    }),
+  );
+  const result = await firestore.runTransaction((transaction) =>
+    inspectShiftPlanningNotificationWriterFences({
+      firestore,
+      transaction,
+      root,
+      resources: [
+        {scope: "member", resourceId: "member-1"},
+        {scope: "shift", resourceId: "shift-1"},
+      ],
+      now: Timestamp.fromMillis(initialMillis),
+    })
+  );
+  assert.deepEqual(result, {kind: "writable"});
+});
+
+test("returns the latest active writer-fence deadline", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const batch = firestore.batch();
+  batch.set(
+    firestore.doc(fencePath("member", "member-1")),
+    resourceFence({
+      scope: "member",
+      resourceId: "member-1",
+      acquiredAtMillis: initialMillis - 10_000,
+    }),
+  );
+  batch.set(
+    firestore.doc(fencePath("shift", "shift-1")),
+    resourceFence({
+      scope: "shift",
+      resourceId: "shift-1",
+      acquiredAtMillis: initialMillis - 5_000,
+    }),
+  );
+  await batch.commit();
+  const result = await firestore.runTransaction((transaction) =>
+    inspectShiftPlanningNotificationWriterFences({
+      firestore,
+      transaction,
+      root,
+      resources: [
+        {scope: "shift", resourceId: "shift-1"},
+        {scope: "member", resourceId: "member-1"},
+        {scope: "shift", resourceId: "shift-1"},
+      ],
+      now: Timestamp.fromMillis(initialMillis),
+    })
+  );
+  assert.equal(result.kind, "busy");
+  assert.equal(result.retryAt.toMillis(), initialMillis + 25_000);
+});
+
+test("fails closed for a malformed writer fence", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  await firestore.doc(fencePath("member", "member-1")).set({
+    ...resourceFence({
+      scope: "member",
+      resourceId: "member-1",
+      acquiredAtMillis: initialMillis - 40_000,
+    }),
+    unexpected: true,
+  });
+  await assert.rejects(
+    firestore.runTransaction((transaction) =>
+      inspectShiftPlanningNotificationWriterFences({
+        firestore,
+        transaction,
+        root,
+        resources: [{scope: "member", resourceId: "member-1"}],
+        now: Timestamp.fromMillis(initialMillis),
+      })
+    ),
+    (error) => error.code === "invalid_planning_transaction",
+  );
+});
+
+test("a backend writer and racing claim serialize on the same fence", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const target = firestore.doc(`${root}/users/member-1`);
+  await target.set({revision: 1});
+  let releaseFirstRead;
+  const release = new Promise((resolve) => {
+    releaseFirstRead = resolve;
+  });
+  let firstReadObserved;
+  const observed = new Promise((resolve) => {
+    firstReadObserved = resolve;
+  });
+  const writer = firestore.runTransaction(async (transaction) => {
+    const result = await inspectShiftPlanningNotificationWriterFences({
+      firestore,
+      transaction,
+      root,
+      resources: [{scope: "member", resourceId: "member-1"}],
+      now: Timestamp.fromMillis(initialMillis),
+    });
+    firstReadObserved();
+    await release;
+    if (result.kind === "busy") return result;
+    transaction.update(target, {revision: 2});
+    return result;
+  });
+
+  await observed;
+  let claimSettled = false;
+  const claim = firestore.doc(fencePath("member", "member-1")).set(
+    resourceFence({
+      scope: "member",
+      resourceId: "member-1",
+      acquiredAtMillis: initialMillis,
+    }),
+  ).finally(() => {
+    claimSettled = true;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(claimSettled, false);
+  releaseFirstRead();
+
+  const result = await writer;
+  assert.equal(result.kind, "writable");
+  await claim;
+  assert.equal((await target.get()).get("revision"), 2);
+  assert.equal(
+    (await firestore.doc(fencePath("member", "member-1")).get()).exists,
+    true,
+  );
+});

@@ -65,6 +65,10 @@ import {
 import {
   createShiftPlanningOperatorRecoveryHttpFunction,
 } from "./shift-planning-operator-http.js";
+import {
+  ShiftPlanningNotificationWriterResource,
+  inspectShiftPlanningNotificationWriterFences,
+} from "./shift-planning-firestore-notification-writer-fence.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
@@ -330,6 +334,28 @@ const sendHttpError = (response: Response, error: unknown): void => {
       message: "Internal server error",
     },
   });
+};
+
+const requireShiftPlanningNotificationResourcesWritable = async (
+  transaction: Transaction,
+  environment: AppEnvironment,
+  resources: readonly ShiftPlanningNotificationWriterResource[],
+  now: Timestamp,
+): Promise<void> => {
+  const result = await inspectShiftPlanningNotificationWriterFences({
+    firestore,
+    transaction,
+    root: `${environment}/plus-collections`,
+    resources,
+    now,
+  });
+  if (result.kind === "busy") {
+    throw new HttpRequestError(
+      409,
+      "shift_notification_dispatch_in_progress",
+      "A shift notification is being delivered. Try again shortly.",
+    );
+  }
 };
 
 const parseAdminTargetEnvironments = (
@@ -4583,6 +4609,12 @@ export const upsertMemberByAdmin = onRequest(async (req, res) => {
         payload.authUid = null;
         payload.createdAt = FieldValue.serverTimestamp();
       }
+      await requireShiftPlanningNotificationResourcesWritable(
+        transaction,
+        environment,
+        [{scope: "member", resourceId: memberId}],
+        Timestamp.now(),
+      );
       transaction.set(memberRef, payload, {merge: true});
     });
 
@@ -5003,7 +5035,7 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
           return shift;
         });
         const recomputed = recomputeDeliveryHelpers(replaced);
-        recomputed.forEach((shift, index) => {
+        const changedShifts = recomputed.filter((shift, index) => {
           const original = storedShifts[index];
           const assignmentsChanged =
             shift.assignedUserIds.length !== original.assignedUserIds.length ||
@@ -5011,15 +5043,25 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
               userId !== original.assignedUserIds[assignmentIndex]
             );
           const helperChanged = shift.helperUserId !== original.helperUserId;
-          if (assignmentsChanged || helperChanged) {
-            transaction.update(shift.ref, {
-              assignedUserIds: shift.assignedUserIds,
-              helperUserId: shift.helperUserId,
-              status: "confirmed",
-              source: "app",
-              updatedAt: applyNow,
-            });
-          }
+          return assignmentsChanged || helperChanged;
+        });
+        await requireShiftPlanningNotificationResourcesWritable(
+          transaction,
+          input.environment,
+          changedShifts.map((shift) => ({
+            scope: "shift",
+            resourceId: shift.id,
+          })),
+          applyNow,
+        );
+        changedShifts.forEach((shift) => {
+          transaction.update(shift.ref, {
+            assignedUserIds: shift.assignedUserIds,
+            helperUserId: shift.helperUserId,
+            status: "confirmed",
+            source: "app",
+            updatedAt: applyNow,
+          });
         });
         transaction.update(requestRef, {
           status: "applied",

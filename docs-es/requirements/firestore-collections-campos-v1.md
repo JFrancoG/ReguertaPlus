@@ -976,8 +976,12 @@ Dispatch publica ahora las fences deterministas de socio/turno descritas arriba 
 la misma transaccion que su intento. El candidato estricto las consume para las
 escrituras directas de dispositivo y turno; una aceptacion/fallo definitivo las
 libera y `unknown` mantiene el bloqueo hasta expirar. Los writers de Admin SDK no
-estan sujetos a Rules y aun necesitan el mismo guard transaccional explicito antes
-de cualquier wiring o despliegue de produccion.
+estan sujetos a Rules. Un guard transaccional compartido serializa ya el upsert
+administrativo autenticado de socios y la aplicacion de intercambios reciprocos
+contra esos documentos exactos; una fence activa devuelve el conflicto HTTP
+estable `shift_notification_dispatch_in_progress` y una fence malformada falla
+cerrado. El importador/planner legacy de Sheets y el serializador de activacion v2
+aun necesitan el mismo guard antes de cualquier wiring o despliegue de produccion.
 Siguen pendientes y fail-closed el ensayo de tamano/indices en clon aislado, las
 implementaciones live del plano de control de Google y el wiring fiable de la
 barrera de entrada, la migracion de writers, consumidores de dispatch/reconciliacion
