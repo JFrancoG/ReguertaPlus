@@ -4,8 +4,10 @@ import {
   parseAppEnvironment,
 } from "./backend-security.js";
 import {
-  parseShiftPlanningMaintenanceState,
-} from "./shift-planning-wire.js";
+  assertShiftPlanningWriterAuthority,
+  captureShiftPlanningWriterAuthority,
+  ShiftPlanningWriterAuthority,
+} from "./shift-planning-writer-authority.js";
 
 export type ShiftType = "delivery" | "market";
 
@@ -27,75 +29,7 @@ export type ShiftSwapResponseLike = ShiftSwapCandidateLike & {
   respondedAtMillis: number;
 };
 
-export type ShiftSwapPlanningAuthority = {
-  schemaVersion: 1;
-  stateRevision: number;
-  writeEpoch: number;
-  activeRevision: string | null;
-  activeDigest: string | null;
-};
-
-const planningAuthorityKeys = [
-  "schemaVersion",
-  "stateRevision",
-  "writeEpoch",
-  "activeRevision",
-  "activeDigest",
-] as const;
-
-const failPlanningAuthority = (code: string, message: string): never => {
-  throw new HttpRequestError(409, code, message);
-};
-
-const parseStoredPlanningAuthority = (
-  value: unknown,
-): ShiftSwapPlanningAuthority | null => {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  const authority = asRecord(value);
-  const keys = Object.keys(authority);
-  const activeRevision = authority.activeRevision;
-  const activeDigest = authority.activeDigest;
-  if (
-    keys.length !== planningAuthorityKeys.length ||
-    keys.some((key) => !planningAuthorityKeys.includes(
-      key as typeof planningAuthorityKeys[number],
-    )) ||
-    authority.schemaVersion !== 1 ||
-    !Number.isSafeInteger(authority.stateRevision) ||
-    (authority.stateRevision as number) < 0 ||
-    !Number.isSafeInteger(authority.writeEpoch) ||
-    (authority.writeEpoch as number) < 0 ||
-    (
-      activeRevision !== null &&
-      (
-        typeof activeRevision !== "string" ||
-        !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(activeRevision)
-      )
-    ) ||
-    (
-      activeDigest !== null &&
-      (
-        typeof activeDigest !== "string" ||
-        !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(activeDigest)
-      )
-    ) ||
-    ((activeRevision === null) !== (activeDigest === null))
-  ) {
-    return failPlanningAuthority(
-      "invalid_shift_swap_authority",
-      "Shift-swap planning authority is invalid",
-    );
-  }
-  return {
-    schemaVersion: 1,
-    stateRevision: authority.stateRevision as number,
-    writeEpoch: authority.writeEpoch as number,
-    activeRevision: activeRevision as string | null,
-    activeDigest: activeDigest as string | null,
-  };
-};
+export type ShiftSwapPlanningAuthority = ShiftPlanningWriterAuthority;
 
 /**
  * Captures the exact open planning authority for a reciprocal swap.
@@ -105,63 +39,27 @@ const parseStoredPlanningAuthority = (
  */
 export const captureShiftSwapPlanningAuthority = (
   value: unknown,
-): ShiftSwapPlanningAuthority | null => {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  let state;
-  try {
-    state = parseShiftPlanningMaintenanceState(value);
-  } catch {
-    return failPlanningAuthority(
-      "invalid_shift_planning_state",
-      "Shift planning state is invalid",
-    );
-  }
-  if (state.maintenanceStatus !== "open") {
-    return failPlanningAuthority(
-      "shift_planning_maintenance",
-      "Shift changes are unavailable during planning maintenance",
-    );
-  }
-  return {
-    schemaVersion: 1,
-    stateRevision: state.stateRevision,
-    writeEpoch: state.writeEpoch,
-    activeRevision: state.activeRevision,
-    activeDigest: state.activeDigest,
-  };
-};
+): ShiftSwapPlanningAuthority | null =>
+  captureShiftPlanningWriterAuthority(value);
 
 /**
  * Revalidates a request's captured planning authority before another mutation.
  * Any maintenance transition or activation makes the old request stale.
  * @param {unknown} capturedValue Authority persisted with the swap request.
  * @param {unknown} currentStateValue Current maintenance-state document.
+ * @return {void}
  */
 export const assertShiftSwapPlanningAuthority = (
   capturedValue: unknown,
   currentStateValue: unknown,
-): void => {
-  const captured = parseStoredPlanningAuthority(capturedValue);
-  const current = captureShiftSwapPlanningAuthority(currentStateValue);
-  if (
-    captured === null ||
-    current === null ||
-    captured.stateRevision !== current.stateRevision ||
-    captured.writeEpoch !== current.writeEpoch ||
-    captured.activeRevision !== current.activeRevision ||
-    captured.activeDigest !== current.activeDigest
-  ) {
-    if (captured === null && current === null) {
-      return;
-    }
-    failPlanningAuthority(
-      "shift_swap_planning_authority_changed",
-      "Shift planning authority changed after this swap was requested",
-    );
-  }
-};
+): void => assertShiftPlanningWriterAuthority({
+  capturedValue,
+  currentStateValue,
+  changedCode: "shift_swap_planning_authority_changed",
+  changedMessage: "Shift planning authority changed after the swap request",
+  storedInvalidCode: "invalid_shift_swap_authority",
+  storedInvalidMessage: "Shift-swap planning authority is invalid",
+});
 
 export type ShiftSwapTransitionInput =
   | {

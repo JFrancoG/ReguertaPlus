@@ -126,6 +126,13 @@ Reglas MVP:
 - si no, se genera un id determinista a partir de `type + date`
 - el documento se marca con `source: "google_sheets"`
 - se guarda trazabilidad mínima en `shifts.syncMeta`
+- tras leer la hoja, la operación captura la autoridad de planificación abierta;
+  cada alta, actualización o borrado revalida esa misma revisión/época dentro de
+  su transacción y se detiene si cambia
+
+El importador sigue siendo no atómico entre filas: una deriva posterior detiene
+las mutaciones restantes, pero no revierte las ya confirmadas. HU-083 sustituye
+este flujo por el consumidor multi-temporada gobernado.
 
 ### Flujo outbound
 

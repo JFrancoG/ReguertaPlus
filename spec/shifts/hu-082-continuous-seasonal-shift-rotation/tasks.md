@@ -797,8 +797,16 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Validation: Functions lint/build, 30/30 backend-security/shift-swap
     vectors, and the 255 executed planning-unit vectors pass; 39 emulator-only
     vectors remain intentionally skipped in the ordinary unit lane.
-  - [ ] Remaining: migrate/deny direct client writes and fence calendar, importer,
-    planner, trigger, admin, and other inventoried mutation paths.
+  - [x] The Sheets importer captures one exact open planning authority only after
+    its read-only workbook phase. Every shift upsert and stale imported-shift
+    deletion revalidates that authority inside the same notification-guarded
+    transaction before mutation; drift stops all remaining writes. The operation
+    remains intentionally non-atomic across rows until HU-083 replaces it.
+  - [x] Validation: Functions lint/build, 30/30 backend-security/shift-swap
+    vectors, 255/255 executed planning-unit vectors with 40 emulator-only skips,
+    and 9/9 focused notification-writer Firestore-emulator vectors pass locally.
+  - [ ] Remaining: migrate/deny direct client writes and fence calendar, planner,
+    trigger, admin, and other inventoried mutation paths.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.

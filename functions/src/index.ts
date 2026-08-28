@@ -77,6 +77,11 @@ import {
   runShiftPlanningNotificationGuardedShiftWrite,
 } from "./shift-planning-firestore-notification-writer-fence.js";
 import {
+  assertShiftPlanningWriterAuthority,
+  captureShiftPlanningWriterAuthority,
+  ShiftPlanningWriterAuthority,
+} from "./shift-planning-writer-authority.js";
+import {
   classifyShiftPlanningNotificationDeliveryAuthority,
 } from "./shift-planning-notification-delivery-authority.js";
 
@@ -2740,12 +2745,24 @@ const withDerivedDeliveryHelpers = (
 const syncShiftRowsIntoFirestore = async (
   env: AppEnvironment,
   rows: NormalizedShiftSheetRow[],
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<number> => {
   const root = `${env}/plus-collections`;
   const collection = firestore.collection(`${root}/shifts`);
+  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
   const importedAt = FieldValue.serverTimestamp();
   const importedIds = new Set(rows.map((row) => row.shiftId));
   let writes = 0;
+
+  const authorizePlanningWrite = async (transaction: Transaction) => {
+    const currentState = await transaction.get(planningStateReference);
+    assertShiftPlanningWriterAuthority({
+      capturedValue: planningAuthority,
+      currentStateValue: currentState.data(),
+      changedCode: "shift_import_planning_authority_changed",
+      changedMessage: "Shift import planning authority changed",
+    });
+  };
 
   for (const row of rows) {
     const result = await runShiftPlanningNotificationGuardedShiftWrite({
@@ -2753,6 +2770,7 @@ const syncShiftRowsIntoFirestore = async (
       root,
       shiftId: row.shiftId,
       clock: () => Timestamp.now(),
+      authorize: authorizePlanningWrite,
       mutate: ({transaction, reference, snapshot}) => {
         const existingCreatedAt = snapshot.get("createdAt");
         transaction.set(reference, {
@@ -2792,6 +2810,7 @@ const syncShiftRowsIntoFirestore = async (
       root,
       shiftId: staleDoc.id,
       clock: () => Timestamp.now(),
+      authorize: authorizePlanningWrite,
       mutate: ({transaction, reference, snapshot}) => {
         if (
           !snapshot.exists ||
@@ -3803,7 +3822,15 @@ const syncShiftsFromGoogleSheetsInternal = async (
     )
   );
   const rows = withDerivedDeliveryHelpers(rowsByRange.flat());
-  const importedCount = await syncShiftRowsIntoFirestore(env, rows);
+  const planningState = await shiftPlanningMaintenanceStateReference(env).get();
+  const planningAuthority = captureShiftPlanningWriterAuthority(
+    planningState.data(),
+  );
+  const importedCount = await syncShiftRowsIntoFirestore(
+    env,
+    rows,
+    planningAuthority,
+  );
 
   return {
     importedCount,

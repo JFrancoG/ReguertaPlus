@@ -957,6 +957,24 @@ iOS payloads do not change and ignore the additive backend-owned request field. 
 Rules/Function deployment, emulator/shared Firebase write, or production activation
 occurred; the remaining writer inventory stays open.
 
+## Local implementation checkpoint — Sheets-import planning authority (2026-08-29)
+
+`syncShiftsFromGoogleSheets` now captures one exact open planning authority after
+its read-only workbook phase and before its first Firestore mutation. Every imported
+shift upsert and stale imported-shift deletion re-reads the maintenance document and
+compares the captured `stateRevision`, `writeEpoch`, active revision, and active digest
+inside the same transaction that already owns the notification-resource fence. Any
+authority drift fails before that transaction's mutation and stops the remaining
+import.
+
+The shared authority contract also replaces the duplicate swap-specific parser while
+retaining its stable public conflict. The importer remains deliberately non-atomic
+across rows: already committed rows are not rolled back, and HU-083 still owns its
+multi-season replacement. Functions lint/build, 30/30 backend-security/shift-swap
+vectors, 255/255 executed planning-unit vectors with 40 emulator-only skips, and 9/9
+focused notification-writer Firestore-emulator vectors pass. No endpoint, Function,
+Rules, shared Firebase, Google Sheets, deployment, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

@@ -10,6 +10,10 @@ const {
 } = require(
   "../lib/shift-planning-firestore-notification-writer-fence.js"
 );
+const {
+  assertShiftPlanningWriterAuthority,
+  captureShiftPlanningWriterAuthority,
+} = require("../lib/shift-planning-writer-authority.js");
 
 const PROJECT_ID = "demo-reguerta-hu082-notification-writer-fence";
 const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
@@ -60,6 +64,18 @@ const incidentFence = ({shiftId, acquiredAtMillis, expiresAtMillis}) => ({
   acquiredAt: Timestamp.fromMillis(acquiredAtMillis),
   expiresAt: Timestamp.fromMillis(expiresAtMillis),
   safeResumeDigest: digest,
+});
+
+const planningState = (overrides = {}) => ({
+  schemaVersion: 1,
+  stateRevision: 4,
+  writeEpoch: 7,
+  maintenanceStatus: "open",
+  activeRevision: "bundle-v2-1234567890abcdef12345678",
+  activeDigest: digest,
+  intakeBarrier: null,
+  lastTransitionId: "activation-transition-1",
+  ...overrides,
 });
 
 before(async () => {
@@ -261,6 +277,62 @@ test("guarded legacy shift write mutates from its transactional snapshot", {
   const updated = await target.get();
   assert.equal(updated.get("revision"), 2);
   assert.equal(updated.get("checkedAt").toMillis(), initialMillis);
+});
+
+test("guarded writer revalidates its captured planning authority", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const target = firestore.doc(`${root}/shifts/shift-1`);
+  const stateReference = firestore.doc(`${root}/shiftPlanningState/current`);
+  await target.set({revision: 1});
+  await stateReference.set(planningState());
+  const captured = captureShiftPlanningWriterAuthority(
+    (await stateReference.get()).data(),
+  );
+  const authorize = async (transaction) => {
+    const current = await transaction.get(stateReference);
+    assertShiftPlanningWriterAuthority({
+      capturedValue: captured,
+      currentStateValue: current.data(),
+      changedCode: "shift_import_planning_authority_changed",
+      changedMessage: "Import planning authority changed",
+    });
+  };
+
+  const first = await runShiftPlanningNotificationGuardedShiftWrite({
+    firestore,
+    root,
+    shiftId: "shift-1",
+    clock: () => Timestamp.fromMillis(initialMillis),
+    authorize,
+    mutate: ({transaction, reference}) => {
+      transaction.update(reference, {revision: 2});
+    },
+  });
+  assert.equal(first.kind, "writable");
+  assert.equal((await target.get()).get("revision"), 2);
+
+  await stateReference.set(planningState({
+    stateRevision: 5,
+    writeEpoch: 8,
+  }));
+  let mutationCalled = false;
+  await assert.rejects(
+    runShiftPlanningNotificationGuardedShiftWrite({
+      firestore,
+      root,
+      shiftId: "shift-1",
+      clock: () => Timestamp.fromMillis(initialMillis),
+      authorize,
+      mutate: ({transaction, reference}) => {
+        mutationCalled = true;
+        transaction.update(reference, {revision: 3});
+      },
+    }),
+    (error) => error.code === "shift_import_planning_authority_changed",
+  );
+  assert.equal(mutationCalled, false);
+  assert.equal((await target.get()).get("revision"), 2);
 });
 
 test("a backend writer and racing claim serialize on the same fence", {

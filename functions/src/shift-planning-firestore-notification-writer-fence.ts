@@ -161,6 +161,7 @@ export const runShiftPlanningNotificationGuardedShiftWrite = async <Value>(
     root: string;
     shiftId: string;
     clock: () => Timestamp;
+    authorize?: (transaction: Transaction) => void | Promise<void>;
     mutate: (
       context: ShiftPlanningNotificationGuardedShiftWriteContext,
     ) => Value | Promise<Value>;
@@ -182,6 +183,7 @@ export const runShiftPlanningNotificationGuardedShiftWrite = async <Value>(
     if (fenceResult.kind === "busy") {
       return fenceResult;
     }
+    await input.authorize?.(transaction);
     const value = await input.mutate({
       transaction,
       reference,

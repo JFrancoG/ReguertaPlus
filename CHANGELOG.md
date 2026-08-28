@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-29 | ✨ feat(shifts): fence Sheets import authority
 - 2026-08-29 | ✨ feat(shifts): fence swap planning authority
 - 2026-08-29 | ✨ feat(shifts): route notification push opens
 - 2026-08-29 | ✨ feat(shifts): open authorized notification detail

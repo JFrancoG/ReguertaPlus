@@ -102,6 +102,13 @@ test("revalidates shift-swap planning authority without legacy drift", () => {
     () => assertShiftSwapPlanningAuthority(null, planningState()),
     (error) => error.code === "shift_swap_planning_authority_changed",
   );
+  assert.throws(
+    () => assertShiftSwapPlanningAuthority(
+      {...authority, unexpected: true},
+      planningState(),
+    ),
+    (error) => error.code === "invalid_shift_swap_authority",
+  );
 });
 
 test("builds candidates from future shifts of the same type", () => {
