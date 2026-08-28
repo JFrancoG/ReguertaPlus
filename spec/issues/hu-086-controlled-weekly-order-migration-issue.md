@@ -276,6 +276,17 @@ lines created in 439 writes; 25 empty carts were omitted.
 - Contract changes owned by #270 or strict Rules cutover.
 - Automated rollback deletes.
 
+## Delivery and follow-up
+
+- Delivery PR:
+  [#272](https://github.com/JFrancoG/ReguertaPlus/pull/272).
+- The temporary legacy-client bridge for `2026-W35...2026-W36` is tracked in
+  [HU-087 / #273](https://github.com/JFrancoG/ReguertaPlus/issues/273).
+- The read-only inventory and guarded reconciliation of empty duplicate
+  projections for `2026-W01...2026-W27` is tracked in
+  [HU-088 / #274](https://github.com/JFrancoG/ReguertaPlus/issues/274); 2025 is
+  explicitly excluded.
+
 ## Implementation checklist
 
 - [x] Backend/Admin migration CLI.

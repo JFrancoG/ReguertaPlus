@@ -372,6 +372,9 @@ zero pending writes.
   resource changed.
 - [x] Review Android/iOS compatibility and report that no platform source was
   modified.
-- [ ] Prepare a focused commit/PR only if separately authorized.
-- [ ] Close #271 only after every acceptance criterion and live gate is
+- [x] Prepare focused commits and PR #272 after separate authorization.
+- [x] Close #271 only after every acceptance criterion and live gate is
   complete.
+- [x] Create HU-087 / #273 for the temporary W35-W36 bridge.
+- [x] Create HU-088 / #274 for the W01-W27 empty-projection reconciliation,
+  explicitly excluding 2025.
