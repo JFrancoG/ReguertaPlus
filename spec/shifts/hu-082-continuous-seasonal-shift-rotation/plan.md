@@ -334,6 +334,11 @@ documented in the English and Spanish Firestore references before code lands.
   only through reconciliation, valid rollback, or an explicit terminal incident
   accounting for every demonstrably unsubmitted intent and immutable
   `unknown`/accepted/delivered event.
+  First freeze this as a pure terminal-reconciliation plan: require the exact
+  paired lease ownership and contiguous intent set, reduce only complete terminal
+  attempt histories, preserve possible-delivery evidence, distinguish definitive
+  authenticated failure from demonstrably unsubmitted, and emit two exact clear
+  actions under one digest. Add transactional persistence/CAS separately.
 - Bind intents to assignment/member/token versions. Claim and create event/inbox
   through one transaction/CAS that reads those current versions; stale input writes
   nothing. Before every FCM send/retry, acquire a short lease honored by all writers

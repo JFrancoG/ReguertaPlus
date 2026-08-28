@@ -452,6 +452,13 @@ does not populate Firestore public shifts or activate either mobile app.
   cancelled before irreversible delivery. Preview may remain read-only, but
   another stage or activate cannot supersede either rotation while the batch is
   sealed, partially released, or otherwise non-terminal.
+  A local pure reconciliation contract canonicalizes the complete intent set and
+  append-only terminal attempt histories before proposing one atomic clear for
+  both exact leases. `accepted` and `unknown` remain possible-delivery evidence;
+  a definitive authenticated failure is distinct from an intent demonstrated to
+  have never crossed authenticated submission. Missing, duplicate, non-terminal,
+  cross-lineage, or partial evidence retains both leases. Persistence, CAS, and
+  terminal-incident authority remain later cuts.
 - A safe-resume residual is an explicit degraded mode with an owner, TTL, and
   escalation. It mutation-fences affected shifts while unrelated traffic runs.
   At TTL expiry the operator must finish release or terminalize the incident by

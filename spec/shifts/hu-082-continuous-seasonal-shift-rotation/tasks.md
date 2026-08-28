@@ -550,6 +550,22 @@ occurred. Protected technical evidence remains outside the repository.
   stage/activate touching either while sealed/partial/non-terminal; clear both
   only on reconciliation, valid rollback, or an explicit terminal incident that
   accounts for demonstrably unsubmitted and `unknown`/accepted/delivered events.
+  - [x] Add the SDK-free terminal batch-reconciliation plan. It requires exact
+    paired lease ownership/lineage, the complete contiguous held-intent set, and
+    only terminal append-only attempt histories before emitting one digest-bound
+    pair of clear actions. It retains accepted/unknown as possible-delivery
+    history and distinguishes a definitive authenticated failure from an intent
+    demonstrated never to have crossed authenticated submission.
+    - [x] Validation: Node 22 Functions lint/build, 235/235 executed planning
+      vectors with 30 emulator-only skips, 5/5 focused reconciliation vectors,
+      and 2/2 modular Admin SDK vectors pass. No reconciliation persistence,
+      lease clear, deploy, live Firestore write, FCM submission, or notification
+      occurred.
+  - [ ] Persist the reconciliation with one Firestore CAS over both rotations,
+    the exact intents/attempt histories, active lineage, and immutable replay
+    record; prove any drift or partial evidence writes nothing.
+  - [ ] Add the explicit terminal-incident path and safe-resume degraded-mode
+    authority before allowing abandoned non-terminal batches to clear.
 - [ ] Define safe resume as degraded mode with affected-shift mutation fence,
   owner, TTL, escalation, and terminal cancellation/supersession of demonstrably
   unsubmitted intents at expiry; keep `unknown`/accepted/delivered history immutable
