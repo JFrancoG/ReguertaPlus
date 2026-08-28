@@ -4,6 +4,56 @@ import Testing
 
 @MainActor
 struct ReguertaShiftsAdminViewModelTests {
+    @Test func completedActivationRefreshesShiftsExactlyOnceForRepeatedObservation() async {
+        let admin = adminMember(id: "admin_1", displayName: "Admin")
+        let shiftRepository = CountingPlanningShiftRepository()
+        let planningRepository = ControlledPlanningObservationRepository()
+        let viewModel = makeShiftsViewModel(
+            currentMember: admin,
+            members: [admin],
+            shiftRepository: shiftRepository,
+            shiftPlanningRequestRepository: planningRepository
+        )
+        viewModel.handleSessionModeChange(viewModel.sessionViewModel.mode)
+        await planningRepository.waitUntilObserved()
+        await awaitCurrentShiftsRefresh(in: viewModel)
+        let initialReadCount = await shiftRepository.readCount
+
+        await planningRepository.emit(completedActivationObservation())
+        await waitForCondition {
+            viewModel.shiftPlanningObservation?.id == "activate-request" &&
+                !viewModel.isRefreshingShiftsAfterActivation
+        }
+        await planningRepository.emit(completedActivationObservation())
+        await Task.yield()
+
+        #expect(await shiftRepository.readCount == initialReadCount + 1)
+    }
+
+    @Test func revokedAdminSessionCannotPublishLaterPlanningObservation() async {
+        let admin = adminMember(id: "admin_1", displayName: "Admin")
+        let shiftRepository = CountingPlanningShiftRepository()
+        let planningRepository = ControlledPlanningObservationRepository()
+        let viewModel = makeShiftsViewModel(
+            currentMember: admin,
+            members: [admin],
+            shiftRepository: shiftRepository,
+            shiftPlanningRequestRepository: planningRepository
+        )
+        viewModel.handleSessionModeChange(viewModel.sessionViewModel.mode)
+        await planningRepository.waitUntilObserved()
+        await awaitCurrentShiftsRefresh(in: viewModel)
+        let initialReadCount = await shiftRepository.readCount
+
+        viewModel.sessionViewModel.mode = .signedOut
+        viewModel.handleSessionModeChange(.signedOut)
+        await planningRepository.emit(completedActivationObservation())
+        await Task.yield()
+
+        #expect(viewModel.shiftPlanningObservation == nil)
+        #expect(await shiftRepository.readCount == initialReadCount)
+    }
+
     @Test func shiftsViewModelConfirmsSwapWithoutDirectShiftWrites() async {
         let scenario = await makeConfirmShiftSwapTestScenario()
 
@@ -285,6 +335,63 @@ struct ReguertaShiftsAdminViewModelTests {
             environment.accessRootViewModel.shiftsViewModel.deliveryCalendarRepository
                 is InMemoryDeliveryCalendarRepository
         )
+    }
+}
+
+private func completedActivationObservation() -> ShiftPlanningRequestObservation {
+    ShiftPlanningRequestObservation(
+        id: "activate-request",
+        bundleId: "bundle-2026",
+        requestedByUserId: "admin_1",
+        requestedAtMillis: 1,
+        mode: .activate,
+        status: .completed,
+        completedSummary: nil,
+        failure: nil,
+        candidateReference: nil
+    )
+}
+
+private actor ControlledPlanningObservationRepository: ShiftPlanningRequestRepository {
+    private var continuation: AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error>.Continuation?
+    private var observationWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func submit(request: ShiftPlanningRequest, environment _: SessionEnvironment) async -> ShiftPlanningRequest {
+        request
+    }
+
+    func observeLatestV2Request(
+        environment _: SessionEnvironment
+    ) async -> AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error> {
+        let pair = AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error>.makeStream()
+        continuation = pair.continuation
+        observationWaiters.forEach { $0.resume() }
+        observationWaiters.removeAll()
+        return pair.stream
+    }
+
+    func emit(_ observation: ShiftPlanningRequestObservation?) {
+        continuation?.yield(observation)
+    }
+
+    func waitUntilObserved() async {
+        guard continuation == nil else { return }
+        await withCheckedContinuation { continuation in
+            observationWaiters.append(continuation)
+        }
+    }
+}
+
+private actor CountingPlanningShiftRepository: ShiftRepository {
+    private(set) var readCount = 0
+
+    func allShifts(environment _: SessionEnvironment) -> [ShiftAssignment] {
+        readCount += 1
+        return []
+    }
+
+    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) -> ShiftAssignment {
+        shift
     }
 }
 

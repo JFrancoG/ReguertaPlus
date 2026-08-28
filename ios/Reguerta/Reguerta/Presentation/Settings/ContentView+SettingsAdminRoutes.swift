@@ -257,6 +257,65 @@ struct SettingsRouteView: View {
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
             }
+            if let observation = shiftsViewModel.shiftPlanningObservation {
+                Text(localizedKey(shiftPlanningStatusKey(observation)))
+                    .font(tokens.typography.bodySecondary.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                if let summary = observation.completedSummary {
+                    Text(
+                        l10n(
+                            AccessL10nKey.settingsShiftPlanningSummaryFormat,
+                            summary.delivery.generatedShiftCount,
+                            summary.market.generatedShiftCount
+                        )
+                    )
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                }
+            }
+            if shiftsViewModel.isLoadingShiftPlanningCandidate {
+                Text(localizedKey(AccessL10nKey.settingsShiftPlanningCandidateLoading))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
+            if let candidate = shiftsViewModel.shiftPlanningCandidate {
+                Text(
+                    l10n(
+                        AccessL10nKey.settingsShiftPlanningCandidateFormat,
+                        candidate.positionDocumentCount,
+                        candidate.assignmentPositionCount
+                    )
+                )
+                .font(tokens.typography.bodySecondary.weight(.semibold))
+                ForEach(candidate.positions) { position in
+                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                        Text(
+                            l10n(
+                                AccessL10nKey.settingsShiftPlanningPositionFormat,
+                                position.scheduledDate,
+                                l10n(
+                                    position.type == .delivery
+                                        ? AccessL10nKey.shiftsTypeDelivery
+                                        : AccessL10nKey.shiftsTypeMarket
+                                ),
+                                position.assignedUserIds.map(shiftPlanningMemberName).joined(separator: ", ")
+                            )
+                        )
+                        .font(tokens.typography.label)
+                        if let helperUserId = position.helperUserId {
+                            Text(
+                                l10n(
+                                    AccessL10nKey.settingsShiftPlanningHelperFormat,
+                                    shiftPlanningMemberName(helperUserId)
+                                )
+                            )
+                            .font(tokens.typography.label)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
         }
         .alert(
             shiftsViewModel.pendingShiftPlanningType == nil
@@ -289,5 +348,25 @@ struct SettingsRouteView: View {
     }
 
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
+
+    private func shiftPlanningStatusKey(_ observation: ShiftPlanningRequestObservation) -> String {
+        if shiftsViewModel.isRefreshingShiftsAfterActivation {
+            return AccessL10nKey.settingsShiftPlanningStatusSyncing
+        }
+        switch observation.status {
+        case .requested:
+            return AccessL10nKey.settingsShiftPlanningStatusRequested
+        case .processing:
+            return AccessL10nKey.settingsShiftPlanningStatusProcessing
+        case .completed:
+            return AccessL10nKey.settingsShiftPlanningStatusCompleted
+        case .failed:
+            return AccessL10nKey.settingsShiftPlanningStatusFailed
+        }
+    }
+
+    private func shiftPlanningMemberName(_ userId: String) -> String {
+        shiftsViewModel.currentSession?.members.first { $0.id == userId }?.displayName ?? userId
+    }
 
 }

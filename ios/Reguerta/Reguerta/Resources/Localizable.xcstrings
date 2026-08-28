@@ -2278,6 +2278,23 @@
         }
       }
     },
+    "feedback.shift_planning.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift planning failed. Review the request status before trying again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La planificación de turnos ha fallado. Revisa el estado antes de volver a intentarlo."
+          }
+        }
+      }
+    },
     "feedback.unable_load_data" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8432,6 +8449,76 @@
             "value" : "Generar turnos de mercado"
           }
         }
+      }
+    },
+    "settings.shift_planning.candidate.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Staged candidate: %lld shifts and %lld assignments" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Candidato preparado: %lld turnos y %lld asignaciones" } }
+      }
+    },
+    "settings.shift_planning.candidate.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading the staged candidate..." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando el candidato preparado..." } }
+      }
+    },
+    "settings.shift_planning.helper.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Helper: %@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ayudante: %@" } }
+      }
+    },
+    "settings.shift_planning.position.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%1$@ · %2$@ · %3$@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "%1$@ · %2$@ · %3$@" } }
+      }
+    },
+    "settings.shift_planning.status.completed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest v2 request: completed" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Última solicitud v2: completada" } }
+      }
+    },
+    "settings.shift_planning.status.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest v2 request: failed" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Última solicitud v2: fallida" } }
+      }
+    },
+    "settings.shift_planning.status.processing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest v2 request: processing" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Última solicitud v2: procesándose" } }
+      }
+    },
+    "settings.shift_planning.status.requested" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest v2 request: queued" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Última solicitud v2: en cola" } }
+      }
+    },
+    "settings.shift_planning.status.syncing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Activation completed; refreshing shifts..." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Activación completada; actualizando turnos..." } }
+      }
+    },
+    "settings.shift_planning.summary.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delivery: %lld shifts · Market: %lld shifts" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Reparto: %lld turnos · Mercado: %lld turnos" } }
       }
     },
     "settings.shift_planning.submitting" : {

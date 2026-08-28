@@ -97,6 +97,8 @@ import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.ui.components.auth.ReguertaDialog
@@ -175,6 +177,10 @@ internal fun HomeRoute(
     isLoadingDeliveryCalendar: Boolean,
     isSavingDeliveryCalendar: Boolean,
     isSubmittingShiftPlanningRequest: Boolean,
+    shiftPlanningObservation: ShiftPlanningRequestObservation?,
+    shiftPlanningCandidate: ShiftPlanningCandidate?,
+    isLoadingShiftPlanningCandidate: Boolean,
+    isRefreshingShiftsAfterActivation: Boolean,
     isSavingShiftSwapRequest: Boolean,
     isUpdatingShiftSwapRequest: Boolean,
     isAskingBylaws: Boolean,
@@ -904,6 +910,10 @@ internal fun HomeRoute(
                     isLoadingDeliveryCalendar = isLoadingDeliveryCalendar,
                     isSavingDeliveryCalendar = isSavingDeliveryCalendar,
                     isSubmittingShiftPlanningRequest = isSubmittingShiftPlanningRequest,
+                    shiftPlanningObservation = shiftPlanningObservation,
+                    shiftPlanningCandidate = shiftPlanningCandidate,
+                    isLoadingShiftPlanningCandidate = isLoadingShiftPlanningCandidate,
+                    isRefreshingShiftsAfterActivation = isRefreshingShiftsAfterActivation,
                     isUpdatingProducerCatalogVisibility = isUpdatingProducerCatalogVisibility,
                     isDevelopImpersonationEnabled = isDevelopImpersonationEnabled,
                     nowOverrideMillis = nowOverrideMillis,

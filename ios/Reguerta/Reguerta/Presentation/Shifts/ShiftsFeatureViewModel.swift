@@ -15,6 +15,7 @@ final class ShiftsFeatureViewModel {
     @ObservationIgnored let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
     @ObservationIgnored let shiftsRetrySleeper: @MainActor (Duration) async throws -> Void
     @ObservationIgnored var shiftsRefreshTask: Task<Void, Never>?
+    @ObservationIgnored var shiftPlanningObservationTask: Task<Void, Never>?
     @ObservationIgnored var shiftSwapMutationTask: Task<Bool, Never>?
     @ObservationIgnored var activeShiftSwapMutationAuthorizationReceipt: ShiftSwapMutationAuthorizationReceipt?
     @ObservationIgnored var activeShiftSwapMutationIntent: ShiftSwapMutationIntent?
@@ -23,6 +24,8 @@ final class ShiftsFeatureViewModel {
     @ObservationIgnored var handledShiftSwapAuthorizationBoundaryRevision: UInt64 = 0
     @ObservationIgnored var pendingInitialCalendarHydration: PendingInitialCalendarHydration?
     @ObservationIgnored var nextInitialCalendarHydrationGeneration: UInt64 = 0
+    @ObservationIgnored var refreshedActivationRequestIds = Set<String>()
+    @ObservationIgnored var reportedPlanningFailureRequestIds = Set<String>()
 
     var currentSession: AuthorizedSession?
     var currentMember: Member?
@@ -42,6 +45,10 @@ final class ShiftsFeatureViewModel {
     var isLoadingDeliveryCalendar = false
     var isSavingDeliveryCalendar = false
     var isSubmittingShiftPlanningRequest = false
+    var shiftPlanningObservation: ShiftPlanningRequestObservation?
+    var shiftPlanningCandidate: ShiftPlanningCandidate?
+    var isLoadingShiftPlanningCandidate = false
+    var isRefreshingShiftsAfterActivation = false
     var isSavingShiftSwapRequest = false
     var isUpdatingShiftSwapRequest = false
     var isDeliveryCalendarWeekPickerPresented = false
@@ -136,6 +143,7 @@ final class ShiftsFeatureViewModel {
 
     deinit {
         shiftsRefreshTask?.cancel()
+        shiftPlanningObservationTask?.cancel()
         shiftSwapMutationTask?.cancel()
     }
 

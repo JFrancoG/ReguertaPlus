@@ -9,6 +9,12 @@ import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidateReference
+import com.reguerta.user.domain.shifts.ShiftPlanningInspectionRepository
+import com.reguerta.user.domain.shifts.ShiftPlanningMode
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
 import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftStatus
@@ -29,6 +35,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -41,6 +48,51 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionShiftActionsFailureTest {
+    @Test
+    fun `completed activation refreshes shifts exactly once for repeated observation`() = runTest {
+        val inspection = ControlledPlanningInspectionRepository()
+        val shiftRepository = CountingShiftRepository()
+        val state = MutableStateFlow(authorizedState())
+        actions(
+            state = state,
+            shiftRepository = shiftRepository,
+            inspectionRepository = inspection,
+            scope = backgroundScope,
+        )
+        runCurrent()
+
+        inspection.emit(completedActivationObservation())
+        runCurrent()
+        inspection.emit(completedActivationObservation())
+        runCurrent()
+
+        assertEquals(1, shiftRepository.readCount)
+        assertEquals(completedActivationObservation(), state.value.shiftPlanningObservation)
+        assertFalse(state.value.isRefreshingShiftsAfterActivation)
+    }
+
+    @Test
+    fun `revoked admin session cannot publish a later planning observation`() = runTest {
+        val inspection = ControlledPlanningInspectionRepository()
+        val shiftRepository = CountingShiftRepository()
+        val state = MutableStateFlow(authorizedState())
+        actions(
+            state = state,
+            shiftRepository = shiftRepository,
+            inspectionRepository = inspection,
+            scope = backgroundScope,
+        )
+        runCurrent()
+
+        state.value = state.value.toSignedOutSessionState(showSessionExpiredDialog = false)
+        runCurrent()
+        inspection.emit(completedActivationObservation())
+        runCurrent()
+
+        assertEquals(0, shiftRepository.readCount)
+        assertEquals(null, state.value.shiftPlanningObservation)
+    }
+
     @Test
     fun `first shift failure retries automatically before showing feedback`() = runTest {
         val recovered = shift("recovered")
@@ -475,15 +527,19 @@ class SessionShiftActionsFailureTest {
         shiftRepository: ShiftRepository = StaticShiftRepository(emptyList()),
         calendarRepository: DeliveryCalendarRepository = StaticCalendarRepository,
         planningRepository: ShiftPlanningRequestRepository = ConfirmingPlanningRepository,
+        inspectionRepository: ShiftPlanningInspectionRepository? =
+            planningRepository as? ShiftPlanningInspectionRepository,
         swapRepository: ShiftSwapRequestRepository = StaticSwapRepository,
         emitMessage: (Int) -> Unit = {},
         automaticLoadRetryDelayMillis: Long? = null,
+        scope: CoroutineScope? = null,
     ) = SessionShiftActions(
         uiState = state,
-        scope = CoroutineScope(kotlinx.coroutines.currentCoroutineContext()),
+        scope = scope ?: CoroutineScope(kotlinx.coroutines.currentCoroutineContext()),
         shiftRepository = shiftRepository,
         deliveryCalendarRepository = calendarRepository,
         shiftPlanningRequestRepository = planningRepository,
+        shiftPlanningInspectionRepository = inspectionRepository,
         shiftSwapRequestRepository = swapRepository,
         nowMillisProvider = { 100L },
         emitMessage = emitMessage,
@@ -509,6 +565,18 @@ class SessionShiftActionsFailureTest {
             ),
         )
     }
+
+    private fun completedActivationObservation() = ShiftPlanningRequestObservation(
+        id = "activate-request",
+        bundleId = "bundle-2026",
+        requestedByUserId = "admin",
+        requestedAtMillis = 1L,
+        mode = ShiftPlanningMode.ACTIVATE,
+        status = ShiftPlanningRequestStatus.COMPLETED,
+        completedSummary = null,
+        failure = null,
+        candidateReference = null,
+    )
 
     private fun shift(id: String, memberId: String = "admin", dateMillis: Long = 1_000L) = ShiftAssignment(
         id = id,
@@ -669,6 +737,30 @@ private object RejectingCalendarWriteRepository : DeliveryCalendarRepository by 
 
 private object ConfirmingPlanningRepository : ShiftPlanningRequestRepository {
     override suspend fun submitShiftPlanningRequest(request: ShiftPlanningRequest): ShiftPlanningRequest = request
+}
+
+private class ControlledPlanningInspectionRepository : ShiftPlanningInspectionRepository {
+    private val observations = MutableSharedFlow<ShiftPlanningRequestObservation?>(extraBufferCapacity = 1)
+
+    override fun observeLatestRequest() = observations
+
+    override suspend fun getStagedCandidate(reference: ShiftPlanningCandidateReference): ShiftPlanningCandidate =
+        error("No candidate expected")
+
+    fun emit(observation: ShiftPlanningRequestObservation?) {
+        check(observations.tryEmit(observation))
+    }
+}
+
+private class CountingShiftRepository : ShiftRepository {
+    var readCount = 0
+
+    override suspend fun getAllShifts(): List<ShiftAssignment> {
+        readCount += 1
+        return emptyList()
+    }
+
+    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = shift
 }
 
 private class AmbiguousFirstPlanningRepository : ShiftPlanningRequestRepository {

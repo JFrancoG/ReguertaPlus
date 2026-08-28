@@ -214,6 +214,7 @@ extension ShiftsFeatureViewModel {
     }
 
     func reset() {
+        resetShiftPlanningObservation()
         invalidateShiftSwapMutationOwner()
         currentSession = nil
         currentMember = nil

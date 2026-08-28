@@ -6,6 +6,8 @@ import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
+import com.reguerta.user.domain.shifts.ShiftPlanningInspectionRepository
+import com.reguerta.user.domain.shifts.ShiftPlanningMode
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
@@ -30,6 +32,11 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -39,6 +46,8 @@ internal class SessionShiftActions(
     private val shiftRepository: ShiftRepository,
     private val deliveryCalendarRepository: DeliveryCalendarRepository,
     private val shiftPlanningRequestRepository: ShiftPlanningRequestRepository,
+    private val shiftPlanningInspectionRepository: ShiftPlanningInspectionRepository? =
+        shiftPlanningRequestRepository as? ShiftPlanningInspectionRepository,
     private val shiftSwapRequestRepository: ShiftSwapRequestRepository,
     private val nowMillisProvider: () -> Long,
     private val emitMessage: (Int) -> Unit,
@@ -61,6 +70,105 @@ internal class SessionShiftActions(
     private var activeSwapUpdate: ShiftOperation? = null
     private var pendingPlanningRequest: PendingPlanningRequest? = null
     private val acknowledgedSwapTransitions = mutableMapOf<String, PendingAcknowledgedSwapTransition>()
+    private val refreshedActivationRequestIds = mutableSetOf<String>()
+    private val reportedPlanningFailureRequestIds = mutableSetOf<String>()
+
+    init {
+        observeShiftPlanningRequests()
+    }
+
+    private fun observeShiftPlanningRequests() {
+        val repository = shiftPlanningInspectionRepository ?: return
+        scope.launch {
+            uiState
+                .map(::adminPlanningContext)
+                .distinctUntilChanged()
+                .collectLatest { context ->
+                    if (context == null) {
+                        uiState.update {
+                            it.copy(
+                                shiftPlanningObservation = null,
+                                shiftPlanningCandidate = null,
+                                isLoadingShiftPlanningCandidate = false,
+                                isRefreshingShiftsAfterActivation = false,
+                            )
+                        }
+                        return@collectLatest
+                    }
+                    try {
+                        repository.observeLatestRequest().collectLatest { observation ->
+                            if (!updateIfCurrentAdmin(context) {
+                                    it.copy(
+                                        shiftPlanningObservation = observation,
+                                        shiftPlanningCandidate = null,
+                                        isLoadingShiftPlanningCandidate = observation?.candidateReference != null,
+                                    )
+                                }
+                            ) {
+                                return@collectLatest
+                            }
+                            val reference = observation?.candidateReference
+                            if (reference != null) {
+                                val candidate = repository.getStagedCandidate(reference)
+                                updateIfCurrentAdmin(context) {
+                                    if (it.shiftPlanningObservation?.id == observation.id) {
+                                        it.copy(
+                                            shiftPlanningCandidate = candidate,
+                                            isLoadingShiftPlanningCandidate = false,
+                                        )
+                                    } else {
+                                        it
+                                    }
+                                }
+                            }
+                            if (
+                                observation?.status == ShiftPlanningRequestStatus.FAILED &&
+                                reportedPlanningFailureRequestIds.add(observation.id) &&
+                                isCurrentAdmin(context)
+                            ) {
+                                emitMessage(R.string.feedback_shift_planning_failed)
+                            }
+                            if (
+                                observation?.mode == ShiftPlanningMode.ACTIVATE &&
+                                observation.status == ShiftPlanningRequestStatus.COMPLETED &&
+                                refreshedActivationRequestIds.add(observation.id)
+                            ) {
+                                refreshShiftsAfterActivation(context, observation.id)
+                            }
+                        }
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (_: Exception) {
+                        if (updateIfCurrentAdmin(context) {
+                                it.copy(isLoadingShiftPlanningCandidate = false)
+                            }
+                        ) {
+                            emitMessage(R.string.feedback_unable_load_data)
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun refreshShiftsAfterActivation(context: ShiftSessionContext, requestId: String) {
+        if (!updateIfCurrentAdmin(context) { it.copy(isRefreshingShiftsAfterActivation = true) }) return
+        refreshShifts()
+        scope.launch {
+            uiState.map { state -> state.isLoadingShifts }.filter { loading -> !loading }.first()
+            updateIfCurrentAdmin(context) {
+                if (it.shiftPlanningObservation?.id == requestId) {
+                    it.copy(isRefreshingShiftsAfterActivation = false)
+                } else {
+                    it
+                }
+            }
+        }
+    }
+
+    private fun adminPlanningContext(state: SessionUiState): ShiftSessionContext? {
+        val mode = state.mode as? SessionMode.Authorized ?: return null
+        return ShiftSessionContext.from(state, mode).takeIf { mode.member.isAdmin }
+    }
 
     fun refreshShifts() {
         shiftRetryJob?.cancel()
@@ -601,6 +709,28 @@ internal class SessionShiftActions(
             mode.principal.uid == context.principalUid &&
             mode.member.id == context.memberId
     }
+
+    private fun updateIfCurrentAdmin(
+        context: ShiftSessionContext,
+        transform: (SessionUiState) -> SessionUiState,
+    ): Boolean {
+        if (!isCurrentAdmin(context)) return false
+        var didUpdate = false
+        uiState.update { state ->
+            if (isCurrentAdmin(context, state)) {
+                didUpdate = true
+                transform(state)
+            } else {
+                state
+            }
+        }
+        return didUpdate
+    }
+
+    private fun isCurrentAdmin(
+        context: ShiftSessionContext,
+        state: SessionUiState = uiState.value,
+    ): Boolean = isCurrent(context, state) && (state.mode as? SessionMode.Authorized)?.member?.isAdmin == true
 }
 
 private data class ShiftSessionContext(

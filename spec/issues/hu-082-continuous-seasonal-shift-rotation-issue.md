@@ -818,6 +818,31 @@ notification evidence. No `index.ts`, trigger, deployment, or live state changed
 Node 22 Functions lint/build, 5/5 focused retention vectors, and 206 planning
 vectors with eleven emulator-only skips pass.
 
+## Local implementation checkpoint — mobile v2 read-back (2026-08-28)
+
+Android and iOS now observe the latest schema-v2 planning request only while the
+current session and environment still belong to an authorized admin. Both clients
+decode the exact delivery/market terminal summary, expose only stable failure
+metadata, load the referenced staged-candidate header and position set with exact
+lineage/count validation, and keep those rows out of the normal member shifts feed.
+Cancellation and publication are fenced across logout, demotion, impersonation,
+user change, and environment change. A completed activation triggers one existing
+server-shifts refresh per request before the admin state reports completion.
+
+Android uses a Firestore listener and iOS uses bounded two-second polling so no
+non-Sendable Firebase listener registration crosses the Swift 6 actor boundary.
+The existing legacy request actions remain unchanged: the mobile v2 writer still
+depends on backend-only epoch/revision preconditions and belongs to a later cut.
+
+Android unit tests, lint, and 23 connected tests pass. On iPhone 17 with iOS 26.5,
+the five focused iOS tests, `fast-unit`, `ui-smoke`, and the canonical
+`release-gate` pass; the release gate reports 864 tests, with 863 passed, one
+skipped, and zero failures, while SwiftLint 0.61.0 reports zero violations in 465
+files. The staged-candidate read also keeps its non-Sendable Firestore payload
+behind a `Mutex` synchronization owner before the nested callback; focused file
+diagnostics and the exact simulator build report zero project warnings. No
+Firebase/Sheets write, deploy, or production activation occurred.
+
 ## Suggested labels
 
 - `type:feature`

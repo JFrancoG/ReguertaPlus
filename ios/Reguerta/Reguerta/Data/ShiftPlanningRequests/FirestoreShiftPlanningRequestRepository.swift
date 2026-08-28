@@ -24,13 +24,16 @@ protocol ShiftPlanningRequestTransactionExecuting: Sendable {
 
 actor FirestoreShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
     private let transactionExecutor: any ShiftPlanningRequestTransactionExecuting
+    private let inspectionExecutor: (any ShiftPlanningInspectionExecuting)?
 
     init(firebaseAppName: String) {
         self.transactionExecutor = FirestoreShiftPlanningRequestTransactionExecutor(firebaseAppName: firebaseAppName)
+        self.inspectionExecutor = FirestoreShiftPlanningInspectionExecutor(firebaseAppName: firebaseAppName)
     }
 
     init(transactionExecutor: any ShiftPlanningRequestTransactionExecuting) {
         self.transactionExecutor = transactionExecutor
+        self.inspectionExecutor = nil
     }
 
     func submit(request: ShiftPlanningRequest, environment: SessionEnvironment) async throws -> ShiftPlanningRequest {
@@ -57,6 +60,68 @@ actor FirestoreShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
         }
     }
 
+    func observeLatestV2Request(
+        environment: SessionEnvironment
+    ) async -> AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error> {
+        guard let inspectionExecutor else {
+            return AsyncThrowingStream { continuation in continuation.finish() }
+        }
+        return AsyncThrowingStream { continuation in
+            let observationTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    guard let self else { return }
+                    let outcome = await self.latestV2Request(
+                        environment: environment,
+                        executor: inspectionExecutor
+                    )
+                    switch outcome {
+                    case .success(let request):
+                        continuation.yield(request)
+                    case .failure(let error):
+                        continuation.finish(throwing: error)
+                        return
+                    }
+                    do {
+                        try await ContinuousClock().sleep(for: .seconds(2))
+                    } catch {
+                        return
+                    }
+                }
+            }
+            continuation.onTermination = { _ in observationTask.cancel() }
+        }
+    }
+
+    func stagedCandidate(reference: ShiftPlanningCandidateReference) async throws -> ShiftPlanningCandidate {
+        guard let inspectionExecutor else {
+            throw RepositoryError.invalidData(resource: "shiftPlanningCandidates.unavailable")
+        }
+        try Task.checkCancellation()
+        let outcome = await withCheckedContinuation { continuation in
+            inspectionExecutor.loadStagedCandidate(reference: reference) { outcome in
+                continuation.resume(returning: outcome)
+            }
+        }
+        try Task.checkCancellation()
+        switch outcome {
+        case .success(let candidate):
+            return candidate
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    private func latestV2Request(
+        environment: SessionEnvironment,
+        executor: any ShiftPlanningInspectionExecuting
+    ) async -> ShiftPlanningObservationOutcome {
+        await withCheckedContinuation { continuation in
+            executor.loadLatestV2Request(environment: environment) { outcome in
+                continuation.resume(returning: outcome)
+            }
+        }
+    }
+
     static func transactionDecision(
         documentID: String,
         data: [String: Any]?,
@@ -67,6 +132,118 @@ actor FirestoreShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
             data: data,
             requested: requested
         )
+    }
+}
+
+private enum ShiftPlanningObservationOutcome {
+    case success(ShiftPlanningRequestObservation?)
+    case failure(RepositoryError)
+}
+
+private enum ShiftPlanningCandidateOutcome {
+    case success(ShiftPlanningCandidate)
+    case failure(RepositoryError)
+}
+
+private protocol ShiftPlanningInspectionExecuting: Sendable {
+    func loadLatestV2Request(
+        environment: SessionEnvironment,
+        handler: @escaping @Sendable (ShiftPlanningObservationOutcome) -> Void
+    )
+
+    func loadStagedCandidate(
+        reference: ShiftPlanningCandidateReference,
+        completion: @escaping @Sendable (ShiftPlanningCandidateOutcome) -> Void
+    )
+}
+
+private final class FirestoreShiftPlanningInspectionExecutor: ShiftPlanningInspectionExecuting, Sendable {
+    private let storedDB: Mutex<Firestore>
+
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for shift planning inspection")
+        }
+        self.storedDB = Mutex(Firestore.firestore(app: app))
+    }
+
+    func loadLatestV2Request(
+        environment: SessionEnvironment,
+        handler: @escaping @Sendable (ShiftPlanningObservationOutcome) -> Void
+    ) {
+        let path = ReguertaFirestorePath(environment: environment).collectionPath(.shiftPlanningRequests)
+        storedDB.withLock { db in
+            db.collection(path)
+                .order(by: "requestedAt", descending: true)
+                .limit(to: 25)
+                .getDocuments { snapshot, error in
+                    if let error {
+                        handler(.failure(Self.repositoryError(error, resource: "shiftPlanningRequests.read")))
+                        return
+                    }
+                    do {
+                        let request = try snapshot?.documents.lazy.compactMap { document in
+                            try ShiftPlanningInspectionCodec.observation(
+                                documentID: document.documentID,
+                                data: document.data()
+                            )
+                        }.first
+                        handler(.success(request))
+                    } catch let error as RepositoryError {
+                        handler(.failure(error))
+                    } catch {
+                        handler(.failure(.unknown(resource: "shiftPlanningRequests.read")))
+                    }
+                }
+        }
+    }
+
+    func loadStagedCandidate(
+        reference: ShiftPlanningCandidateReference,
+        completion: @escaping @Sendable (ShiftPlanningCandidateOutcome) -> Void
+    ) {
+        let path = ReguertaFirestorePath(environment: reference.environment)
+            .documentPath(in: .shiftPlanningCandidates, documentId: reference.candidateId)
+        storedDB.withLock { db in
+            let document = db.document(path)
+            document.getDocument { snapshot, error in
+                if let error {
+                    completion(.failure(Self.repositoryError(error, resource: "shiftPlanningCandidates.read")))
+                    return
+                }
+                guard let snapshot, snapshot.exists, let data = snapshot.data() else {
+                    completion(.failure(.invalidData(resource: "shiftPlanningCandidates.document")))
+                    return
+                }
+                let storedHeader = Mutex((documentID: snapshot.documentID, data: data))
+                document.collection("positions").getDocuments { positions, error in
+                    if let error {
+                        completion(.failure(Self.repositoryError(error, resource: "shiftPlanningCandidates.positions")))
+                        return
+                    }
+                    do {
+                        let candidate = try storedHeader.withLock { header in
+                            try ShiftPlanningInspectionCodec.candidate(
+                                documentID: header.documentID,
+                                data: header.data,
+                                positionDocuments: positions?.documents.map { ($0.documentID, $0.data()) } ?? [],
+                                reference: reference
+                            )
+                        }
+                        completion(.success(candidate))
+                    } catch let error as RepositoryError {
+                        completion(.failure(error))
+                    } catch {
+                        completion(.failure(.unknown(resource: "shiftPlanningCandidates.read")))
+                    }
+                }
+            }
+        }
+    }
+
+    private static func repositoryError(_ error: any Error, resource: String) -> RepositoryError {
+        FirestoreRepositoryErrorMapper.map(error, resource: resource) as? RepositoryError ??
+            .unknown(resource: resource)
     }
 }
 

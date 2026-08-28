@@ -16,6 +16,8 @@ import com.reguerta.user.domain.products.CommonPurchaseType
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductStockMode
 import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 
 data class MemberDraft(
@@ -245,6 +247,10 @@ data class SessionUiState(
     val isLoadingDeliveryCalendar: Boolean = false,
     val isSavingDeliveryCalendar: Boolean = false,
     val isSubmittingShiftPlanningRequest: Boolean = false,
+    val shiftPlanningObservation: ShiftPlanningRequestObservation? = null,
+    val shiftPlanningCandidate: ShiftPlanningCandidate? = null,
+    val isLoadingShiftPlanningCandidate: Boolean = false,
+    val isRefreshingShiftsAfterActivation: Boolean = false,
     val isSavingShiftSwapRequest: Boolean = false,
     val isUpdatingShiftSwapRequest: Boolean = false,
     val isAskingBylaws: Boolean = false,

@@ -34,6 +34,9 @@ import com.reguerta.user.domain.access.isProducer
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.ui.components.auth.ReguertaDialog
@@ -56,6 +59,10 @@ fun SettingsRoute(
     isLoadingDeliveryCalendar: Boolean,
     isSavingDeliveryCalendar: Boolean,
     isSubmittingShiftPlanningRequest: Boolean,
+    shiftPlanningObservation: ShiftPlanningRequestObservation?,
+    shiftPlanningCandidate: ShiftPlanningCandidate?,
+    isLoadingShiftPlanningCandidate: Boolean,
+    isRefreshingShiftsAfterActivation: Boolean,
     isUpdatingProducerCatalogVisibility: Boolean,
     isDevelopImpersonationEnabled: Boolean,
     nowOverrideMillis: Long?,
@@ -108,7 +115,12 @@ fun SettingsRoute(
             )
             HorizontalDivider()
             AdminShiftPlanningSection(
+                members = members,
                 isSubmitting = isSubmittingShiftPlanningRequest,
+                observation = shiftPlanningObservation,
+                candidate = shiftPlanningCandidate,
+                isLoadingCandidate = isLoadingShiftPlanningCandidate,
+                isRefreshingAfterActivation = isRefreshingShiftsAfterActivation,
                 onSubmit = onSubmitShiftPlanningRequest,
             )
         }
@@ -384,7 +396,12 @@ private fun AdminDeliveryCalendarSection(
 
 @Composable
 private fun AdminShiftPlanningSection(
+    members: List<Member>,
     isSubmitting: Boolean,
+    observation: ShiftPlanningRequestObservation?,
+    candidate: ShiftPlanningCandidate?,
+    isLoadingCandidate: Boolean,
+    isRefreshingAfterActivation: Boolean,
     onSubmit: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
 ) {
     var pendingType by rememberSaveable { mutableStateOf<ShiftPlanningRequestType?>(null) }
@@ -425,6 +442,83 @@ private fun AdminShiftPlanningSection(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+    observation?.let { request ->
+        val statusResource = when {
+            isRefreshingAfterActivation -> R.string.settings_shift_planning_status_syncing
+            request.status == ShiftPlanningRequestStatus.REQUESTED ->
+                R.string.settings_shift_planning_status_requested
+            request.status == ShiftPlanningRequestStatus.PROCESSING ->
+                R.string.settings_shift_planning_status_processing
+            request.status == ShiftPlanningRequestStatus.COMPLETED ->
+                R.string.settings_shift_planning_status_completed
+            else -> R.string.settings_shift_planning_status_failed
+        }
+        Text(
+            text = stringResource(statusResource),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        request.completedSummary?.let { summary ->
+            Text(
+                text = stringResource(
+                    R.string.settings_shift_planning_summary_format,
+                    summary.delivery.generatedShiftCount,
+                    summary.market.generatedShiftCount,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    if (isLoadingCandidate) {
+        Text(
+            text = stringResource(R.string.settings_shift_planning_candidate_loading),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    candidate?.let { stagedCandidate ->
+        Text(
+            text = stringResource(
+                R.string.settings_shift_planning_candidate_format,
+                stagedCandidate.positionDocumentCount,
+                stagedCandidate.assignmentPositionCount,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        stagedCandidate.positions.forEach { position ->
+            val type = stringResource(
+                if (position.type == ShiftPlanningRequestType.DELIVERY) {
+                    R.string.settings_shift_planning_position_delivery
+                } else {
+                    R.string.settings_shift_planning_position_market
+                },
+            )
+            val assignees = position.assignedUserIds.joinToString { userId ->
+                members.firstOrNull { it.id == userId }?.displayName ?: userId
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(
+                        R.string.settings_shift_planning_position_format,
+                        position.scheduledDate,
+                        type,
+                        assignees,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                position.helperUserId?.let { helperId ->
+                    val helperName = members.firstOrNull { it.id == helperId }?.displayName ?: helperId
+                    Text(
+                        text = stringResource(R.string.settings_shift_planning_helper_format, helperName),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
     }
 
     pendingType?.let { type ->

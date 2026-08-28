@@ -760,40 +760,40 @@ occurred. Protected technical evidence remains outside the repository.
 
 ## 4. Android read-back
 
-- [ ] Extend the request entity/repository with exact two-subplan bundle
+- [x] Extend the request entity/repository with exact two-subplan bundle
   observation and per-type terminal summary/failure decoding.
 - [ ] Update every affected Android writer to carry epoch/revision or use the
   versioned command path; test stale offline queue rejection and reauthentication.
 - [ ] Add candidate revision/digest Domain models and an admin-authorized
   repository query; prove normal-member reads fail in Rules/repository tests.
-- [ ] Decode terminal summary and stable error codes without exposing raw backend
+- [x] Decode terminal summary and stable error codes without exposing raw backend
   messages.
-- [ ] Retain/cancel the operation under session, environment, user, and admin
+- [x] Retain/cancel the operation under session, environment, user, and admin
   authorization ownership.
-- [ ] Show requested/processing/failed/completed states in the admin flow.
-- [ ] Fetch/render the exact staged revision for authorized admins without
+- [x] Show requested/processing/failed/completed states in the admin flow.
+- [x] Fetch/render the exact staged revision for authorized admins without
   leaking candidate shifts into normal member feeds.
-- [ ] Refresh the server shifts feed once after activation completion and only
+- [x] Refresh the server shifts feed once after activation completion and only
   then show success.
 - [ ] Verify board and upcoming-shift projections across seasons.
 - [ ] Add unit, failure, decoding, operation-safety, and UI tests.
 
 ## 5. iOS read-back
 
-- [ ] Extend Domain/Data request contracts with exact two-subplan bundle
+- [x] Extend Domain/Data request contracts with exact two-subplan bundle
   observation and per-type terminal summary/failure decoding.
 - [ ] Update every affected iOS writer to carry epoch/revision or use the versioned
   command path; test stale offline queue rejection and reauthentication.
 - [ ] Add equivalent candidate revision/digest Domain models and admin-only
   repository query; prove normal-member reads fail in Rules/repository tests.
-- [ ] Decode terminal summary and stable error codes without exposing raw backend
+- [x] Decode terminal summary and stable error codes without exposing raw backend
   messages.
-- [ ] Own and fence the operation in the current Shifts/Settings presentation
+- [x] Own and fence the operation in the current Shifts/Settings presentation
   boundary without broad HU-081 cleanup.
-- [ ] Show requested/processing/failed/completed states with localized copy.
-- [ ] Fetch/render the exact staged revision for authorized admins without
+- [x] Show requested/processing/failed/completed states with localized copy.
+- [x] Fetch/render the exact staged revision for authorized admins without
   leaking candidate shifts into normal member feeds.
-- [ ] Refresh the server shifts feed once after activation completion and only
+- [x] Refresh the server shifts feed once after activation completion and only
   then show success.
 - [ ] Verify board and upcoming-shift projections across seasons.
 - [ ] Add Swift Testing cohorts, previews, accessibility identifiers, and UI
@@ -806,11 +806,11 @@ occurred. Protected technical evidence remains outside the repository.
 - [x] Run the communication-baseline focused and full planner unit suites.
 - [ ] Run remaining focused contract, concurrency, backend security, and Rules
   suites.
-- [ ] Run Android `app:testDebugUnitTest` and `app:lintDebug`.
-- [ ] Run Android connected UI tests when an emulator/device is available.
-- [ ] Run iOS focused tests and `fast-unit`.
-- [ ] Run iOS `ui-smoke` because Settings and Shifts feedback changes.
-- [ ] Run the canonical iOS `release-gate` and verify SwiftLint.
+- [x] Run Android `app:testDebugUnitTest` and `app:lintDebug`.
+- [x] Run Android connected UI tests when an emulator/device is available.
+- [x] Run iOS focused tests and `fast-unit`.
+- [x] Run iOS `ui-smoke` because Settings and Shifts feedback changes.
+- [x] Run the canonical iOS `release-gate` and verify SwiftLint.
 - [ ] Run `git diff --check` and reconcile all acceptance criteria with evidence.
 
 ## 7. Local/emulator acceptance

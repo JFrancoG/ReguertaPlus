@@ -47,11 +47,16 @@ extension ShiftsFeatureViewModel {
             if canRebaseShiftSwapMutation {
                 rebaseShiftSwapMutationAuthorizationReceipt()
             }
-            _ = startShiftsRefresh(recoversInitialFailure: true, startsInitialCalendarHydration: true)
+            startAuthorizedShiftReads()
         case .signedOut, .unauthorized:
             sessionIdentityEpoch += 1
             reset()
         }
+    }
+
+    private func startAuthorizedShiftReads() {
+        startShiftPlanningObservation()
+        _ = startShiftsRefresh(recoversInitialFailure: true, startsInitialCalendarHydration: true)
     }
 
     func handleNowOverrideChange() {
