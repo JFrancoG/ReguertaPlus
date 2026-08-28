@@ -22,6 +22,7 @@ export const SHIFT_PLANNING_COLLECTIONS = {
     "shiftPlanningBundles",
     "shiftPlanningSyncCommands",
     "shiftPlanningNotificationIntents",
+    "shiftPlanningNotificationFences",
     "shiftPlanningOperations",
   ],
 } as const;

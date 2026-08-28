@@ -31,6 +31,15 @@ import {
   terminalizeShiftPlanningNotificationAttempt,
 } from "./shift-planning-notification-dispatch.js";
 import {
+  ShiftPlanningNotificationResourceFence,
+  createShiftPlanningNotificationResourceFences,
+  parseShiftPlanningNotificationResourceFence,
+  sameShiftPlanningNotificationResourceFence,
+  shiftPlanningNotificationAttemptCanReleaseResourceFences,
+  shiftPlanningNotificationResourceFenceId,
+  shiftPlanningNotificationResourceFenceIsActive,
+} from "./shift-planning-notification-resource-fence.js";
+import {
   createShiftPlanningNotificationReleaseArtifacts,
   parseShiftPlanningHeldNotificationIntent,
   sameShiftPlanningNotificationValue,
@@ -84,6 +93,12 @@ type DispatchReferences = {
   attempts: (attemptId: string) => DocumentReference;
 };
 
+type ResourceFenceEntry = {
+  reference: DocumentReference;
+  expected: ShiftPlanningNotificationResourceFence;
+  persisted: ShiftPlanningNotificationResourceFence | null;
+};
+
 const failDispatch = (message: string): never => {
   throw new ShiftPlanningError("invalid_planning_transaction", message);
 };
@@ -133,6 +148,72 @@ const dispatchReferences = (
   attempts: (attemptId) =>
     intentReference.collection("dispatchAttempts").doc(attemptId),
 });
+
+const resourceFenceEntries = (input: {
+  firestore: Firestore;
+  root: string;
+  attempt: ShiftPlanningClaimedNotificationDispatchAttempt |
+    ShiftPlanningSubmittingNotificationDispatchAttempt;
+  recipientUserId: string;
+  shiftId: string;
+}): Omit<ResourceFenceEntry, "persisted">[] =>
+  createShiftPlanningNotificationResourceFences(input).map((expected) => ({
+    reference: input.firestore.doc(
+      `${input.root}/shiftPlanningNotificationFences/` +
+        shiftPlanningNotificationResourceFenceId(
+          expected.scope,
+          expected.resourceId,
+        ),
+    ),
+    expected,
+  }));
+
+const readResourceFenceEntries = async (input: {
+  transaction: Transaction;
+  entries: readonly Omit<ResourceFenceEntry, "persisted">[];
+}): Promise<ResourceFenceEntry[]> => {
+  const snapshots = await input.transaction.getAll(
+    ...input.entries.map(({reference}) => reference),
+  );
+  return input.entries.map((entry, index) => ({
+    ...entry,
+    persisted: snapshots[index].exists ?
+      parseShiftPlanningNotificationResourceFence(snapshots[index].data()) :
+      null,
+  }));
+};
+
+const ownsResourceFence = (entry: ResourceFenceEntry): boolean =>
+  entry.persisted !== null &&
+  sameShiftPlanningNotificationResourceFence(
+    entry.persisted,
+    entry.expected,
+  );
+
+const requireActiveResourceFences = (
+  entries: readonly ResourceFenceEntry[],
+  now: Timestamp,
+): void => {
+  if (
+    entries.some((entry) =>
+      !ownsResourceFence(entry) ||
+      !shiftPlanningNotificationResourceFenceIsActive(
+        entry.persisted as ShiftPlanningNotificationResourceFence,
+        now,
+      ))
+  ) {
+    failDispatch("Notification resource fence no longer owns submission.");
+  }
+};
+
+const deleteOwnedResourceFences = (
+  transaction: Transaction,
+  entries: readonly ResourceFenceEntry[],
+): void => {
+  entries.filter(ownsResourceFence).forEach(({reference}) => {
+    transaction.delete(reference);
+  });
+};
 
 const initialState = (
   intentId: string,
@@ -387,6 +468,32 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
         acquiredAt: now,
         validation,
       });
+      const resourceFences = await readResourceFenceEntries({
+        transaction,
+        entries: resourceFenceEntries({
+          firestore,
+          root: context.root,
+          attempt,
+          recipientUserId: context.intent.recipientUserId,
+          shiftId: context.intent.shiftId,
+        }),
+      });
+      const activeResourceFences = resourceFences.filter(({persisted}) =>
+        persisted !== null &&
+        shiftPlanningNotificationResourceFenceIsActive(persisted, now),
+      );
+      if (activeResourceFences.length > 0) {
+        const retryAt = activeResourceFences.reduce(
+          (latest, {persisted}) =>
+            (persisted as ShiftPlanningNotificationResourceFence).expiresAt
+              .toMillis() > latest.toMillis() ?
+              (persisted as ShiftPlanningNotificationResourceFence).expiresAt :
+              latest,
+          (activeResourceFences[0].persisted as
+            ShiftPlanningNotificationResourceFence).expiresAt,
+        );
+        return {kind: "busy", retryAt};
+      }
       const nextState: ShiftPlanningNotificationDispatchState = {
         ...state,
         attemptCount: attempt.attemptOrdinal,
@@ -401,6 +508,9 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
       }
       transaction.create(references.attempts(attemptId), attempt);
       transaction.set(references.state, nextState);
+      resourceFences.forEach(({reference, expected}) => {
+        transaction.set(reference, expected);
+      });
       return {
         kind: "claimed",
         attempt,
@@ -462,6 +572,17 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
       ) {
         return failDispatch("Notification dispatch validation drifted.");
       }
+      const resourceFences = await readResourceFenceEntries({
+        transaction,
+        entries: resourceFenceEntries({
+          firestore,
+          root: context.root,
+          attempt: current,
+          recipientUserId: context.intent.recipientUserId,
+          shiftId: context.intent.shiftId,
+        }),
+      });
+      requireActiveResourceFences(resourceFences, now);
       const submitting = startShiftPlanningAuthenticatedSubmission({
         attempt: current,
         startedAt: now,
@@ -492,10 +613,12 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
         `${root}/shiftPlanningNotificationIntents/${input.token.intentId}`,
       );
       const references = dispatchReferences(intentReference);
-      const [stateSnapshot, attemptSnapshot] = await transaction.getAll(
-        references.state,
-        references.attempts(input.token.attemptId),
-      );
+      const [stateSnapshot, attemptSnapshot, intentSnapshot] =
+        await transaction.getAll(
+          references.state,
+          references.attempts(input.token.attemptId),
+          intentReference,
+        );
       const attempt = parseShiftPlanningNotificationDispatchAttempt(
         requireSnapshot(attemptSnapshot, "dispatch attempt").data(),
       );
@@ -509,6 +632,19 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
       if (active.state !== "claimed") {
         return failDispatch("Started submission cannot fail as unsubmitted.");
       }
+      const intent = parseShiftPlanningHeldNotificationIntent(
+        requireSnapshot(intentSnapshot, "held notification intent").data(),
+      );
+      const resourceFences = await readResourceFenceEntries({
+        transaction,
+        entries: resourceFenceEntries({
+          firestore,
+          root,
+          attempt: active,
+          recipientUserId: intent.recipientUserId,
+          shiftId: intent.shiftId,
+        }),
+      });
       const terminal = terminalizeShiftPlanningNotificationAttempt({
         attempt: active,
         completedAt: clock(),
@@ -518,6 +654,7 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
       });
       transaction.set(references.attempts(active.attemptId), terminal);
       transaction.set(references.state, {...state, activeLease: null});
+      deleteOwnedResourceFences(transaction, resourceFences);
       return {kind: "committed", attempt: terminal};
     });
   },
@@ -536,10 +673,12 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
         `${root}/shiftPlanningNotificationIntents/${input.token.intentId}`,
       );
       const references = dispatchReferences(intentReference);
-      const [stateSnapshot, attemptSnapshot] = await transaction.getAll(
-        references.state,
-        references.attempts(input.token.attemptId),
-      );
+      const [stateSnapshot, attemptSnapshot, intentSnapshot] =
+        await transaction.getAll(
+          references.state,
+          references.attempts(input.token.attemptId),
+          intentReference,
+        );
       const attempt = parseShiftPlanningNotificationDispatchAttempt(
         requireSnapshot(attemptSnapshot, "dispatch attempt").data(),
       );
@@ -553,6 +692,23 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
       if (active.state !== "submitting") {
         return failDispatch("Notification submission did not start.");
       }
+      const intent = parseShiftPlanningHeldNotificationIntent(
+        requireSnapshot(intentSnapshot, "held notification intent").data(),
+      );
+      const resourceFences = await readResourceFenceEntries({
+        transaction,
+        entries: resourceFenceEntries({
+          firestore,
+          root,
+          attempt: active,
+          recipientUserId: intent.recipientUserId,
+          shiftId: intent.shiftId,
+        }),
+      });
+      const completedAt = clock();
+      if (completedAt.toMillis() < active.lease.expiresAt.toMillis()) {
+        requireActiveResourceFences(resourceFences, completedAt);
+      }
       let failureCode: string | null;
       let acceptedTargetCount: number;
       if (input.result.outcome === "accepted") {
@@ -564,13 +720,16 @@ export const createFirestoreShiftPlanningNotificationDispatchRepository = (
       }
       const terminal = terminalizeShiftPlanningNotificationAttempt({
         attempt: active,
-        completedAt: clock(),
+        completedAt,
         outcome: input.result.outcome,
         failureCode,
         acceptedTargetCount,
       });
       transaction.set(references.attempts(active.attemptId), terminal);
       transaction.set(references.state, {...state, activeLease: null});
+      if (shiftPlanningNotificationAttemptCanReleaseResourceFences(terminal)) {
+        deleteOwnedResourceFences(transaction, resourceFences);
+      }
       return {kind: "committed", attempt: terminal};
     });
   },

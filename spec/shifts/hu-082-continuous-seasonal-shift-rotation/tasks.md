@@ -527,8 +527,20 @@ occurred. Protected technical evidence remains outside the repository.
     monotonic lease and revalidates the complete current assignment/member/device
     source again immediately before authenticated submission authorization. Raw
     targets are transient; only their digest and count enter retained evidence.
+  - [x] Publish deterministic backend-only member/shift resource fences in the
+    same claim transaction. Distinct intents serialize on both resources;
+    definitive completion releases only exact ownership, while `unknown` retains
+    the fence through lease expiry. Local strict Rules make direct shift/device
+    writers fail closed while active; Phase 1 keeps the collection private.
+  - [x] Validation: Node 22 Functions lint/build, 212/212 executed planning
+    vectors with 24 emulator-only skips, 3/3 focused fence vectors, 10/10
+    dispatch-repository emulator vectors, 27/27 strict Rules vectors, and 5/5
+    Phase 1 compatibility vectors pass locally. No Firebase, Rules, Functions,
+    FCM, or production data deployment occurred.
   - [ ] Make every assignment/member/device writer honor or atomically supersede
-    that lease, then connect the real FCM transport.
+    that lease. Migrate each Admin SDK/server writer to the same transaction guard,
+    define retry behavior for blocked mobile device registration, then connect
+    the real FCM transport.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.
@@ -564,7 +576,7 @@ occurred. Protected technical evidence remains outside the repository.
   held outbox.
 - [ ] Preserve existing reciprocal swap behavior for newly generated shifts.
 - [x] Update strict Firestore Rules and bilingual collection documentation for the
-  exact local v2 request, admin-readable/backend-written candidate, and seven
+  exact local v2 request, admin-readable/backend-written candidate, and eight
   backend-only control-plane partitions; do not deploy either Rules candidate.
 - [ ] Implement persisted before-image capture and recovery CAS from the pure
   inverse manifest: exact target/create paths, before-image contract digests,

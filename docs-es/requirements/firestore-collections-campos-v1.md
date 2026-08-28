@@ -651,6 +651,14 @@ Los nombres siguientes quedan congelados para el plano de control privado:
   entregado y un retry anade otro intento con validacion fresca. El ledger no
   conserva tokens FCM crudos: guarda digest de destino y numero de targets, que
   solo se entregan transitoriamente al transporte recien autorizado.
+- `shiftPlanningNotificationFences`: leases mutables solo backend con IDs
+  deterministas `member:{userId}` y `shift:{shiftId}`. El claim de dispatch toma
+  ambos atomicamente para el mismo intento/worker/epoch/digest de validacion; otro
+  intent queda busy hasta que ambos esten libres o expirados. Un terminal
+  definitivo `accepted|failed` borra solo las fences que aun posee ese intento,
+  mientras `unknown` las conserva hasta el deadline original de 30 segundos. El
+  candidato estricto local de Rules falla cerrado ante una fence malformada y
+  bloquea escrituras directas de turno y dispositivo mientras siga activa.
 - `shiftPlanningOperations`: idempotencia/auditoria mas rutas de recovery,
   incluido el lifecycle ya implementado de claim/lease/fencing de peticiones;
   los registros futuros tambien llevan rutas de recovery, referencias/digests de
@@ -956,7 +964,7 @@ corto con fencing, revalida de nuevo la misma fuente de asignacion/socio/disposi
 justo antes de registrar el inicio autenticado, devuelve solo un push generico
 `eventId`/`shift_updated` con collapse key estable y conserva como `unknown`
 inmutable cualquier submission tardia o expirada. Siguen pendientes la conexion
-del transporte FCM, el respeto del lease por todos los writers y la sustitucion del
+del transporte FCM, la integracion de writers server/Admin y la sustitucion del
 trigger. Un adaptador Firebase y ejecutor locales no exportados acotan ahora cada
 espera de transporte a 10 segundos dentro del lease de 30 segundos. El rechazo
 explicito por destino es `failed`; timeout, excepcion, acknowledgement incoherente
@@ -964,6 +972,12 @@ o presupuesto agotado despues de autorizar son `unknown` inmutables y posiblemen
 entregados. Una aceptacion conocida sigue como `accepted` aunque un lote posterior
 sea ambiguo. No se retienen acknowledgements ni errores crudos y solo se emiten
 titulo/body/data genericos con collapse keys estables para Android y APNs.
+Dispatch publica ahora las fences deterministas de socio/turno descritas arriba en
+la misma transaccion que su intento. El candidato estricto las consume para las
+escrituras directas de dispositivo y turno; una aceptacion/fallo definitivo las
+libera y `unknown` mantiene el bloqueo hasta expirar. Los writers de Admin SDK no
+estan sujetos a Rules y aun necesitan el mismo guard transaccional explicito antes
+de cualquier wiring o despliegue de produccion.
 Siguen pendientes y fail-closed el ensayo de tamano/indices en clon aislado, las
 implementaciones live del plano de control de Google y el wiring fiable de la
 barrera de entrada, la migracion de writers, consumidores de dispatch/reconciliacion

@@ -541,6 +541,14 @@ The following collection names are frozen for the private control plane:
   and a retry appends a newly revalidated attempt. No raw FCM token is retained
   in the ledger: it stores the bound destination digest and target count, while
   the freshly authorized transport receives current targets transiently.
+- `shiftPlanningNotificationFences`: mutable backend-only resource leases with
+  deterministic `member:{userId}` and `shift:{shiftId}` IDs. Dispatch claim
+  atomically acquires both for the same attempt/worker/epoch/validation digest;
+  another intent stays busy until both are free or expired. Definitive
+  `accepted|failed` completion removes only fences still owned by that attempt,
+  while ambiguous `unknown` keeps them through the original 30-second deadline.
+  The strict local Rules candidate fails closed for malformed fences and blocks
+  direct shift and member-device writes while the corresponding fence is active.
 - `shiftPlanningOperations`: idempotency/audit records plus recovery paths,
   including the implemented request claim/lease/fencing lifecycle; future
   operation records also carry recovery paths, persisted before-image
@@ -845,7 +853,7 @@ short fenced attempt, revalidates the same assignment/member/device source again
 immediately before recording authenticated submission start, returns only a
 generic `eventId`/`shift_updated` push with a stable collapse key, and preserves
 late or expired submission as immutable `unknown`. Actual FCM invocation,
-writer-honored lease integration and trigger replacement remain pending. A local,
+server/Admin writer integration and trigger replacement remain pending. A local,
 non-exported Firebase adapter and executor now bound each transport wait to 10
 seconds inside the 30-second lease. Explicit per-target rejection is `failed`;
 timeout, throw, acknowledgement mismatch, or exhausted post-authorization lease
@@ -853,6 +861,12 @@ budget is immutable possibly-delivered `unknown`. Known acceptance remains
 `accepted` even if a later target batch is ambiguous. The adapter retains neither
 raw acknowledgements nor errors and emits only generic title/body/data with stable
 Android and APNs collapse keys.
+Dispatch now publishes the deterministic member/shift resource fences described
+above in the same transaction as its attempt. The strict candidate consumes them
+for direct device and shift writes; accepted/definitive failure releases them,
+while `unknown` remains fenced until expiry. Backend Admin SDK writers bypass
+Rules and therefore still require the same explicit transaction guard before any
+production wiring or deployment.
 Still pending and fail-closed are the isolated-clone size/index rehearsal, live
 Google control-plane implementations and trusted intake-barrier wiring, writer
 migration, notification dispatch/reconciliation consumers, production deployment,

@@ -112,9 +112,12 @@ const completedSync = (type) => {
   });
 };
 
-const intentFor = (member = deriveShiftPlanningMemberRevision(memberSource())) => ({
-  intentId: `${bundleRevision}-notification-1`,
-  idempotencyKey: `${bundleRevision}:notification:1`,
+const intentFor = (
+  member = deriveShiftPlanningMemberRevision(memberSource()),
+  sequence = 1,
+) => ({
+  intentId: `${bundleRevision}-notification-${sequence}`,
+  idempotencyKey: `${bundleRevision}:notification:${sequence}`,
   state: "held",
   recipientUserId: member.userId,
   shiftId: "shift_delivery_20260902",
@@ -287,10 +290,10 @@ const clearFirestore = async () => {
   assert.equal(response.ok, true, await response.text());
 };
 
-const seed = async () => {
+const seed = async (sequence = 1) => {
   const source = memberSource();
   const member = deriveShiftPlanningMemberRevision(source);
-  const intent = intentFor(member);
+  const intent = intentFor(member, sequence);
   const deliverySync = completedSync("delivery");
   const marketSync = completedSync("market");
   const release = createShiftPlanningNotificationReleaseArtifacts({
@@ -345,6 +348,11 @@ const seed = async () => {
   return intent;
 };
 
+const fencePaths = (intent) => [
+  `${root}/shiftPlanningNotificationFences/member:${intent.recipientUserId}`,
+  `${root}/shiftPlanningNotificationFences/shift:${intent.shiftId}`,
+];
+
 before(async () => {
   if (!EMULATOR_HOST) return;
   firestore = new Firestore({projectId: PROJECT_ID, databaseId: "(default)"});
@@ -375,6 +383,11 @@ test("claims, revalidates, submits, and terminalizes one accepted attempt", {
     attemptId: "dispatch-attempt-1",
   });
   assert.equal(claimed.kind, "claimed");
+  for (const path of fencePaths(intent)) {
+    const fence = await firestore.doc(path).get();
+    assert.equal(fence.exists, true);
+    assert.equal(fence.get("attemptId"), "dispatch-attempt-1");
+  }
   const replay = await repository.claim({
     environment,
     intentId: intent.intentId,
@@ -412,6 +425,9 @@ test("claims, revalidates, submits, and terminalizes one accepted attempt", {
   });
   assert.equal(completed.kind, "committed");
   assert.equal(completed.attempt.terminal.outcome, "accepted");
+  for (const path of fencePaths(intent)) {
+    assert.equal((await firestore.doc(path).get()).exists, false);
+  }
 
   nowMillis += 60_000;
   const lateReplay = await repository.completeSubmission({
@@ -447,6 +463,12 @@ test("expires submitting as immutable unknown before a revalidated retry", {
   });
   assert.equal(retry.kind, "claimed");
   assert.equal(retry.attempt.attemptOrdinal, 2);
+  for (const path of fencePaths(intent)) {
+    assert.equal(
+      (await firestore.doc(path).get()).get("attemptId"),
+      "dispatch-attempt-2",
+    );
+  }
   const firstSnapshot = await firestore.doc(
     `${root}/shiftPlanningNotificationIntents/${intent.intentId}/` +
       "dispatchAttempts/dispatch-attempt-1",
@@ -542,6 +564,48 @@ test("terminalizes an unsubmitted attempt without possible delivery", {
   assert.equal(failed.attempt.authenticatedStartedAt, null);
   assert.equal(failed.attempt.terminal.outcome, "failed");
   assert.equal(failed.attempt.terminal.possiblyDelivered, false);
+  for (const path of fencePaths(intent)) {
+    assert.equal((await firestore.doc(path).get()).exists, false);
+  }
+});
+
+test("shared resource fences serialize distinct released intents", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const firstIntent = await seed(1);
+  const secondIntent = await seed(2);
+  const first = await repository.claim({
+    environment,
+    intentId: firstIntent.intentId,
+    workerId: "dispatch-worker-1",
+    attemptId: "dispatch-attempt-1",
+  });
+  const blocked = await repository.claim({
+    environment,
+    intentId: secondIntent.intentId,
+    workerId: "dispatch-worker-2",
+    attemptId: "dispatch-attempt-2",
+  });
+  assert.equal(blocked.kind, "busy");
+
+  await repository.failBeforeSubmission({
+    environment,
+    token: first.token,
+    failureCode: "operator_cancelled",
+  });
+  const second = await repository.claim({
+    environment,
+    intentId: secondIntent.intentId,
+    workerId: "dispatch-worker-2",
+    attemptId: "dispatch-attempt-2",
+  });
+  assert.equal(second.kind, "claimed");
+  for (const path of fencePaths(secondIntent)) {
+    assert.equal(
+      (await firestore.doc(path).get()).get("intentId"),
+      secondIntent.intentId,
+    );
+  }
 });
 
 test("bounded executor persists an accepted fake transport result", {
@@ -593,4 +657,9 @@ test("bounded executor persists a timed-out fake transport as unknown", {
   assert.equal(result.attempt.terminal.outcome, "unknown");
   assert.equal(result.attempt.terminal.failureCode, "transport_timeout");
   assert.equal(result.attempt.terminal.possiblyDelivered, true);
+  for (const path of fencePaths(intent)) {
+    const fence = await firestore.doc(path).get();
+    assert.equal(fence.exists, true);
+    assert.equal(fence.get("attemptId"), "dispatch-attempt-1");
+  }
 });

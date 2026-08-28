@@ -644,6 +644,7 @@ test("preview persists one exact private receipt and replays terminally", async 
     "shiftRotations",
     "shiftPlanningSyncCommands",
     "shiftPlanningNotificationIntents",
+    "shiftPlanningNotificationFences",
   ]) {
     const snapshot = await firestore.collection(`${ROOT}/${collection}`).get();
     assert.equal(snapshot.empty, true, collection);

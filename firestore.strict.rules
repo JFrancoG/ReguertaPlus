@@ -41,6 +41,55 @@ service cloud.firestore {
       return /databases/$(database)/documents/$(env)/plus-collections/users/$(userId)/devices/$(deviceId);
     }
 
+    function notificationResourceFencePath(env, scope, resourceId) {
+      let fenceId = scope + ":" + resourceId;
+      return /databases/$(database)/documents/$(env)/plus-collections/shiftPlanningNotificationFences/$(fenceId);
+    }
+
+    function isExactNotificationResourceFence(fence, scope, resourceId) {
+      return fence.keys().hasOnly([
+          "schemaVersion",
+          "operationKind",
+          "scope",
+          "resourceId",
+          "intentId",
+          "eventId",
+          "attemptId",
+          "workerId",
+          "leaseEpoch",
+          "acquiredAt",
+          "expiresAt",
+          "validationDigest",
+        ]) &&
+        fence.schemaVersion == 1 &&
+        fence.operationKind == "notificationDispatchResourceFence" &&
+        fence.scope == scope &&
+        fence.resourceId == resourceId &&
+        isPlanningIdentifier(fence.resourceId) &&
+        isPlanningIdentifier(fence.intentId) &&
+        isPlanningIdentifier(fence.eventId) &&
+        isPlanningIdentifier(fence.attemptId) &&
+        isPlanningIdentifier(fence.workerId) &&
+        fence.leaseEpoch is int &&
+        fence.leaseEpoch > 0 &&
+        fence.acquiredAt is timestamp &&
+        fence.expiresAt is timestamp &&
+        fence.expiresAt == fence.acquiredAt + duration.value(30, "s") &&
+        fence.validationDigest is string &&
+        fence.validationDigest.matches(
+          "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+        );
+    }
+
+    function notificationResourceFenceAllowsMutation(env, scope, resourceId) {
+      let fencePath = notificationResourceFencePath(env, scope, resourceId);
+      let fence = exists(fencePath) ? get(fencePath).data : {};
+      return !exists(fencePath) || (
+        isExactNotificationResourceFence(fence, scope, resourceId) &&
+        fence.expiresAt <= request.time
+      );
+    }
+
     function actorData(env) {
       return get(userPath(env, actorId(env))).data;
     }
@@ -523,8 +572,11 @@ service cloud.firestore {
         );
 
       match /devices/{deviceId} {
-        allow read, delete: if isActor(env, userId);
+        allow read: if isActor(env, userId);
+        allow delete: if isActor(env, userId) &&
+          notificationResourceFenceAllowsMutation(env, "member", userId);
         allow create, update: if isActor(env, userId) &&
+          notificationResourceFenceAllowsMutation(env, "member", userId) &&
           isValidDeviceData(deviceId, request.resource.data);
       }
 
@@ -615,7 +667,8 @@ service cloud.firestore {
 
     match /{env}/plus-collections/shifts/{shiftId} {
       allow read: if isActiveMember(env);
-      allow create, update, delete: if isAdmin(env);
+      allow create, update, delete: if isAdmin(env) &&
+        notificationResourceFenceAllowsMutation(env, "shift", shiftId);
     }
 
     match /{env}/plus-collections/shiftPlanningRequests/{requestId} {

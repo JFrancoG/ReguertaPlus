@@ -159,7 +159,7 @@ persisted before-image contract digests, active CAS, and a never-reused higher e
 
 Local strict Rules admit only exact admin request creation/read-back and
 admin candidate inspection (including nested positions); all candidate writes and
-the seven private control-plane collections remain backend-only. The Phase 1
+the eight private control-plane collections remain backend-only. The Phase 1
 candidate denies the nine new planning roots so its permissive catch-all cannot
 expose them. These Rules are local candidates and must not be deployed alone.
 
