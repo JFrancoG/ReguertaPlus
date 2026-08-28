@@ -70,6 +70,35 @@ class SessionCommunityActionsFailureTest {
     }
 
     @Test
+    fun `opened push refreshes inbox before fetching authorized detail`() = runTest {
+        val event = notificationEvent(id = "event-1").copy(
+            type = "shift_updated",
+            target = "users",
+            userIds = listOf("member_1"),
+            contentPolicy = NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED,
+        )
+        val state = MutableStateFlow(authorizedState())
+        val detailRepository = RecordingShiftNotificationDetailRepository(notificationShiftDetail())
+        val actions = actions(
+            state = state,
+            repository = ControlledSharedProfileRepository(emptyList(), rejectsReads = false),
+            emitMessage = {},
+            notificationRepository = QueuedNotificationRepository(
+                notificationsResults = ArrayDeque(listOf(Result.success(listOf(event)))),
+                readResults = ArrayDeque(listOf(Result.success(emptySet()))),
+            ),
+            shiftNotificationDetailRepository = detailRepository,
+        )
+
+        actions.prepareNotificationsRoute(openingEventId = event.id)
+        advanceUntilIdle()
+
+        assertEquals(listOf(event), state.value.notificationsFeed)
+        assertEquals(notificationShiftDetail(), state.value.notificationShiftDetail)
+        assertEquals("member_1", detailRepository.requestedMemberId)
+    }
+
+    @Test
     fun `late shift notification detail cannot cross a session replacement`() = runTest {
         val event = notificationEvent(id = "event-1").copy(
             type = "shift_updated",

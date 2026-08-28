@@ -37,7 +37,8 @@ extension ReguertaApp {
         self.appEnvironment = appEnvironment
         appDelegate.configure(
             appConfiguration: appConfiguration,
-            authorizedDeviceRegistrar: appEnvironment.authorizedDeviceRegistrar
+            authorizedDeviceRegistrar: appEnvironment.authorizedDeviceRegistrar,
+            shiftNotificationPushOpenStore: appEnvironment.shiftNotificationPushOpenStore
         )
     }
 }

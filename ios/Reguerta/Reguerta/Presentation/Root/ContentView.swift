@@ -12,6 +12,12 @@ struct MainView: View {
         let rootViewModel = appEnvironment.accessRootViewModel
         let sessionViewModel = appEnvironment.sessionViewModel
         let feedbackCenter = appEnvironment.feedbackCenter
+        let pendingPushReference = appEnvironment.shiftNotificationPushOpenStore.pendingReference
+        let pushOpenTaskID = ShiftNotificationPushOpenTaskID(
+            eventID: pendingPushReference?.eventID,
+            route: rootViewModel.shellState.currentRoute,
+            sessionIdentityEpoch: rootViewModel.newsNotificationsViewModel.sessionIdentityEpoch
+        )
 
         NavigationStack {
             RootRouteView(
@@ -54,6 +60,13 @@ struct MainView: View {
         .task {
             rootViewModel.refreshSessionAndEvaluateStartupGate()
         }
+        .task(id: pushOpenTaskID) {
+            guard let pendingPushReference,
+                  await rootViewModel.openShiftNotificationPush(eventID: pendingPushReference.eventID) else {
+                return
+            }
+            appEnvironment.shiftNotificationPushOpenStore.consume(pendingPushReference)
+        }
         .onChange(of: sessionViewModel.mode) { previousMode, mode in
             rootViewModel.handleSessionModeChange(from: previousMode, to: mode)
         }
@@ -76,6 +89,12 @@ struct MainView: View {
             rootViewModel.handleFeedbackMessageChange(feedbackKey)
         }
     }
+}
+
+private struct ShiftNotificationPushOpenTaskID: Equatable {
+    let eventID: String?
+    let route: AuthShellRoute
+    let sessionIdentityEpoch: UInt64
 }
 
 #Preview("Main shell", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {

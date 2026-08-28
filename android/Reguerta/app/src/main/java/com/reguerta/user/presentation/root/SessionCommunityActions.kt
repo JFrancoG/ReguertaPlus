@@ -277,13 +277,15 @@ internal class SessionCommunityActions(
     fun refreshNotifications() {
         startNotificationsRefreshCycle(
             prepareRoute = false,
+            openingEventId = null,
             shouldEmitFailureFeedback = { true },
         )
     }
 
-    fun prepareNotificationsRoute() {
+    fun prepareNotificationsRoute(openingEventId: String? = null) {
         startNotificationsRefreshCycle(
             prepareRoute = true,
+            openingEventId = openingEventId,
             shouldEmitFailureFeedback = { true },
         )
     }
@@ -361,15 +363,22 @@ internal class SessionCommunityActions(
 
     private fun startNotificationsRefreshCycle(
         prepareRoute: Boolean,
+        openingEventId: String?,
         shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
     ) {
         notificationsRetryJob?.cancel()
         notificationsRetryJob = null
-        refreshNotificationsAttempt(prepareRoute, shouldEmitFailureFeedback, retryOnFailure = true)
+        refreshNotificationsAttempt(
+            prepareRoute = prepareRoute,
+            openingEventId = openingEventId,
+            shouldEmitFailureFeedback = shouldEmitFailureFeedback,
+            retryOnFailure = true,
+        )
     }
 
     private fun refreshNotificationsAttempt(
         prepareRoute: Boolean,
+        openingEventId: String?,
         shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
         retryOnFailure: Boolean,
     ) {
@@ -393,7 +402,7 @@ internal class SessionCommunityActions(
                     null
                 }
                 currentCoroutineContext().ensureActive()
-                completeNotificationsRefresh(context, token) { state ->
+                val didComplete = completeNotificationsRefresh(context, token) { state ->
                     val visibleNotifications = allNotifications.filter { event ->
                         event.isVisibleTo(mode.member)
                     }
@@ -426,6 +435,9 @@ internal class SessionCommunityActions(
                             ?: state.showPushNotificationPermissionDialog,
                     )
                 }
+                if (didComplete && openingEventId != null) {
+                    openNotificationDetail(openingEventId)
+                }
             } catch (cancellation: CancellationException) {
                 finishNotificationsRefresh(context, token)
                 throw cancellation
@@ -433,7 +445,12 @@ internal class SessionCommunityActions(
                 if (!finishNotificationsRefresh(context, token)) return@launch
                 if (
                     retryOnFailure &&
-                    scheduleNotificationsRetry(context, prepareRoute, shouldEmitFailureFeedback)
+                    scheduleNotificationsRetry(
+                        context = context,
+                        prepareRoute = prepareRoute,
+                        openingEventId = openingEventId,
+                        shouldEmitFailureFeedback = shouldEmitFailureFeedback,
+                    )
                 ) return@launch
                 if (shouldEmitFailureFeedback(uiState.value)) {
                     emitMessage(R.string.feedback_unable_load_data)
@@ -973,6 +990,7 @@ internal class SessionCommunityActions(
             }
             startNotificationsRefreshCycle(
                 prepareRoute = false,
+                openingEventId = null,
                 shouldEmitFailureFeedback = { state ->
                     postAcknowledgementOwnership?.matches(state) == true &&
                         isCurrentCommunitySession(context, state)
@@ -1003,6 +1021,7 @@ internal class SessionCommunityActions(
     private fun scheduleNotificationsRetry(
         context: CommunitySessionContext,
         prepareRoute: Boolean,
+        openingEventId: String?,
         shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
     ): Boolean {
         val retryDelayMillis = automaticLoadRetryDelayMillis ?: return false
@@ -1012,7 +1031,12 @@ internal class SessionCommunityActions(
             if (notificationsRetryJob !== retryJob) return@launch
             notificationsRetryJob = null
             if (!isCurrentCommunitySession(context)) return@launch
-            refreshNotificationsAttempt(prepareRoute, shouldEmitFailureFeedback, retryOnFailure = false)
+            refreshNotificationsAttempt(
+                prepareRoute = prepareRoute,
+                openingEventId = openingEventId,
+                shouldEmitFailureFeedback = shouldEmitFailureFeedback,
+                retryOnFailure = false,
+            )
         }
         notificationsRetryJob?.cancel()
         notificationsRetryJob = retryJob

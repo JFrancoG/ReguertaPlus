@@ -442,7 +442,8 @@ class SessionViewModel(
 
     fun refreshNotifications() = communityActions.refreshNotifications()
 
-    fun prepareNotificationsRoute() = communityActions.prepareNotificationsRoute()
+    fun prepareNotificationsRoute(openingEventId: String? = null) =
+        communityActions.prepareNotificationsRoute(openingEventId)
 
     fun openNotificationDetail(eventId: String) = communityActions.openNotificationDetail(eventId)
 

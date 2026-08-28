@@ -2,6 +2,7 @@ package com.reguerta.user
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -19,6 +20,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.reguerta.user.data.settings.DataStoreAppearancePreferences
+import com.reguerta.user.domain.notifications.ShiftNotificationPushReference
 import com.reguerta.user.presentation.root.ReguertaRoot
 import com.reguerta.user.presentation.root.ReguertaRootActivityStateViewModel
 import com.reguerta.user.presentation.root.SessionViewModel
@@ -35,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        acceptShiftNotificationPush(intent)
         enableEdgeToEdge()
         requestNotificationsPermissionIfNeeded()
         setContent {
@@ -63,6 +66,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        acceptShiftNotificationPush(intent)
+    }
+
+    private fun acceptShiftNotificationPush(intent: Intent?) {
+        val sourceIntent = intent ?: return
+        val reference = ShiftNotificationPushReference.validated(
+            eventId = sourceIntent.getStringExtra(PUSH_EVENT_ID_KEY),
+            type = sourceIntent.getStringExtra(PUSH_TYPE_KEY),
+            target = sourceIntent.getStringExtra(PUSH_TARGET_KEY),
+        ) ?: return
+        rootStateViewModel.acceptShiftNotificationPush(reference)
+        sourceIntent.removeExtra(PUSH_EVENT_ID_KEY)
+        sourceIntent.removeExtra(PUSH_TYPE_KEY)
+        sourceIntent.removeExtra(PUSH_TARGET_KEY)
+    }
+
     private fun requestNotificationsPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return
@@ -84,5 +106,8 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val NOTIFICATIONS_PERMISSION_REQUEST_CODE = 1001
+        const val PUSH_EVENT_ID_KEY = "eventId"
+        const val PUSH_TYPE_KEY = "type"
+        const val PUSH_TARGET_KEY = "target"
     }
 }

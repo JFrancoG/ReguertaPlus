@@ -38,6 +38,20 @@ struct ShiftNotificationDetailPresentationTests {
         #expect(fixture.viewModel.notificationShiftDetail == nil)
     }
 
+    @Test func openedPushRefreshesInboxBeforeFetchingAuthorizedDetail() async {
+        let notificationRepository = InMemoryNotificationRepository(items: [genericShiftNotification])
+        let fixture = makeFixture(
+            repository: ImmediateShiftNotificationDetailRepository(detail: detail),
+            notificationRepository: notificationRepository
+        )
+        fixture.viewModel.notificationsFeed = []
+
+        await fixture.viewModel.prepareNotificationsRoute(openingEventID: "event_1")
+
+        #expect(fixture.viewModel.notificationShiftDetail == detail)
+        #expect(fixture.viewModel.notificationsFeed.map(\.id) == ["event_1"])
+    }
+
     private var detail: ShiftNotificationDetail {
         ShiftNotificationDetail(
             eventID: "event_1",
@@ -58,7 +72,8 @@ struct ShiftNotificationDetailPresentationTests {
     }
 
     private func makeFixture(
-        repository: any ShiftNotificationDetailRepository
+        repository: any ShiftNotificationDetailRepository,
+        notificationRepository: any NotificationRepository = InMemoryNotificationRepository()
     ) -> (viewModel: NewsNotificationsFeatureViewModel, sessionViewModel: SessionViewModel) {
         let member = Member(
             id: "member_1",
@@ -90,7 +105,7 @@ struct ShiftNotificationDetailPresentationTests {
         let viewModel = NewsNotificationsFeatureViewModel(
             sessionViewModel: sessionViewModel,
             newsRepository: InMemoryNewsRepository(),
-            notificationRepository: InMemoryNotificationRepository(),
+            notificationRepository: notificationRepository,
             shiftNotificationDetailRepository: repository,
             imagePipelineManager: NoOpImagePipelineManager(),
             nowMillisProvider: { 0 }

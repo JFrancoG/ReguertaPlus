@@ -727,7 +727,7 @@ occurred. Protected technical evidence remains outside the repository.
     vectors (23 emulator-only skips), 9/9 focused executor, 9/9 dispatch emulator,
     6/6 release emulator, and 2/2 modular Admin SDK vectors pass. No export,
     deploy, live Firestore write, FCM submission, or notification occurred.
-- [ ] Persist generic non-sensitive canonical event/inbox copies and send a generic
+- [x] Persist generic non-sensitive canonical event/inbox copies and send a generic
   event-reference push, with no member name, shift date, or effective assignment.
   Fetch authorized current-revision detail on every push/inbox open; document the
   irreducible later OS-display race.
@@ -737,8 +737,11 @@ occurred. Protected technical evidence remains outside the repository.
     authenticated `resolveShiftNotificationDetail` boundary. The transaction
     revalidates the current auth link, active member, immutable event/release
     lineage, and current public assignment before returning exact schema v1.
-  - [ ] Remaining: route an opened OS push reference into the same authorized app
-    boundary; no rich detail may be taken from push payload or durable cache.
+  - [x] Android and iOS accept only the canonical `eventId`, `shift_updated`, and
+    `users` reference when the OS opens a push. Each client keeps at most one
+    in-memory pending reference, waits for an authorized Home route, refreshes the
+    inbox, and reuses `resolveShiftNotificationDetail`; no rich push field or
+    durable detail cache participates.
 - [ ] Version backend/mobile event and inbox schemas/decoders so legacy required
   `title`/`body` fields receive only generic copy for these events. Add Rules,
   repository, offline-cache, logout/demotion/environment/assignment-drift tests;
@@ -752,8 +755,9 @@ occurred. Protected technical evidence remains outside the repository.
     current member is no longer assigned. Offline, denied, missing, malformed, or
     stale responses preserve only the generic row; cross-session late completions
     cannot publish.
-  - [ ] Remaining: exercise the same policy from OS push-open routing and complete
-    the old/current/candidate rollout matrix under HU-085.
+  - [x] OS push-open routing exercises the same refresh, authorization, current-
+    assignment, session/environment, and ephemeral-detail policy as inbox opening.
+  - [ ] Remaining: complete the old/current/candidate rollout matrix under HU-085.
 - [ ] Store held notification intents outside every currently watched consumer
   path; create canonical events only during explicit idempotent release.
 - [ ] Test old/current/candidate consumer and rollback combinations against the

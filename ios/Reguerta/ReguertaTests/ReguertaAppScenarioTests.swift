@@ -12,11 +12,13 @@ struct ReguertaAppScenarioTests {
 
         liveDelegate.configure(
             appConfiguration: ReguertaAppConfiguration(arguments: ["Reguerta"]),
-            authorizedDeviceRegistrar: NoOpAuthorizedDeviceRegistrar()
+            authorizedDeviceRegistrar: NoOpAuthorizedDeviceRegistrar(),
+            shiftNotificationPushOpenStore: ShiftNotificationPushOpenStore()
         )
         uiTestingDelegate.configure(
             appConfiguration: .uiTesting,
-            authorizedDeviceRegistrar: NoOpAuthorizedDeviceRegistrar()
+            authorizedDeviceRegistrar: NoOpAuthorizedDeviceRegistrar(),
+            shiftNotificationPushOpenStore: ShiftNotificationPushOpenStore()
         )
 
         #expect(liveDelegate.pushNotificationsEnabled)

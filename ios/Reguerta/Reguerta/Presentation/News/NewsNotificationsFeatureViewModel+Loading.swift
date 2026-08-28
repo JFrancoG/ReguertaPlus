@@ -134,13 +134,17 @@ extension NewsNotificationsFeatureViewModel {
         finishNotificationsRefreshOperation(operationId)
     }
 
-    func prepareNotificationsRoute() async {
+    func prepareNotificationsRoute(openingEventID: String? = nil) async {
         guard let context = captureAuthorizedSessionContext() else { return }
         let routeOperationId = beginNotificationsRouteOperation()
         didDismissPushNotificationPermissionDialogForVisit = false
 
         await refreshNotifications()
         guard isCurrentNotificationsRoute(routeOperationId, context: context) else { return }
+        if let openingEventID {
+            await openNotificationDetail(eventID: openingEventID)
+            guard isCurrentNotificationsRoute(routeOperationId, context: context) else { return }
+        }
         await refreshPushNotificationPermission(
             showDialogIfInactive: true,
             context: context

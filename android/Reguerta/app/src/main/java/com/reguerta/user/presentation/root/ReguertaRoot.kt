@@ -75,6 +75,7 @@ fun ReguertaRoot(
     var startupGateState by rootStateViewModel.startupGateState
     var startupGateRetryGeneration by rootStateViewModel.startupGateRetryGeneration
     var sessionStartupRefreshRequested by rootStateViewModel.sessionStartupRefreshRequested
+    var pendingShiftNotificationPush by rootStateViewModel.pendingShiftNotificationPush
     val isAuthenticatedSession = (
         state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
     )
@@ -247,6 +248,7 @@ fun ReguertaRoot(
                     isLoadingNotifications = state.isLoadingNotifications,
                     isSendingNotification = state.isSendingNotification,
                     showPushNotificationPermissionDialog = state.showPushNotificationPermissionDialog,
+                    pendingShiftNotificationPush = pendingShiftNotificationPush,
                     isLoadingProducts = state.isLoadingProducts,
                     isLoadingMyOrderProducts = state.isLoadingMyOrderProducts,
                     isSavingProduct = state.isSavingProduct,
@@ -283,6 +285,7 @@ fun ReguertaRoot(
                     onStartCreatingNews = viewModel::startCreatingNews,
                     onStartCreatingNotification = viewModel::startCreatingNotification,
                     onPrepareNotificationsRoute = viewModel::prepareNotificationsRoute,
+                    onConsumeShiftNotificationPush = rootStateViewModel::consumeShiftNotificationPush,
                     onOpenNotificationDetail = viewModel::openNotificationDetail,
                     onPrepareBylawsRoute = viewModel::prepareBylawsRoute,
                     onCancelBylawsConsultation = viewModel::cancelBylawsConsultation,

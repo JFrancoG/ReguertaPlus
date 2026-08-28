@@ -7,15 +7,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     nonisolated private static let logger = Logger(subsystem: "com.reguerta.app", category: "PushRegistration")
     private var appConfiguration: ReguertaAppConfiguration?
     private var authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)?
+    private var shiftNotificationPushOpenStore: ShiftNotificationPushOpenStore?
     private var pendingRegistrationToken: PendingRegistrationToken?
 
     /// Installs launch policy and the shared device coordinator before application lifecycle callbacks begin.
     func configure(
         appConfiguration: ReguertaAppConfiguration,
-        authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
+        authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar,
+        shiftNotificationPushOpenStore: ShiftNotificationPushOpenStore
     ) {
         self.appConfiguration = appConfiguration
         self.authorizedDeviceRegistrar = authorizedDeviceRegistrar
+        self.shiftNotificationPushOpenStore = shiftNotificationPushOpenStore
         guard case .received(let token) = pendingRegistrationToken else { return }
         pendingRegistrationToken = nil
         forwardRegistrationToken(token, to: authorizedDeviceRegistrar)
@@ -122,6 +125,19 @@ extension AppDelegate {
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        print("Push opened by user: \(response.notification.request.identifier)")
+        let userInfo = response.notification.request.content.userInfo
+        guard let reference = ShiftNotificationPushReference.validated(
+            eventID: userInfo["eventId"] as? String,
+            type: userInfo["type"] as? String,
+            target: userInfo["target"] as? String
+        ) else {
+            return
+        }
+        await acceptOpenedShiftNotificationPush(reference)
+    }
+
+    @MainActor
+    private func acceptOpenedShiftNotificationPush(_ reference: ShiftNotificationPushReference) {
+        shiftNotificationPushOpenStore?.accept(reference)
     }
 }

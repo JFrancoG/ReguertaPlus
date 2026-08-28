@@ -883,6 +883,30 @@ through the same boundary remains pending, so the parent push/inbox acceptance
 criterion stays open. No Function/Rules deployment, FCM submission, shared
 Firestore write, Sheets access, or production activation occurred.
 
+## Local implementation checkpoint — OS push-open routing (2026-08-29)
+
+Android and iOS now route an OS-opened planning push into the same authenticated
+detail boundary used by the inbox. Both platforms accept only the canonical
+`eventId`, `shift_updated`, and `users` reference emitted by the generic transport.
+The reference remains in memory only, contains no member, date, assignment, or
+other rich content, and is replaced atomically when a newer push arrives.
+
+After an authorized Home route exists, the app navigates to Notifications,
+refreshes the current inbox, and opens the matching generic event through
+`resolveShiftNotificationDetail`. Missing, stale, foreign, malformed, offline,
+logged-out, demoted, reassigned, or cross-session results cannot publish detail.
+Android handles cold and warm launcher intents; iOS handles the notification-center
+response through an explicitly injected open store. The unavoidable race between
+OS presentation and a later assignment change remains harmless because only the
+generic copy is displayed before the fresh authorized read.
+
+Validation passed on Android with unit tests, `lintDebug`, and 23/23 connected
+tests on `Pixel_8_Pro_API_35`; iOS passed `fast-unit`, `ui-smoke`, an Xcode project
+build, and zero Issue Navigator warnings on iPhone 17/iOS 26.5. No Function or
+Rules deployment, FCM submission, shared Firebase write, Sheets access, or
+production activation occurred. The old/current/candidate rollout matrix remains
+owned by HU-085.
+
 ## Suggested labels
 
 - `type:feature`

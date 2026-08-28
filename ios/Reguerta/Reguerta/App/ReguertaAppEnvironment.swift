@@ -7,6 +7,7 @@ struct ReguertaAppEnvironment {
     let sessionViewModel: SessionViewModel
     let accessRootViewModel: AccessRootViewModel
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
+    let shiftNotificationPushOpenStore: ShiftNotificationPushOpenStore
     let loadNewsImageData: @Sendable (URL) async throws -> Data
 
     @MainActor
@@ -169,6 +170,7 @@ extension ReguertaAppEnvironment {
     @MainActor
     static func assemble(_ dependencies: ReguertaAppAssemblyDependencies) -> ReguertaAppEnvironment {
         let sessionViewModel = SessionViewModel(dependencies: dependencies.session)
+        let shiftNotificationPushOpenStore = ShiftNotificationPushOpenStore()
         let root = dependencies.root
         let accessRootViewModel = AccessRootViewModel(
             sessionViewModel: sessionViewModel,
@@ -192,6 +194,7 @@ extension ReguertaAppEnvironment {
             sessionViewModel: sessionViewModel,
             accessRootViewModel: accessRootViewModel,
             authorizedDeviceRegistrar: dependencies.session.authorizedDeviceRegistrar,
+            shiftNotificationPushOpenStore: shiftNotificationPushOpenStore,
             loadNewsImageData: dependencies.loadNewsImageData
         )
     }

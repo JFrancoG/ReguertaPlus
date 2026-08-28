@@ -90,7 +90,8 @@ actor InMemoryNotificationRepository: NotificationRepository {
             targetRole: event.targetRole,
             createdBy: event.createdBy,
             sentAtMillis: event.sentAtMillis,
-            weekKey: event.weekKey
+            weekKey: event.weekKey,
+            contentPolicy: event.contentPolicy
         )
         notifications[eventId] = persisted
         return persisted
@@ -115,6 +116,7 @@ private func localizedSeedNotification(_ event: NotificationEvent) async -> Noti
         targetRole: event.targetRole,
         createdBy: event.createdBy,
         sentAtMillis: event.sentAtMillis,
-        weekKey: event.weekKey
+        weekKey: event.weekKey,
+        contentPolicy: event.contentPolicy
     )
 }
