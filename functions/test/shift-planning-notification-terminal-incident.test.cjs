@@ -8,9 +8,13 @@ const {
   SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_MAX_TTL_MILLIS,
   createShiftPlanningNotificationSafeResume,
   createShiftPlanningNotificationTerminalIncident,
+  parseShiftPlanningNotificationSafeResume,
 } = require(
   "../lib/shift-planning-notification-terminal-incident.js"
 );
+const {
+  createShiftPlanningDigest,
+} = require("../lib/shift-planning-digest.js");
 const {
   createShiftPlanningClaimedNotificationAttempt,
   startShiftPlanningAuthenticatedSubmission,
@@ -252,6 +256,30 @@ test("enters bounded degraded mode and fences only affected shifts", () => {
   assert.match(
     result.safeResumeDigest,
     /^shift-planning:v1:sha256:[a-f0-9]{64}$/,
+  );
+  assert.deepEqual(parseShiftPlanningNotificationSafeResume(result), result);
+
+  const invalidCore = {
+    ...result,
+    releaseLeaseActions: [
+      result.releaseLeaseActions[0],
+      {
+        ...result.releaseLeaseActions[1],
+        replacementLease: {
+          ...result.releaseLeaseActions[1].replacementLease,
+          state: "sealed",
+        },
+      },
+    ],
+  };
+  const {safeResumeDigest: ignoredDigest, ...core} = invalidCore;
+  assert.equal(typeof ignoredDigest, "string");
+  assert.throws(
+    () => parseShiftPlanningNotificationSafeResume({
+      ...core,
+      safeResumeDigest: createShiftPlanningDigest(core),
+    }),
+    errorCode("planning_release_lease_conflict"),
   );
 });
 

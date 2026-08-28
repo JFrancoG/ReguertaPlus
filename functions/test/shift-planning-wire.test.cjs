@@ -303,6 +303,7 @@ test("freezes distinct public, admin-readable and backend-only collections", () 
     "shiftPlanningSyncCommands",
     "shiftPlanningNotificationIntents",
     "shiftPlanningNotificationFences",
+    "shiftPlanningNotificationIncidentFences",
     "shiftPlanningOperations",
   ]);
 });

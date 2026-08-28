@@ -453,13 +453,20 @@ and derives the affected-shift mutation fence from the canonical intents. At
 expiry, exact zero counters or attempts that never crossed authenticated submission
 may be cancelled/superseded. Submitting, `unknown`, and accepted evidence remains
 possible-delivery correction history, including `unknown` followed by a merely
-claimed retry. Persistence of that degraded and terminal authority remains separate.
+claimed retry. A separate local Firestore CAS now persists degraded entry after
+re-reading the active bundle, canonical intents, inactive dispatch counters, and
+named attempts. It advances the maintenance epoch and both rotation revisions,
+retains the activation epoch on both incident-owned degraded leases, creates all
+affected-shift fences, and stores immutable digest-bound replay evidence. Any
+partial fence or lineage/evidence drift writes nothing. Terminal persistence and
+cleanup remain separate.
 Each affected shift now has a deterministic backend-only incident-fence contract
 bound to the incident, bundle lineage, owner, safe-resume digest, and bounded TTL.
 Backend transactional writers and strict Rules inspect it alongside short dispatch
 fences. Active exact evidence blocks only that shift, expiry reopens it, malformed
-evidence fails closed, and Phase 1 keeps the new partition private. The incident
-CAS remains responsible for creating and deleting those documents atomically.
+evidence fails closed, and Phase 1 keeps the new partition private. Degraded entry
+creates them atomically; the terminal incident CAS remains responsible for deleting
+the exact set atomically with final lease resolution.
 An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as

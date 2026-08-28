@@ -463,8 +463,9 @@ does not populate Firestore public shifts or activate either mobile app.
   named attempt documents. It advances the shared maintenance epoch and both
   rotation revisions, clears both leases together, and creates one immutable
   replay record; any drift writes nothing. A local pure terminal-incident
-  contract now handles the abandoned non-terminal residual separately; its
-  persistence remains a later cut.
+  contract handles the abandoned non-terminal residual separately. Its degraded
+  entry is now persisted by another non-exported Firestore CAS; terminalization
+  and cleanup remain a later cut.
 - A safe-resume residual is an explicit degraded mode with an owner, TTL, and
   escalation. It mutation-fences affected shifts while unrelated traffic runs.
   Entry requires the expired paired batch leases, the exact canonical intent
@@ -485,8 +486,13 @@ does not populate Firestore public shifts or activate either mobile app.
   Backend transactional writers and strict client Rules read that fence in
   addition to the short dispatch fence. An active exact fence blocks only its
   shift until expiry; malformed evidence fails closed and unrelated shifts keep
-  running. Phase 1 also keeps the new partition private. The following CAS cut
-  owns creation and exact deletion of these fence documents.
+  running. Phase 1 also keeps the new partition private. The degraded-entry CAS
+  atomically advances maintenance and rotation revisions, transfers both leases
+  to the incident owner without changing their activation epoch, creates every
+  exact shift fence, and stores an immutable digest-bound replay record. Existing
+  partial fence evidence, lineage drift, active dispatch, or counter/attempt
+  drift writes nothing. A following terminalization CAS owns exact cancellation,
+  fence deletion, and the final dual-lease clear.
 - Held notification intents live in a backend-owned outbox/path that the current
   normal notification trigger cannot consume. Only the explicit release
   operation creates canonical consumable events with stable idempotency keys.

@@ -604,8 +604,20 @@ occurred. Protected technical evidence remains outside the repository.
           5/5 Phase 1 compatibility vectors, and 2/2 modular Admin SDK vectors
           pass. No export, deploy, shared-project write, FCM submission, or
           notification occurred.
-      - [ ] Persist CAS creation/deletion and immutable degraded/terminal replay
-        records using this fence authority.
+      - [x] Persist degraded entry through one Firestore CAS that re-reads the
+        active bundle, canonical intents, inactive dispatch counters, and named
+        attempts; advances the maintenance epoch and both rotation revisions;
+        retains the activation epoch on both incident-owned degraded leases;
+        creates every exact affected-shift fence; and records immutable replay.
+        Existing partial fences or any lineage/evidence drift write nothing.
+        - [x] Validation: Node 22 Functions lint/build, 247/247 executed planning
+          vectors with 34 emulator-only skips, 4/4 focused Firestore-emulator
+          vectors, exact replay/zero-write drift assertions, and 2/2 modular
+          Admin SDK vectors pass. The repository remains absent from `index.ts`;
+          no export, deployment, shared-project write, FCM submission, or
+          notification occurred.
+      - [ ] Persist terminal evidence, exact cancellations, atomic incident-fence
+        deletion, immutable replay, and the final dual-lease clear.
 - [ ] Define safe resume as degraded mode with affected-shift mutation fence,
   owner, TTL, escalation, and terminal cancellation/supersession of demonstrably
   unsubmitted intents at expiry; keep `unknown`/accepted/delivered history immutable

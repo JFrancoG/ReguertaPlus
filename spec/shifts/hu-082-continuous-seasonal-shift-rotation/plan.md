@@ -367,10 +367,13 @@ documented in the English and Spanish Firestore references before code lands.
   cancellation of every zero-attempt, claimed-before-submission, or wholly failed-
   before-submission intent. Preserve submitting/unknown/accepted evidence as
   correction-required possible delivery, including an `unknown` followed by a
-  merely claimed retry. Persist the degraded transition, affected-shift fence,
-  terminal record, and atomic dual-lease clear in the following cut.
-  Before that CAS, establish one deterministic backend-only incident-fence
-  document per affected shift. Bind it to the incident, bundle, owner, TTL, and
+  merely claimed retry. Persist entry through one digest-bound CAS that advances
+  the maintenance epoch while retaining the activation epoch on both degraded
+  leases, creates every affected-shift fence, and records immutable replay.
+  Persist terminal evidence, exact cancellations, fence deletion, and the atomic
+  dual-lease clear in the following cut. Before entry, establish one deterministic
+  backend-only incident-fence document per affected shift. Bind it to the incident,
+  bundle, owner, TTL, and
   safe-resume digest; make backend transactional writers and strict Rules honor
   it alongside dispatch fences. Expired exact evidence stops blocking, malformed
   evidence fails closed, and unrelated shifts remain writable.

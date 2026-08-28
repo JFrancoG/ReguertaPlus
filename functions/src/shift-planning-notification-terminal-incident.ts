@@ -158,6 +158,43 @@ const leaseFields = [
   "deadlineAtMillis",
 ] as const;
 
+const safeResumeFields = [
+  "schemaVersion",
+  "operationKind",
+  "incidentId",
+  "environment",
+  "state",
+  "resolution",
+  "bundleId",
+  "bundleRevision",
+  "bundleDigest",
+  "writeEpoch",
+  "abandonedOwnerOperationId",
+  "ownerUserId",
+  "escalationTargetId",
+  "enteredAtMillis",
+  "expiresAtMillis",
+  "intents",
+  "affectedShiftIds",
+  "releaseLeaseActions",
+  "safeResumeDigest",
+] as const;
+
+const safeResumeIntentFields = [
+  "intentId",
+  "shiftId",
+  "dispatchDisposition",
+  "authenticatedSubmissionPossible",
+  "dispatchEvidenceDigest",
+] as const;
+
+const degradeActionFields = [
+  "action",
+  "type",
+  "expectedLease",
+  "replacementLease",
+] as const;
+
 const failIncident = (message: string): never => {
   throw new ShiftPlanningError("invalid_planning_transaction", message);
 };
@@ -497,20 +534,189 @@ const safeResumeCore = (
   >;
 };
 
-const requireSafeResume = (
-  value: ShiftPlanningNotificationSafeResume,
+export const parseShiftPlanningNotificationSafeResume = (
+  value: unknown,
 ): ShiftPlanningNotificationSafeResume => {
+  const candidate = requireRecord(value, "notification safe resume");
+  requireExactFields(
+    candidate,
+    safeResumeFields,
+    "notification safe resume",
+  );
   if (
-    value.schemaVersion !==
+    !Array.isArray(candidate.intents) ||
+    !Array.isArray(candidate.affectedShiftIds) ||
+    !Array.isArray(candidate.releaseLeaseActions)
+  ) {
+    return failIncident("Safe-resume collections are invalid.");
+  }
+  const incidentId = requireIdentifier(candidate.incidentId, "incidentId");
+  const enteredAtMillis = requireNonNegativeInteger(
+    candidate.enteredAtMillis,
+    "safe-resume entry instant",
+  );
+  const expiresAtMillis = requireNonNegativeInteger(
+    candidate.expiresAtMillis,
+    "safe-resume expiry instant",
+  );
+  if (
+    expiresAtMillis <= enteredAtMillis ||
+    expiresAtMillis - enteredAtMillis >
+      SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_MAX_TTL_MILLIS
+  ) {
+    return failIncident("Safe-resume expiry is outside its bounded policy.");
+  }
+  const intents: ShiftPlanningNotificationSafeResumeIntent[] =
+    candidate.intents.map((intentValue) => {
+      const intent = requireRecord(intentValue, "safe-resume intent");
+      requireExactFields(intent, safeResumeIntentFields, "safe-resume intent");
+      if (
+        intent.dispatchDisposition !== "pending" &&
+        intent.dispatchDisposition !== "claimed" &&
+        intent.dispatchDisposition !== "submitting" &&
+        intent.dispatchDisposition !== "accepted" &&
+        intent.dispatchDisposition !== "unknown" &&
+        intent.dispatchDisposition !== "definitivelyFailed" &&
+        intent.dispatchDisposition !== "demonstrablyUnsubmitted"
+      ) {
+        return failIncident("Safe-resume intent disposition is invalid.");
+      }
+      const authenticatedSubmissionPossible =
+        intent.dispatchDisposition === "submitting" ||
+        intent.dispatchDisposition === "accepted" ||
+        intent.dispatchDisposition === "unknown";
+      if (
+        intent.authenticatedSubmissionPossible !==
+        authenticatedSubmissionPossible
+      ) {
+        return failIncident("Safe-resume delivery evidence is incoherent.");
+      }
+      return {
+        intentId: requireIdentifier(intent.intentId, "safe-resume intentId"),
+        shiftId: requireIdentifier(intent.shiftId, "safe-resume shiftId"),
+        dispatchDisposition: intent.dispatchDisposition,
+        authenticatedSubmissionPossible,
+        dispatchEvidenceDigest: requireDigest(
+          intent.dispatchEvidenceDigest,
+          "safe-resume dispatch evidence digest",
+        ),
+      };
+    });
+  if (new Set(intents.map(({intentId}) => intentId)).size !== intents.length) {
+    return failIncident("Safe-resume intents are not unique.");
+  }
+  const affectedShiftIds = candidate.affectedShiftIds.map((shiftId) =>
+    requireIdentifier(shiftId, "affected shiftId"));
+  const expectedAffectedShiftIds = [
+    ...new Set(intents.map(({shiftId}) => shiftId)),
+  ].sort();
+  if (
+    affectedShiftIds.some((shiftId, index) =>
+      shiftId !== expectedAffectedShiftIds[index]) ||
+    affectedShiftIds.length !== expectedAffectedShiftIds.length
+  ) {
+    return failIncident("Safe-resume affected shifts are not canonical.");
+  }
+  if (candidate.releaseLeaseActions.length !== 2) {
+    return failIncident("Safe-resume lease actions are not paired.");
+  }
+  const parseDegradeAction = (
+    actionValue: unknown,
+    type: ShiftRotationType,
+  ): ShiftPlanningNotificationReleaseLeaseDegradeAction => {
+    const action = requireRecord(actionValue, "safe-resume lease action");
+    requireExactFields(
+      action,
+      degradeActionFields,
+      "safe-resume lease action",
+    );
+    if (action.action !== "degrade" || action.type !== type) {
+      return failIncident("Safe-resume lease action order is invalid.");
+    }
+    return {
+      action: "degrade" as const,
+      type,
+      expectedLease: parseReleaseLease(action.expectedLease, type),
+      replacementLease: parseReleaseLease(action.replacementLease, type),
+    };
+  };
+  const actions = [
+    parseDegradeAction(candidate.releaseLeaseActions[0], "delivery"),
+    parseDegradeAction(candidate.releaseLeaseActions[1], "market"),
+  ] as const;
+  const expectedDelivery = actions[0].expectedLease;
+  const expectedMarket = actions[1].expectedLease;
+  const replacementDelivery = actions[0].replacementLease;
+  const replacementMarket = actions[1].replacementLease;
+  requirePairedLeases(expectedDelivery, expectedMarket);
+  requirePairedLeases(replacementDelivery, replacementMarket);
+  if (
+    expectedDelivery.state === "degraded" ||
+    expectedMarket.state === "degraded" ||
+    replacementDelivery.state !== "degraded" ||
+    replacementMarket.state !== "degraded" ||
+    replacementDelivery.ownerOperationId !== incidentId ||
+    replacementDelivery.acquiredAtMillis !== enteredAtMillis ||
+    replacementDelivery.deadlineAtMillis !== expiresAtMillis ||
+    replacementDelivery.bundleId !== expectedDelivery.bundleId ||
+    replacementDelivery.bundleRevision !== expectedDelivery.bundleRevision ||
+    replacementDelivery.bundleDigest !== expectedDelivery.bundleDigest ||
+    replacementDelivery.leaseEpoch !== expectedDelivery.leaseEpoch
+  ) {
+    return failLeaseConflict("Safe-resume replacement lease is invalid.");
+  }
+  const safeResume: ShiftPlanningNotificationSafeResume = {
+    schemaVersion:
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION,
+    operationKind: "notificationSafeResume" as const,
+    incidentId,
+    environment: requireEnvironment(candidate.environment),
+    state: "degraded" as const,
+    resolution: "operatorRequired" as const,
+    bundleId: requireIdentifier(candidate.bundleId, "bundleId"),
+    bundleRevision: requireIdentifier(
+      candidate.bundleRevision,
+      "bundleRevision",
+    ),
+    bundleDigest: requireDigest(candidate.bundleDigest, "bundle digest"),
+    writeEpoch: requirePositiveInteger(candidate.writeEpoch, "writeEpoch"),
+    abandonedOwnerOperationId: requireIdentifier(
+      candidate.abandonedOwnerOperationId,
+      "abandonedOwnerOperationId",
+    ),
+    ownerUserId: requireIdentifier(candidate.ownerUserId, "ownerUserId"),
+    escalationTargetId: requireIdentifier(
+      candidate.escalationTargetId,
+      "escalationTargetId",
+    ),
+    enteredAtMillis,
+    expiresAtMillis,
+    intents,
+    affectedShiftIds,
+    releaseLeaseActions: actions,
+    safeResumeDigest: requireDigest(
+      candidate.safeResumeDigest,
+      "safeResumeDigest",
+    ),
+  };
+  if (
+    candidate.schemaVersion !==
       SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION ||
-    value.operationKind !== "notificationSafeResume" ||
-    value.state !== "degraded" ||
-    value.resolution !== "operatorRequired" ||
-    createShiftPlanningDigest(safeResumeCore(value)) !== value.safeResumeDigest
+    candidate.operationKind !== "notificationSafeResume" ||
+    candidate.state !== "degraded" ||
+    candidate.resolution !== "operatorRequired" ||
+    safeResume.bundleId !== expectedDelivery.bundleId ||
+    safeResume.bundleRevision !== expectedDelivery.bundleRevision ||
+    safeResume.bundleDigest !== expectedDelivery.bundleDigest ||
+    safeResume.writeEpoch !== expectedDelivery.leaseEpoch ||
+    safeResume.abandonedOwnerOperationId !==
+      expectedDelivery.ownerOperationId ||
+    createShiftPlanningDigest(safeResumeCore(safeResume)) !==
+      safeResume.safeResumeDigest
   ) {
     return failIncident("Safe-resume evidence is invalid.");
   }
-  return value;
+  return safeResume;
 };
 
 /**
@@ -644,7 +850,9 @@ export const createShiftPlanningNotificationTerminalIncident = (input: {
     ShiftPlanningNotificationTerminalIncidentCancellation[];
   terminalizedAtMillis: number;
 }): ShiftPlanningNotificationTerminalIncident => {
-  const safeResume = requireSafeResume(input.safeResume);
+  const safeResume = parseShiftPlanningNotificationSafeResume(
+    input.safeResume,
+  );
   const terminalizedAtMillis = requireNonNegativeInteger(
     input.terminalizedAtMillis,
     "terminal incident instant",
