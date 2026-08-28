@@ -127,4 +127,7 @@ state ownership is still rechecked before accepting that replay.
 - Temporary barrier Rules and all shared deployment/read-back.
 - Disabling or draining any live endpoint, trigger, principal, queue, or editor.
 - Epoch/revision migration of mobile and backend writers.
-- Atomic activation/recovery and any governed reopen.
+- Atomic activation/recovery and any governed reopen. The local measured v2
+  forward/inverse transaction adapter already reads every exact public-shift
+  notification fence before sealing its batch; the remaining work here concerns
+  full maintenance/release ownership rather than dispatch-writer serialization.

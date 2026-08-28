@@ -1243,6 +1243,7 @@ export const measureAndSealShiftPlanningInverseRecoveryAttempt = async (
       firestore: input.firestore,
       transaction: input.transaction,
       mutations: materialization.mutations,
+      writerFenceCheckedAt: input.recoveredAt,
       direction: "inverse",
       manifestDigest:
         artifact.transactionRequirements.inverseManifestDigest,

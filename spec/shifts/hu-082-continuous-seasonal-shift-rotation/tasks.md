@@ -551,8 +551,18 @@ occurred. Protected technical evidence remains outside the repository.
         vectors, and 28/28 backend-security/member-directory/shift-swap vectors
         pass locally. No Firebase, Functions, FCM, or production data deployment
         occurred.
-    - [ ] Remaining: migrate the legacy Sheets importer/planner and v2 activation
-      serializer, specify mobile device-registration retry, then wire real FCM.
+    - [x] Bind the measured v2 forward-activation/inverse-recovery transaction
+      attempt to every exact public-shift fence derived from its canonical
+      mutation set. Read all fences before populating/sealing the SDK-owned batch;
+      reject the complete attempt for active or malformed state.
+      - [x] Validation: Node 22 Functions lint/build, 213/213 executed planning
+        vectors with 28 emulator-only skips, 7/7 real transaction-attempt vectors,
+        and 17/17 forward/inverse/CAS emulator vectors pass. Coverage includes
+        active atomic rejection, exact expiry, malformed fail-closed state, retry
+        remeasurement, and commit transport binding. No Firebase, Functions, FCM,
+        or production deployment occurred.
+    - [ ] Remaining: migrate the legacy Sheets importer/planner, specify mobile
+      device-registration retry, then wire real FCM.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.

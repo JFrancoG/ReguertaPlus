@@ -5,6 +5,7 @@ const {createHash} = require("node:crypto");
 const {test} = require("node:test");
 const {
   Firestore,
+  Timestamp,
   Transaction,
   v1,
 } = require("@google-cloud/firestore");
@@ -25,6 +26,8 @@ const MANIFEST_DIGEST = `shift-planning:v1:sha256:${"a".repeat(64)}`;
 const INDEX_DIGEST = `shift-planning:v1:sha256:${"b".repeat(64)}`;
 const COMMIT_DIGEST_PREFIX =
   "shift-planning:firestore-commit-request:v1:sha256:";
+const FENCE_CHECKED_AT = Timestamp.fromMillis(1_788_393_900_000);
+const VALIDATION_DIGEST = `shift-planning:v1:sha256:${"f".repeat(64)}`;
 
 const requireEmulator = () => {
   assert.ok(
@@ -45,6 +48,7 @@ const measurementInput = ({database, transaction, mutations}) => ({
   firestore: database,
   transaction,
   mutations,
+  writerFenceCheckedAt: FENCE_CHECKED_AT,
   direction: "forward",
   manifestDigest: MANIFEST_DIGEST,
   expectedDocumentWriteCount: mutations.length,
@@ -52,6 +56,22 @@ const measurementInput = ({database, transaction, mutations}) => ({
     adapterRevision: SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
     indexConfigurationDigest: INDEX_DIGEST,
   },
+});
+
+const resourceFence = ({shiftId, acquiredAtMillis, extra = {}}) => ({
+  schemaVersion: 1,
+  operationKind: "notificationDispatchResourceFence",
+  scope: "shift",
+  resourceId: shiftId,
+  intentId: "intent-1",
+  eventId: "event-1",
+  attemptId: "attempt-1",
+  workerId: "worker-1",
+  leaseEpoch: 1,
+  acquiredAt: Timestamp.fromMillis(acquiredAtMillis),
+  expiresAt: Timestamp.fromMillis(acquiredAtMillis + 30_000),
+  validationDigest: VALIDATION_DIGEST,
+  ...extra,
 });
 
 const captureTransactionCommits = (database) => {
@@ -243,6 +263,128 @@ test("resets and remeasures the actual batch for every SDK retry", async () => {
   );
   assert.equal((await stateReference.get()).get("revision"), 2);
   assert.equal((await shiftReference.get()).exists, true);
+  await database.terminate();
+});
+
+test("active public-shift fence rejects the complete measured attempt", async () => {
+  const database = firestore();
+  const shiftId = "shift-fenced-active";
+  const stateReference = database.doc("fencedState/active");
+  const shiftReference = database.doc(
+    `develop/plus-collections/shifts/${shiftId}`,
+  );
+  const fenceReference = database.doc(
+    `develop/plus-collections/shiftPlanningNotificationFences/shift:${shiftId}`,
+  );
+  await stateReference.set({revision: 1});
+  await fenceReference.set(resourceFence({
+    shiftId,
+    acquiredAtMillis: FENCE_CHECKED_AT.toMillis(),
+  }));
+  const committedRequests = captureTransactionCommits(database);
+
+  await assert.rejects(
+    database.runTransaction(async (transaction) => {
+      const state = await transaction.get(stateReference);
+      const mutations = [{
+        kind: "update",
+        documentPath: stateReference.path,
+        data: {revision: state.get("revision") + 1},
+      }, {
+        kind: "create",
+        documentPath: shiftReference.path,
+        data: {ownerUserId: "member-4"},
+      }];
+      return measureAndSealShiftPlanningFirestoreTransactionAttempt(
+        measurementInput({database, transaction, mutations}),
+      );
+    }, {maxAttempts: 1}),
+    (error) => error.code === "planning_release_lease_conflict",
+  );
+
+  assert.equal(committedRequests.length, 0);
+  assert.equal((await stateReference.get()).get("revision"), 1);
+  assert.equal((await shiftReference.get()).exists, false);
+  await database.terminate();
+});
+
+test("expired exact public-shift fence permits one measured attempt", async () => {
+  const database = firestore();
+  const shiftId = "shift-fenced-expired";
+  const stateReference = database.doc("fencedState/expired");
+  const shiftReference = database.doc(
+    `develop/plus-collections/shifts/${shiftId}`,
+  );
+  const fenceReference = database.doc(
+    `develop/plus-collections/shiftPlanningNotificationFences/shift:${shiftId}`,
+  );
+  await stateReference.set({revision: 1});
+  await fenceReference.set(resourceFence({
+    shiftId,
+    acquiredAtMillis: FENCE_CHECKED_AT.toMillis() - 30_000,
+  }));
+
+  await database.runTransaction(async (transaction) => {
+    const state = await transaction.get(stateReference);
+    const mutations = [{
+      kind: "update",
+      documentPath: stateReference.path,
+      data: {revision: state.get("revision") + 1},
+    }, {
+      kind: "create",
+      documentPath: shiftReference.path,
+      data: {ownerUserId: "member-5"},
+    }];
+    return measureAndSealShiftPlanningFirestoreTransactionAttempt(
+      measurementInput({database, transaction, mutations}),
+    );
+  }, {maxAttempts: 1});
+
+  assert.equal((await stateReference.get()).get("revision"), 2);
+  assert.equal((await shiftReference.get()).exists, true);
+  await database.terminate();
+});
+
+test("malformed public-shift fence fails closed before transport", async () => {
+  const database = firestore();
+  const shiftId = "shift-fenced-malformed";
+  const stateReference = database.doc("fencedState/malformed");
+  const shiftReference = database.doc(
+    `develop/plus-collections/shifts/${shiftId}`,
+  );
+  const fenceReference = database.doc(
+    `develop/plus-collections/shiftPlanningNotificationFences/shift:${shiftId}`,
+  );
+  await stateReference.set({revision: 1});
+  await fenceReference.set(resourceFence({
+    shiftId,
+    acquiredAtMillis: FENCE_CHECKED_AT.toMillis() - 30_000,
+    extra: {unexpected: true},
+  }));
+  const committedRequests = captureTransactionCommits(database);
+
+  await assert.rejects(
+    database.runTransaction(async (transaction) => {
+      const state = await transaction.get(stateReference);
+      const mutations = [{
+        kind: "update",
+        documentPath: stateReference.path,
+        data: {revision: state.get("revision") + 1},
+      }, {
+        kind: "create",
+        documentPath: shiftReference.path,
+        data: {ownerUserId: "member-6"},
+      }];
+      return measureAndSealShiftPlanningFirestoreTransactionAttempt(
+        measurementInput({database, transaction, mutations}),
+      );
+    }, {maxAttempts: 1}),
+    (error) => error.code === "invalid_planning_transaction",
+  );
+
+  assert.equal(committedRequests.length, 0);
+  assert.equal((await stateReference.get()).get("revision"), 1);
+  assert.equal((await shiftReference.get()).exists, false);
   await database.terminate();
 });
 

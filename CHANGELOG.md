@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-28 | ✨ feat(shifts): fence v2 shift transactions
 - 2026-08-28 | ✨ feat(shifts): fence backend shift writers
 - 2026-08-28 | ✨ feat(shifts): fence notification-bound writers
 - 2026-08-28 | ✨ feat(shifts): bound notification transport attempts

@@ -814,6 +814,7 @@ export const measureAndSealShiftPlanningForwardActivationAttempt = async (
       firestore: input.firestore,
       transaction: input.transaction,
       mutations: materialization.mutations,
+      writerFenceCheckedAt: input.attemptedAt,
       direction: "forward",
       manifestDigest:
         artifact.transactionRequirements.forwardManifestDigest,

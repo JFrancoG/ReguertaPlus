@@ -1,5 +1,6 @@
 import {
   Firestore,
+  Timestamp,
   Transaction,
   WriteBatch,
 } from "@google-cloud/firestore";
@@ -11,6 +12,10 @@ import {
   populateCanonicalShiftPlanningFirestoreWriteBatch,
   serializeShiftPlanningFirestoreCommitRequest,
 } from "./shift-planning-firestore-transaction-serializer.js";
+import {
+  ShiftPlanningNotificationWriterResource,
+  inspectShiftPlanningNotificationWriterFences,
+} from "./shift-planning-firestore-notification-writer-fence.js";
 
 export type MeasureAndSealShiftPlanningFirestoreTransactionAttemptInput =
   Omit<
@@ -21,6 +26,7 @@ export type MeasureAndSealShiftPlanningFirestoreTransactionAttemptInput =
     mutations: PopulateCanonicalShiftPlanningFirestoreWriteBatchInput[
       "mutations"
     ];
+    writerFenceCheckedAt: Timestamp;
   };
 
 type PrivateWriteBatch = WriteBatch & {
@@ -63,6 +69,57 @@ const failAdapter = (message: string): never => {
     "planning_transaction_adapter_drift",
     message,
   );
+};
+
+const publicShiftFenceGroups = (
+  mutations: PopulateCanonicalShiftPlanningFirestoreWriteBatchInput[
+    "mutations"
+  ],
+): Map<string, ShiftPlanningNotificationWriterResource[]> => {
+  const groups = new Map<
+    string,
+    ShiftPlanningNotificationWriterResource[]
+  >();
+  mutations.forEach(({documentPath}) => {
+    if (typeof documentPath !== "string") return;
+    const match = /^(develop|production)\/plus-collections\/shifts\/([^/]+)$/
+      .exec(documentPath);
+    if (match === null) return;
+    const root = `${match[1]}/plus-collections`;
+    groups.set(root, [
+      ...(groups.get(root) ?? []),
+      {scope: "shift", resourceId: match[2]},
+    ]);
+  });
+  return groups;
+};
+
+const requirePublicShiftWriterFences = async (input: {
+  firestore: Firestore;
+  transaction: Transaction;
+  mutations: PopulateCanonicalShiftPlanningFirestoreWriteBatchInput[
+    "mutations"
+  ];
+  checkedAt: Timestamp;
+}): Promise<void> => {
+  if (!(input.checkedAt instanceof Timestamp)) {
+    return failTransaction("Notification writer-fence clock is invalid.");
+  }
+  for (const [root, resources] of publicShiftFenceGroups(input.mutations)) {
+    const result = await inspectShiftPlanningNotificationWriterFences({
+      firestore: input.firestore,
+      transaction: input.transaction,
+      root,
+      resources,
+      now: input.checkedAt,
+    });
+    if (result.kind === "busy") {
+      throw new ShiftPlanningError(
+        "planning_release_lease_conflict",
+        "Public shift mutation overlaps notification dispatch.",
+      );
+    }
+  }
 };
 
 const requireEmptyBatch = (batch: WriteBatch): void => {
@@ -217,6 +274,12 @@ export const measureAndSealShiftPlanningFirestoreTransactionAttempt = async (
     input.firestore,
     input.transaction,
   );
+  await requirePublicShiftWriterFences({
+    firestore: input.firestore,
+    transaction: input.transaction,
+    mutations: input.mutations,
+    checkedAt: input.writerFenceCheckedAt,
+  });
   const token = await internals.tokenPromise;
   const privateTransaction = input.transaction as PrivateTransaction;
   if (

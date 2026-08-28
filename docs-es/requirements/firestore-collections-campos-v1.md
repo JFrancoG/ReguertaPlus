@@ -980,8 +980,12 @@ estan sujetos a Rules. Un guard transaccional compartido serializa ya el upsert
 administrativo autenticado de socios y la aplicacion de intercambios reciprocos
 contra esos documentos exactos; una fence activa devuelve el conflicto HTTP
 estable `shift_notification_dispatch_in_progress` y una fence malformada falla
-cerrado. El importador/planner legacy de Sheets y el serializador de activacion v2
-aun necesitan el mismo guard antes de cualquier wiring o despliegue de produccion.
+cerrado. El adaptador de intento medido v2 para activacion forward y recovery
+inverse tambien deriva cada turno publico exacto de su set canonico de mutaciones
+y lee sus fences antes de poblar o sellar el batch propiedad del SDK; una fence
+activa o malformada rechaza toda la transaccion. El importador/planner legacy de
+Sheets aun necesita el mismo guard antes de cualquier wiring o despliegue de
+produccion.
 Siguen pendientes y fail-closed el ensayo de tamano/indices en clon aislado, las
 implementaciones live del plano de control de Google y el wiring fiable de la
 barrera de entrada, la migracion de writers, consumidores de dispatch/reconciliacion

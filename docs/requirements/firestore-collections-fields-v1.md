@@ -869,8 +869,12 @@ Rules. A shared transaction guard now serializes the authenticated admin member
 upsert and reciprocal shift-swap application against those exact documents; an
 active fence returns the stable HTTP conflict
 `shift_notification_dispatch_in_progress`, and malformed fence state fails
-closed. The legacy Sheets importer/planner and the v2 activation serializer still
-require the same guard before any production wiring or deployment.
+closed. The measured v2 forward-activation and inverse-recovery attempt adapter
+also derives every exact public-shift target from its canonical mutation set and
+reads those fences before populating or sealing the SDK-owned batch; one active
+or malformed fence rejects the whole transaction. The legacy Sheets
+importer/planner still requires the same guard before any production wiring or
+deployment.
 Still pending and fail-closed are the isolated-clone size/index rehearsal, live
 Google control-plane implementations and trusted intake-barrier wiring, writer
 migration, notification dispatch/reconciliation consumers, production deployment,
