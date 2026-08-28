@@ -11,6 +11,7 @@ const {
   "../lib/shift-planning-firestore-notification-writer-fence.js"
 );
 const {
+  assertShiftPlanningWriterAuthorityFromReference,
   assertShiftPlanningWriterAuthorityInTransaction,
   captureShiftPlanningWriterAuthorityFromReference,
 } = require("../lib/shift-planning-writer-authority.js");
@@ -354,6 +355,41 @@ test("writer capture rejects maintenance before external mutation", {
     captureShiftPlanningWriterAuthorityFromReference(stateReference),
     (error) => error.code === "shift_planning_maintenance",
   );
+});
+
+test("reference revalidation stops remaining external mutations", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const stateReference = firestore.doc(`${root}/shiftPlanningState/current`);
+  await stateReference.set(planningState());
+  const captured = await captureShiftPlanningWriterAuthorityFromReference(
+    stateReference,
+  );
+  let externalMutationCount = 0;
+
+  await assertShiftPlanningWriterAuthorityFromReference({
+    stateReference,
+    capturedValue: captured,
+    changedCode: "delivery_calendar_planning_authority_changed",
+    changedMessage: "Delivery calendar planning authority changed",
+  });
+  externalMutationCount += 1;
+  await stateReference.set(planningState({
+    stateRevision: 5,
+    writeEpoch: 8,
+  }));
+
+  await assert.rejects(
+    assertShiftPlanningWriterAuthorityFromReference({
+      stateReference,
+      capturedValue: captured,
+      changedCode: "delivery_calendar_planning_authority_changed",
+      changedMessage: "Delivery calendar planning authority changed",
+    }),
+    (error) => error.code ===
+      "delivery_calendar_planning_authority_changed",
+  );
+  assert.equal(externalMutationCount, 1);
 });
 
 test("a backend writer and racing claim serialize on the same fence", {

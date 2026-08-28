@@ -77,6 +77,7 @@ import {
   runShiftPlanningNotificationGuardedShiftWrite,
 } from "./shift-planning-firestore-notification-writer-fence.js";
 import {
+  assertShiftPlanningWriterAuthorityFromReference,
   assertShiftPlanningWriterAuthorityInTransaction,
   captureShiftPlanningWriterAuthorityFromReference,
   ShiftPlanningWriterAuthority,
@@ -3710,11 +3711,12 @@ const formatNotificationDate = (
 };
 
 const createDeliveryCalendarNotification = async (
-  env: string,
+  env: AppEnvironment,
   weekKey: string,
   updatedByUserId: string | null,
   nextDate: Timestamp | null,
   previousDate: Timestamp | null,
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<void> => {
   if (!nextDate && !previousDate) {
     return;
@@ -3732,14 +3734,27 @@ const createDeliveryCalendarNotification = async (
     ) :
     `El reparto de la semana ${weekKey} vuelve a su dia por defecto.`;
 
-  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
-    title,
-    body,
-    type: "delivery_calendar_updated",
-    target: "all",
-    targetPayload: {},
-    createdBy: updatedByUserId || "system",
-    sentAt: FieldValue.serverTimestamp(),
+  const root = `${env}/plus-collections`;
+  const eventReference = firestore.collection(
+    `${root}/notificationEvents`,
+  ).doc();
+  await firestore.runTransaction(async (transaction) => {
+    await assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference: shiftPlanningMaintenanceStateReference(env),
+      capturedValue: planningAuthority,
+      changedCode: "delivery_calendar_planning_authority_changed",
+      changedMessage: "Delivery calendar planning authority changed",
+    });
+    transaction.create(eventReference, {
+      title,
+      body,
+      type: "delivery_calendar_updated",
+      target: "all",
+      targetPayload: {},
+      createdBy: updatedByUserId || "system",
+      sentAt: FieldValue.serverTimestamp(),
+    });
   });
 };
 
@@ -4338,7 +4353,8 @@ onDocumentWrittenWithAuthContext(
     );
 
     try {
-      const sheetConfig = getSheetConfig(env);
+      const environment = parseAppEnvironment(env);
+      const sheetConfig = getSheetConfig(environment);
       if (!sheetConfig) {
         throw new Error(
           `Missing sheets configuration for env=${env}. ` +
@@ -4363,8 +4379,29 @@ onDocumentWrittenWithAuthContext(
         timestampToIsoWeekKey(shift.date) === weekKey
       );
 
+      if (matchingDeliveryShifts.length === 0) {
+        logger.info("✅ Delivery calendar override has no matching shifts", {
+          env,
+          weekKey,
+        });
+        return;
+      }
+
+      const planningStateReference =
+        shiftPlanningMaintenanceStateReference(environment);
+      const planningAuthority =
+        await captureShiftPlanningWriterAuthorityFromReference(
+          planningStateReference,
+        );
+
       let updatedCount = 0;
       for (const shift of matchingDeliveryShifts) {
+        await assertShiftPlanningWriterAuthorityFromReference({
+          stateReference: planningStateReference,
+          capturedValue: planningAuthority,
+          changedCode: "delivery_calendar_planning_authority_changed",
+          changedMessage: "Delivery calendar planning authority changed",
+        });
         await upsertShiftRowInSheet(
           sheets,
           sheetConfig.spreadsheetId,
@@ -4375,6 +4412,12 @@ onDocumentWrittenWithAuthContext(
         );
         updatedCount += 1;
       }
+      await assertShiftPlanningWriterAuthorityFromReference({
+        stateReference: planningStateReference,
+        capturedValue: planningAuthority,
+        changedCode: "delivery_calendar_planning_authority_changed",
+        changedMessage: "Delivery calendar planning authority changed",
+      });
 
       logger.info("✅ Delivery calendar override reflected in Google Sheets", {
         env,
@@ -4382,15 +4425,14 @@ onDocumentWrittenWithAuthContext(
         updatedCount,
       });
 
-      if (updatedCount > 0) {
-        await createDeliveryCalendarNotification(
-          env,
-          weekKey,
-          updatedByUserId,
-          nextDate,
-          previousDate,
-        );
-      }
+      await createDeliveryCalendarNotification(
+        environment,
+        weekKey,
+        updatedByUserId,
+        nextDate,
+        previousDate,
+        planningAuthority,
+      );
     } catch (error) {
       logger.error(
         "❌ Failed to reflect delivery calendar override in Google Sheets",

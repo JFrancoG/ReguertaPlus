@@ -814,8 +814,18 @@ occurred. Protected technical evidence remains outside the repository.
     the shared reference/transaction authority helpers did not exist. Functions
     lint/build, 255/255 executed planning-unit vectors with 41 emulator-only
     skips, and 10/10 focused notification-writer emulator vectors then pass.
-  - [ ] Remaining: migrate/deny direct client writes and fence calendar, trigger,
-    admin, and other inventoried mutation paths.
+  - [x] Fence the derived delivery-calendar trigger effects without pretending to
+    fence the upstream client write. Capture before the first matching Sheets row,
+    revalidate before every external row and once after the final row, then create
+    its notification only in a transaction that revalidates the same authority.
+    Drift stops remaining effects; Sheets stays non-atomic and unrecoverable here.
+  - [x] Validation: the focused emulator test first failed 10/11 because direct
+    reference revalidation did not exist. Functions lint/build, 255/255 executed
+    planning-unit vectors with 42 emulator-only skips, and 11/11 focused writer-
+    authority emulator vectors then pass.
+  - [ ] Remaining: migrate/deny direct client calendar and shift writes, add the
+    epoch-bound calendar command, and fence shift export, admin, and other
+    inventoried mutation paths.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.

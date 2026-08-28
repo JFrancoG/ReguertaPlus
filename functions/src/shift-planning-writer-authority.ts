@@ -171,6 +171,31 @@ export const assertShiftPlanningWriterAuthority = (input: {
 };
 
 /**
+ * Re-reads an operation authority immediately before an external mutation.
+ * This narrows drift but cannot make that external system transaction atomic.
+ * @param {object} input Canonical state reference and stable conflict.
+ * @return {Promise<void>}
+ */
+export const assertShiftPlanningWriterAuthorityFromReference = async (input: {
+  stateReference: DocumentReference;
+  capturedValue: unknown;
+  changedCode: string;
+  changedMessage: string;
+  storedInvalidCode?: string;
+  storedInvalidMessage?: string;
+}): Promise<void> => {
+  const currentState = await input.stateReference.get();
+  assertShiftPlanningWriterAuthority({
+    capturedValue: input.capturedValue,
+    currentStateValue: currentState.data(),
+    changedCode: input.changedCode,
+    changedMessage: input.changedMessage,
+    storedInvalidCode: input.storedInvalidCode,
+    storedInvalidMessage: input.storedInvalidMessage,
+  });
+};
+
+/**
  * Re-reads and verifies an operation authority inside its mutation transaction.
  * @param {object} input Transaction, canonical state reference, and conflict.
  * @return {Promise<void>}

@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-29 | ✨ feat(shifts): fence calendar trigger authority
 - 2026-08-29 | ✨ feat(shifts): fence legacy planner authority
 - 2026-08-29 | ✨ feat(shifts): fence Sheets import authority
 - 2026-08-29 | ✨ feat(shifts): fence swap planning authority

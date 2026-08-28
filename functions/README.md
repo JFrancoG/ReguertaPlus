@@ -150,6 +150,12 @@ este flujo por el consumidor multi-temporada gobernado.
   (`source != google_sheets` y `status == confirmed`) y además crea una
   `notificationEvents` de tipo `shift_updated`.
 
+- El trigger de `deliveryCalendar` captura la autoridad de planificación antes
+  de reflejar una excepción en Sheets, la revalida antes de cada fila y después
+  de la última, y crea la notificación en una transacción con la misma autoridad.
+  Esto cerca sus efectos derivados, no la escritura directa original de Android/
+  iOS ni convierte Sheets en una transacción atómica.
+
 Los dos endpoints de Sheets aceptan solo `POST`, exigen un Firebase ID token
 bearer valido y requieren un socio activo con rol `admin` en el entorno
 solicitado.

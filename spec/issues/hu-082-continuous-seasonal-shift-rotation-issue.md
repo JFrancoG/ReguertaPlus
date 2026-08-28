@@ -994,6 +994,25 @@ mid-operation drift coverage. Functions lint/build and 255/255 executed planning
 vectors with 41 emulator-only skips also pass. No live Sheet, shared Firebase,
 Function/Rules deployment, notification delivery, or production mutation occurred.
 
+## Local implementation checkpoint — delivery-calendar trigger authority (2026-08-29)
+
+`onDeliveryCalendarOverrideWritten` now fences only the effects it owns. When its
+event has matching delivery shifts, it captures one exact open planning authority
+immediately before the first workbook mutation, revalidates it before every external
+row and once after the final row, and creates the calendar notification only inside a
+transaction that rechecks the same authority. Closed state prevents the first effect;
+mid-operation drift stops every remaining workbook row and notification mutation.
+
+This does not authorize the upstream calendar document. Android and iOS still write
+`deliveryCalendar` directly under current Rules, so an epoch-bound backend command,
+client migration, offline-queue rejection, and eventual Rules deny remain separate
+mandatory cuts. Sheets also remains external and non-atomic: an already accepted row
+cannot be rolled back if authority changes during its request. The focused emulator
+test first failed 10/11 because direct reference revalidation was absent, then passed
+11/11. Functions lint/build and 255/255 executed planning-unit vectors with 42
+emulator-only skips also pass. No mobile code, Rules, live Sheet, shared Firebase,
+Function deployment, notification delivery, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`
