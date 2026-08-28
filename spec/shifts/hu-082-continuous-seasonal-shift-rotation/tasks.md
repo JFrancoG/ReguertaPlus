@@ -527,8 +527,20 @@ occurred. Protected technical evidence remains outside the repository.
       vectors with 30 emulator-only skips, and 5/5 focused release-dispatch
       vectors pass. No trigger export, Firebase Messaging binding, deploy, live
       Firestore write, FCM submission, inbox fan-out, or notification occurred.
-  - [ ] Wire the composed executor to the real Firebase transport only through an
-    explicit invocation boundary with governed retry identity.
+  - [x] Bind the composed executor to the real Firestore repositories and modular
+    Firebase Messaging transport, then place it behind a strict CORS-disabled HTTP
+    factory whose sole invoker is the existing dedicated shifts operator. Parse one
+    exact versioned command and expose only sanitized attempt lineage/outcome.
+    Keep the factories absent from `index.ts`; select no runtime service account.
+    Treat any error escaping an accepted execution as unknown rather than assuming
+    it occurred before authenticated submission.
+    - [x] Validation: Node 22 Functions lint/build, 230/230 executed planning
+      vectors with 30 emulator-only skips, 8/8 focused HTTP/runtime vectors, and
+      2/2 modular Admin SDK vectors pass. No Function export, runtime identity
+      selection, deploy, live Firestore write, FCM submission, or notification
+      occurred.
+  - [ ] HU-085 provisions and reads back invoker/runtime IAM, exports the Function,
+    deploys it during the governed change window, and performs the first live call.
   - [x] Validation: Node 22 Functions lint/build, 198/198 executed planning unit
     vectors (16 emulator-only skips), 6/6 focused release emulator vectors, and
     3/3 source-producer plus 26/26 strict Firestore Rules emulator vectors pass.
@@ -609,8 +621,10 @@ occurred. Protected technical evidence remains outside the repository.
       inbox/FCM trigger while preserving events without a release receipt.
     - [x] Compose release with the governed dispatch executor without exporting a
       trigger or binding the production Messaging instance.
-    - [ ] Remaining: wire the composed executor to the real Firebase transport
-      through an explicit invocation boundary with governed retry identity.
+    - [x] Bind the composed executor to real Firestore/modular Messaging behind an
+      invoker-only HTTP factory without exporting it from the Firebase runtime.
+    - [ ] Remaining rollout gate: HU-085 provisions/read-backs IAM and runtime
+      identity, exports/deploys the Function, and authorizes the first live call.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.

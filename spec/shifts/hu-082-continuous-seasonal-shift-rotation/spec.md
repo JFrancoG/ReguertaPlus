@@ -474,6 +474,15 @@ does not populate Firestore public shifts or activate either mobile app.
   worker, and attempt identity before writing, then performs idempotent release
   before exactly one governed dispatch execution. A release replay continues to
   dispatch; release failure or event-identity drift never invokes transport.
+  A concrete runtime factory binds that executor to the real Firestore repositories
+  and modular Firebase Messaging transport without performing construction-time
+  I/O. Its strict HTTP factory disables CORS, accepts only the exact versioned POST
+  command, exposes sanitized lineage/outcome, and names the existing dedicated
+  shifts operator as sole invoker. Neither factory is exported from `index.ts`;
+  HU-085 owns runtime identity selection, IAM read-back, export, deploy, and live
+  invocation. After an exact command is accepted, any error escaping the composed
+  executor is reported as an unknown outcome requiring audit inspection; the HTTP
+  layer never guesses that a state error happened before authenticated submission.
 - Every intent is bound to the active assignment revision, recipient UID,
   membership/eligibility version, and token/destination version. Release performs
   the version read and event/inbox claim in one transaction/CAS. Every FCM attempt

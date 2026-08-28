@@ -444,6 +444,15 @@ al flujo legacy. Un ejecutor local no exportado valida el comando completo de
 entorno/intención/worker/intento antes de liberar y después compone la liberación
 idempotente con exactamente una ejecución gobernada. El replay de liberación
 continúa; un fallo de liberación o divergencia de identidad no invoca el dispatcher.
+Una factory concreta enlaza este ejecutor con los repositorios Firestore reales y
+el transporte modular de Firebase Messaging sin I/O durante la construcción. Una
+factory HTTP estricta, sin CORS, acepta solo el comando versionado exacto y asigna
+como único invoker al operador de turnos existente, exponiendo solo linaje/resultado
+sanitizados. Ambas quedan fuera de `index.ts`; HU-085 posee identidad runtime,
+read-back de IAM, exportación, despliegue y primera invocación real. Cualquier error
+que escape de una ejecución aceptada se expone como resultado desconocido: la capa
+HTTP no puede inferir que un error de estado precedió al submission autenticado salvo
+que el ejecutor inferior haya persistido y devuelto esa evidencia terminal.
 Un resultado
 `unknown` puede haberse entregado, queda como historial inmutable y se trata mediante
 reconciliación/corrección; nunca vuelve a clasificarse como no liberado. El SO puede

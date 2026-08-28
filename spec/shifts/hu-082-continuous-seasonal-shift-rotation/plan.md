@@ -122,7 +122,12 @@ documented in the English and Spanish Firestore references before code lands.
   exact receipt/event evidence reserves governed dispatch, and present malformed
   evidence fails closed without using the legacy transport. Compose release and
   the bounded dispatcher behind one non-exported executor that validates its full
-  command before release and preserves exact release replay semantics.
+  command before release and preserves exact release replay semantics. Bind the
+  local executor to real Firestore/modular Messaging behind a strict CORS-disabled,
+  invoker-only HTTP factory, but keep both factories absent from `index.ts` until
+  HU-085 provisions and verifies runtime/IAM authority. Treat every error escaping
+  an accepted execution as unknown at the HTTP boundary unless the lower layer has
+  already returned a persisted terminal result.
 - Add/update strict Firestore Rules for backend-owned state and client-readable
   request results.
 - Add backend-owned monotonic maintenance/write epoch plus active-revision state.

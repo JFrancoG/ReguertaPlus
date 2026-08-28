@@ -431,6 +431,15 @@ One local, non-exported executor validates its complete environment/intent/worke
 attempt command before release, then composes idempotent release with exactly one
 governed dispatch execution. Release replay continues; release failure or event
 identity drift invokes no dispatch dependency.
+A concrete factory binds this executor to the real Firestore repositories and
+modular Firebase Messaging transport without construction-time I/O. A strict
+CORS-disabled HTTP factory accepts only the exact versioned command and assigns
+the existing shifts operator as sole invoker, while exposing only sanitized
+lineage/outcome. Both remain absent from `index.ts`; HU-085 owns runtime identity,
+IAM read-back, export, deployment, and first live invocation. Any error escaping an
+accepted execution is exposed as unknown: the HTTP layer cannot infer that a state
+error preceded authenticated submission unless the lower executor persisted and
+returned that terminal evidence.
 An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as
