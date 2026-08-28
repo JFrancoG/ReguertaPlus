@@ -494,6 +494,18 @@ occurred. Protected technical evidence remains outside the repository.
 - [ ] Release held notifications idempotently after the authorized read-back gate;
   prove replay cannot duplicate the canonical event/inbox effect while FCM remains
   explicitly at least once and may retry/present a duplicate.
+  - [x] Add the local, non-exported Firestore release repository. One transaction
+    verifies both completed Sheets read-backs, current active bundle, assignment,
+    active eligibility, and shared membership/eligibility/destination revisions,
+    then creates one stable legacy-compatible generic event, inbox row, and
+    backend-only receipt. Exact replay is write-free and stale input creates none.
+  - [ ] Connect release only after the legacy notification trigger is replaced by
+    the governed dispatch lease and append-only FCM attempt lifecycle below.
+  - [x] Validation: Node 22 Functions lint/build, 198/198 executed planning unit
+    vectors (16 emulator-only skips), 6/6 focused release emulator vectors, and
+    3/3 source-producer plus 26/26 strict Firestore Rules emulator vectors pass.
+    No export, deploy, live Firestore write, FCM submission, or notification
+    occurred.
 - [ ] Retain bundle release leases on both affected types and reject any later
   stage/activate touching either while sealed/partial/non-terminal; clear both
   only on reconciliation, valid rollback, or an explicit terminal incident that

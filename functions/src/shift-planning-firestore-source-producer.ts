@@ -32,6 +32,11 @@ import {
   SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
 } from "./shift-planning-firestore-transaction-serializer.js";
 import {
+  SHIFT_PLANNING_MAX_DEVICES_PER_USER,
+  ShiftPlanningMemberDeviceRevisionSource,
+  deriveShiftPlanningMemberRevision,
+} from "./shift-planning-member-revision.js";
+import {
   ShiftPlanningForwardActivationAttemptResolver,
 } from "./shift-planning-firestore-cas-runtime.js";
 import {buildShiftPlanningAuthoritativeState} from
@@ -46,7 +51,8 @@ export const SHIFT_PLANNING_SOURCE_POLICY_SCHEMA_VERSION = 1 as const;
 export const SHIFT_PLANNING_SOURCE_POLICY_DOCUMENT_ID =
   "sourcePolicy" as const;
 export const SHIFT_PLANNING_SOURCE_MAX_USERS = 250 as const;
-export const SHIFT_PLANNING_SOURCE_MAX_DEVICES_PER_USER = 20 as const;
+export const SHIFT_PLANNING_SOURCE_MAX_DEVICES_PER_USER =
+  SHIFT_PLANNING_MAX_DEVICES_PER_USER;
 export const SHIFT_PLANNING_SOURCE_MAX_CALENDAR_OVERRIDES = 400 as const;
 
 type UnknownRecord = Record<string, unknown>;
@@ -151,11 +157,6 @@ const digestSuffix = (digest: ShiftPlanningDigest): string =>
 const digestRevision = (prefix: string, value: unknown): string =>
   `${prefix}-${digestSuffix(createShiftPlanningDigest(value))}`;
 
-const numericDigestRevision = (value: unknown): number => Number.parseInt(
-  digestSuffix(createShiftPlanningDigest(value)).slice(0, 13),
-  16,
-);
-
 const timestampValue = (
   value: unknown,
   name: string,
@@ -166,11 +167,12 @@ const timestampValue = (
   return {seconds: value.seconds, nanoseconds: value.nanoseconds};
 };
 
-const nullableTimestampValue = (
-  value: unknown,
-  name: string,
-): {seconds: number; nanoseconds: number} | null =>
-  value === null || value === undefined ? null : timestampValue(value, name);
+const timestampSource = (value: unknown, name: string): Timestamp => {
+  if (!(value instanceof Timestamp)) {
+    return failSource(`${name} must be a Firestore timestamp.`);
+  }
+  return value;
+};
 
 const requireBoolean = (value: unknown, name: string): boolean => {
   if (typeof value !== "boolean") {
@@ -445,30 +447,30 @@ const parseRosterMember = (
     data.isCommonPurchaseManager,
     `users/${snapshot.id}.isCommonPurchaseManager`,
   );
-  const membershipProjection = {userId: snapshot.id, isActive};
-  const eligibilityProjection = {
+  const revision = deriveShiftPlanningMemberRevision({
     userId: snapshot.id,
     roles,
     isActive,
     isCommonPurchaseManager,
-  };
-  const membershipDigest = createShiftPlanningDigest(membershipProjection);
-  const eligibilityDigest = createShiftPlanningDigest(
-    eligibilityProjection,
-  );
-  const emptyDestination = {userId: snapshot.id, devices: []};
+    devices: [],
+  });
   return {
-    ...eligibilityProjection,
-    membershipRevision: numericDigestRevision(membershipProjection),
-    eligibilityRevision: numericDigestRevision(eligibilityProjection),
-    destinationRevision: numericDigestRevision(emptyDestination),
-    membershipDigest,
-    eligibilityDigest,
-    destinationDigest: createShiftPlanningDigest(emptyDestination),
+    userId: revision.userId,
+    roles: [...revision.roles],
+    isActive: revision.isActive,
+    isCommonPurchaseManager: revision.isCommonPurchaseManager,
+    membershipRevision: revision.membershipRevision,
+    eligibilityRevision: revision.eligibilityRevision,
+    destinationRevision: revision.destinationRevision,
+    membershipDigest: revision.membershipDigest,
+    eligibilityDigest: revision.eligibilityDigest,
+    destinationDigest: revision.destinationDigest,
   };
 };
 
-const deviceProjection = (snapshot: QueryDocumentSnapshot): object => ({
+const deviceRevisionSource = (
+  snapshot: QueryDocumentSnapshot,
+): ShiftPlanningMemberDeviceRevisionSource => ({
   deviceId: snapshot.id,
   fcmToken: requireNullableString(
     snapshot.get("fcmToken"),
@@ -478,28 +480,35 @@ const deviceProjection = (snapshot: QueryDocumentSnapshot): object => ({
     snapshot.get("firebaseInstallationId"),
     `device ${snapshot.id}.firebaseInstallationId`,
   ),
-  tokenUpdatedAt: nullableTimestampValue(
-    snapshot.get("tokenUpdatedAt"),
-    `device ${snapshot.id}.tokenUpdatedAt`,
-  ),
-  registrationUpdatedAt: nullableTimestampValue(
-    snapshot.get("registrationUpdatedAt"),
-    `device ${snapshot.id}.registrationUpdatedAt`,
-  ),
+  tokenUpdatedAt: snapshot.get("tokenUpdatedAt") === undefined ||
+    snapshot.get("tokenUpdatedAt") === null ? null :
+    timestampSource(
+      snapshot.get("tokenUpdatedAt"),
+      `device ${snapshot.id}.tokenUpdatedAt`,
+    ),
+  registrationUpdatedAt: snapshot.get("registrationUpdatedAt") === undefined ||
+    snapshot.get("registrationUpdatedAt") === null ? null :
+    timestampSource(
+      snapshot.get("registrationUpdatedAt"),
+      `device ${snapshot.id}.registrationUpdatedAt`,
+    ),
 });
 
 const withDestinationRevision = (
   member: SourceRosterMember,
   devices: readonly QueryDocumentSnapshot[],
 ): SourceRosterMember => {
-  const projection = {
+  const revision = deriveShiftPlanningMemberRevision({
     userId: member.userId,
-    devices: devices.map(deviceProjection),
-  };
+    roles: member.roles,
+    isActive: member.isActive,
+    isCommonPurchaseManager: member.isCommonPurchaseManager,
+    devices: devices.map(deviceRevisionSource),
+  });
   return {
     ...member,
-    destinationRevision: numericDigestRevision(projection),
-    destinationDigest: createShiftPlanningDigest(projection),
+    destinationRevision: revision.destinationRevision,
+    destinationDigest: revision.destinationDigest,
   };
 };
 

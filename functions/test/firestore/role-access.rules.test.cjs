@@ -1137,5 +1137,17 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
       await assertFails(adminDb.doc(path).update({schemaVersion: 2}));
       await assertFails(adminDb.doc(path).delete());
     }
+    const releasePath = `${docPath(
+      env,
+      "shiftPlanningNotificationIntents",
+      "private-document",
+    )}/releases/canonical`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(releasePath).set({schemaVersion: 1});
+    });
+    await assertFails(adminDb.doc(releasePath).get());
+    await assertFails(adminDb.doc(releasePath).set({schemaVersion: 1}));
+    await assertFails(adminDb.doc(releasePath).update({schemaVersion: 2}));
+    await assertFails(adminDb.doc(releasePath).delete());
   }
 });

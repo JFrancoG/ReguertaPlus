@@ -632,7 +632,16 @@ Los nombres siguientes quedan congelados para el plano de control privado:
   particion. Ningun cliente puede leer ni mutar estos estados.
 - `shiftPlanningNotificationIntents`: una intencion generica retenida por
   posicion asignada, ligada a UID destinatario, turno y revisiones esperadas de
-  asignacion, membership, elegibilidad y destino.
+  asignacion, membership, elegibilidad y destino. El repositorio local de
+  liberacion escribe un recibo inmutable en
+  `shiftPlanningNotificationIntents/{intentId}/releases/canonical` solo dentro
+  de la misma transaccion que crea los documentos estables y compatibles con
+  clientes publicados `notificationEvents/{intentId}` y
+  `users/{recipientUserId}/notificationInbox/{intentId}`. El recibo liga los
+  read-backs completos de ambos comandos de Sheets, el linaje activo del bundle,
+  el instante de liberacion y la politica FCM explicita al-menos-una-vez/con
+  posible duplicado. Un replay exacto no crea otro evento ni inbox; cualquier
+  drift previo de asignacion, membership, elegibilidad o destino no escribe nada.
 - `shiftPlanningOperations`: idempotencia/auditoria mas rutas de recovery,
   incluido el lifecycle ya implementado de claim/lease/fencing de peticiones;
   los registros futuros tambien llevan rutas de recovery, referencias/digests de
@@ -927,11 +936,16 @@ activacion. El read-back del emulador prueba el commit completo; un conflicto de
 creacion deliberado prueba que ningun cursor, estado activo, ciclo de peticion ni
 otro create puede avanzar parcialmente. Las intenciones se escriben solo en el
 outbox backend-only `shiftPlanningNotificationIntents` con `state = held`; la
-activacion no crea ningun `notificationEvents` consumible.
+activacion no crea ningun `notificationEvents` consumible. Un repositorio local
+no exportado prueba ya el efecto atomico recibo/evento/inbox tras el read-back de
+las dos particiones de Sheets, incluido el replay exacto y el rechazo por
+membership obsoleto. Se mantiene deliberadamente desconectado de `index.ts`
+hasta que el lease de dispatch FCM y el ledger append-only de intentos sustituyan
+la ruta del trigger legacy.
 Siguen pendientes y fail-closed el ensayo de tamano/indices en clon aislado, las
 implementaciones live del plano de control de Google y el wiring fiable de la
-barrera de entrada, la migracion de writers, consumidores de sync/liberacion y
-reconciliacion de notificaciones, despliegue de produccion y cambios live. El
+barrera de entrada, la migracion de writers, consumidores de dispatch/reconciliacion
+de notificaciones, despliegue de produccion y cambios live. El
 candidato local de Rules Phase 1 niega a todo cliente el nuevo
 plano de control; el candidato estricto local permite solo la creacion/lectura
 admin exacta de peticiones y la lectura admin de candidatos descritas arriba.

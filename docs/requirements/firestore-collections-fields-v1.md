@@ -522,7 +522,16 @@ The following collection names are frozen for the private control plane:
   read-back evidence. Clients cannot read or mutate any state.
 - `shiftPlanningNotificationIntents`: one held generic intent per assignment
   position, bound to recipient UID, shift identity, and expected assignment,
-  membership, eligibility, and destination revisions.
+  membership, eligibility, and destination revisions. The local release
+  repository writes an immutable
+  `shiftPlanningNotificationIntents/{intentId}/releases/canonical` receipt only
+  in the same transaction that creates the stable legacy-compatible
+  `notificationEvents/{intentId}` and
+  `users/{recipientUserId}/notificationInbox/{intentId}` documents. The receipt
+  binds both completed Sheets-command read-backs, active bundle lineage, release
+  time, and the explicit at-least-once/possible-duplicate FCM policy. An exact
+  replay creates no additional event or inbox document; assignment, membership,
+  eligibility, or destination drift before the first release writes nothing.
 - `shiftPlanningOperations`: idempotency/audit records plus recovery paths,
   including the implemented request claim/lease/fencing lifecycle; future
   operation records also carry recovery paths, persisted before-image
@@ -816,11 +825,16 @@ read-back proves the complete commit, while a deliberate create conflict proves
 that neither cursor, active state, request lifecycle, nor any other create can
 advance partially. Held intents are written only to the backend-owned
 `shiftPlanningNotificationIntents` outbox with `state = held`; activation creates
-no consumable `notificationEvents` document.
+no consumable `notificationEvents` document. A local, non-exported release
+repository now proves the atomic canonical event/inbox/receipt effect after both
+Sheets partitions complete their read-back, including exact replay and stale
+membership rejection. It deliberately remains disconnected from `index.ts`
+until the FCM dispatch lease and append-only attempt ledger replace the legacy
+trigger path.
 Still pending and fail-closed are the isolated-clone size/index rehearsal, live
 Google control-plane implementations and trusted intake-barrier wiring, writer
-migration, sync/notification release and reconciliation consumers, production
-deployment, and live data changes. The local Phase 1 Rules
+migration, notification dispatch/reconciliation consumers, production deployment,
+and live data changes. The local Phase 1 Rules
 candidate denies all client access to the new planning control plane; the local
 strict candidate allows only the exact admin request create/read and admin
 candidate read boundaries above. Neither Rules change has been deployed.
