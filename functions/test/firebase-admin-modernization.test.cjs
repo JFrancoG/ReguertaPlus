@@ -14,6 +14,7 @@ test("Firebase Admin runtime uses only modular entrypoints", () => {
     "scripts/backfill-member-directory.cjs",
     "scripts/backfill-notification-inbox.cjs",
     "scripts/backfill-public-versions.cjs",
+    "scripts/migrate-legacy-orders.cjs",
     "test/order-reminder-scheduler.test.cjs",
   ];
 
