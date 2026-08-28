@@ -532,6 +532,15 @@ The following collection names are frozen for the private control plane:
   time, and the explicit at-least-once/possible-duplicate FCM policy. An exact
   replay creates no additional event or inbox document; assignment, membership,
   eligibility, or destination drift before the first release writes nothing.
+  Its backend-only children now also define the local dispatch protocol:
+  `dispatchState/current` contains only monotonic attempt/lease fencing, while
+  `dispatchAttempts/{attemptId}` retains each attempt's immutable identity,
+  validation digest, 30-second lease epoch/deadline, authenticated-start marker,
+  and terminal `accepted|unknown|failed` evidence. A terminal attempt is never
+  rewritten; an expired submitting attempt becomes possibly delivered `unknown`,
+  and a retry appends a newly revalidated attempt. No raw FCM token is retained
+  in the ledger: it stores the bound destination digest and target count, while
+  the freshly authorized transport receives current targets transiently.
 - `shiftPlanningOperations`: idempotency/audit records plus recovery paths,
   including the implemented request claim/lease/fencing lifecycle; future
   operation records also carry recovery paths, persisted before-image
@@ -831,6 +840,13 @@ Sheets partitions complete their read-back, including exact replay and stale
 membership rejection. It deliberately remains disconnected from `index.ts`
 until the FCM dispatch lease and append-only attempt ledger replace the legacy
 trigger path.
+The separate local dispatch repository is likewise not exported. It claims one
+short fenced attempt, revalidates the same assignment/member/device source again
+immediately before recording authenticated submission start, returns only a
+generic `eventId`/`shift_updated` push with a stable collapse key, and preserves
+late or expired submission as immutable `unknown`. Actual FCM transport,
+writer-honored lease integration, bounded network execution, and trigger
+replacement remain pending.
 Still pending and fail-closed are the isolated-clone size/index rehearsal, live
 Google control-plane implementations and trusted intake-barrier wiring, writer
 migration, notification dispatch/reconciliation consumers, production deployment,

@@ -8,9 +8,10 @@ import {
 import {ShiftPlanningError} from "./shift-planning-contract.js";
 import {
   SHIFT_PLANNING_MAX_DEVICES_PER_USER,
-  ShiftPlanningMemberDeviceRevisionSource,
-  deriveShiftPlanningMemberRevision,
 } from "./shift-planning-member-revision.js";
+import {
+  validateShiftPlanningNotificationCurrentSource,
+} from "./shift-planning-firestore-notification-source.js";
 import {
   ShiftPlanningNotificationReleaseArtifacts,
   createShiftPlanningNotificationReleaseArtifacts,
@@ -18,16 +19,10 @@ import {
   sameShiftPlanningNotificationValue,
 } from "./shift-planning-notification-release.js";
 import {
-  parseShiftPlanningPublicShiftDocument,
-} from "./shift-planning-publication-contract.js";
-import {
   ShiftPlanningCompletedSyncCommand,
   parseShiftPlanningPersistedSyncCommand,
 } from "./shift-planning-sync-command.js";
-import {
-  ShiftPlanningEnvironment,
-  parseShiftPlanningMaintenanceState,
-} from "./shift-planning-wire.js";
+import {ShiftPlanningEnvironment} from "./shift-planning-wire.js";
 
 export type ShiftPlanningNotificationReleaseResult = {
   kind: "committed" | "replayed";
@@ -63,44 +58,6 @@ const requireSnapshot = (
   return snapshot as QueryDocumentSnapshot;
 };
 
-const nullableString = (value: unknown, name: string): string | null => {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "string") {
-    return failRelease(`${name} must be a string or null.`);
-  }
-  return value.trim() || null;
-};
-
-const nullableTimestamp = (value: unknown, name: string): Timestamp | null => {
-  if (value === null || value === undefined) return null;
-  if (!(value instanceof Timestamp)) {
-    return failRelease(`${name} must be a Firestore Timestamp or null.`);
-  }
-  return value;
-};
-
-const deviceRevisionSource = (
-  snapshot: QueryDocumentSnapshot,
-): ShiftPlanningMemberDeviceRevisionSource => ({
-  deviceId: snapshot.id,
-  fcmToken: nullableString(
-    snapshot.get("fcmToken"),
-    `device ${snapshot.id}.fcmToken`,
-  ),
-  firebaseInstallationId: nullableString(
-    snapshot.get("firebaseInstallationId"),
-    `device ${snapshot.id}.firebaseInstallationId`,
-  ),
-  tokenUpdatedAt: nullableTimestamp(
-    snapshot.get("tokenUpdatedAt"),
-    `device ${snapshot.id}.tokenUpdatedAt`,
-  ),
-  registrationUpdatedAt: nullableTimestamp(
-    snapshot.get("registrationUpdatedAt"),
-    `device ${snapshot.id}.registrationUpdatedAt`,
-  ),
-});
-
 const completedSyncCommand = (
   snapshot: DocumentSnapshot,
   type: "delivery" | "market",
@@ -112,68 +69,6 @@ const completedSyncCommand = (
     return failRelease(`${type} sync command has no terminal read-back.`);
   }
   return command;
-};
-
-const requireCurrentReleaseSource = (input: {
-  root: string;
-  intent: ReturnType<typeof parseShiftPlanningHeldNotificationIntent>;
-  maintenanceSnapshot: DocumentSnapshot;
-  shiftSnapshot: DocumentSnapshot;
-  memberSnapshot: DocumentSnapshot;
-  devices: readonly QueryDocumentSnapshot[];
-}): void => {
-  const {intent} = input;
-  const maintenance = parseShiftPlanningMaintenanceState(
-    requireSnapshot(input.maintenanceSnapshot, "planning state").data(),
-  );
-  if (
-    maintenance.activeRevision !== intent.bundleRevision ||
-    maintenance.activeDigest !== intent.bundleDigest ||
-    maintenance.writeEpoch !== intent.writeEpoch
-  ) {
-    return failRelease("Active planning state no longer owns the intent.");
-  }
-  const shiftPath = `${input.root}/shifts/${intent.shiftId}`;
-  const shift = parseShiftPlanningPublicShiftDocument({
-    targetPath: shiftPath,
-    value: requireSnapshot(input.shiftSnapshot, "planned shift").data(),
-  });
-  parseShiftPlanningPublicShiftDocument({
-    targetPath: shiftPath,
-    value: input.shiftSnapshot.data(),
-    expectedOperationIntentDigest:
-      shift.lastBackendMutation.operationIntentDigest,
-  });
-  if (
-    shift.type !== intent.shiftType ||
-    shift.bundleRevision !== intent.bundleRevision ||
-    shift.bundleDigest !== intent.bundleDigest ||
-    shift.writeEpoch !== intent.writeEpoch ||
-    shift.assignmentRevision !== intent.expectedAssignmentRevision ||
-    !shift.assignedUserIds.includes(intent.recipientUserId)
-  ) {
-    return failRelease("Current shift assignment no longer owns the intent.");
-  }
-  const memberSnapshot = requireSnapshot(
-    input.memberSnapshot,
-    "release member",
-  );
-  const member = deriveShiftPlanningMemberRevision({
-    userId: memberSnapshot.id,
-    roles: memberSnapshot.get("roles"),
-    isActive: memberSnapshot.get("isActive"),
-    isCommonPurchaseManager: memberSnapshot.get("isCommonPurchaseManager"),
-    devices: input.devices.map(deviceRevisionSource),
-  });
-  if (
-    member.userId !== intent.recipientUserId ||
-    !member.isEligible ||
-    member.membershipRevision !== intent.expectedMembershipRevision ||
-    member.eligibilityRevision !== intent.expectedEligibilityRevision ||
-    member.destinationRevision !== intent.expectedDestinationRevision
-  ) {
-    return failRelease("Current member revisions no longer own the intent.");
-  }
 };
 
 const requireExactReplay = (
@@ -300,7 +195,7 @@ export const createFirestoreShiftPlanningNotificationReleaseRepository = (
           "Notification destinations exceed their read limit.",
         );
       }
-      requireCurrentReleaseSource({
+      validateShiftPlanningNotificationCurrentSource({
         root,
         intent,
         maintenanceSnapshot,

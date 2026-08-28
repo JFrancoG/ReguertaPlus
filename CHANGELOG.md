@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-28 | ✨ feat(shifts): persist notification dispatch attempts
 - 2026-08-28 | ✨ feat(shifts): release held notification effects
 - 2026-08-27 | ✨ feat(shifts): fence activation request lifecycle
 - 2026-08-27 | ✨ feat(shifts): retain public event evidence

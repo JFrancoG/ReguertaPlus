@@ -523,11 +523,26 @@ occurred. Protected technical evidence remains outside the repository.
   respected by every writer of those values; cancel/supersede drift only before
   authenticated submission starts, without silent retargeting or reuse of an
   earlier validation.
-- [ ] Persist an append-only attempt ledger per canonical event with `attemptId`,
+  - [x] The local, non-exported dispatch repository claims a fixed 30-second
+    monotonic lease and revalidates the complete current assignment/member/device
+    source again immediately before authenticated submission authorization. Raw
+    targets are transient; only their digest and count enter retained evidence.
+  - [ ] Make every assignment/member/device writer honor or atomically supersede
+    that lease, then connect the real FCM transport.
+- [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.
 - [ ] Use bounded timeout, keep ambiguous expiry as immutable possibly delivered
   `unknown`, and append a new revalidated attempt for any at-least-once retry.
+  - [x] Firestore expiry/takeover converts an unsubmitted claim to terminal
+    `failed`, converts a started attempt to immutable `unknown`, rejects late
+    reclassification, and appends the retry under a higher epoch.
+  - [x] Validation: Node 22 Functions lint/build, 200/200 executed planning unit
+    vectors (21 emulator-only skips), 7/7 focused dispatch, 6/6 release, and
+    26/26 strict Firestore Rules emulator vectors pass. No export, deploy, live
+    Firestore write, FCM submission, or notification occurred.
+  - [ ] Add the bounded transport executor and classify its accepted, definitive
+    failure, timeout, and ambiguous return paths through this repository.
 - [ ] Persist generic non-sensitive canonical event/inbox copies and send a generic
   event-reference push, with no member name, shift date, or effective assignment.
   Fetch authorized current-revision detail on every push/inbox open; document the

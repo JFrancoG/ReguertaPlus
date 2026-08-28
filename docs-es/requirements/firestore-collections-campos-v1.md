@@ -642,6 +642,15 @@ Los nombres siguientes quedan congelados para el plano de control privado:
   el instante de liberacion y la politica FCM explicita al-menos-una-vez/con
   posible duplicado. Un replay exacto no crea otro evento ni inbox; cualquier
   drift previo de asignacion, membership, elegibilidad o destino no escribe nada.
+  Sus hijos backend-only definen ahora tambien el protocolo local de dispatch:
+  `dispatchState/current` contiene solo fencing monotono de intento/lease y
+  `dispatchAttempts/{attemptId}` conserva la identidad inmutable de cada intento,
+  digest de validacion, epoca/deadline del lease de 30 segundos, marca de inicio
+  autenticado y evidencia terminal `accepted|unknown|failed`. Un intento terminal
+  nunca se reescribe; un submitting expirado pasa a `unknown` posiblemente
+  entregado y un retry anade otro intento con validacion fresca. El ledger no
+  conserva tokens FCM crudos: guarda digest de destino y numero de targets, que
+  solo se entregan transitoriamente al transporte recien autorizado.
 - `shiftPlanningOperations`: idempotencia/auditoria mas rutas de recovery,
   incluido el lifecycle ya implementado de claim/lease/fencing de peticiones;
   los registros futuros tambien llevan rutas de recovery, referencias/digests de
@@ -942,6 +951,13 @@ las dos particiones de Sheets, incluido el replay exacto y el rechazo por
 membership obsoleto. Se mantiene deliberadamente desconectado de `index.ts`
 hasta que el lease de dispatch FCM y el ledger append-only de intentos sustituyan
 la ruta del trigger legacy.
+El repositorio local separado de dispatch tampoco se exporta. Reclama un intento
+corto con fencing, revalida de nuevo la misma fuente de asignacion/socio/dispositivo
+justo antes de registrar el inicio autenticado, devuelve solo un push generico
+`eventId`/`shift_updated` con collapse key estable y conserva como `unknown`
+inmutable cualquier submission tardia o expirada. Siguen pendientes el transporte
+FCM real, el respeto del lease por todos los writers, la ejecucion de red acotada y
+la sustitucion del trigger.
 Siguen pendientes y fail-closed el ensayo de tamano/indices en clon aislado, las
 implementaciones live del plano de control de Google y el wiring fiable de la
 barrera de entrada, la migracion de writers, consumidores de dispatch/reconciliacion

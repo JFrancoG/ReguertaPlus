@@ -1137,17 +1137,24 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
       await assertFails(adminDb.doc(path).update({schemaVersion: 2}));
       await assertFails(adminDb.doc(path).delete());
     }
-    const releasePath = `${docPath(
+    const intentPath = docPath(
       env,
       "shiftPlanningNotificationIntents",
       "private-document",
-    )}/releases/canonical`;
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(releasePath).set({schemaVersion: 1});
-    });
-    await assertFails(adminDb.doc(releasePath).get());
-    await assertFails(adminDb.doc(releasePath).set({schemaVersion: 1}));
-    await assertFails(adminDb.doc(releasePath).update({schemaVersion: 2}));
-    await assertFails(adminDb.doc(releasePath).delete());
+    );
+    const nestedPaths = [
+      `${intentPath}/releases/canonical`,
+      `${intentPath}/dispatchState/current`,
+      `${intentPath}/dispatchAttempts/attempt-1`,
+    ];
+    for (const path of nestedPaths) {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().doc(path).set({schemaVersion: 1});
+      });
+      await assertFails(adminDb.doc(path).get());
+      await assertFails(adminDb.doc(path).set({schemaVersion: 1}));
+      await assertFails(adminDb.doc(path).update({schemaVersion: 2}));
+      await assertFails(adminDb.doc(path).delete());
+    }
   }
 });
