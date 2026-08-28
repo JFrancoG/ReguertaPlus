@@ -807,14 +807,20 @@ creating an operation or reading state. The state repository
 atomically reads maintenance plus both rotations, derives one canonical CAS
 digest, and implements runtime-disconnected, idempotent maintenance entry and
 abort.
-Still pending and fail-closed are real byte/transform measurement, live Google
-control-plane implementations and trusted intake-barrier wiring, writer
-migration, bundle-bound public
-activation/recovery CAS,
-a v2 trigger connected to the orchestrator, sync, notification and recovery
-consumers, mobile integration, deployment, and live data changes. The legacy
-`onShiftPlanningRequestCreated` implementation in `functions/src/index.ts`
-remains the active runtime. The local Phase 1 Rules
+The local/emulator v2 runtime additionally resolves bundle-bound activation
+inside each retried Firestore transaction and submits one measured mutation set:
+the complete flat shift projection, both rotation/cursor and release-lease
+transitions, active state, exact request terminal, two Sheets commands, held
+notification intents, before-images, and the activation tombstone. Emulator
+read-back proves the complete commit, while a deliberate create conflict proves
+that neither cursor, active state, request lifecycle, nor any other create can
+advance partially. Held intents are written only to the backend-owned
+`shiftPlanningNotificationIntents` outbox with `state = held`; activation creates
+no consumable `notificationEvents` document.
+Still pending and fail-closed are the isolated-clone size/index rehearsal, live
+Google control-plane implementations and trusted intake-barrier wiring, writer
+migration, sync/notification release and reconciliation consumers, production
+deployment, and live data changes. The local Phase 1 Rules
 candidate denies all client access to the new planning control plane; the local
 strict candidate allows only the exact admin request create/read and admin
 candidate read boundaries above. Neither Rules change has been deployed.

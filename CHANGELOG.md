@@ -202,6 +202,7 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-08-28 | ✅ test(shifts): prove atomic activation publication
 - 2026-08-28 | ✅ test(shifts): prove planner provenance compatibility
 - 2026-08-19 | ✅ test(ios): add reproducible validation lanes
 - 2026-07-27 | ✅ test(ios): harden home news regression

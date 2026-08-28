@@ -918,14 +918,21 @@ deterministas tipados y enruta activate a ese preflight sin crear una operacion,
 leer estado ni escribir. El repositorio de estado lee atomicamente
 mantenimiento y ambas rotaciones, deriva un digest CAS canonico e implementa
 entrada y aborto idempotentes y desconectados del runtime.
-Siguen pendientes y fail-closed la medicion real de bytes/transformaciones, las
+El runtime v2 local/emulador resuelve ademas la activacion ligada al bundle dentro
+de cada transaccion Firestore reintentada y envia un unico conjunto medido de
+mutaciones: proyeccion plana completa de turnos, ambas transiciones de rotacion/
+cursor y lease de liberacion, estado activo, terminal exacto de la peticion, dos
+comandos de Sheets, intenciones retenidas, before-images y tombstone de
+activacion. El read-back del emulador prueba el commit completo; un conflicto de
+creacion deliberado prueba que ningun cursor, estado activo, ciclo de peticion ni
+otro create puede avanzar parcialmente. Las intenciones se escriben solo en el
+outbox backend-only `shiftPlanningNotificationIntents` con `state = held`; la
+activacion no crea ningun `notificationEvents` consumible.
+Siguen pendientes y fail-closed el ensayo de tamano/indices en clon aislado, las
 implementaciones live del plano de control de Google y el wiring fiable de la
-barrera de entrada, la migracion de
-writers y el CAS de activacion/recovery publico ligado al bundle, un trigger v2
-conectado al orquestador, consumidores de
-sync/notificacion/recovery, integracion movil, despliegue y cambios live. La implementacion legacy
-`onShiftPlanningRequestCreated` de `functions/src/index.ts` sigue siendo el
-runtime activo. El candidato local de Rules Phase 1 niega a todo cliente el nuevo
+barrera de entrada, la migracion de writers, consumidores de sync/liberacion y
+reconciliacion de notificaciones, despliegue de produccion y cambios live. El
+candidato local de Rules Phase 1 niega a todo cliente el nuevo
 plano de control; el candidato estricto local permite solo la creacion/lectura
 admin exacta de peticiones y la lectura admin de candidatos descritas arriba.
 Ninguno de esos cambios de Rules se ha desplegado.

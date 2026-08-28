@@ -476,8 +476,21 @@ occurred. Protected technical evidence remains outside the repository.
     unit vectors pass (11 intentionally skipped); Android unit tests and `lintDebug`
     pass; Xcode MCP focused planner-provenance test passes 1/1; iOS `fast-unit-v1`
     passes on iPhone 17 / iOS 26.5. No deploy or live Firestore write occurred.
-- [ ] Publish rotation state, shifts, and request summary without partial cursor
+- [x] Publish rotation state, shifts, and request summary without partial cursor
   advancement; hold notifications until governed release.
+  - [x] One measured Firestore transaction contains the complete flat shift
+    projection, both rotation/cursor and release-lease transitions, active state,
+    exact completed request summary, two Sheets commands, held intents,
+    before-images, and the immutable activation tombstone.
+  - [x] Held intents are created only in the backend-owned
+    `shiftPlanningNotificationIntents` outbox with `state = held`; activation never
+    creates a consumable `notificationEvents` document.
+  - [x] Validation: Node 22 Functions lint/build, 196/196 executed unit vectors
+    (12 emulator-only skips), and 7/7 focused Firestore-emulator vectors pass. The
+    emulator proves both the complete commit and that a conflicting create leaves
+    both cursors, active state, request lifecycle, and every other create
+    unchanged. No deploy, live Firestore write, Sheets call, or notification
+    occurred.
 - [ ] Release held notifications idempotently after the authorized read-back gate;
   prove replay cannot duplicate the canonical event/inbox effect while FCM remains
   explicitly at least once and may retry/present a duplicate.
