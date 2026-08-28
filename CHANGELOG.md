@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-28 | ✨ feat(shifts): compose notification dispatch
 - 2026-08-28 | ✨ feat(shifts): reserve governed notifications
 - 2026-08-28 | ✨ feat(devices): defer blocked registration
 - 2026-08-28 | ✨ feat(shifts): fence legacy shift writers

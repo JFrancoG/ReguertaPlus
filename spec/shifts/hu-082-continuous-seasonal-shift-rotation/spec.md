@@ -470,6 +470,10 @@ does not populate Firestore public shifts or activate either mobile app.
   legacy delivery. An exact receipt-bound generic event is reserved exclusively
   for the governed dispatcher; a present but malformed or drifting receipt/event
   fails closed and never falls back to legacy delivery.
+  One local, non-exported executor validates the complete environment, intent,
+  worker, and attempt identity before writing, then performs idempotent release
+  before exactly one governed dispatch execution. A release replay continues to
+  dispatch; release failure or event-identity drift never invokes transport.
 - Every intent is bound to the active assignment revision, recipient UID,
   membership/eligibility version, and token/destination version. Release performs
   the version read and event/inbox claim in one transaction/CAS. Every FCM attempt

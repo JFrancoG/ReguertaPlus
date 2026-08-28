@@ -440,7 +440,11 @@ eventos de notificación existente comprueba el recibo de liberación backend-on
 antes de cualquier fan-out de inbox o llamada FCM genérica. La ausencia de recibo
 conserva el reparto legacy, la evidencia exacta recibo/evento reserva el dispatcher
 gobernado y una evidencia presente malformada o divergente falla cerrada sin volver
-al flujo legacy. Un resultado
+al flujo legacy. Un ejecutor local no exportado valida el comando completo de
+entorno/intención/worker/intento antes de liberar y después compone la liberación
+idempotente con exactamente una ejecución gobernada. El replay de liberación
+continúa; un fallo de liberación o divergencia de identidad no invoca el dispatcher.
+Un resultado
 `unknown` puede haberse entregado, queda como historial inmutable y se trata mediante
 reconciliación/corrección; nunca vuelve a clasificarse como no liberado. El SO puede
 mostrar después de otro estado. Safe-resume sigue teniendo plazo y no permite otra

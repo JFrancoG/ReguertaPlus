@@ -120,7 +120,9 @@ documented in the English and Spanish Firestore references before code lands.
   stable idempotency keys. Make the existing trigger read the backend-only
   companion receipt before any fan-out: receipt absence preserves legacy events,
   exact receipt/event evidence reserves governed dispatch, and present malformed
-  evidence fails closed without using the legacy transport.
+  evidence fails closed without using the legacy transport. Compose release and
+  the bounded dispatcher behind one non-exported executor that validates its full
+  command before release and preserves exact release replay semantics.
 - Add/update strict Firestore Rules for backend-owned state and client-readable
   request results.
 - Add backend-owned monotonic maintenance/write epoch plus active-revision state.

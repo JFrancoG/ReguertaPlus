@@ -519,8 +519,16 @@ occurred. Protected technical evidence remains outside the repository.
       vectors, and 2/2 modular Admin SDK vectors pass. No trigger export, deploy,
       live Firestore write, FCM submission, inbox fan-out, or notification
       occurred.
-  - [ ] Connect release to the governed dispatch executor and real Firebase
-    transport only after the explicit invocation boundary is defined.
+  - [x] Compose idempotent release and one governed dispatch attempt behind a
+    local, non-exported executor. Validate environment, intent, worker, and
+    attempt identifiers before release; exact release replay proceeds to dispatch,
+    while release failure or event drift invokes no dispatch dependency.
+    - [x] Validation: Node 22 Functions lint/build, 222/222 executed planning
+      vectors with 30 emulator-only skips, and 5/5 focused release-dispatch
+      vectors pass. No trigger export, Firebase Messaging binding, deploy, live
+      Firestore write, FCM submission, inbox fan-out, or notification occurred.
+  - [ ] Wire the composed executor to the real Firebase transport only through an
+    explicit invocation boundary with governed retry identity.
   - [x] Validation: Node 22 Functions lint/build, 198/198 executed planning unit
     vectors (16 emulator-only skips), 6/6 focused release emulator vectors, and
     3/3 source-producer plus 26/26 strict Firestore Rules emulator vectors pass.
@@ -599,8 +607,10 @@ occurred. Protected technical evidence remains outside the repository.
         data deployment occurred.
     - [x] Transfer receipt-bound canonical-event ownership away from the legacy
       inbox/FCM trigger while preserving events without a release receipt.
-    - [ ] Remaining: compose release with the governed dispatch executor, then
-      wire the real Firebase transport through an explicit invocation boundary.
+    - [x] Compose release with the governed dispatch executor without exporting a
+      trigger or binding the production Messaging instance.
+    - [ ] Remaining: wire the composed executor to the real Firebase transport
+      through an explicit invocation boundary with governed retry identity.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.

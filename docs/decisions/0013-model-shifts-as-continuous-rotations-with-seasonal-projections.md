@@ -427,6 +427,10 @@ existing notification-event trigger checks the backend-only companion release
 receipt before any inbox fan-out or generic FCM call. Receipt absence retains
 legacy delivery, exact receipt/event evidence reserves the governed dispatcher,
 and present malformed or drifting evidence fails closed without legacy fallback.
+One local, non-exported executor validates its complete environment/intent/worker/
+attempt command before release, then composes idempotent release with exactly one
+governed dispatch execution. Release replay continues; release failure or event
+identity drift invokes no dispatch dependency.
 An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as
