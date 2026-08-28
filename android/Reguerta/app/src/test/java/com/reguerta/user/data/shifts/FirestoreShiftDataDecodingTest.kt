@@ -60,6 +60,56 @@ class FirestoreShiftDataDecodingTest {
     }
 
     @Test
+    fun `planner provenance stays additive while source remains app`() {
+        val timestamp = Timestamp(1, 0)
+        val plannerDocument = mapOf<String, Any?>(
+            "planningSchemaVersion" to 1L,
+            "type" to "delivery",
+            "date" to timestamp,
+            "assignedUserIds" to listOf("member-1"),
+            "helperUserId" to "member-2",
+            "status" to "planned",
+            "source" to "app",
+            "origin" to "planner",
+            "planningRequestId" to "bundle-2026",
+            "bundleRevision" to "bundle-v2-1234567890abcdef12345678",
+            "bundleDigest" to "shift-planning:v1:sha256:${"a".repeat(64)}",
+            "writeEpoch" to 8L,
+            "projectionSeasonStartYear" to 2026L,
+            "rotationOwnerUserId" to "member-1",
+            "rotationOwnerUserIds" to null,
+            "roundNumber" to 2L,
+            "positionInRound" to 4L,
+            "rotationPositions" to null,
+            "planningReason" to "target",
+            "assignmentRevision" to 1L,
+            "completion" to mapOf(
+                "state" to "uncompleted",
+                "revision" to 0L,
+                "actualHelperUserId" to null,
+                "helperSourceAssignmentRevision" to null,
+                "completedAt" to null,
+            ),
+            "documentRevision" to 1L,
+            "lastBackendMutation" to mapOf("kind" to "activation"),
+            "createdAt" to timestamp,
+            "updatedAt" to timestamp,
+        )
+
+        val decoded = decodeShiftDocuments(listOf("shift-delivery-1" to plannerDocument)).single()
+
+        assertEquals("shift-delivery-1", decoded.id)
+        assertEquals("app", decoded.source)
+        assertEquals(listOf("member-1"), decoded.assignedUserIds)
+        assertEquals("member-2", decoded.helperUserId)
+        assertInvalidData {
+            decodeShiftDocuments(
+                listOf("shift-delivery-1" to (plannerDocument + ("source" to "planner"))),
+            )
+        }
+    }
+
+    @Test
     fun `invalid nested swap candidate fails the complete snapshot`() {
         assertInvalidData {
             decodeShiftSwapRequestDocuments(

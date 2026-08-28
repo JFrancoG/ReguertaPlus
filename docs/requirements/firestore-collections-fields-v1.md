@@ -286,10 +286,10 @@ Delivery calendar strategy (canonical):
 - `status`: string (`planned`|`swap_pending`|`confirmed`) (required)
 - `source`: string (`app`|`google_sheets`) (required)
 - `origin`: string|null (`planner` for an HU-082 generated shift)
-- `planningRequestId`: string|null (request lineage for a planner-generated shift)
-- `bundleRevision`: string|null (publication revision; required by the future HU-082 publication adapter)
-- `bundleDigest`: string|null (digest bound to `bundleRevision`; required by the future HU-082 publication adapter)
-- `writeEpoch`: integer|null (maintenance/publication epoch; required by the future HU-082 publication adapter)
+- `planningRequestId`: string|null (stable planning-chain identity; equals the generated bundle ID for an HU-082 row)
+- `bundleRevision`: string|null (publication revision; required for an HU-082 planner row)
+- `bundleDigest`: string|null (digest bound to `bundleRevision`; required for an HU-082 planner row)
+- `writeEpoch`: integer|null (maintenance/publication epoch; required for an HU-082 planner row)
 - `projectionSeasonStartYear`: integer|null (season partition that contains the projected date)
 - `rotationOwnerUserId`: string|null (immutable fair-queue owner for a generated `delivery` shift)
 - `rotationOwnerUserIds`: array<string>|null (three immutable fair-queue owners for a generated `market` shift)
@@ -329,19 +329,21 @@ effective assignee, but later coverage or reassignment must not rewrite the
 owner, round, or position. Planner-generated shifts remain compatible with
 current clients by using `source = app`; `origin = planner` and the lineage
 fields distinguish them from ordinary app edits. The bundle revision, digest,
-epoch, and complete ownership persistence listed here are the contract intended
-for the publication/activation adapter. Publication codec v1 now enforces one
+epoch, and complete ownership persistence listed here are written by the
+publication/activation adapter. Publication codec v1 enforces one
 assigned UID for delivery, exactly three distinct UIDs for market, UTC-midnight
 dates, coherent assignment/completion/document revisions, and exact rotation
-shape. Existing clients continue consuming their unchanged required fields and
-ignore the additive planner metadata.
+shape. Android and iOS compatibility regressions prove that installed-client
+decoders continue consuming their unchanged required fields, ignore the additive
+planner metadata, and still reject `source = planner` as noncanonical.
 
 The backend marker is historical provenance, not a permanent hash of every
 later ordinary edit. A candidate `onShiftWritten` validates path, payload,
 revision, bundle, epoch, and operation intent only when the marker changes in
 that event. If a normal later edit retains the same marker, it is handled
-normally even though the historical `payloadDigest` no longer matches. This
-cut freezes the pure codec but does not activate a writer in `index.ts`.
+normally even though the historical `payloadDigest` no longer matches. The
+governed schema-v2 runtime writes this codec locally/in emulators; production
+deployment and activation remain pending.
 
 ### 4.8.b `shiftPlanningRequests/{requestId}`
 

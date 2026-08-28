@@ -393,10 +393,10 @@ Estrategia canonica de calendario:
 | `status` | string | si | sistema | `planned`/`swap_pending`/`confirmed` |
 | `source` | string | si | sistema | `app`/`google_sheets` |
 | `origin` | string\|null | no | sistema | `planner` para un turno generado por HU-082 |
-| `planningRequestId` | string\|null | no | sistema | Linaje de la peticion que genero el turno |
-| `bundleRevision` | string\|null | no | sistema | Revision de publicacion; obligatoria en el futuro adaptador HU-082 |
-| `bundleDigest` | string\|null | no | sistema | Digest ligado a `bundleRevision`; obligatorio en el futuro adaptador HU-082 |
-| `writeEpoch` | integer\|null | no | sistema | Epoca de mantenimiento/publicacion; obligatoria en el futuro adaptador HU-082 |
+| `planningRequestId` | string\|null | no | sistema | Identidad estable de la cadena; equivale al ID de bundle generado en una fila HU-082 |
+| `bundleRevision` | string\|null | no | sistema | Revision de publicacion; obligatoria en una fila planner HU-082 |
+| `bundleDigest` | string\|null | no | sistema | Digest ligado a `bundleRevision`; obligatorio en una fila planner HU-082 |
+| `writeEpoch` | integer\|null | no | sistema | Epoca de mantenimiento/publicacion; obligatoria en una fila planner HU-082 |
 | `projectionSeasonStartYear` | integer\|null | no | sistema | Temporada en cuya proyeccion cae la fecha |
 | `rotationOwnerUserId` | string\|null | no | sistema | Propietario inmutable de cola para un reparto generado |
 | `rotationOwnerUserIds` | array<string>\|null | no | sistema | Tres propietarios inmutables de cola para un mercado generado |
@@ -419,11 +419,13 @@ como asignado efectivo, pero una cobertura o reasignacion posterior no puede
 reescribir propietario, ronda ni posicion. Los turnos generados conservan
 compatibilidad usando `source = app`; `origin = planner` y los campos de linaje
 los distinguen de una edicion ordinaria de la app. Revision, digest, epoca y
-persistencia completa de propiedad son el contrato previsto para el adaptador
-de publicacion/activacion. El codec de publicacion v1 exige un UID asignado en
+persistencia completa de propiedad ya son escritas por el adaptador de
+publicacion/activacion. El codec de publicacion v1 exige un UID asignado en
 reparto, exactamente tres distintos en mercado, fecha a medianoche UTC,
 revisiones coherentes y shape de rotacion exacto. Las apps actuales mantienen
-sus campos requeridos e ignoran esta metadata aditiva.
+sus campos requeridos e ignoran esta metadata aditiva. Las regresiones de
+compatibilidad Android/iOS prueban ademas que ambos decoders siguen rechazando
+`source = planner` como no canonico.
 
 `completion` tiene claves exactas `state`, `revision`, `actualHelperUserId`,
 `helperSourceAssignmentRevision` y `completedAt`. `uncompleted` exige revision
@@ -437,8 +439,8 @@ El marcador es procedencia historica, no un hash permanente de toda edicion
 ordinaria posterior. El futuro `onShiftWritten` valida ruta, payload, revision,
 bundle, epoch e intent solo cuando el marcador cambia en ese evento. Una edicion
 normal que conserva el marcador se procesa normalmente aunque el digest
-historico ya no coincida. Este corte fija el codec puro pero aun no activa un
-writer en `index.ts`.
+historico ya no coincida. El runtime gobernado schema-v2 escribe este codec en
+local/emuladores; despliegue y activacion de produccion siguen pendientes.
 
 ## 4.8.b `shiftPlanningRequests/{requestId}`
 

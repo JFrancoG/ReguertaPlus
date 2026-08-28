@@ -465,7 +465,17 @@ occurred. Protected technical evidence remains outside the repository.
     vectors, 14/14 repository-emulator vectors, 2/2 source-resolver activation/
     recovery vectors, and 3/3 governed source/runtime vectors pass. No deploy,
     live Firestore write, trigger export, Sheets call, or notification occurred.
-- [ ] Write client-compatible `source = app` plus planner provenance.
+- [x] Write client-compatible `source = app` plus planner provenance.
+  - [x] The activation materializer preserves the installed-client contract with
+    canonical `source = app` and adds backend-owned `origin = planner`, stable
+    planning-chain, bundle, write-epoch, projection, rotation, and mutation metadata.
+  - [x] Functions contract tests bind the exact public provenance. Android and iOS
+    decoding regressions accept every additive planner field without widening their
+    Domain models and still reject `source = planner` as invalid public data.
+  - [x] Validation: Node 22 Functions lint/build and 196/196 executed shift-planning
+    unit vectors pass (11 intentionally skipped); Android unit tests and `lintDebug`
+    pass; Xcode MCP focused planner-provenance test passes 1/1; iOS `fast-unit-v1`
+    passes on iPhone 17 / iOS 26.5. No deploy or live Firestore write occurred.
 - [ ] Publish rotation state, shifts, and request summary without partial cursor
   advancement; hold notifications until governed release.
 - [ ] Release held notifications idempotently after the authorized read-back gate;

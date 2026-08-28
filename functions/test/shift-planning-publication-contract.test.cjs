@@ -130,6 +130,12 @@ test("builds exact client-compatible delivery and market payloads", () => {
     "develop/plus-collections/shifts/shift_delivery_20260902");
   assert.equal(delivery.payload.type, "delivery");
   assert.equal(delivery.payload.source, "app");
+  assert.equal(delivery.payload.origin, "planner");
+  assert.equal(delivery.payload.planningRequestId, "preview-request-1");
+  assert.equal(delivery.payload.bundleRevision,
+    "bundle-v2-1234567890abcdef12345678");
+  assert.equal(delivery.payload.bundleDigest, BUNDLE_DIGEST);
+  assert.equal(delivery.payload.writeEpoch, 8);
   assert.equal(delivery.payload.status, "planned");
   assert.deepEqual(delivery.payload.assignedUserIds, ["member-1"]);
   assert.equal(delivery.payload.helperUserId, "member-2");
@@ -147,6 +153,9 @@ test("builds exact client-compatible delivery and market payloads", () => {
   });
 
   assert.equal(market.payload.type, "market");
+  assert.equal(market.payload.source, "app");
+  assert.equal(market.payload.origin, "planner");
+  assert.equal(market.payload.planningRequestId, "preview-request-1");
   assert.deepEqual(market.payload.assignedUserIds,
     ["member-1", "member-2", "member-3"]);
   assert.equal(market.payload.helperUserId, null);
