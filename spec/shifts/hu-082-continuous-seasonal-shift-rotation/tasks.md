@@ -775,10 +775,17 @@ occurred. Protected technical evidence remains outside the repository.
 - [x] Update strict Firestore Rules and bilingual collection documentation for the
   exact local v2 request, admin-readable/backend-written candidate, and eight
   backend-only control-plane partitions; do not deploy either Rules candidate.
-- [ ] Implement persisted before-image capture and recovery CAS from the pure
+- [x] Implement persisted before-image capture and recovery CAS from the pure
   inverse manifest: exact target/create paths, before-image contract digests,
   current active bundle revision/digest/write epoch, and a strictly higher epoch
   that is never reused or decremented.
+  - [x] Forward activation writes contiguous digest-bound before-image envelopes
+    in the same measured transaction; inverse recovery re-reads their exact paths,
+    validates the active bundle and epoch, restores/deletes only manifest-owned
+    targets, and advances to `activationWriteEpoch + 1`.
+  - [x] Current validation: 7/7 forward and 4/4 inverse materializer vectors pass
+    against isolated Firestore demo-project emulators, including atomic conflicts,
+    exact replacement, before-image drift, and the strictly newer recovery epoch.
 - [ ] Require current epoch/revision in Rules/server CAS for every affected app/admin,
   swap, override, calendar, Sheets-import, and command mutation; migrate unsupported
   direct paths to versioned callables/commands and reject offline legacy queues.

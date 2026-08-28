@@ -924,6 +924,21 @@ Functions build and all eight publication-contract tests pass. No deployment,
 emulator write, live Firebase mutation, Sheets access, or production activation
 occurred.
 
+## Evidence reconciliation — before-image recovery CAS (2026-08-29)
+
+The aggregate checklist now reflects the already implemented forward/inverse
+materialization contract. Forward activation persists contiguous, contract-digested
+before-image envelopes in its measured atomic batch. Recovery re-reads the exact
+envelope and current-target set, verifies active bundle revision/digest/write epoch,
+restores or deletes only inverse-manifest paths with transaction preconditions, and
+advances to the strictly newer `activationWriteEpoch + 1` without reusing an epoch.
+
+Fresh isolated Firestore-emulator validation passed all 7 forward and 4 inverse
+materializer vectors, including conflicting-create atomicity, before-image drift,
+exact replacement semantics, and sealed real-adapter commits. This checkpoint only
+reconciles duplicated tracking with delivered Git evidence; it performs no source
+implementation change, shared Firebase write, deployment, or production activation.
+
 ## Suggested labels
 
 - `type:feature`
