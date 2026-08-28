@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-29 | ✨ feat(shifts): open authorized notification detail
 - 2026-08-28 | ✨ feat(shifts): mark planning notifications generic
 - 2026-08-28 | ✨ feat(shifts): expose planning read-back
 - 2026-08-28 | ✨ feat(shifts): terminalize notification incidents

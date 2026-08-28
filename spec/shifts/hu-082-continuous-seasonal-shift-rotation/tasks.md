@@ -733,8 +733,12 @@ occurred. Protected technical evidence remains outside the repository.
   irreducible later OS-display race.
   - [x] Version the backend-only generic event/inbox discriminator and preserve it
     through the immutable per-user copy without adding shift/member/date detail.
-  - [ ] Remaining: fetch and render current detail only through an authorized fresh
-    read when the member opens the event reference.
+  - [x] Android and iOS inbox rows fetch and render current detail only through the
+    authenticated `resolveShiftNotificationDetail` boundary. The transaction
+    revalidates the current auth link, active member, immutable event/release
+    lineage, and current public assignment before returning exact schema v1.
+  - [ ] Remaining: route an opened OS push reference into the same authorized app
+    boundary; no rich detail may be taken from push payload or durable cache.
 - [ ] Version backend/mobile event and inbox schemas/decoders so legacy required
   `title`/`body` fields receive only generic copy for these events. Add Rules,
   repository, offline-cache, logout/demotion/environment/assignment-drift tests;
@@ -743,8 +747,13 @@ occurred. Protected technical evidence remains outside the repository.
     to an authorized-fetch Domain policy, reject partial/rich/spoofed forms, and
     preserve unversioned event behavior. Strict Rules reserve its fields for the
     backend runtime.
-  - [ ] Remaining: add authorized-open/cache invalidation behavior and its context-
-    drift/offline/denied regressions.
+  - [x] Inbox-open detail is ephemeral on both clients, cleared on feed refresh,
+    route exit, logout, authorization/environment drift, and rejected when the
+    current member is no longer assigned. Offline, denied, missing, malformed, or
+    stale responses preserve only the generic row; cross-session late completions
+    cannot publish.
+  - [ ] Remaining: exercise the same policy from OS push-open routing and complete
+    the old/current/candidate rollout matrix under HU-085.
 - [ ] Store held notification intents outside every currently watched consumer
   path; create canonical events only during explicit idempotent release.
 - [ ] Test old/current/candidate consumer and rollback combinations against the

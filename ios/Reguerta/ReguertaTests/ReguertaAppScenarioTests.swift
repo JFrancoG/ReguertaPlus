@@ -336,7 +336,7 @@ struct ReguertaAppCompositionBoundaryTests {
         #expect(source.contains("tokenProvider: authSessionProvider"))
         #expect(source.contains("FirebaseMemberAdministrationRepository(client: functionsClient)"))
         #expect(source.contains("resolver: FirebaseAuthorizedMemberResolver(client: dependencies.functionsClient)"))
-        #expect(source.occurrenceCount(of: "functionsClient: dependencies.functionsClient") == 1)
+        #expect(source.occurrenceCount(of: "functionsClient: dependencies.functionsClient") == 2)
     }
 
     @Test func liveConcreteCompositionRoutesSharedDependenciesThroughThePureAssembler() throws {

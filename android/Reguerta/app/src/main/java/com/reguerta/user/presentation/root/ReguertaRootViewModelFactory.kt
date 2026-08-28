@@ -27,6 +27,7 @@ import com.reguerta.user.data.media.FirebaseImagePipelineManager
 import com.reguerta.user.data.news.FirestoreNewsRepository
 import com.reguerta.user.data.notifications.AndroidPushNotificationPermissionProvider
 import com.reguerta.user.data.notifications.FirestoreNotificationRepository
+import com.reguerta.user.data.notifications.FirebaseShiftNotificationDetailRepository
 import com.reguerta.user.data.profiles.FirestoreSharedProfileRepository
 import com.reguerta.user.data.products.FirestoreProductRepository
 import com.reguerta.user.data.shiftplanning.FirestoreShiftPlanningRequestRepository
@@ -73,6 +74,12 @@ class SessionViewModelFactory(
         val authenticatedFunctionsClient = AuthenticatedFirebaseFunctionsClient.create(
             auth = auth,
             firebaseApp = firebaseApp,
+        )
+        val shiftNotificationDetailRepository = FirebaseShiftNotificationDetailRepository(
+            functionCaller = authenticatedFunctionsClient,
+            requestedEnvironment = {
+                ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+            },
         )
         val shiftSwapTransitionClient = FirebaseShiftSwapTransitionClient(
             functionCaller = authenticatedFunctionsClient,
@@ -126,6 +133,7 @@ class SessionViewModelFactory(
             ),
             authorizedDeviceRegistrar = authorizedDeviceRegistrar,
             pushNotificationPermissionProvider = pushNotificationPermissionProvider,
+            shiftNotificationDetailRepository = shiftNotificationDetailRepository,
             resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
                 remoteRepository = FirestoreCriticalDataFreshnessRemoteRepository(
                     firestore = firestore,

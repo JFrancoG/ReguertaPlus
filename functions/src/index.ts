@@ -66,6 +66,9 @@ import {
   createShiftPlanningOperatorRecoveryHttpFunction,
 } from "./shift-planning-operator-http.js";
 import {
+  resolveShiftPlanningNotificationDetail,
+} from "./shift-planning-notification-detail.js";
+import {
   ShiftPlanningNotificationGuardedShiftWriteResult,
   ShiftPlanningNotificationWriterResource,
   inspectShiftPlanningNotificationWriterFences,
@@ -4563,6 +4566,81 @@ export const resolveAuthorizedMember = onRequest(async (req, res) => {
       environment,
       firstLoginLinked: result.firstLoginLinked,
     });
+  } catch (error) {
+    sendHttpError(res, error);
+  }
+});
+
+const shiftNotificationDetailUnavailable = () => new HttpRequestError(
+  404,
+  "shift_notification_detail_unavailable",
+  "Current shift notification detail is unavailable",
+);
+
+export const resolveShiftNotificationDetail = onRequest(async (req, res) => {
+  try {
+    requirePostMethod(req.method);
+    const environment = parseRequestEnvironment(req);
+    const eventId = parseString(parseBody(req.body).eventId);
+    if (
+      !eventId ||
+      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(eventId)
+    ) {
+      throw shiftNotificationDetailUnavailable();
+    }
+    const identity = await verifyRequestIdentity(req);
+    const actor = await requireLinkedMember(environment, identity);
+    const root = `${environment}/plus-collections`;
+    const detail = await firestore.runTransaction(async (transaction) => {
+      const linkRef = authLinksCollection(environment).doc(identity.uid);
+      const memberRef = usersCollection(environment).doc(actor.memberId);
+      const inboxRef = memberRef.collection("notificationInbox").doc(eventId);
+      const intentRef = firestore.doc(
+        `${root}/shiftPlanningNotificationIntents/${eventId}`,
+      );
+      const releaseRef = intentRef.collection("releases").doc("canonical");
+      const [linkSnapshot, memberSnapshot, inboxSnapshot, intentSnapshot,
+        releaseSnapshot] = await Promise.all([
+        transaction.get(linkRef),
+        transaction.get(memberRef),
+        transaction.get(inboxRef),
+        transaction.get(intentRef),
+        transaction.get(releaseRef),
+      ]);
+      if (
+        !linkSnapshot.exists ||
+        !memberSnapshot.exists ||
+        !inboxSnapshot.exists ||
+        !intentSnapshot.exists ||
+        !releaseSnapshot.exists
+      ) {
+        return null;
+      }
+      const currentActor = resolveLinkedMember(
+        identity.uid,
+        linkSnapshot.data(),
+        memberSnapshot.data(),
+      );
+      if (currentActor.memberId !== actor.memberId) return null;
+      const shiftId = parseString(parseBody(intentSnapshot.data()).shiftId);
+      if (!shiftId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(shiftId)) {
+        return null;
+      }
+      const shiftRef = firestore.doc(`${root}/shifts/${shiftId}`);
+      const shiftSnapshot = await transaction.get(shiftRef);
+      if (!shiftSnapshot.exists) return null;
+      return resolveShiftPlanningNotificationDetail({
+        eventId,
+        memberId: currentActor.memberId,
+        inboxValue: inboxSnapshot.data(),
+        intentValue: intentSnapshot.data(),
+        releaseValue: releaseSnapshot.data(),
+        shiftValue: shiftSnapshot.data(),
+        shiftTargetPath: shiftRef.path,
+      });
+    });
+    if (!detail) throw shiftNotificationDetailUnavailable();
+    res.status(200).json(detail);
   } catch (error) {
     sendHttpError(res, error);
   }

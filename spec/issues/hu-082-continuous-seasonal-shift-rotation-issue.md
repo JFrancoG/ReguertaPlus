@@ -860,6 +860,29 @@ logout, demotion, environment, assignment, offline, or denied states remains a
 separate cut. No Function/Rules deployment, FCM submission, shared Firebase write,
 or production mutation occurred.
 
+## Local implementation checkpoint — authorized notification detail (2026-08-29)
+
+The generic planning inbox row can now be opened on Android and iOS without
+turning its durable copy into an authorization artifact. A new authenticated HTTP
+Function accepts only the stable event ID and resolves the detail inside a
+Firestore transaction. It re-reads the current auth link and active member, exact
+generic inbox copy, held intent, canonical release receipt, and current schema-v2
+public shift; any recipient, lineage, discriminator, release, assignment, or
+document drift returns no detail.
+
+Both clients decode an exact schema-v1 response, require the current member to be
+one of the current responsible members, and render the result inline only for the
+active route/session/environment. The value is deliberately ephemeral: refresh,
+route exit, logout, authorization/environment replacement, denial, malformed data,
+or a late obsolete completion restores the generic row. Legacy embedded
+notifications remain unchanged. The rows use native semantic controls and
+localized loading/detail copy.
+
+This cut covers authenticated inbox opening. Routing an OS-opened push reference
+through the same boundary remains pending, so the parent push/inbox acceptance
+criterion stays open. No Function/Rules deployment, FCM submission, shared
+Firestore write, Sheets access, or production activation occurred.
+
 ## Suggested labels
 
 - `type:feature`

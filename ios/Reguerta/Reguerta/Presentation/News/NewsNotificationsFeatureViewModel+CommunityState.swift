@@ -39,6 +39,7 @@ extension NewsNotificationsFeatureViewModel {
     }
 
     func resetNotificationsFeed() {
+        clearNotificationShiftDetail()
         notificationsFeed = []
         readNotificationIds = []
         pendingConfirmedNotifications = [:]
@@ -49,6 +50,12 @@ extension NewsNotificationsFeatureViewModel {
         isPushNotificationPermissionActive = true
         showsPushNotificationPermissionDialog = false
         didDismissPushNotificationPermissionDialogForVisit = false
+    }
+
+    func clearNotificationShiftDetail() {
+        notificationShiftDetail = nil
+        loadingNotificationDetailEventID = nil
+        activeNotificationDetailOperationId = nil
     }
 
     func upsertConfirmedNews(_ article: NewsArticle, member: Member) {

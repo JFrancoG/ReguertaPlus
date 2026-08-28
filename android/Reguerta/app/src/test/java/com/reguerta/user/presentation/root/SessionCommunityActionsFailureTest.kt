@@ -13,10 +13,16 @@ import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationAudience
+import com.reguerta.user.domain.notifications.NotificationContentPolicy
 import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.notifications.PushNotificationPermissionProvider
+import com.reguerta.user.domain.notifications.ShiftNotificationDetail
+import com.reguerta.user.domain.notifications.ShiftNotificationDetailRepository
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
+import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftStatus
+import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.presentation.auth.clearCommunitySessionStateIfInvalidated
 import com.reguerta.user.presentation.auth.reconcileAuthorizedShiftState
 import com.reguerta.user.presentation.auth.resolveAuthorizedSessionAccessTransition
@@ -38,6 +44,61 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionCommunityActionsFailureTest {
+    @Test
+    fun `generic shift notification publishes only fresh detail for current session`() = runTest {
+        val event = notificationEvent(id = "event-1").copy(
+            type = "shift_updated",
+            target = "users",
+            userIds = listOf("member_1"),
+            contentPolicy = NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED,
+        )
+        val state = MutableStateFlow(authorizedState().copy(notificationsFeed = listOf(event)))
+        val detailRepository = RecordingShiftNotificationDetailRepository(notificationShiftDetail())
+        val actions = actions(
+            state = state,
+            repository = ControlledSharedProfileRepository(emptyList(), rejectsReads = false),
+            emitMessage = {},
+            shiftNotificationDetailRepository = detailRepository,
+        )
+
+        actions.openNotificationDetail(event.id)
+        advanceUntilIdle()
+
+        assertEquals("member_1", detailRepository.requestedMemberId)
+        assertEquals(notificationShiftDetail(), state.value.notificationShiftDetail)
+        assertNull(state.value.loadingNotificationDetailEventId)
+    }
+
+    @Test
+    fun `late shift notification detail cannot cross a session replacement`() = runTest {
+        val event = notificationEvent(id = "event-1").copy(
+            type = "shift_updated",
+            target = "users",
+            userIds = listOf("member_1"),
+            contentPolicy = NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED,
+        )
+        val initial = authorizedState().copy(notificationsFeed = listOf(event))
+        val state = MutableStateFlow(initial)
+        val detailRepository = SuspendedShiftNotificationDetailRepository()
+        val actions = actions(
+            state = state,
+            repository = ControlledSharedProfileRepository(emptyList(), rejectsReads = false),
+            emitMessage = {},
+            shiftNotificationDetailRepository = detailRepository,
+        )
+
+        actions.openNotificationDetail(event.id)
+        runCurrent()
+        detailRepository.started.await()
+        val replacement = authorizedState(member = member(id = "new_member"))
+            .copy(sessionEpoch = initial.sessionEpoch + 1)
+        state.value = replacement
+        detailRepository.complete(notificationShiftDetail())
+        advanceUntilIdle()
+
+        assertEquals(replacement, state.value)
+    }
+
     @Test
     fun `first news failure retries automatically before showing feedback`() = runTest {
         val replacement = newsArticle(id = "replacement", title = "Replacement")
@@ -1900,6 +1961,7 @@ class SessionCommunityActionsFailureTest {
         emitMessage: (Int) -> Unit,
         newsRepository: NewsRepository = EmptyNewsRepository,
         notificationRepository: NotificationRepository = EmptyNotificationRepository,
+        shiftNotificationDetailRepository: ShiftNotificationDetailRepository = EmptyShiftNotificationDetailRepository,
         runtimeEnvironmentProvider: () -> String? = { state.value.sessionEnvironment },
         automaticLoadRetryDelayMillis: Long? = null,
     ) = SessionCommunityActions(
@@ -1907,6 +1969,7 @@ class SessionCommunityActionsFailureTest {
         scope = kotlinx.coroutines.CoroutineScope(currentCoroutineContext()),
         newsRepository = newsRepository,
         notificationRepository = notificationRepository,
+        shiftNotificationDetailRepository = shiftNotificationDetailRepository,
         sharedProfileRepository = repository,
         imagePipelineManager = EmptyImagePipelineManager,
         nowMillisProvider = { 123L },
@@ -1917,6 +1980,53 @@ class SessionCommunityActionsFailureTest {
         automaticLoadRetryDelayMillis = automaticLoadRetryDelayMillis,
     )
 }
+
+private class RecordingShiftNotificationDetailRepository(
+    private val detail: ShiftNotificationDetail,
+) : ShiftNotificationDetailRepository {
+    var requestedMemberId: String? = null
+
+    override suspend fun getCurrentDetail(eventId: String, memberId: String): ShiftNotificationDetail {
+        requestedMemberId = memberId
+        return detail
+    }
+}
+
+private class SuspendedShiftNotificationDetailRepository : ShiftNotificationDetailRepository {
+    val started = CompletableDeferred<Unit>()
+    private val result = CompletableDeferred<ShiftNotificationDetail>()
+
+    override suspend fun getCurrentDetail(eventId: String, memberId: String): ShiftNotificationDetail {
+        started.complete(Unit)
+        return result.await()
+    }
+
+    fun complete(detail: ShiftNotificationDetail) {
+        result.complete(detail)
+    }
+}
+
+private object EmptyShiftNotificationDetailRepository : ShiftNotificationDetailRepository {
+    override suspend fun getCurrentDetail(eventId: String, memberId: String): ShiftNotificationDetail =
+        throw RepositoryException(RepositoryErrorKind.NOT_FOUND, "notifications.shiftDetail")
+}
+
+private fun notificationShiftDetail(): ShiftNotificationDetail = ShiftNotificationDetail(
+    eventId = "event-1",
+    assignmentRevision = 2,
+    documentRevision = 3,
+    shift = ShiftAssignment(
+        id = "shift_delivery_20260902",
+        type = ShiftType.DELIVERY,
+        dateMillis = 1_788_307_200_000,
+        assignedUserIds = listOf("member_1"),
+        helperUserId = "member-2",
+        status = ShiftStatus.PLANNED,
+        source = "app",
+        createdAtMillis = 1_788_307_200_000,
+        updatedAtMillis = 1_788_307_300_000,
+    ),
+)
 
 private class QueuedNewsRepository(
     private val readResults: ArrayDeque<Result<List<NewsArticle>>>,

@@ -11,6 +11,7 @@ import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
+import com.reguerta.user.domain.notifications.ShiftNotificationDetail
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.products.CommonPurchaseType
 import com.reguerta.user.domain.products.Product
@@ -194,6 +195,8 @@ data class SessionUiState(
     val pendingNewsDeletionId: String? = null,
     val newsDeletionRequestRevision: Long = 0L,
     val notificationsFeed: List<NotificationEvent> = emptyList(),
+    val notificationShiftDetail: ShiftNotificationDetail? = null,
+    val loadingNotificationDetailEventId: String? = null,
     val readNotificationIds: Set<String> = emptySet(),
     val pendingNotificationAcknowledgements: List<NotificationEvent> = emptyList(),
     val pendingReadNotificationIds: Set<String> = emptySet(),

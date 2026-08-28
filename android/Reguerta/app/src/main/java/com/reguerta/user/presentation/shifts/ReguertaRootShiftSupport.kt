@@ -29,7 +29,7 @@ import java.time.temporal.WeekFields
 import java.util.Locale
 
 @StringRes
-private fun ShiftType.labelRes(): Int = when (this) {
+internal fun ShiftType.labelRes(): Int = when (this) {
     ShiftType.DELIVERY -> R.string.shifts_type_delivery
     ShiftType.MARKET -> R.string.shifts_type_market
 }

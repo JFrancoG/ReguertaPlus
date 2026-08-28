@@ -27,6 +27,7 @@ import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.notifications.PushNotificationPermissionProvider
+import com.reguerta.user.domain.notifications.ShiftNotificationDetailRepository
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
@@ -80,6 +81,16 @@ class SessionViewModel(
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
     private val authorizedDeviceRegistrar: AuthorizedDeviceRegistrar = AuthorizedDeviceRegistrar { _, _, _ -> },
     private val pushNotificationPermissionProvider: PushNotificationPermissionProvider = PushNotificationPermissionProvider { true },
+    private val shiftNotificationDetailRepository: ShiftNotificationDetailRepository = object :
+        ShiftNotificationDetailRepository {
+        override suspend fun getCurrentDetail(
+            eventId: String,
+            memberId: String,
+        ) = throw com.reguerta.user.domain.RepositoryException(
+            com.reguerta.user.domain.RepositoryErrorKind.NOT_FOUND,
+            "notifications.shiftDetail",
+        )
+    },
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
     private val sessionEnvironmentRouter: SessionEnvironmentRouter = NoOpSessionEnvironmentRouter,
@@ -131,6 +142,7 @@ class SessionViewModel(
             scope = viewModelScope,
             newsRepository = newsRepository,
             notificationRepository = notificationRepository,
+            shiftNotificationDetailRepository = shiftNotificationDetailRepository,
             sharedProfileRepository = sharedProfileRepository,
             imagePipelineManager = imagePipelineManager,
             nowMillisProvider = nowMillisProvider,
@@ -431,6 +443,8 @@ class SessionViewModel(
     fun refreshNotifications() = communityActions.refreshNotifications()
 
     fun prepareNotificationsRoute() = communityActions.prepareNotificationsRoute()
+
+    fun openNotificationDetail(eventId: String) = communityActions.openNotificationDetail(eventId)
 
     fun markVisibleNotificationsReadOnExit() = communityActions.markVisibleNotificationsReadOnExit()
 

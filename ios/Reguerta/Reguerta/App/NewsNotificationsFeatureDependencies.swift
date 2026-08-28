@@ -4,14 +4,16 @@ import Foundation
 struct NewsNotificationsFeatureDependencies {
     let newsRepository: any NewsRepository
     let notificationRepository: any NotificationRepository
+    let shiftNotificationDetailRepository: any ShiftNotificationDetailRepository
     let pushNotificationPermissionProvider: any PushNotificationPermissionProvider
     let imagePipelineManager: any ImagePipelineManager
     let nowMillisProvider: @MainActor () -> Int64
     let environmentProvider: @MainActor () -> SessionEnvironment
 
-    static func live(
+    @MainActor static func live(
         db: Firestore,
         environmentProvider: any SessionEnvironmentSnapshotProviding,
+        functionsClient: AuthenticatedFirebaseFunctionsClient,
         imagePipelineManager: any ImagePipelineManager,
         notificationRepository: (any NotificationRepository)? = nil,
         pushNotificationPermissionProvider: (any PushNotificationPermissionProvider)? = nil,
@@ -21,6 +23,9 @@ struct NewsNotificationsFeatureDependencies {
             newsRepository: FirestoreNewsRepository(firebaseAppName: db.app.name),
             notificationRepository: notificationRepository ??
                 FirestoreNotificationRepository(firebaseAppName: db.app.name),
+            shiftNotificationDetailRepository: FirebaseShiftNotificationDetailRepository(
+                functionsClient: functionsClient
+            ),
             pushNotificationPermissionProvider: pushNotificationPermissionProvider ??
                 IOSPushNotificationPermissionProvider(),
             imagePipelineManager: imagePipelineManager,
@@ -32,6 +37,8 @@ struct NewsNotificationsFeatureDependencies {
     static func preview(
         newsRepository: InMemoryNewsRepository = InMemoryNewsRepository(),
         notificationRepository: InMemoryNotificationRepository = InMemoryNotificationRepository(),
+        shiftNotificationDetailRepository: any ShiftNotificationDetailRepository =
+            UnavailableShiftNotificationDetailRepository(),
         pushNotificationPermissionProvider: any PushNotificationPermissionProvider =
             FixedPushNotificationPermissionProvider(isActive: true),
         imagePipelineManager: any ImagePipelineManager = NoOpImagePipelineManager(),
@@ -41,6 +48,7 @@ struct NewsNotificationsFeatureDependencies {
         NewsNotificationsFeatureDependencies(
             newsRepository: newsRepository,
             notificationRepository: notificationRepository,
+            shiftNotificationDetailRepository: shiftNotificationDetailRepository,
             pushNotificationPermissionProvider: pushNotificationPermissionProvider,
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider,

@@ -27,6 +27,7 @@ import com.reguerta.user.presentation.root.NewsSaveResult
 import com.reguerta.user.presentation.root.NotificationDraft
 import com.reguerta.user.presentation.root.NotificationFeedItem
 import com.reguerta.user.presentation.root.NotificationSendResult
+import com.reguerta.user.domain.notifications.ShiftNotificationDetail
 import com.reguerta.user.presentation.root.ProductDraft
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SharedProfileDraft
@@ -134,6 +135,8 @@ internal fun HomeRoute(
     pendingNewsDeletionId: String?,
     newsDeletionRequestRevision: Long,
     notificationFeedItems: List<NotificationFeedItem>,
+    notificationShiftDetail: ShiftNotificationDetail?,
+    loadingNotificationDetailEventId: String?,
     hasUnreadNotifications: Boolean,
     notificationDraft: NotificationDraft,
     notificationEditorRevision: Long,
@@ -200,6 +203,7 @@ internal fun HomeRoute(
     onStartCreatingNews: () -> Unit,
     onStartCreatingNotification: () -> Unit,
     onPrepareNotificationsRoute: () -> Unit,
+    onOpenNotificationDetail: (String) -> Unit,
     onPrepareBylawsRoute: () -> Unit,
     onCancelBylawsConsultation: () -> Unit,
     onMarkVisibleNotificationsReadOnExit: () -> Unit,
@@ -747,8 +751,12 @@ internal fun HomeRoute(
                     )
 
                     HomeDestination.NOTIFICATIONS -> NotificationsFeedRoute(
-                    notificationItems = notificationFeedItems,
-                    isLoading = isLoadingNotifications,
+                        notificationItems = notificationFeedItems,
+                        shiftDetail = notificationShiftDetail,
+                        loadingDetailEventId = loadingNotificationDetailEventId,
+                        members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                        isLoading = isLoadingNotifications,
+                        onOpenDetail = onOpenNotificationDetail,
                     )
 
                     HomeDestination.ADMIN_BROADCAST -> NotificationEditorRoute(

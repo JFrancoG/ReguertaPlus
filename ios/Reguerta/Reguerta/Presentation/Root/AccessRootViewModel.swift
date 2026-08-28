@@ -281,6 +281,7 @@ private extension AccessRootViewModel {
             feedbackCenter: feedbackCenter,
             newsRepository: dependencies.newsRepository,
             notificationRepository: dependencies.notificationRepository,
+            shiftNotificationDetailRepository: dependencies.shiftNotificationDetailRepository,
             pushNotificationPermissionProvider: dependencies.pushNotificationPermissionProvider,
             imagePipelineManager: dependencies.imagePipelineManager,
             nowMillisProvider: dependencies.nowMillisProvider,

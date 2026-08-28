@@ -338,6 +338,7 @@ private func makeLiveRootAssembly(
         newsNotifications: NewsNotificationsFeatureDependencies.live(
             db: dependencies.db,
             environmentProvider: dependencies.environmentStore,
+            functionsClient: dependencies.functionsClient,
             imagePipelineManager: dependencies.imagePipelineManager,
             notificationRepository: dependencies.notificationRepository,
             nowMillisProvider: nowMillisProvider

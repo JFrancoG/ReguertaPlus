@@ -90,6 +90,7 @@ extension NewsNotificationsFeatureViewModel {
         failureFeedbackOwnership: NotificationMutationEditorOwnership? = nil,
         recoversInitialFailure: Bool = false
     ) async {
+        clearNotificationShiftDetail()
         guard let context = captureAuthorizedSessionContext() else { return }
 
         let operationId = beginNotificationsRefreshOperation()
@@ -156,6 +157,7 @@ extension NewsNotificationsFeatureViewModel {
     }
 
     func markVisibleNotificationsReadOnExit() async {
+        clearNotificationShiftDetail()
         guard let context = captureAuthorizedSessionContext() else { return }
         let unreadIDs = notificationsFeed
             .map(\.id)
@@ -190,6 +192,7 @@ extension NewsNotificationsFeatureViewModel {
         notificationsStateRevision &+= 1
         finishMarkReadOperation(operationId)
     }
+
 }
 
 extension NewsNotificationsFeatureViewModel {
