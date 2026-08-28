@@ -572,8 +572,24 @@ occurred. Protected technical evidence remains outside the repository.
         active atomic rejection, exact expiry, malformed fail-closed state, retry
         remeasurement, and commit transport binding. No Firebase, Functions, FCM,
         or production deployment occurred.
-    - [ ] Remaining: migrate the legacy Sheets importer/planner, specify mobile
-      device-registration retry, then wire real FCM.
+    - [x] Serialize every legacy Sheets importer/planner shift mutation with its
+      exact notification-resource fence; preserve the separately documented
+      external-workbook and multi-shift atomicity limitations.
+    - [x] Classify a Rules-denied Android/iOS device-registration commit as
+      deferred, retain the current authorized context/credential, and retry only
+      on the next authorized session/token event with all existing session, UID,
+      and credential fences. Never mark the deferred write uploaded or delay login
+      with a timer loop; other Firestore failures remain ordinary failures.
+      - [x] Validation: Android `app:testDebugUnitTest` and `app:lintDebug`, iOS
+        SwiftLint (0 violations in 461 files), 2/2 focused Xcode MCP tests, an
+        Xcode MCP build with zero warnings, and 27/27 Firestore role-access Rules
+        emulator vectors pass. The canonical iOS `fast-unit` lane compiled and
+        started but was interrupted after 1043.677 seconds because Xcode remained
+        blocked waiting for test workers and log finalization; no assertion or
+        compile failure was observed. No Firebase, Functions, FCM, or production
+        data deployment occurred.
+    - [ ] Remaining: wire the real FCM transport only after the release path owns
+      the governed dispatch executor.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.

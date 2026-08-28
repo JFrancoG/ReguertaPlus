@@ -71,6 +71,8 @@ actor FirebaseAuthorizedDeviceCoordinator: AuthorizedDeviceRegistrar {
             )
         } catch DeviceRegistrationRepositoryError.staleSession {
             return .skipped
+        } catch DeviceRegistrationRepositoryError.temporarilyBlocked {
+            return .deferred
         } catch is CancellationError {
             throw CancellationError()
         } catch {
@@ -85,6 +87,8 @@ actor FirebaseAuthorizedDeviceCoordinator: AuthorizedDeviceRegistrar {
         do {
             try await performTokenUpdate(token)
         } catch DeviceRegistrationRepositoryError.staleSession {
+            return
+        } catch DeviceRegistrationRepositoryError.temporarilyBlocked {
             return
         } catch is CancellationError {
             throw CancellationError()

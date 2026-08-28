@@ -1,12 +1,14 @@
 package com.reguerta.user.data.devices
 
 import com.reguerta.user.domain.devices.DeviceRegistrationRepository
+import com.reguerta.user.domain.devices.DeviceRegistrationWriteBlockedException
 import com.reguerta.user.domain.devices.RegisteredDevice
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 
 internal enum class AuthorizedDeviceRegistrationWriteResult {
     REGISTERED,
+    DEFERRED,
     TOKEN_SUPERSEDED,
 }
 
@@ -27,7 +29,7 @@ internal class AuthorizedDeviceRegistrationWriter(
             device = device,
             isSessionCurrent = isSessionCurrent,
         )
-        if (firstResult == AuthorizedDeviceRegistrationWriteResult.REGISTERED) {
+        if (firstResult != AuthorizedDeviceRegistrationWriteResult.TOKEN_SUPERSEDED) {
             return firstResult
         }
         if (!isSessionCurrent()) {
@@ -69,6 +71,8 @@ internal class AuthorizedDeviceRegistrationWriter(
                 },
             )
             AuthorizedDeviceRegistrationWriteResult.REGISTERED
+        } catch (_: DeviceRegistrationWriteBlockedException) {
+            AuthorizedDeviceRegistrationWriteResult.DEFERRED
         } catch (error: CancellationException) {
             if (tokenWasSuperseded.get() && isSessionCurrent()) {
                 AuthorizedDeviceRegistrationWriteResult.TOKEN_SUPERSEDED

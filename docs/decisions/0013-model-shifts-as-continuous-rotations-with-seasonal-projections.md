@@ -418,6 +418,11 @@ appends a new revalidated attempt without replacing prior evidence. Canonical ev
 inbox, and push artifacts are generic and detail is authorized/fresh on open.
 Authenticated submission start is the guarantee boundary. Only an intent proved
 never submitted under any dispatch epoch may be cancelled as unreleased. An
+Android or iOS device-registration commit denied by Rules is deferred rather than
+reported as uploaded: the client retains the current authorized context and local
+credential, then retries on the next authorized session or token event through the
+same session/UID/credential fences. It does not spin inside login or reinterpret
+other Firestore failures as notification-dispatch ownership. An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as
 unreleased. Later OS presentation may race state change, so no presentation-time

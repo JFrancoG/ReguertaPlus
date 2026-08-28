@@ -133,6 +133,8 @@ class FirebaseAuthorizedDeviceRegistrar internal constructor(
             )
             if (writeResult == AuthorizedDeviceRegistrationWriteResult.TOKEN_SUPERSEDED) {
                 Log.d(TAG, "A newer push credential superseded the bounded registration retry")
+            } else if (writeResult == AuthorizedDeviceRegistrationWriteResult.DEFERRED) {
+                Log.d(TAG, "Device registration deferred until the next authorized event")
             }
         } catch (error: CancellationException) {
             throw error

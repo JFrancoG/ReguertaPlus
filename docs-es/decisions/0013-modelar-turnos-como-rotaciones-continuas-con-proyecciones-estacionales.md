@@ -430,7 +430,12 @@ estado agregado se deriva. Timeout/expiración pasa a `unknown` posiblemente ent
 y el retry añade otro intento revalidado sin sustituir evidencia. Evento canónico,
 inbox y push son genéricos y el detalle se autoriza con frescura al abrir. El inicio
 de submission autenticada es el límite. Solo se puede cancelar como no liberada una
-intención que se demuestre que nunca inició submission en ningún epoch. Un resultado
+intención que se demuestre que nunca inició submission en ningún epoch. Un registro
+de dispositivo Android o iOS denegado por Rules queda diferido en lugar de marcarse
+como subido: el cliente conserva el contexto autorizado y la credencial local
+vigentes, y reintenta en el siguiente evento autorizado de sesión o token con los
+mismos fences de sesión, UID y credencial. No ejecuta un bucle dentro del login ni
+interpreta otros fallos de Firestore como propiedad del despacho. Un resultado
 `unknown` puede haberse entregado, queda como historial inmutable y se trata mediante
 reconciliación/corrección; nunca vuelve a clasificarse como no liberado. El SO puede
 mostrar después de otro estado. Safe-resume sigue teniendo plazo y no permite otra

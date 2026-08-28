@@ -440,6 +440,13 @@ does not populate Firestore public shifts or activate either mobile app.
   of an authenticated
   submission under a current lease—not an acknowledgement that may be lost. The OS
   may display that generic push after later membership change and may duplicate it.
+  Direct mobile device registration cannot identify the private fence behind a
+  Rules `permission-denied`. Android and iOS therefore classify only a denied
+  registration commit as temporarily blocked, keep the exact authorized context
+  and locally persisted current credential, and report neither upload nor success.
+  They retry on the next authorized session-registration or token-registration
+  event, re-running every existing session/UID/credential fence; they do not spin,
+  delay login, or treat other Firestore failures as a dispatch conflict.
 - The bundle holds release leases on both environment/type rotations until its
   notification batch is terminally reconciled or the activation is rolled back/
   cancelled before irreversible delivery. Preview may remain read-only, but

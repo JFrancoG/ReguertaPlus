@@ -1,3 +1,4 @@
+import FirebaseFirestore
 import Foundation
 import Security
 import Synchronization
@@ -34,6 +35,38 @@ struct P217AuthorizedDeviceProcessAuthorizationTests {
 
         #expect(result == .registered)
         #expect(harness.repository.registrations.map(\.fcmToken) == ["token", "token-b"])
+    }
+
+    @Test func dispatchBlockedRegistrationRetriesOnNextAuthorizedTokenEvent() async throws {
+        let repository = P217RecordingDeviceRegistrationRepository(blockedWriteCount: 1)
+        let harness = makeHarness(repository: repository)
+
+        let result = try await harness.coordinator.register(
+            command: command(),
+            isSessionCurrent: { true }
+        )
+
+        #expect(result == .deferred)
+        #expect(repository.registrations.isEmpty)
+        #expect(try await harness.store.loadString(for: .fcmToken) == "token")
+
+        try await harness.coordinator.updateRegistrationToken("token")
+
+        #expect(repository.registrations.map(\.fcmToken) == ["token"])
+    }
+
+    @Test func firestorePermissionDenialMapsToTemporaryRegistrationBlock() {
+        let permissionDenied = NSError(
+            domain: FirestoreErrorDomain,
+            code: FirestoreErrorCode.permissionDenied.rawValue
+        )
+        let unavailable = NSError(
+            domain: FirestoreErrorDomain,
+            code: FirestoreErrorCode.unavailable.rawValue
+        )
+
+        #expect(deviceRegistrationCommitError(from: permissionDenied) == .temporarilyBlocked)
+        #expect(deviceRegistrationCommitError(from: unavailable) == .unavailable)
     }
 
     @Test func sessionFenceInvalidationDuringTokenUploadPreventsCommit() async throws {
@@ -152,12 +185,19 @@ private final class P217RecordingDeviceRegistrationRepository: DeviceRegistratio
     private let suspendedToken: String?
     private let started: P217TestSignal?
     private let release: P217TestGate?
+    private var blockedWritesRemaining: Int
     var registrations: [P217RecordedDeviceRegistration] = []
 
-    init(suspendedToken: String? = nil, started: P217TestSignal? = nil, release: P217TestGate? = nil) {
+    init(
+        suspendedToken: String? = nil,
+        started: P217TestSignal? = nil,
+        release: P217TestGate? = nil,
+        blockedWriteCount: Int = 0
+    ) {
         self.suspendedToken = suspendedToken
         self.started = started
         self.release = release
+        blockedWritesRemaining = blockedWriteCount
     }
 
     func register(
@@ -168,6 +208,10 @@ private final class P217RecordingDeviceRegistrationRepository: DeviceRegistratio
     ) async throws -> RegisteredDevice {
         guard try await isRegistrationCurrent() else {
             throw DeviceRegistrationRepositoryError.staleSession
+        }
+        if blockedWritesRemaining > 0 {
+            blockedWritesRemaining -= 1
+            throw DeviceRegistrationRepositoryError.temporarilyBlocked
         }
         if suspendedToken != nil, device.fcmToken == suspendedToken {
             await started?.signal()

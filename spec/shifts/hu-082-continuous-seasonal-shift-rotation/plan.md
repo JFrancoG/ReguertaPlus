@@ -416,6 +416,11 @@ documented in the English and Spanish Firestore references before code lands.
   submission starts cancels pending sends. Drift after submission cannot retract
   `unknown`/accepted state; generic presentation race and immutable submitted/
   delivered history are documented rather than called impossible.
+- Mobile device-writer tests: a Rules-denied registration commit is deferred
+  without blocking authentication, retains only the current authorized context and
+  credential, and converges on the next authorized session/token event. A stale
+  session or credential still prevents that later write, and non-permission errors
+  remain ordinary failures rather than false dispatch ownership.
 - Dispatch tests: crash before submit, bounded timeout during submit, lost ack,
   lease expiry to `unknown`, late completion, state-writer contention, and
   revalidated at-least-once retry with a new attempt ID/epoch and possible generic
