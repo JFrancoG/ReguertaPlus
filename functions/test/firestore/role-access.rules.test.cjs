@@ -1044,6 +1044,18 @@ test("admin governance does not imply producer ownership", async () => {
       createdBy: actors.admin.memberId,
       sentAt: new Date(),
     }));
+    await assertFails(adminDb.doc(docPath(env, "notificationEvents", "event_reserved_planning")).set({
+      schemaVersion: 1,
+      operationKind: "shiftPlanningNotification",
+      contentPolicy: "genericReferenceOnly",
+      title: "Private shift detail",
+      body: "Member and date",
+      type: "shift_updated",
+      target: "users",
+      targetPayload: {userIds: [actors.member.memberId]},
+      createdBy: actors.admin.memberId,
+      sentAt: new Date(),
+    }));
     await assertFails(adminDb.doc(docPath(env, "notificationEvents", "event_malformed")).set({
       title: "",
       body: "Missing a valid title and timestamp",

@@ -843,6 +843,23 @@ behind a `Mutex` synchronization owner before the nested callback; focused file
 diagnostics and the exact simulator build report zero project warnings. No
 Firebase/Sheets write, deploy, or production activation occurred.
 
+## Local implementation checkpoint — generic notification discriminator (2026-08-28)
+
+The canonical planning event and immutable per-user inbox copy now carry one
+all-or-none schema-v1 backend discriminator. It retains only the stable event
+reference and the existing generic `shift_updated` title/body; no shift ID,
+member name, date, assignment, or other rich detail enters either consumable
+artifact. Strict Rules prevent an admin/client notification create from reserving
+the discriminator.
+
+Android and iOS decode the exact versioned form into an authorized-detail-fetch
+Domain policy, fail closed for partial metadata or rich planning copy, and retain
+the embedded-content behavior of unversioned legacy notifications. Fetching fresh
+authorized detail on event open and invalidating any ephemeral detail across
+logout, demotion, environment, assignment, offline, or denied states remains a
+separate cut. No Function/Rules deployment, FCM submission, shared Firebase write,
+or production mutation occurred.
+
 ## Suggested labels
 
 - `type:feature`

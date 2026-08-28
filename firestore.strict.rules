@@ -572,6 +572,11 @@ service cloud.firestore {
 
     function isValidAdminNotificationCreate(env, data) {
       return isAdmin(env) &&
+        !data.keys().hasAny([
+          "schemaVersion",
+          "operationKind",
+          "contentPolicy",
+        ]) &&
         data.get("createdBy", "") == actorId(env) &&
         data.get("title", "") is string &&
         data.get("title", "").size() > 0 &&

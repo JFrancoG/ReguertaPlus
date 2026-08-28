@@ -3,6 +3,11 @@ package com.reguerta.user.domain.notifications
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 
+enum class NotificationContentPolicy {
+    EMBEDDED,
+    AUTHORIZED_FETCH_REQUIRED,
+}
+
 data class NotificationEvent(
     val id: String,
     val title: String,
@@ -15,6 +20,7 @@ data class NotificationEvent(
     val createdBy: String,
     val sentAtMillis: Long,
     val weekKey: String?,
+    val contentPolicy: NotificationContentPolicy = NotificationContentPolicy.EMBEDDED,
 ) {
     fun isVisibleTo(member: Member): Boolean =
         when (target) {

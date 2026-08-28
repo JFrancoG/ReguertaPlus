@@ -9,6 +9,7 @@ import com.reguerta.user.data.notifications.decodeNotificationDocuments
 import com.reguerta.user.domain.RepositoryErrorKind
 import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.notifications.NotificationContentPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -110,6 +111,46 @@ class FirestoreCommunityFeedDecodingTest {
         assertEquals(listOf("member-1", "member-2"), users.userIds)
         assertEquals("role", segment.segmentType)
         assertEquals(MemberRole.PRODUCER, segment.targetRole)
+    }
+
+    @Test
+    fun `versioned planning notification requires generic copy and authorized detail fetch`() {
+        val exact = validPlanningNotificationDocument()
+        val event = decodeNotificationDocument(
+            "planning-event",
+            exact,
+            NotificationDocumentSource.EVENT,
+        )
+
+        assertEquals(NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED, event.contentPolicy)
+
+        val richCopyError = repositoryError {
+            decodeNotificationDocument(
+                "planning-event",
+                exact + ("body" to "Ana reparte el 2 de septiembre"),
+                NotificationDocumentSource.EVENT,
+            )
+        }
+        assertEquals(RepositoryErrorKind.INVALID_DATA, richCopyError.kind)
+
+        val partialMarkerError = repositoryError {
+            decodeNotificationDocument(
+                "planning-event",
+                exact - "contentPolicy",
+                NotificationDocumentSource.EVENT,
+            )
+        }
+        assertEquals(RepositoryErrorKind.INVALID_DATA, partialMarkerError.kind)
+
+        val legacy = decodeNotificationDocument(
+            "legacy-shift-event",
+            validNotificationDocument(
+                target = "users",
+                targetPayload = mapOf("userIds" to listOf("member-1")),
+            ) + ("type" to "shift_updated"),
+            NotificationDocumentSource.EVENT,
+        )
+        assertEquals(NotificationContentPolicy.EMBEDDED, legacy.contentPolicy)
     }
 
     @Test
@@ -285,5 +326,19 @@ private fun validNotificationDocument(
     "targetPayload" to targetPayload,
     "sentAt" to Timestamp(456, 0),
     "createdBy" to "admin-1",
+    "weekKey" to null,
+)
+
+private fun validPlanningNotificationDocument(): Map<String, Any?> = mapOf(
+    "schemaVersion" to 1L,
+    "operationKind" to "shiftPlanningNotification",
+    "contentPolicy" to "genericReferenceOnly",
+    "title" to "Turnos actualizados",
+    "body" to "Consulta la aplicación para ver la información actualizada.",
+    "type" to "shift_updated",
+    "target" to "users",
+    "targetPayload" to mapOf("userIds" to listOf("member-1")),
+    "sentAt" to Timestamp(456, 0),
+    "createdBy" to "system",
     "weekKey" to null,
 )

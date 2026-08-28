@@ -181,6 +181,9 @@ test("builds one generic compatible event with explicit at-least-once policy", (
 
   assert.equal(artifacts.eventId, intent.intentId);
   assert.deepEqual(artifacts.event, {
+    schemaVersion: 1,
+    operationKind: "shiftPlanningNotification",
+    contentPolicy: "genericReferenceOnly",
     title: "Turnos actualizados",
     body: "Consulta la aplicación para ver la información actualizada.",
     type: "shift_updated",
@@ -190,6 +193,12 @@ test("builds one generic compatible event with explicit at-least-once policy", (
     createdBy: "system",
   });
   assert.equal(artifacts.inbox.notificationEventId, intent.intentId);
+  assert.equal(artifacts.inbox.schemaVersion, 1);
+  assert.equal(
+    artifacts.inbox.operationKind,
+    "shiftPlanningNotification",
+  );
+  assert.equal(artifacts.inbox.contentPolicy, "genericReferenceOnly");
   assert.deepEqual(artifacts.receipt.dispatchPolicy, {
     deliveryGuarantee: "atLeastOnce",
     duplicatePresentationPossible: true,

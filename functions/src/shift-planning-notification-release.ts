@@ -17,6 +17,9 @@ export const SHIFT_PLANNING_NOTIFICATION_RELEASE_SCHEMA_VERSION = 1 as const;
 export const SHIFT_PLANNING_NOTIFICATION_EVENT_TYPE = "shift_updated" as const;
 
 export type ShiftPlanningCanonicalNotificationEvent = {
+  schemaVersion: typeof SHIFT_PLANNING_NOTIFICATION_RELEASE_SCHEMA_VERSION;
+  operationKind: "shiftPlanningNotification";
+  contentPolicy: "genericReferenceOnly";
   title: "Turnos actualizados";
   body: "Consulta la aplicación para ver la información actualizada.";
   type: typeof SHIFT_PLANNING_NOTIFICATION_EVENT_TYPE;
@@ -283,6 +286,9 @@ export const createShiftPlanningNotificationReleaseArtifacts = (input: {
     market: syncReadBack(input.marketSync, "market", intent),
   };
   const event: ShiftPlanningCanonicalNotificationEvent = {
+    schemaVersion: SHIFT_PLANNING_NOTIFICATION_RELEASE_SCHEMA_VERSION,
+    operationKind: "shiftPlanningNotification",
+    contentPolicy: "genericReferenceOnly",
     title: "Turnos actualizados",
     body: "Consulta la aplicación para ver la información actualizada.",
     type: SHIFT_PLANNING_NOTIFICATION_EVENT_TYPE,

@@ -731,10 +731,20 @@ occurred. Protected technical evidence remains outside the repository.
   event-reference push, with no member name, shift date, or effective assignment.
   Fetch authorized current-revision detail on every push/inbox open; document the
   irreducible later OS-display race.
+  - [x] Version the backend-only generic event/inbox discriminator and preserve it
+    through the immutable per-user copy without adding shift/member/date detail.
+  - [ ] Remaining: fetch and render current detail only through an authorized fresh
+    read when the member opens the event reference.
 - [ ] Version backend/mobile event and inbox schemas/decoders so legacy required
   `title`/`body` fields receive only generic copy for these events. Add Rules,
   repository, offline-cache, logout/demotion/environment/assignment-drift tests;
   purge ephemeral detail and show generic state when fresh fetch is unavailable.
+  - [x] Android and iOS accept the exact schema-v1 planning discriminator, map it
+    to an authorized-fetch Domain policy, reject partial/rich/spoofed forms, and
+    preserve unversioned event behavior. Strict Rules reserve its fields for the
+    backend runtime.
+  - [ ] Remaining: add authorized-open/cache invalidation behavior and its context-
+    drift/offline/denied regressions.
 - [ ] Store held notification intents outside every currently watched consumer
   path; create canonical events only during explicit idempotent release.
 - [ ] Test old/current/candidate consumer and rollback combinations against the

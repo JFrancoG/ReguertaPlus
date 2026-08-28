@@ -1,5 +1,10 @@
 import Foundation
 
+enum NotificationContentPolicy: Equatable {
+    case embedded
+    case authorizedFetchRequired
+}
+
 struct NotificationEvent: Identifiable, Equatable {
     let id: String
     let title: String
@@ -12,6 +17,7 @@ struct NotificationEvent: Identifiable, Equatable {
     let createdBy: String
     let sentAtMillis: Int64
     let weekKey: String?
+    let contentPolicy: NotificationContentPolicy
 
     func isVisible(to member: Member) -> Bool {
         switch target {
@@ -25,5 +31,36 @@ struct NotificationEvent: Identifiable, Equatable {
         default:
             return false
         }
+    }
+}
+
+extension NotificationEvent {
+    init(
+        id: String,
+        title: String,
+        body: String,
+        type: String,
+        target: String,
+        userIds: [String],
+        segmentType: String?,
+        targetRole: MemberRole?,
+        createdBy: String,
+        sentAtMillis: Int64,
+        weekKey: String?
+    ) {
+        self.init(
+            id: id,
+            title: title,
+            body: body,
+            type: type,
+            target: target,
+            userIds: userIds,
+            segmentType: segmentType,
+            targetRole: targetRole,
+            createdBy: createdBy,
+            sentAtMillis: sentAtMillis,
+            weekKey: weekKey,
+            contentPolicy: .embedded
+        )
     }
 }

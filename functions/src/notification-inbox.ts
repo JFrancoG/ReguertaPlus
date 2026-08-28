@@ -1,5 +1,8 @@
 export type NotificationInboxDocument = {
   notificationEventId: string;
+  schemaVersion?: 1;
+  operationKind?: "shiftPlanningNotification";
+  contentPolicy?: "genericReferenceOnly";
   title: string;
   body: string;
   type: string;
@@ -18,6 +21,39 @@ const parseRecord = (value: unknown): Record<string, unknown> =>
     value as Record<string, unknown> :
     {};
 
+const GENERIC_SHIFT_NOTIFICATION_BODY =
+  "Consulta la aplicación para ver la información actualizada.";
+
+const planningNotificationMetadata = (
+  event: Record<string, unknown>,
+): Pick<
+NotificationInboxDocument,
+"schemaVersion" | "operationKind" | "contentPolicy"
+> | null | undefined => {
+  const fields = ["schemaVersion", "operationKind", "contentPolicy"];
+  const present = fields.filter((field) => event[field] !== undefined);
+  if (present.length === 0) return undefined;
+  if (
+    present.length !== fields.length ||
+    event.schemaVersion !== 1 ||
+    event.operationKind !== "shiftPlanningNotification" ||
+    event.contentPolicy !== "genericReferenceOnly" ||
+    event.title !== "Turnos actualizados" ||
+    event.body !== GENERIC_SHIFT_NOTIFICATION_BODY ||
+    event.type !== "shift_updated" ||
+    event.target !== "users" ||
+    event.createdBy !== "system" ||
+    event.weekKey !== undefined
+  ) {
+    return null;
+  }
+  return {
+    schemaVersion: 1,
+    operationKind: "shiftPlanningNotification",
+    contentPolicy: "genericReferenceOnly",
+  };
+};
+
 export const buildNotificationInboxDocument = (
   eventIdValue: unknown,
   eventValue: unknown,
@@ -31,6 +67,7 @@ export const buildNotificationInboxDocument = (
   const targetValue = parseString(event.target)?.toLowerCase();
   const createdBy = parseString(event.createdBy);
   const recipientMemberId = parseString(recipientMemberIdValue);
+  const planningMetadata = planningNotificationMetadata(event);
   if (
     !eventId ||
     !title ||
@@ -39,6 +76,7 @@ export const buildNotificationInboxDocument = (
     !createdBy ||
     event.sentAt === null ||
     event.sentAt === undefined ||
+    planningMetadata === null ||
     (targetValue !== "all" &&
       targetValue !== "users" &&
       targetValue !== "segment")
@@ -66,6 +104,7 @@ export const buildNotificationInboxDocument = (
 
   const result: NotificationInboxDocument = {
     notificationEventId: eventId,
+    ...planningMetadata,
     title,
     body,
     type,

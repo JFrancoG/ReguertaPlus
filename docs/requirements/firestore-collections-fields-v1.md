@@ -908,6 +908,9 @@ candidate read boundaries above. Neither Rules change has been deployed.
 
 ### 4.11 `notificationEvents/{eventId}` (recommended)
 
+- `schemaVersion`: integer (optional; `1` only for governed shift-planning events)
+- `operationKind`: string (optional; `shiftPlanningNotification` only with `schemaVersion = 1`)
+- `contentPolicy`: string (optional; `genericReferenceOnly` only with `schemaVersion = 1`)
 - `title`: string (required)
 - `body`: string (required)
 - `type`: string (`order_reminder`|`order_auto_generated`|`shift_swap_requested`|`shift_swap_available`|`shift_swap_unavailable`|`shift_swap_accepted`|`shift_swap_applied`|`shift_updated`|`news_published`|`admin_broadcast`) (required)
@@ -928,6 +931,13 @@ event. Clients list only their own inbox; only backend code writes or removes
 inbox documents. The global `notificationEvents` collection remains the source
 for dispatch and admin audit, not the strict Reguerta+ member feed query. The
 separate `collections` tree retains the published apps' legacy feed contract.
+
+The three optional planning fields form one all-or-none backend-only discriminator.
+Its event and inbox copy must use `type = shift_updated`, `target = users`,
+`createdBy = system`, no `weekKey`, and exactly the generic title/body defined by
+the shift-planning release contract. Android and iOS map that discriminator to an
+authorized-detail-fetch policy; unversioned events retain their legacy embedded
+content behavior. Client/admin event creation cannot reserve these fields.
 
 `targetPayload` contract:
 - For `target == all`: empty map.

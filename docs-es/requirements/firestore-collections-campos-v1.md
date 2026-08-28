@@ -1026,6 +1026,9 @@ Ninguno de esos cambios de Rules se ha desplegado.
 
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
+| `schemaVersion` | integer | no | sistema | `1` solo para eventos gobernados de planificacion de turnos |
+| `operationKind` | string | no | sistema | `shiftPlanningNotification` solo con `schemaVersion = 1` |
+| `contentPolicy` | string | no | sistema | `genericReferenceOnly` solo con `schemaVersion = 1` |
 | `title` | string | si | sistema/admin | titulo mostrado en push y listado |
 | `body` | string | si | sistema/admin | cuerpo mostrado en push y listado |
 | `type` | string | si | sistema/admin | `order_reminder`/`order_auto_generated`/`shift_swap_requested`/`shift_swap_available`/`shift_swap_unavailable`/`shift_swap_accepted`/`shift_swap_applied`/`shift_updated`/`news_published`/`admin_broadcast` |
@@ -1047,6 +1050,14 @@ elimina estos documentos. La coleccion global `notificationEvents` conserva el
 dispatch y la auditoria admin, pero no se consulta como feed de socio de
 Reguerta+ estricto. El arbol separado `collections` conserva el contrato de feed
 legacy de las apps publicadas.
+
+Los tres campos opcionales de planificacion forman un unico discriminador
+backend-only: aparecen todos o ninguno. Su evento y copia de inbox deben usar
+`type = shift_updated`, `target = users`, `createdBy = system`, no incluir
+`weekKey` y conservar exactamente el titulo/cuerpo genericos del contrato de
+liberacion. Android e iOS lo convierten en una politica de consulta autorizada
+del detalle; los eventos sin version mantienen su contenido embebido legacy. La
+creacion cliente/admin no puede reservar estos campos.
 
 Contrato de `targetPayload`:
 - Para `target == all`: mapa vacio.
