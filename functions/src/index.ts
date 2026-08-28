@@ -71,6 +71,9 @@ import {
   inspectShiftPlanningNotificationWriterFences,
   runShiftPlanningNotificationGuardedShiftWrite,
 } from "./shift-planning-firestore-notification-writer-fence.js";
+import {
+  classifyShiftPlanningNotificationDeliveryAuthority,
+} from "./shift-planning-notification-delivery-authority.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
@@ -3860,6 +3863,23 @@ export const onNotificationEventCreated = onDocumentCreatedWithAuthContext(
 
     const eventId = event.params.eventId;
     const eventData = parseBody(snapshot.data());
+    const releaseReceipt = await firestore.doc(
+      `${env}/plus-collections/shiftPlanningNotificationIntents/` +
+        `${eventId}/releases/canonical`,
+    ).get();
+    const deliveryAuthority =
+      classifyShiftPlanningNotificationDeliveryAuthority({
+        eventId,
+        event: eventData,
+        releaseReceipt: releaseReceipt.exists ? releaseReceipt.data() : null,
+      });
+    if (deliveryAuthority === "governed") {
+      logger.info(
+        "Canonical shift notification reserved for governed dispatch",
+        {env, eventId},
+      );
+      return;
+    }
     const payload = parseNotificationDispatchPayload(
       eventData
     );

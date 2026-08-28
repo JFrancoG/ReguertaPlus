@@ -117,7 +117,10 @@ documented in the English and Spanish Firestore references before code lands.
   integrates those records with the real trigger and alert channel.
 - Keep held notification intents in a backend-owned outbox/path not watched by
   the existing notification trigger; release creates canonical events with
-  stable idempotency keys.
+  stable idempotency keys. Make the existing trigger read the backend-only
+  companion receipt before any fan-out: receipt absence preserves legacy events,
+  exact receipt/event evidence reserves governed dispatch, and present malformed
+  evidence fails closed without using the legacy transport.
 - Add/update strict Firestore Rules for backend-owned state and client-readable
   request results.
 - Add backend-owned monotonic maintenance/write epoch plus active-revision state.

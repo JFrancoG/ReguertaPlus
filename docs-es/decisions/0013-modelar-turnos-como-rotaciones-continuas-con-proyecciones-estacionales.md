@@ -435,7 +435,12 @@ de dispositivo Android o iOS denegado por Rules queda diferido en lugar de marca
 como subido: el cliente conserva el contexto autorizado y la credencial local
 vigentes, y reintenta en el siguiente evento autorizado de sesión o token con los
 mismos fences de sesión, UID y credencial. No ejecuta un bucle dentro del login ni
-interpreta otros fallos de Firestore como propiedad del despacho. Un resultado
+interpreta otros fallos de Firestore como propiedad del despacho. El trigger de
+eventos de notificación existente comprueba el recibo de liberación backend-only
+antes de cualquier fan-out de inbox o llamada FCM genérica. La ausencia de recibo
+conserva el reparto legacy, la evidencia exacta recibo/evento reserva el dispatcher
+gobernado y una evidencia presente malformada o divergente falla cerrada sin volver
+al flujo legacy. Un resultado
 `unknown` puede haberse entregado, queda como historial inmutable y se trata mediante
 reconciliación/corrección; nunca vuelve a clasificarse como no liberado. El SO puede
 mostrar después de otro estado. Safe-resume sigue teniendo plazo y no permite otra

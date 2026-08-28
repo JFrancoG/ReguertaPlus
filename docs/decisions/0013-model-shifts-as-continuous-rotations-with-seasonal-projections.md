@@ -423,6 +423,11 @@ reported as uploaded: the client retains the current authorized context and loca
 credential, then retries on the next authorized session or token event through the
 same session/UID/credential fences. It does not spin inside login or reinterpret
 other Firestore failures as notification-dispatch ownership. An
+existing notification-event trigger checks the backend-only companion release
+receipt before any inbox fan-out or generic FCM call. Receipt absence retains
+legacy delivery, exact receipt/event evidence reserves the governed dispatcher,
+and present malformed or drifting evidence fails closed without legacy fallback.
+An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as
 unreleased. Later OS presentation may race state change, so no presentation-time

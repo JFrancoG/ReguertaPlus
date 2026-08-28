@@ -510,8 +510,17 @@ occurred. Protected technical evidence remains outside the repository.
     active eligibility, and shared membership/eligibility/destination revisions,
     then creates one stable legacy-compatible generic event, inbox row, and
     backend-only receipt. Exact replay is write-free and stale input creates none.
-  - [ ] Connect release only after the legacy notification trigger is replaced by
-    the governed dispatch lease and append-only FCM attempt lifecycle below.
+  - [x] Reserve receipt-bound canonical shift events for the governed dispatcher
+    before the legacy trigger performs inbox fan-out or generic FCM delivery.
+    Receipt absence preserves unrelated legacy events; present malformed or
+    drifting evidence fails closed instead of falling back to legacy delivery.
+    - [x] Validation: Node 22 Functions lint/build, 217/217 executed planning
+      vectors with 30 emulator-only skips, 4/4 focused delivery-authority
+      vectors, and 2/2 modular Admin SDK vectors pass. No trigger export, deploy,
+      live Firestore write, FCM submission, inbox fan-out, or notification
+      occurred.
+  - [ ] Connect release to the governed dispatch executor and real Firebase
+    transport only after the explicit invocation boundary is defined.
   - [x] Validation: Node 22 Functions lint/build, 198/198 executed planning unit
     vectors (16 emulator-only skips), 6/6 focused release emulator vectors, and
     3/3 source-producer plus 26/26 strict Firestore Rules emulator vectors pass.
@@ -588,8 +597,10 @@ occurred. Protected technical evidence remains outside the repository.
         blocked waiting for test workers and log finalization; no assertion or
         compile failure was observed. No Firebase, Functions, FCM, or production
         data deployment occurred.
-    - [ ] Remaining: wire the real FCM transport only after the release path owns
-      the governed dispatch executor.
+    - [x] Transfer receipt-bound canonical-event ownership away from the legacy
+      inbox/FCM trigger while preserving events without a release receipt.
+    - [ ] Remaining: compose release with the governed dispatch executor, then
+      wire the real Firebase transport through an explicit invocation boundary.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.

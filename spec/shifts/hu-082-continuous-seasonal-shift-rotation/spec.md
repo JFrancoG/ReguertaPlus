@@ -465,6 +465,11 @@ does not populate Firestore public shifts or activate either mobile app.
   operation creates canonical consumable events with stable idempotency keys.
   A generic `status = held` inside an already watched collection is insufficient
   unless every current and candidate consumer is proven fail-closed for it.
+  Before any inbox fan-out or generic FCM call, the existing notification-event
+  trigger reads the backend-only canonical release receipt. No receipt preserves
+  legacy delivery. An exact receipt-bound generic event is reserved exclusively
+  for the governed dispatcher; a present but malformed or drifting receipt/event
+  fails closed and never falls back to legacy delivery.
 - Every intent is bound to the active assignment revision, recipient UID,
   membership/eligibility version, and token/destination version. Release performs
   the version read and event/inbox claim in one transaction/CAS. Every FCM attempt
