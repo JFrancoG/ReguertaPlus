@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-28 | 📝 docs(hu-086): record delivery closeout
 - 2026-08-23 | 📝 docs(ios): prepare HU-081 closeout
 - 2026-08-23 | 📝 docs(ios): record HU-081 swap checkpoint
 - 2026-08-23 | 📝 docs(ios): start HU-081 swap ownership
@@ -30,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-28 | ✨ feat(orders): add guarded weekly migration
 - 2026-07-29 | ✨ feat(order): refresh critical data before entry
 - 2026-07-27 | ✨ feat(ios): adopt linked authorization
 - 2026-07-27 | ✨ feat(android): adopt linked authorization
