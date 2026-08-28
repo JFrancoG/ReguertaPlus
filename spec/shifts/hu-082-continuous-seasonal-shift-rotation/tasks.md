@@ -561,9 +561,20 @@ occurred. Protected technical evidence remains outside the repository.
       and 2/2 modular Admin SDK vectors pass. No reconciliation persistence,
       lease clear, deploy, live Firestore write, FCM submission, or notification
       occurred.
-  - [ ] Persist the reconciliation with one Firestore CAS over both rotations,
+  - [x] Persist the reconciliation with one Firestore CAS over both rotations,
     the exact intents/attempt histories, active lineage, and immutable replay
     record; prove any drift or partial evidence writes nothing.
+    - [x] The local repository treats the persisted active bundle as canonical,
+      compares its complete intent list with the live collection, verifies every
+      dispatch counter and named append-only attempt, reconstructs the pure plan,
+      advances maintenance `stateRevision`/`writeEpoch` and both rotation
+      revisions, clears both leases, and creates one digest-bound replay record
+      in the same transaction. It remains absent from `index.ts`.
+    - [x] Validation: Node 22 Functions lint/build, 235/235 executed planning
+      vectors with 30 emulator-only skips, 1/1 local repository command vector,
+      5/5 focused Firestore-emulator vectors, and 2/2 modular Admin SDK vectors
+      pass. No shared-project write, Function export, deploy, FCM submission, or
+      notification occurred.
   - [ ] Add the explicit terminal-incident path and safe-resume degraded-mode
     authority before allowing abandoned non-terminal batches to clear.
 - [ ] Define safe resume as degraded mode with affected-shift mutation fence,

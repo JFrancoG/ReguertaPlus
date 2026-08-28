@@ -338,7 +338,11 @@ documented in the English and Spanish Firestore references before code lands.
   paired lease ownership and contiguous intent set, reduce only complete terminal
   attempt histories, preserve possible-delivery evidence, distinguish definitive
   authenticated failure from demonstrably unsubmitted, and emit two exact clear
-  actions under one digest. Add transactional persistence/CAS separately.
+  actions under one digest. Persist it locally with one Firestore transaction that
+  treats the bundle artifact as canonical intent authority, proves the live intent
+  set and dispatch counters/attempts exact, advances the maintenance epoch and
+  both rotation revisions, clears both leases atomically, and records replay
+  evidence. Keep terminal incidents separate.
 - Bind intents to assignment/member/token versions. Claim and create event/inbox
   through one transaction/CAS that reads those current versions; stale input writes
   nothing. Before every FCM send/retry, acquire a short lease honored by all writers

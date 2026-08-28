@@ -27,6 +27,8 @@
     "test:shift-planning:notification-dispatch": "npm run build && node --test test/shift-planning-notification-dispatch.test.cjs",
     "test:shift-planning:notification-dispatch:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu082-notification-dispatch --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-notification-dispatch.test.cjs\"",
     "test:shift-planning:notification-dispatch-executor": "npm run build && node --test test/shift-planning-notification-dispatch-executor.test.cjs",
+    "test:shift-planning:notification-batch-reconciliation": "npm run build && node --test test/shift-planning-firestore-notification-batch-reconciliation-repository.test.cjs",
+    "test:shift-planning:notification-batch-reconciliation:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu082-notification-batch --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-firestore-notification-batch-reconciliation-repository.test.cjs\"",
     "test:shift-planning:notification-resource-fence": "npm run build && node --test test/shift-planning-notification-resource-fence.test.cjs",
     "test:shift-planning:notification-writer-fence": "npm run build && node --test test/shift-planning-notification-writer-fence.test.cjs",
     "test:shift-planning:notification-writer-fence:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu082-notification-writer-fence --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-notification-writer-fence.test.cjs\"",

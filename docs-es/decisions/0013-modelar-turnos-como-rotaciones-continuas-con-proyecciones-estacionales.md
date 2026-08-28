@@ -453,6 +453,14 @@ read-back de IAM, exportación, despliegue y primera invocación real. Cualquier
 que escape de una ejecución aceptada se expone como resultado desconocido: la capa
 HTTP no puede inferir que un error de estado precedió al submission autenticado salvo
 que el ejecutor inferior haya persistido y devuelto esa evidencia terminal.
+Un repositorio local de reconciliación Firestore, no exportado, toma el bundle activo
+persistido como conjunto canónico de intenciones, verifica transaccionalmente las
+intenciones live exactas, contadores de dispatch e intentos append-only nombrados, y
+reconstruye el plan puro del lote terminal. Un solo CAS avanza el epoch compartido de
+mantenimiento y las revisiones de ambas rotaciones, despeja las dos leases exactas y
+crea evidencia inmutable de replay ligada por digest. Evidencia ausente, extra,
+activa, parcial o con otro linaje no escribe nada. La autoridad de incidente terminal
+y safe-resume degradado queda separada.
 Un resultado
 `unknown` puede haberse entregado, queda como historial inmutable y se trata mediante
 reconciliación/corrección; nunca vuelve a clasificarse como no liberado. El SO puede

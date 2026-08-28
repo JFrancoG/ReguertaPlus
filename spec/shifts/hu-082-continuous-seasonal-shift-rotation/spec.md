@@ -457,8 +457,13 @@ does not populate Firestore public shifts or activate either mobile app.
   both exact leases. `accepted` and `unknown` remain possible-delivery evidence;
   a definitive authenticated failure is distinct from an intent demonstrated to
   have never crossed authenticated submission. Missing, duplicate, non-terminal,
-  cross-lineage, or partial evidence retains both leases. Persistence, CAS, and
-  terminal-incident authority remain later cuts.
+  cross-lineage, or partial evidence retains both leases. A local, non-exported
+  Firestore repository now reconstructs that plan inside one transaction from the
+  canonical persisted bundle, exact intent collection, dispatch counters, and
+  named attempt documents. It advances the shared maintenance epoch and both
+  rotation revisions, clears both leases together, and creates one immutable
+  replay record; any drift writes nothing. Terminal-incident authority remains a
+  later cut.
 - A safe-resume residual is an explicit degraded mode with an owner, TTL, and
   escalation. It mutation-fences affected shifts while unrelated traffic runs.
   At TTL expiry the operator must finish release or terminalize the incident by

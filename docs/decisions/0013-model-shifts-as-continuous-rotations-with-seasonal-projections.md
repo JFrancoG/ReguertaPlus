@@ -440,6 +440,13 @@ IAM read-back, export, deployment, and first live invocation. Any error escaping
 accepted execution is exposed as unknown: the HTTP layer cannot infer that a state
 error preceded authenticated submission unless the lower executor persisted and
 returned that terminal evidence.
+A local, non-exported Firestore reconciliation repository treats the persisted
+active bundle as the canonical intent set, transactionally verifies the exact live
+intents, dispatch counters, and named append-only attempts, and rebuilds the pure
+terminal batch plan. One CAS advances the shared maintenance epoch and both
+rotation revisions, clears both exact leases, and creates immutable digest-bound
+replay evidence. Missing, extra, active, partial, or cross-lineage evidence writes
+nothing. Terminal-incident and degraded safe-resume authority remain separate.
 An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as
