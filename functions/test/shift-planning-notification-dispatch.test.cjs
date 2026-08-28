@@ -10,6 +10,11 @@ const {
   "../lib/shift-planning-firestore-notification-dispatch-repository.js"
 );
 const {
+  createShiftPlanningNotificationDispatchExecutor,
+} = require(
+  "../lib/shift-planning-notification-dispatch-executor.js"
+);
+const {
   createShiftPlanningClaimedNotificationAttempt,
   deriveShiftPlanningNotificationDispatchAggregate,
   genericShiftPlanningPush,
@@ -259,6 +264,10 @@ test("builds only a stable generic event-reference push", () => {
   const push = genericShiftPlanningPush("event-1");
   assert.deepEqual(push, {
     collapseKey: "event-1",
+    notification: {
+      title: "Turnos actualizados",
+      body: "Consulta la aplicación para ver la información actualizada.",
+    },
     data: {eventId: "event-1", type: "shift_updated", target: "users"},
   });
   assert.equal(JSON.stringify(push).includes("member-1"), false);
@@ -533,4 +542,55 @@ test("terminalizes an unsubmitted attempt without possible delivery", {
   assert.equal(failed.attempt.authenticatedStartedAt, null);
   assert.equal(failed.attempt.terminal.outcome, "failed");
   assert.equal(failed.attempt.terminal.possiblyDelivered, false);
+});
+
+test("bounded executor persists an accepted fake transport result", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const intent = await seed();
+  const executor = createShiftPlanningNotificationDispatchExecutor({
+    repository,
+    transport: {
+      async submit(request) {
+        assert.deepEqual(request.push.data, {
+          eventId: intent.intentId,
+          type: "shift_updated",
+          target: "users",
+        });
+        return {outcome: "accepted", acceptedTargetCount: 2};
+      },
+    },
+    nowMillis: () => nowMillis,
+    transportTimeoutMillis: 10,
+  });
+  const result = await executor.execute({
+    environment,
+    intentId: intent.intentId,
+    workerId: "dispatch-worker-1",
+    attemptId: "dispatch-attempt-1",
+  });
+  assert.equal(result.kind, "completed");
+  assert.equal(result.attempt.terminal.outcome, "accepted");
+});
+
+test("bounded executor persists a timed-out fake transport as unknown", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const intent = await seed();
+  const executor = createShiftPlanningNotificationDispatchExecutor({
+    repository,
+    transport: {submit: () => new Promise(() => {})},
+    nowMillis: () => nowMillis,
+    transportTimeoutMillis: 5,
+  });
+  const result = await executor.execute({
+    environment,
+    intentId: intent.intentId,
+    workerId: "dispatch-worker-1",
+    attemptId: "dispatch-attempt-1",
+  });
+  assert.equal(result.kind, "completed");
+  assert.equal(result.attempt.terminal.outcome, "unknown");
+  assert.equal(result.attempt.terminal.failureCode, "transport_timeout");
+  assert.equal(result.attempt.terminal.possiblyDelivered, true);
 });

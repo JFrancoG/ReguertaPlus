@@ -844,9 +844,15 @@ The separate local dispatch repository is likewise not exported. It claims one
 short fenced attempt, revalidates the same assignment/member/device source again
 immediately before recording authenticated submission start, returns only a
 generic `eventId`/`shift_updated` push with a stable collapse key, and preserves
-late or expired submission as immutable `unknown`. Actual FCM transport,
-writer-honored lease integration, bounded network execution, and trigger
-replacement remain pending.
+late or expired submission as immutable `unknown`. Actual FCM invocation,
+writer-honored lease integration and trigger replacement remain pending. A local,
+non-exported Firebase adapter and executor now bound each transport wait to 10
+seconds inside the 30-second lease. Explicit per-target rejection is `failed`;
+timeout, throw, acknowledgement mismatch, or exhausted post-authorization lease
+budget is immutable possibly-delivered `unknown`. Known acceptance remains
+`accepted` even if a later target batch is ambiguous. The adapter retains neither
+raw acknowledgements nor errors and emits only generic title/body/data with stable
+Android and APNs collapse keys.
 Still pending and fail-closed are the isolated-clone size/index rehearsal, live
 Google control-plane implementations and trusted intake-barrier wiring, writer
 migration, notification dispatch/reconciliation consumers, production deployment,

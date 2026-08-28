@@ -10,6 +10,7 @@ const readProjectFile = (relativePath) =>
 test("Firebase Admin runtime uses only modular entrypoints", () => {
   const runtimeFiles = [
     "src/index.ts",
+    "src/shift-planning-firebase-notification-transport.ts",
     "scripts/backfill-auth-links.cjs",
     "scripts/backfill-member-directory.cjs",
     "scripts/backfill-notification-inbox.cjs",

@@ -532,7 +532,7 @@ occurred. Protected technical evidence remains outside the repository.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`; derive aggregate state without replacing evidence.
-- [ ] Use bounded timeout, keep ambiguous expiry as immutable possibly delivered
+- [x] Use bounded timeout, keep ambiguous expiry as immutable possibly delivered
   `unknown`, and append a new revalidated attempt for any at-least-once retry.
   - [x] Firestore expiry/takeover converts an unsubmitted claim to terminal
     `failed`, converts a started attempt to immutable `unknown`, rejects late
@@ -541,8 +541,15 @@ occurred. Protected technical evidence remains outside the repository.
     vectors (21 emulator-only skips), 7/7 focused dispatch, 6/6 release, and
     26/26 strict Firestore Rules emulator vectors pass. No export, deploy, live
     Firestore write, FCM submission, or notification occurred.
-  - [ ] Add the bounded transport executor and classify its accepted, definitive
-    failure, timeout, and ambiguous return paths through this repository.
+  - [x] Add the local, non-exported 10-second transport executor and classify its
+    accepted, definitive failure, timeout, thrown-error, malformed-response, and
+    exhausted-lease paths through the append-only repository. The injected
+    Firebase adapter separates token/FID batches, sends only generic copy/data,
+    and never retains raw acknowledgements or errors.
+  - [x] Validation: Node 22 Functions lint/build, 209/209 executed planning unit
+    vectors (23 emulator-only skips), 9/9 focused executor, 9/9 dispatch emulator,
+    6/6 release emulator, and 2/2 modular Admin SDK vectors pass. No export,
+    deploy, live Firestore write, FCM submission, or notification occurred.
 - [ ] Persist generic non-sensitive canonical event/inbox copies and send a generic
   event-reference push, with no member name, shift date, or effective assignment.
   Fetch authorized current-revision detail on every push/inbox open; document the

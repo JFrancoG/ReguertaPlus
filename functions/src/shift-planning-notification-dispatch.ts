@@ -96,6 +96,10 @@ export type ShiftPlanningNotificationDispatchToken = {
 
 export type ShiftPlanningGenericPush = {
   collapseKey: string;
+  notification: {
+    title: "Turnos actualizados";
+    body: "Consulta la aplicación para ver la información actualizada.";
+  };
   data: {
     eventId: string;
     type: "shift_updated";
@@ -631,6 +635,10 @@ export const genericShiftPlanningPush = (
   eventId: string,
 ): ShiftPlanningGenericPush => ({
   collapseKey: requireIdentifier(eventId, "push eventId"),
+  notification: {
+    title: "Turnos actualizados",
+    body: "Consulta la aplicación para ver la información actualizada.",
+  },
   data: {
     eventId,
     type: "shift_updated",
