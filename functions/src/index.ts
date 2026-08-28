@@ -42,9 +42,11 @@ import {
 } from "./backend-security.js";
 import {
   applyMemberSwap,
+  assertShiftSwapPlanningAuthority,
   assertActiveShiftSwapParticipants,
   assertShiftSwapTimingEligible,
   buildShiftSwapCandidates,
+  captureShiftSwapPlanningAuthority,
   parseShiftSwapTransitionInput,
   recomputeDeliveryHelpers,
   ShiftLike,
@@ -2261,6 +2263,9 @@ const getSheetsClient = async () => {
 
 const shiftsCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/shifts`);
+
+const shiftPlanningMaintenanceStateReference = (env: AppEnvironment) =>
+  firestore.doc(`${env}/plus-collections/shiftPlanningState/current`);
 
 const normalizeLookupKey = (value: string): string =>
   value
@@ -4791,6 +4796,7 @@ type StoredShiftSwapRequest = {
   status: "open" | "cancelled" | "applied";
   candidates: ShiftSwapCandidateLike[];
   responses: ShiftSwapResponseLike[];
+  planningAuthority: unknown;
 };
 
 const toShiftSwapStoredShift = (
@@ -4879,6 +4885,7 @@ const toStoredShiftSwapRequest = (
     status,
     candidates: parseShiftSwapCandidates(data.candidates),
     responses: parseShiftSwapResponses(data.responses),
+    planningAuthority: data.planningAuthority,
   };
 };
 
@@ -4961,12 +4968,23 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
 
     if (input.action === "create") {
       const requestRef = requests.doc(requestId);
+      const planningStateRef = shiftPlanningMaintenanceStateReference(
+        input.environment,
+      );
       await firestore.runTransaction(async (transaction) => {
-        const [shiftSnapshot, activeUsersSnapshot] = await Promise.all([
+        const [
+          shiftSnapshot,
+          activeUsersSnapshot,
+          planningStateSnapshot,
+        ] = await Promise.all([
           transaction.get(shifts),
           transaction.get(usersCollection(input.environment)
             .where("isActive", "==", true)),
+          transaction.get(planningStateRef),
         ]);
+        const planningAuthority = captureShiftSwapPlanningAuthority(
+          planningStateSnapshot.data(),
+        );
         const storedShifts = shiftSnapshot.docs
           .map(toShiftSwapStoredShift)
           .filter((shift): shift is ShiftSwapStoredShift => Boolean(shift));
@@ -5026,6 +5044,7 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
           requestedAt: now,
           confirmedAt: null,
           appliedAt: null,
+          planningAuthority,
         });
         setShiftSwapNotification(transaction, input.environment, {
           title: "Solicitud de cambio de turno",
@@ -5040,12 +5059,24 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
     } else if (input.action === "respond") {
       const requestRef = requests.doc(requestId);
       const candidateShiftRef = shifts.doc(input.candidateShiftId);
+      const planningStateRef = shiftPlanningMaintenanceStateReference(
+        input.environment,
+      );
       await firestore.runTransaction(async (transaction) => {
-        const [requestSnapshot, candidateShiftSnapshot] = await Promise.all([
+        const [
+          requestSnapshot,
+          candidateShiftSnapshot,
+          planningStateSnapshot,
+        ] = await Promise.all([
           transaction.get(requestRef),
           transaction.get(candidateShiftRef),
+          transaction.get(planningStateRef),
         ]);
         const swapRequest = requireOpenShiftSwapRequest(requestSnapshot);
+        assertShiftSwapPlanningAuthority(
+          swapRequest.planningAuthority,
+          planningStateSnapshot.data(),
+        );
         const candidate = swapRequest.candidates.find((item) =>
           item.userId === actor.memberId &&
           item.shiftId === input.candidateShiftId
@@ -5100,12 +5131,24 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
       });
     } else {
       const requestRef = requests.doc(requestId);
+      const planningStateRef = shiftPlanningMaintenanceStateReference(
+        input.environment,
+      );
       await firestore.runTransaction(async (transaction) => {
-        const [requestSnapshot, shiftSnapshot] = await Promise.all([
+        const [
+          requestSnapshot,
+          shiftSnapshot,
+          planningStateSnapshot,
+        ] = await Promise.all([
           transaction.get(requestRef),
           transaction.get(shifts),
+          transaction.get(planningStateRef),
         ]);
         const swapRequest = requireOpenShiftSwapRequest(requestSnapshot);
+        assertShiftSwapPlanningAuthority(
+          swapRequest.planningAuthority,
+          planningStateSnapshot.data(),
+        );
         if (swapRequest.requesterUserId !== actor.memberId) {
           throw new HttpRequestError(
             403,

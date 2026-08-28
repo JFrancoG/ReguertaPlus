@@ -896,6 +896,10 @@ candidate read boundaries above. Neither Rules change has been deployed.
 - `requestedAt`: timestamp (required)
 - `confirmedAt`: timestamp|null
 - `appliedAt`: timestamp|null
+- `planningAuthority`: map|null (backend-owned; exact
+  `{ schemaVersion, stateRevision, writeEpoch, activeRevision, activeDigest }`
+  captured on creation and revalidated before response/application; `null` only
+  while the pre-HU-082 maintenance state is absent)
 
 ### 4.10 `news/{newsId}`
 

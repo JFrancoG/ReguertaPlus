@@ -789,6 +789,16 @@ occurred. Protected technical evidence remains outside the repository.
 - [ ] Require current epoch/revision in Rules/server CAS for every affected app/admin,
   swap, override, calendar, Sheets-import, and command mutation; migrate unsupported
   direct paths to versioned callables/commands and reject offline legacy queues.
+  - [x] Shift-swap create captures the exact open `stateRevision`, `writeEpoch`,
+    and active revision/digest when v2 planning state exists. Respond/apply re-read
+    and compare that authority in their transaction; maintenance or lineage drift
+    fails before request, shift, helper, or notification mutation. Missing state
+    remains compatible only while both captured and current state are absent.
+  - [x] Validation: Functions lint/build, 30/30 backend-security/shift-swap
+    vectors, and the 255 executed planning-unit vectors pass; 39 emulator-only
+    vectors remain intentionally skipped in the ordinary unit lane.
+  - [ ] Remaining: migrate/deny direct client writes and fence calendar, importer,
+    planner, trigger, admin, and other inventoried mutation paths.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.

@@ -939,6 +939,24 @@ exact replacement semantics, and sealed real-adapter commits. This checkpoint on
 reconciles duplicated tracking with delivered Git evidence; it performs no source
 implementation change, shared Firebase write, deployment, or production activation.
 
+## Local implementation checkpoint — shift-swap planning authority (2026-08-29)
+
+`transitionShiftSwap` is the first ordinary writer migrated to the HU-082 planning
+authority fence. When maintenance state exists, request creation captures its exact
+open `stateRevision`, `writeEpoch`, active revision, and active digest. Response and
+application re-read and compare that authority inside their Firestore transaction;
+maintenance entry/exit or active-lineage drift rejects the stale request before any
+request, shift, helper, or notification mutation. Cancellation remains available so
+an owner can close obsolete work without touching shifts.
+
+The absence of planning state remains compatible only with an equally legacy request;
+once v2 state exists, an unbound old request cannot respond or apply. Contract tests
+cover open capture, malformed/closed state, legacy compatibility, and every authority
+drift. Functions build and 30/30 backend-security vectors plus lint pass. Android and
+iOS payloads do not change and ignore the additive backend-owned request field. No
+Rules/Function deployment, emulator/shared Firebase write, or production activation
+occurred; the remaining writer inventory stays open.
+
 ## Suggested labels
 
 - `type:feature`

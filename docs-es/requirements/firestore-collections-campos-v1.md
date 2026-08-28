@@ -1010,6 +1010,7 @@ Ninguno de esos cambios de Rules se ha desplegado.
 | `requestedAt` | timestamp | si | no | |
 | `confirmedAt` | timestamp\|null | no | sistema | |
 | `appliedAt` | timestamp\|null | no | sistema | |
+| `planningAuthority` | map\|null | si | sistema | `{ schemaVersion, stateRevision, writeEpoch, activeRevision, activeDigest }` exacto capturado al crear y revalidado antes de responder/aplicar; `null` solo mientras no exista el estado de mantenimiento pre-HU-082 |
 
 ## 4.10 `news/{newsId}`
 
