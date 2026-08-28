@@ -805,8 +805,17 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Validation: Functions lint/build, 30/30 backend-security/shift-swap
     vectors, 255/255 executed planning-unit vectors with 40 emulator-only skips,
     and 9/9 focused notification-writer Firestore-emulator vectors pass locally.
-  - [ ] Remaining: migrate/deny direct client writes and fence calendar, planner,
-    trigger, admin, and other inventoried mutation paths.
+  - [x] Immediately before the legacy planner's workbook mutation, capture one
+    exact open planning authority. Revalidate it inside every planned-shift
+    transaction and the final notification transaction; drift stops all remaining
+    Firestore effects. The request may still terminalize as failed, and the
+    workbook-first operation remains non-atomic until HU-083 replaces it.
+  - [x] Validation: the focused Firestore-emulator test first failed 8/9 because
+    the shared reference/transaction authority helpers did not exist. Functions
+    lint/build, 255/255 executed planning-unit vectors with 41 emulator-only
+    skips, and 10/10 focused notification-writer emulator vectors then pass.
+  - [ ] Remaining: migrate/deny direct client writes and fence calendar, trigger,
+    admin, and other inventoried mutation paths.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.

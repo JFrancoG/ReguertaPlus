@@ -11,8 +11,8 @@ const {
   "../lib/shift-planning-firestore-notification-writer-fence.js"
 );
 const {
-  assertShiftPlanningWriterAuthority,
-  captureShiftPlanningWriterAuthority,
+  assertShiftPlanningWriterAuthorityInTransaction,
+  captureShiftPlanningWriterAuthorityFromReference,
 } = require("../lib/shift-planning-writer-authority.js");
 
 const PROJECT_ID = "demo-reguerta-hu082-notification-writer-fence";
@@ -286,18 +286,17 @@ test("guarded writer revalidates its captured planning authority", {
   const stateReference = firestore.doc(`${root}/shiftPlanningState/current`);
   await target.set({revision: 1});
   await stateReference.set(planningState());
-  const captured = captureShiftPlanningWriterAuthority(
-    (await stateReference.get()).data(),
+  const captured = await captureShiftPlanningWriterAuthorityFromReference(
+    stateReference,
   );
-  const authorize = async (transaction) => {
-    const current = await transaction.get(stateReference);
-    assertShiftPlanningWriterAuthority({
+  const authorize = (transaction) =>
+    assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference,
       capturedValue: captured,
-      currentStateValue: current.data(),
       changedCode: "shift_import_planning_authority_changed",
       changedMessage: "Import planning authority changed",
     });
-  };
 
   const first = await runShiftPlanningNotificationGuardedShiftWrite({
     firestore,
@@ -333,6 +332,28 @@ test("guarded writer revalidates its captured planning authority", {
   );
   assert.equal(mutationCalled, false);
   assert.equal((await target.get()).get("revision"), 2);
+});
+
+test("writer capture rejects maintenance before external mutation", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const stateReference = firestore.doc(`${root}/shiftPlanningState/current`);
+  await stateReference.set(planningState({
+    stateRevision: 5,
+    writeEpoch: 8,
+    maintenanceStatus: "closed",
+    intakeBarrier: {
+      revision: "barrier-revision-1",
+      digest,
+      verifiedAtMillis: initialMillis,
+    },
+    lastTransitionId: "maintenance-transition-1",
+  }));
+
+  await assert.rejects(
+    captureShiftPlanningWriterAuthorityFromReference(stateReference),
+    (error) => error.code === "shift_planning_maintenance",
+  );
 });
 
 test("a backend writer and racing claim serialize on the same fence", {

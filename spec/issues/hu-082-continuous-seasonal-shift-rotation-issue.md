@@ -975,6 +975,25 @@ vectors, 255/255 executed planning-unit vectors with 40 emulator-only skips, and
 focused notification-writer Firestore-emulator vectors pass. No endpoint, Function,
 Rules, shared Firebase, Google Sheets, deployment, or production data changed.
 
+## Local implementation checkpoint — legacy planner authority (2026-08-29)
+
+The active legacy `onShiftPlanningRequestCreated` path now captures one exact open
+planning authority immediately before its first external workbook mutation. Every
+planned-shift upsert re-reads that authority inside the same transaction as its exact
+notification-resource fence, and the final generated-shifts notification performs
+the same transactional revalidation. Maintenance or active-lineage drift therefore
+stops every remaining Firestore effect before mutation; the request can still record
+the factual failed outcome.
+
+The workbook call cannot join a Firestore transaction. Drift after capture can leave
+an already confirmed sheet ahead of Firestore, so this compatibility cut preserves
+the documented workbook-first/non-atomic limitation and HU-083 replacement gate. The
+focused emulator test first failed 8/9 because the reference/transaction authority
+helpers were absent, then passed 10/10 with closed-state pre-external rejection and
+mid-operation drift coverage. Functions lint/build and 255/255 executed planning-unit
+vectors with 41 emulator-only skips also pass. No live Sheet, shared Firebase,
+Function/Rules deployment, notification delivery, or production mutation occurred.
+
 ## Suggested labels
 
 - `type:feature`

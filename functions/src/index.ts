@@ -77,8 +77,8 @@ import {
   runShiftPlanningNotificationGuardedShiftWrite,
 } from "./shift-planning-firestore-notification-writer-fence.js";
 import {
-  assertShiftPlanningWriterAuthority,
-  captureShiftPlanningWriterAuthority,
+  assertShiftPlanningWriterAuthorityInTransaction,
+  captureShiftPlanningWriterAuthorityFromReference,
   ShiftPlanningWriterAuthority,
 } from "./shift-planning-writer-authority.js";
 import {
@@ -2755,10 +2755,10 @@ const syncShiftRowsIntoFirestore = async (
   let writes = 0;
 
   const authorizePlanningWrite = async (transaction: Transaction) => {
-    const currentState = await transaction.get(planningStateReference);
-    assertShiftPlanningWriterAuthority({
+    await assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference: planningStateReference,
       capturedValue: planningAuthority,
-      currentStateValue: currentState.data(),
       changedCode: "shift_import_planning_authority_changed",
       changedMessage: "Shift import planning authority changed",
     });
@@ -3583,9 +3583,21 @@ const persistPlannedShifts = async (
   env: AppEnvironment,
   requestId: string,
   shifts: FirestoreShiftRecord[],
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<number> => {
   const root = `${env}/plus-collections`;
+  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
   let writes = 0;
+
+  const authorizePlanningWrite = async (transaction: Transaction) => {
+    await assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference: planningStateReference,
+      capturedValue: planningAuthority,
+      changedCode: "shift_planner_planning_authority_changed",
+      changedMessage: "Shift planner authority changed",
+    });
+  };
 
   for (const shift of shifts) {
     const result = await runShiftPlanningNotificationGuardedShiftWrite({
@@ -3593,6 +3605,7 @@ const persistPlannedShifts = async (
       root,
       shiftId: shift.id,
       clock: () => Timestamp.now(),
+      authorize: authorizePlanningWrite,
       mutate: ({transaction, reference, snapshot}) => {
         const existingCreatedAt = snapshot.get("createdAt");
         transaction.set(reference, {
@@ -3629,28 +3642,42 @@ const persistPlannedShifts = async (
 };
 
 const createShiftPlanningNotification = async (
-  env: string,
+  env: AppEnvironment,
   type: ShiftPlanningRequestType,
   seasonLabel: string,
   requestedByUserId: string,
   userIds: string[],
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<void> => {
   const uniqueUserIds = Array.from(new Set(userIds));
   if (uniqueUserIds.length === 0) {
     return;
   }
-  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
-    title: `Nuevos turnos de ${shiftTypeLabelEs(type)}`,
-    body:
-      `Ya tienes disponibles los turnos de ${shiftTypeLabelEs(type)} ` +
-      `para la temporada ${seasonLabel}.`,
-    type: "shift_planning_generated",
-    target: "users",
-    targetPayload: {
-      userIds: uniqueUserIds,
-    },
-    createdBy: requestedByUserId,
-    sentAt: FieldValue.serverTimestamp(),
+  const root = `${env}/plus-collections`;
+  const eventReference = firestore.collection(
+    `${root}/notificationEvents`,
+  ).doc();
+  await firestore.runTransaction(async (transaction) => {
+    await assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference: shiftPlanningMaintenanceStateReference(env),
+      capturedValue: planningAuthority,
+      changedCode: "shift_planner_planning_authority_changed",
+      changedMessage: "Shift planner authority changed",
+    });
+    transaction.create(eventReference, {
+      title: `Nuevos turnos de ${shiftTypeLabelEs(type)}`,
+      body:
+        `Ya tienes disponibles los turnos de ${shiftTypeLabelEs(type)} ` +
+        `para la temporada ${seasonLabel}.`,
+      type: "shift_planning_generated",
+      target: "users",
+      targetPayload: {
+        userIds: uniqueUserIds,
+      },
+      createdBy: requestedByUserId,
+      sentAt: FieldValue.serverTimestamp(),
+    });
   });
 };
 
@@ -3822,10 +3849,10 @@ const syncShiftsFromGoogleSheetsInternal = async (
     )
   );
   const rows = withDerivedDeliveryHelpers(rowsByRange.flat());
-  const planningState = await shiftPlanningMaintenanceStateReference(env).get();
-  const planningAuthority = captureShiftPlanningWriterAuthority(
-    planningState.data(),
-  );
+  const planningAuthority =
+    await captureShiftPlanningWriterAuthorityFromReference(
+      shiftPlanningMaintenanceStateReference(env),
+    );
   const importedCount = await syncShiftRowsIntoFirestore(
     env,
     rows,
@@ -4054,6 +4081,11 @@ const processShiftPlanningRequest = async (
     ) :
     buildMarketSheetValues(plannedShifts, seasonLabel, membersById);
 
+  const planningAuthority =
+    await captureShiftPlanningWriterAuthorityFromReference(
+      shiftPlanningMaintenanceStateReference(env),
+    );
+
   await updateWholeSheet(
     sheets,
     sheetConfig.spreadsheetId,
@@ -4061,13 +4093,19 @@ const processShiftPlanningRequest = async (
     sheetValues,
   );
 
-  await persistPlannedShifts(env, request.id, plannedShifts);
+  await persistPlannedShifts(
+    env,
+    request.id,
+    plannedShifts,
+    planningAuthority,
+  );
   await createShiftPlanningNotification(
     env,
     request.type,
     seasonLabel,
     request.requestedByUserId,
     plannedShifts.flatMap((shift) => shift.assignedUserIds),
+    planningAuthority,
   );
 
   return {

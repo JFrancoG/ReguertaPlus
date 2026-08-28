@@ -218,7 +218,12 @@ de sync/notificaciones/recovery, integración móvil, despliegue ni activación 
 todas esas fronteras siguen fail-closed. La publicación humana de consulta se
 describe por separado a continuación. El trigger
 legacy `onShiftPlanningRequestCreated` de `src/index.ts` sigue siendo la
-implementación runtime activa y aún no consume este contrato v2.
+implementación runtime activa y aún no consume este contrato v2. Como barrera
+de compatibilidad, captura la autoridad de planificación abierta inmediatamente
+antes de escribir su hoja y la revalida en cada mutación Firestore posterior,
+incluida la notificación. Una deriva detiene los efectos restantes, pero no puede
+revertir una escritura de Sheets ya confirmada; HU-083 sustituye ese flujo no
+atómico.
 
 ### Baseline comunicable sin activación de producción
 

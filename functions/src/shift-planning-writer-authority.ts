@@ -1,5 +1,9 @@
 import {HttpRequestError} from "./backend-security.js";
 import {
+  DocumentReference,
+  Transaction,
+} from "@google-cloud/firestore";
+import {
   parseShiftPlanningMaintenanceState,
 } from "./shift-planning-wire.js";
 
@@ -118,6 +122,19 @@ export const captureShiftPlanningWriterAuthority = (
 };
 
 /**
+ * Captures one operation-level authority from the canonical Firestore state.
+ * Callers should do this immediately before their first external mutation.
+ * @param {DocumentReference} reference Canonical maintenance-state reference.
+ * @return {Promise<ShiftPlanningWriterAuthority | null>} Captured authority.
+ */
+export const captureShiftPlanningWriterAuthorityFromReference = async (
+  reference: DocumentReference,
+): Promise<ShiftPlanningWriterAuthority | null> => {
+  const snapshot = await reference.get();
+  return captureShiftPlanningWriterAuthority(snapshot.data());
+};
+
+/**
  * Revalidates one operation-level authority inside each mutation transaction.
  * The caller supplies its stable conflict code without exposing state details.
  * @param {object} input Captured authority, live state, and public conflict.
@@ -151,4 +168,29 @@ export const assertShiftPlanningWriterAuthority = (input: {
     }
     failAuthority(input.changedCode, input.changedMessage);
   }
+};
+
+/**
+ * Re-reads and verifies an operation authority inside its mutation transaction.
+ * @param {object} input Transaction, canonical state reference, and conflict.
+ * @return {Promise<void>}
+ */
+export const assertShiftPlanningWriterAuthorityInTransaction = async (input: {
+  transaction: Transaction;
+  stateReference: DocumentReference;
+  capturedValue: unknown;
+  changedCode: string;
+  changedMessage: string;
+  storedInvalidCode?: string;
+  storedInvalidMessage?: string;
+}): Promise<void> => {
+  const currentState = await input.transaction.get(input.stateReference);
+  assertShiftPlanningWriterAuthority({
+    capturedValue: input.capturedValue,
+    currentStateValue: currentState.data(),
+    changedCode: input.changedCode,
+    changedMessage: input.changedMessage,
+    storedInvalidCode: input.storedInvalidCode,
+    storedInvalidMessage: input.storedInvalidMessage,
+  });
 };
