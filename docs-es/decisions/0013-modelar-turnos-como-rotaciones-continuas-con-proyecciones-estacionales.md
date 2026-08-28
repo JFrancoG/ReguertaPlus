@@ -459,8 +459,16 @@ intenciones live exactas, contadores de dispatch e intentos append-only nombrado
 reconstruye el plan puro del lote terminal. Un solo CAS avanza el epoch compartido de
 mantenimiento y las revisiones de ambas rotaciones, despeja las dos leases exactas y
 crea evidencia inmutable de replay ligada por digest. Evidencia ausente, extra,
-activa, parcial o con otro linaje no escribe nada. La autoridad de incidente terminal
-y safe-resume degradado queda separada.
+activa, parcial o con otro linaje no escribe nada. Un contrato puro separado de
+incidente terminal solo admite safe-resume degradado tras vencer el lote emparejado
+y con evidencia completa de dispatch inactivo. Transfiere ambas leases a un único
+owner de incidente durante un TTL positivo limitado a 24 horas y deriva de las
+intenciones canónicas el fence de mutación de turnos afectados. Al vencer, solo se
+pueden cancelar/sustituir contadores exactamente a cero o intentos que nunca cruzaron
+el submission autenticado. Evidencia `submitting`, `unknown` o aceptada permanece
+como posible entrega que requiere corrección, incluido un `unknown` seguido de un
+reintento meramente reclamado. La persistencia de esa autoridad degradada y terminal
+queda separada.
 Un resultado
 `unknown` puede haberse entregado, queda como historial inmutable y se trata mediante
 reconciliación/corrección; nunca vuelve a clasificarse como no liberado. El SO puede

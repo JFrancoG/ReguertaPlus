@@ -446,7 +446,14 @@ intents, dispatch counters, and named append-only attempts, and rebuilds the pur
 terminal batch plan. One CAS advances the shared maintenance epoch and both
 rotation revisions, clears both exact leases, and creates immutable digest-bound
 replay evidence. Missing, extra, active, partial, or cross-lineage evidence writes
-nothing. Terminal-incident and degraded safe-resume authority remain separate.
+nothing. A separate pure terminal-incident contract admits degraded safe resume
+only after the paired batch deadline with complete inactive dispatch evidence. It
+transfers both leases to one incident owner for a positive TTL capped at 24 hours
+and derives the affected-shift mutation fence from the canonical intents. At
+expiry, exact zero counters or attempts that never crossed authenticated submission
+may be cancelled/superseded. Submitting, `unknown`, and accepted evidence remains
+possible-delivery correction history, including `unknown` followed by a merely
+claimed retry. Persistence of that degraded and terminal authority remains separate.
 An
 `unknown` outcome is possibly delivered, remains immutable submission history, and
 must use reconciliation/correction semantics; it cannot be reclassified as

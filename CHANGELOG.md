@@ -31,6 +31,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-28 | ✨ feat(shifts): model terminal incidents
+
 - 2026-08-28 | ✨ feat(shifts): persist batch reconciliation
 
 - 2026-08-28 | ✨ feat(shifts): reconcile notification batches

@@ -577,10 +577,27 @@ occurred. Protected technical evidence remains outside the repository.
       notification occurred.
   - [ ] Add the explicit terminal-incident path and safe-resume degraded-mode
     authority before allowing abandoned non-terminal batches to clear.
+    - [x] Add the pure safe-resume and terminal-incident contract. Entry requires
+      an expired paired batch with exact inactive dispatch evidence, transfers
+      both leases to one owner for at most 24 hours, and derives the affected-
+      shift fence. Expiry cancels exactly intents proven never submitted while
+      retaining submitting/unknown/accepted evidence for correction.
+    - [x] Prove zero counters, claimed-before-submission, prior `unknown` plus a
+      claimed retry, active-dispatch rejection, TTL expiry, exact cancellation,
+      deterministic order, and dual-lease clear actions locally.
+      - [x] Validation: Node 22 Functions lint/build, 243/243 executed planning
+        vectors with 30 emulator-only skips, 8/8 focused incident vectors, and
+        2/2 modular Admin SDK vectors pass. The contract remains absent from
+        `index.ts`; no persistence, export, deploy, FCM submission, notification,
+        or shared-project write occurred.
+    - [ ] Persist degraded entry, affected-shift fences, terminal evidence,
+      cancellations, replay, and the final atomic dual-lease clear.
 - [ ] Define safe resume as degraded mode with affected-shift mutation fence,
   owner, TTL, escalation, and terminal cancellation/supersession of demonstrably
   unsubmitted intents at expiry; keep `unknown`/accepted/delivered history immutable
   and route possible delivery through reconciliation/correction.
+  - [x] Freeze the pure authority and its 24-hour maximum TTL without exporting
+    runtime or performing Firebase writes.
 - [ ] Persist one held intent per assignment position and bind it to recipient UID,
   shift identity, and assignment/membership/eligibility/destination revisions;
   transactionally/CAS read them while claiming and creating event/inbox, and

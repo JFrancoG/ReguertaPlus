@@ -462,16 +462,24 @@ does not populate Firestore public shifts or activate either mobile app.
   canonical persisted bundle, exact intent collection, dispatch counters, and
   named attempt documents. It advances the shared maintenance epoch and both
   rotation revisions, clears both leases together, and creates one immutable
-  replay record; any drift writes nothing. Terminal-incident authority remains a
-  later cut.
+  replay record; any drift writes nothing. A local pure terminal-incident
+  contract now handles the abandoned non-terminal residual separately; its
+  persistence remains a later cut.
 - A safe-resume residual is an explicit degraded mode with an owner, TTL, and
   escalation. It mutation-fences affected shifts while unrelated traffic runs.
+  Entry requires the expired paired batch leases, the exact canonical intent
+  set, complete dispatch counters/attempt histories, and no active dispatch
+  lease. Its positive TTL is capped at 24 hours, both release leases transfer to
+  the incident owner, and the affected-shift set is derived from the intents.
   At TTL expiry the operator must finish release or terminalize the incident by
   cancelling/superseding every intent proved never submitted under any dispatch
-  epoch; `unknown`, accepted, and delivered events remain immutable possible-
-  delivery history and enter reconciliation/correction. Only that terminal record or valid rollback/
-  reconciliation clears the technical lease, and it does not make the rollout
-  story Done.
+  epoch. Exact zero counters prove a pending intent was never claimed; claimed or
+  failed attempts qualify only when no attempt crossed authenticated submission.
+  A submitting attempt and any `unknown`, accepted, or delivered evidence remain
+  immutable possible-delivery history and enter reconciliation/correction, even
+  when followed by a merely claimed retry. Only the complete terminal record or
+  valid rollback/reconciliation clears both technical leases, and it does not
+  make the rollout story Done.
 - Held notification intents live in a backend-owned outbox/path that the current
   normal notification trigger cannot consume. Only the explicit release
   operation creates canonical consumable events with stable idempotency keys.

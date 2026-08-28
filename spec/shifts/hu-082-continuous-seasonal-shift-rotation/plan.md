@@ -361,6 +361,14 @@ documented in the English and Spanish Firestore references before code lands.
   fence, owner, TTL, escalation, and terminal incident cancellation/supersession
   of demonstrably unsubmitted intents. Preserve `unknown` as possibly delivered
   reconciliation/correction history so normal corrections are not blocked indefinitely.
+  Freeze this first as a pure contract: enter only after the paired batch deadline
+  with complete inactive dispatch evidence, cap the incident TTL at 24 hours, and
+  transfer both exact leases to one incident owner. At expiry require exact
+  cancellation of every zero-attempt, claimed-before-submission, or wholly failed-
+  before-submission intent. Preserve submitting/unknown/accepted evidence as
+  correction-required possible delivery, including an `unknown` followed by a
+  merely claimed retry. Persist the degraded transition, affected-shift fence,
+  terminal record, and atomic dual-lease clear in the following cut.
 - Prove current and candidate notification consumers cannot consume the held
   outbox, including mixed-revision and rollback scenarios.
 - Update Rules and security tests so clients cannot mutate planner-owned state
