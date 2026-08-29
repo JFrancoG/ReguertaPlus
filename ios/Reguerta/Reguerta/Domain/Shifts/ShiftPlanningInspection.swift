@@ -13,6 +13,8 @@ nonisolated struct ShiftPlanningSubplanSummary: Equatable {
 }
 
 nonisolated struct ShiftPlanningCompletedSummary: Equatable {
+    let bundleRevision: String
+    let bundleDigest: String
     let delivery: ShiftPlanningSubplanSummary
     let market: ShiftPlanningSubplanSummary
 }

@@ -139,9 +139,9 @@ enum ShiftPlanningInspectionCodec {
               try string(summary, "bundleId") == bundleID else {
             throw RepositoryError.invalidData(resource: "shiftPlanningRequests.summary")
         }
-        _ = try string(summary, "bundleRevision")
-        _ = try string(summary, "bundleDigest")
         return ShiftPlanningCompletedSummary(
+            bundleRevision: try string(summary, "bundleRevision"),
+            bundleDigest: try string(summary, "bundleDigest"),
             delivery: try subplan(summary["delivery"] as? [String: Any]),
             market: try subplan(summary["market"] as? [String: Any])
         )

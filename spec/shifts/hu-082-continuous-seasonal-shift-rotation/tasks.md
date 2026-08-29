@@ -390,14 +390,16 @@ occurred. Protected technical evidence remains outside the repository.
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit
   transitions only during exact activation.
-- [ ] Keep staged rotation/shifts admin-readable but outside normal member queries,
+- [x] Keep staged rotation/shifts admin-readable but outside normal member queries,
   Sheets export, active cursor/cohort state, and notification consumers.
   - [x] Backend/Rules cut: only active linked admins can get/list the candidate
     header and exact `positions` subcollection; all client writes and every other
     nested candidate path remain denied. Stage and preflight write no public
     shift, active cursor/cohort, Sheets command, or notification intent.
-  - [ ] Remaining: expose and verify equivalent admin-only inspection in Android
-    and iOS without adding candidate rows to normal member feeds.
+  - [x] Expose and verify equivalent admin-only inspection in Android and iOS
+    without adding candidate rows to normal member feeds. Only the admin who owns
+    a completed preview may submit a new stage request, and it preserves the exact
+    source request, bundle revision, and bundle digest.
 - [ ] Inventory current flat `shifts` readers and implement one measured atomic
   public promotion transaction for the combined delivery/market projection, both
   rotation/cursors, active bundle metadata, digest-bound sync commands, and held
@@ -894,7 +896,11 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Migrate Android/iOS to consume that context and create one exact two-subplan
     v2 preview request. Both clients require explicit delivery/market target seasons,
     preserve one stable request/bundle intent across ambiguous retry, reject malformed
-    context or incompatible persisted state, and expose no stage/activate authority.
+    context or incompatible persisted state, and expose no activate authority.
+  - [x] Allow an authorized admin to stage only their own latest completed preview.
+    The new request keeps the exact two-season bundle and binds the source request ID,
+    bundle revision, and bundle digest; foreign, changed, malformed, or self-referential
+    bindings are rejected without silently regenerating a preview.
   - [x] Validation: Android unit/lint, iOS focused repository/context/presentation
     tests, `fast-unit`, and `ui-smoke` pass. Android connected testing reached the
     physical device but ran zero tests because installation was user-restricted.
@@ -919,6 +925,9 @@ occurred. Protected technical evidence remains outside the repository.
     does not auto-retry stale authority/override conflicts.
   - [x] Planning preview resolves exact context immediately before its transaction
     and creates/acknowledges only the same combined schema-v2 stable intent.
+  - [x] Planning stage creates a new request only from the current admin's completed
+    preview and binds its exact request ID, bundle revision, bundle digest, and both
+    target seasons; incompatible replay or another admin's preview fails closed.
 - [ ] Add candidate revision/digest Domain models and an admin-authorized
   repository query; prove normal-member reads fail in Rules/repository tests.
 - [x] Decode terminal summary and stable error codes without exposing raw backend
@@ -945,6 +954,9 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Planning preview resolves and exactly decodes the minimal context immediately
     before its transaction and creates/acknowledges only the same combined schema-v2
     stable intent.
+  - [x] Planning stage creates a new request only from the current admin's completed
+    preview and binds its exact request ID, bundle revision, bundle digest, and both
+    target seasons; incompatible replay or another admin's preview fails closed.
 - [ ] Add equivalent candidate revision/digest Domain models and admin-only
   repository query; prove normal-member reads fail in Rules/repository tests.
 - [x] Decode terminal summary and stable error codes without exposing raw backend

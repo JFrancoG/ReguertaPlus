@@ -15,6 +15,8 @@ data class ShiftPlanningSubplanSummary(
 )
 
 data class ShiftPlanningCompletedSummary(
+    val bundleRevision: String,
+    val bundleDigest: String,
     val delivery: ShiftPlanningSubplanSummary,
     val market: ShiftPlanningSubplanSummary,
 )

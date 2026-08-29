@@ -25,6 +25,8 @@ struct ShiftPlanningInspectionCodecTests {
 
         #expect(observation.mode == .stage)
         #expect(observation.status == .completed)
+        #expect(observation.completedSummary?.bundleRevision == "revision-1")
+        #expect(observation.completedSummary?.bundleDigest == "bundle-digest")
         #expect(observation.completedSummary?.delivery.generatedShiftCount == 52)
         #expect(observation.candidateReference?.candidateId == "bundle-2026")
         #expect(observation.candidateReference?.candidateDigest == "candidate-digest")

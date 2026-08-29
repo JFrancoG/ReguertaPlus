@@ -38,6 +38,7 @@ import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
+import com.reguerta.user.domain.shifts.ShiftPlanningMode
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
@@ -77,6 +78,7 @@ fun SettingsRoute(
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onSubmitShiftPlanningRequest: (Int, Int, onSuccess: () -> Unit) -> Unit,
+    onStageShiftPlanningPreview: (onSuccess: () -> Unit) -> Unit,
 ) {
     var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Column(
@@ -118,6 +120,7 @@ fun SettingsRoute(
             )
             HorizontalDivider()
             AdminShiftPlanningSection(
+                currentMemberId = currentMember.id,
                 members = members,
                 isSubmitting = isSubmittingShiftPlanningRequest,
                 observation = shiftPlanningObservation,
@@ -125,6 +128,7 @@ fun SettingsRoute(
                 isLoadingCandidate = isLoadingShiftPlanningCandidate,
                 isRefreshingAfterActivation = isRefreshingShiftsAfterActivation,
                 onSubmit = onSubmitShiftPlanningRequest,
+                onStage = onStageShiftPlanningPreview,
             )
         }
 
@@ -399,6 +403,7 @@ private fun AdminDeliveryCalendarSection(
 
 @Composable
 private fun AdminShiftPlanningSection(
+    currentMemberId: String,
     members: List<Member>,
     isSubmitting: Boolean,
     observation: ShiftPlanningRequestObservation?,
@@ -406,10 +411,12 @@ private fun AdminShiftPlanningSection(
     isLoadingCandidate: Boolean,
     isRefreshingAfterActivation: Boolean,
     onSubmit: (Int, Int, onSuccess: () -> Unit) -> Unit,
+    onStage: (onSuccess: () -> Unit) -> Unit,
 ) {
     var deliverySeasonInput by rememberSaveable { mutableStateOf("") }
     var marketSeasonInput by rememberSaveable { mutableStateOf("") }
-    var isConfirming by rememberSaveable { mutableStateOf(false) }
+    var isConfirmingPreview by rememberSaveable { mutableStateOf(false) }
+    var isConfirmingStage by rememberSaveable { mutableStateOf(false) }
     val deliverySeason = deliverySeasonInput.toIntOrNull()?.takeIf { it in 2000..9998 }
     val marketSeason = marketSeasonInput.toIntOrNull()?.takeIf { it in 2000..9998 }
 
@@ -440,7 +447,7 @@ private fun AdminShiftPlanningSection(
     )
     ReguertaButton(
         label = stringResource(R.string.settings_shift_planning_action_preview),
-        onClick = { isConfirming = true },
+        onClick = { isConfirmingPreview = true },
         modifier = Modifier.fillMaxWidth(),
         enabled = !isSubmitting && deliverySeason != null && marketSeason != null,
     )
@@ -476,6 +483,19 @@ private fun AdminShiftPlanningSection(
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (
+            request.mode == ShiftPlanningMode.PREVIEW &&
+            request.status == ShiftPlanningRequestStatus.COMPLETED &&
+            request.requestedByUserId == currentMemberId &&
+            request.completedSummary != null
+        ) {
+            ReguertaButton(
+                label = stringResource(R.string.settings_shift_planning_action_stage),
+                onClick = { isConfirmingStage = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSubmitting,
             )
         }
     }
@@ -529,7 +549,7 @@ private fun AdminShiftPlanningSection(
         }
     }
 
-    if (isConfirming && deliverySeason != null && marketSeason != null) {
+    if (isConfirmingPreview && deliverySeason != null && marketSeason != null) {
         ReguertaDialog(
             type = ReguertaDialogType.INFO,
             title = stringResource(R.string.settings_shift_planning_alert_title_preview),
@@ -538,15 +558,31 @@ private fun AdminShiftPlanningSection(
                 label = stringResource(R.string.common_action_confirm),
                 onClick = {
                     onSubmit(deliverySeason, marketSeason) {
-                        isConfirming = false
+                        isConfirmingPreview = false
                     }
                 },
             ),
             secondaryAction = ReguertaDialogAction(
                 label = stringResource(R.string.common_action_cancel),
-                onClick = { isConfirming = false },
+                onClick = { isConfirmingPreview = false },
             ),
-            onDismissRequest = { isConfirming = false },
+            onDismissRequest = { isConfirmingPreview = false },
+        )
+    }
+    if (isConfirmingStage) {
+        ReguertaDialog(
+            type = ReguertaDialogType.INFO,
+            title = stringResource(R.string.settings_shift_planning_alert_title_stage),
+            message = stringResource(R.string.settings_shift_planning_alert_message_stage),
+            primaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.common_action_confirm),
+                onClick = { onStage { isConfirmingStage = false } },
+            ),
+            secondaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.common_action_cancel),
+                onClick = { isConfirmingStage = false },
+            ),
+            onDismissRequest = { isConfirmingStage = false },
         )
     }
 }

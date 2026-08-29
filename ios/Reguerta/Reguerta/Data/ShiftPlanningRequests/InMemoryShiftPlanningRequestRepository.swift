@@ -10,7 +10,8 @@ actor InMemoryShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
             requestedByUserId: request.requestedByUserId,
             requestedAtMillis: request.requestedAtMillis,
             deliveryTargetSeasonStartYear: request.deliveryTargetSeasonStartYear,
-            marketTargetSeasonStartYear: request.marketTargetSeasonStartYear
+            marketTargetSeasonStartYear: request.marketTargetSeasonStartYear,
+            intent: request.intent
         )
         requests[persisted.id] = persisted
         return persisted

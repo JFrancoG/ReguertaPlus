@@ -185,9 +185,9 @@ private fun decodeCompletedSummary(
     ) {
         invalidInspectionData("shiftPlanningRequests.summary")
     }
-    value.inspectionString("bundleRevision")
-    value.inspectionString("bundleDigest")
     return ShiftPlanningCompletedSummary(
+        bundleRevision = value.inspectionString("bundleRevision"),
+        bundleDigest = value.inspectionString("bundleDigest"),
         delivery = decodeSubplan(value["delivery"].asInspectionMap()),
         market = decodeSubplan(value["market"].asInspectionMap()),
     )

@@ -278,6 +278,13 @@ struct SettingsRouteView: View {
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
                 }
+                if shiftsViewModel.canStageLatestShiftPlanningPreview {
+                    reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionStage)) {
+                        shiftsViewModel.requestShiftPlanningStage()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .disabled(shiftsViewModel.isSubmittingShiftPlanningRequest)
+                }
             }
             if shiftsViewModel.isLoadingShiftPlanningCandidate {
                 Text(localizedKey(AccessL10nKey.settingsShiftPlanningCandidateLoading))
@@ -324,7 +331,7 @@ struct SettingsRouteView: View {
             }
         }
         .alert(
-            localizedKey(AccessL10nKey.settingsShiftPlanningAlertTitlePreview),
+            localizedKey(shiftPlanningConfirmationTitleKey),
             isPresented: Binding(
                 get: { shiftsViewModel.pendingShiftPlanningRequest != nil },
                 set: { presented in
@@ -341,8 +348,22 @@ struct SettingsRouteView: View {
                 Task { await shiftsViewModel.confirmShiftPlanningRequest() }
             }
         } message: {
-            Text(localizedKey(AccessL10nKey.settingsShiftPlanningAlertMessage))
+            Text(localizedKey(shiftPlanningConfirmationMessageKey))
         }
+    }
+
+    private var shiftPlanningConfirmationTitleKey: String {
+        guard case .stage = shiftsViewModel.pendingShiftPlanningRequest?.intent else {
+            return AccessL10nKey.settingsShiftPlanningAlertTitlePreview
+        }
+        return AccessL10nKey.settingsShiftPlanningAlertTitleStage
+    }
+
+    private var shiftPlanningConfirmationMessageKey: String {
+        guard case .stage = shiftsViewModel.pendingShiftPlanningRequest?.intent else {
+            return AccessL10nKey.settingsShiftPlanningAlertMessage
+        }
+        return AccessL10nKey.settingsShiftPlanningAlertMessageStage
     }
 
     private var hasValidShiftPlanningSeasons: Bool {

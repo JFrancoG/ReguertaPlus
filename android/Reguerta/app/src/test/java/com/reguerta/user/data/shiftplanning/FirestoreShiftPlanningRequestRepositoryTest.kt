@@ -3,7 +3,9 @@ package com.reguerta.user.data.shiftplanning
 import com.google.firebase.Timestamp
 import com.reguerta.user.domain.RepositoryErrorKind
 import com.reguerta.user.domain.RepositoryException
+import com.reguerta.user.domain.shifts.ShiftPlanningPreviewReference
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestIntent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -117,6 +119,91 @@ class FirestoreShiftPlanningRequestRepositoryTest {
         }
     }
 
+    @Test
+    fun `completed preview stages through one exact digest binding`() {
+        val request = request().copy(
+            id = "stage-1",
+            intent = ShiftPlanningRequestIntent.Stage(
+                preview = ShiftPlanningPreviewReference(
+                    sourceRequestId = "planning-1",
+                    bundleRevision = "bundle-revision-1",
+                    bundleDigest = PLANNING_DIGEST,
+                ),
+            ),
+        )
+        val resolved = resolveShiftPlanningRequest(
+            request = request,
+            context = ShiftPlanningRequestContext(
+                environment = "production",
+                expectedWriteEpoch = 8,
+                expectedActiveRevision = "active-7",
+            ),
+        )
+
+        assertEquals("stage", resolved.firestorePayload()["mode"])
+        assertEquals(
+            mapOf(
+                "kind" to "preview",
+                "sourceRequestId" to "planning-1",
+                "bundleRevision" to "bundle-revision-1",
+                "bundleDigest" to PLANNING_DIGEST,
+            ),
+            resolved.firestorePayload()["binding"],
+        )
+        assertEquals(
+            ShiftPlanningPersistenceResolution.AcknowledgeExisting,
+            resolveShiftPlanningPersistence(
+                documentExists = true,
+                documentId = request.id,
+                data = resolved.firestorePayload() + ("status" to "completed"),
+                expected = resolved,
+            ),
+        )
+    }
+
+    @Test
+    fun `stage rejects a changed or self referencing preview binding`() {
+        val request = request().copy(
+            id = "stage-1",
+            intent = ShiftPlanningRequestIntent.Stage(
+                preview = ShiftPlanningPreviewReference(
+                    sourceRequestId = "planning-1",
+                    bundleRevision = "bundle-revision-1",
+                    bundleDigest = PLANNING_DIGEST,
+                ),
+            ),
+        )
+        val resolved = resolveShiftPlanningRequest(
+            request = request,
+            context = ShiftPlanningRequestContext("production", 8, "active-7"),
+        )
+        val changedBinding = (resolved.firestorePayload()["binding"] as Map<*, *>) +
+            ("bundleRevision" to "bundle-revision-2")
+
+        assertInvalidData {
+            resolveShiftPlanningPersistence(
+                documentExists = true,
+                documentId = request.id,
+                data = resolved.firestorePayload() + ("binding" to changedBinding),
+                expected = resolved,
+            )
+        }
+        assertInvalidData {
+            resolveShiftPlanningRequest(
+                request = request.copy(
+                    intent = ShiftPlanningRequestIntent.Stage(
+                        preview = ShiftPlanningPreviewReference(
+                            sourceRequestId = request.id,
+                            bundleRevision = "bundle-revision-1",
+                            bundleDigest = PLANNING_DIGEST,
+                        ),
+                    ),
+                ),
+                context = ShiftPlanningRequestContext("production", 8, "active-7"),
+            )
+        }
+    }
+
     private fun request() = ShiftPlanningRequest(
         id = "planning-1",
         bundleId = "bundle-1",
@@ -170,3 +257,6 @@ class FirestoreShiftPlanningRequestRepositoryTest {
         }
     }
 }
+
+private const val PLANNING_DIGEST =
+    "shift-planning:v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

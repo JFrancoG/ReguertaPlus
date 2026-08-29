@@ -34,6 +34,8 @@ class ShiftPlanningInspectionCodecTest {
 
         assertEquals(ShiftPlanningMode.STAGE, observation.mode)
         assertEquals(ShiftPlanningRequestStatus.COMPLETED, observation.status)
+        assertEquals("revision-1", observation.completedSummary?.bundleRevision)
+        assertEquals("bundle-digest", observation.completedSummary?.bundleDigest)
         assertEquals(52, observation.completedSummary?.delivery?.generatedShiftCount)
         assertEquals("bundle-2026", observation.candidateReference?.candidateId)
         assertEquals("candidate-digest", observation.candidateReference?.candidateDigest)

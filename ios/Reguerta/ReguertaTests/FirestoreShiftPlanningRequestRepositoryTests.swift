@@ -127,6 +127,62 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
         }
     }
 
+    @Test func completedPreviewStagesThroughOneExactDigestBinding() throws {
+        let request = stageRequest()
+        let resolved = try FirestoreShiftPlanningRequestRepository.resolve(
+            request: request,
+            context: planningContext()
+        )
+        let payload = firestoreData(for: resolved)
+
+        #expect(payload["mode"] as? String == "stage")
+        #expect(
+            payload["binding"] as? [String: String] == [
+                "kind": "preview",
+                "sourceRequestId": "planning_1",
+                "bundleRevision": "bundle-revision-1",
+                "bundleDigest": planningDigest
+            ]
+        )
+        #expect(
+            try FirestoreShiftPlanningRequestRepository.transactionDecision(
+                documentID: request.id,
+                data: payload.merging(["status": "completed"]) { _, replacement in replacement },
+                requested: resolved
+            ) == .acknowledge(request)
+        )
+    }
+
+    @Test func stageRejectsAChangedOrSelfReferencingPreviewBinding() throws {
+        let request = stageRequest()
+        let resolved = try FirestoreShiftPlanningRequestRepository.resolve(
+            request: request,
+            context: planningContext()
+        )
+        let changedBinding: [String: String] = [
+            "kind": "preview",
+            "sourceRequestId": "planning_1",
+            "bundleRevision": "bundle-revision-2",
+            "bundleDigest": planningDigest
+        ]
+
+        #expect(throws: RepositoryError.invalidData(resource: "shiftPlanningRequests.document")) {
+            try FirestoreShiftPlanningRequestRepository.transactionDecision(
+                documentID: request.id,
+                data: firestoreData(for: resolved).merging(
+                    ["binding": changedBinding]
+                ) { _, replacement in replacement },
+                requested: resolved
+            )
+        }
+        #expect(throws: RepositoryError.invalidData(resource: "shiftPlanningRequests.document")) {
+            try FirestoreShiftPlanningRequestRepository.resolve(
+                request: stageRequest(sourceRequestID: "stage_1"),
+                context: planningContext()
+            )
+        }
+    }
+
     private func planningRequest(
         id: String = "planning_1",
         bundleId: String = "bundle_1",
@@ -139,7 +195,8 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
             requestedByUserId: "admin_1",
             requestedAtMillis: 123_456,
             deliveryTargetSeasonStartYear: deliverySeason,
-            marketTargetSeasonStartYear: marketSeason
+            marketTargetSeasonStartYear: marketSeason,
+            intent: .preview
         )
     }
 
@@ -151,10 +208,31 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
         )
     }
 
+    private func stageRequest(sourceRequestID: String = "planning_1") -> ShiftPlanningRequest {
+        ShiftPlanningRequest(
+            id: "stage_1",
+            bundleId: "bundle_1",
+            requestedByUserId: "admin_1",
+            requestedAtMillis: 123_456,
+            deliveryTargetSeasonStartYear: 2026,
+            marketTargetSeasonStartYear: 2027,
+            intent: .stage(
+                ShiftPlanningPreviewReference(
+                    sourceRequestId: sourceRequestID,
+                    bundleRevision: "bundle-revision-1",
+                    bundleDigest: planningDigest
+                )
+            )
+        )
+    }
+
     private func firestoreData(for request: ResolvedShiftPlanningRequest) -> [String: Any] {
         FirestoreShiftPlanningRequestRepository.firestoreData(for: request)
     }
 }
+
+private let planningDigest =
+    "shift-planning:v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 private final class ControlledShiftPlanningTransactionExecutor:
     ShiftPlanningRequestTransactionExecuting,

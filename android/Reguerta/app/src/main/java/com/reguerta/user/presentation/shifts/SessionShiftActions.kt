@@ -8,7 +8,9 @@ import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
 import com.reguerta.user.domain.shifts.ShiftPlanningInspectionRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningMode
+import com.reguerta.user.domain.shifts.ShiftPlanningPreviewReference
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestIntent
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftRepository
@@ -398,16 +400,67 @@ internal class SessionShiftActions(
         val pending = pendingPlanningRequest
             ?.takeIf {
                 it.context == context &&
-                    it.deliveryTargetSeasonStartYear == deliveryTargetSeasonStartYear &&
-                    it.marketTargetSeasonStartYear == marketTargetSeasonStartYear
+                    it.request.intent == ShiftPlanningRequestIntent.Preview &&
+                    it.request.deliveryTargetSeasonStartYear == deliveryTargetSeasonStartYear &&
+                    it.request.marketTargetSeasonStartYear == marketTargetSeasonStartYear
             }
+            ?: UUID.randomUUID().toString().let { requestId ->
+                PendingPlanningRequest(
+                    context = context,
+                    request = ShiftPlanningRequest(
+                        id = requestId,
+                        bundleId = "$requestId-bundle",
+                        requestedByUserId = context.memberId,
+                        requestedAtMillis = nowMillisProvider(),
+                        deliveryTargetSeasonStartYear = deliveryTargetSeasonStartYear,
+                        marketTargetSeasonStartYear = marketTargetSeasonStartYear,
+                    ),
+                )
+            }.also { pendingPlanningRequest = it }
+        submitPlanningRequest(pending, onSuccess)
+    }
+
+    fun stageLatestShiftPlanningPreview(onSuccess: () -> Unit = {}) {
+        val initialState = uiState.value
+        val mode = initialState.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin || initialState.isSubmittingShiftPlanningRequest) return
+        val context = ShiftSessionContext.from(initialState, mode)
+        val observation = initialState.shiftPlanningObservation ?: return
+        val summary = observation.completedSummary ?: return
+        if (
+            observation.mode != ShiftPlanningMode.PREVIEW ||
+            observation.status != ShiftPlanningRequestStatus.COMPLETED ||
+            observation.requestedByUserId != context.memberId ||
+            summary.delivery.targetSeasonStartYear !in 2000..9998 ||
+            summary.market.targetSeasonStartYear !in 2000..9998
+        ) {
+            return
+        }
+        val preview = ShiftPlanningPreviewReference(
+            sourceRequestId = observation.id,
+            bundleRevision = summary.bundleRevision,
+            bundleDigest = summary.bundleDigest,
+        )
+        val intent = ShiftPlanningRequestIntent.Stage(preview)
+        val pending = pendingPlanningRequest
+            ?.takeIf { it.context == context && it.request.intent == intent }
             ?: PendingPlanningRequest(
                 context = context,
-                requestId = UUID.randomUUID().toString(),
-                requestedAtMillis = nowMillisProvider(),
-                deliveryTargetSeasonStartYear = deliveryTargetSeasonStartYear,
-                marketTargetSeasonStartYear = marketTargetSeasonStartYear,
+                request = ShiftPlanningRequest(
+                    id = UUID.randomUUID().toString(),
+                    bundleId = observation.bundleId,
+                    requestedByUserId = context.memberId,
+                    requestedAtMillis = nowMillisProvider(),
+                    deliveryTargetSeasonStartYear = summary.delivery.targetSeasonStartYear,
+                    marketTargetSeasonStartYear = summary.market.targetSeasonStartYear,
+                    intent = intent,
+                ),
             ).also { pendingPlanningRequest = it }
+        submitPlanningRequest(pending, onSuccess)
+    }
+
+    private fun submitPlanningRequest(pending: PendingPlanningRequest, onSuccess: () -> Unit) {
+        val context = pending.context
         val operation = nextOperation(context).also { activePlanningMutation = it }
         if (!updateIfCurrent(context) { it.copy(isSubmittingShiftPlanningRequest = true) }) {
             activePlanningMutation = null
@@ -415,16 +468,7 @@ internal class SessionShiftActions(
         }
         scope.launch {
             try {
-                shiftPlanningRequestRepository.submitShiftPlanningRequest(
-                    ShiftPlanningRequest(
-                        id = pending.requestId,
-                        bundleId = "${pending.requestId}-bundle",
-                        requestedByUserId = context.memberId,
-                        requestedAtMillis = pending.requestedAtMillis,
-                        deliveryTargetSeasonStartYear = pending.deliveryTargetSeasonStartYear,
-                        marketTargetSeasonStartYear = pending.marketTargetSeasonStartYear,
-                    ),
-                )
+                shiftPlanningRequestRepository.submitShiftPlanningRequest(pending.request)
             } catch (cancellation: CancellationException) {
                 finishPlanningMutation(operation)
                 throw cancellation
@@ -763,10 +807,7 @@ private data class ShiftOperation(
 
 private data class PendingPlanningRequest(
     val context: ShiftSessionContext,
-    val requestId: String,
-    val requestedAtMillis: Long,
-    val deliveryTargetSeasonStartYear: Int,
-    val marketTargetSeasonStartYear: Int,
+    val request: ShiftPlanningRequest,
 )
 
 private data class PendingAcknowledgedSwapTransition(

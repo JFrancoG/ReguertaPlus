@@ -336,6 +336,7 @@ fun ReguertaRoot(
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
                     onSaveDeliveryCalendarOverride = viewModel::saveDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = viewModel::submitShiftPlanningRequest,
+                    onStageShiftPlanningPreview = viewModel::stageLatestShiftPlanningPreview,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onValidateMyOrderFreshnessReceipt = viewModel::isMyOrderFreshnessReceiptCurrent,
                     onOpenProducts = viewModel::refreshProducts,

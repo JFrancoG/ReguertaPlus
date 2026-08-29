@@ -162,6 +162,7 @@ extension AccessL10nKey {
     static let settingsShiftPlanningDeliverySeason = "settings.shift_planning.delivery_season"
     static let settingsShiftPlanningMarketSeason = "settings.shift_planning.market_season"
     static let settingsShiftPlanningActionPreview = "settings.shift_planning.action.preview"
+    static let settingsShiftPlanningActionStage = "settings.shift_planning.action.stage"
     static let settingsShiftPlanningSubmitting = "settings.shift_planning.submitting"
     static let settingsShiftPlanningStatusRequested = "settings.shift_planning.status.requested"
     static let settingsShiftPlanningStatusProcessing = "settings.shift_planning.status.processing"
@@ -175,6 +176,8 @@ extension AccessL10nKey {
     static let settingsShiftPlanningHelperFormat = "settings.shift_planning.helper.format"
     static let settingsShiftPlanningAlertTitlePreview = "settings.shift_planning.alert.title.preview"
     static let settingsShiftPlanningAlertMessage = "settings.shift_planning.alert.message"
+    static let settingsShiftPlanningAlertTitleStage = "settings.shift_planning.alert.title.stage"
+    static let settingsShiftPlanningAlertMessageStage = "settings.shift_planning.alert.message.stage"
     static let feedbackShiftPlanningFailed = "feedback.shift_planning.failed"
 
     static let deliveryCalendarWeekPickerSubtitle = "delivery_calendar.week_picker.subtitle"

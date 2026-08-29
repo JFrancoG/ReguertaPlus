@@ -228,6 +228,7 @@
     <string name="settings_shift_planning_delivery_season">Delivery season start year</string>
     <string name="settings_shift_planning_market_season">Market season start year</string>
     <string name="settings_shift_planning_action_preview">Preview combined plan</string>
+    <string name="settings_shift_planning_action_stage">Prepare this preview</string>
     <string name="settings_shift_planning_submitting">Sending planning request…</string>
     <string name="settings_shift_planning_status_requested">Latest v2 request: queued</string>
     <string name="settings_shift_planning_status_processing">Latest v2 request: processing</string>
@@ -244,6 +245,8 @@
     <string name="feedback_shift_planning_failed">Shift planning failed. Review the request status before trying again.</string>
     <string name="settings_shift_planning_alert_title_preview">Preview combined shifts</string>
     <string name="settings_shift_planning_alert_message">This creates a private delivery-plus-market preview for the two entered season frontiers. It does not activate shifts or notify members.</string>
+    <string name="settings_shift_planning_alert_title_stage">Prepare preview for review</string>
+    <string name="settings_shift_planning_alert_message_stage">This stores an immutable private candidate from exactly this completed preview. It does not activate shifts, change the public schedule, or notify members.</string>
     <string name="bylaws_title">Consult bylaws</string>
     <string name="bylaws_subtitle">Read Regüerta’s full bylaws or, on supported devices, ask about their contents locally.</string>
     <string name="bylaws_language_notice">Questions and answers in this feature are in Spanish.</string>

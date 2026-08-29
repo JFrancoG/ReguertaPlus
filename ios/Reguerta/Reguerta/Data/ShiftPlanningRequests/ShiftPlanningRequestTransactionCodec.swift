@@ -9,6 +9,7 @@ enum ShiftPlanningRequestTransactionCodec {
         let normalizedID = request.id.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedBundleID = request.bundleId.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedRequester = request.requestedByUserId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedIntent = try normalizedIntent(request.intent, requestID: normalizedID)
         guard isValidShiftPlanningIdentifier(normalizedID),
               isValidShiftPlanningIdentifier(normalizedBundleID),
               isValidShiftPlanningIdentifier(normalizedRequester),
@@ -27,7 +28,8 @@ enum ShiftPlanningRequestTransactionCodec {
                 requestedByUserId: normalizedRequester,
                 requestedAtMillis: request.requestedAtMillis,
                 deliveryTargetSeasonStartYear: request.deliveryTargetSeasonStartYear,
-                marketTargetSeasonStartYear: request.marketTargetSeasonStartYear
+                marketTargetSeasonStartYear: request.marketTargetSeasonStartYear,
+                intent: normalizedIntent
             ),
             context: context
         )
@@ -50,10 +52,10 @@ enum ShiftPlanningRequestTransactionCodec {
               data["environment"] as? String == requested.context.environment.rawValue,
               data["requestedByUserId"] as? String == intent.requestedByUserId,
               let requestedAt = data["requestedAt"] as? Timestamp,
-              data["mode"] as? String == "preview",
+              data["mode"] as? String == mode(for: intent.intent),
               let statusValue = data["status"] as? String,
               ShiftPlanningRequestStatus(rawValue: statusValue) != nil,
-              data["binding"] is NSNull,
+              binding(data["binding"], matches: intent.intent),
               let subplans = data["subplans"] as? [String: Any],
               targetSeason(in: subplans, type: "delivery") == intent.deliveryTargetSeasonStartYear,
               targetSeason(in: subplans, type: "market") == intent.marketTargetSeasonStartYear else {
@@ -76,7 +78,7 @@ enum ShiftPlanningRequestTransactionCodec {
             "environment": request.context.environment.rawValue,
             "requestedByUserId": intent.requestedByUserId,
             "requestedAt": timestamp(for: intent.requestedAtMillis),
-            "mode": "preview",
+            "mode": mode(for: intent.intent),
             "status": "requested",
             "expectedWriteEpoch": request.context.expectedWriteEpoch,
             "expectedActiveRevision": (request.context.expectedActiveRevision as Any?) ?? NSNull(),
@@ -84,8 +86,72 @@ enum ShiftPlanningRequestTransactionCodec {
                 "delivery": ["targetSeasonStartYear": intent.deliveryTargetSeasonStartYear],
                 "market": ["targetSeasonStartYear": intent.marketTargetSeasonStartYear]
             ],
-            "binding": NSNull()
+            "binding": bindingData(for: intent.intent)
         ]
+    }
+
+    private static func normalizedIntent(
+        _ intent: ShiftPlanningRequestIntent,
+        requestID: String
+    ) throws -> ShiftPlanningRequestIntent {
+        switch intent {
+        case .preview:
+            return .preview
+        case .stage(let preview):
+            let sourceRequestID = preview.sourceRequestId.trimmingCharacters(in: .whitespacesAndNewlines)
+            let bundleRevision = preview.bundleRevision.trimmingCharacters(in: .whitespacesAndNewlines)
+            let bundleDigest = preview.bundleDigest.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isValidShiftPlanningIdentifier(sourceRequestID),
+                  sourceRequestID != requestID,
+                  isValidShiftPlanningIdentifier(bundleRevision),
+                  isValidShiftPlanningDigest(bundleDigest) else {
+                throw RepositoryError.invalidData(resource: "shiftPlanningRequests.document")
+            }
+            return .stage(
+                ShiftPlanningPreviewReference(
+                    sourceRequestId: sourceRequestID,
+                    bundleRevision: bundleRevision,
+                    bundleDigest: bundleDigest
+                )
+            )
+        }
+    }
+
+    private static func mode(for intent: ShiftPlanningRequestIntent) -> String {
+        switch intent {
+        case .preview: "preview"
+        case .stage: "stage"
+        }
+    }
+
+    private static func bindingData(for intent: ShiftPlanningRequestIntent) -> Any {
+        switch intent {
+        case .preview:
+            NSNull()
+        case .stage(let preview):
+            [
+                "kind": "preview",
+                "sourceRequestId": preview.sourceRequestId,
+                "bundleRevision": preview.bundleRevision,
+                "bundleDigest": preview.bundleDigest
+            ]
+        }
+    }
+
+    private static func binding(_ value: Any?, matches intent: ShiftPlanningRequestIntent) -> Bool {
+        switch intent {
+        case .preview:
+            return value is NSNull
+        case .stage(let preview):
+            guard let binding = value as? [String: Any],
+                  Set(binding.keys) == ["kind", "sourceRequestId", "bundleRevision", "bundleDigest"] else {
+                return false
+            }
+            return binding["kind"] as? String == "preview" &&
+                binding["sourceRequestId"] as? String == preview.sourceRequestId &&
+                binding["bundleRevision"] as? String == preview.bundleRevision &&
+                binding["bundleDigest"] as? String == preview.bundleDigest
+        }
     }
 
     private static func integer(_ value: Any?) -> Int64? {
@@ -115,3 +181,7 @@ enum ShiftPlanningRequestTransactionCodec {
 }
 
 private let validSeasonRange = 2000...9998
+
+private func isValidShiftPlanningDigest(_ value: String) -> Bool {
+    value.wholeMatch(of: /^shift-planning:v1:sha256:[a-f0-9]{64}$/) != nil
+}

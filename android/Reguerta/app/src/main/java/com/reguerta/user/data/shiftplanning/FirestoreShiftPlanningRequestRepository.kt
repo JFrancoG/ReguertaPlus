@@ -12,7 +12,9 @@ import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
 import com.reguerta.user.domain.shifts.ShiftPlanningCandidateReference
 import com.reguerta.user.domain.shifts.ShiftPlanningInspectionRepository
+import com.reguerta.user.domain.shifts.ShiftPlanningPreviewReference
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestIntent
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
 import kotlinx.coroutines.Dispatchers
@@ -124,8 +126,10 @@ internal fun resolveShiftPlanningRequest(
     request: ShiftPlanningRequest,
     context: ShiftPlanningRequestContext,
 ): ResolvedShiftPlanningRequest {
+    val normalizedId = request.id.trim()
+    val normalizedIntent = request.intent.normalized(normalizedId)
     if (
-        !PLANNING_IDENTIFIER.matches(request.id.trim()) ||
+        !PLANNING_IDENTIFIER.matches(normalizedId) ||
         !PLANNING_IDENTIFIER.matches(request.bundleId.trim()) ||
         !PLANNING_IDENTIFIER.matches(request.requestedByUserId.trim()) ||
         request.requestedAtMillis < 0 ||
@@ -139,9 +143,10 @@ internal fun resolveShiftPlanningRequest(
     }
     return ResolvedShiftPlanningRequest(
         request = request.copy(
-            id = request.id.trim(),
+            id = normalizedId,
             bundleId = request.bundleId.trim(),
             requestedByUserId = request.requestedByUserId.trim(),
+            intent = normalizedIntent,
         ),
         context = context,
     )
@@ -157,7 +162,7 @@ internal fun ResolvedShiftPlanningRequest.firestorePayload(): Map<String, Any?> 
         request.requestedAtMillis / 1_000,
         ((request.requestedAtMillis % 1_000) * 1_000_000).toInt(),
     ),
-    "mode" to "preview",
+    "mode" to request.intent.wireMode(),
     "status" to "requested",
     "expectedWriteEpoch" to context.expectedWriteEpoch,
     "expectedActiveRevision" to context.expectedActiveRevision,
@@ -165,7 +170,7 @@ internal fun ResolvedShiftPlanningRequest.firestorePayload(): Map<String, Any?> 
         "delivery" to mapOf("targetSeasonStartYear" to request.deliveryTargetSeasonStartYear),
         "market" to mapOf("targetSeasonStartYear" to request.marketTargetSeasonStartYear),
     ),
-    "binding" to null,
+    "binding" to request.intent.firestoreBinding(),
 )
 
 internal fun resolveShiftPlanningPersistence(
@@ -187,15 +192,66 @@ internal fun resolveShiftPlanningPersistence(
         data.requiredString("environment") != expected.context.environment ||
         data.requiredString("requestedByUserId") != request.requestedByUserId ||
         data.requiredTimestampMillis("requestedAt") != request.requestedAtMillis ||
-        data.requiredString("mode") != "preview" ||
+        data.requiredString("mode") != request.intent.wireMode() ||
         status !in VALID_STATUSES ||
-        data["binding"] != null ||
+        !data.hasCompatibleBinding(request.intent) ||
         subplans.requiredTargetSeason("delivery") != request.deliveryTargetSeasonStartYear ||
         subplans.requiredTargetSeason("market") != request.marketTargetSeasonStartYear
     ) {
         invalidShiftPlanningRequest()
     }
     return ShiftPlanningPersistenceResolution.AcknowledgeExisting
+}
+
+private fun ShiftPlanningRequestIntent.normalized(requestId: String): ShiftPlanningRequestIntent = when (this) {
+    ShiftPlanningRequestIntent.Preview -> this
+    is ShiftPlanningRequestIntent.Stage -> {
+        val sourceRequestId = preview.sourceRequestId.trim()
+        val bundleRevision = preview.bundleRevision.trim()
+        val bundleDigest = preview.bundleDigest.trim()
+        if (
+            !PLANNING_IDENTIFIER.matches(sourceRequestId) ||
+            sourceRequestId == requestId ||
+            !PLANNING_IDENTIFIER.matches(bundleRevision) ||
+            !PLANNING_DIGEST.matches(bundleDigest)
+        ) {
+            invalidShiftPlanningRequest()
+        }
+        ShiftPlanningRequestIntent.Stage(
+            ShiftPlanningPreviewReference(
+                sourceRequestId = sourceRequestId,
+                bundleRevision = bundleRevision,
+                bundleDigest = bundleDigest,
+            ),
+        )
+    }
+}
+
+private fun ShiftPlanningRequestIntent.wireMode(): String = when (this) {
+    ShiftPlanningRequestIntent.Preview -> "preview"
+    is ShiftPlanningRequestIntent.Stage -> "stage"
+}
+
+private fun ShiftPlanningRequestIntent.firestoreBinding(): Map<String, String>? = when (this) {
+    ShiftPlanningRequestIntent.Preview -> null
+    is ShiftPlanningRequestIntent.Stage -> mapOf(
+        "kind" to "preview",
+        "sourceRequestId" to preview.sourceRequestId,
+        "bundleRevision" to preview.bundleRevision,
+        "bundleDigest" to preview.bundleDigest,
+    )
+}
+
+private fun Map<String, Any?>.hasCompatibleBinding(intent: ShiftPlanningRequestIntent): Boolean = when (intent) {
+    ShiftPlanningRequestIntent.Preview -> this["binding"] == null
+    is ShiftPlanningRequestIntent.Stage -> {
+        val binding = requiredMap("binding")
+        binding.keys == setOf("kind", "sourceRequestId", "bundleRevision", "bundleDigest") &&
+            binding.requiredString("kind") == "preview" &&
+            binding.requiredString("sourceRequestId") == intent.preview.sourceRequestId &&
+            binding.requiredString("bundleRevision") == intent.preview.bundleRevision &&
+            binding.requiredString("bundleDigest") == intent.preview.bundleDigest
+    }
 }
 
 private fun Map<String, Any?>.requiredString(field: String): String =
@@ -237,3 +293,4 @@ private val VALID_ENVIRONMENTS = setOf("develop", "production")
 private val VALID_STATUSES = setOf("requested", "processing", "completed", "failed")
 private val VALID_SEASON_RANGE = 2000..9998
 private val PLANNING_IDENTIFIER = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+private val PLANNING_DIGEST = Regex("^shift-planning:v1:sha256:[a-f0-9]{64}$")

@@ -1238,6 +1238,29 @@ plus `fast-unit` and `ui-smoke` pass on iPhone 17 / iOS 26.5; the smoke run emit
 non-fatal LLDB debugger-store warnings. No Rules or Function was deployed, and no
 shared Firebase, Google Sheet, notification, or production data changed.
 
+## Local implementation checkpoint — mobile completed-preview staging (2026-08-29)
+
+Android and iOS now let an authorized admin submit a schema-v2 `stage` request only
+from that same admin's latest completed preview. The stage keeps both target seasons
+and binds the exact source request ID, bundle revision, and bundle digest reported by
+the immutable preview receipt. It receives a new request identity and timestamp;
+changed, foreign, malformed, or self-referential lineage fails closed instead of
+silently regenerating or rebasing the candidate.
+
+Both transactional request codecs emit the exact strict-Rules `mode = stage` payload
+and require a matching persisted acknowledgement before treating a replay as success.
+The Settings flow presents staging as preparation of a private immutable candidate,
+not activation: it does not publish shifts, change the active schedule, write Sheets,
+or release notifications. Candidate inspection remains admin-only and outside normal
+member feeds.
+
+Android unit tests and lint pass. The connected suite again built but executed zero
+tests because the attached physical device rejected installation with
+`INSTALL_FAILED_USER_RESTRICTED`. On iPhone 17 / iOS 26.5, the focused repository and
+presentation tests, Xcode build, `fast-unit`, and `ui-smoke` pass; the smoke run emitted
+non-fatal LLDB debugger-version-store warnings. No Rules or Function was deployed,
+and no shared Firebase, Google Sheet, notification, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

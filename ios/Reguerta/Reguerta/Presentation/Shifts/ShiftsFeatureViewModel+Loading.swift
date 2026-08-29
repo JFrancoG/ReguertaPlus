@@ -141,7 +141,8 @@ extension ShiftsFeatureViewModel {
               (2000...9998).contains(deliverySeason),
               (2000...9998).contains(marketSeason),
               let memberID = authorizedSessionContext?.session.member.id else { return }
-        if pendingShiftPlanningRequest?.deliveryTargetSeasonStartYear == deliverySeason,
+        if pendingShiftPlanningRequest?.intent == .preview,
+           pendingShiftPlanningRequest?.deliveryTargetSeasonStartYear == deliverySeason,
            pendingShiftPlanningRequest?.marketTargetSeasonStartYear == marketSeason {
             return
         }
@@ -152,7 +153,44 @@ extension ShiftsFeatureViewModel {
             requestedByUserId: memberID,
             requestedAtMillis: nowMillisProvider(),
             deliveryTargetSeasonStartYear: deliverySeason,
-            marketTargetSeasonStartYear: marketSeason
+            marketTargetSeasonStartYear: marketSeason,
+            intent: .preview
+        )
+    }
+
+    var canStageLatestShiftPlanningPreview: Bool {
+        guard let context = authorizedSessionContext,
+              context.session.member.isAdmin,
+              let observation = shiftPlanningObservation,
+              observation.mode == .preview,
+              observation.status == .completed,
+              observation.requestedByUserId == context.session.member.id,
+              let summary = observation.completedSummary,
+              (2000...9998).contains(summary.delivery.targetSeasonStartYear),
+              (2000...9998).contains(summary.market.targetSeasonStartYear) else { return false }
+        return true
+    }
+
+    func requestShiftPlanningStage() {
+        guard canStageLatestShiftPlanningPreview,
+              let context = authorizedSessionContext,
+              let observation = shiftPlanningObservation,
+              let summary = observation.completedSummary else { return }
+        let preview = ShiftPlanningPreviewReference(
+            sourceRequestId: observation.id,
+            bundleRevision: summary.bundleRevision,
+            bundleDigest: summary.bundleDigest
+        )
+        let intent = ShiftPlanningRequestIntent.stage(preview)
+        if pendingShiftPlanningRequest?.intent == intent { return }
+        pendingShiftPlanningRequest = ShiftPlanningRequest(
+            id: planningRequestIDProvider(),
+            bundleId: observation.bundleId,
+            requestedByUserId: context.session.member.id,
+            requestedAtMillis: nowMillisProvider(),
+            deliveryTargetSeasonStartYear: summary.delivery.targetSeasonStartYear,
+            marketTargetSeasonStartYear: summary.market.targetSeasonStartYear,
+            intent: intent
         )
     }
 
@@ -162,7 +200,9 @@ extension ShiftsFeatureViewModel {
 
     func confirmShiftPlanningRequest() async {
         guard let request = pendingShiftPlanningRequest else { return }
-        guard let context = authorizedSessionContext, context.session.member.isAdmin else { return }
+        guard let context = authorizedSessionContext,
+              context.session.member.isAdmin,
+              request.requestedByUserId == context.session.member.id else { return }
         guard let submissionOperationId = beginPlanningSubmissionOperation() else { return }
 
         defer { finishPlanningSubmissionOperation(submissionOperationId) }

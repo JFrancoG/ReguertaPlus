@@ -8468,6 +8468,23 @@
         }
       }
     },
+    "settings.shift_planning.action.stage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare this preview"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparar esta previsualización"
+          }
+        }
+      }
+    },
     "settings.shift_planning.delivery_season" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8502,6 +8519,23 @@
         }
       }
     },
+    "settings.shift_planning.alert.message.stage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This stores an immutable private candidate from exactly this completed preview. It does not activate shifts, change the public schedule, or notify members."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se guardará un candidato privado e inmutable a partir exactamente de esta previsualización completada. No se activarán turnos, no cambiará el calendario público ni se avisará a los socios."
+          }
+        }
+      }
+    },
     "settings.shift_planning.alert.title.preview" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8515,6 +8549,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Previsualizar turnos conjuntos"
+          }
+        }
+      }
+    },
+    "settings.shift_planning.alert.title.stage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare preview for review"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparar previsualización para revisión"
           }
         }
       }

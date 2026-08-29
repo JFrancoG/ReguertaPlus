@@ -255,6 +255,7 @@ internal fun HomeRoute(
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onSubmitShiftPlanningRequest: (Int, Int, onSuccess: () -> Unit) -> Unit,
+    onStageShiftPlanningPreview: (onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Long?,
     onValidateMyOrderFreshnessReceipt: (Long?) -> Boolean,
     onOpenProducts: () -> Unit,
@@ -944,6 +945,7 @@ internal fun HomeRoute(
                     onSetProducerCatalogVisibility = onSetProducerCatalogVisibility,
                     onSaveDeliveryCalendarOverride = onSaveDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = onSubmitShiftPlanningRequest,
+                    onStageShiftPlanningPreview = onStageShiftPlanningPreview,
                     )
 
                     HomeDestination.USERS -> UsersRoute(

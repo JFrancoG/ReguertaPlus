@@ -11,11 +11,15 @@ import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
 import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
 import com.reguerta.user.domain.shifts.ShiftPlanningCandidateReference
+import com.reguerta.user.domain.shifts.ShiftPlanningCompletedSummary
 import com.reguerta.user.domain.shifts.ShiftPlanningInspectionRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningMode
+import com.reguerta.user.domain.shifts.ShiftPlanningPreviewReference
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestIntent
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
+import com.reguerta.user.domain.shifts.ShiftPlanningSubplanSummary
 import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftStatus
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
@@ -317,6 +321,64 @@ class SessionShiftActionsFailureTest {
     }
 
     @Test
+    fun `completed own preview stages the exact observed bundle`() = runTest {
+        val planning = RecordingPlanningRepository()
+        val inspection = ControlledPlanningInspectionRepository()
+        val state = MutableStateFlow(authorizedState())
+        val actions = actions(
+            state = state,
+            planningRepository = planning,
+            inspectionRepository = inspection,
+            scope = backgroundScope,
+        )
+        runCurrent()
+        inspection.emit(completedPreviewObservation())
+        runCurrent()
+        assertEquals("preview-request", state.value.shiftPlanningObservation?.id)
+
+        actions.stageLatestShiftPlanningPreview()
+        runCurrent()
+
+        val request = planning.requests.single()
+        assertEquals("bundle-2026", request.bundleId)
+        assertEquals(2026, request.deliveryTargetSeasonStartYear)
+        assertEquals(2027, request.marketTargetSeasonStartYear)
+        assertEquals(
+            ShiftPlanningRequestIntent.Stage(
+                ShiftPlanningPreviewReference(
+                    sourceRequestId = "preview-request",
+                    bundleRevision = "bundle-revision-1",
+                    bundleDigest = PLANNING_DIGEST,
+                ),
+            ),
+            request.intent,
+        )
+        assertNotEquals(request.id, "preview-request")
+    }
+
+    @Test
+    fun `admin cannot stage another admins preview`() = runTest {
+        val planning = RecordingPlanningRepository()
+        val inspection = ControlledPlanningInspectionRepository()
+        val state = MutableStateFlow(authorizedState())
+        val actions = actions(
+            state = state,
+            planningRepository = planning,
+            inspectionRepository = inspection,
+            scope = backgroundScope,
+        )
+        runCurrent()
+        inspection.emit(completedPreviewObservation().copy(requestedByUserId = "other-admin"))
+        runCurrent()
+        assertEquals("preview-request", state.value.shiftPlanningObservation?.id)
+
+        actions.stageLatestShiftPlanningPreview()
+        runCurrent()
+
+        assertTrue(planning.requests.isEmpty())
+    }
+
+    @Test
     fun `cancelled swap mutation clears loading without feedback or draft loss`() = runTest {
         val requestedShift = shift("requested", memberId = "admin")
         val candidateShift = shift("candidate", memberId = "member-2", dateMillis = 2_000_000_000L)
@@ -578,6 +640,23 @@ class SessionShiftActionsFailureTest {
         candidateReference = null,
     )
 
+    private fun completedPreviewObservation() = ShiftPlanningRequestObservation(
+        id = "preview-request",
+        bundleId = "bundle-2026",
+        requestedByUserId = "admin",
+        requestedAtMillis = 1L,
+        mode = ShiftPlanningMode.PREVIEW,
+        status = ShiftPlanningRequestStatus.COMPLETED,
+        completedSummary = ShiftPlanningCompletedSummary(
+            bundleRevision = "bundle-revision-1",
+            bundleDigest = PLANNING_DIGEST,
+            delivery = ShiftPlanningSubplanSummary(2026, 54, listOf(2026, 2027)),
+            market = ShiftPlanningSubplanSummary(2027, 30, listOf(2027)),
+        ),
+        failure = null,
+        candidateReference = null,
+    )
+
     private fun shift(id: String, memberId: String = "admin", dateMillis: Long = 1_000L) = ShiftAssignment(
         id = id,
         type = ShiftType.DELIVERY,
@@ -765,3 +844,15 @@ private class AmbiguousFirstPlanningRepository : ShiftPlanningRequestRepository 
         return request
     }
 }
+
+private class RecordingPlanningRepository : ShiftPlanningRequestRepository {
+    val requests = mutableListOf<ShiftPlanningRequest>()
+
+    override suspend fun submitShiftPlanningRequest(request: ShiftPlanningRequest): ShiftPlanningRequest {
+        requests += request
+        return request
+    }
+}
+
+private const val PLANNING_DIGEST =
+    "shift-planning:v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

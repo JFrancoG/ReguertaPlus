@@ -228,6 +228,7 @@
     <string name="settings_shift_planning_delivery_season">Año inicial de temporada de reparto</string>
     <string name="settings_shift_planning_market_season">Año inicial de temporada de mercado</string>
     <string name="settings_shift_planning_action_preview">Previsualizar planificación conjunta</string>
+    <string name="settings_shift_planning_action_stage">Preparar esta previsualización</string>
     <string name="settings_shift_planning_submitting">Enviando solicitud de planificación…</string>
     <string name="settings_shift_planning_status_requested">Última solicitud v2: en cola</string>
     <string name="settings_shift_planning_status_processing">Última solicitud v2: procesándose</string>
@@ -244,6 +245,8 @@
     <string name="feedback_shift_planning_failed">La planificación de turnos ha fallado. Revisa el estado antes de volver a intentarlo.</string>
     <string name="settings_shift_planning_alert_title_preview">Previsualizar turnos conjuntos</string>
     <string name="settings_shift_planning_alert_message">Se creará una previsualización privada conjunta de reparto y mercado para las dos fronteras de temporada indicadas. No se activarán turnos ni se avisará a los socios.</string>
+    <string name="settings_shift_planning_alert_title_stage">Preparar previsualización para revisión</string>
+    <string name="settings_shift_planning_alert_message_stage">Se guardará un candidato privado e inmutable a partir exactamente de esta previsualización completada. No se activarán turnos, no cambiará el calendario público ni se avisará a los socios.</string>
     <string name="bylaws_title">Consultar estatutos</string>
     <string name="bylaws_subtitle">Consulta los estatutos completos de Regüerta o, en dispositivos compatibles, pregunta por su contenido de forma local.</string>
     <string name="bylaws_language_notice">Las consultas y respuestas de esta función se realizan en español.</string>

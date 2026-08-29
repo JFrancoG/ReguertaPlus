@@ -429,6 +429,9 @@ class SessionViewModel(
         onSuccess,
     )
 
+    fun stageLatestShiftPlanningPreview(onSuccess: () -> Unit = {}) =
+        shiftActions.stageLatestShiftPlanningPreview(onSuccess)
+
     fun saveSharedProfile(onSuccess: () -> Unit = {}) = communityActions.saveSharedProfile(onSuccess)
 
     fun deleteSharedProfile(onSuccess: () -> Unit = {}) = communityActions.deleteSharedProfile(onSuccess)
