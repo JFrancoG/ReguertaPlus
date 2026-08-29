@@ -1398,6 +1398,26 @@ Canonical event/inbox release and Android/iOS observation without restart remain
 this checkpoint does not claim those later gates. No shared Firebase, workbook,
 notification, mobile release or production data changed.
 
+## Local implementation checkpoint — canonical notification release (2026-08-29)
+
+The real Firestore-emulator acceptance chain now continues beyond governed activation.
+It claims and completes both generated Sheets-sync commands through the production
+repository, using deterministic local workbook read-back evidence rather than accessing
+Google Sheets. Only after both partitions are terminal does it release every held
+notification intent and read back the corresponding canonical event, member inbox
+entry, and backend receipt.
+
+The read-back proves that public event and inbox documents retain only the generic
+`shift_updated` discriminator and copy: no shift ID/type, bundle revision/digest,
+write epoch, assignment list, or date is exposed there. Releasing the first intent
+again replays the exact artifacts without increasing the event count, and every
+dispatch-attempt collection remains empty, so this cut performs no FCM transport.
+Functions build and the focused source-producer Firestore-emulator lane (4/4) pass.
+
+Android/iOS live observation without restart, stale-cache authorization coverage, and
+the separately governed FCM dispatch lifecycle remain open. No shared Firebase,
+workbook, notification, mobile release or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

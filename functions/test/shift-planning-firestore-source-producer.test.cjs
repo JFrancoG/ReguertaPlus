@@ -25,8 +25,18 @@ const {
   createFirestoreShiftPlanningRepository,
 } = require("../lib/shift-planning-firestore-repository.js");
 const {
+  createFirestoreShiftPlanningNotificationReleaseRepository,
+} = require(
+  "../lib/shift-planning-firestore-notification-release-repository.js"
+);
+const {
   createFirestoreShiftPlanningRuntime,
 } = require("../lib/shift-planning-firestore-runtime.js");
+const {
+  createFirestoreShiftPlanningSyncCommandRepository,
+} = require(
+  "../lib/shift-planning-firestore-sync-command-repository.js"
+);
 const {
   createFirestoreShiftPlanningOperatorRecoveryExecutor,
   createShiftPlanningRecoveryAuthorization,
@@ -678,6 +688,132 @@ emulatorTest(
       (await database.doc(`${root}/shiftRotations/market`).get())
         .get("stateRevision"),
       marketRotationSnapshot.get("stateRevision"),
+    );
+
+    let releaseNowMillis = 1_788_393_900_000;
+    const syncRepository = createFirestoreShiftPlanningSyncCommandRepository(
+      database,
+      () => Timestamp.fromMillis(releaseNowMillis),
+    );
+    for (const command of staged.syncCommands) {
+      const claimed = await syncRepository.claim({
+        environment,
+        commandId: command.commandId,
+        workerId: `source-runtime-sync-${command.type}`,
+        attemptId: `source-runtime-sync-attempt-${command.type}`,
+      });
+      assert.equal(claimed.kind, "claimed");
+      assert.deepEqual(
+        await syncRepository.authorizeBatch(claimed.token),
+        claimed.command,
+      );
+      releaseNowMillis += 1_000;
+      const completed = await syncRepository.complete({
+        token: claimed.token,
+        evidence: {
+          workbookRevision: `workbook-source-readback-${command.type}`,
+          partitionDigest: digest({
+            bundleRevision: staged.bundleRevision,
+            partition: command.partitionKey,
+            readBack: "local-e2e",
+          }),
+        },
+      });
+      assert.equal(completed.kind, "committed");
+      assert.equal(completed.command.state, "completed");
+    }
+
+    releaseNowMillis += 1_000;
+    const releaseRepository =
+      createFirestoreShiftPlanningNotificationReleaseRepository(
+        database,
+        () => Timestamp.fromMillis(releaseNowMillis),
+      );
+    const releasedArtifacts = [];
+    for (const intent of staged.heldNotificationIntents) {
+      const released = await releaseRepository.release({
+        environment,
+        intentId: intent.intentId,
+      });
+      assert.equal(released.kind, "committed");
+      releasedArtifacts.push(released.artifacts);
+    }
+
+    const notificationEvents = await database.collection(
+      `${root}/notificationEvents`,
+    ).get();
+    assert.equal(
+      notificationEvents.size,
+      staged.heldNotificationIntents.length,
+    );
+    const forbiddenPublicFields = [
+      "shiftId",
+      "shiftType",
+      "bundleRevision",
+      "bundleDigest",
+      "writeEpoch",
+      "assignedUserIds",
+      "date",
+    ];
+    for (const event of notificationEvents.docs) {
+      assert.equal(event.get("contentPolicy"), "genericReferenceOnly");
+      assert.equal(event.get("type"), "shift_updated");
+      assert.equal(event.get("title"), "Turnos actualizados");
+      assert.equal(
+        event.get("body"),
+        "Consulta la aplicación para ver la información actualizada.",
+      );
+      assert.equal(
+        forbiddenPublicFields.every((field) => event.get(field) === undefined),
+        true,
+      );
+    }
+
+    const recipientUserIds = [...new Set(
+      staged.heldNotificationIntents.map(({recipientUserId}) => recipientUserId),
+    )];
+    const inboxSnapshots = await Promise.all(recipientUserIds.map(
+      (recipientUserId) => database.collection(
+        `${root}/users/${recipientUserId}/notificationInbox`,
+      ).get(),
+    ));
+    assert.equal(
+      inboxSnapshots.reduce((total, snapshot) => total + snapshot.size, 0),
+      staged.heldNotificationIntents.length,
+    );
+    assert.equal(inboxSnapshots.every((snapshot) => snapshot.docs.every(
+      (document) =>
+        document.get("contentPolicy") === "genericReferenceOnly" &&
+        forbiddenPublicFields.every(
+          (field) => document.get(field) === undefined,
+        ),
+    )), true);
+
+    const releaseReceipts = await Promise.all(
+      staged.heldNotificationIntents.map(({intentId}) => database.doc(
+        `${root}/shiftPlanningNotificationIntents/${intentId}/` +
+          "releases/canonical",
+      ).get()),
+    );
+    assert.equal(releaseReceipts.every(({exists}) => exists), true);
+    const dispatchAttempts = await Promise.all(
+      staged.heldNotificationIntents.map(({intentId}) => database.collection(
+        `${root}/shiftPlanningNotificationIntents/${intentId}/` +
+          "dispatchAttempts",
+      ).get()),
+    );
+    assert.equal(dispatchAttempts.every(({empty}) => empty), true);
+
+    const firstIntent = staged.heldNotificationIntents[0];
+    const releaseReplay = await releaseRepository.release({
+      environment,
+      intentId: firstIntent.intentId,
+    });
+    assert.equal(releaseReplay.kind, "replayed");
+    assert.deepEqual(releaseReplay.artifacts, releasedArtifacts[0]);
+    assert.equal(
+      (await database.collection(`${root}/notificationEvents`).get()).size,
+      staged.heldNotificationIntents.length,
     );
 
     await clear(database);

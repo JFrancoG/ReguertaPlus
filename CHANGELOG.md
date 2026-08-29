@@ -249,6 +249,7 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-08-29 | ✅ test(shifts): prove canonical notification release
 - 2026-08-29 | ✅ test(shifts): prove governed activation readback
 - 2026-08-29 | ✅ test(shifts): prove season boundary projection
 - 2026-08-29 | ✅ test(shifts): prove generated swap compatibility

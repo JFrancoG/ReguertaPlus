@@ -1032,13 +1032,14 @@ occurred. Protected technical evidence remains outside the repository.
   distinctness, final-group fill, and carryover.
 - [ ] Prove each market boundary-active round is materialized into the required
   future projections without recursively publishing later rounds.
-- [ ] Read back request, rotation state, shifts, and notifications.
+- [x] Read back request, rotation state, shifts, and notifications.
   - [x] Local Firestore runtime acceptance executes one real
     `preview -> stage -> activate` chain, then reads back the completed request,
     maintenance state, both rotations, every flat public shift, every held
     notification intent, and the still-empty public notification collection.
-  - [ ] Remaining: release and read back canonical event/inbox artifacts, then
-    exercise the mobile observers against that terminal publication.
+  - [x] The same real chain completes both governed Sheets-sync commands with
+    deterministic local read-back evidence, releases every held intent, and reads
+    back one generic canonical event, member inbox entry, and receipt per intent.
 - [ ] Verify Android and iOS update after terminal completion without restart.
 - [x] Prove replay produces no duplicate or cursor drift.
 - [ ] Prove preview has only private request/operation/bundle writes, stage
@@ -1053,9 +1054,15 @@ occurred. Protected technical evidence remains outside the repository.
     activation atomically publishes the complete delivery-plus-market count with
     client-compatible `source = app` planner provenance, advances maintenance and
     both rotations to the same revision, and retains all notification intents held.
+  - [x] Canonical-release emulator cut: both sync partitions first reach their
+    terminal read-back, every held intent creates one exact event/inbox/receipt,
+    replay creates no duplicate, and no dispatch attempt or FCM transport starts.
 - [ ] Prove canonical event/inbox/push artifacts contain only generic shift references,
   supported clients decode them, and stale/offline caches cannot expose member/date/
   assignment detail after authorization or revision changes.
+  - [x] The integrated release read-back proves public event/inbox documents contain
+    only the generic discriminator and copy; shift, member assignment, bundle and date
+    details remain confined to backend-owned receipts and source records.
 - [ ] Prove assignment/member drift between read and event claim fails CAS, and
   UID/eligibility/token writers serialize with every initial/retried FCM dispatch
   lease; prove drift before authenticated submission starts fails closed and drift
