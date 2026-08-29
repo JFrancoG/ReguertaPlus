@@ -8,7 +8,4 @@ class ChainedShiftRepository(
     @Suppress("UNUSED_PARAMETER") fallback: ShiftRepository,
 ) : ShiftRepository {
     override suspend fun getAllShifts(): List<ShiftAssignment> = primary.getAllShifts()
-
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment =
-        primary.upsertShift(shift)
 }

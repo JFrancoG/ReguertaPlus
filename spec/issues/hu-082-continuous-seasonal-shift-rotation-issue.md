@@ -1081,6 +1081,32 @@ deployed, no shared Firebase or Sheet data changed, and no production activation
 live read-back occurred. Direct `shifts` writers and the remaining inventory still
 keep HU-082 open; deployment belongs to the held no-gap procedure.
 
+## Local implementation checkpoint — direct shift client closure (2026-08-29)
+
+Android and iOS no longer expose the unused shift-upsert capability through their
+Domain repository contract, Firestore adapter, chained/in-memory implementations,
+or test doubles. Production had no caller for that operation: planning, Sheets
+compatibility, reciprocal swaps, completion, repair, and recovery already mutate
+shifts through authenticated backend workflows. The clients remain server-read-only,
+and the historical `source = app` value remains a decoding compatibility contract,
+not mobile write authority.
+
+Both local Rules candidates now retain their intended shift reads while denying
+every direct create, update, and delete in `develop` and `production`; the Phase 1
+catch-all explicitly excludes `shifts`. RED passed 28/30 in strict and 6/7 in Phase 1
+because old admin/authenticated writes still succeeded. GREEN passes 30/30 and 7/7.
+The compiled affected-writer inventory now records the two server-only Rules paths
+and carries its resulting canonical digest.
+
+Android unit tests and lint pass. Xcode builds the intended project with zero
+warnings, and the repository fast-unit lane passes on iPhone 17 / iOS 26.5. Functions
+lint/build, the full local planning-unit suite, the 35/35 intake-barrier vectors,
+and 11/11 backend shift-writer emulator vectors pass. The independent iOS
+Domain/Data/concurrency review reports no findings. No Rules or Function was
+deployed, no shared Firebase or Sheet data changed, and no production activation or
+live read-back occurred. Shift export, independent admin/server authority, and the
+remaining inventory keep HU-082 open.
+
 ## Suggested labels
 
 - `type:feature`

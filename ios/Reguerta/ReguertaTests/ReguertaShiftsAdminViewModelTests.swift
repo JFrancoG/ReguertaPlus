@@ -390,9 +390,6 @@ private actor CountingPlanningShiftRepository: ShiftRepository {
         return []
     }
 
-    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) -> ShiftAssignment {
-        shift
-    }
 }
 
 private actor RecordingDeliveryCalendarRepository: DeliveryCalendarRepository {

@@ -542,7 +542,7 @@ test("device registration validates platform metadata and timestamps", async () 
   }
 });
 
-test("active notification resource fences block client writers", async () => {
+test("resource fences and shift rules block client writers", async () => {
   for (const env of envs) {
     const memberDb = contextFor(actors.member).firestore();
     const adminDb = contextFor(actors.admin).firestore();
@@ -609,7 +609,7 @@ test("active notification resource fences block client writers", async () => {
       });
     });
     await assertSucceeds(memberDb.doc(devicePath).set(device));
-    await assertSucceeds(adminDb.doc(docPath(env, "shifts", shiftId)).set({
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).set({
       type: "delivery",
       assignedUserIds: [memberId],
       status: "confirmed",
@@ -628,7 +628,7 @@ test("active notification resource fences block client writers", async () => {
   }
 });
 
-test("active notification incident fences block only affected shifts", async () => {
+test("notification incident fences never grant shift client writes", async () => {
   for (const env of envs) {
     const adminDb = contextFor(actors.admin).firestore();
     const shiftId = "shift-incident-fenced";
@@ -657,7 +657,7 @@ test("active notification incident fences block only affected shifts", async () 
       status: "confirmed",
       source: "app",
     }));
-    await assertSucceeds(
+    await assertFails(
       adminDb.doc(docPath(env, "shifts", "shift-not-incident-fenced")).set({
         type: "delivery",
         assignedUserIds: [actors.member.memberId],
@@ -671,7 +671,7 @@ test("active notification incident fences block only affected shifts", async () 
         expiresAt: new Date("2020-01-01T00:00:00Z"),
       });
     });
-    await assertSucceeds(adminDb.doc(docPath(env, "shifts", shiftId)).set({
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).set({
       type: "delivery",
       assignedUserIds: [actors.member.memberId],
       status: "confirmed",
@@ -1101,6 +1101,32 @@ test("delivery calendar is active-member readable and backend-only writable", as
   }
 });
 
+test("shifts are active-member readable and backend-only writable", async () => {
+  for (const env of envs) {
+    const existing = docPath(env, "shifts", "shift-existing");
+    const created = docPath(env, "shifts", "shift-created");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({
+        type: "delivery",
+        source: "app",
+      });
+    });
+    const memberDb = contextFor(actors.member).firestore();
+    const adminDb = contextFor(actors.admin).firestore();
+    const inactiveDb = contextFor(actors.inactive).firestore();
+    const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertSucceeds(memberDb.doc(existing).get());
+    await assertSucceeds(adminDb.doc(existing).get());
+    await assertFails(inactiveDb.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(adminDb.doc(created).set({type: "delivery", source: "app"}));
+    await assertFails(adminDb.doc(existing).update({status: "confirmed"}));
+    await assertFails(adminDb.doc(existing).delete());
+    await assertFails(memberDb.doc(created).set({type: "delivery", source: "app"}));
+  }
+});
+
 test("sensitive system workflows reject direct member writes", async () => {
   for (const env of envs) {
     const memberDb = contextFor(actors.member).firestore();
@@ -1114,7 +1140,7 @@ test("sensitive system workflows reject direct member writes", async () => {
         source: "app",
       }),
     );
-    await assertSucceeds(
+    await assertFails(
       adminDb.doc(docPath(env, "shifts", "shift_admin_write")).set({
         type: "delivery",
         assignedUserIds: [actors.member.memberId],

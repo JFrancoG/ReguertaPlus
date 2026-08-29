@@ -326,12 +326,18 @@ Delivery calendar strategy (canonical):
 - `createdAt`: timestamp (required)
 - `updatedAt`: timestamp (required)
 
+Mobile clients may read `shifts` but cannot create, update, or delete documents
+directly. Shift planning, Sheets compatibility, reciprocal swaps, completion,
+repair, and recovery remain authenticated backend workflows. The historical
+`source = app` value is a client-decoding compatibility contract, not evidence
+that a mobile client authored the document.
+
 HU-082 keeps effective assignment (`assignedUserIds`) separate from rotation
 ownership. A newly generated position initially copies its owner into its
 effective assignee, but later coverage or reassignment must not rewrite the
 owner, round, or position. Planner-generated shifts remain compatible with
 current clients by using `source = app`; `origin = planner` and the lineage
-fields distinguish them from ordinary app edits. The bundle revision, digest,
+fields distinguish them from legacy/imported rows. The bundle revision, digest,
 epoch, and complete ownership persistence listed here are written by the
 publication/activation adapter. Publication codec v1 enforces one
 assigned UID for delivery, exactly three distinct UIDs for market, UTC-midnight
@@ -341,9 +347,9 @@ decoders continue consuming their unchanged required fields, ignore the additive
 planner metadata, and still reject `source = planner` as noncanonical.
 
 The backend marker is historical provenance, not a permanent hash of every
-later ordinary edit. A candidate `onShiftWritten` validates path, payload,
+later backend mutation. A candidate `onShiftWritten` validates path, payload,
 revision, bundle, epoch, and operation intent only when the marker changes in
-that event. If a normal later edit retains the same marker, it is handled
+that event. If a normal later backend mutation retains the same marker, it is handled
 normally even though the historical `payloadDigest` no longer matches. The
 governed schema-v2 runtime writes this codec locally/in emulators; production
 deployment and activation remain pending.

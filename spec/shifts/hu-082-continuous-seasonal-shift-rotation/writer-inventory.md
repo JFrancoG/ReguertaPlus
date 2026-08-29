@@ -17,18 +17,17 @@ inventory.
 
 The repository default deployment configuration currently points at
 `firestore.phase1.rules`. Both local Rules candidates now keep their existing
-`deliveryCalendar` read contract while denying every direct create, update, and
-delete; the Phase 1 catch-all explicitly excludes that collection. Legacy direct
-`shifts` writes and other affected public surfaces remain admitted, so neither
-file yet constitutes the complete HU-082 intake barrier. This is repository and
-emulator evidence, not a deployment or fresh read-back of the shared Firebase
-project.
+`deliveryCalendar` and `shifts` read contracts while denying every direct create,
+update, and delete; the Phase 1 catch-all explicitly excludes both collections.
+Other affected public surfaces remain admitted, so neither file yet constitutes
+the complete HU-082 intake barrier. This is repository and emulator evidence,
+not a deployment or fresh read-back of the shared Firebase project.
 
 ## Barrier writers
 
 | Writer ID | Current evidence | Affected target | Required disposition |
 |---|---|---|---|
-| `firestore-client-shifts` | Android `FirestoreShiftRepository.upsertShift`; iOS `FirestoreShiftRepository.upsert`; Phase 1 catch-all; strict admin write | `shifts` | `rules-deny` before causal capture; migrate any future manual edit to a versioned command |
+| `firestore-client-shifts` | The unused Android/iOS upsert capability has been removed from Domain, Data, in-memory/chained repositories, and test doubles. Both local Rules candidates retain their intended reads but deny every direct create/update/delete; emulator coverage rejects old admin/authenticated clients in both environments | `shifts` | Keep every real mutation in an authenticated, fenced backend workflow; deploy and read back the exact deny only inside the no-gap activation procedure |
 | `firestore-client-delivery-calendar` | Android/iOS production composition routes every upsert/delete through `resolveDeliveryCalendarMutationContext` + `transitionDeliveryCalendarOverride`; reads remain server-only Firestore reads. Both local Rules candidates now deny every direct create/update/delete, and emulator coverage rejects old creates plus stale/offline updates and deletes in both environments while retaining their intended reads | `deliveryCalendar` | Keep the command as the only mobile mutation path; deploy and read back the exact deny only inside the no-gap activation procedure |
 | `firestore-client-shift-planning-requests` | Android/iOS planning-request repositories and admin UI | `shiftPlanningRequests` | `rules-deny` before causal capture; the legacy request must not enter while maintenance starts |
 | `firestore-client-shift-swap-requests` | Phase 1 catch-all permits a direct path although current clients use HTTP | `shiftSwapRequests` | `rules-deny` before causal capture |

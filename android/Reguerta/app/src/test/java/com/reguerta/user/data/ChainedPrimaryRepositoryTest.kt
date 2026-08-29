@@ -33,23 +33,19 @@ class ChainedPrimaryRepositoryTest {
     }
 
     @Test
-    fun `shift read and write failures propagate without fallback`() = runBlocking {
+    fun `shift read failures propagate without fallback`() = runBlocking {
         val readFailure = IllegalStateException("read")
-        val writeFailure = IllegalStateException("write")
         val fallback = RecordingShiftRepository(shifts = listOf(shift()))
         val repository = ChainedShiftRepository(
             primary = RecordingShiftRepository(
                 shifts = emptyList(),
                 readFailure = readFailure,
-                writeFailure = writeFailure,
             ),
             fallback = fallback,
         )
 
         assertSameFailure(readFailure) { repository.getAllShifts() }
-        assertSameFailure(writeFailure) { repository.upsertShift(shift()) }
         assertEquals(0, fallback.readCalls)
-        assertEquals(0, fallback.writeCalls)
     }
 
     @Test
@@ -172,21 +168,13 @@ class ChainedPrimaryRepositoryTest {
 private class RecordingShiftRepository(
     private val shifts: List<ShiftAssignment>,
     private val readFailure: Throwable? = null,
-    private val writeFailure: Throwable? = null,
 ) : ShiftRepository {
     var readCalls = 0
-    var writeCalls = 0
 
     override suspend fun getAllShifts(): List<ShiftAssignment> {
         readCalls += 1
         readFailure?.let { throw it }
         return shifts
-    }
-
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment {
-        writeCalls += 1
-        writeFailure?.let { throw it }
-        return shift
     }
 }
 

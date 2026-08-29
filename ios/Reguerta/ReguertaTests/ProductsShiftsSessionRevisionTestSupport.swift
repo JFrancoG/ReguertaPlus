@@ -101,8 +101,6 @@ final class SessionRevisionShiftReadRepository: ShiftRepository, Sendable {
         return []
     }
 
-    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment { shift }
-
     func waitUntilReadStarts(_ index: Int = 0) async throws {
         try await readOperations[index].waitUntilStarted()
     }

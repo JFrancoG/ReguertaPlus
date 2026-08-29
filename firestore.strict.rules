@@ -725,8 +725,7 @@ service cloud.firestore {
 
     match /{env}/plus-collections/shifts/{shiftId} {
       allow read: if isActiveMember(env);
-      allow create, update, delete: if isAdmin(env) &&
-        notificationResourceFenceAllowsMutation(env, "shift", shiftId);
+      allow create, update, delete: if false;
     }
 
     match /{env}/plus-collections/shiftPlanningRequests/{requestId} {

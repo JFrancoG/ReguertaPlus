@@ -237,7 +237,7 @@ test("keeps the complete affected-writer inventory versioned", () => {
   assert.equal(
     SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
     "shift-planning:v1:sha256:" +
-      "628743c9f5c04d1a16046ff24ba1e2e93699fe5ae06b1e1bc1e8a01f343a7b40",
+      "4f2db4c84d10b2a7d5ffd767243a1455059f2851d82873689a2adf668b04e2c5",
   );
   assert.deepEqual(
     SHIFT_PLANNING_AFFECTED_WRITERS.find(

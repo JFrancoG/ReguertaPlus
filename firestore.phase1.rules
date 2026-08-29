@@ -201,12 +201,21 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Shift mutations are owned by authenticated backend workflows.
+    match /{env}/{dataset}/shifts/{shiftId} {
+      allow read: if isSignedIn() &&
+        isSupportedEnv(env) &&
+        isSupportedDataset(dataset);
+      allow create, update, delete: if false;
+    }
+
     match /{env}/{dataset}/{collectionId}/{document=**} {
       allow read, write: if isSignedIn() &&
         isSupportedEnv(env) &&
         isSupportedDataset(dataset) &&
         collectionId != "orders" &&
         collectionId != "deliveryCalendar" &&
+        collectionId != "shifts" &&
         !isPrivateShiftPlanningCollection(collectionId);
     }
   }

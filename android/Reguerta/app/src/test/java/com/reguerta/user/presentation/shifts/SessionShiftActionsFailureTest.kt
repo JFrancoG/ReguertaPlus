@@ -621,19 +621,16 @@ class SessionShiftActionsFailureTest {
 
 private class StaticShiftRepository(private val shifts: List<ShiftAssignment>) : ShiftRepository {
     override suspend fun getAllShifts(): List<ShiftAssignment> = shifts
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = shift
 }
 
 private object RejectingShiftRepository : ShiftRepository {
     override suspend fun getAllShifts(): List<ShiftAssignment> = throw IOException("read failed")
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = shift
 }
 
 private class QueuedShiftRepository(
     private val readResults: ArrayDeque<Result<List<ShiftAssignment>>>,
 ) : ShiftRepository {
     override suspend fun getAllShifts(): List<ShiftAssignment> = readResults.removeFirst().getOrThrow()
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = shift
 }
 
 private class SuspendedShiftRepository(private val result: List<ShiftAssignment>) : ShiftRepository {
@@ -645,8 +642,6 @@ private class SuspendedShiftRepository(private val result: List<ShiftAssignment>
         release.await()
         return result
     }
-
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = shift
 
     suspend fun awaitReadStarted() = started.await()
 
@@ -759,8 +754,6 @@ private class CountingShiftRepository : ShiftRepository {
         readCount += 1
         return emptyList()
     }
-
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = shift
 }
 
 private class AmbiguousFirstPlanningRepository : ShiftPlanningRequestRepository {

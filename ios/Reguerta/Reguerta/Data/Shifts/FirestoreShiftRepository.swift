@@ -27,28 +27,6 @@ actor FirestoreShiftRepository: ShiftRepository {
         }
     }
 
-    func upsert(shift: ShiftAssignment, environment: SessionEnvironment) async throws -> ShiftAssignment {
-        let shiftsCollection = storedDB.reguertaCollection(.shifts, environment: environment)
-        let payload: [String: Any] = [
-            "type": shift.type.rawValue,
-            "date": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.dateMillis) / 1_000)),
-            "assignedUserIds": shift.assignedUserIds,
-            "helperUserId": shift.helperUserId as Any,
-            "status": shift.status.rawValue,
-            "source": shift.source,
-            "createdAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.createdAtMillis) / 1_000)),
-            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.updatedAtMillis) / 1_000))
-        ]
-
-        do {
-            try Task.checkCancellation()
-            try await shiftsCollection.document(shift.id).setData(payload, merge: true)
-        } catch {
-            throw FirestoreRepositoryErrorMapper.map(error, resource: "shifts.write")
-        }
-        return shift
-    }
-
     static func shift(documentID: String, data: [String: Any]) throws -> ShiftAssignment {
         guard !documentID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let typeRaw = requiredTrimmedString(data["type"])?.lowercased(),

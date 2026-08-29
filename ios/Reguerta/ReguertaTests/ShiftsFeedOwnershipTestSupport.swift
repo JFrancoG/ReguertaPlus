@@ -326,10 +326,6 @@ final class ControlledShiftsFeedRepository: ShiftRepository, ShiftSwapRequestRep
         }
     }
 
-    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
-        shift
-    }
-
     func transition(
         _ command: ShiftSwapCommand,
         environment _: SessionEnvironment

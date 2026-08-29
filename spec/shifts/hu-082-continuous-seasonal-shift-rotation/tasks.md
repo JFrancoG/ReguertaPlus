@@ -844,9 +844,14 @@ occurred. Protected technical evidence remains outside the repository.
     Rules candidates while retaining their intended reads. Strict 29/29 and Phase 1
     6/6 emulator suites reject old/stale/offline clients in both environments; the
     backend command remains green 6/6.
-  - [ ] Remaining: migrate/deny direct shift writes and fence shift export, admin,
-    and other inventoried mutation paths. Deployment and exact Rules read-back stay
-    inside the no-gap activation procedure.
+  - [x] Remove the unused Android/iOS shift-upsert capability from Domain, Data,
+    chained/in-memory repositories, and test doubles. Both local Rules candidates
+    retain their intended reads and deny every direct shift create/update/delete.
+    Strict 30/30 and Phase 1 7/7 emulator suites pass after RED proved the old
+    admin/authenticated paths; Android unit/lint, Xcode build without warnings,
+    and iOS fast-unit pass.
+  - [ ] Remaining: fence shift export, admin, and other inventoried mutation paths.
+    Deployment and exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.

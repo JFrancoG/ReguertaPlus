@@ -60,11 +60,8 @@ const affectedWriters = [
     shutdownOrder: "before-causal-capture",
     targets: ["firestore.shifts"],
     sourceReferences: [
-      "android/Reguerta/app/src/main/java/com/reguerta/user/data/shifts/" +
-        "FirestoreShiftRepository.kt#upsertShift",
-      "ios/Reguerta/Reguerta/Data/Shifts/FirestoreShiftRepository.swift#upsert",
-      "firestore.phase1.rules#authenticated-catch-all",
-      "firestore.strict.rules#shifts-admin-write",
+      "firestore.phase1.rules#shifts-server-only-write",
+      "firestore.strict.rules#shifts-server-only-write",
     ],
   },
   {

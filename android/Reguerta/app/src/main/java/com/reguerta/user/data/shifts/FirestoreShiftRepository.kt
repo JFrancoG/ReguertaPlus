@@ -3,7 +3,6 @@ package com.reguerta.user.data.shifts
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.Source
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
@@ -42,28 +41,6 @@ class FirestoreShiftRepository(
         }
     }
 
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = withContext(Dispatchers.IO) {
-        val payload = mapOf(
-            "type" to shift.type.wireValue(),
-            "date" to Timestamp(shift.dateMillis / 1_000, ((shift.dateMillis % 1_000) * 1_000_000).toInt()),
-            "assignedUserIds" to shift.assignedUserIds,
-            "helperUserId" to shift.helperUserId,
-            "status" to shift.status.wireValue(),
-            "source" to shift.source,
-            "createdAt" to Timestamp(shift.createdAtMillis / 1_000, ((shift.createdAtMillis % 1_000) * 1_000_000).toInt()),
-            "updatedAt" to Timestamp(shift.updatedAtMillis / 1_000, ((shift.updatedAtMillis % 1_000) * 1_000_000).toInt()),
-        )
-        try {
-            Tasks.await(
-                firestore.collection(shiftsCollectionPath)
-                    .document(shift.id)
-                    .set(payload, SetOptions.merge()),
-            )
-            shift
-        } catch (error: Exception) {
-            throw error.toRepositoryException(resource = "shifts.write")
-        }
-    }
 }
 
 internal fun decodeShiftDocuments(
@@ -132,14 +109,3 @@ private fun invalidShiftDocument(): Nothing = throw RepositoryException(
 )
 
 private val validShiftSources = setOf("app", "google_sheets")
-
-private fun ShiftType.wireValue(): String = when (this) {
-    ShiftType.DELIVERY -> "delivery"
-    ShiftType.MARKET -> "market"
-}
-
-private fun ShiftStatus.wireValue(): String = when (this) {
-    ShiftStatus.PLANNED -> "planned"
-    ShiftStatus.SWAP_PENDING -> "swap_pending"
-    ShiftStatus.CONFIRMED -> "confirmed"
-}

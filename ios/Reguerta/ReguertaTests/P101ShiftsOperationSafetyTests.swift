@@ -128,10 +128,6 @@ private final class CancelledShiftRepository: ShiftRepository {
     func allShifts(environment _: SessionEnvironment) async throws -> [ShiftAssignment] {
         throw CancellationError()
     }
-
-    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
-        shift
-    }
 }
 
 private actor RejectingOncePlanningRepository: ShiftPlanningRequestRepository {
@@ -185,10 +181,6 @@ private actor SuspendedFirstShiftRepository: ShiftRepository {
         readyWaiters.forEach { $0.1.resume() }
         guard completedCount == 1 else { return subsequentResult }
         return await withCheckedContinuation { firstReadContinuation = $0 }
-    }
-
-    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
-        shift
     }
 
     func recordedEnvironments() -> [SessionEnvironment] {

@@ -127,6 +127,28 @@ test("phase 1 keeps delivery calendar readable but rejects every direct write", 
   }
 });
 
+test("phase 1 keeps shifts readable but rejects every direct write", async () => {
+  const db = testEnv.authenticatedContext("plus-user").firestore();
+  const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+  for (const env of envs) {
+    const existing = `${env}/plus-collections/shifts/shift-existing`;
+    const created = `${env}/plus-collections/shifts/shift-created`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({
+        type: "delivery",
+        source: "app",
+      });
+    });
+
+    await assertSucceeds(db.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(db.doc(created).set({type: "delivery", source: "app"}));
+    await assertFails(db.doc(existing).update({status: "confirmed"}));
+    await assertFails(db.doc(existing).delete());
+  }
+});
+
 test("phase 1 exposes only public startup config without authentication", async () => {
   const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
 

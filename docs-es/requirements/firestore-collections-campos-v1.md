@@ -389,10 +389,10 @@ Estrategia canonica de calendario:
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
 | `planningSchemaVersion` | integer\|null | no | sistema | `1` exacto para filas planner HU-082 |
-| `type` | string | si | sistema/admin | `delivery`/`market` |
-| `date` | timestamp | si | sistema/admin | |
-| `assignedUserIds` | array<string> | si | sistema/admin | 1-2 en reparto, >=3 en mercado |
-| `helperUserId` | string\|null | no | sistema/admin | Reparto |
+| `type` | string | si | sistema | `delivery`/`market` |
+| `date` | timestamp | si | sistema | |
+| `assignedUserIds` | array<string> | si | sistema | 1-2 en reparto, >=3 en mercado |
+| `helperUserId` | string\|null | no | sistema | Reparto |
 | `status` | string | si | sistema | `planned`/`swap_pending`/`confirmed` |
 | `source` | string | si | sistema | `app`/`google_sheets` |
 | `origin` | string\|null | no | sistema | `planner` para un turno generado por HU-082 |
@@ -414,6 +414,12 @@ Estrategia canonica de calendario:
 | `createdAt` | timestamp | si | no | |
 | `updatedAt` | timestamp | si | sistema | |
 
+Los clientes moviles pueden leer `shifts`, pero no crear, actualizar ni borrar
+documentos directamente. La planificacion, la compatibilidad con Sheets, los
+intercambios reciprocos, la finalizacion, reparacion y recuperacion son flujos
+autenticados del backend. El valor historico `source = app` es un contrato de
+compatibilidad de decodificacion, no evidencia de autoria del cliente movil.
+
 Cada elemento de `rotationPositions` contiene
 `rotationOwnerUserId`, `effectiveAssigneeUserId`, `roundNumber` y
 `positionInRound`. HU-082 separa la asignacion efectiva (`assignedUserIds`) de
@@ -421,7 +427,7 @@ la propiedad de rotacion. Una posicion nueva copia inicialmente su propietario
 como asignado efectivo, pero una cobertura o reasignacion posterior no puede
 reescribir propietario, ronda ni posicion. Los turnos generados conservan
 compatibilidad usando `source = app`; `origin = planner` y los campos de linaje
-los distinguen de una edicion ordinaria de la app. Revision, digest, epoca y
+los distinguen de filas legacy/importadas. Revision, digest, epoca y
 persistencia completa de propiedad ya son escritas por el adaptador de
 publicacion/activacion. El codec de publicacion v1 exige un UID asignado en
 reparto, exactamente tres distintos en mercado, fecha a medianoche UTC,
@@ -438,10 +444,10 @@ ademas de helper real y revision de asignacion valida en reparto.
 `operationIntentDigest`, revision/digest de bundle, `writeEpoch`, `targetPath`,
 `documentRevision` y `payloadDigest` del documento sin el propio marcador.
 
-El marcador es procedencia historica, no un hash permanente de toda edicion
-ordinaria posterior. El futuro `onShiftWritten` valida ruta, payload, revision,
-bundle, epoch e intent solo cuando el marcador cambia en ese evento. Una edicion
-normal que conserva el marcador se procesa normalmente aunque el digest
+El marcador es procedencia historica, no un hash permanente de toda mutacion
+backend posterior. El futuro `onShiftWritten` valida ruta, payload, revision,
+bundle, epoch e intent solo cuando el marcador cambia en ese evento. Una mutacion
+backend normal que conserva el marcador se procesa normalmente aunque el digest
 historico ya no coincida. El runtime gobernado schema-v2 escribe este codec en
 local/emuladores; despliegue y activacion de produccion siguen pendientes.
 
