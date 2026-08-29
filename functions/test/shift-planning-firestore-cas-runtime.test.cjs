@@ -480,6 +480,17 @@ test(
     });
     assert.equal(replay.kind, "terminalReplay");
     assert.deepEqual(replay.outcome, result.outcome);
+    await assert.rejects(
+      runtime.executeInverseRecovery({
+        environment,
+        activationOperationId: operationId,
+        recoveryOperationId: "recovery-runtime-inverse-other",
+        resolveAttempt: async () => {
+          throw new Error("foreign recovery replay must not resolve");
+        },
+      }),
+      errorCode("invalid_planning_attempt_outcome"),
+    );
     await database.terminate();
   },
 );
@@ -508,6 +519,46 @@ test(
         leaseDurationMillis: 60_000,
         resolveAttempt: async () => {
           throw new Error("missing outcome must block another CAS");
+        },
+      }),
+      errorCode("invalid_planning_attempt_outcome"),
+    );
+    assert.equal(
+      (await operationReference.collection("attemptOutcomes").get()).size,
+      0,
+    );
+    await database.terminate();
+  },
+);
+
+test(
+  "fails closed when a committed recovery has no retained outcome",
+  {skip: !process.env.FIRESTORE_EMULATOR_HOST},
+  async () => {
+    const database = new Firestore({projectId, databaseId: "(default)"});
+    const operationId = "request-activate-runtime-missing-inverse-outcome";
+    const recoveryOperationId = "recovery-runtime-missing-inverse-outcome";
+    const operationReference = database.doc(
+      `${environment}/plus-collections/shiftPlanningOperations/${operationId}`,
+    );
+    const activation = activationOperation({
+      operationId,
+      attemptedAt: Timestamp.fromMillis(1_788_500_100_000),
+    });
+    await operationReference.create(recoveryOperation({
+      activation,
+      recoveryOperationId,
+      recoveredAt: Timestamp.fromMillis(1_788_500_200_000),
+    }));
+    const runtime = createFirestoreShiftPlanningCasRuntime(database);
+
+    await assert.rejects(
+      runtime.executeInverseRecovery({
+        environment,
+        activationOperationId: operationId,
+        recoveryOperationId,
+        resolveAttempt: async () => {
+          throw new Error("missing inverse outcome must block another CAS");
         },
       }),
       errorCode("invalid_planning_attempt_outcome"),

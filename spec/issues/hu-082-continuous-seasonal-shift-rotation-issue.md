@@ -1319,6 +1319,26 @@ and 43 emulator-only skips.
 This is local Functions evidence only. No Function or Rules was deployed, and no
 shared Firebase, workbook, notification, mobile release or production data changed.
 
+## Local implementation checkpoint — recovery retry identity (2026-08-29)
+
+Inverse recovery terminal replay now requires the same `recoveryOperationId` that
+produced the committed recovery. A late retry with another recovery identity fails
+closed instead of receiving an acknowledgement belonging to the earlier operation.
+The runtime still performs no second CAS once a valid directional outcome exists.
+
+The focused emulator RED passed 5/6 because the foreign recovery identity incorrectly
+received a terminal replay. GREEN passes 7/7, additionally proving that committed
+activation and recovery terminals missing their post-return directional outcome both
+block another CAS. The authoritative-state emulator passes 20/20 and now explicitly
+proves a pre-activation abort cannot reopen maintenance from a stale active lineage.
+Functions lint/build and the complete planning-unit lane pass with 270/270 executed
+vectors and 44 emulator-only skips.
+
+This closes the local runtime identity gap, not the live crash-injection gate. The
+real no-gap controls, deployed runtime and controlled failure/read-back matrix remain
+part of HU-085. No Function or Rules was deployed, and no shared Firebase, workbook,
+notification, mobile release or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

@@ -454,6 +454,23 @@ export const createFirestoreShiftPlanningCasRuntime = (
         "inverse",
       );
       if (existing.outcome !== null) {
+        let recovery: ReturnType<
+          typeof parseShiftPlanningRecoveryOperationTerminal
+        >;
+        try {
+          recovery = parseShiftPlanningRecoveryOperationTerminal(
+            existing.operation,
+          );
+        } catch {
+          return failOutcome(
+            "Inverse outcome recovery operation is invalid.",
+          );
+        }
+        if (recovery.recoveryOperationId !== recoveryOperationId) {
+          return failOutcome(
+            "Inverse outcome belongs to another recovery operation.",
+          );
+        }
         return {
           kind: "terminalReplay",
           attempt: null,

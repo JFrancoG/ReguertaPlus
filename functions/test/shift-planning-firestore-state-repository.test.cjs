@@ -841,12 +841,21 @@ test("abort replay rejects an internally consistent retained lease", async () =>
   assert.deepEqual(await planningDocuments(), beforeReplay);
 });
 
-test("abort rejects stale epoch and digest without mutation", async () => {
+test("abort rejects stale authority without mutation", async () => {
   const staleCases = [
     {
       name: "write epoch",
       code: "stale_write_epoch",
       override: {expectedWriteEpoch: 9},
+    },
+    {
+      name: "active lineage",
+      code: "stale_active_revision",
+      override: {
+        expectedActiveRevision: "active-other",
+        expectedActiveDigest:
+          `shift-planning:v1:sha256:${"1".repeat(64)}`,
+      },
     },
     {
       name: "authoritative digest",

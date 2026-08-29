@@ -151,6 +151,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-29 | 🐛 fix(shifts): bind recovery replay identity
 - 2026-08-29 | 🐛 fix(shifts): deny client shift activation
 - 2026-08-29 | 🐛 fix(shifts): classify fairness input drift
 - 2026-08-29 | 🐛 fix(shifts): correct planning writer evidence

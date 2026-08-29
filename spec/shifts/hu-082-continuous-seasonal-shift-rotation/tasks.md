@@ -913,6 +913,13 @@ occurred. Protected technical evidence remains outside the repository.
     exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
+  - [x] Bind inverse terminal replay to the exact `recoveryOperationId`; a late
+    retry under another id now fails closed instead of receiving another recovery's
+    acknowledgement. Emulator coverage also proves committed activation/recovery
+    terminals without their directional outcome cannot execute another CAS, and a
+    pre-activation abort with stale active lineage cannot reopen maintenance.
+  - [ ] Remaining: execute the controlled crash-injection/read-back matrix around
+    the real no-gap controls and deployed runtime during HU-085 activation.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.
   - [x] Strict Rules deny every client-created `activate` request, including an
     otherwise exact candidate/digest binding from an active linked admin. Exact
