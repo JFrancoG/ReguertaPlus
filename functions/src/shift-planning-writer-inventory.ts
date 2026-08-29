@@ -87,7 +87,7 @@ const affectedWriters = [
         "#submitShiftPlanningRequest",
       "ios/Reguerta/Reguerta/Data/ShiftPlanningRequests/" +
         "FirestoreShiftPlanningRequestRepository.swift#submit",
-      "firestore.phase1.rules#authenticated-catch-all",
+      "firestore.phase1.rules#shiftPlanningRequests-client-denied",
       "firestore.strict.rules#shiftPlanningRequests-admin-create",
     ],
   },

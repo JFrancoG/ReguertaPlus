@@ -237,7 +237,7 @@ test("keeps the complete affected-writer inventory versioned", () => {
   assert.equal(
     SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
     "shift-planning:v1:sha256:" +
-      "0e87a526bfd2e771363c28d4c8a65e26fd9d9d0b6fd7fb549fb850eae1044280",
+      "1f284658e5d076f795b1e5cd40944dc3d93ed7c7abfd3fca82f41aef11fc2c62",
   );
   assert.deepEqual(
     SHIFT_PLANNING_AFFECTED_WRITERS.find(
@@ -250,6 +250,16 @@ test("keeps the complete affected-writer inventory versioned", () => {
       (writer) => writer.writerId === "https-resolve-authorized-member",
     ).shutdownOrder,
     "activation-recheck",
+  );
+  assert.deepEqual(
+    SHIFT_PLANNING_AFFECTED_WRITERS.find(
+      (writer) =>
+        writer.writerId === "firestore-client-shift-planning-requests",
+    ).sourceReferences.slice(-2),
+    [
+      "firestore.phase1.rules#shiftPlanningRequests-client-denied",
+      "firestore.strict.rules#shiftPlanningRequests-admin-create",
+    ],
   );
 });
 

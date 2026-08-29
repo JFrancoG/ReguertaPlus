@@ -1171,6 +1171,28 @@ strict Rules vectors, and 30/30 backend-security/shift-swap vectors pass locally
 Rules or Function was deployed, and no shared Firebase, notification, or production
 data changed.
 
+## Local implementation checkpoint — planning-request authority audit (2026-08-29)
+
+The affected-writer inventory no longer claims that Phase 1 admits planning
+requests through its authenticated catch-all. Its private planning partition already
+denies every client read and write to `shiftPlanningRequests`, whereas strict Rules
+allow only active linked admins to create the exact v2 schema and read its result.
+
+Android and iOS still submit the legacy four-field, single-type request directly.
+That payload is incompatible with strict Rules and cannot safely be upgraded by
+inventing `expectedWriteEpoch` or `expectedActiveRevision`: the authoritative state
+is backend-only. The next implementation boundary must expose those values through
+an authenticated admin context, then migrate both clients to the exact combined
+delivery-and-market v2 request. Only after that migration may the no-gap activation
+temporarily deny new creates and drain the accepted causal set.
+
+The inventory regression first failed 23/24 on the stale Phase 1 source reference.
+Functions lint/build, 263/263 executed planning-unit vectors with 43 emulator-only
+skips, 8/8 Phase 1 Rules vectors, and 31/31 strict Rules vectors pass after the
+correction. This checkpoint changes no Rules, mobile runtime, Function export,
+shared Firebase, Google Sheet, notification delivery, deployment, or production
+data.
+
 ## Suggested labels
 
 - `type:feature`

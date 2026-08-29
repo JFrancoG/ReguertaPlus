@@ -874,6 +874,18 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Validation: Functions lint/build, 263/263 executed planning-unit vectors
     with 43 emulator-only skips, 8/8 Phase 1 Rules vectors, 31/31 strict Rules
     vectors, and 30/30 backend-security/shift-swap vectors pass locally.
+  - [x] Correct the planning-request writer evidence: the Phase 1 candidate already
+    denies the whole client collection, while Android/iOS still submit the legacy
+    four-field request and strict Rules accept only the exact admin v2 contract.
+    Keep this ingress open as unfinished rather than falsely treating it as a
+    migrated direct writer.
+  - [x] Validation: the focused inventory RED failed 23/24 on the stale source
+    reference; Functions lint/build, 263/263 executed planning-unit vectors with
+    43 emulator-only skips, 8/8 Phase 1 Rules vectors, and 31/31 strict Rules
+    vectors pass after the correction.
+  - [ ] Add an authenticated context boundary for the private write epoch/active
+    lineage, then migrate Android/iOS to one exact two-subplan v2 request before
+    enabling the strict admin create/read contract.
   - [ ] Remaining: fence independent admin and other inventoried mutation paths.
     Deployment and exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
