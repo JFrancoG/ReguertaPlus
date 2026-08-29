@@ -747,7 +747,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   never-reused epoch with the correct maintenance/active-revision state.
   Digests, forward/inverse budgets/manifests, crash tests, and replay prove no stale
   pair can reopen or partially commit.
-- [ ] Android and iOS observe activation completion, perform one server read-back,
+- [x] Android and iOS observe activation completion, perform one server read-back,
   and update both the board and upcoming shifts without an app restart.
 - [ ] Failure, timeout, cancellation, role demotion, user change, and environment
   change cannot show stale success or refresh the wrong feed.

@@ -1040,7 +1040,11 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] The same real chain completes both governed Sheets-sync commands with
     deterministic local read-back evidence, releases every held intent, and reads
     back one generic canonical event, member inbox entry, and receipt per intent.
-- [ ] Verify Android and iOS update after terminal completion without restart.
+- [x] Verify Android and iOS update after terminal completion without restart.
+  - [x] Production presentation tests retain one mobile session/view-model instance,
+    replace the pre-activation board through the terminal observation, recompute both
+    upcoming shift types, and prove a repeated terminal observation performs no extra
+    read. Both Firestore adapters keep their explicit server-only read boundary.
 - [x] Prove replay produces no duplicate or cursor drift.
 - [ ] Prove preview has only private request/operation/bundle writes, stage
   remains non-public, activation is atomic, canonical notification-event release is

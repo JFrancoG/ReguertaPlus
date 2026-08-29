@@ -1418,6 +1418,26 @@ Android/iOS live observation without restart, stale-cache authorization coverage
 the separately governed FCM dispatch lifecycle remain open. No shared Firebase,
 workbook, notification, mobile release or production data changed.
 
+## Local implementation checkpoint — mobile activation refresh (2026-08-29)
+
+Android and iOS now prove the same observable activation-completion behavior. Each
+test keeps one authorized admin session and its production presentation owner alive,
+starts with the pre-activation delivery board, emits one completed activation, and
+requires the same instance to replace the board and recompute both the next delivery
+and next market assignment. Re-emitting the same terminal request performs no extra
+read. The oracle is an independent before/after assignment sequence rather than a
+model or decoder round-trip.
+
+The production Firestore shift repositories remain explicit server-only read-backs
+(`Source.SERVER` on Android and `.server` on iOS). The focused Android test, complete
+Android unit/lint gates, focused Xcode test (1/1), and the complete iOS `fast-unit-v1`
+lane pass on iPhone 17 / iOS 26.5 with SwiftLint enabled. The iOS acceptance lives in
+its own small suite so existing file/type-size lint limits remain enforced.
+
+This closes the mobile no-restart observation criterion, but does not exercise shared
+Firebase or deploy either app. Stale generic-notification cache authorization and the
+separately governed FCM dispatch lifecycle remain open. No production data changed.
+
 ## Suggested labels
 
 - `type:feature`

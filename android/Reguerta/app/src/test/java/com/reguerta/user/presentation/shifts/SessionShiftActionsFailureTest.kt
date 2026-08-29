@@ -53,24 +53,40 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionShiftActionsFailureTest {
     @Test
-    fun `completed activation refreshes shifts exactly once for repeated observation`() = runTest {
+    fun `completed activation updates board and upcoming shifts once without restart`() = runTest {
         val inspection = ControlledPlanningInspectionRepository()
-        val shiftRepository = CountingShiftRepository()
+        val previous = shift("previous")
+        val activatedDelivery = shift("activated-delivery", dateMillis = 2_000L)
+        val activatedMarket = shift("activated-market", dateMillis = 3_000L, type = ShiftType.MARKET)
+        val shiftRepository = CountingShiftRepository(
+            ArrayDeque(
+                listOf(
+                    listOf(previous),
+                    listOf(activatedDelivery, activatedMarket),
+                ),
+            ),
+        )
         val state = MutableStateFlow(authorizedState())
-        actions(
+        val actions = actions(
             state = state,
             shiftRepository = shiftRepository,
             inspectionRepository = inspection,
             scope = backgroundScope,
         )
+        actions.refreshShifts()
         runCurrent()
+        assertEquals(listOf(previous), state.value.shiftsFeed)
+        assertEquals(previous, state.value.nextDeliveryShift)
 
         inspection.emit(completedActivationObservation())
         runCurrent()
+        assertEquals(listOf(activatedDelivery, activatedMarket), state.value.shiftsFeed)
+        assertEquals(activatedDelivery, state.value.nextDeliveryShift)
+        assertEquals(activatedMarket, state.value.nextMarketShift)
         inspection.emit(completedActivationObservation())
         runCurrent()
 
-        assertEquals(1, shiftRepository.readCount)
+        assertEquals(2, shiftRepository.readCount)
         assertEquals(completedActivationObservation(), state.value.shiftPlanningObservation)
         assertFalse(state.value.isRefreshingShiftsAfterActivation)
     }
@@ -657,9 +673,14 @@ class SessionShiftActionsFailureTest {
         candidateReference = null,
     )
 
-    private fun shift(id: String, memberId: String = "admin", dateMillis: Long = 1_000L) = ShiftAssignment(
+    private fun shift(
+        id: String,
+        memberId: String = "admin",
+        dateMillis: Long = 1_000L,
+        type: ShiftType = ShiftType.DELIVERY,
+    ) = ShiftAssignment(
         id = id,
-        type = ShiftType.DELIVERY,
+        type = type,
         dateMillis = dateMillis,
         assignedUserIds = listOf(memberId),
         helperUserId = null,
@@ -826,12 +847,14 @@ private class ControlledPlanningInspectionRepository : ShiftPlanningInspectionRe
     }
 }
 
-private class CountingShiftRepository : ShiftRepository {
+private class CountingShiftRepository(
+    private val shiftsByRead: ArrayDeque<List<ShiftAssignment>> = ArrayDeque(),
+) : ShiftRepository {
     var readCount = 0
 
     override suspend fun getAllShifts(): List<ShiftAssignment> {
         readCount += 1
-        return emptyList()
+        return shiftsByRead.removeFirstOrNull().orEmpty()
     }
 }
 

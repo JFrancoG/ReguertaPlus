@@ -4,32 +4,6 @@ import Testing
 
 @MainActor
 struct ReguertaShiftsAdminViewModelTests {
-    @Test func completedActivationRefreshesShiftsExactlyOnceForRepeatedObservation() async {
-        let admin = adminMember(id: "admin_1", displayName: "Admin")
-        let shiftRepository = CountingPlanningShiftRepository()
-        let planningRepository = ControlledPlanningObservationRepository()
-        let viewModel = makeShiftsViewModel(
-            currentMember: admin,
-            members: [admin],
-            shiftRepository: shiftRepository,
-            shiftPlanningRequestRepository: planningRepository
-        )
-        viewModel.handleSessionModeChange(viewModel.sessionViewModel.mode)
-        await planningRepository.waitUntilObserved()
-        await awaitCurrentShiftsRefresh(in: viewModel)
-        let initialReadCount = await shiftRepository.readCount
-
-        await planningRepository.emit(completedActivationObservation())
-        await waitForCondition {
-            viewModel.shiftPlanningObservation?.id == "activate-request" &&
-                !viewModel.isRefreshingShiftsAfterActivation
-        }
-        await planningRepository.emit(completedActivationObservation())
-        await Task.yield()
-
-        #expect(await shiftRepository.readCount == initialReadCount + 1)
-    }
-
     @Test func revokedAdminSessionCannotPublishLaterPlanningObservation() async {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let shiftRepository = CountingPlanningShiftRepository()
