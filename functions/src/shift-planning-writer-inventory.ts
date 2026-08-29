@@ -74,13 +74,8 @@ const affectedWriters = [
     shutdownOrder: "before-causal-capture",
     targets: ["firestore.deliveryCalendar"],
     sourceReferences: [
-      "android/Reguerta/app/src/main/java/com/reguerta/user/data/calendar/" +
-        "FirestoreDeliveryCalendarRepository.kt#upsertOverride/deleteOverride",
-      "ios/Reguerta/Reguerta/Data/Calendar/" +
-        "FirestoreDeliveryCalendarRepository.swift" +
-        "#upsertOverride/deleteOverride",
-      "firestore.phase1.rules#authenticated-catch-all",
-      "firestore.strict.rules#deliveryCalendar-admin-write",
+      "firestore.phase1.rules#deliveryCalendar-server-only-write",
+      "firestore.strict.rules#deliveryCalendar-server-only-write",
     ],
   },
   {

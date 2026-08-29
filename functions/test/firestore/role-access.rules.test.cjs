@@ -1027,7 +1027,7 @@ test("admin governance does not imply producer ownership", async () => {
       publishedAt: new Date(),
       active: true,
     }));
-    await assertSucceeds(adminDb.doc(docPath(env, "deliveryCalendar", "2026-W31")).set({
+    await assertFails(adminDb.doc(docPath(env, "deliveryCalendar", "2026-W31")).set({
       weekKey: "2026-W31",
       updatedBy: actors.admin.memberId,
     }));
@@ -1069,6 +1069,35 @@ test("admin governance does not imply producer ownership", async () => {
       name: "Not an admin capability",
       price: 1,
     }));
+  }
+});
+
+test("delivery calendar is active-member readable and backend-only writable", async () => {
+  for (const env of envs) {
+    const existing = docPath(env, "deliveryCalendar", "2026-W36");
+    const created = docPath(env, "deliveryCalendar", "2026-W37");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({
+        weekKey: "2026-W36",
+        updatedBy: actors.admin.memberId,
+      });
+    });
+    const memberDb = contextFor(actors.member).firestore();
+    const adminDb = contextFor(actors.admin).firestore();
+    const inactiveDb = contextFor(actors.inactive).firestore();
+    const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertSucceeds(memberDb.doc(existing).get());
+    await assertSucceeds(adminDb.doc(existing).get());
+    await assertFails(inactiveDb.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(adminDb.doc(created).set({
+      weekKey: "2026-W37",
+      updatedBy: actors.admin.memberId,
+    }));
+    await assertFails(adminDb.doc(existing).update({updatedBy: actors.admin.memberId}));
+    await assertFails(adminDb.doc(existing).delete());
+    await assertFails(memberDb.doc(created).set({weekKey: "2026-W37"}));
   }
 });
 

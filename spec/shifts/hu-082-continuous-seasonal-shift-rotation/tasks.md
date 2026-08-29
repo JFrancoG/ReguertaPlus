@@ -840,9 +840,13 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Prove both calendar repositories contain no direct Firestore mutation or
     offline-queue path. Android unit/lint and iOS focused command/source tests plus
     the repository fast-unit lane pass.
-  - [ ] Remaining: deny legacy direct calendar writes in both Rules candidates,
-    migrate/deny direct shift writes, and fence shift export, admin, and other
-    inventoried mutation paths.
+  - [x] Deny legacy direct calendar creates, updates, and deletes in both local
+    Rules candidates while retaining their intended reads. Strict 29/29 and Phase 1
+    6/6 emulator suites reject old/stale/offline clients in both environments; the
+    backend command remains green 6/6.
+  - [ ] Remaining: migrate/deny direct shift writes and fence shift export, admin,
+    and other inventoried mutation paths. Deployment and exact Rules read-back stay
+    inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.

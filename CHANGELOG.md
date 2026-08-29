@@ -145,6 +145,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-29 | 🐛 fix(shifts): block direct calendar writes
 - 2026-08-23 | 🐛 fix(ios): enforce Madrid delivery calendar
 - 2026-08-23 | 🐛 fix(ios): load member delivery calendar
 - 2026-08-21 | 🐛 fix(ios-ui): restore screen spacing and dialogs

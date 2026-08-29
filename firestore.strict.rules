@@ -716,10 +716,7 @@ service cloud.firestore {
 
     match /{env}/plus-collections/deliveryCalendar/{weekKey} {
       allow read: if isActiveMember(env);
-      allow create, update: if isAdmin(env) &&
-        request.resource.data.get("weekKey", "") == weekKey &&
-        request.resource.data.get("updatedBy", "") == actorId(env);
-      allow delete: if isAdmin(env);
+      allow create, update, delete: if false;
     }
 
     match /{env}/plus-collections/deliveryCalendarMutationReceipts/{operationId} {

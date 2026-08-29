@@ -16,18 +16,20 @@ invalidates that evidence; editing this document alone cannot expand the runtime
 inventory.
 
 The repository default deployment configuration currently points at
-`firestore.phase1.rules`. Its authenticated catch-all permits legacy writes to
-the affected public collections. The stricter local candidate still permits
-direct admin writes to `shifts` and `deliveryCalendar`. Neither file therefore
-constitutes the HU-082 intake barrier. This is repository evidence, not a fresh
-read-back of the shared Firebase project.
+`firestore.phase1.rules`. Both local Rules candidates now keep their existing
+`deliveryCalendar` read contract while denying every direct create, update, and
+delete; the Phase 1 catch-all explicitly excludes that collection. Legacy direct
+`shifts` writes and other affected public surfaces remain admitted, so neither
+file yet constitutes the complete HU-082 intake barrier. This is repository and
+emulator evidence, not a deployment or fresh read-back of the shared Firebase
+project.
 
 ## Barrier writers
 
 | Writer ID | Current evidence | Affected target | Required disposition |
 |---|---|---|---|
 | `firestore-client-shifts` | Android `FirestoreShiftRepository.upsertShift`; iOS `FirestoreShiftRepository.upsert`; Phase 1 catch-all; strict admin write | `shifts` | `rules-deny` before causal capture; migrate any future manual edit to a versioned command |
-| `firestore-client-delivery-calendar` | Android/iOS production composition now routes every upsert/delete through `resolveDeliveryCalendarMutationContext` + `transitionDeliveryCalendarOverride`; reads remain server-only Firestore reads. Both repositories have no direct Firestore mutation/offline-queue path, return the backend-derived value, and surface stale CAS failure without hidden refresh/retry. Current Rules still admit an old/direct client | `deliveryCalendar` | Apply `rules-deny` and prove old/direct clients fail before causal capture; keep the command as the only mobile mutation path |
+| `firestore-client-delivery-calendar` | Android/iOS production composition routes every upsert/delete through `resolveDeliveryCalendarMutationContext` + `transitionDeliveryCalendarOverride`; reads remain server-only Firestore reads. Both local Rules candidates now deny every direct create/update/delete, and emulator coverage rejects old creates plus stale/offline updates and deletes in both environments while retaining their intended reads | `deliveryCalendar` | Keep the command as the only mobile mutation path; deploy and read back the exact deny only inside the no-gap activation procedure |
 | `firestore-client-shift-planning-requests` | Android/iOS planning-request repositories and admin UI | `shiftPlanningRequests` | `rules-deny` before causal capture; the legacy request must not enter while maintenance starts |
 | `firestore-client-shift-swap-requests` | Phase 1 catch-all permits a direct path although current clients use HTTP | `shiftSwapRequests` | `rules-deny` before causal capture |
 | `https-sync-shifts-from-google-sheets` | `syncShiftsFromGoogleSheets`; after the read-only Sheets phase it captures the exact open planning authority, then every upsert and stale imported-shift deletion transaction revalidates it, reads the exact shift notification fence, and rechecks stale-delete ownership | Sheets to `shifts` | Keep both guards, but disable ingress before causal capture and drain; authority drift stops remaining writes, while the multi-shift import stays partially applicable and HU-083 replaces this non-atomic writer |
@@ -35,7 +37,7 @@ read-back of the shared Firebase project.
 | `https-transition-shift-swap` | Android/iOS HTTP clients and `transitionShiftSwap`; create captures the exact open planning authority, respond/apply revalidate it transactionally, and apply reads every changed shift's notification-resource fence | `shiftSwapRequests`, assignments, helpers and shift status | Keep both guards; disable ingress before causal capture and drain accepted requests. Missing state remains legacy-compatible only before v2 state exists; any maintenance/epoch/active-lineage transition invalidates the request |
 | `trigger-on-shift-planning-request-created` | Legacy trigger; immediately before its workbook write it captures the exact open planning authority, then each `persistPlannedShifts` upsert and its final notification transaction revalidate it; shift upserts also read the exact notification fence | request, workbook, `shifts` and notification | Keep both guards, drain only the causally captured accepted set, then disable the delivery; authority drift stops remaining Firestore effects, while its workbook-first flow stays non-atomic and requires HU-083 replacement |
 | `trigger-on-shift-written` | Firestore trigger, workbook write, `syncMeta` write-back and notification | `shifts`, workbook | Drain captured events and cascades, then disable the delivery and prove its queue empty |
-| `trigger-on-delivery-calendar-override-written` | Firestore trigger; when a matching delivery exists it captures the exact open planning authority before Sheets, revalidates before every external row and after the final row, then revalidates transactionally before notification creation | `deliveryCalendar`, workbook and notification | Keep the compatibility guard, drain captured events and cascades, then disable the delivery and prove its queue empty; Sheets remains non-atomic, and Rules must still close the legacy direct-client path before capture |
+| `trigger-on-delivery-calendar-override-written` | Firestore trigger; when a matching delivery exists it captures the exact open planning authority before Sheets, revalidates before every external row and after the final row, then revalidates transactionally before notification creation | `deliveryCalendar`, workbook and notification | Keep the compatibility guard, drain captured events and cascades, then disable the delivery and prove its queue empty; Sheets remains non-atomic. The local direct-client deny must be deployed and read back before causal capture |
 | `trigger-on-notification-event-created` | `onNotificationEventCreated`, `dispatchNotificationEventGeneric` and `fanOutNotificationInbox`; the local candidate now reads the backend-only canonical release receipt first | Notification delivery | Keep receipt-free events on the legacy path; reserve exact receipt-bound HU-082 events for governed dispatch and fail closed on present malformed/drifting evidence. Deployment, causal drain and live proof remain HU-085 gates |
 | `iam-firestore-admin-and-server-writers` | Unmanifested Admin SDK use, console, CI, scripts, jobs, keys, workloads and inherited IAM outside separately controlled runtime writers | Database-wide, including fairness inputs and backend-only planning state | Fence/revoke and audit effective authority; Rules do not constrain it, and allowlisted runtime writers remain governed by their own controls |
 | `workbook-human-and-offline-editors` | Owners/editors and pending offline edits | Workbook | Fence authority, confirm online/closed/no pending edits, then read back |

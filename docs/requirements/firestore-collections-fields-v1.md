@@ -262,6 +262,9 @@ Snapshot rule:
 Delivery calendar strategy (canonical):
 - `weekKey` must match document ID.
 - Store only exception weeks in `deliveryCalendar`.
+- Mobile clients may read the collection but cannot write it directly. Admin
+  mutations use the authenticated delivery-calendar command; the backend derives
+  all persisted fields, actor identity, and timestamp.
 - If a week document is missing, resolve calendar from `config/global.deliveryDayOfWeek` fallback and derive blocked/open windows at runtime.
 
 ### 4.7 `seasonalCommitments/{commitmentId}`

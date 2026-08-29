@@ -193,11 +193,20 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isSupportedEnv(env) && isSupportedDataset(dataset);
     }
 
+    // Calendar mutations are mediated by the authenticated backend command.
+    match /{env}/{dataset}/deliveryCalendar/{weekKey} {
+      allow read: if isSignedIn() &&
+        isSupportedEnv(env) &&
+        isSupportedDataset(dataset);
+      allow create, update, delete: if false;
+    }
+
     match /{env}/{dataset}/{collectionId}/{document=**} {
       allow read, write: if isSignedIn() &&
         isSupportedEnv(env) &&
         isSupportedDataset(dataset) &&
         collectionId != "orders" &&
+        collectionId != "deliveryCalendar" &&
         !isPrivateShiftPlanningCollection(collectionId);
     }
   }

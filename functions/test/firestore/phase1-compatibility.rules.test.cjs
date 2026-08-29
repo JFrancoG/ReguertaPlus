@@ -102,6 +102,31 @@ test("phase 1 leaves the previously deployed plus contract unchanged", async () 
   }
 });
 
+test("phase 1 keeps delivery calendar readable but rejects every direct write", async () => {
+  const db = testEnv.authenticatedContext("plus-user").firestore();
+  const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+  for (const env of envs) {
+    const existing = `${env}/plus-collections/deliveryCalendar/2026-W36`;
+    const created = `${env}/plus-collections/deliveryCalendar/2026-W37`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({
+        weekKey: "2026-W36",
+        updatedBy: "backend",
+      });
+    });
+
+    await assertSucceeds(db.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(db.doc(created).set({
+      weekKey: "2026-W37",
+      updatedBy: "legacy-client",
+    }));
+    await assertFails(db.doc(existing).update({updatedBy: "offline-queue"}));
+    await assertFails(db.doc(existing).delete());
+  }
+});
+
 test("phase 1 exposes only public startup config without authentication", async () => {
   const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
 

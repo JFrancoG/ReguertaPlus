@@ -1060,6 +1060,27 @@ continue to admit direct calendar writes until the next cut proves their denial
 against old clients. No Rules/Function deployment, shared Firebase write, live
 Sheet access, notification delivery, or production mutation occurred.
 
+## Local implementation checkpoint — delivery-calendar Rules deny (2026-08-29)
+
+Both local Rules candidates now close the legacy direct calendar surface without
+changing its read contract. Strict Rules retain reads for active members and Phase 1
+retains reads for signed-in users, while create, update, and delete are denied for
+every mobile/admin credential in `develop` and `production`. The Phase 1 catch-all
+explicitly excludes `deliveryCalendar`, so it cannot shadow the collection-specific
+deny. The compiled writer inventory now identifies the two server-only Rules paths
+and carries the corresponding new canonical digest.
+
+The focused RED runs failed exactly on the still-admitted direct writes: strict
+passed 27/29 and Phase 1 passed 5/6. After the Rules change, strict passes 29/29 and
+Phase 1 passes 6/6, including old direct creates and stale/offline-style updates and
+deletes. The Admin SDK calendar command remains green 6/6; the inventory/intake
+barrier passes 35/35, and Functions lint/build pass.
+
+This is local repository and emulator evidence only. No Rules or Function was
+deployed, no shared Firebase or Sheet data changed, and no production activation or
+live read-back occurred. Direct `shifts` writers and the remaining inventory still
+keep HU-082 open; deployment belongs to the held no-gap procedure.
+
 ## Suggested labels
 
 - `type:feature`

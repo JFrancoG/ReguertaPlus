@@ -355,16 +355,19 @@ Regla de snapshot:
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
 | `weekKey` | string | si | no | Debe coincidir con docId |
-| `deliveryDate` | timestamp | si | admin | Dia real reparto |
-| `ordersBlockedDate` | timestamp | si | sistema/admin | Dia +1 reparto |
-| `ordersOpenAt` | timestamp | si | sistema/admin | Dia +2 00:00 |
-| `ordersCloseAt` | timestamp | si | sistema/admin | Domingo 23:59 |
+| `deliveryDate` | timestamp | si | sistema | Dia real reparto |
+| `ordersBlockedDate` | timestamp | si | sistema | Dia +1 reparto |
+| `ordersOpenAt` | timestamp | si | sistema | Dia +2 00:00 |
+| `ordersCloseAt` | timestamp | si | sistema | Domingo 23:59 |
 | `updatedBy` | string | si | sistema | Admin UID |
 | `updatedAt` | timestamp | si | sistema | |
 
 Estrategia canonica de calendario:
 - `weekKey` debe coincidir con el ID del documento.
 - `deliveryCalendar` guarda solo semanas excepcionales.
+- Los clientes moviles pueden leer la coleccion, pero no escribirla directamente.
+  Las mutaciones admin usan el comando autenticado del calendario de reparto; el
+  backend deriva todos los campos persistidos, la identidad del actor y el timestamp.
 - Si falta el documento de una semana, el sistema resuelve desde `config/global.deliveryDayOfWeek` y deriva ventanas de bloqueo/apertura en runtime.
 
 ## 4.7 `seasonalCommitments/{commitmentId}`
