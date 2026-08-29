@@ -1107,6 +1107,27 @@ deployed, no shared Firebase or Sheet data changed, and no production activation
 live read-back occurred. Shift export, independent admin/server authority, and the
 remaining inventory keep HU-082 open.
 
+## Local implementation checkpoint — bulk shift-export authority (2026-08-29)
+
+The authenticated `exportShiftsToGoogleSheets` compatibility endpoint now performs
+all Firestore, member, configuration, and Sheets-client setup reads before capturing
+one exact open planning authority. Every delivery or market `update`/`append` then
+revalidates the same state revision, write epoch, active revision, and active digest
+immediately before the external mutation. A final revalidation detects authority
+drift that occurred while the last Sheets request was in flight.
+
+Closed maintenance prevents the first row and mid-export drift stops every remaining
+row with the stable `shift_export_planning_authority_changed` conflict. Google Sheets
+cannot participate in the Firestore transaction, so already accepted rows are not
+rolled back; ingress still must be disabled before causal capture and HU-083 still
+owns the atomic command/lease replacement.
+
+The focused unit RED failed because the external-writer fence module did not exist.
+Functions lint/build, 3/3 pure fence vectors, the full planning unit lane, the
+intake-barrier inventory vectors, and 12/12 focused Firestore-emulator writer-fence
+vectors pass without Google Sheets access. No endpoint or Function was deployed, and
+no shared Firebase, workbook, notification, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

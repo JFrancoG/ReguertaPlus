@@ -121,6 +121,8 @@ const affectedWriters = [
     targets: ["workbook.shifts"],
     sourceReferences: [
       "functions/src/index.ts#exportShiftsToGoogleSheets",
+      "functions/src/index.ts#exportAllShiftsToGoogleSheets",
+      "functions/src/shift-planning-external-writer-fence.ts",
     ],
   },
   {

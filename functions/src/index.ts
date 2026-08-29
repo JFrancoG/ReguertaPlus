@@ -83,6 +83,11 @@ import {
   ShiftPlanningWriterAuthority,
 } from "./shift-planning-writer-authority.js";
 import {
+  createShiftPlanningExternalWriterFence,
+  runShiftPlanningExternalWriterMutation,
+  ShiftPlanningExternalWriterFence,
+} from "./shift-planning-external-writer-fence.js";
+import {
   classifyShiftPlanningNotificationDeliveryAuthority,
 } from "./shift-planning-notification-delivery-authority.js";
 import {
@@ -3031,6 +3036,7 @@ const upsertShiftRowInSheet = async (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
   deliveryOverrides: DeliveryCalendarOverrideMap,
+  writerFence: ShiftPlanningExternalWriterFence | null,
 ): Promise<"updated" | "appended"> => {
   const valuesResponse = await sheets.spreadsheets.values.get({
     spreadsheetId,
@@ -3039,6 +3045,11 @@ const upsertShiftRowInSheet = async (
   const rows = valuesResponse.data.values || [];
   const normalizedRows = rows.map((row) => row.map((cell) => `${cell}`));
   const effectiveDate = resolveEffectiveDeliveryDate(shift, deliveryOverrides);
+  const runSheetMutation = <Result>(
+    mutation: () => Promise<Result>,
+  ): Promise<Result> => writerFence ?
+      runShiftPlanningExternalWriterMutation(writerFence, mutation) :
+      mutation();
 
   if (shift.type === "delivery") {
     const targetWeekKey = timestampToIsoWeekKey(effectiveDate);
@@ -3050,7 +3061,7 @@ const upsertShiftRowInSheet = async (
         timestampToIsoWeekKey(rowDate) === targetWeekKey
       ) {
         const rowNumber = rowOffset + 1;
-        await sheets.spreadsheets.values.update({
+        await runSheetMutation(() => sheets.spreadsheets.values.update({
           spreadsheetId,
           range: `${parseSheetName(range)}!A${rowNumber}:F${rowNumber}`,
           valueInputOption: "RAW",
@@ -3059,12 +3070,12 @@ const upsertShiftRowInSheet = async (
               toDeliveryHumanRow(shift, membersById, effectiveDate, row),
             ],
           },
-        });
+        }));
         return "updated";
       }
     }
 
-    await sheets.spreadsheets.values.append({
+    await runSheetMutation(() => sheets.spreadsheets.values.append({
       spreadsheetId,
       range: `${parseSheetName(range)}!A:F`,
       valueInputOption: "RAW",
@@ -3075,7 +3086,7 @@ const upsertShiftRowInSheet = async (
           toDeliveryHumanRow(shift, membersById, effectiveDate),
         ],
       },
-    });
+    }));
     return "appended";
   }
 
@@ -3103,11 +3114,11 @@ const upsertShiftRowInSheet = async (
         existingSupportRows,
       );
 
-      await sheets.spreadsheets.values.update({
+      await runSheetMutation(() => sheets.spreadsheets.values.update({
         spreadsheetId,
         range:
-          `${parseSheetName(range)}!A${dateRowNumber}:` +
-          `C${dateRowNumber + 5}`,
+            `${parseSheetName(range)}!A${dateRowNumber}:` +
+            `C${dateRowNumber + 5}`,
         valueInputOption: "RAW",
         requestBody: {
           values: [
@@ -3116,12 +3127,12 @@ const upsertShiftRowInSheet = async (
             ...supportRows,
           ],
         },
-      });
+      }));
       return "updated";
     }
   }
 
-  await sheets.spreadsheets.values.append({
+  await runSheetMutation(() => sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${parseSheetName(range)}!A:C`,
     valueInputOption: "RAW",
@@ -3133,7 +3144,7 @@ const upsertShiftRowInSheet = async (
         ...toMarketHumanSupportRows(shift, membersById),
       ],
     },
-  });
+  }));
   return "appended";
 };
 
@@ -3796,7 +3807,7 @@ const readAllShifts = async (
 };
 
 const exportAllShiftsToGoogleSheets = async (
-  env: string,
+  env: AppEnvironment,
 ): Promise<{
   exportedCount: number;
   deliveryCount: number;
@@ -3816,6 +3827,19 @@ const exportAllShiftsToGoogleSheets = async (
     readAllShifts(env),
     readDeliveryCalendarOverrideMap(env),
   ]);
+  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
+  const writerFence = await createShiftPlanningExternalWriterFence({
+    capture: () => captureShiftPlanningWriterAuthorityFromReference(
+      planningStateReference,
+    ),
+    revalidate: (captured) =>
+      assertShiftPlanningWriterAuthorityFromReference({
+        stateReference: planningStateReference,
+        capturedValue: captured,
+        changedCode: "shift_export_planning_authority_changed",
+        changedMessage: "Shift export planning authority changed",
+      }),
+  });
   let deliveryCount = 0;
   let marketCount = 0;
 
@@ -3829,6 +3853,7 @@ const exportAllShiftsToGoogleSheets = async (
       shift,
       membersById,
       deliveryOverrides,
+      writerFence,
     );
     if (shift.type === "market") {
       marketCount += 1;
@@ -3836,6 +3861,7 @@ const exportAllShiftsToGoogleSheets = async (
       deliveryCount += 1;
     }
   }
+  await writerFence.finish();
 
   return {
     exportedCount: shifts.length,
@@ -4369,6 +4395,7 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       after,
       membersById,
       deliveryOverrides,
+      null,
     );
 
     await afterSnapshot.ref.set({
@@ -4476,6 +4503,7 @@ onDocumentWrittenWithAuthContext(
           shift,
           membersById,
           deliveryOverrides,
+          null,
         );
         updatedCount += 1;
       }

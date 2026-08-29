@@ -15,6 +15,10 @@ const {
   assertShiftPlanningWriterAuthorityInTransaction,
   captureShiftPlanningWriterAuthorityFromReference,
 } = require("../lib/shift-planning-writer-authority.js");
+const {
+  createShiftPlanningExternalWriterFence,
+  runShiftPlanningExternalWriterMutation,
+} = require("../lib/shift-planning-external-writer-fence.js");
 
 const PROJECT_ID = "demo-reguerta-hu082-notification-writer-fence";
 const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
@@ -390,6 +394,46 @@ test("reference revalidation stops remaining external mutations", {
       "delivery_calendar_planning_authority_changed",
   );
   assert.equal(externalMutationCount, 1);
+});
+
+test("external writer fence rejects export drift before the next row", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const stateReference = firestore.doc(`${root}/shiftPlanningState/current`);
+  await stateReference.set(planningState());
+  const fence = await createShiftPlanningExternalWriterFence({
+    capture: () => captureShiftPlanningWriterAuthorityFromReference(
+      stateReference,
+    ),
+    revalidate: (captured) =>
+      assertShiftPlanningWriterAuthorityFromReference({
+        stateReference,
+        capturedValue: captured,
+        changedCode: "shift_export_planning_authority_changed",
+        changedMessage: "Shift export planning authority changed",
+      }),
+  });
+  let externalMutationCount = 0;
+
+  await runShiftPlanningExternalWriterMutation(fence, async () => {
+    externalMutationCount += 1;
+  });
+  await stateReference.set(planningState({
+    stateRevision: 5,
+    writeEpoch: 8,
+  }));
+
+  await assert.rejects(
+    runShiftPlanningExternalWriterMutation(fence, async () => {
+      externalMutationCount += 1;
+    }),
+    (error) => error.code === "shift_export_planning_authority_changed",
+  );
+  assert.equal(externalMutationCount, 1);
+  await assert.rejects(
+    fence.finish,
+    (error) => error.code === "shift_export_planning_authority_changed",
+  );
 });
 
 test("a backend writer and racing claim serialize on the same fence", {

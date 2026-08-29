@@ -850,7 +850,15 @@ occurred. Protected technical evidence remains outside the repository.
     Strict 30/30 and Phase 1 7/7 emulator suites pass after RED proved the old
     admin/authenticated paths; Android unit/lint, Xcode build without warnings,
     and iOS fast-unit pass.
-  - [ ] Remaining: fence shift export, admin, and other inventoried mutation paths.
+  - [x] Fence the authenticated bulk shift export after its read-only source phase.
+    Capture one exact open planning authority, revalidate immediately before every
+    Sheets `update`/`append`, and check once more after the final request. Drift
+    stops remaining rows but cannot roll back rows already accepted by Sheets.
+  - [x] Validation: the focused unit RED failed because the external-writer fence
+    did not exist. Functions lint/build, 3/3 pure fence vectors, the full planning
+    unit lane, intake-barrier inventory vectors, and 12/12 focused Firestore-
+    emulator writer-fence vectors pass without Google Sheets access.
+  - [ ] Remaining: fence independent admin and other inventoried mutation paths.
     Deployment and exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
