@@ -1046,7 +1046,7 @@ occurred. Protected technical evidence remains outside the repository.
     upcoming shift types, and prove a repeated terminal observation performs no extra
     read. Both Firestore adapters keep their explicit server-only read boundary.
 - [x] Prove replay produces no duplicate or cursor drift.
-- [ ] Prove preview has only private request/operation/bundle writes, stage
+- [x] Prove preview has only private request/operation/bundle writes, stage
   remains non-public, activation is atomic, canonical notification-event release is
   idempotent, inbox upsert deduplicates, and FCM carries a stable event ID while
   retaining explicit possible-duplicate semantics.
@@ -1061,6 +1061,10 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Canonical-release emulator cut: both sync partitions first reach their
     terminal read-back, every held intent creates one exact event/inbox/receipt,
     replay creates no duplicate, and no dispatch attempt or FCM transport starts.
+  - [x] Integrated-dispatch emulator cut: the complete governed chain replays one
+    canonical release through the production Firebase composition, freshly claims
+    and authorizes one attempt, submits one generic stable-event payload to injected
+    modular Messaging, persists `accepted`, and replays without a second submission.
 - [x] Prove canonical event/inbox/push artifacts contain only generic shift references,
   supported clients decode them, and stale/offline caches cannot expose member/date/
   assignment detail after authorization or revision changes.

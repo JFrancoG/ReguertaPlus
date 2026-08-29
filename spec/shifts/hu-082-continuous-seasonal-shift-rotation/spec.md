@@ -764,7 +764,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   `accepted|unknown|failed`. Aggregate state is derived; a possibly delivered
   `unknown` is never overwritten/reclassified, and retry appends a fresh revalidated
   attempt that may duplicate delivery.
-- [ ] Push payloads contain no shift/member detail and require an authorized fetch
+- [x] Push payloads contain no shift/member detail and require an authorized fetch
   on open. Evidence states authenticated submission start under the current lease
   is the guarantee boundary: later OS presentation may follow membership change.
 - [x] Canonical shift events and inbox rows also contain only generic non-sensitive

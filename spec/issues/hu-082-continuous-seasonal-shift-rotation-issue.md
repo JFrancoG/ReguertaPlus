@@ -1457,6 +1457,28 @@ The installed/current/candidate compatibility matrix remains governed by HU-085,
 the FCM claim/lease/attempt lifecycle remains open in HU-082. No shared Firebase,
 workbook, notification transport, mobile release, or production data changed.
 
+## Local implementation checkpoint — integrated governed dispatch (2026-08-29)
+
+The Firestore-emulator acceptance chain now continues from real planning source
+through `preview -> stage -> activate`, both terminal Sheets read-backs, canonical
+notification release, and one dispatch through the production Firebase runtime
+composition. Modular Messaging is injected with a deterministic fake, so no FCM or
+external service is contacted.
+
+The selected released intent is freshly claimed and authorized against its current
+assignment, active member and device destination. The fake transport receives exactly
+one generic collapsed payload carrying only the stable event ID plus
+`shift_updated/users`; the repository persists one append-only terminal `accepted`
+attempt. Replaying the same release and attempt returns the terminal evidence without
+calling transport again or duplicating the canonical event.
+
+Functions lint/build, 270/270 executed HU-082 unit vectors with 45 emulator-only skips,
+and the focused source-producer Firestore-emulator lane (4/4) pass. This closes the
+local stable-payload/idempotent-attempt acceptance criterion, while HU-085 still owns
+runtime IAM, Function export/deployment and the first live invocation. No shared
+Firebase, workbook, FCM submission, notification, deployment, or production data
+changed.
+
 ## Suggested labels
 
 - `type:feature`

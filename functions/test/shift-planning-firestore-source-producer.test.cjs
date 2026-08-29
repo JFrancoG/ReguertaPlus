@@ -30,6 +30,11 @@ const {
   "../lib/shift-planning-firestore-notification-release-repository.js"
 );
 const {
+  createFirebaseShiftPlanningNotificationRuntime,
+} = require(
+  "../lib/shift-planning-firebase-notification-runtime.js"
+);
+const {
   createFirestoreShiftPlanningRuntime,
 } = require("../lib/shift-planning-firestore-runtime.js");
 const {
@@ -811,6 +816,69 @@ emulatorTest(
     });
     assert.equal(releaseReplay.kind, "replayed");
     assert.deepEqual(releaseReplay.artifacts, releasedArtifacts[0]);
+    assert.equal(
+      (await database.collection(`${root}/notificationEvents`).get()).size,
+      staged.heldNotificationIntents.length,
+    );
+
+    const dispatchIntent = staged.heldNotificationIntents.find(
+      ({recipientUserId}) => recipientUserId === "member-a",
+    );
+    assert.notEqual(dispatchIntent, undefined);
+    const submittedMessages = [];
+    const notificationRuntime = createFirebaseShiftPlanningNotificationRuntime({
+      firestore: database,
+      messaging: {
+        async sendEachForMulticast(message) {
+          submittedMessages.push(message);
+          return {
+            responses: [{success: true, messageId: "fake-message-1"}],
+            successCount: 1,
+            failureCount: 0,
+          };
+        },
+      },
+      clock: () => Timestamp.fromMillis(releaseNowMillis),
+      nowMillis: () => releaseNowMillis,
+      transportTimeoutMillis: 10,
+    });
+    const dispatchCommand = {
+      environment,
+      intentId: dispatchIntent.intentId,
+      workerId: "source-runtime-dispatch-worker",
+      attemptId: "source-runtime-dispatch-attempt-1",
+    };
+    const dispatched = await notificationRuntime.execute(dispatchCommand);
+    assert.equal(dispatched.releaseKind, "replayed");
+    assert.equal(dispatched.dispatch.kind, "completed");
+    assert.equal(dispatched.dispatch.attempt.terminal.outcome, "accepted");
+    assert.equal(dispatched.dispatch.attempt.terminal.acceptedTargetCount, 1);
+    assert.deepEqual(submittedMessages, [{
+      notification: {
+        title: "Turnos actualizados",
+        body: "Consulta la aplicación para ver la información actualizada.",
+      },
+      data: {
+        eventId: dispatchIntent.intentId,
+        type: "shift_updated",
+        target: "users",
+      },
+      android: {collapseKey: dispatchIntent.intentId},
+      apns: {headers: {"apns-collapse-id": dispatchIntent.intentId}},
+      tokens: ["synthetic-token-a"],
+    }]);
+    const attemptSnapshot = await database.doc(
+      `${root}/shiftPlanningNotificationIntents/${dispatchIntent.intentId}/` +
+        `dispatchAttempts/${dispatchCommand.attemptId}`,
+    ).get();
+    assert.equal(attemptSnapshot.get("terminal.outcome"), "accepted");
+    assert.equal(attemptSnapshot.get("terminal.acceptedTargetCount"), 1);
+
+    const dispatchReplay = await notificationRuntime.execute(dispatchCommand);
+    assert.equal(dispatchReplay.releaseKind, "replayed");
+    assert.equal(dispatchReplay.dispatch.kind, "terminalReplay");
+    assert.equal(dispatchReplay.dispatch.attempt.terminal.outcome, "accepted");
+    assert.equal(submittedMessages.length, 1);
     assert.equal(
       (await database.collection(`${root}/notificationEvents`).get()).size,
       staged.heldNotificationIntents.length,
