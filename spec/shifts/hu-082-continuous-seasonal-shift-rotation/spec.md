@@ -402,6 +402,12 @@ does not populate Firestore public shifts or activate either mobile app.
   iOS/backend write path: update it to the versioned contract or leave that path
   denied and route it through a versioned callable/command. HU-085 owns only the live
   fence/read-back; it may not restore permissive legacy writes.
+- `resolveShiftPlanningRequestContext` is the exact schema-v1 read-only bridge from
+  private maintenance state to a mobile v2 request. It accepts only `POST` with
+  `{schemaVersion, environment}`, authenticates one reciprocal active admin before
+  reading Firestore, and returns only `expectedWriteEpoch` plus
+  `expectedActiveRevision`. Missing, invalid, or closed state fails without a
+  fallback; state revision/digest, roster, and member data never cross this boundary.
 - The delivery-calendar fallback is the exact schema-v1 pair
   `resolveDeliveryCalendarMutationContext` and
   `transitionDeliveryCalendarOverride`. Context returns one open planning

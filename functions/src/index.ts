@@ -97,6 +97,12 @@ import {
 import {
   createFirestoreDeliveryCalendarCommandRepository,
 } from "./delivery-calendar-firestore-command.js";
+import {
+  executeShiftPlanningRequestContextRequest,
+} from "./shift-planning-request-context.js";
+import {
+  createFirestoreShiftPlanningRequestContextRepository,
+} from "./shift-planning-firestore-request-context.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
@@ -107,6 +113,8 @@ const shiftPlanningRecoveryExecutor =
   createFirestoreShiftPlanningOperatorRecoveryExecutor(firestore);
 const deliveryCalendarCommandRepository =
   createFirestoreDeliveryCalendarCommandRepository(firestore);
+const shiftPlanningRequestContextRepository =
+  createFirestoreShiftPlanningRequestContextRepository(firestore);
 
 setGlobalOptions({
   region: "europe-west1",
@@ -4127,6 +4135,26 @@ export const resolveDeliveryCalendarMutationContext = onRequest(
       await requireAdminInEnvironment(input.environment, identity);
       const context = await deliveryCalendarCommandRepository
         .resolveMutationContext(input);
+      res.status(200).json({ok: true, ...context});
+    } catch (error) {
+      sendHttpError(res, error);
+    }
+  },
+);
+
+export const resolveShiftPlanningRequestContext = onRequest(
+  async (req, res) => {
+    try {
+      const context = await executeShiftPlanningRequestContextRequest({
+        method: req.method,
+        query: req.query,
+        body: req.body,
+      }, {
+        verifyIdentity: () => verifyRequestIdentity(req),
+        requireAdmin: requireAdminInEnvironment,
+        resolveContext: (input) =>
+          shiftPlanningRequestContextRepository.resolve(input),
+      });
       res.status(200).json({ok: true, ...context});
     } catch (error) {
       sendHttpError(res, error);

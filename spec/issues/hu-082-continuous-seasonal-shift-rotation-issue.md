@@ -1193,6 +1193,28 @@ correction. This checkpoint changes no Rules, mobile runtime, Function export,
 shared Firebase, Google Sheet, notification delivery, deployment, or production
 data.
 
+## Local implementation checkpoint — planning-request context (2026-08-29)
+
+`resolveShiftPlanningRequestContext` now provides the missing authenticated bridge
+from backend-only maintenance state to a future mobile v2 request. It accepts only
+an exact schema-v1 `POST` body with `environment`, rejects query parameters and
+malformed bodies before authentication or Firestore, and requires the existing
+reciprocal active-admin authorization for that exact environment.
+
+The repository reads only `shiftPlanningState/current`. Open valid state is projected
+to `expectedWriteEpoch` and `expectedActiveRevision`; state revision, active digest,
+barrier evidence, roster, and member data remain private. Missing, invalid, or closed
+state fails closed, and the operation performs no mutation. Android and iOS remain
+unchanged in this cut and still require a later symmetric migration from their
+legacy single-type request to the combined v2 contract.
+
+The contract RED failed because the module did not exist. Functions lint/build,
+4/4 focused contract/authorization-order vectors, 2/2 isolated Firestore-emulator
+vectors, 267/267 executed planning-unit vectors with 43 emulator-only skips, and
+30/30 backend-security vectors pass locally. No Function or Rules deployment,
+shared Firebase read/write, Google Sheet access, notification delivery, or
+production mutation occurred.
+
 ## Suggested labels
 
 - `type:feature`

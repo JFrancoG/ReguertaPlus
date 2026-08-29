@@ -198,6 +198,8 @@ Endpoints de aplicacion:
   abierta exacta y el digest (o ausencia) de una excepcion semanal.
 - `transitionDeliveryCalendarOverride`: admin activo; aplica un `upsert` o
   `delete` idempotente solo si siguen coincidiendo autoridad y digest.
+- `resolveShiftPlanningRequestContext`: admin activo; proyecta el estado privado
+  abierto a los unicos campos de linaje que necesita una peticion v2.
 
 El comando de calendario usa un body v1 de campos exactos. Para `upsert`, el
 cliente envia `environment`, `operationId`, `weekKey`,
@@ -289,6 +291,14 @@ evidencia técnica exacta se conservan fuera del repositorio.
 Ruta de petición prevista:
 
 `{env}/plus-collections/shiftPlanningRequests/{requestId}`
+
+Antes de crearla, `resolveShiftPlanningRequestContext` acepta exclusivamente
+`{ schemaVersion: 1, environment }` por `POST`, sin query. Tras verificar el token
+y el enlace de admin activo, lee `shiftPlanningState/current` y devuelve solo
+`schemaVersion`, `environment`, `expectedWriteEpoch` y
+`expectedActiveRevision`. Estado ausente, invalido o en mantenimiento falla
+cerrado; el endpoint no expone digest, revision interna, roster ni datos de socios.
+Android/iOS aun no consumen este contexto en el corte actual.
 
 El documento de entrada tiene exactamente estos campos:
 

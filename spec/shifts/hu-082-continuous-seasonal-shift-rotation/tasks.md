@@ -883,9 +883,16 @@ occurred. Protected technical evidence remains outside the repository.
     reference; Functions lint/build, 263/263 executed planning-unit vectors with
     43 emulator-only skips, 8/8 Phase 1 Rules vectors, and 31/31 strict Rules
     vectors pass after the correction.
-  - [ ] Add an authenticated context boundary for the private write epoch/active
-    lineage, then migrate Android/iOS to one exact two-subplan v2 request before
-    enabling the strict admin create/read contract.
+  - [x] Add `resolveShiftPlanningRequestContext`: exact POST/body/query validation
+    runs before auth or Firestore, a reciprocal active admin is required, and one
+    read-only private-state projection returns only write epoch and active revision.
+    Missing, invalid, or closed state fails closed without exposing digests or member
+    data.
+  - [x] Validation: Functions lint/build, 4/4 focused context/authorization vectors,
+    2/2 isolated Firestore-emulator vectors, 267/267 executed planning-unit vectors
+    with 43 emulator-only skips, and 30/30 backend-security vectors pass locally.
+  - [ ] Migrate Android/iOS to consume that context and create one exact two-subplan
+    v2 request before enabling the strict admin create/read contract.
   - [ ] Remaining: fence independent admin and other inventoried mutation paths.
     Deployment and exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
