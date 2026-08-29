@@ -1127,6 +1127,29 @@ test("shifts are active-member readable and backend-only writable", async () => 
   }
 });
 
+test("shift swaps are active-member readable and backend-only writable", async () => {
+  for (const env of envs) {
+    const existing = docPath(env, "shiftSwapRequests", "swap-existing");
+    const created = docPath(env, "shiftSwapRequests", "swap-created");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({status: "open"});
+    });
+    const memberDb = contextFor(actors.member).firestore();
+    const adminDb = contextFor(actors.admin).firestore();
+    const inactiveDb = contextFor(actors.inactive).firestore();
+    const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertSucceeds(memberDb.doc(existing).get());
+    await assertSucceeds(adminDb.doc(existing).get());
+    await assertFails(inactiveDb.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(adminDb.doc(created).set({status: "open"}));
+    await assertFails(adminDb.doc(existing).update({status: "cancelled"}));
+    await assertFails(adminDb.doc(existing).delete());
+    await assertFails(memberDb.doc(created).set({status: "open"}));
+  }
+});
+
 test("sensitive system workflows reject direct member writes", async () => {
   for (const env of envs) {
     const memberDb = contextFor(actors.member).firestore();

@@ -1151,6 +1151,26 @@ skips, and 12/12 focused Firestore-emulator writer-fence vectors pass. No live S
 shared Firebase, notification delivery, Function deployment, or production mutation
 occurred.
 
+## Local implementation checkpoint — direct shift-swap closure (2026-08-29)
+
+The Phase 1 Rules candidate now closes its residual direct
+`shiftSwapRequests` mutation surface. Authenticated users retain the existing read
+contract needed by Android and iOS, while create, update, and delete fail for every
+client credential in both environments. The catch-all explicitly excludes the
+collection, matching the already server-only strict candidate.
+
+Both production clients were rechecked: they read Firestore from the server but route
+create, respond, cancel, and apply through the authenticated `transitionShiftSwap`
+endpoint, so no mobile mutation migration is required. The endpoint keeps its
+previous epoch/lineage and notification-resource fences.
+
+The Phase 1 RED passed 7/8 because the direct create still succeeded, then passed 8/8
+after the collection-specific deny. Functions lint/build, 263/263 executed
+planning-unit vectors with 43 emulator-only skips, 8/8 Phase 1 Rules vectors, 31/31
+strict Rules vectors, and 30/30 backend-security/shift-swap vectors pass locally. No
+Rules or Function was deployed, and no shared Firebase, notification, or production
+data changed.
+
 ## Suggested labels
 
 - `type:feature`

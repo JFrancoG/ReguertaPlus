@@ -867,6 +867,13 @@ occurred. Protected technical evidence remains outside the repository.
     the inventory RED rejected its prior digest. Functions lint/build, 4/4 focused
     external-writer vectors, 263/263 executed planning-unit vectors with 43 emulator-
     only skips, and 12/12 focused Firestore-emulator writer-fence vectors pass.
+  - [x] Close the residual direct `shiftSwapRequests` mutation path in Phase 1.
+    Android/iOS keep their intended Firestore reads and already route create,
+    respond, cancel, and apply through the authenticated `transitionShiftSwap` HTTP
+    boundary; both local Rules candidates now deny every direct mutation.
+  - [x] Validation: Functions lint/build, 263/263 executed planning-unit vectors
+    with 43 emulator-only skips, 8/8 Phase 1 Rules vectors, 31/31 strict Rules
+    vectors, and 30/30 backend-security/shift-swap vectors pass locally.
   - [ ] Remaining: fence independent admin and other inventoried mutation paths.
     Deployment and exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized

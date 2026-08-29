@@ -98,7 +98,7 @@ const affectedWriters = [
     shutdownOrder: "before-causal-capture",
     targets: ["firestore.shiftSwapRequests"],
     sourceReferences: [
-      "firestore.phase1.rules#authenticated-catch-all",
+      "firestore.phase1.rules#shiftSwapRequests-server-only-write",
       "firestore.strict.rules#shiftSwapRequests-server-only-write",
     ],
   },

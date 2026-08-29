@@ -209,6 +209,14 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Swap mutations are mediated by the authenticated backend transition.
+    match /{env}/{dataset}/shiftSwapRequests/{requestId} {
+      allow read: if isSignedIn() &&
+        isSupportedEnv(env) &&
+        isSupportedDataset(dataset);
+      allow create, update, delete: if false;
+    }
+
     match /{env}/{dataset}/{collectionId}/{document=**} {
       allow read, write: if isSignedIn() &&
         isSupportedEnv(env) &&
@@ -216,6 +224,7 @@ service cloud.firestore {
         collectionId != "orders" &&
         collectionId != "deliveryCalendar" &&
         collectionId != "shifts" &&
+        collectionId != "shiftSwapRequests" &&
         !isPrivateShiftPlanningCollection(collectionId);
     }
   }
