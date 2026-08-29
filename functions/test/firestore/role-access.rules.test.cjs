@@ -1205,6 +1205,34 @@ test("admins can create only exact planning preview and stage requests", async (
       },
       binding: null,
     };
+    const digestBinding = {
+      bundleRevision: "bundle-v1-0123456789abcdef",
+      bundleDigest: `shift-planning:v1:sha256:${"a".repeat(64)}`,
+    };
+    const completedPreview = (overrides = {}) => ({
+      ...valid,
+      status: "completed",
+      lifecycle: {
+        state: "completed",
+        summary: {
+          status: "completed",
+          mode: "preview",
+          bundleId: valid.bundleId,
+          ...digestBinding,
+        },
+        artifact: {
+          kind: "preview",
+          receipt: {
+            requestId: valid.requestId,
+            bundleId: valid.bundleId,
+            environment: env,
+            requestedByUserId: actors.admin.memberId,
+            ...digestBinding,
+          },
+        },
+      },
+      ...overrides,
+    });
 
     await assertSucceeds(adminDb.doc(`${requests}/planning-preview`).set(valid));
     await assertFails(adminDb.doc(`${requests}/legacy-request`).set({
@@ -1232,10 +1260,49 @@ test("admins can create only exact planning preview and stage requests", async (
       requestId: "unbound-stage",
       mode: "stage",
     }));
-    const digestBinding = {
-      bundleRevision: "bundle-v1-0123456789abcdef",
-      bundleDigest: `shift-planning:v1:sha256:${"a".repeat(64)}`,
-    };
+    await assertFails(adminDb.doc(`${requests}/stage-from-pending`).set({
+      ...valid,
+      requestId: "stage-from-pending",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "planning-preview",
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-from-missing`).set({
+      ...valid,
+      requestId: "stage-from-missing",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "missing-preview",
+        ...digestBinding,
+      },
+    }));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const privilegedDb = context.firestore();
+      await privilegedDb.doc(`${requests}/planning-preview`).set(
+        completedPreview(),
+      );
+      await privilegedDb.doc(`${requests}/foreign-preview`).set(
+        completedPreview({
+          requestId: "foreign-preview",
+          requestedByUserId: actors.member.memberId,
+          lifecycle: {
+            ...completedPreview().lifecycle,
+            artifact: {
+              kind: "preview",
+              receipt: {
+                ...completedPreview().lifecycle.artifact.receipt,
+                requestId: "foreign-preview",
+                requestedByUserId: actors.member.memberId,
+              },
+            },
+          },
+        }),
+      );
+    });
     await assertSucceeds(adminDb.doc(`${requests}/planning-stage`).set({
       ...valid,
       requestId: "planning-stage",
@@ -1244,6 +1311,27 @@ test("admins can create only exact planning preview and stage requests", async (
         kind: "preview",
         sourceRequestId: "planning-preview",
         ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-from-foreign`).set({
+      ...valid,
+      requestId: "stage-from-foreign",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "foreign-preview",
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-with-digest-drift`).set({
+      ...valid,
+      requestId: "stage-with-digest-drift",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "planning-preview",
+        ...digestBinding,
+        bundleDigest: `shift-planning:v1:sha256:${"c".repeat(64)}`,
       },
     }));
     await assertFails(adminDb.doc(`${requests}/planning-activate`).set({
@@ -1388,6 +1476,12 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
       `${intentPath}/dispatchState/current`,
       `${intentPath}/dispatchAttempts/attempt-1`,
       `${intentPath}/terminalState/current`,
+      `${docPath(env, "shiftPlanningOperations", "private-operation")}/` +
+        "attemptOutcomes/forward-private",
+      `${docPath(env, "shiftPlanningOperations", "private-operation")}/` +
+        "beforeImages/1",
+      `${docPath(env, "shiftPlanningOperations", "private-operation")}/` +
+        "recoveryAuthorizations/recovery-private",
     ];
     for (const path of nestedPaths) {
       await testEnv.withSecurityRulesDisabled(async (context) => {

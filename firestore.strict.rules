@@ -243,7 +243,43 @@ service cloud.firestore {
         );
     }
 
-    function isValidPlanningBinding(mode, binding, requestId) {
+    function planningRequestPath(env, requestId) {
+      return /databases/$(database)/documents/$(env)/plus-collections/shiftPlanningRequests/$(requestId);
+    }
+
+    function isOwnedCompletedPlanningPreview(env, binding, bundleId) {
+      let source = get(planningRequestPath(env, binding.sourceRequestId)).data;
+      return exists(planningRequestPath(env, binding.sourceRequestId)) &&
+        source.schemaVersion == 2 &&
+        source.requestId == binding.sourceRequestId &&
+        source.bundleId == bundleId &&
+        source.environment == env &&
+        source.requestedByUserId == actorId(env) &&
+        source.mode == "preview" &&
+        source.status == "completed" &&
+        source.binding == null &&
+        source.lifecycle is map &&
+        source.lifecycle.state == "completed" &&
+        source.lifecycle.summary is map &&
+        source.lifecycle.summary.status == "completed" &&
+        source.lifecycle.summary.mode == "preview" &&
+        source.lifecycle.summary.bundleId == bundleId &&
+        source.lifecycle.summary.bundleRevision == binding.bundleRevision &&
+        source.lifecycle.summary.bundleDigest == binding.bundleDigest &&
+        source.lifecycle.artifact is map &&
+        source.lifecycle.artifact.kind == "preview" &&
+        source.lifecycle.artifact.receipt is map &&
+        source.lifecycle.artifact.receipt.requestId ==
+          binding.sourceRequestId &&
+        source.lifecycle.artifact.receipt.bundleId == bundleId &&
+        source.lifecycle.artifact.receipt.environment == env &&
+        source.lifecycle.artifact.receipt.requestedByUserId == actorId(env) &&
+        source.lifecycle.artifact.receipt.bundleRevision ==
+          binding.bundleRevision &&
+        source.lifecycle.artifact.receipt.bundleDigest == binding.bundleDigest;
+    }
+
+    function isValidPlanningBinding(env, mode, binding, requestId, bundleId) {
       return (mode == "preview" && binding == null) ||
         (
           mode == "stage" &&
@@ -257,7 +293,8 @@ service cloud.firestore {
           binding.kind == "preview" &&
           isPlanningIdentifier(binding.sourceRequestId) &&
           binding.sourceRequestId != requestId &&
-          isValidPlanningDigestBinding(binding)
+          isValidPlanningDigestBinding(binding) &&
+          isOwnedCompletedPlanningPreview(env, binding, bundleId)
         );
     }
 
@@ -299,9 +336,11 @@ service cloud.firestore {
         isValidPlanningTargetSubplan(data.subplans.delivery) &&
         isValidPlanningTargetSubplan(data.subplans.market) &&
         isValidPlanningBinding(
+          env,
           data.mode,
           data.binding,
-          requestId
+          requestId,
+          data.bundleId
         );
     }
 

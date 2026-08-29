@@ -1339,6 +1339,26 @@ real no-gap controls, deployed runtime and controlled failure/read-back matrix r
 part of HU-085. No Function or Rules was deployed, and no shared Firebase, workbook,
 notification, mobile release or production data changed.
 
+## Local implementation checkpoint — stage ownership Rules (2026-08-29)
+
+Strict Rules now require every client-created `stage` request to bind one existing
+backend-completed preview owned by the same authenticated administrator. The source
+request, terminal summary and preview receipt must agree on request identity, bundle
+ID, revision, digest, environment and owner. Pending, missing, foreign, or drifted
+preview sources are rejected before they can enter the backend lifecycle.
+
+The focused Rules RED passed 30/31 because a stage bound to a still-pending preview
+was accepted. GREEN passes 31/31 and retains valid preview creation plus an exact
+owned-completed-preview stage. Explicit coverage also denies client reads or writes
+of operation outcomes, before-images and recovery authorizations; request updates and
+deletes remain denied, so clients cannot manufacture terminal success. Functions
+lint/build, the general strict Rules suite (6/6), and Phase 1 compatibility (8/8)
+also pass.
+
+This is local Rules/emulator evidence only. No Rules or Function was deployed, and
+no shared Firebase, workbook, notification, mobile release or production data
+changed.
+
 ## Suggested labels
 
 - `type:feature`

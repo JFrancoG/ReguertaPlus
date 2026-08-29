@@ -920,11 +920,16 @@ occurred. Protected technical evidence remains outside the repository.
     pre-activation abort with stale active lineage cannot reopen maintenance.
   - [ ] Remaining: execute the controlled crash-injection/read-back matrix around
     the real no-gap controls and deployed runtime during HU-085 activation.
-- [ ] Prove clients cannot forge planner state, ownership, or terminal success.
+- [x] Prove clients cannot forge planner state, ownership, or terminal success.
   - [x] Strict Rules deny every client-created `activate` request, including an
     otherwise exact candidate/digest binding from an active linked admin. Exact
     preview/stage create and admin read remain available; all client update/delete
     paths stay closed.
+  - [x] A direct `stage` create now requires the exact existing backend-completed
+    preview owned by the same admin, with matching bundle ID, revision, and digest.
+    Pending, missing, foreign, or drifted sources fail in Rules; candidates, state,
+    rotations, bundles, operations, outcomes, before-images, recovery authorization,
+    outboxes, and every terminal update remain backend-only.
 - [ ] Prove mobile/admin credentials cannot call the rollout-only boundary or
   forge/change mutation provenance, and prove the operator cannot write Firestore/
   Sheets directly or impersonate/mint tokens for the runtime.
