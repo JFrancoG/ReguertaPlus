@@ -1301,6 +1301,24 @@ This is local Rules/emulator evidence only. No Rules or Function was deployed, a
 no shared Firebase, workbook, notification, mobile release or production data
 changed.
 
+## Local implementation checkpoint — sanitized operational logs (2026-08-29)
+
+The planning Firestore trigger now routes v2 and legacy operational events through
+one schema-v1 allowlist. Routed, rejected, failed, and legacy completion records keep
+only environment, stable result/failure fields, non-sensitive counts where relevant,
+and a deterministic one-way request correlation fingerprint. The logging adapter
+never forwards raw request IDs, member fields, sheet names, planning digests,
+exception objects, or internal diagnostic messages.
+
+The focused RED failed because the logging boundary did not yet exist. GREEN passes
+3/3 contract vectors, including known and unknown failure sanitization, stable retry
+correlation, and exact-key assertions for sensitive-field absence. Functions
+lint/build and the complete planning-unit suite pass with 270/270 executed vectors
+and 43 emulator-only skips.
+
+This is local Functions evidence only. No Function or Rules was deployed, and no
+shared Firebase, workbook, notification, mobile release or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

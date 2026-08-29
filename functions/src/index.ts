@@ -103,6 +103,9 @@ import {
 import {
   createFirestoreShiftPlanningRequestContextRepository,
 } from "./shift-planning-firestore-request-context.js";
+import {
+  logShiftPlanningOperationalEvent,
+} from "./shift-planning-operational-log.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
@@ -4323,9 +4326,11 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
 
     const route = classifyShiftPlanningCreatedRequest(snapshot.data());
     if (route === "unsupportedVersion") {
-      logger.error("Skipping unsupported shift planning request version", {
-        env,
+      logShiftPlanningOperationalEvent(logger, {
+        kind: "requestRejected",
+        environment: parseAppEnvironment(env),
         requestId: event.params.requestId,
+        failureCode: "unsupported_schema_version",
       });
       return;
     }
@@ -4337,15 +4342,17 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
           request: snapshot.data(),
           workerId: "shift-planning-trigger-v2",
         });
-        logger.info("✅ Shift planning v2 request routed", {
-          env,
+        logShiftPlanningOperationalEvent(logger, {
+          kind: "requestRouted",
+          environment: parseAppEnvironment(env),
           requestId: event.params.requestId,
           routeKind: result.kind,
           resultKind: result.result.kind,
         });
       } catch (error) {
-        logger.error("❌ Shift planning v2 request failed", {
-          env,
+        logShiftPlanningOperationalEvent(logger, {
+          kind: "requestFailed",
+          environment: parseAppEnvironment(env),
           requestId: event.params.requestId,
           error,
         });
@@ -4356,9 +4363,11 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
 
     const request = parseLegacyShiftPlanningRequest(snapshot);
     if (!request || request.status !== "requested") {
-      logger.warn("Skipping malformed shift planning request", {
-        env,
+      logShiftPlanningOperationalEvent(logger, {
+        kind: "requestRejected",
+        environment: parseAppEnvironment(env),
         requestId: event.params.requestId,
+        failureCode: "invalid_legacy_request",
       });
       return;
     }
@@ -4380,11 +4389,13 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
         sheetName: summary.sheetName,
         generatedCount: summary.generatedCount,
       }, {merge: true});
-      logger.info("✅ Shift planning completed", {
-        env,
+      logShiftPlanningOperationalEvent(logger, {
+        kind: "legacyCompleted",
+        environment: parseAppEnvironment(env),
         requestId: request.id,
-        type: request.type,
-        ...summary,
+        planningType: request.type,
+        seasonLabel: summary.seasonLabel,
+        generatedCount: summary.generatedCount,
       });
     } catch (error) {
       await snapshot.ref.set({
@@ -4393,10 +4404,11 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
         errorMessage:
           error instanceof Error ? error.message : "Unknown planning error",
       }, {merge: true});
-      logger.error("❌ Shift planning failed", {
-        env,
+      logShiftPlanningOperationalEvent(logger, {
+        kind: "legacyFailed",
+        environment: parseAppEnvironment(env),
         requestId: request.id,
-        type: request.type,
+        planningType: request.type,
         error,
       });
     }

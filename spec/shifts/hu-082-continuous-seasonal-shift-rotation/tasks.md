@@ -921,7 +921,11 @@ occurred. Protected technical evidence remains outside the repository.
 - [ ] Prove mobile/admin credentials cannot call the rollout-only boundary or
   forge/change mutation provenance, and prove the operator cannot write Firestore/
   Sheets directly or impersonate/mint tokens for the runtime.
-- [ ] Add structured operational logging without member-sensitive payloads.
+- [x] Add structured operational logging without member-sensitive payloads.
+  The planning trigger now emits one schema-v1 allowlisted event contract for
+  routed, rejected, failed, and legacy terminal outcomes. Raw request IDs become
+  deterministic one-way correlation fingerprints; member fields, sheet names,
+  digests, exception objects, and internal messages never reach the logger.
 
 ## 4. Android read-back
 
