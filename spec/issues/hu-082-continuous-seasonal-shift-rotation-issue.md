@@ -1283,6 +1283,24 @@ skips, 3/3 governed-source emulator vectors and 2/2 source-resolver emulator vec
 pass. No Function or Rules was deployed, and no shared Firebase, workbook,
 notification or production data changed.
 
+## Local implementation checkpoint — client activation deny (2026-08-29)
+
+Strict Firestore Rules no longer let an authenticated administrator create a
+schema-v2 `mode = activate` planning request. Mobile credentials retain only the
+exact combined `preview` and immutable completed-preview `stage` create contracts,
+plus the existing admin read access. Client updates and deletes remain denied.
+Backend activation is unchanged and continues through Admin SDK authority and the
+separate governed runtime/operator boundary.
+
+The focused Rules RED passed 30/31 because an otherwise exact admin activation
+request still succeeded. GREEN passes 31/31 while preserving valid preview/stage
+creates and rejecting malformed bindings. The Phase 1 candidate continues to deny
+the entire private request partition and is unchanged.
+
+This is local Rules/emulator evidence only. No Rules or Function was deployed, and
+no shared Firebase, workbook, notification, mobile release or production data
+changed.
+
 ## Suggested labels
 
 - `type:feature`

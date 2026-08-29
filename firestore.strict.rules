@@ -243,7 +243,7 @@ service cloud.firestore {
         );
     }
 
-    function isValidPlanningBinding(mode, binding, requestId, bundleId) {
+    function isValidPlanningBinding(mode, binding, requestId) {
       return (mode == "preview" && binding == null) ||
         (
           mode == "stage" &&
@@ -258,24 +258,6 @@ service cloud.firestore {
           isPlanningIdentifier(binding.sourceRequestId) &&
           binding.sourceRequestId != requestId &&
           isValidPlanningDigestBinding(binding)
-        ) ||
-        (
-          mode == "activate" &&
-          binding is map &&
-          hasExactKeys(binding, [
-            "kind",
-            "candidateId",
-            "bundleRevision",
-            "bundleDigest",
-            "candidateDigest",
-          ]) &&
-          binding.kind == "candidate" &&
-          binding.candidateId == bundleId &&
-          isValidPlanningDigestBinding(binding) &&
-          binding.candidateDigest is string &&
-          binding.candidateDigest.matches(
-            "^shift-planning:v1:sha256:[a-f0-9]{64}$"
-          )
         );
     }
 
@@ -304,7 +286,7 @@ service cloud.firestore {
         isPlanningIdentifier(data.requestedByUserId) &&
         data.requestedByUserId == actorId(env) &&
         data.requestedAt is timestamp &&
-        data.mode in ["preview", "stage", "activate"] &&
+        data.mode in ["preview", "stage"] &&
         data.status == "requested" &&
         data.expectedWriteEpoch is int &&
         data.expectedWriteEpoch >= 0 &&
@@ -319,8 +301,7 @@ service cloud.firestore {
         isValidPlanningBinding(
           data.mode,
           data.binding,
-          requestId,
-          data.bundleId
+          requestId
         );
     }
 

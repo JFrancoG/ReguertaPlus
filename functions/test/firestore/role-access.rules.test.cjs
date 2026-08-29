@@ -1184,7 +1184,7 @@ test("sensitive system workflows reject direct member writes", async () => {
   }
 });
 
-test("admins can create only exact shift-planning bundle requests", async () => {
+test("admins can create only exact planning preview and stage requests", async () => {
   for (const env of envs) {
     const adminDb = contextFor(actors.admin).firestore();
     const requests = collectionPath(env, "shiftPlanningRequests");
@@ -1246,7 +1246,7 @@ test("admins can create only exact shift-planning bundle requests", async () => 
         ...digestBinding,
       },
     }));
-    await assertSucceeds(adminDb.doc(`${requests}/planning-activate`).set({
+    await assertFails(adminDb.doc(`${requests}/planning-activate`).set({
       ...valid,
       requestId: "planning-activate",
       mode: "activate",

@@ -901,6 +901,9 @@ occurred. Protected technical evidence remains outside the repository.
     The new request keeps the exact two-season bundle and binds the source request ID,
     bundle revision, and bundle digest; foreign, changed, malformed, or self-referential
     bindings are rejected without silently regenerating a preview.
+  - [x] Restrict strict Firestore Rules to exact admin `preview`/`stage` creates.
+    Even an active linked admin cannot create `mode = activate`; update/delete remain
+    denied and backend activation keeps its separate Admin SDK/operator authority.
   - [x] Validation: Android unit/lint, iOS focused repository/context/presentation
     tests, `fast-unit`, and `ui-smoke` pass. Android connected testing reached the
     physical device but ran zero tests because installation was user-restricted.
@@ -911,6 +914,10 @@ occurred. Protected technical evidence remains outside the repository.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.
+  - [x] Strict Rules deny every client-created `activate` request, including an
+    otherwise exact candidate/digest binding from an active linked admin. Exact
+    preview/stage create and admin read remain available; all client update/delete
+    paths stay closed.
 - [ ] Prove mobile/admin credentials cannot call the rollout-only boundary or
   forge/change mutation provenance, and prove the operator cannot write Firestore/
   Sheets directly or impersonate/mint tokens for the runtime.
