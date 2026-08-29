@@ -904,8 +904,10 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Validation: Android unit/lint, iOS focused repository/context/presentation
     tests, `fast-unit`, and `ui-smoke` pass. Android connected testing reached the
     physical device but ran zero tests because installation was user-restricted.
-  - [ ] Remaining: fence independent admin and other inventoried mutation paths.
-    Deployment and exact Rules read-back stay inside the no-gap activation procedure.
+  - [ ] Remaining: fence IAM/workbook authorities and any independent mutation
+    path not represented by the governed source or an existing epoch-aware command.
+    Membership/configuration writers are now proven version-bound; deployment and
+    exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.
@@ -1021,7 +1023,7 @@ occurred. Protected technical evidence remains outside the repository.
   generic, at least once, and potentially delayed/duplicated.
 - [ ] Prove crash/timeout/lost-ack/late-completion dispatch cases never hold the
   lease indefinitely and preserve `unknown` as possibly accepted evidence.
-- [ ] Prove any post-stage fairness-input or enabled credit-ledger change
+- [x] Prove any post-stage fairness-input or enabled credit-ledger change
   invalidates activation without a partial cursor/credit transition.
   - [x] Local artifact cut: maintenance barrier/status/revision/transition drift
     and either rotation-aggregate drift change the expected-state/manifests and
@@ -1029,6 +1031,11 @@ occurred. Protected technical evidence remains outside the repository.
     transitive `expectedStateDigest` binding.
   - [x] Transactionally re-read every live fairness input in the activation CAS
     and prove the stale cached-source zero-public-write failure path.
+  - [x] Emulator matrix: destination, active membership, real-producer/common-
+    purchase-manager eligibility, delivery configuration, calendar override and
+    newly enabled credit policy all terminalize as `fairness_input_drift`, replay
+    exactly, retain the prior cached source, publish no shift and leave the active
+    revision null. Auth-only member metadata remains outside the fairness digest.
 - [ ] Prove current supported flat readers never see candidate or partial data,
   and transaction-budget overflow makes no public write and blocks rollout for a
   mobile active-revision migration.

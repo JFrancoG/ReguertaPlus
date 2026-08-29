@@ -1261,6 +1261,28 @@ presentation tests, Xcode build, `fast-unit`, and `ui-smoke` pass; the smoke run
 non-fatal LLDB debugger-version-store warnings. No Rules or Function was deployed,
 and no shared Firebase, Google Sheet, notification, or production data changed.
 
+## Local implementation checkpoint — post-stage fairness drift (2026-08-29)
+
+Activation now distinguishes a stale governed planning source from a malformed
+transaction. If live fairness inputs cannot exactly reproduce the source sealed by
+the staged candidate, the request terminalizes with the existing stable
+`fairness_input_drift` code before any public mutation. Invalid governed-source
+shapes at this boundary, including enabling the still-unsupported credit ledger,
+receive the same deterministic classification; transport and unrelated
+infrastructure failures remain retryable rather than becoming business terminals.
+
+The Firestore-emulator matrix changes, one at a time after stage, an eligible
+destination, active membership, real-producer/common-purchase-manager eligibility,
+the delivery weekday, a calendar override and the credit policy. Every case writes
+zero public shifts, leaves the active revision null, retains the prior cached source,
+and replays the exact failed terminal. An `authUid`-only change remains deliberately
+outside the fairness digest.
+
+Functions lint/build, 267/267 executed planning-unit vectors with 43 emulator-only
+skips, 3/3 governed-source emulator vectors and 2/2 source-resolver emulator vectors
+pass. No Function or Rules was deployed, and no shared Firebase, workbook,
+notification or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

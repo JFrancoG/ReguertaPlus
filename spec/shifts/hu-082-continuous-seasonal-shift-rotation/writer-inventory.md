@@ -52,18 +52,21 @@ independent controls would create false evidence.
 ## Version-rechecked fairness writers
 
 These writers are in the full inventory but not in the intake-barrier control
-list. A future activation may leave them open only if its candidate contains the
-relevant input version/digest and the same atomic activation transaction reads
-and rechecks it. That guard is still pending.
+list. They may remain open because the candidate contains the complete governed
+source digest and every activation transaction rebuilds that exact source from
+the live documents before any public mutation. Valid post-stage drift and a
+newly enabled unsupported credit ledger fail with `fairness_input_drift`; an
+invalid governed source is classified the same way, while infrastructure errors
+remain retryable.
 
 | Writer ID | Fairness input | Required disposition |
 |---|---|---|
-| `firestore-client-membership-fairness` | Direct membership and eligibility changes still admitted by current Rules | Bind the membership/eligibility revision to preview and candidate; reject activation drift |
-| `firestore-client-planning-config` | Direct planning-configuration changes still admitted by current Rules | Bind the configuration revision to preview and candidate; reject activation drift |
-| `https-resolve-authorized-member` | First-login `authUid`, normalized-email and timestamp metadata on a member document | Exclude authentication-only metadata from the canonical fairness projection and test that invariant; otherwise its write must advance/recheck membership input version |
-| `https-upsert-member-by-admin` | Active membership, real-producer role and common-purchase-manager eligibility; its transaction now reads the member notification-resource fence | Preserve the dispatch fence, bind membership/eligibility revision to preview and candidate, and reject activation drift |
-| `https-clone-global-config` | Delivery weekday and other planning configuration | Bind configuration revision to preview and candidate; reject activation drift |
-| `https-config-maintenance-writers` | Validation, maintenance-trigger and timestamp writes that can change planning configuration | Bind the exact configuration revision to preview and candidate; reject activation drift |
+| `firestore-client-membership-fairness` | Direct membership and eligibility changes remain admitted by current Rules. The governed source derives revisions/digests from canonical roles, active state, common-purchase-manager eligibility and eligible-member destinations; the activation CAS rebuilds the ordered users/devices read-set | Keep the exact transaction recheck; emulator coverage proves post-stage membership, eligibility and destination drift terminalize with `fairness_input_drift` and zero public shifts |
+| `firestore-client-planning-config` | Direct planning-configuration changes remain admitted by current Rules. The governed source binds the canonical delivery weekday, source policy, calendars, overrides, workbook partitions, measurement authority and disabled credit ledger | Keep the exact transaction recheck; emulator coverage proves post-stage configuration, calendar and credit-policy drift terminalize with `fairness_input_drift` and zero public shifts |
+| `https-resolve-authorized-member` | First-login `authUid`, normalized-email and timestamp metadata is deliberately absent from the canonical fairness projection; emulator coverage proves an auth-only change replays the same source digest | Keep authentication-only metadata excluded; any future fairness-relevant field must enter the governed source before this writer can change it |
+| `https-upsert-member-by-admin` | Active membership, real-producer role and common-purchase-manager eligibility are all in the transactionally rebuilt governed source; its transaction also retains the member notification-resource fence | Preserve both the dispatch fence and governed-source projection; post-stage membership/eligibility drift writes no public shift or active revision |
+| `https-clone-global-config` | The fairness-relevant global delivery weekday is in the transactionally rebuilt configuration projection; unrelated config metadata is excluded | Preserve the projection boundary; any new planning field must be added to the governed source before clone can write it |
+| `https-config-maintenance-writers` | Validation and maintenance writers are version-bound only for fields present in the canonical planning projection; timestamp-only and unrelated metadata do not perturb fairness | Preserve the projection boundary and require every future fairness field to participate in the governed digest and activation recheck |
 
 If any such input lacks a version that activation can recheck atomically, its
 writer must join the external fence instead of being assumed safe.

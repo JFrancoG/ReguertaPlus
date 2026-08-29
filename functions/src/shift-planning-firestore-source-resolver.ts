@@ -394,15 +394,43 @@ export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
     const source = parseShiftPlanningLiveSourceDocument(
       requireReadDocument(sourceSnapshot, "planning live source").data,
     );
-    const rebuiltSource = await input.rebuildLiveSource({
-      firestore,
-      transaction,
-      environment,
-    });
+    let rebuiltSource: ShiftPlanningLiveSourceDocument;
+    try {
+      rebuiltSource = await input.rebuildLiveSource({
+        firestore,
+        transaction,
+        environment,
+      });
+    } catch (error) {
+      if (
+        error instanceof ShiftPlanningError &&
+        (
+          error.code === "invalid_planning_transaction" ||
+          error.code === "invalid_shift_planning_fairness_snapshot"
+        )
+      ) {
+        throw new ShiftPlanningError(
+          "fairness_input_drift",
+          "Activation fairness inputs no longer reproduce the staged source.",
+        );
+      }
+      throw error;
+    }
     if (
       source.environment !== environment ||
-      rebuiltSource.environment !== environment ||
-      rebuiltSource.sourceDigest !== source.sourceDigest ||
+      rebuiltSource.environment !== environment
+    ) {
+      return failSource(
+        "Activation governed source environment has drifted.",
+      );
+    }
+    if (rebuiltSource.sourceDigest !== source.sourceDigest) {
+      throw new ShiftPlanningError(
+        "fairness_input_drift",
+        "Activation fairness inputs changed after the staged candidate.",
+      );
+    }
+    if (
       candidate.bundleId !== binding.candidateId ||
       candidate.bundleRevision !== binding.bundleRevision ||
       candidate.bundleDigest !== binding.bundleDigest ||
@@ -413,7 +441,7 @@ export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
       bundle.artifactDigest !== candidate.bundleArtifactDigest
     ) {
       return failSource(
-        "Activation staged package or governed live source has drifted.",
+        "Activation staged package has drifted.",
       );
     }
     const positionSnapshots = await transaction.get(

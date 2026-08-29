@@ -534,7 +534,7 @@ emulatorTest("invalid source drift preserves the last valid envelope", async () 
 });
 
 emulatorTest(
-  "routes governed activation and allowlisted recovery",
+  "rejects fairness drift before governed activation and recovery",
   async () => {
     const database = new Firestore({projectId});
     await clear(database);
@@ -568,44 +568,143 @@ emulatorTest(
       chain.activate.bundleDigest,
     );
 
-    await database.doc(`${root}/users/member-a/devices/device-1`).set(
-      device("synthetic-token-after-stage"),
-      {merge: false},
-    );
     const runtime = createFirestoreShiftPlanningRuntime(database);
-    const rejected = await runtime.executeRequest({
-      environment,
-      requestId: chain.activateRequest.requestId,
-      request: chain.activateRequest,
-      workerId: "source-runtime-worker",
-    });
-    assert.equal(rejected.kind, "lifecycle");
-    assert.equal(rejected.result.kind, "failed");
-    assert.equal(
-      rejected.result.summary.failure.code,
-      "invalid_planning_transaction",
+    const deviceReference = database.doc(
+      `${root}/users/member-a/devices/device-1`,
     );
-    assert.equal(rejected.result.persistenceResult, "committed");
-    const rejectedReplay = await runtime.executeRequest({
-      environment,
-      requestId: chain.activateRequest.requestId,
-      request: chain.activateRequest,
-      workerId: "source-runtime-worker",
-    });
-    assert.equal(rejectedReplay.kind, "lifecycle");
-    assert.equal(rejectedReplay.result.kind, "terminalReplay");
-    assert.equal(rejectedReplay.result.summary.status, "failed");
-    assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
+    const memberReference = database.doc(`${root}/users/member-b`);
+    const managerReference = database.doc(`${root}/users/manager-c`);
+    const configReference = database.doc(`${root}/config/global`);
+    const calendarReference = database.doc(
+      `${root}/deliveryCalendar/2026-W41`,
+    );
+    const policyReference = database.doc(
+      `${root}/shiftPlanningState/sourcePolicy`,
+    );
+    const driftCases = [
+      {
+        name: "destination",
+        apply: () => deviceReference.set(
+          device("synthetic-token-after-stage"),
+          {merge: false},
+        ),
+        restore: () => deviceReference.set(
+          device("synthetic-token-a"),
+          {merge: false},
+        ),
+      },
+      {
+        name: "membership",
+        apply: () => memberReference.update({isActive: false}),
+        restore: () => memberReference.update({isActive: true}),
+      },
+      {
+        name: "eligibility",
+        apply: () => managerReference.update({
+          isCommonPurchaseManager: false,
+        }),
+        restore: () => managerReference.update({
+          isCommonPurchaseManager: true,
+        }),
+      },
+      {
+        name: "config",
+        apply: () => configReference.update({
+          "otherConfig.deliveryDayOfWeek": "THU",
+        }),
+        restore: () => configReference.update({
+          "otherConfig.deliveryDayOfWeek": "WED",
+        }),
+      },
+      {
+        name: "calendar",
+        apply: () => calendarReference.update({
+          ordersCloseAt: Timestamp.fromMillis(Date.UTC(2026, 9, 5)),
+        }),
+        restore: () => calendarReference.update({
+          ordersCloseAt: calendarOverride().ordersCloseAt,
+        }),
+      },
+      {
+        name: "credit-ledger",
+        apply: () => policyReference.update({
+          creditLedger: {
+            enabled: true,
+            revision: "credits-enabled-v1",
+            digest: digest({credits: "enabled-v1"}),
+            plannedWriteCount: 1,
+          },
+        }),
+        restore: () => policyReference.update({
+          creditLedger: sourcePolicy().creditLedger,
+        }),
+      },
+    ];
+    for (const [index, driftCase] of driftCases.entries()) {
+      const driftRequest = index === 0 ? chain.activateRequest : {
+        ...chain.activateRequest,
+        requestId: `${chain.activateRequest.requestId}-${driftCase.name}`,
+      };
+      if (index > 0) {
+        await database.doc(
+          `${root}/shiftPlanningRequests/${driftRequest.requestId}`,
+        ).create(driftRequest);
+      }
+      await driftCase.apply();
+      const rejected = await runtime.executeRequest({
+        environment,
+        requestId: driftRequest.requestId,
+        request: driftRequest,
+        workerId: "source-runtime-worker",
+      });
+      assert.equal(rejected.kind, "lifecycle", driftCase.name);
+      assert.equal(rejected.result.kind, "failed", driftCase.name);
+      assert.equal(
+        rejected.result.summary.failure.code,
+        "fairness_input_drift",
+        driftCase.name,
+      );
+      assert.equal(
+        rejected.result.persistenceResult,
+        "committed",
+        driftCase.name,
+      );
+      const rejectedReplay = await runtime.executeRequest({
+        environment,
+        requestId: driftRequest.requestId,
+        request: driftRequest,
+        workerId: "source-runtime-worker",
+      });
+      assert.equal(rejectedReplay.kind, "lifecycle", driftCase.name);
+      assert.equal(
+        rejectedReplay.result.kind,
+        "terminalReplay",
+        driftCase.name,
+      );
+      assert.equal(
+        rejectedReplay.result.summary.status,
+        "failed",
+        driftCase.name,
+      );
+      assert.equal(
+        (await database.collection(`${root}/shifts`).get()).size,
+        0,
+        driftCase.name,
+      );
+      assert.equal(
+        (await database.doc(`${root}/shiftPlanningState/current`).get())
+          .get("activeRevision"),
+        null,
+        driftCase.name,
+      );
+      await driftCase.restore();
+    }
     assert.equal(
       (await database.doc(`${root}/shiftPlanningState/fairness`).get())
         .get("sourceDigest"),
       produced.source.sourceDigest,
     );
 
-    await database.doc(`${root}/users/member-a/devices/device-1`).set(
-      device("synthetic-token-a"),
-      {merge: false},
-    );
     const retryRequest = {
       ...chain.activateRequest,
       requestId: `${chain.activateRequest.requestId}-retry`,
