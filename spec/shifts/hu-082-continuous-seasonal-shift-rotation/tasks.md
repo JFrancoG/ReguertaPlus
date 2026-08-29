@@ -953,7 +953,7 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Planning stage creates a new request only from the current admin's completed
     preview and binds its exact request ID, bundle revision, bundle digest, and both
     target seasons; incompatible replay or another admin's preview fails closed.
-- [ ] Add candidate revision/digest Domain models and an admin-authorized
+- [x] Add candidate revision/digest Domain models and an admin-authorized
   repository query; prove normal-member reads fail in Rules/repository tests.
 - [x] Decode terminal summary and stable error codes without exposing raw backend
   messages.
@@ -964,7 +964,11 @@ occurred. Protected technical evidence remains outside the repository.
   leaking candidate shifts into normal member feeds.
 - [x] Refresh the server shifts feed once after activation completion and only
   then show success.
-- [ ] Verify board and upcoming-shift projections across seasons.
+- [x] Verify board and upcoming-shift projections across seasons.
+  - [x] An unordered feed spanning 26 August to 19 September keeps chronological
+    delivery projection, derives the cross-boundary helper from the following lead,
+    selects the first September delivery for the board, and retains the member's
+    September market assignment.
 - [ ] Add unit, failure, decoding, operation-safety, and UI tests.
 
 ## 5. iOS read-back
@@ -982,7 +986,7 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Planning stage creates a new request only from the current admin's completed
     preview and binds its exact request ID, bundle revision, bundle digest, and both
     target seasons; incompatible replay or another admin's preview fails closed.
-- [ ] Add equivalent candidate revision/digest Domain models and admin-only
+- [x] Add equivalent candidate revision/digest Domain models and admin-only
   repository query; prove normal-member reads fail in Rules/repository tests.
 - [x] Decode terminal summary and stable error codes without exposing raw backend
   messages.
@@ -993,7 +997,10 @@ occurred. Protected technical evidence remains outside the repository.
   leaking candidate shifts into normal member feeds.
 - [x] Refresh the server shifts feed once after activation completion and only
   then show success.
-- [ ] Verify board and upcoming-shift projections across seasons.
+- [x] Verify board and upcoming-shift projections across seasons.
+  - [x] The same 26-August/19-September observable scenario passes through the
+    production ViewModel, including sorted board projection, following-lead helper,
+    first September delivery highlight, and September market assignment.
 - [ ] Add Swift Testing cohorts, previews, accessibility identifiers, and UI
   smoke coverage where UI changes.
 

@@ -1359,6 +1359,24 @@ This is local Rules/emulator evidence only. No Rules or Function was deployed, a
 no shared Firebase, workbook, notification, mobile release or production data
 changed.
 
+## Local implementation checkpoint — mobile season-boundary projection (2026-08-29)
+
+Android and iOS now carry the same observable acceptance scenario across the official
+September season boundary. An intentionally unordered feed from 26 August through
+19 September must remain chronologically projected, derive the August helper from the
+following September lead, select the first September delivery on the board, and retain
+the member's September market assignment. The test executes the production Android
+projection helpers and the production iOS `ShiftsFeatureViewModel`; its expected IDs
+and roles come from the accepted continuous-rotation contract rather than either
+implementation.
+
+The focused Android test, complete Android unit/lint gates, and the complete iOS
+`fast-unit-v1` lane pass on iPhone 17 / iOS 26.5. Candidate revision/digest models,
+exact staged-candidate repository reads, and admin-only Rules evidence were also
+re-audited on both platforms, allowing their stale implementation tasks to close
+without changing production code. No shared Firebase, workbook, notification, mobile
+release or production data changed.
+
 ## Suggested labels
 
 - `type:feature`
