@@ -545,6 +545,143 @@ test("rejects destination drift before authenticated submission", {
   assert.equal(snapshot.get("authenticatedStartedAt"), null);
 });
 
+test("rejects assignment and member drift before authenticated submission", {
+  skip: !EMULATOR_HOST,
+}, async (context) => {
+  const driftCases = [
+    {
+      name: "assignment revision",
+      expectedCode: "invalid_planning_publication_contract",
+      apply: () => firestore.doc(
+        `${root}/shifts/shift_delivery_20260902`,
+      ).update({assignmentRevision: 2}),
+    },
+    {
+      name: "inactive member",
+      expectedCode: "invalid_planning_transaction",
+      apply: () => firestore.doc(`${root}/users/member-1`).update({
+        isActive: false,
+      }),
+    },
+  ];
+  for (const driftCase of driftCases) {
+    await context.test(driftCase.name, async () => {
+      await clearFirestore();
+      nowMillis = initialMillis;
+      const intent = await seed();
+      const claimed = await repository.claim({
+        environment,
+        intentId: intent.intentId,
+        workerId: "dispatch-worker-1",
+        attemptId: "dispatch-attempt-1",
+      });
+      await driftCase.apply();
+      nowMillis += 1_000;
+
+      await assert.rejects(
+        repository.authorizeAuthenticatedSubmission({
+          environment,
+          token: claimed.token,
+        }),
+        (error) => error.code === driftCase.expectedCode,
+      );
+      const snapshot = await firestore.doc(
+        `${root}/shiftPlanningNotificationIntents/${intent.intentId}/` +
+          "dispatchAttempts/dispatch-attempt-1",
+      ).get();
+      assert.equal(snapshot.get("state"), "claimed");
+      assert.equal(snapshot.get("authenticatedStartedAt"), null);
+    });
+  }
+});
+
+test("post-submission destination drift cannot retract acceptance", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const intent = await seed();
+  const executor = createShiftPlanningNotificationDispatchExecutor({
+    repository,
+    transport: {
+      async submit(request) {
+        assert.deepEqual(request.targets.fcmTokens, ["token-1"]);
+        await firestore.doc(`${root}/users/member-1/devices/device-1`).update({
+          fcmToken: "token-2",
+        });
+        return {outcome: "accepted", acceptedTargetCount: 2};
+      },
+    },
+    nowMillis: () => nowMillis,
+    transportTimeoutMillis: 10,
+  });
+
+  const result = await executor.execute({
+    environment,
+    intentId: intent.intentId,
+    workerId: "dispatch-worker-1",
+    attemptId: "dispatch-attempt-1",
+  });
+
+  assert.equal(result.kind, "completed");
+  assert.equal(result.attempt.terminal.outcome, "accepted");
+  assert.equal(result.attempt.terminal.possiblyDelivered, true);
+  assert.equal(
+    (await firestore.doc(
+      `${root}/users/member-1/devices/device-1`,
+    ).get()).get("fcmToken"),
+    "token-2",
+  );
+  for (const path of fencePaths(intent)) {
+    assert.equal((await firestore.doc(path).get()).exists, false);
+  }
+});
+
+test("post-submission member drift preserves unknown evidence", {
+  skip: !EMULATOR_HOST,
+}, async () => {
+  const intent = await seed();
+  const executor = createShiftPlanningNotificationDispatchExecutor({
+    repository,
+    transport: {
+      async submit() {
+        await firestore.doc(`${root}/users/member-1`).update({isActive: false});
+        throw new Error("acknowledgement unavailable");
+      },
+    },
+    nowMillis: () => nowMillis,
+    transportTimeoutMillis: 10,
+  });
+
+  const result = await executor.execute({
+    environment,
+    intentId: intent.intentId,
+    workerId: "dispatch-worker-1",
+    attemptId: "dispatch-attempt-1",
+  });
+
+  assert.equal(result.kind, "completed");
+  assert.equal(result.attempt.terminal.outcome, "unknown");
+  assert.equal(result.attempt.terminal.possiblyDelivered, true);
+  assert.equal(
+    result.attempt.terminal.failureCode,
+    "transport_ambiguous_error",
+  );
+  await assert.rejects(
+    repository.claim({
+      environment,
+      intentId: intent.intentId,
+      workerId: "dispatch-worker-2",
+      attemptId: "dispatch-attempt-2",
+    }),
+    (error) => error.code === "invalid_planning_transaction",
+  );
+  const snapshot = await firestore.doc(
+    `${root}/shiftPlanningNotificationIntents/${intent.intentId}/` +
+      "dispatchAttempts/dispatch-attempt-1",
+  ).get();
+  assert.equal(snapshot.get("terminal.outcome"), "unknown");
+  assert.equal(snapshot.get("terminal.possiblyDelivered"), true);
+});
+
 test("terminalizes an unsubmitted attempt without possible delivery", {
   skip: !EMULATOR_HOST,
 }, async () => {

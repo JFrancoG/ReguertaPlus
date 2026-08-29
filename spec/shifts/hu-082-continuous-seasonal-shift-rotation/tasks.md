@@ -1074,11 +1074,16 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Android/iOS production presentation tests start from one authorized rich detail,
     force an offline inbox refresh failure, retain only the generic row, and clear all
     ephemeral detail/loading state without restarting the session.
-- [ ] Prove assignment/member drift between read and event claim fails CAS, and
+- [x] Prove assignment/member drift between read and event claim fails CAS, and
   UID/eligibility/token writers serialize with every initial/retried FCM dispatch
   lease; prove drift before authenticated submission starts fails closed and drift
   after submission cannot retract `unknown`/accepted state; presentation remains
   generic, at least once, and potentially delayed/duplicated.
+  - [x] The release CAS creates no event/inbox after stale assignment, member, or
+    destination input. The dispatch-emulator matrix rejects later drift before
+    `authenticatedStartedAt`, while post-start destination drift retains `accepted`
+    and an ambiguous acknowledgement after member drift retains immutable `unknown`.
+    Writer-fence races serialize on the same member/shift documents.
 - [ ] Prove crash/timeout/lost-ack/late-completion dispatch cases never hold the
   lease indefinitely and preserve `unknown` as possibly accepted evidence.
 - [x] Prove any post-stage fairness-input or enabled credit-ledger change

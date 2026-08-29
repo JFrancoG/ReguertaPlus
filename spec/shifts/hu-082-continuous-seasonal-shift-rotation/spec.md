@@ -751,10 +751,10 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   and update both the board and upcoming shifts without an app restart.
 - [ ] Failure, timeout, cancellation, role demotion, user change, and environment
   change cannot show stale success or refresh the wrong feed.
-- [ ] A transaction/CAS reads current assignment and membership versions while
+- [x] A transaction/CAS reads current assignment and membership versions while
   claiming each held intent and creating its canonical event/inbox entry by stable
   key; stale input creates nothing.
-- [ ] Every initial/retried FCM dispatch freshly revalidates assignment, UID,
+- [x] Every initial/retried FCM dispatch freshly revalidates assignment, UID,
   active membership/eligibility, and token ownership/version while acquiring a
   dispatch lease honored by every writer of those values. Drift detected before
   authenticated submission starts terminally cancels/supersedes demonstrably

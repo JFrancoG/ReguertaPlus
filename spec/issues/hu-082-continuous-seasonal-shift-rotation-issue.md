@@ -1479,6 +1479,29 @@ runtime IAM, Function export/deployment and the first live invocation. No shared
 Firebase, workbook, FCM submission, notification, deployment, or production data
 changed.
 
+## Local implementation checkpoint — authenticated dispatch drift (2026-08-30)
+
+The Firestore-emulator dispatcher matrix now proves both sides of the authenticated
+submission boundary. Assignment-revision, inactive-member and device-token drift after
+claim but before `authenticatedStartedAt` fail closed and leave the attempt visibly
+unsubmitted. The preceding release CAS likewise creates no canonical event or inbox
+entry from stale assignment, member, or destination state. No stale target can cross
+either irreversible boundary.
+
+After authenticated submission begins, the oracle injects later source drift while the
+fake transport is in flight. A known acknowledgement remains terminal `accepted`; a
+lost acknowledgement after member drift remains immutable, possibly delivered
+`unknown`, and a fresh attempt cannot silently retarget the now-ineligible member.
+These direct emulator mutations model the irreducible observation race. The separate
+writer-fence matrix proves normal backend writers and a racing dispatch claim serialize
+on the same member/shift fence rather than bypassing it.
+
+Functions lint/build, 270/270 executed HU-082 unit vectors with 48 emulator-only skips,
+the release lane (6/6), focused dispatch lane (15/15), and writer-fence lane (12/12)
+pass. This closes the local assignment/member/destination drift criterion; HU-085
+still owns runtime export, IAM, deployment and live transport evidence. No shared
+Firebase, FCM submission, notification, deployment, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`
