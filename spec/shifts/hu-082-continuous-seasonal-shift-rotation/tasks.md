@@ -1061,12 +1061,15 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Canonical-release emulator cut: both sync partitions first reach their
     terminal read-back, every held intent creates one exact event/inbox/receipt,
     replay creates no duplicate, and no dispatch attempt or FCM transport starts.
-- [ ] Prove canonical event/inbox/push artifacts contain only generic shift references,
+- [x] Prove canonical event/inbox/push artifacts contain only generic shift references,
   supported clients decode them, and stale/offline caches cannot expose member/date/
   assignment detail after authorization or revision changes.
   - [x] The integrated release read-back proves public event/inbox documents contain
     only the generic discriminator and copy; shift, member assignment, bundle and date
     details remain confined to backend-owned receipts and source records.
+  - [x] Android/iOS production presentation tests start from one authorized rich detail,
+    force an offline inbox refresh failure, retain only the generic row, and clear all
+    ephemeral detail/loading state without restarting the session.
 - [ ] Prove assignment/member drift between read and event claim fails CAS, and
   UID/eligibility/token writers serialize with every initial/retried FCM dispatch
   lease; prove drift before authenticated submission starts fails closed and drift

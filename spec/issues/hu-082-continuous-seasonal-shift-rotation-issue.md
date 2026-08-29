@@ -1438,6 +1438,25 @@ This closes the mobile no-restart observation criterion, but does not exercise s
 Firebase or deploy either app. Stale generic-notification cache authorization and the
 separately governed FCM dispatch lifecycle remain open. No production data changed.
 
+## Local implementation checkpoint — offline notification detail purge (2026-08-29)
+
+Android and iOS now exercise the same production presentation path from an authorized
+rich shift-notification detail to a failed offline inbox refresh. The refresh preserves
+the generic `shift_updated` inbox row while immediately purging the ephemeral member,
+date and assignment detail together with its loading ownership. A previous successful
+authorization therefore cannot make sensitive shift detail survive an unavailable
+freshness/read-state boundary.
+
+The tests use an independent before/after oracle around the real session/view-model
+behavior rather than a decoder round-trip. The focused Android test, complete Android
+unit/lint gates, focused Xcode test (1/1), and the complete iOS `fast-unit-v1` lane pass
+on iPhone 17 / iOS 26.5 with SwiftLint enabled.
+
+This closes the generic event/inbox plus stale-offline mobile presentation criterion.
+The installed/current/candidate compatibility matrix remains governed by HU-085, and
+the FCM claim/lease/attempt lifecycle remains open in HU-082. No shared Firebase,
+workbook, notification transport, mobile release, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

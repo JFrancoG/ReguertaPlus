@@ -70,6 +70,38 @@ class SessionCommunityActionsFailureTest {
     }
 
     @Test
+    fun `failed inbox refresh purges rich shift detail but preserves generic row`() = runTest {
+        val event = notificationEvent(id = "event-1").copy(
+            type = "shift_updated",
+            target = "users",
+            userIds = listOf("member_1"),
+            contentPolicy = NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED,
+        )
+        val state = MutableStateFlow(authorizedState().copy(notificationsFeed = listOf(event)))
+        val actions = actions(
+            state = state,
+            repository = ControlledSharedProfileRepository(emptyList(), rejectsReads = false),
+            emitMessage = {},
+            notificationRepository = QueuedNotificationRepository(
+                notificationsResults = ArrayDeque(listOf(Result.success(listOf(event)))),
+                readResults = ArrayDeque(listOf(Result.failure(IOException("offline")))),
+            ),
+            shiftNotificationDetailRepository =
+                RecordingShiftNotificationDetailRepository(notificationShiftDetail()),
+        )
+        actions.openNotificationDetail(event.id)
+        advanceUntilIdle()
+        assertEquals(notificationShiftDetail(), state.value.notificationShiftDetail)
+
+        actions.refreshNotifications()
+        advanceUntilIdle()
+
+        assertEquals(listOf(event), state.value.notificationsFeed)
+        assertNull(state.value.notificationShiftDetail)
+        assertNull(state.value.loadingNotificationDetailEventId)
+    }
+
+    @Test
     fun `opened push refreshes inbox before fetching authorized detail`() = runTest {
         val event = notificationEvent(id = "event-1").copy(
             type = "shift_updated",

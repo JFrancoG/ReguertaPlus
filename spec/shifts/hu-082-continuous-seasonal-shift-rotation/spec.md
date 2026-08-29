@@ -767,7 +767,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 - [ ] Push payloads contain no shift/member detail and require an authorized fetch
   on open. Evidence states authenticated submission start under the current lease
   is the guarantee boundary: later OS presentation may follow membership change.
-- [ ] Canonical shift events and inbox rows also contain only generic non-sensitive
+- [x] Canonical shift events and inbox rows also contain only generic non-sensitive
   copy/reference plus lifecycle metadata—no member name, shift date, or effective
   assignment. Android/iOS fetch current detail under authorization/freshness when
   opening push or inbox, invalidate ephemeral detail cache on context/revision drift,

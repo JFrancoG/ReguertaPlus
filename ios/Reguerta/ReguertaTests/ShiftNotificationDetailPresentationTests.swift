@@ -38,6 +38,21 @@ struct ShiftNotificationDetailPresentationTests {
         #expect(fixture.viewModel.notificationShiftDetail == nil)
     }
 
+    @Test func failedInboxRefreshPurgesRichDetailButPreservesGenericRow() async {
+        let fixture = makeFixture(
+            repository: ImmediateShiftNotificationDetailRepository(detail: detail),
+            notificationRepository: OfflineNotificationRepository()
+        )
+        await fixture.viewModel.openNotificationDetail(eventID: "event_1")
+        #expect(fixture.viewModel.notificationShiftDetail == detail)
+
+        await fixture.viewModel.refreshNotifications()
+
+        #expect(fixture.viewModel.notificationsFeed == [genericShiftNotification])
+        #expect(fixture.viewModel.notificationShiftDetail == nil)
+        #expect(fixture.viewModel.loadingNotificationDetailEventID == nil)
+    }
+
     @Test func openedPushRefreshesInboxBeforeFetchingAuthorizedDetail() async {
         let notificationRepository = InMemoryNotificationRepository(items: [genericShiftNotification])
         let fixture = makeFixture(
@@ -168,4 +183,35 @@ private final class SuspendedShiftNotificationDetailRepository: ShiftNotificatio
 
     func waitUntilRequestStarts() async throws { try await operation.waitUntilStarted() }
     func completeRequest() { operation.complete() }
+}
+
+private actor OfflineNotificationRepository: NotificationRepository {
+    private enum Failure: Error {
+        case unavailable
+    }
+
+    func notifications(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NotificationEvent] {
+        throw Failure.unavailable
+    }
+
+    func allNotifications(environment _: SessionEnvironment) async throws -> [NotificationEvent] {
+        throw Failure.unavailable
+    }
+
+    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async throws -> Set<String> {
+        throw Failure.unavailable
+    }
+
+    func markNotificationsRead(
+        memberId _: String,
+        notificationIds _: [String],
+        readAtMillis _: Int64,
+        environment _: SessionEnvironment
+    ) async throws {
+        throw Failure.unavailable
+    }
+
+    func send(event _: NotificationEvent, environment _: SessionEnvironment) async throws -> NotificationEvent {
+        throw Failure.unavailable
+    }
 }
