@@ -759,7 +759,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   dispatch lease honored by every writer of those values. Drift detected before
   authenticated submission starts terminally cancels/supersedes demonstrably
   unsubmitted state without retargeting.
-- [ ] Each canonical event has an append-only attempt ledger containing `attemptId`,
+- [x] Each canonical event has an append-only attempt ledger containing `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
   `accepted|unknown|failed`. Aggregate state is derived; a possibly delivered
   `unknown` is never overwritten/reclassified, and retry appends a fresh revalidated

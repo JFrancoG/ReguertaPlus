@@ -439,7 +439,7 @@ test("claims, revalidates, submits, and terminalizes one accepted attempt", {
   assert.equal(lateReplay.attempt.terminal.outcome, "accepted");
 });
 
-test("expires submitting as immutable unknown before a revalidated retry", {
+test("recovers an authenticated crash through one revalidated retry", {
   skip: !EMULATOR_HOST,
 }, async () => {
   const intent = await seed();
@@ -474,6 +474,10 @@ test("expires submitting as immutable unknown before a revalidated retry", {
       "dispatchAttempts/dispatch-attempt-1",
   ).get();
   assert.equal(firstSnapshot.get("terminal.outcome"), "unknown");
+  assert.equal(
+    firstSnapshot.get("terminal.failureCode"),
+    "submission_lease_expired",
+  );
   assert.equal(firstSnapshot.get("terminal.possiblyDelivered"), true);
 
   const late = await repository.completeSubmission({
@@ -483,6 +487,44 @@ test("expires submitting as immutable unknown before a revalidated retry", {
   });
   assert.equal(late.kind, "terminalReplay");
   assert.equal(late.attempt.terminal.outcome, "unknown");
+
+  let retrySubmissionCount = 0;
+  const executor = createShiftPlanningNotificationDispatchExecutor({
+    repository,
+    transport: {
+      async submit() {
+        retrySubmissionCount += 1;
+        return {outcome: "accepted", acceptedTargetCount: 2};
+      },
+    },
+    nowMillis: () => nowMillis,
+    transportTimeoutMillis: 10,
+  });
+  const retried = await executor.execute({
+    environment,
+    intentId: intent.intentId,
+    workerId: "dispatch-worker-2",
+    attemptId: "dispatch-attempt-2",
+  });
+  assert.equal(retried.kind, "completed");
+  assert.equal(retried.attempt.attemptOrdinal, 2);
+  assert.equal(retried.attempt.terminal.outcome, "accepted");
+  assert.equal(retrySubmissionCount, 1);
+  const state = await firestore.doc(
+    `${root}/shiftPlanningNotificationIntents/${intent.intentId}/` +
+      "dispatchState/current",
+  ).get();
+  assert.equal(state.get("attemptCount"), 2);
+  assert.equal(state.get("activeLease"), null);
+  const firstAfterRetry = await firestore.doc(
+    `${root}/shiftPlanningNotificationIntents/${intent.intentId}/` +
+      "dispatchAttempts/dispatch-attempt-1",
+  ).get();
+  assert.equal(firstAfterRetry.get("terminal.outcome"), "unknown");
+  assert.equal(firstAfterRetry.get("terminal.possiblyDelivered"), true);
+  for (const path of fencePaths(intent)) {
+    assert.equal((await firestore.doc(path).get()).exists, false);
+  }
 });
 
 test("expires an unsubmitted lease as failed before takeover", {
@@ -798,5 +840,36 @@ test("bounded executor persists a timed-out fake transport as unknown", {
     const fence = await firestore.doc(path).get();
     assert.equal(fence.exists, true);
     assert.equal(fence.get("attemptId"), "dispatch-attempt-1");
+  }
+
+  const busy = await repository.claim({
+    environment,
+    intentId: intent.intentId,
+    workerId: "dispatch-worker-2",
+    attemptId: "dispatch-attempt-2",
+  });
+  assert.equal(busy.kind, "busy");
+  assert.equal(busy.retryAt.toMillis(), initialMillis + 30_000);
+
+  nowMillis += 30_000;
+  const retry = await repository.claim({
+    environment,
+    intentId: intent.intentId,
+    workerId: "dispatch-worker-2",
+    attemptId: "dispatch-attempt-2",
+  });
+  assert.equal(retry.kind, "claimed");
+  assert.equal(retry.attempt.attemptOrdinal, 2);
+  const firstSnapshot = await firestore.doc(
+    `${root}/shiftPlanningNotificationIntents/${intent.intentId}/` +
+      "dispatchAttempts/dispatch-attempt-1",
+  ).get();
+  assert.equal(firstSnapshot.get("terminal.outcome"), "unknown");
+  assert.equal(firstSnapshot.get("terminal.failureCode"), "transport_timeout");
+  for (const path of fencePaths(intent)) {
+    assert.equal(
+      (await firestore.doc(path).get()).get("attemptId"),
+      "dispatch-attempt-2",
+    );
   }
 });

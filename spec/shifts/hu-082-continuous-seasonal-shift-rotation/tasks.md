@@ -1084,8 +1084,12 @@ occurred. Protected technical evidence remains outside the repository.
     `authenticatedStartedAt`, while post-start destination drift retains `accepted`
     and an ambiguous acknowledgement after member drift retains immutable `unknown`.
     Writer-fence races serialize on the same member/shift documents.
-- [ ] Prove crash/timeout/lost-ack/late-completion dispatch cases never hold the
+- [x] Prove crash/timeout/lost-ack/late-completion dispatch cases never hold the
   lease indefinitely and preserve `unknown` as possibly accepted evidence.
+  - [x] An authenticated crash expires to immutable `unknown`, a fresh attempt takes
+    over the exact fences and may complete `accepted`, and the original late result
+    cannot reclassify history. A timed-out transport stays busy only until its fixed
+    lease deadline, after which a new revalidated attempt owns the resources.
 - [x] Prove any post-stage fairness-input or enabled credit-ledger change
   invalidates activation without a partial cursor/credit transition.
   - [x] Local artifact cut: maintenance barrier/status/revision/transition drift

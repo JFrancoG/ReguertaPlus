@@ -1502,6 +1502,28 @@ pass. This closes the local assignment/member/destination drift criterion; HU-08
 still owns runtime export, IAM, deployment and live transport evidence. No shared
 Firebase, FCM submission, notification, deployment, or production data changed.
 
+## Local implementation checkpoint — dispatch crash recovery (2026-08-30)
+
+The dispatch-emulator acceptance now models a worker disappearing immediately after
+authenticated submission starts. No completion call is made. At the fixed lease
+deadline, the next claim terminalizes that first attempt as immutable, possibly
+delivered `unknown`, advances the attempt ordinal and transfers both resource fences
+to a freshly revalidated retry. A late `accepted` result for the crashed attempt
+replays its existing `unknown` evidence instead of rewriting history.
+
+The retry then passes through the bounded executor, submits once to the fake transport,
+persists `accepted`, clears the active lease and releases its exact fences. The timeout
+path independently proves that its `unknown` fence reports busy only until the same
+finite deadline; after expiry, a new attempt takes ownership while the original
+timeout evidence remains unchanged. This preserves explicit at-least-once and possible
+duplicate semantics without an indefinitely held lease.
+
+Functions lint/build, 270/270 executed HU-082 unit vectors with 48 emulator-only skips,
+and the focused dispatch Firestore-emulator lane (15/15) pass. This closes the local
+crash/timeout/lost-ack/late-completion and append-only attempt-ledger criteria. HU-085
+still owns runtime export, IAM, deployment and live FCM evidence. No shared Firebase,
+FCM submission, notification, deployment, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

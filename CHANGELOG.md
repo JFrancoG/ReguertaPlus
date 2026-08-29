@@ -249,6 +249,7 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-08-30 | ✅ test(shifts): prove dispatch crash recovery
 - 2026-08-30 | ✅ test(shifts): prove authenticated dispatch drift
 - 2026-08-30 | ✅ test(shifts): prove governed notification dispatch
 - 2026-08-29 | ✅ test(shifts): purge stale notification detail
