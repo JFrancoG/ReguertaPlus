@@ -722,6 +722,10 @@ service cloud.firestore {
       allow delete: if isAdmin(env);
     }
 
+    match /{env}/plus-collections/deliveryCalendarMutationReceipts/{operationId} {
+      allow read, write: if false;
+    }
+
     match /{env}/plus-collections/shifts/{shiftId} {
       allow read: if isActiveMember(env);
       allow create, update, delete: if isAdmin(env) &&

@@ -1013,6 +1013,32 @@ test first failed 10/11 because direct reference revalidation was absent, then p
 emulator-only skips also pass. No mobile code, Rules, live Sheet, shared Firebase,
 Function deployment, notification delivery, or production data changed.
 
+## Local implementation checkpoint — epoch-bound delivery-calendar command (2026-08-29)
+
+The backend now exposes the exact schema-v1
+`resolveDeliveryCalendarMutationContext` and
+`transitionDeliveryCalendarOverride` pair for a future Android/iOS migration.
+Context returns one open planning authority and the canonical current-override
+digest. Mutation accepts a stable operation ID, action, ISO week, both expected
+CAS values and, for upsert, only `TUE|THU|FRI`; the server derives all Madrid
+calendar instants plus actor and timestamp.
+
+One Firestore transaction revalidates the reciprocal active-admin link, exact
+planning epoch/lineage, and override digest before changing the public document
+and creating an immutable backend-only receipt. Exact replay converges after
+later planning-state drift; operation collisions, revocation, stale authority,
+or override drift write nothing. Strict and Phase 1 Rules deny all client access
+to receipts.
+
+Contract tests first failed because the module did not exist, and the Rules RED
+proved the Phase 1 catch-all exposed the new collection before it was listed as
+private. Functions lint/build, 4/4 contract vectors, 6/6 isolated Firestore
+emulator vectors, and both focused Rules suites pass. Android/iOS still use the
+legacy direct writes and current Rules deliberately retain them; client migration,
+offline-queue rejection, final direct-write deny, deploy, and live validation are
+separate pending cuts. No shared Firebase, Sheet, notification, deployment, or
+production data changed.
+
 ## Suggested labels
 
 - `type:feature`

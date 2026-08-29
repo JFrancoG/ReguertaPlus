@@ -194,6 +194,25 @@ Endpoints de aplicacion:
   permitir eliminar el ultimo admin activo.
 - `transitionShiftSwap`: socio activo; valida actor/candidato y aplica el
   intercambio final de turnos en una transaccion.
+- `resolveDeliveryCalendarMutationContext`: admin activo; devuelve la autoridad
+  abierta exacta y el digest (o ausencia) de una excepcion semanal.
+- `transitionDeliveryCalendarOverride`: admin activo; aplica un `upsert` o
+  `delete` idempotente solo si siguen coincidiendo autoridad y digest.
+
+El comando de calendario usa un body v1 de campos exactos. Para `upsert`, el
+cliente envia `environment`, `operationId`, `weekKey`,
+`expectedPlanningAuthority`, `expectedOverrideDigest` y `deliveryWeekday`
+(`TUE|THU|FRI`). El backend deriva las cinco fechas en `Europe/Madrid`,
+`updatedBy` y `updatedAt`; para `delete` se omite `deliveryWeekday`. La
+transaccion relee el enlace y rol admin, el estado de planificacion y el
+documento semanal, y crea a la vez un recibo privado en
+`deliveryCalendarMutationReceipts/{operationId}`. Un replay identico converge;
+una autoridad, override, actor o payload diferente falla sin mutacion.
+
+Este endpoint queda preparado para la migracion movil, pero Android/iOS aun
+escriben directamente y las Rules todavia conservan esa compatibilidad. No debe
+negarse la ruta legacy hasta que ambos clientes usen el comando y se prueben las
+colas offline antiguas.
 
 El resto de endpoints HTTP candidatos de sincronizacion, exportacion,
 timestamps y validacion requieren admin activo.

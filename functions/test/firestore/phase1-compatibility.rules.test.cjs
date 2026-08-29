@@ -38,6 +38,7 @@ const privateShiftPlanningCollections = [
   "shiftPlanningNotificationFences",
   "shiftPlanningNotificationIncidentFences",
   "shiftPlanningOperations",
+  "deliveryCalendarMutationReceipts",
 ];
 
 let testEnv;

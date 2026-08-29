@@ -553,6 +553,11 @@ The following collection names are frozen for the private control plane:
   including the implemented request claim/lease/fencing lifecycle; future
   operation records also carry recovery paths, persisted before-image
   references/digests, active CAS, and monotonic recovery epoch.
+- `deliveryCalendarMutationReceipts`: immutable schema-v1 idempotency records
+  keyed by the stable calendar `operationId`. Each binds environment, week,
+  action, command digest, reciprocal active-admin actor, exact planning
+  authority, prior/resulting override digests, canonical result and trusted
+  commit time. Clients cannot read or mutate these receipts.
 - `shiftPlanningPublicEventLedgers`: immutable operation-retention bindings and
   controlled/rejected public-event terminals. Stable IDs are
   `operation-{operationId}` and `event-{64 lowercase digest hex}`.

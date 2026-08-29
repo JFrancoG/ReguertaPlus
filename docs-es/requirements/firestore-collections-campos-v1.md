@@ -663,6 +663,12 @@ Los nombres siguientes quedan congelados para el plano de control privado:
   incluido el lifecycle ya implementado de claim/lease/fencing de peticiones;
   los registros futuros tambien llevan rutas de recovery, referencias/digests de
   before-images persistidas, CAS activo y epoca monotona de recovery.
+- `deliveryCalendarMutationReceipts`: recibos inmutables schema v1 de
+  idempotencia, identificados por el `operationId` estable del calendario. Cada
+  uno liga entorno, semana, accion, digest del comando, actor admin activo con
+  enlace reciproco, autoridad exacta de planificacion, digests previo/resultante,
+  resultado canonico e instante fiable de commit. Ningun cliente puede leerlos
+  ni mutarlos.
 - `shiftPlanningPublicEventLedgers`: bindings inmutables de retencion de
   operacion y terminales de evento publico controlado/rechazado. Los IDs estables
   son `operation-{operationId}` y `event-{64 caracteres hex minusculos}`.

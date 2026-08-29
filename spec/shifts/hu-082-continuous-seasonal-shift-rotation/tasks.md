@@ -823,9 +823,17 @@ occurred. Protected technical evidence remains outside the repository.
     reference revalidation did not exist. Functions lint/build, 255/255 executed
     planning-unit vectors with 42 emulator-only skips, and 11/11 focused writer-
     authority emulator vectors then pass.
-  - [ ] Remaining: migrate/deny direct client calendar and shift writes, add the
-    epoch-bound calendar command, and fence shift export, admin, and other
-    inventoried mutation paths.
+  - [x] Add the exact epoch-bound delivery-calendar context/mutation endpoints.
+    The command transaction revalidates the reciprocal active-admin link, exact
+    planning authority and current override digest; it derives Madrid timestamps,
+    writes an immutable backend-only receipt, and supports exact replay without
+    reopening a stale command.
+  - [x] Validation: contract RED first failed because the module was absent; the
+    Rules RED then proved the Phase 1 catch-all exposed the new receipt until its
+    private list was updated. Functions lint/build, 4/4 contract vectors, 6/6
+    Firestore-emulator command vectors, and both strict/Phase 1 Rules suites pass.
+  - [ ] Remaining: migrate/deny direct client calendar and shift writes, fence
+    shift export, admin, and other inventoried mutation paths.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.

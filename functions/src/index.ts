@@ -85,6 +85,13 @@ import {
 import {
   classifyShiftPlanningNotificationDeliveryAuthority,
 } from "./shift-planning-notification-delivery-authority.js";
+import {
+  parseDeliveryCalendarMutationContextInput,
+  parseDeliveryCalendarMutationInput,
+} from "./delivery-calendar-command.js";
+import {
+  createFirestoreDeliveryCalendarCommandRepository,
+} from "./delivery-calendar-firestore-command.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
@@ -93,6 +100,8 @@ const messaging = getMessaging(firebaseApp);
 const shiftPlanningRuntime = createFirestoreShiftPlanningRuntime(firestore);
 const shiftPlanningRecoveryExecutor =
   createFirestoreShiftPlanningOperatorRecoveryExecutor(firestore);
+const deliveryCalendarCommandRepository =
+  createFirestoreDeliveryCalendarCommandRepository(firestore);
 
 setGlobalOptions({
   region: "europe-west1",
@@ -4022,6 +4031,64 @@ export const syncShiftsFromGoogleSheets = onRequest(async (req, res) => {
     sendHttpError(res, error);
   }
 });
+
+export const resolveDeliveryCalendarMutationContext = onRequest(
+  async (req, res) => {
+    try {
+      requirePostMethod(req.method);
+      if (Object.keys(req.query).length !== 0) {
+        throw new HttpRequestError(
+          400,
+          "invalid_delivery_calendar_command",
+          "Delivery calendar commands do not accept query parameters",
+        );
+      }
+      const input = parseDeliveryCalendarMutationContextInput(req.body);
+      const identity = await verifyRequestIdentity(req);
+      await requireAdminInEnvironment(input.environment, identity);
+      const context = await deliveryCalendarCommandRepository
+        .resolveMutationContext(input);
+      res.status(200).json({ok: true, ...context});
+    } catch (error) {
+      sendHttpError(res, error);
+    }
+  },
+);
+
+export const transitionDeliveryCalendarOverride = onRequest(
+  async (req, res) => {
+    try {
+      requirePostMethod(req.method);
+      if (Object.keys(req.query).length !== 0) {
+        throw new HttpRequestError(
+          400,
+          "invalid_delivery_calendar_command",
+          "Delivery calendar commands do not accept query parameters",
+        );
+      }
+      const input = parseDeliveryCalendarMutationInput(req.body);
+      const identity = await verifyRequestIdentity(req);
+      const actor = await requireAdminInEnvironment(
+        input.environment,
+        identity,
+      );
+      const result = await deliveryCalendarCommandRepository.transition(
+        input,
+        {uid: identity.uid, memberId: actor.memberId},
+      );
+      logger.info("Delivery calendar command completed", {
+        environment: input.environment,
+        operationId: input.operationId,
+        action: input.action,
+        weekKey: input.weekKey,
+        replayed: result.replayed,
+      });
+      res.status(200).json({ok: true, ...result});
+    } catch (error) {
+      sendHttpError(res, error);
+    }
+  },
+);
 
 export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
   try {

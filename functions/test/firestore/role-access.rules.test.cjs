@@ -1286,6 +1286,7 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
     "shiftPlanningNotificationFences",
     "shiftPlanningNotificationIncidentFences",
     "shiftPlanningOperations",
+    "deliveryCalendarMutationReceipts",
   ];
   for (const env of envs) {
     const adminDb = contextFor(actors.admin).firestore();

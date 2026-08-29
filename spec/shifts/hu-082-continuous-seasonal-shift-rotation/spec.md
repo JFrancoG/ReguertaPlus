@@ -402,6 +402,19 @@ does not populate Firestore public shifts or activate either mobile app.
   iOS/backend write path: update it to the versioned contract or leave that path
   denied and route it through a versioned callable/command. HU-085 owns only the live
   fence/read-back; it may not restore permissive legacy writes.
+- The delivery-calendar fallback is the exact schema-v1 pair
+  `resolveDeliveryCalendarMutationContext` and
+  `transitionDeliveryCalendarOverride`. Context returns one open planning
+  authority plus the canonical current-override digest or `null`. Mutation binds a
+  stable `operationId`, action, ISO week, expected authority, and expected digest;
+  upsert additionally accepts only `TUE|THU|FRI`. Inside one Firestore transaction
+  the backend revalidates the reciprocal active-admin link, planning authority, and
+  override digest, derives Madrid calendar instants plus actor/time, mutates the
+  override, and creates an immutable backend-only receipt. Exact replay returns the
+  retained result even after later state drift; an operation collision or stale
+  precondition writes nothing. Direct mobile writes and their Rules allowance remain
+  temporary compatibility until both apps migrate and offline legacy queues are
+  rejected.
 - The epoch lifecycle is one state machine. The external/Rules bootstrap barrier
   first closes affected writes and is read back; while that deny remains in place,
   `enterMaintenance` atomically marks the backend state closed and advances the
