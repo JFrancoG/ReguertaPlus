@@ -3702,20 +3702,73 @@ const createShiftPlanningNotification = async (
   });
 };
 
-const dispatchShiftUpdatedNotification = async (
-  env: string,
+const shiftExportStateMatches = (
+  current: FirestoreShiftRecord,
+  expected: FirestoreShiftRecord,
+): boolean => current.id === expected.id &&
+  current.type === expected.type &&
+  current.date.toMillis() === expected.date.toMillis() &&
+  current.status === expected.status &&
+  current.source === expected.source &&
+  current.helperUserId === expected.helperUserId &&
+  current.syncSheetName === expected.syncSheetName &&
+  JSON.stringify(current.assignedUserIds) ===
+    JSON.stringify(expected.assignedUserIds);
+
+const persistShiftExportEffects = async (
+  env: AppEnvironment,
   shift: FirestoreShiftRecord,
+  targetRange: string,
+  exportMode: "updated" | "appended",
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<void> => {
+  const root = `${env}/plus-collections`;
   const dateLabel = timestampToSheetDate(shift.date);
-  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
-    title: "Shift updated",
-    body: `${shift.type} shift updated for ${dateLabel}.`,
-    type: SHIFT_NOTIFICATION_TYPE,
-    target: "all",
-    targetPayload: {},
-    createdBy: "system",
-    sentAt: FieldValue.serverTimestamp(),
+  const eventReference = firestore.collection(
+    `${root}/notificationEvents`,
+  ).doc();
+  const result = await runShiftPlanningNotificationGuardedShiftWrite({
+    firestore,
+    root,
+    shiftId: shift.id,
+    clock: () => Timestamp.now(),
+    authorize: (transaction) =>
+      assertShiftPlanningWriterAuthorityInTransaction({
+        transaction,
+        stateReference: shiftPlanningMaintenanceStateReference(env),
+        capturedValue: planningAuthority,
+        changedCode: "shift_export_trigger_planning_authority_changed",
+        changedMessage: "Shift export trigger planning authority changed",
+      }),
+    mutate: ({transaction, reference, snapshot}) => {
+      const current = toShiftRecord(snapshot);
+      if (!current || !shiftExportStateMatches(current, shift)) {
+        throw new HttpRequestError(
+          409,
+          "shift_export_source_changed",
+          "Shift changed while its export was being confirmed",
+        );
+      }
+      transaction.set(reference, {
+        syncMeta: {
+          origin: "app",
+          sheetName: parseSheetName(targetRange),
+          exportedAt: FieldValue.serverTimestamp(),
+          exportMode,
+        },
+      }, {merge: true});
+      transaction.create(eventReference, {
+        title: "Shift updated",
+        body: `${shift.type} shift updated for ${dateLabel}.`,
+        type: SHIFT_NOTIFICATION_TYPE,
+        target: "all",
+        targetPayload: {},
+        createdBy: "system",
+        sentAt: FieldValue.serverTimestamp(),
+      });
+    },
   });
+  requireShiftPlanningNotificationGuardedWrite(result);
 };
 
 const formatNotificationDate = (
@@ -4387,6 +4440,23 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       loadMembersById(env),
       readDeliveryCalendarOverrideMap(env),
     ]);
+    const environment = parseAppEnvironment(env);
+    const planningStateReference =
+      shiftPlanningMaintenanceStateReference(environment);
+    const planningAuthority =
+      await captureShiftPlanningWriterAuthorityFromReference(
+        planningStateReference,
+      );
+    const writerFence = await createShiftPlanningExternalWriterFence({
+      capture: async () => planningAuthority,
+      revalidate: (captured) =>
+        assertShiftPlanningWriterAuthorityFromReference({
+          stateReference: planningStateReference,
+          capturedValue: captured,
+          changedCode: "shift_export_trigger_planning_authority_changed",
+          changedMessage: "Shift export trigger planning authority changed",
+        }),
+    });
 
     const result = await upsertShiftRowInSheet(
       sheets,
@@ -4395,19 +4465,17 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       after,
       membersById,
       deliveryOverrides,
-      null,
+      writerFence,
     );
+    await writerFence.finish();
 
-    await afterSnapshot.ref.set({
-      syncMeta: {
-        origin: "app",
-        sheetName: parseSheetName(targetRange),
-        exportedAt: FieldValue.serverTimestamp(),
-        exportMode: result,
-      },
-    }, {merge: true});
-
-    await dispatchShiftUpdatedNotification(env, after);
+    await persistShiftExportEffects(
+      environment,
+      after,
+      targetRange,
+      result,
+      planningAuthority,
+    );
 
     logger.info("✅ Confirmed shift exported to Google Sheets", {
       env,

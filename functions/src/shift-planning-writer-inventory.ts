@@ -159,8 +159,16 @@ const affectedWriters = [
     control: "disable-delivery-after-drain",
     requiredState: "disabled",
     shutdownOrder: "after-causal-drain",
-    targets: ["firestore.shifts", "workbook.shifts"],
-    sourceReferences: ["functions/src/index.ts#onShiftWritten"],
+    targets: [
+      "firestore.shifts",
+      "workbook.shifts",
+      "notification.delivery",
+    ],
+    sourceReferences: [
+      "functions/src/index.ts#onShiftWritten",
+      "functions/src/index.ts#persistShiftExportEffects",
+      "functions/src/shift-planning-external-writer-fence.ts",
+    ],
   },
   {
     writerId: "trigger-on-delivery-calendar-override-written",

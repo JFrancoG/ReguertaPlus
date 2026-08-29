@@ -1,6 +1,8 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const {readFileSync} = require("node:fs");
+const {join} = require("node:path");
 const {test} = require("node:test");
 
 const {
@@ -76,4 +78,29 @@ test("does not run an external mutation when revalidation fails", async () => {
     /planning maintenance/,
   );
   assert.equal(mutationCalled, false);
+});
+
+test("legacy shift trigger fences Sheets and Firestore effects", () => {
+  const source = readFileSync(join(__dirname, "../src/index.ts"), "utf8");
+  const start = source.indexOf("export const onShiftWritten");
+  const end = source.indexOf(
+    "export const onDeliveryCalendarOverrideWritten",
+    start,
+  );
+  const trigger = source.slice(start, end);
+  const effectsStart = source.indexOf("const persistShiftExportEffects");
+  const effectsEnd = source.indexOf("const formatNotificationDate", effectsStart);
+  const effects = source.slice(effectsStart, effectsEnd);
+
+  assert.match(trigger, /createShiftPlanningExternalWriterFence/);
+  assert.match(trigger, /upsertShiftRowInSheet\([\s\S]*?writerFence,\s*\)/);
+  assert.match(trigger, /await writerFence\.finish\(\)/);
+  assert.match(trigger, /persistShiftExportEffects/);
+  assert.doesNotMatch(trigger, /afterSnapshot\.ref\.set/);
+  assert.doesNotMatch(trigger, /dispatchShiftUpdatedNotification/);
+  assert.match(effects, /runShiftPlanningNotificationGuardedShiftWrite/);
+  assert.match(effects, /assertShiftPlanningWriterAuthorityInTransaction/);
+  assert.match(effects, /shiftExportStateMatches/);
+  assert.match(effects, /transaction\.set/);
+  assert.match(effects, /transaction\.create/);
 });

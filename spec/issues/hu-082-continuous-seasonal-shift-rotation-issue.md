@@ -1128,6 +1128,29 @@ intake-barrier inventory vectors, and 12/12 focused Firestore-emulator writer-fe
 vectors pass without Google Sheets access. No endpoint or Function was deployed, and
 no shared Firebase, workbook, notification, or production data changed.
 
+## Local implementation checkpoint — legacy shift-trigger authority (2026-08-29)
+
+The compatibility `onShiftWritten` path now captures one exact open planning
+authority after its read-only setup. Its Sheets `update`/`append` revalidates that
+authority immediately before mutation and once more after the request. Only then may
+one Firestore transaction write `syncMeta` and create the existing generic shift
+notification; that transaction revalidates the same planning authority, reads the
+exact shift notification fence, and rejects source-shift drift.
+
+Closed maintenance blocks the first workbook effect. Drift during Sheets prevents
+all Firestore effects, while drift or an active notification lease after Sheets
+prevents both `syncMeta` and notification atomically. An already accepted workbook
+row remains non-transactional and cannot be rolled back.
+
+This is a legacy-writer compatibility guard only. It does not connect the governed
+public-event classifier, operation registry, idempotent ledger, or controlled-event
+suppression assigned to HU-083. The trigger-source RED failed on the unfenced flow,
+and the inventory RED rejected its prior digest. Functions lint/build, 4/4 focused
+external-writer vectors, 263/263 executed planning-unit vectors with 43 emulator-only
+skips, and 12/12 focused Firestore-emulator writer-fence vectors pass. No live Sheet,
+shared Firebase, notification delivery, Function deployment, or production mutation
+occurred.
+
 ## Suggested labels
 
 - `type:feature`

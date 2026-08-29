@@ -858,6 +858,15 @@ occurred. Protected technical evidence remains outside the repository.
     did not exist. Functions lint/build, 3/3 pure fence vectors, the full planning
     unit lane, intake-barrier inventory vectors, and 12/12 focused Firestore-
     emulator writer-fence vectors pass without Google Sheets access.
+  - [x] Fence the legacy `onShiftWritten` compatibility effects without wiring the
+    HU-083 governed-event consumer. Capture after read-only setup; revalidate before
+    the Sheets mutation and after its request; then atomically persist `syncMeta`
+    plus the generic notification only after revalidating the same authority, exact
+    shift notification fence, and unchanged source shift state.
+  - [x] Validation: the trigger-source RED failed on the unfenced legacy flow and
+    the inventory RED rejected its prior digest. Functions lint/build, 4/4 focused
+    external-writer vectors, 263/263 executed planning-unit vectors with 43 emulator-
+    only skips, and 12/12 focused Firestore-emulator writer-fence vectors pass.
   - [ ] Remaining: fence independent admin and other inventoried mutation paths.
     Deployment and exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
