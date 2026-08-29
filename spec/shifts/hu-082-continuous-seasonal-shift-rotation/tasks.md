@@ -832,8 +832,17 @@ occurred. Protected technical evidence remains outside the repository.
     Rules RED then proved the Phase 1 catch-all exposed the new receipt until its
     private list was updated. Functions lint/build, 4/4 contract vectors, 6/6
     Firestore-emulator command vectors, and both strict/Phase 1 Rules suites pass.
-  - [ ] Remaining: migrate/deny direct client calendar and shift writes, fence
-    shift export, admin, and other inventoried mutation paths.
+  - [x] Migrate Android and iOS delivery-calendar upsert/delete to the exact
+    context-plus-command pair. Production composition shares each platform's
+    authenticated Functions client; no client-supplied actor/timestamp is sent,
+    the persisted server value is returned, and stale CAS is surfaced without
+    refreshing/retrying the same intention.
+  - [x] Prove both calendar repositories contain no direct Firestore mutation or
+    offline-queue path. Android unit/lint and iOS focused command/source tests plus
+    the repository fast-unit lane pass.
+  - [ ] Remaining: deny legacy direct calendar writes in both Rules candidates,
+    migrate/deny direct shift writes, and fence shift export, admin, and other
+    inventoried mutation paths.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
 - [ ] Prove clients cannot forge planner state, ownership, or terminal success.
@@ -848,6 +857,9 @@ occurred. Protected technical evidence remains outside the repository.
   observation and per-type terminal summary/failure decoding.
 - [ ] Update every affected Android writer to carry epoch/revision or use the
   versioned command path; test stale offline queue rejection and reauthentication.
+  - [x] Delivery Calendar resolves exact context at intention time, uses one fresh
+    operation ID, sends the versioned command, never queues a Firestore write, and
+    does not auto-retry stale authority/override conflicts.
 - [ ] Add candidate revision/digest Domain models and an admin-authorized
   repository query; prove normal-member reads fail in Rules/repository tests.
 - [x] Decode terminal summary and stable error codes without exposing raw backend
@@ -868,6 +880,9 @@ occurred. Protected technical evidence remains outside the repository.
   observation and per-type terminal summary/failure decoding.
 - [ ] Update every affected iOS writer to carry epoch/revision or use the versioned
   command path; test stale offline queue rejection and reauthentication.
+  - [x] Delivery Calendar resolves exact context at intention time, uses one fresh
+    operation ID, sends the versioned command, never queues a Firestore write, and
+    does not auto-retry stale authority/override conflicts.
 - [ ] Add equivalent candidate revision/digest Domain models and admin-only
   repository query; prove normal-member reads fail in Rules/repository tests.
 - [x] Decode terminal summary and stable error codes without exposing raw backend

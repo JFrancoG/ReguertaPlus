@@ -3,6 +3,8 @@ import Foundation
 nonisolated enum FirebaseFunctionEndpoint: String, Sendable {
     case resolveAuthorizedMember
     case resolveShiftNotificationDetail
+    case resolveDeliveryCalendarMutationContext
+    case transitionDeliveryCalendarOverride
     case upsertMemberByAdmin
     case transitionShiftSwap
 }

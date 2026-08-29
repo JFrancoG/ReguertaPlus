@@ -15,6 +15,7 @@ import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.bylaws.AssetBylawsKnowledgeSource
 import com.reguerta.user.data.bylaws.createPlatformBylawsOnDeviceAssistant
 import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
+import com.reguerta.user.data.calendar.FirebaseDeliveryCalendarMutationClient
 import com.reguerta.user.data.commitments.FirestoreSeasonalCommitmentRepository
 import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
@@ -61,7 +62,6 @@ class SessionViewModelFactory(
         val productRepository = FirestoreProductRepository(firestore = firestore)
         val seasonalCommitmentRepository = FirestoreSeasonalCommitmentRepository(firestore = firestore)
         val shiftRepository = FirestoreShiftRepository(firestore = firestore)
-        val deliveryCalendarRepository = FirestoreDeliveryCalendarRepository(firestore = firestore)
         val shiftPlanningRequestRepository = FirestoreShiftPlanningRequestRepository(firestore = firestore)
         val freshnessLocalRepository = DataStoreCriticalDataFreshnessLocalRepository(applicationContext)
         val deviceRegistrationRepository = FirestoreDeviceRegistrationRepository(firestore = firestore)
@@ -74,6 +74,15 @@ class SessionViewModelFactory(
         val authenticatedFunctionsClient = AuthenticatedFirebaseFunctionsClient.create(
             auth = auth,
             firebaseApp = firebaseApp,
+        )
+        val deliveryCalendarRepository = FirestoreDeliveryCalendarRepository(
+            firestore = firestore,
+            mutationClient = FirebaseDeliveryCalendarMutationClient(
+                functionCaller = authenticatedFunctionsClient,
+                requestedEnvironment = {
+                    ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+                },
+            ),
         )
         val shiftNotificationDetailRepository = FirebaseShiftNotificationDetailRepository(
             functionCaller = authenticatedFunctionsClient,

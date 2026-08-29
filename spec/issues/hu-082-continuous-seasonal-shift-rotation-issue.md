@@ -1039,6 +1039,27 @@ offline-queue rejection, final direct-write deny, deploy, and live validation ar
 separate pending cuts. No shared Firebase, Sheet, notification, deployment, or
 production data changed.
 
+## Local implementation checkpoint — mobile delivery-calendar command (2026-08-29)
+
+Android and iOS now keep server-only Firestore reads but route every calendar
+upsert/delete through the authenticated HU-082 context-plus-command boundary.
+Each fresh UI intention captures the exact planning authority and current override
+digest, creates one operation ID, and sends only the ISO week plus `TUE|THU|FRI`
+when upserting. The backend remains the sole owner of actor, timestamp, Madrid
+instants, receipt, and resulting persisted value returned to the app.
+
+Neither production repository contains a direct Firestore mutation anymore, so a
+disconnected/stale client cannot enqueue the former local write. Authority or
+override conflict is surfaced after the single command attempt; the clients do not
+silently obtain a newer context and replay an obsolete intention. Android unit and
+lint gates pass, iOS compiles without warnings, all four focused command/source
+tests pass, and the iOS fast-unit lane passes on iPhone 17 / iOS 26.5.
+
+This does not yet close the legacy surface: both Rules candidates deliberately
+continue to admit direct calendar writes until the next cut proves their denial
+against old clients. No Rules/Function deployment, shared Firebase write, live
+Sheet access, notification delivery, or production mutation occurred.
+
 ## Suggested labels
 
 - `type:feature`

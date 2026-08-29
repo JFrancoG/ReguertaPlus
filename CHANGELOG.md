@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-29 | ✨ feat(shifts): route calendar writes to command
 - 2026-08-29 | ✨ feat(shifts): add calendar mutation command
 - 2026-08-29 | ✨ feat(shifts): fence calendar trigger authority
 - 2026-08-29 | ✨ feat(shifts): fence legacy planner authority
