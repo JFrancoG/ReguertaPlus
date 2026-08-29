@@ -508,6 +508,183 @@ emulatorTest("produces, replays, and versions real planning sources", async () =
   await database.terminate();
 });
 
+emulatorTest(
+  "publishes and reads back one complete governed planning chain",
+  async () => {
+    const database = new Firestore({projectId});
+    await clear(database);
+    await seed(database);
+    await refreshShiftPlanningLiveSource({
+      firestore: database,
+      environment,
+    });
+
+    const runtime = createFirestoreShiftPlanningRuntime(database);
+    const bundleId = "source-runtime-readback-bundle";
+    const execute = async (request) => {
+      await database.doc(
+        `${root}/shiftPlanningRequests/${request.requestId}`,
+      ).create(request);
+      return runtime.executeRequest({
+        environment,
+        requestId: request.requestId,
+        request,
+        workerId: "source-runtime-readback-worker",
+      });
+    };
+
+    const previewRequest = planningRequest({
+      requestId: "source-runtime-readback-preview",
+      bundleId,
+      mode: "preview",
+      binding: null,
+    });
+    const previewExecution = await execute(previewRequest);
+    assert.equal(previewExecution.kind, "lifecycle");
+    assert.equal(previewExecution.result.kind, "completed");
+    assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
+
+    const preview = previewExecution.result.result;
+    const stageRequest = planningRequest({
+      requestId: "source-runtime-readback-stage",
+      bundleId,
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: previewRequest.requestId,
+        bundleRevision: preview.bundleRevision,
+        bundleDigest: preview.bundleDigest,
+      },
+    });
+    const stageExecution = await execute(stageRequest);
+    assert.equal(stageExecution.kind, "lifecycle");
+    assert.equal(stageExecution.result.kind, "completed");
+    assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
+
+    const staged = stageExecution.result.result;
+    const activateRequest = planningRequest({
+      requestId: "source-runtime-readback-activate",
+      bundleId,
+      mode: "activate",
+      binding: {
+        kind: "candidate",
+        candidateId: staged.stagedCandidate.candidateId,
+        bundleRevision: staged.bundleRevision,
+        bundleDigest: staged.bundleDigest,
+        candidateDigest: staged.stagedCandidateDigest,
+      },
+    });
+    const activation = await execute(activateRequest);
+    assert.equal(activation.kind, "activation");
+    assert.equal(activation.result.kind, "committed");
+
+    const [
+      requestSnapshot,
+      maintenanceSnapshot,
+      deliveryRotationSnapshot,
+      marketRotationSnapshot,
+      shiftSnapshot,
+      heldIntentSnapshot,
+      publicNotificationSnapshot,
+    ] = await Promise.all([
+      database.doc(
+        `${root}/shiftPlanningRequests/${activateRequest.requestId}`,
+      ).get(),
+      database.doc(`${root}/shiftPlanningState/current`).get(),
+      database.doc(`${root}/shiftRotations/delivery`).get(),
+      database.doc(`${root}/shiftRotations/market`).get(),
+      database.collection(`${root}/shifts`).get(),
+      database.collection(`${root}/shiftPlanningNotificationIntents`).get(),
+      database.collection(`${root}/notifications`).get(),
+    ]);
+    const expectedShiftCount = staged.delivery.shifts.length +
+      staged.market.shifts.length;
+    assert.equal(requestSnapshot.get("status"), "completed");
+    assert.equal(requestSnapshot.get("lifecycle.state"), "completed");
+    assert.equal(
+      requestSnapshot.get("lifecycle.summary.bundleRevision"),
+      staged.bundleRevision,
+    );
+    assert.equal(
+      requestSnapshot.get("lifecycle.summary.bundleDigest"),
+      staged.bundleDigest,
+    );
+    assert.equal(
+      maintenanceSnapshot.get("activeRevision"),
+      staged.bundleRevision,
+    );
+    assert.equal(
+      maintenanceSnapshot.get("activeDigest"),
+      staged.bundleDigest,
+    );
+    assert.equal(
+      maintenanceSnapshot.get("writeEpoch"),
+      staged.activationWriteEpoch,
+    );
+    assert.equal(
+      deliveryRotationSnapshot.get("activeRevision"),
+      staged.bundleRevision,
+    );
+    assert.equal(
+      marketRotationSnapshot.get("activeRevision"),
+      staged.bundleRevision,
+    );
+    assert.equal(shiftSnapshot.size, expectedShiftCount);
+    for (const document of shiftSnapshot.docs) {
+      assert.equal(document.get("source"), "app");
+      assert.equal(document.get("origin"), "planner");
+      assert.equal(document.get("planningRequestId"), bundleId);
+      assert.equal(document.get("bundleRevision"), staged.bundleRevision);
+      assert.equal(document.get("bundleDigest"), staged.bundleDigest);
+      assert.equal(document.get("writeEpoch"), staged.activationWriteEpoch);
+      assert.equal(document.get("status"), "planned");
+    }
+    assert.equal(
+      heldIntentSnapshot.size,
+      staged.heldNotificationIntents.length,
+    );
+    assert.equal(
+      heldIntentSnapshot.docs.every((document) =>
+        document.get("state") === "held" &&
+        document.get("bundleRevision") === staged.bundleRevision
+      ),
+      true,
+    );
+    assert.equal(publicNotificationSnapshot.size, 0);
+
+    const replay = await runtime.executeRequest({
+      environment,
+      requestId: activateRequest.requestId,
+      request: activateRequest,
+      workerId: "source-runtime-readback-replay-worker",
+    });
+    assert.equal(replay.kind, "activation");
+    assert.equal(replay.result.kind, "terminalReplay");
+    assert.equal(
+      (await database.collection(`${root}/shifts`).get()).size,
+      expectedShiftCount,
+    );
+    assert.equal(
+      (await database.doc(`${root}/shiftPlanningState/current`).get())
+        .get("stateRevision"),
+      maintenanceSnapshot.get("stateRevision"),
+    );
+    assert.equal(
+      (await database.doc(`${root}/shiftRotations/delivery`).get())
+        .get("stateRevision"),
+      deliveryRotationSnapshot.get("stateRevision"),
+    );
+    assert.equal(
+      (await database.doc(`${root}/shiftRotations/market`).get())
+        .get("stateRevision"),
+      marketRotationSnapshot.get("stateRevision"),
+    );
+
+    await clear(database);
+    await database.terminate();
+  },
+);
+
 emulatorTest("invalid source drift preserves the last valid envelope", async () => {
   const database = new Firestore({projectId});
   await clear(database);

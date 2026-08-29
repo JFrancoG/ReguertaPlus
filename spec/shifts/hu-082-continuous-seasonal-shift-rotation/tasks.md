@@ -1033,8 +1033,14 @@ occurred. Protected technical evidence remains outside the repository.
 - [ ] Prove each market boundary-active round is materialized into the required
   future projections without recursively publishing later rounds.
 - [ ] Read back request, rotation state, shifts, and notifications.
+  - [x] Local Firestore runtime acceptance executes one real
+    `preview -> stage -> activate` chain, then reads back the completed request,
+    maintenance state, both rotations, every flat public shift, every held
+    notification intent, and the still-empty public notification collection.
+  - [ ] Remaining: release and read back canonical event/inbox artifacts, then
+    exercise the mobile observers against that terminal publication.
 - [ ] Verify Android and iOS update after terminal completion without restart.
-- [ ] Prove replay produces no duplicate or cursor drift.
+- [x] Prove replay produces no duplicate or cursor drift.
 - [ ] Prove preview has only private request/operation/bundle writes, stage
   remains non-public, activation is atomic, canonical notification-event release is
   idempotent, inbox upsert deduplicates, and FCM carries a stable event ID while
@@ -1043,6 +1049,10 @@ occurred. Protected technical evidence remains outside the repository.
     stage atomically writes only its private candidate header/positions plus
     terminal lifecycle, and activate preflight verifies candidate, immutable
     bundle, and positions without performing any write.
+  - [x] Full-chain emulator cut: preview and stage keep the flat feed empty;
+    activation atomically publishes the complete delivery-plus-market count with
+    client-compatible `source = app` planner provenance, advances maintenance and
+    both rotations to the same revision, and retains all notification intents held.
 - [ ] Prove canonical event/inbox/push artifacts contain only generic shift references,
   supported clients decode them, and stale/offline caches cannot expose member/date/
   assignment detail after authorization or revision changes.

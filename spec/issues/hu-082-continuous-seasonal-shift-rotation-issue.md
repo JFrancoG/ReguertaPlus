@@ -1377,6 +1377,27 @@ re-audited on both platforms, allowing their stale implementation tasks to close
 without changing production code. No shared Firebase, workbook, notification, mobile
 release or production data changed.
 
+## Local implementation checkpoint — governed activation read-back (2026-08-29)
+
+One Firestore-emulator scenario now drives the real governed runtime through
+`preview -> stage -> activate` from a produced live-source envelope. Preview and stage
+leave the flat `shifts` collection empty. Activation then completes the exact request,
+advances maintenance plus both rotation aggregates to the same bundle revision/digest,
+and publishes the complete delivery-plus-market set with the installed-client contract:
+`source = app`, additive planner provenance, the activation write epoch, and `planned`
+status.
+
+The same read-back proves that every planned notification intent remains `held` and no
+public notification is released prematurely. Replaying the activation returns its exact
+terminal outcome without changing the public count or any maintenance/delivery/market
+state revision. Functions lint/build, 270/270 executed planning-unit vectors with 45
+emulator-only skips, and the focused source-producer Firestore-emulator lane (4/4)
+pass.
+
+Canonical event/inbox release and Android/iOS observation without restart remain open;
+this checkpoint does not claim those later gates. No shared Firebase, workbook,
+notification, mobile release or production data changed.
+
 ## Suggested labels
 
 - `type:feature`
