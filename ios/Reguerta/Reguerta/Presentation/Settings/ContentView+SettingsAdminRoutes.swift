@@ -240,17 +240,23 @@ struct SettingsRouteView: View {
             Text(localizedKey(AccessL10nKey.settingsShiftPlanningSubtitle))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textSecondary)
-            HStack(spacing: tokens.spacing.sm) {
-                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateDelivery)) {
-                    shiftsViewModel.requestShiftPlanning(.delivery)
-                }
-                .frame(maxWidth: .infinity)
-                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateMarket)) {
-                    shiftsViewModel.requestShiftPlanning(.market)
-                }
-                .frame(maxWidth: .infinity)
+            TextField(
+                localizedKey(AccessL10nKey.settingsShiftPlanningDeliverySeason),
+                text: shiftPlanningSeasonBinding(\.shiftPlanningDeliverySeasonInput)
+            )
+            .keyboardType(.numberPad)
+            .textFieldStyle(.roundedBorder)
+            TextField(
+                localizedKey(AccessL10nKey.settingsShiftPlanningMarketSeason),
+                text: shiftPlanningSeasonBinding(\.shiftPlanningMarketSeasonInput)
+            )
+            .keyboardType(.numberPad)
+            .textFieldStyle(.roundedBorder)
+            reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionPreview)) {
+                shiftsViewModel.requestShiftPlanningPreview()
             }
-            .frame(maxWidth: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity)
+            .disabled(!hasValidShiftPlanningSeasons)
             .disabled(shiftsViewModel.isSubmittingShiftPlanningRequest)
             if shiftsViewModel.isSubmittingShiftPlanningRequest {
                 Text(localizedKey(AccessL10nKey.settingsShiftPlanningSubmitting))
@@ -318,33 +324,40 @@ struct SettingsRouteView: View {
             }
         }
         .alert(
-            shiftsViewModel.pendingShiftPlanningType == nil
-                ? localizedKey("")
-                : localizedKey(
-                    shiftsViewModel.pendingShiftPlanningType == .delivery
-                        ? AccessL10nKey.settingsShiftPlanningAlertTitleDelivery
-                        : AccessL10nKey.settingsShiftPlanningAlertTitleMarket
-                ),
+            localizedKey(AccessL10nKey.settingsShiftPlanningAlertTitlePreview),
             isPresented: Binding(
-                get: { shiftsViewModel.pendingShiftPlanningType != nil },
+                get: { shiftsViewModel.pendingShiftPlanningRequest != nil },
                 set: { presented in
                     if !presented {
                         shiftsViewModel.dismissShiftPlanningRequest()
                     }
                 }
-            ),
-            presenting: shiftsViewModel.pendingShiftPlanningType
-        ) { type in
+            )
+        ) {
             Button(localizedKey(AccessL10nKey.commonActionCancel), role: .cancel) {
                 shiftsViewModel.dismissShiftPlanningRequest()
             }
             Button(localizedKey(AccessL10nKey.commonActionConfirm)) {
-                shiftsViewModel.requestShiftPlanning(type)
                 Task { await shiftsViewModel.confirmShiftPlanningRequest() }
             }
-        } message: { _ in
+        } message: {
             Text(localizedKey(AccessL10nKey.settingsShiftPlanningAlertMessage))
         }
+    }
+
+    private var hasValidShiftPlanningSeasons: Bool {
+        guard let delivery = Int(shiftsViewModel.shiftPlanningDeliverySeasonInput),
+              let market = Int(shiftsViewModel.shiftPlanningMarketSeasonInput) else { return false }
+        return (2000...9998).contains(delivery) && (2000...9998).contains(market)
+    }
+
+    private func shiftPlanningSeasonBinding(
+        _ keyPath: ReferenceWritableKeyPath<ShiftsFeatureViewModel, String>
+    ) -> Binding<String> {
+        Binding(
+            get: { shiftsViewModel[keyPath: keyPath] },
+            set: { shiftsViewModel[keyPath: keyPath] = String($0.filter(\.isNumber).prefix(4)) }
+        )
     }
 
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }

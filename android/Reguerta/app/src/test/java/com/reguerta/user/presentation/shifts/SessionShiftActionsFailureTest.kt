@@ -305,9 +305,9 @@ class SessionShiftActionsFailureTest {
         val state = MutableStateFlow(authorizedState())
         val actions = actions(state = state, planningRepository = repository, emitMessage = {})
 
-        actions.submitShiftPlanningRequest(com.reguerta.user.domain.shifts.ShiftPlanningRequestType.MARKET)
+        actions.submitShiftPlanningRequest(2026, 2027)
         advanceUntilIdle()
-        actions.submitShiftPlanningRequest(com.reguerta.user.domain.shifts.ShiftPlanningRequestType.MARKET)
+        actions.submitShiftPlanningRequest(2026, 2027)
         advanceUntilIdle()
 
         assertEquals(2, repository.ids.size)

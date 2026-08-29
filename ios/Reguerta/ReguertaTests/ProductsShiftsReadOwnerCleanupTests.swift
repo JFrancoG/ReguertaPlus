@@ -157,12 +157,14 @@ struct ProductsShiftsReadOwnerCleanupTests {
         let revokedAdmin = replacingRoles(in: admin, with: [.member])
         viewModel.sessionViewModel.applyUpdatedAuthorizedMember(revokedAdmin, members: [revokedAdmin])
         await viewModel.refreshDeliveryCalendar()
-        viewModel.requestShiftPlanning(.market)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
         await viewModel.confirmShiftPlanningRequest()
 
         #expect(await calendarRepository.readCount() == 0)
         #expect(await planningRepository.submittedRequests().isEmpty)
-        #expect(viewModel.pendingShiftPlanningType == nil)
+        #expect(viewModel.pendingShiftPlanningRequest == nil)
     }
 
     @Test func lateShiftsOwnerCannotClearTheActiveSuccessorProgress() async throws {

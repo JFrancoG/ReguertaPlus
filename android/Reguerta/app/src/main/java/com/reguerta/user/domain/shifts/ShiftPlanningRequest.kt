@@ -14,8 +14,9 @@ enum class ShiftPlanningRequestStatus {
 
 data class ShiftPlanningRequest(
     val id: String,
-    val type: ShiftPlanningRequestType,
+    val bundleId: String,
     val requestedByUserId: String,
     val requestedAtMillis: Long,
-    val status: ShiftPlanningRequestStatus,
+    val deliveryTargetSeasonStartYear: Int,
+    val marketTargetSeasonStartYear: Int,
 )

@@ -55,9 +55,9 @@ final class ShiftsFeatureViewModel {
     var selectedDeliveryCalendarWeekKey: String?
     var selectedDeliveryCalendarWeekday: DeliveryWeekday = .wednesday
     var originalDeliveryCalendarWeekday: DeliveryWeekday = .wednesday
-    var pendingShiftPlanningType: ShiftPlanningRequestType?
-    var pendingShiftPlanningRequestId: String?
-    var pendingShiftPlanningRequestedAtMillis: Int64?
+    var shiftPlanningDeliverySeasonInput = ""
+    var shiftPlanningMarketSeasonInput = ""
+    var pendingShiftPlanningRequest: ShiftPlanningRequest?
     var sessionIdentityEpoch: UInt64 = 0
     var activeShiftsRefreshOperationId: UInt64?
     var nextShiftsRefreshOperationId: UInt64 = 0

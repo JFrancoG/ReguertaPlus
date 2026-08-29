@@ -101,7 +101,6 @@ import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
-import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
@@ -255,7 +254,7 @@ internal fun HomeRoute(
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
-    onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
+    onSubmitShiftPlanningRequest: (Int, Int, onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Long?,
     onValidateMyOrderFreshnessReceipt: (Long?) -> Boolean,
     onOpenProducts: () -> Unit,

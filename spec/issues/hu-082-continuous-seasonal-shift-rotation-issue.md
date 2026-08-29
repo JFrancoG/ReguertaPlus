@@ -1215,6 +1215,29 @@ vectors, 267/267 executed planning-unit vectors with 43 emulator-only skips, and
 shared Firebase read/write, Google Sheet access, notification delivery, or
 production mutation occurred.
 
+## Local implementation checkpoint — mobile combined preview ingress (2026-08-29)
+
+Android and iOS now replace the legacy single-type planning submission with one
+explicit combined delivery-and-market schema-v2 `preview` request. An authorized
+admin enters both target season start years; each client resolves the minimal private
+context immediately before its Firestore transaction, binds the request to that write
+epoch and active revision, and creates or acknowledges only the same stable request
+and bundle intent. Ambiguous retry keeps the original identity and timestamp instead
+of silently rebasing the operation.
+
+Both clients emit the exact twelve-field strict-Rules payload, keep `binding = null`
+for preview, reject malformed context and incompatible persisted documents, and
+continue observing backend-owned processing/result state. The response decoder is
+exact on both platforms, so an accidental extra private field fails closed. The UI
+describes this as a private preview and grants no stage or activate control.
+
+Android unit tests and lint pass. The connected suite built but executed zero tests
+because the attached physical device rejected installation with
+`INSTALL_FAILED_USER_RESTRICTED`. iOS focused repository/context/presentation tests
+plus `fast-unit` and `ui-smoke` pass on iPhone 17 / iOS 26.5; the smoke run emitted
+non-fatal LLDB debugger-store warnings. No Rules or Function was deployed, and no
+shared Firebase, Google Sheet, notification, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

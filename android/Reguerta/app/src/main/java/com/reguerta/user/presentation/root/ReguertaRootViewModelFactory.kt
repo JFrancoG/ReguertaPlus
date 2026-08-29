@@ -32,6 +32,7 @@ import com.reguerta.user.data.notifications.FirebaseShiftNotificationDetailRepos
 import com.reguerta.user.data.profiles.FirestoreSharedProfileRepository
 import com.reguerta.user.data.products.FirestoreProductRepository
 import com.reguerta.user.data.shiftplanning.FirestoreShiftPlanningRequestRepository
+import com.reguerta.user.data.shiftplanning.FirebaseShiftPlanningRequestContextClient
 import com.reguerta.user.data.shifts.FirestoreShiftRepository
 import com.reguerta.user.data.shiftswap.FirebaseShiftSwapTransitionClient
 import com.reguerta.user.data.shiftswap.FirestoreShiftSwapRequestRepository
@@ -62,7 +63,6 @@ class SessionViewModelFactory(
         val productRepository = FirestoreProductRepository(firestore = firestore)
         val seasonalCommitmentRepository = FirestoreSeasonalCommitmentRepository(firestore = firestore)
         val shiftRepository = FirestoreShiftRepository(firestore = firestore)
-        val shiftPlanningRequestRepository = FirestoreShiftPlanningRequestRepository(firestore = firestore)
         val freshnessLocalRepository = DataStoreCriticalDataFreshnessLocalRepository(applicationContext)
         val deviceRegistrationRepository = FirestoreDeviceRegistrationRepository(firestore = firestore)
         val authorizedDeviceRegistrar = FirebaseAuthorizedDeviceRegistrar(
@@ -74,6 +74,15 @@ class SessionViewModelFactory(
         val authenticatedFunctionsClient = AuthenticatedFirebaseFunctionsClient.create(
             auth = auth,
             firebaseApp = firebaseApp,
+        )
+        val shiftPlanningRequestRepository = FirestoreShiftPlanningRequestRepository(
+            firestore = firestore,
+            contextClient = FirebaseShiftPlanningRequestContextClient(
+                functionCaller = authenticatedFunctionsClient,
+                requestedEnvironment = {
+                    ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+                },
+            ),
         )
         val deliveryCalendarRepository = FirestoreDeliveryCalendarRepository(
             firestore = firestore,

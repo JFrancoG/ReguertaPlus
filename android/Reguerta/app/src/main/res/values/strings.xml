@@ -224,9 +224,10 @@
     <string name="delivery_calendar_editor_action_next">Next day</string>
     <string name="delivery_calendar_editor_action_save_exception">Save</string>
     <string name="settings_shift_planning_title">Shift planning</string>
-    <string name="settings_shift_planning_subtitle">Generate a new season with active members, write the new sheet, and notify assigned members.</string>
-    <string name="settings_shift_planning_action_generate_delivery">Generate delivery</string>
-    <string name="settings_shift_planning_action_generate_market">Generate market</string>
+    <string name="settings_shift_planning_subtitle">Preview one combined delivery and market plan for two explicit season frontiers.</string>
+    <string name="settings_shift_planning_delivery_season">Delivery season start year</string>
+    <string name="settings_shift_planning_market_season">Market season start year</string>
+    <string name="settings_shift_planning_action_preview">Preview combined plan</string>
     <string name="settings_shift_planning_submitting">Sending planning request…</string>
     <string name="settings_shift_planning_status_requested">Latest v2 request: queued</string>
     <string name="settings_shift_planning_status_processing">Latest v2 request: processing</string>
@@ -241,9 +242,8 @@
     <string name="settings_shift_planning_position_market">Market</string>
     <string name="settings_shift_planning_helper_format">Helper: %1$s</string>
     <string name="feedback_shift_planning_failed">Shift planning failed. Review the request status before trying again.</string>
-    <string name="settings_shift_planning_alert_title_delivery">Generate delivery shifts</string>
-    <string name="settings_shift_planning_alert_title_market">Generate market shifts</string>
-    <string name="settings_shift_planning_alert_message">A new plan with active members will be created, written to the next-season sheet, and assigned members will be notified. If you run it again, that season will be regenerated.</string>
+    <string name="settings_shift_planning_alert_title_preview">Preview combined shifts</string>
+    <string name="settings_shift_planning_alert_message">This creates a private delivery-plus-market preview for the two entered season frontiers. It does not activate shifts or notify members.</string>
     <string name="bylaws_title">Consult bylaws</string>
     <string name="bylaws_subtitle">Read Regüerta’s full bylaws or, on supported devices, ask about their contents locally.</string>
     <string name="bylaws_language_notice">Questions and answers in this feature are in Spanish.</string>

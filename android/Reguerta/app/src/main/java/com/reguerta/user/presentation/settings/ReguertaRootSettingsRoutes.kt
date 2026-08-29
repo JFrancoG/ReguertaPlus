@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -27,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
@@ -73,7 +76,7 @@ fun SettingsRoute(
     onAppAppearanceChanged: (AppAppearance) -> Unit,
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
-    onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
+    onSubmitShiftPlanningRequest: (Int, Int, onSuccess: () -> Unit) -> Unit,
 ) {
     var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Column(
@@ -402,9 +405,13 @@ private fun AdminShiftPlanningSection(
     candidate: ShiftPlanningCandidate?,
     isLoadingCandidate: Boolean,
     isRefreshingAfterActivation: Boolean,
-    onSubmit: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
+    onSubmit: (Int, Int, onSuccess: () -> Unit) -> Unit,
 ) {
-    var pendingType by rememberSaveable { mutableStateOf<ShiftPlanningRequestType?>(null) }
+    var deliverySeasonInput by rememberSaveable { mutableStateOf("") }
+    var marketSeasonInput by rememberSaveable { mutableStateOf("") }
+    var isConfirming by rememberSaveable { mutableStateOf(false) }
+    val deliverySeason = deliverySeasonInput.toIntOrNull()?.takeIf { it in 2000..9998 }
+    val marketSeason = marketSeasonInput.toIntOrNull()?.takeIf { it in 2000..9998 }
 
     Text(
         text = stringResource(R.string.settings_shift_planning_title),
@@ -415,27 +422,28 @@ private fun AdminShiftPlanningSection(
         text = stringResource(R.string.settings_shift_planning_subtitle),
         style = MaterialTheme.typography.bodyMedium,
     )
-    Row(
+    OutlinedTextField(
+        value = deliverySeasonInput,
+        onValueChange = { deliverySeasonInput = it.filter(Char::isDigit).take(4) },
+        label = { Text(stringResource(R.string.settings_shift_planning_delivery_season)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-    ) {
-        ReguertaButton(
-            label = stringResource(R.string.settings_shift_planning_action_generate_delivery),
-            onClick = { pendingType = ShiftPlanningRequestType.DELIVERY },
-            modifier = Modifier.weight(1f),
-            textStyle = MaterialTheme.typography.titleMedium,
-            horizontalPadding = 8.dp,
-            enabled = !isSubmitting,
-        )
-        ReguertaButton(
-            label = stringResource(R.string.settings_shift_planning_action_generate_market),
-            onClick = { pendingType = ShiftPlanningRequestType.MARKET },
-            modifier = Modifier.weight(1f),
-            textStyle = MaterialTheme.typography.titleMedium,
-            horizontalPadding = 8.dp,
-            enabled = !isSubmitting,
-        )
-    }
+    )
+    OutlinedTextField(
+        value = marketSeasonInput,
+        onValueChange = { marketSeasonInput = it.filter(Char::isDigit).take(4) },
+        label = { Text(stringResource(R.string.settings_shift_planning_market_season)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ReguertaButton(
+        label = stringResource(R.string.settings_shift_planning_action_preview),
+        onClick = { isConfirming = true },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !isSubmitting && deliverySeason != null && marketSeason != null,
+    )
     if (isSubmitting) {
         Text(
             text = stringResource(R.string.settings_shift_planning_submitting),
@@ -521,29 +529,24 @@ private fun AdminShiftPlanningSection(
         }
     }
 
-    pendingType?.let { type ->
-        val title = if (type == ShiftPlanningRequestType.DELIVERY) {
-            stringResource(R.string.settings_shift_planning_alert_title_delivery)
-        } else {
-            stringResource(R.string.settings_shift_planning_alert_title_market)
-        }
+    if (isConfirming && deliverySeason != null && marketSeason != null) {
         ReguertaDialog(
             type = ReguertaDialogType.INFO,
-            title = title,
+            title = stringResource(R.string.settings_shift_planning_alert_title_preview),
             message = stringResource(R.string.settings_shift_planning_alert_message),
             primaryAction = ReguertaDialogAction(
                 label = stringResource(R.string.common_action_confirm),
                 onClick = {
-                    onSubmit(type) {
-                        pendingType = null
+                    onSubmit(deliverySeason, marketSeason) {
+                        isConfirming = false
                     }
                 },
             ),
             secondaryAction = ReguertaDialogAction(
                 label = stringResource(R.string.common_action_cancel),
-                onClick = { pendingType = null },
+                onClick = { isConfirming = false },
             ),
-            onDismissRequest = { pendingType = null },
+            onDismissRequest = { isConfirming = false },
         )
     }
 }

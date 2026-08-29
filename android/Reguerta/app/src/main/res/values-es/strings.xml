@@ -224,9 +224,10 @@
     <string name="delivery_calendar_editor_action_next">Día siguiente</string>
     <string name="delivery_calendar_editor_action_save_exception">Guardar</string>
     <string name="settings_shift_planning_title">Planificación de turnos</string>
-    <string name="settings_shift_planning_subtitle">Genera una temporada nueva con socios activos, escribe la hoja nueva y avisa a los socios asignados.</string>
-    <string name="settings_shift_planning_action_generate_delivery">Generar reparto</string>
-    <string name="settings_shift_planning_action_generate_market">Generar mercado</string>
+    <string name="settings_shift_planning_subtitle">Previsualiza conjuntamente reparto y mercado para dos fronteras de temporada explícitas.</string>
+    <string name="settings_shift_planning_delivery_season">Año inicial de temporada de reparto</string>
+    <string name="settings_shift_planning_market_season">Año inicial de temporada de mercado</string>
+    <string name="settings_shift_planning_action_preview">Previsualizar planificación conjunta</string>
     <string name="settings_shift_planning_submitting">Enviando solicitud de planificación…</string>
     <string name="settings_shift_planning_status_requested">Última solicitud v2: en cola</string>
     <string name="settings_shift_planning_status_processing">Última solicitud v2: procesándose</string>
@@ -241,9 +242,8 @@
     <string name="settings_shift_planning_position_market">Mercado</string>
     <string name="settings_shift_planning_helper_format">Ayudante: %1$s</string>
     <string name="feedback_shift_planning_failed">La planificación de turnos ha fallado. Revisa el estado antes de volver a intentarlo.</string>
-    <string name="settings_shift_planning_alert_title_delivery">Generar turnos de reparto</string>
-    <string name="settings_shift_planning_alert_title_market">Generar turnos de mercado</string>
-    <string name="settings_shift_planning_alert_message">Se creará una planificación nueva con socios activos, se escribirá en la sheet de la temporada siguiente y se notificará a los socios asignados. Si vuelves a lanzarlo, se regenerará esa temporada.</string>
+    <string name="settings_shift_planning_alert_title_preview">Previsualizar turnos conjuntos</string>
+    <string name="settings_shift_planning_alert_message">Se creará una previsualización privada conjunta de reparto y mercado para las dos fronteras de temporada indicadas. No se activarán turnos ni se avisará a los socios.</string>
     <string name="bylaws_title">Consultar estatutos</string>
     <string name="bylaws_subtitle">Consulta los estatutos completos de Regüerta o, en dispositivos compatibles, pregunta por su contenido de forma local.</string>
     <string name="bylaws_language_notice">Las consultas y respuestas de esta función se realizan en español.</string>

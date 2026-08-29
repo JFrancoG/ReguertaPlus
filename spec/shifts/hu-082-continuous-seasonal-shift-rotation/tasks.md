@@ -891,8 +891,13 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Validation: Functions lint/build, 4/4 focused context/authorization vectors,
     2/2 isolated Firestore-emulator vectors, 267/267 executed planning-unit vectors
     with 43 emulator-only skips, and 30/30 backend-security vectors pass locally.
-  - [ ] Migrate Android/iOS to consume that context and create one exact two-subplan
-    v2 request before enabling the strict admin create/read contract.
+  - [x] Migrate Android/iOS to consume that context and create one exact two-subplan
+    v2 preview request. Both clients require explicit delivery/market target seasons,
+    preserve one stable request/bundle intent across ambiguous retry, reject malformed
+    context or incompatible persisted state, and expose no stage/activate authority.
+  - [x] Validation: Android unit/lint, iOS focused repository/context/presentation
+    tests, `fast-unit`, and `ui-smoke` pass. Android connected testing reached the
+    physical device but ran zero tests because installation was user-restricted.
   - [ ] Remaining: fence independent admin and other inventoried mutation paths.
     Deployment and exact Rules read-back stay inside the no-gap activation procedure.
 - [ ] Prove crash/retry at every epoch transition either commits the full authorized
@@ -912,6 +917,8 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Delivery Calendar resolves exact context at intention time, uses one fresh
     operation ID, sends the versioned command, never queues a Firestore write, and
     does not auto-retry stale authority/override conflicts.
+  - [x] Planning preview resolves exact context immediately before its transaction
+    and creates/acknowledges only the same combined schema-v2 stable intent.
 - [ ] Add candidate revision/digest Domain models and an admin-authorized
   repository query; prove normal-member reads fail in Rules/repository tests.
 - [x] Decode terminal summary and stable error codes without exposing raw backend
@@ -935,6 +942,9 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Delivery Calendar resolves exact context at intention time, uses one fresh
     operation ID, sends the versioned command, never queues a Firestore write, and
     does not auto-retry stale authority/override conflicts.
+  - [x] Planning preview resolves and exactly decodes the minimal context immediately
+    before its transaction and creates/acknowledges only the same combined schema-v2
+    stable intent.
 - [ ] Add equivalent candidate revision/digest Domain models and admin-only
   repository query; prove normal-member reads fail in Rules/repository tests.
 - [x] Decode terminal summary and stable error codes without exposing raw backend

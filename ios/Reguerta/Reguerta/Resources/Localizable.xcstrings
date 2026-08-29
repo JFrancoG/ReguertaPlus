@@ -8451,36 +8451,36 @@
         }
       }
     },
-    "settings.shift_planning.action.generate_delivery" : {
+    "settings.shift_planning.action.preview" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate delivery"
+            "value" : "Preview combined plan"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generar reparto"
+            "value" : "Previsualizar planificación conjunta"
           }
         }
       }
     },
-    "settings.shift_planning.action.generate_market" : {
+    "settings.shift_planning.delivery_season" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate market"
+            "value" : "Delivery season start year"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generar mercado"
+            "value" : "Año inicial de temporada de reparto"
           }
         }
       }
@@ -8491,47 +8491,47 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A new plan with active members will be created, written to the next-season sheet, and assigned members will be notified. If you run it again, that season will be regenerated."
+            "value" : "This creates a private delivery-plus-market preview for the two entered season frontiers. It does not activate shifts or notify members."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se creará una planificación nueva con socios activos, se escribirá en la sheet de la temporada siguiente y se notificará a los socios asignados. Si vuelves a lanzarlo, se regenerará esa temporada."
+            "value" : "Se creará una previsualización privada conjunta de reparto y mercado para las dos fronteras de temporada indicadas. No se activarán turnos ni se avisará a los socios."
           }
         }
       }
     },
-    "settings.shift_planning.alert.title.delivery" : {
+    "settings.shift_planning.alert.title.preview" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate delivery shifts"
+            "value" : "Preview combined shifts"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generar turnos de reparto"
+            "value" : "Previsualizar turnos conjuntos"
           }
         }
       }
     },
-    "settings.shift_planning.alert.title.market" : {
+    "settings.shift_planning.market_season" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate market shifts"
+            "value" : "Market season start year"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generar turnos de mercado"
+            "value" : "Año inicial de temporada de mercado"
           }
         }
       }
@@ -8629,13 +8629,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate a new season with active members, write the new sheet, and notify assigned members."
+            "value" : "Preview one combined delivery and market plan for two explicit season frontiers."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Genera una temporada nueva con socios activos, escribe la hoja nueva y avisa a los socios asignados."
+            "value" : "Previsualiza conjuntamente reparto y mercado para dos fronteras de temporada explícitas."
           }
         }
       }

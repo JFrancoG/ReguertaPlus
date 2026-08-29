@@ -14,7 +14,9 @@ struct P101ShiftsOperationSafetyTests {
             shiftPlanningRequestRepository: repository,
             nowMillisProvider: { now.nowMillis }
         )
-        viewModel.requestShiftPlanning(.market)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
 
         await viewModel.confirmShiftPlanningRequest()
         now.nowMillis = 222
@@ -28,7 +30,7 @@ struct P101ShiftsOperationSafetyTests {
         #expect(requests[0].id == requests[1].id)
         #expect(requests[0].requestedAtMillis == 111)
         #expect(requests[0].requestedAtMillis == requests[1].requestedAtMillis)
-        #expect(viewModel.pendingShiftPlanningType == nil)
+        #expect(viewModel.pendingShiftPlanningRequest == nil)
     }
 
     @Test func cancellationDoesNotPublishFailureFeedback() async {

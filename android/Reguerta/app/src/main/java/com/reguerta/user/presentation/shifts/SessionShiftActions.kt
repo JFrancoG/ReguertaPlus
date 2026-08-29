@@ -387,7 +387,8 @@ internal class SessionShiftActions(
     }
 
     fun submitShiftPlanningRequest(
-        type: ShiftPlanningRequestType,
+        deliveryTargetSeasonStartYear: Int,
+        marketTargetSeasonStartYear: Int,
         onSuccess: () -> Unit = {},
     ) {
         val initialState = uiState.value
@@ -395,12 +396,17 @@ internal class SessionShiftActions(
         if (!mode.member.isAdmin || initialState.isSubmittingShiftPlanningRequest) return
         val context = ShiftSessionContext.from(initialState, mode)
         val pending = pendingPlanningRequest
-            ?.takeIf { it.context == context && it.type == type }
+            ?.takeIf {
+                it.context == context &&
+                    it.deliveryTargetSeasonStartYear == deliveryTargetSeasonStartYear &&
+                    it.marketTargetSeasonStartYear == marketTargetSeasonStartYear
+            }
             ?: PendingPlanningRequest(
                 context = context,
-                type = type,
                 requestId = UUID.randomUUID().toString(),
                 requestedAtMillis = nowMillisProvider(),
+                deliveryTargetSeasonStartYear = deliveryTargetSeasonStartYear,
+                marketTargetSeasonStartYear = marketTargetSeasonStartYear,
             ).also { pendingPlanningRequest = it }
         val operation = nextOperation(context).also { activePlanningMutation = it }
         if (!updateIfCurrent(context) { it.copy(isSubmittingShiftPlanningRequest = true) }) {
@@ -412,10 +418,11 @@ internal class SessionShiftActions(
                 shiftPlanningRequestRepository.submitShiftPlanningRequest(
                     ShiftPlanningRequest(
                         id = pending.requestId,
-                        type = pending.type,
+                        bundleId = "${pending.requestId}-bundle",
                         requestedByUserId = context.memberId,
                         requestedAtMillis = pending.requestedAtMillis,
-                        status = ShiftPlanningRequestStatus.REQUESTED,
+                        deliveryTargetSeasonStartYear = pending.deliveryTargetSeasonStartYear,
+                        marketTargetSeasonStartYear = pending.marketTargetSeasonStartYear,
                     ),
                 )
             } catch (cancellation: CancellationException) {
@@ -756,9 +763,10 @@ private data class ShiftOperation(
 
 private data class PendingPlanningRequest(
     val context: ShiftSessionContext,
-    val type: ShiftPlanningRequestType,
     val requestId: String,
     val requestedAtMillis: Long,
+    val deliveryTargetSeasonStartYear: Int,
+    val marketTargetSeasonStartYear: Int,
 )
 
 private data class PendingAcknowledgedSwapTransition(

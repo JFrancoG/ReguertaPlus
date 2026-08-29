@@ -32,7 +32,6 @@ import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
-import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftSwapRequestRepository
 import com.reguerta.user.domain.shifts.ShiftSwapResponseStatus
@@ -421,9 +420,14 @@ class SessionViewModel(
     ) = shiftActions.saveDeliveryCalendarOverride(weekKey, weekday, updatedByUserId, onSuccess)
 
     fun submitShiftPlanningRequest(
-        type: ShiftPlanningRequestType,
+        deliveryTargetSeasonStartYear: Int,
+        marketTargetSeasonStartYear: Int,
         onSuccess: () -> Unit = {},
-    ) = shiftActions.submitShiftPlanningRequest(type, onSuccess)
+    ) = shiftActions.submitShiftPlanningRequest(
+        deliveryTargetSeasonStartYear,
+        marketTargetSeasonStartYear,
+        onSuccess,
+    )
 
     fun saveSharedProfile(onSuccess: () -> Unit = {}) = communityActions.saveSharedProfile(onSuccess)
 

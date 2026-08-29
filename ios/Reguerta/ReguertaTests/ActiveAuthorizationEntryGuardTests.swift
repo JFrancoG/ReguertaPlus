@@ -67,7 +67,9 @@ struct ActiveAuthorizationEntryGuardTests {
             members: [currentMember],
             shiftPlanningRequestRepository: repository
         )
-        viewModel.requestShiftPlanning(.delivery)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
         let session = viewModel.sessionViewModel.mode.activeEntryAuthorizedSession
 
         viewModel.sessionViewModel.mode = activeEntryRevokedMode(from: session)

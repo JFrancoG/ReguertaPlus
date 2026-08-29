@@ -14,8 +14,9 @@ nonisolated enum ShiftPlanningRequestStatus: String, Equatable, Sendable {
 
 nonisolated struct ShiftPlanningRequest: Identifiable, Equatable {
     let id: String
-    let type: ShiftPlanningRequestType
+    let bundleId: String
     let requestedByUserId: String
     let requestedAtMillis: Int64
-    let status: ShiftPlanningRequestStatus
+    let deliveryTargetSeasonStartYear: Int
+    let marketTargetSeasonStartYear: Int
 }

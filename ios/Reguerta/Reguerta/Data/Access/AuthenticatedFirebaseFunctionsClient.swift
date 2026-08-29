@@ -4,6 +4,7 @@ nonisolated enum FirebaseFunctionEndpoint: String, Sendable {
     case resolveAuthorizedMember
     case resolveShiftNotificationDetail
     case resolveDeliveryCalendarMutationContext
+    case resolveShiftPlanningRequestContext
     case transitionDeliveryCalendarOverride
     case upsertMemberByAdmin
     case transitionShiftSwap

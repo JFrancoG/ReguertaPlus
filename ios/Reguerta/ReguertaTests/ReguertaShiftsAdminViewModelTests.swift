@@ -113,7 +113,9 @@ struct ReguertaShiftsAdminViewModelTests {
         viewModel.selectedDeliveryCalendarWeekday = .friday
 
         await viewModel.saveDeliveryCalendarOverride()
-        viewModel.requestShiftPlanning(.delivery)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
         await viewModel.confirmShiftPlanningRequest()
 
         #expect(await calendarRepository.allOverrides(environment: .develop).isEmpty)
@@ -220,14 +222,17 @@ struct ReguertaShiftsAdminViewModelTests {
             nowMillisProvider: { 123 }
         )
 
-        viewModel.requestShiftPlanning(.market)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
         await viewModel.confirmShiftPlanningRequest()
 
         let submitted = await planningRepository.submittedRequests()
-        #expect(submitted.map(\.type) == [.market])
+        #expect(submitted.first?.deliveryTargetSeasonStartYear == 2026)
+        #expect(submitted.first?.marketTargetSeasonStartYear == 2027)
         #expect(submitted.first?.requestedByUserId == admin.id)
         #expect(submitted.first?.requestedAtMillis == 123)
-        #expect(viewModel.pendingShiftPlanningType == nil)
+        #expect(viewModel.pendingShiftPlanningRequest == nil)
     }
 
     @Test func shiftsViewModelRetainsCalendarEditorWhenRepositoryRejectsMutation() async {
@@ -309,11 +314,13 @@ struct ReguertaShiftsAdminViewModelTests {
             members: [admin],
             shiftPlanningRequestRepository: RejectingShiftPlanningRequestRepository()
         )
-        viewModel.requestShiftPlanning(.market)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
 
         await viewModel.confirmShiftPlanningRequest()
 
-        #expect(viewModel.pendingShiftPlanningType == .market)
+        #expect(viewModel.pendingShiftPlanningRequest?.marketTargetSeasonStartYear == 2027)
         #expect(viewModel.isSubmittingShiftPlanningRequest == false)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }

@@ -6,10 +6,11 @@ actor InMemoryShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
     func submit(request: ShiftPlanningRequest, environment _: SessionEnvironment) async -> ShiftPlanningRequest {
         let persisted = ShiftPlanningRequest(
             id: request.id.isEmpty ? UUID().uuidString : request.id,
-            type: request.type,
+            bundleId: request.bundleId,
             requestedByUserId: request.requestedByUserId,
             requestedAtMillis: request.requestedAtMillis,
-            status: request.status
+            deliveryTargetSeasonStartYear: request.deliveryTargetSeasonStartYear,
+            marketTargetSeasonStartYear: request.marketTargetSeasonStartYear
         )
         requests[persisted.id] = persisted
         return persisted
