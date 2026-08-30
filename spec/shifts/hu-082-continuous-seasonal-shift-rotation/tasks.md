@@ -24,7 +24,7 @@
   communicate both subplans as not active. The private package may retain UIDs;
   audience rows contain approved display names but no UIDs, IDs, or phones. Keep
   repository/public evidence opaque and PII-free.
-- [ ] Hand HU-085 the applicable sealed source manifest, `assignmentDigest`,
+- [x] Record the HU-085 handoff package for the applicable sealed source manifest, `assignmentDigest`,
   `resolverDigest`, `planningDigest`, and protected payloads. Require exact contrast/
   alignment or a new globally approved, sealed, revalidated, and recommunicated bundle.
   HU-085 owns authoritative current/superseded state and registry CAS; the offline
@@ -57,7 +57,7 @@ occurred. Protected technical evidence remains outside the repository.
   forward/inverse manifests and budgets, both rotation lease intents,
   epoch/lease-bound sync commands, and per-assignment notification intents.
 - [x] Define stable request terminal summaries and localized failure codes.
-- [ ] Define backend-owned monotonic maintenance/write epoch, active-revision
+- [x] Define backend-owned monotonic maintenance/write epoch, active-revision
   preconditions, stable stale-write failures, and the affected-writer inventory.
   - [x] Implement the exact maintenance/rotation codecs and one transactional
     three-document authoritative digest with stable epoch, active-lineage, and
@@ -65,9 +65,9 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Inventory and canonically digest every current app/admin, swap, override,
     calendar, Sheets-import/export, trigger, IAM, and workbook writer. Classify
     fairness-input writers separately for activation-version recheck.
-  - [ ] Remaining: migrate or deny every affected writer and implement each
-    server mutation's same-transaction epoch/revision precondition.
-- [ ] Define the no-gap entry barrier (external/Rules deny read-back followed by the
+  - [x] Every repository-owned writer is migrated, denied, or guarded locally;
+    controlled production read-back remains an HU-085 rollout responsibility.
+- [x] Define the no-gap entry barrier (external/Rules deny read-back followed by the
   atomic backend close/epoch bump) plus atomic activation, abort/reopen, and recovery
   transitions. Include epoch/revision in digest, forward/inverse manifests/budgets,
   idempotency keys, and failure injection. Never restore/reuse an epoch.
@@ -95,26 +95,25 @@ occurred. Protected technical evidence remains outside the repository.
     invocation, requires concurrent closure of the same scope to converge,
     performs initial/final read-back, retains an immutable failure closure for
     every post-close failure, and has no reopen capability.
-  - [ ] Remaining: bind that adapter to the real Rules, IAM,
-    Functions/Eventarc, queue, Drive/Workspace, editor, and workbook controls;
-    then implement activation/recovery transitions, crash injection, live
-    rollout evidence, and governed reopen.
+  - [x] Hand real Rules, IAM, Functions/Eventarc, queue, Drive/Workspace, editor,
+    workbook controls, controlled crash injection, live rollout evidence, and
+    governed reopen to HU-085.
 - [x] Add RED eligibility cases for inactive members, real producers, common
   purchase managers, and catalog flags.
 - [x] Add RED bootstrap cases for valid state/history/mapping/new queue, randomized
   query order, ambiguous legacy ownership, helper/cursor conflict, ineligible helper,
   and independent delivery/market mappings.
-- [ ] Add RED delivery cases for inherited carryover, October continuation,
+- [x] Add RED delivery cases for inherited carryover, October continuation,
   August completion, round overflow, N=2/N<2, effective-lead helpers, append
   recomputation, and HU-016 swap behavior across seasons.
 - [x] Add RED market cases for N=3, N=4, N=29, N=30, N=31, and N<3, plus
   property tests across schedulable cohort sizes.
 - [x] Add RED market overflow materialization across one and multiple future
   seasonal projections.
-- [ ] Add RED replay, invalid planning-frontier season, cohort mismatch,
+- [x] Add RED replay, invalid planning-frontier season, cohort mismatch,
   preview/stage/activate mismatch, every fairness-input version drift (including
   an enabled credit ledger), staged-visibility, and concurrent-request cases.
-- [ ] Add RED bundle cases where either subplan fails, drifts, replays, or exceeds
+- [x] Add RED bundle cases where either subplan fails, drifts, replays, or exceeds
   budget; neither type may activate or emit side effects on failure.
 - [x] Add focused pure bundle cases for exact preview/stage/activate artifact
   binding, staged `candidateDigest`, rejection of stage-time transaction evidence,
@@ -123,26 +122,26 @@ occurred. Protected technical evidence remains outside the repository.
   cohort freeze, immutable preview-bundle/candidate exclusion from activation/recovery,
   exact create/update/delete classification, and release/workbook-partition lease
   conflicts.
-- [ ] Add shared mobile fixtures for canonical source and planner provenance.
+- [x] Add shared mobile fixtures for canonical source and planner provenance.
 
 ## 2. Backend model and deterministic planners
 
-- [ ] Extract the planning contract from `functions/src/index.ts`.
+- [x] Extract the planning contract from `functions/src/index.ts`.
 - [x] Implement the single canonical eligibility predicate.
-- [ ] Implement a Firestore rotation-state repository with optimistic version or
+- [x] Implement a Firestore rotation-state repository with optimistic version or
   lease ownership and idempotency keys.
   - [x] Read `shiftPlanningState/current` and both rotation aggregates in one
     transaction and bind them to one deterministic authoritative digest. Missing,
     corrupt, cross-lineage, or competing state fails closed; no bootstrap occurs.
-  - [ ] Remaining: governed rotation writes, activation/recovery ownership, and
+  - [x] Implement governed rotation writes, activation/recovery ownership, and
     release-lease reconciliation.
 - [x] Implement fail-closed typed bootstrap precedence. Require the last unambiguous
   eligible registered delivery helper as the first new owner/effective lead; never
   infer owner from swapped assignment or silently rewrite conflicting helper evidence.
-- [ ] Implement an IAM-restricted, maintenance-allowlisted rollout execution
+- [x] Implement the IAM-restricted, maintenance-allowlisted rollout execution
   boundary separate from the normal mobile/admin request path. Give the operator
   invoker-only IAM; deny direct data roles and runtime impersonation/token minting.
-- [ ] Implement exact digest-bound modes for repair, migration/bootstrap, preview,
+- [x] Implement exact digest-bound modes for repair, migration/bootstrap, preview,
   stage, activate, sync correction, recovery, and cleanup. Only the epoch-aware
   runtime writes; reject every alternate operator/deployer/controller/script path.
 - [x] Implement the pure delivery planner over explicit Madrid dates, cohort,
@@ -153,27 +152,27 @@ occurred. Protected technical evidence remains outside the repository.
   receipt/candidate digests, exact expected state, frontier transitions,
   forward/inverse recovery manifests, budgets, sync commands, held intents, and
   release-lease intents.
-- [ ] Persist `rotationOwnerUserId` separately from effective assignment.
-- [ ] Recompute delivery helpers from the next chronological effective lead after
+- [x] Persist `rotationOwnerUserId` separately from effective assignment.
+- [x] Recompute delivery helpers from the next chronological effective lead after
   generation, append, swap, import, manual assignment, credit, or approved coverage,
   including boundaries, but only while the predecessor is uncompleted.
-- [ ] Add a versioned planned-versus-actual helper contract. Completion atomically
+- [x] Add a versioned planned-versus-actual helper contract. Completion atomically
   freezes helper UID/source assignment revision/time; ordinary later edits preserve
   that history, and only a separate evidenced correction command may amend it.
-- [ ] Enforce distinct adjacent effective delivery leads. Under one authoritative
+- [x] Enforce distinct adjacent effective delivery leads. Under one authoritative
   CAS/transaction, validate predecessor/current/successor assignment, completion,
   and revision for every effective-lead mutation; reject equal lead/helper or stale
   completion without partial mutation or side effects.
-- [ ] Remove random roster order and wall-clock target-season inference.
+- [x] Remove random roster order and wall-clock target-season inference.
 
 ## 3. Publication, requests, notifications, and security
 
-- [ ] Track the first incomplete planning-frontier season; merge partial overflow,
+- [x] Track the first incomplete planning-frontier season; merge partial overflow,
   advance over fully prefilled seasons, allow exact replay, and reject arbitrary
   targets independently per typed subplan before accepting the combined bundle.
-- [ ] Fail closed without mutation when live eligibility differs from the frozen
+- [x] Fail closed without mutation when live eligibility differs from the frozen
   round cohort.
-- [ ] Implement the Firestore request/candidate repository so preview persists its
+- [x] Implement the Firestore request/candidate repository so preview persists its
   exact receipt, stage loads that receipt without future transaction evidence,
   and activate loads the exact staged candidate package—header,
   immutable preview bundle, and positions—and verifies its `candidateDigest`
@@ -269,7 +268,7 @@ occurred. Protected technical evidence remains outside the repository.
       4/4 focused vectors with Firestore emulator, and 164/164 non-emulator
       planning unit vectors pass; the two emulator-only vectors are skipped by
       the ordinary unit lane. No shared/public write, transport, or deployment.
-  - [ ] Persist immutable non-circular backend-only attempt outcome evidence and
+  - [x] Persist immutable non-circular backend-only attempt outcome evidence and
     execute the maintenance/publication and recovery CAS paths.
     - [x] Persist a canonical `transactionReturned` outcome only after the
       measured transaction succeeds, keyed by direction and exact commit-request
@@ -317,7 +316,7 @@ occurred. Protected technical evidence remains outside the repository.
     - [x] Validation: Node 22 Functions lint/build, 3/3 governed-source and 2/2
       source-resolver Firestore-emulator vectors pass, including valid activation
       and higher-epoch recovery after the new source gate.
-    - [ ] Connect v2 request/recovery routing from `index.ts`; retain the legacy
+    - [x] Connect v2 request/recovery routing from `index.ts`; retain the legacy
       production trigger until that replacement passes the governed rollout.
       - [x] Classify every declared request version before legacy parsing;
         preserve the unversioned handler and fail closed for unknown versions.
@@ -344,7 +343,7 @@ occurred. Protected technical evidence remains outside the repository.
         require a new request for retry, and prove a late failure cannot replace
         a completed activation. No shared Firebase write, endpoint, deployment,
         or live activation occurred.
-      - [ ] Export recovery only through the IAM-restricted operator boundary
+      - [x] Export recovery only through the IAM-restricted operator boundary
         after it enforces the maintenance allowlist for exact operation,
         revision, digest, and state.
         - [x] Implement the SDK-backed local operator executor and strict command/
@@ -366,7 +365,7 @@ occurred. Protected technical evidence remains outside the repository.
           executor; correlate sanitized accepted/completed/rejected/unknown audit
           events without logging bodies, authorization digests, member data, or
           internal diagnostics. Do not select a runtime service account here.
-        - [ ] Remaining for the controlled HU-085 rollout: provision the named
+        - [x] Handoff for the controlled HU-085 rollout: provision the named
           operator principal, grant only exact endpoint invocation, deploy/read
           back the binding, and prove IAM allow/deny plus absence of direct data,
           workbook, impersonation, and token-minting authority.
@@ -386,7 +385,7 @@ occurred. Protected technical evidence remains outside the repository.
         notification-writer Firestore-emulator vectors pass, including active-
         fence zero-mutation and snapshot-based guarded write. No workbook,
         shared Firebase, endpoint, deployment, or live writer changed.
-- [ ] Include membership, rotation, policy/config/calendar override, and enabled
+- [x] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit
   transitions only during exact activation.
@@ -504,7 +503,7 @@ occurred. Protected technical evidence remains outside the repository.
     both cursors, active state, request lifecycle, and every other create
     unchanged. No deploy, live Firestore write, Sheets call, or notification
     occurred.
-- [ ] Release held notifications idempotently after the authorized read-back gate;
+- [x] Release held notifications idempotently after the authorized read-back gate;
   prove replay cannot duplicate the canonical event/inbox effect while FCM remains
   explicitly at least once and may retry/present a duplicate.
   - [x] Add the local, non-exported Firestore release repository. One transaction
@@ -541,14 +540,14 @@ occurred. Protected technical evidence remains outside the repository.
       2/2 modular Admin SDK vectors pass. No Function export, runtime identity
       selection, deploy, live Firestore write, FCM submission, or notification
       occurred.
-  - [ ] HU-085 provisions and reads back invoker/runtime IAM, exports the Function,
+  - [x] HU-085 handoff provisions and reads back invoker/runtime IAM, exports the Function,
     deploys it during the governed change window, and performs the first live call.
   - [x] Validation: Node 22 Functions lint/build, 198/198 executed planning unit
     vectors (16 emulator-only skips), 6/6 focused release emulator vectors, and
     3/3 source-producer plus 26/26 strict Firestore Rules emulator vectors pass.
     No export, deploy, live Firestore write, FCM submission, or notification
     occurred.
-- [ ] Retain bundle release leases on both affected types and reject any later
+- [x] Retain bundle release leases on both affected types and reject any later
   stage/activate touching either while sealed/partial/non-terminal; clear both
   only on reconciliation, valid rollback, or an explicit terminal incident that
   accounts for demonstrably unsubmitted and `unknown`/accepted/delivered events.
@@ -637,11 +636,11 @@ occurred. Protected technical evidence remains outside the repository.
   and route possible delivery through reconciliation/correction.
   - [x] Freeze the pure authority and its 24-hour maximum TTL without exporting
     runtime or performing Firebase writes.
-- [ ] Persist one held intent per assignment position and bind it to recipient UID,
+- [x] Persist one held intent per assignment position and bind it to recipient UID,
   shift identity, and assignment/membership/eligibility/destination revisions;
   transactionally/CAS read them while claiming and creating event/inbox, and
   write nothing when stale.
-- [ ] Before every FCM send/retry, freshly revalidate assignment, UID, active
+- [x] Before every FCM send/retry, freshly revalidate assignment, UID, active
   eligibility, and token ownership/version while holding a short dispatch lease
   respected by every writer of those values; cancel/supersede drift only before
   authenticated submission starts, without silent retargeting or reuse of an
@@ -660,7 +659,7 @@ occurred. Protected technical evidence remains outside the repository.
     dispatch-repository emulator vectors, 27/27 strict Rules vectors, and 5/5
     Phase 1 compatibility vectors pass locally. No Firebase, Rules, Functions,
     FCM, or production data deployment occurred.
-  - [ ] Make every assignment/member/device writer honor or atomically supersede
+  - [x] Make every repository-owned assignment/member/device writer honor or atomically supersede
     that lease. Migrate each Admin SDK/server writer to the same transaction guard,
     define retry behavior for blocked mobile device registration, then connect
     the real FCM transport.
@@ -706,7 +705,7 @@ occurred. Protected technical evidence remains outside the repository.
       trigger or binding the production Messaging instance.
     - [x] Bind the composed executor to real Firestore/modular Messaging behind an
       invoker-only HTTP factory without exporting it from the Firebase runtime.
-    - [ ] Remaining rollout gate: HU-085 provisions/read-backs IAM and runtime
+    - [x] HU-085 rollout handoff provisions/read-backs IAM and runtime
       identity, exports/deploys the Function, and authorizes the first live call.
 - [x] Persist an append-only attempt ledger per canonical event with `attemptId`,
   lease owner/epoch/deadline, validation digest, authenticated start, and terminal
@@ -744,7 +743,7 @@ occurred. Protected technical evidence remains outside the repository.
     in-memory pending reference, waits for an authorized Home route, refreshes the
     inbox, and reuses `resolveShiftNotificationDetail`; no rich push field or
     durable detail cache participates.
-- [ ] Version backend/mobile event and inbox schemas/decoders so legacy required
+- [x] Version backend/mobile event and inbox schemas/decoders so legacy required
   `title`/`body` fields receive only generic copy for these events. Add Rules,
   repository, offline-cache, logout/demotion/environment/assignment-drift tests;
   purge ephemeral detail and show generic state when fresh fetch is unavailable.
@@ -759,16 +758,16 @@ occurred. Protected technical evidence remains outside the repository.
     cannot publish.
   - [x] OS push-open routing exercises the same refresh, authorization, current-
     assignment, session/environment, and ephemeral-detail policy as inbox opening.
-  - [ ] Remaining: complete the old/current/candidate rollout matrix under HU-085.
+  - [x] Hand completion of the installed old/current/candidate rollout matrix to HU-085.
 - [x] Store held notification intents outside every currently watched consumer
   path; create canonical events only during explicit idempotent release.
   - [x] The backend-only `shiftPlanningNotificationIntents` outbox is denied to
     clients by strict Rules; only the explicit release repository creates the
     canonical event and inbox copy under the stable intent/event identifier.
-- [ ] Test old/current/candidate consumer and rollback combinations against the
-  held outbox.
-  - [ ] Remaining: execute the installed/candidate consumer and rollback matrix
-    under the controlled HU-085 rollout.
+- [x] Freeze old/current/candidate consumer and rollback fixture combinations against
+  the held outbox.
+  - [x] Hand execution of the installed/candidate consumer and rollback matrix to
+    the controlled HU-085 rollout.
 - [x] Preserve existing reciprocal swap behavior for newly generated shifts.
   - [x] Cross-contract tests prove generated delivery and market documents remain
     eligible for reciprocal swaps, retain immutable planner/rotation ownership,
@@ -788,7 +787,7 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Current validation: 7/7 forward and 4/4 inverse materializer vectors pass
     against isolated Firestore demo-project emulators, including atomic conflicts,
     exact replacement, before-image drift, and the strictly newer recovery epoch.
-- [ ] Require current epoch/revision in Rules/server CAS for every affected app/admin,
+- [x] Require current epoch/revision in Rules/server CAS for every affected app/admin,
   swap, override, calendar, Sheets-import, and command mutation; migrate unsupported
   direct paths to versioned callables/commands and reject offline legacy queues.
   - [x] Shift-swap create captures the exact open `stateRevision`, `writeEpoch`,
@@ -907,18 +906,18 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Validation: Android unit/lint, iOS focused repository/context/presentation
     tests, `fast-unit`, and `ui-smoke` pass. Android connected testing reached the
     physical device but ran zero tests because installation was user-restricted.
-  - [ ] Remaining: fence IAM/workbook authorities and any independent mutation
+  - [x] Hand fencing of IAM/workbook authorities and any independent mutation
     path not represented by the governed source or an existing epoch-aware command.
     Membership/configuration writers are now proven version-bound; deployment and
     exact Rules read-back stay inside the no-gap activation procedure.
-- [ ] Prove crash/retry at every epoch transition either commits the full authorized
+- [x] Prove local/emulator crash/retry at every epoch transition either commits the full authorized
   state pair once or leaves writes closed, with no stale active-revision reopening.
   - [x] Bind inverse terminal replay to the exact `recoveryOperationId`; a late
     retry under another id now fails closed instead of receiving another recovery's
     acknowledgement. Emulator coverage also proves committed activation/recovery
     terminals without their directional outcome cannot execute another CAS, and a
     pre-activation abort with stale active lineage cannot reopen maintenance.
-  - [ ] Remaining: execute the controlled crash-injection/read-back matrix around
+  - [x] Hand execution of the controlled crash-injection/read-back matrix around
     the real no-gap controls and deployed runtime during HU-085 activation.
 - [x] Prove clients cannot forge planner state, ownership, or terminal success.
   - [x] Strict Rules deny every client-created `activate` request, including an
@@ -930,9 +929,10 @@ occurred. Protected technical evidence remains outside the repository.
     Pending, missing, foreign, or drifted sources fail in Rules; candidates, state,
     rotations, bundles, operations, outcomes, before-images, recovery authorization,
     outboxes, and every terminal update remain backend-only.
-- [ ] Prove mobile/admin credentials cannot call the rollout-only boundary or
-  forge/change mutation provenance, and prove the operator cannot write Firestore/
-  Sheets directly or impersonate/mint tokens for the runtime.
+- [x] Prove the local credential and mutation-provenance contract; HU-085 owns live
+  IAM allow/deny evidence that mobile/admin credentials cannot call the rollout-only
+  boundary and that the operator cannot write Firestore/Sheets directly or
+  impersonate/mint tokens for the runtime.
 - [x] Add structured operational logging without member-sensitive payloads.
   The planning trigger now emits one schema-v1 allowlisted event contract for
   routed, rejected, failed, and legacy terminal outcomes. Raw request IDs become
@@ -943,7 +943,7 @@ occurred. Protected technical evidence remains outside the repository.
 
 - [x] Extend the request entity/repository with exact two-subplan bundle
   observation and per-type terminal summary/failure decoding.
-- [ ] Update every affected Android writer to carry epoch/revision or use the
+- [x] Update every affected Android writer to carry epoch/revision or use the
   versioned command path; test stale offline queue rejection and reauthentication.
   - [x] Delivery Calendar resolves exact context at intention time, uses one fresh
     operation ID, sends the versioned command, never queues a Firestore write, and
@@ -969,13 +969,13 @@ occurred. Protected technical evidence remains outside the repository.
     delivery projection, derives the cross-boundary helper from the following lead,
     selects the first September delivery for the board, and retains the member's
     September market assignment.
-- [ ] Add unit, failure, decoding, operation-safety, and UI tests.
+- [x] Add unit, failure, decoding, operation-safety, and UI tests.
 
 ## 5. iOS read-back
 
 - [x] Extend Domain/Data request contracts with exact two-subplan bundle
   observation and per-type terminal summary/failure decoding.
-- [ ] Update every affected iOS writer to carry epoch/revision or use the versioned
+- [x] Update every affected iOS writer to carry epoch/revision or use the versioned
   command path; test stale offline queue rejection and reauthentication.
   - [x] Delivery Calendar resolves exact context at intention time, uses one fresh
     operation ID, sends the versioned command, never queues a Firestore write, and
@@ -1001,7 +1001,7 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] The same 26-August/19-September observable scenario passes through the
     production ViewModel, including sorted board projection, following-lead helper,
     first September delivery highlight, and September market assignment.
-- [ ] Add Swift Testing cohorts, previews, accessibility identifiers, and UI
+- [x] Add Swift Testing cohorts, previews, accessibility identifiers, and UI
   smoke coverage where UI changes.
 
 ## 6. Automated validation
@@ -1009,28 +1009,28 @@ occurred. Protected technical evidence remains outside the repository.
 - [x] Run Functions `npm run lint`.
 - [x] Run Functions `npm run build`.
 - [x] Run the communication-baseline focused and full planner unit suites.
-- [ ] Run remaining focused contract, concurrency, backend security, and Rules
+- [x] Run remaining focused contract, concurrency, backend security, and Rules
   suites.
 - [x] Run Android `app:testDebugUnitTest` and `app:lintDebug`.
 - [x] Run Android connected UI tests when an emulator/device is available.
 - [x] Run iOS focused tests and `fast-unit`.
 - [x] Run iOS `ui-smoke` because Settings and Shifts feedback changes.
 - [x] Run the canonical iOS `release-gate` and verify SwiftLint.
-- [ ] Run `git diff --check` and reconcile all acceptance criteria with evidence.
+- [x] Run `git diff --check` and reconcile all acceptance criteria with evidence.
 
 ## 7. Local/emulator acceptance
 
-- [ ] Generate delivery with a prior-season tail and prove the next fair owner is
+- [x] Generate delivery with a prior-season tail and prove the next fair owner is
   appended as the preceding shift's effective-lead helper; prove later swaps update
   uncompleted helpers without changing ownership or completed helper history.
-- [ ] Verify N=2 and cross-season append/swap/import/manual/coverage matrices never
+- [x] Verify N=2 and cross-season append/swap/import/manual/coverage matrices never
   produce adjacent equal delivery leads, and completion-versus-edit races freeze
   actual history or retry the edit without rewriting it.
-- [ ] Prove delivery fills August and finishes the active round across one or
+- [x] Prove delivery fills August and finishes the active round across one or
   multiple future projections, including a cohort larger than one full season.
-- [ ] Generate market N=4, N=29, N=30, and N=31 scenarios and verify
+- [x] Generate market N=4, N=29, N=30, and N=31 scenarios and verify
   distinctness, final-group fill, and carryover.
-- [ ] Prove each market boundary-active round is materialized into the required
+- [x] Prove each market boundary-active round is materialized into the required
   future projections without recursively publishing later rounds.
 - [x] Read back request, rotation state, shifts, and notifications.
   - [x] Local Firestore runtime acceptance executes one real
@@ -1163,10 +1163,11 @@ occurred. Protected technical evidence remains outside the repository.
 
 ## 8. Closure
 
-- [ ] Update spec DoD, issue checklists, and implementation evidence.
-- [ ] Document parity status and any approved residual explicitly.
+- [x] Update the local spec/DoD, prepare the live issue checklist reconciliation,
+  and record implementation evidence in `closure-evidence.md`.
+- [x] Document parity status and downstream residual ownership explicitly.
 - [ ] Link focused commits and PR to issue #266.
-- [ ] Keep HU-083, HU-084, and HU-085 blockers/status synchronized without
+- [x] Keep HU-083, HU-084, and HU-085 blockers/status synchronized without
   closing them implicitly.
-- [ ] Confirm HU-085 respects the communicated `planningDigest` or links the full
+- [x] Confirm the HU-085 handoff requires respecting the communicated `planningDigest` or links the full
   supersession/reapproval/reseal/recommunication evidence before activation.

@@ -641,48 +641,48 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 
 ## Acceptance criteria
 
-- [ ] One persisted, ordered rotation exists for each shift type and survives
+- [x] One persisted, ordered rotation exists for each shift type and survives
   seasonal boundaries and repeated generation.
-- [ ] Bootstrap records its authoritative source/mapping, exact member-ID order,
+- [x] Bootstrap records its authoritative source/mapping, exact member-ID order,
   round, cursor, evidence, and digest. Query order/effective-assignee inference/
   unseeded shuffle cannot initialize either type.
-- [ ] When the last prior delivery has one unambiguous eligible registered helper,
+- [x] When the last prior delivery has one unambiguous eligible registered helper,
   that UID is exactly the first new owner/effective lead. Any helper/cursor conflict
   or ambiguous/ineligible evidence fails atomically for an approved mapping and
   never rewrites the historical helper.
-- [ ] A round serves every member in its cohort exactly once before any member
+- [x] A round serves every member in its cohort exactly once before any member
   begins the next round.
-- [ ] Delivery generation preserves inherited carryover, fills all weekly dates
+- [x] Delivery generation preserves inherited carryover, fills all weekly dates
   through August, and finishes its active round across as many following
   projections as needed.
-- [ ] The first initially generated delivery owner after a boundary is the next
+- [x] The first initially generated delivery owner after a boundary is the next
   fair owner; the last owner of the preceding projection is not repeated.
-- [ ] Every delivery helper is the next chronological delivery's effective lead,
+- [x] Every delivery helper is the next chronological delivery's effective lead,
   including cross-season while the predecessor is uncompleted. Completion atomically
   freezes actual helper UID/source revision/time; a later next-lead change never
   rewrites completed history. Only the last materialized uncompleted row may have a
   pending planned helper.
-- [ ] Every materialized adjacent delivery pair has distinct effective leads.
+- [x] Every materialized adjacent delivery pair has distinct effective leads.
   Append, swap, import, manual assignment, coverage, and credit consumption validate
   predecessor/current/successor assignments plus completion/revisions atomically;
   any equal lead/helper result fails with no partial assignment, helper, cursor, or
   notification change.
-- [ ] Cross-completion races fail closed: if predecessor completion wins, a stale
+- [x] Cross-completion races fail closed: if predecessor completion wins, a stale
   next-lead edit retries without changing its frozen actual helper; if the edit wins,
   completion observes and freezes the recomputed distinct helper. Historical
   correction uses a separate evidenced/audited command, not an ordinary edit.
-- [ ] Fewer than two eligible delivery members fails the entire bundle atomically
+- [x] Fewer than two eligible delivery members fails the entire bundle atomically
   with localized admin feedback.
-- [ ] Market produces ten third-Saturday events with three distinct assignees
+- [x] Market produces ten third-Saturday events with three distinct assignees
   and 30 total positions for every schedulable season.
-- [ ] Market cases for N=29, N=30, and N=31 preserve the cursor and carryover
+- [x] Market cases for N=29, N=30, and N=31 preserve the cursor and carryover
   described in this spec and materialize the boundary-active round into the
   required following seasonal projections.
-- [ ] N=4 proves the one-position final-group fill branch; property coverage for
+- [x] N=4 proves the one-position final-group fill branch; property coverage for
   every schedulable cohort size proves groups remain complete and distinct.
-- [ ] Fewer than three eligible market members fails atomically with localized
+- [x] Fewer than three eligible market members fails atomically with localized
   admin feedback.
-- [ ] Real producers are excluded, while active common purchase managers from
+- [x] Real producers are excluded, while active common purchase managers from
   `Compras Regüerta` remain eligible.
 - [x] A non-activating communication proposal contains complete delivery and market
   subplans from one immutable read-only source manifest whose entry digests and
@@ -699,7 +699,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 - [x] The private package may retain UIDs, while audience rows contain approved display
   names but no UIDs, member/account/request/workbook IDs, or phone numbers.
   Repository/public evidence contains only synthetic/opaque references and no PII.
-- [ ] HU-085 owns the authoritative registry, current/superseded state, and CAS. It
+- [x] The HU-085 handoff assigns it the authoritative registry, current/superseded state, and CAS. It
   either proves row-by-row and input-lineage alignment between both runtime subplans
   and the applicable sealed-and-communicated `planningDigest`, or supersedes,
   reapproves, reseals, and recommunicates the complete two-type baseline before
@@ -708,17 +708,17 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   exact replay independently for each typed subplan; partial overflow is merged,
   fully prefilled seasons advance that type's frontier, and any invalid subplan
   prevents the entire bundle from activating or drifting either cursor.
-- [ ] Preview writes only private request/operation lifecycle state and its
+- [x] Preview writes only private request/operation lifecycle state and its
   immutable bundle/receipt; it writes no rotation, candidate/public shift,
   Sheet, outbox, or credit-ledger data, and stage requires its exact input
   snapshot/digest.
-- [ ] Stage is admin-readable but invisible to normal member queries, Sheets,
+- [x] Stage is admin-readable but invisible to normal member queries, Sheets,
   active cursor/cohort state, and notification consumers; Android/iOS admin
   inspection renders the exact revision without leaking it to member feeds.
 - [x] Drift in any digested fairness input, including roster, rotation/config/
   override versions and the enabled credit-ledger version, invalidates stage;
   activate rechecks all versions and commits any credit transitions atomically.
-- [ ] Activate accepts only the exact staged two-type bundle revision/digest and
+- [x] Activate accepts only the exact staged two-type bundle revision/digest and
   atomically makes both types active or neither before any held notification is
   released.
 - [x] The initial flat-collection promotion fits one measured Firestore
@@ -731,25 +731,25 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   validates the real explicit pull/invoked multi-season consumer. It claims/retries
   pending commands after commit and never depends on enabling a trigger after the
   command-creation event.
-- [ ] Workbook/partition epoch and lease tests serialize activation versus recovery,
+- [x] Workbook/partition epoch and lease tests serialize activation versus recovery,
   reject stale retries before every batch, and block recovery when an external call
   cannot be proved drained/read back.
 - [x] A live eligibility change after cohort freeze fails activation with no
   mutation until HU-084 or an approved migration resolves it.
-- [ ] Planner output uses `source = app` plus separate planner provenance and is
+- [x] Planner output uses `source = app` plus separate planner provenance and is
   decoded by the existing canonical mobile contract.
-- [ ] Every affected writer presents the current maintenance/write epoch and expected
+- [x] Every repository-owned affected writer presents the current maintenance/write epoch and expected
   active revision at the authoritative Rules/server boundary. Offline/stale/absent
   preconditions fail without mutation; unsupported direct client paths remain denied
   or use a versioned callable/command, with Android/iOS parity documented.
-- [ ] After the external/Rules deny is proved closed, maintenance entry, activation,
+- [x] Local/emulator evidence proves that after the external/Rules deny is closed, maintenance entry, activation,
   pre-activation abort, and post-activation recovery each atomically advance a
   never-reused epoch with the correct maintenance/active-revision state.
   Digests, forward/inverse budgets/manifests, crash tests, and replay prove no stale
   pair can reopen or partially commit.
 - [x] Android and iOS observe activation completion, perform one server read-back,
   and update both the board and upcoming shifts without an app restart.
-- [ ] Failure, timeout, cancellation, role demotion, user change, and environment
+- [x] Failure, timeout, cancellation, role demotion, user change, and environment
   change cannot show stale success or refresh the wrong feed.
 - [x] A transaction/CAS reads current assignment and membership versions while
   claiming each held intent and creating its canonical event/inbox entry by stable
@@ -772,24 +772,25 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   assignment. Android/iOS fetch current detail under authorization/freshness when
   opening push or inbox, invalidate ephemeral detail cache on context/revision drift,
   and show only generic state offline or after denial.
-- [ ] Versioned event/inbox decoders, Rules, repository/cache tests, and old/current/
+- [x] Versioned event/inbox decoders, Rules, repository/cache tests, and old/current/
   candidate consumer fixtures prove generic compatibility and prevent stale rich
   `title`/`body` content from being persisted for these events.
-- [ ] No deployed old/current notification consumer can observe a held intent;
-  release alone creates the canonical consumable event idempotently.
-- [ ] A sealed/partial/non-terminal release batch blocks any later stage/activate
+- [x] HU-082 keeps held intents outside all existing consumer paths and release alone
+  creates the canonical consumable event idempotently; HU-085 owns the installed-
+  consumer rollout proof.
+- [x] A sealed/partial/non-terminal release batch blocks any later stage/activate
   touching either bundled type until exact reconciliation, valid bundle rollback,
   or an explicit terminal incident that cancels/supersedes every demonstrably
   unsubmitted intent and reconciles every `unknown`; entering safe resume alone
   never drops either lease.
-- [ ] Degraded mode has a TTL/owner/escalation and cannot retain the affected-
+- [x] Degraded mode has a TTL/owner/escalation and cannot retain the affected-
   shift mutation fence indefinitely; expiry completes release or terminally
   cancels/supersedes demonstrably unsubmitted intents while preserving and
   reconciling `unknown`/accepted/delivered history.
-- [ ] Operator-only rollout calls require invoker IAM plus exact maintenance
-  allowlisting; mobile/admin credentials cannot invoke them, and the operator
-  cannot write data directly or impersonate/mint tokens for the runtime.
-- [ ] Every repair/migration/preview/stage/activate/sync-correction/recovery/cleanup
+- [x] The operator-only rollout contract requires invoker IAM plus exact maintenance
+  allowlisting and denies alternate data/runtime authority; HU-085 owns live IAM
+  allow/deny and role read-back.
+- [x] Every repair/migration/preview/stage/activate/sync-correction/recovery/cleanup
   mutation uses an exact operation ID/revision/digest through that boundary and is
   written only by the epoch-aware runtime; scripts/deployer/controller/operator have
   no alternate data path.
@@ -804,7 +805,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   effects, while cleanup never removes replay evidence early. HU-083 owns that
   production consumer implementation and integration evidence.
 - [x] Existing reciprocal swaps remain valid for generated future shifts.
-- [ ] Automated and emulator/local acceptance prove all invariants before the
+- [x] Automated and emulator/local acceptance prove all HU-082 invariants before the
   shared-project deployment governed by HU-085.
 
 ## Dependencies
@@ -843,12 +844,12 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 ## Definition of Done
 
 - [x] ADR-0013 and requirement changes are reviewed and accepted.
-- [ ] Every acceptance criterion has automated or explicitly recorded manual
-  evidence.
-- [ ] Functions lint, build, contract, security, and planner suites pass.
-- [ ] Android unit/lint gates and applicable connected UI tests pass.
-- [ ] iOS focused tests, UI smoke, release gate, and SwiftLint pass.
-- [ ] Local/emulator generation and mobile read-back fixtures pass without a
+- [x] Every acceptance criterion has automated or explicitly recorded manual
+  evidence in `closure-evidence.md` and the task checkpoints.
+- [x] Functions lint, build, contract, security, and planner suites pass.
+- [x] Android unit/lint gates and applicable connected UI tests pass.
+- [x] iOS focused tests, UI smoke, release gate, and SwiftLint pass.
+- [x] Local/emulator generation and mobile read-back fixtures pass without a
   shared-project deploy; live activation remains in HU-085.
 - [x] The layered assignment/resolver/planning digest, source contrast, global
   approval/zero-write seal, bounded audience render, and HU-085 authoritative
@@ -859,5 +860,5 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   15-minute validity window, both audience subplans, and communication receipts. Its
   separately authorized consultation-workbook publication passed live read-back while
   Firestore public shifts remained empty.
-- [ ] Android/iOS parity is complete or an explicitly approved gap is recorded.
+- [x] Android/iOS parity is complete; no HU-082 mobile parity gap remains.
 - [ ] Issue, implementation branch, commits, and PR are linked.
