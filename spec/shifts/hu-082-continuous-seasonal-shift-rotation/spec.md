@@ -725,7 +725,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   transaction for the combined delivery-plus-market manifest, and supported
   clients see either the prior or activated bundle, never one updated type or a
   partial projection; oversize manifests fail closed pending client migration.
-- [ ] The transaction includes stable digest-bound Sheets-sync command IDs; only
+- [x] The transaction includes stable digest-bound Sheets-sync command IDs; only
   those commands may drive controlled export after activation. HU-082 proves the
   emitted schema/idempotency vectors with a test consumer; HU-083 implements and
   validates the real explicit pull/invoked multi-season consumer. It claims/retries
@@ -793,7 +793,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   mutation uses an exact operation ID/revision/digest through that boundary and is
   written only by the epoch-aware runtime; scripts/deployer/controller/operator have
   no alternate data path.
-- [ ] The HU-082 consumer contract requires candidate `onShiftWritten` to treat
+- [x] The HU-082 consumer contract requires candidate `onShiftWritten` to treat
   authenticated activation, repair,
   rollback/recovery, and sync-correction events as audited idempotent no-ops for
   legacy per-row export/notification only when a create/update's changed marker

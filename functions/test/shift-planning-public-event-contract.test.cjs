@@ -244,7 +244,8 @@ test("audits activation creates and updates as idempotent no-ops", () => {
   assert.equal(fake.legacySideEffects, 0);
 });
 
-test("audits repair and sync correction only through their registry", () => {
+test("idempotent consumer audits repair and sync correction once", () => {
+  const fake = {auditedNoOps: new Set(), legacySideEffects: 0};
   for (const kind of ["repair", "syncCorrection"]) {
     const base = markedActivationCreate();
     const value = changedMaterialization(base.document, {
@@ -267,7 +268,11 @@ test("audits repair and sync correction only through their registry", () => {
     assert.equal(decision.kind, "controlledNoOp");
     assert.equal(decision.operationKind, kind);
     assert.equal(decision.operationId, operation.operationId);
+    consumeWithFake(fake, decision);
+    consumeWithFake(fake, decision);
   }
+  assert.equal(fake.auditedNoOps.size, 2);
+  assert.equal(fake.legacySideEffects, 0);
 });
 
 test("retained historical markers keep later edits and deletes ordinary", () => {
@@ -299,7 +304,7 @@ test("retained historical markers keep later edits and deletes ordinary", () => 
   assert.equal(fake.legacySideEffects, 2);
 });
 
-test("validates recovery deletes against the exact before image", () => {
+test("idempotent consumer audits an exact recovery delete once", () => {
   const base = markedActivationCreate();
   const recovery = recoveryTerminal(base.operation, base.value.targetPath);
   const decision = classifyShiftPlanningPublicWriteEvent({
@@ -312,6 +317,11 @@ test("validates recovery deletes against the exact before image", () => {
   assert.equal(decision.operationKind, "recovery");
   assert.equal(decision.mutationKind, "delete");
   assert.equal(decision.operationId, recovery.recoveryOperationId);
+  const fake = {auditedNoOps: new Set(), legacySideEffects: 0};
+  consumeWithFake(fake, decision);
+  consumeWithFake(fake, decision);
+  assert.equal(fake.auditedNoOps.size, 1);
+  assert.equal(fake.legacySideEffects, 0);
 
   const drifted = structuredClone(base.document);
   drifted.documentRevision += 1;

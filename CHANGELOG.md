@@ -249,6 +249,7 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-08-30 | ✅ test(shifts): prove idempotent consumer handoff
 - 2026-08-30 | ✅ test(shifts): prove oversize rollout block
 - 2026-08-30 | ✅ test(shifts): prove public reader isolation
 - 2026-08-30 | ✅ test(shifts): prove dispatch crash recovery

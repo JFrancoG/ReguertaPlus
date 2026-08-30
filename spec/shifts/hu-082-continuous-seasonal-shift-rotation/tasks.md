@@ -1117,9 +1117,17 @@ occurred. Protected technical evidence remains outside the repository.
     create no public shift, and return `planning_bundle_oversize`. Because supported
     clients remain on the flat reader, that failure admits no multi-batch fallback
     and blocks rollout until a mobile active-revision migration is available.
-- [ ] Prove exact activation/repair/recovery Sheets-sync command and event vectors
+- [x] Prove exact activation/repair/recovery Sheets-sync command and event vectors
   with an idempotent fake consumer; require HU-083 to prove the real adapter drains
   them without duplicate export/notification.
+  - [x] Both digest-bound activation commands use stable per-type IDs, explicit
+    polling and fenced claim/read-back completion. A lost completion invokes the
+    fake consumer again but its idempotency key produces one physical workbook
+    effect; terminal replay invokes it no further.
+  - [x] The SDK-free event consumer records one stable audited no-op for immediate
+    or replayed activation, repair, sync-correction and recovery events, while
+    retaining ordinary later edits/deletes as legacy side effects and rejecting
+    forged authority.
 - [ ] Prove rollback/cleanup retains replay evidence until expiry and delayed or
   unknown-marker events cannot be misclassified as ordinary after cleanup.
 - [x] Prove safe resume retains the release lease, partial release blocks a

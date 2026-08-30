@@ -1564,6 +1564,27 @@ Functions lint/build, the full non-emulator HU-082 lane and the focused 9/9 real
 transaction emulator lane pass. No shared Firebase, workbook, mobile release,
 deployment, or production data changed.
 
+## Local implementation checkpoint — idempotent consumer handoff (2026-08-30)
+
+The existing command and public-event contracts are now reconciled as one HU-083
+handoff. Atomic activation emits the exact delivery and market command IDs bound to
+the bundle digest and partition epoch. Explicit polling, claim, pre-batch authorization
+and read-back completion remain the only export path; a simulated lost completion may
+call the fake consumer again, but its idempotency key yields one physical workbook
+effect and a terminal replay calls it no further.
+
+The SDK-free event fake now also consumes immediate and replayed repair,
+sync-correction and recovery decisions, in addition to activation create/update. Each
+controlled event produces one stable audited no-op and zero legacy export/notification
+effects. Recovery still requires the exact delete evidence; later ordinary edits and
+deletes continue through the legacy path, and forged changed-marker authority fails
+closed.
+
+Functions lint/build, the full non-emulator HU-082 lane, the focused 5/5 event vectors,
+the 5/5 sync-command emulator lane and the 4/4 governed source-producer chain pass.
+HU-083 still owns real Sheets I/O, trigger wiring and duplicate-free live read-back.
+No shared Firebase, workbook, notification, deployment, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`
