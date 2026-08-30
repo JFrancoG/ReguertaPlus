@@ -799,7 +799,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   legacy per-row export/notification only when a create/update's changed marker
   validates, or a delete's before-image marker/version/path matches the exact
   recovery manifest. Retained metadata cannot suppress a later ordinary event.
-- [ ] Operation tombstones/event ledgers outlive every possible delayed delivery;
+- [x] Operation tombstones/event ledgers outlive every possible delayed delivery;
   an unknown changed backend-only marker fails closed and alerts without side
   effects, while cleanup never removes replay evidence early. HU-083 owns that
   production consumer implementation and integration evidence.

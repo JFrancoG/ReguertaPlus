@@ -213,11 +213,47 @@ test("cleanup retains terminals and ledgers through the exact boundary", () => {
       eventDigest: outcome.ledger.eventDigest,
     }),
   ]);
+
+  const recoveryRetention = createShiftPlanningPublicEventOperationRetention({
+    environment: "develop",
+    controlledOperationKind: "recovery",
+    operationId: "recovery-operation-1",
+    operationIntentDigest: digest("9"),
+    terminalAt: TERMINAL_AT,
+    policy: value.retentionPolicy,
+  });
+  const recoveryBoundary = classifyShiftPlanningPublicEventEvidenceCleanup({
+    currentTime: recoveryRetention.retainUntil,
+    retention: recoveryRetention,
+    ledgers: [],
+  });
+  assert.equal(recoveryBoundary.kind, "retain");
+  assert.deepEqual(recoveryBoundary.protectedPaths, [
+    "develop/plus-collections/shiftPlanningOperations/recovery-operation-1",
+    shiftPlanningPublicEventOperationRetentionPath({
+      environment: "develop",
+      operationId: "recovery-operation-1",
+    }),
+  ]);
 });
 
-test("unknown changed authority is retained for one alert without effects", () => {
+test("post-cleanup changed authority stays fail closed on every replay", () => {
   const value = fixture();
+  const controlled = produceShiftPlanningPublicEventAudit(producerInput(value));
+  assert.equal(controlled.kind, "controlledNoOp");
+  const cleanup = classifyShiftPlanningPublicEventEvidenceCleanup({
+    currentTime: Timestamp.fromMillis(
+      value.retention.retainUntil.toMillis() + 1,
+    ),
+    retention: value.retention,
+    ledgers: [controlled.ledger],
+  });
+  assert.equal(cleanup.kind, "eligible");
   const input = producerInput(value, {
+    eventId: "firestore-event-after-cleanup",
+    eventTime: Timestamp.fromMillis(
+      value.retention.retainUntil.toMillis() + 2,
+    ),
     operation: null,
     retention: null,
   });

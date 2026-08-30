@@ -1128,8 +1128,14 @@ occurred. Protected technical evidence remains outside the repository.
     or replayed activation, repair, sync-correction and recovery events, while
     retaining ordinary later edits/deletes as legacy side effects and rejecting
     forged authority.
-- [ ] Prove rollback/cleanup retains replay evidence until expiry and delayed or
+- [x] Prove rollback/cleanup retains replay evidence until expiry and delayed or
   unknown-marker events cannot be misclassified as ordinary after cleanup.
+  - [x] Cleanup protects repair ledgers and both repair/recovery operation
+    tombstones through the exact exclusive-expiry boundary; only the following
+    millisecond is eligible.
+  - [x] After cleanup becomes eligible, a delayed changed backend marker without
+    retained authority produces the same alertable rejected ledger on replay,
+    permits no legacy side effect and never falls through as ordinary.
 - [x] Prove safe resume retains the release lease, partial release blocks a
   superseding revision, terminal reconciliation clears it, and candidate lineage
   cannot mix migration baselines.

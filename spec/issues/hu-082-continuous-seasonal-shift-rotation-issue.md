@@ -1585,6 +1585,24 @@ the 5/5 sync-command emulator lane and the 4/4 governed source-producer chain pa
 HU-083 still owns real Sheets I/O, trigger wiring and duplicate-free live read-back.
 No shared Firebase, workbook, notification, deployment, or production data changed.
 
+## Local implementation checkpoint — rollback cleanup retention (2026-08-30)
+
+The cleanup contract now carries an explicit rollback/recovery oracle in addition to
+the existing repair ledger. At the exact exclusive-expiry boundary it still protects
+the recovery operation tombstone and its retention binding; cleanup becomes eligible
+only on the following millisecond. Repair replay evidence remains protected alongside
+its operation and stable event ledger for the same full horizon.
+
+The post-cleanup sequence first proves that the retained evidence is eligible, then
+models a delayed changed backend marker after the terminal and retention record are no
+longer available. The producer returns the same alertable rejected ledger on replay,
+allows no legacy export or notification, and never reclassifies the event as ordinary.
+
+Functions lint/build, the full non-emulator HU-082 lane and the focused 5/5 retention
+vectors pass. HU-083 still owns durable Firestore persistence, real trigger/alert
+wiring and cleanup execution. No shared Firebase, Sheets, notification, deployment,
+or production data changed.
+
 ## Suggested labels
 
 - `type:feature`
