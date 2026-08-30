@@ -814,6 +814,9 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 - ADR-0013 and aligned English/Spanish requirements are pre-implementation
   approval gates.
 - HU-083 depends on the rotation and projection identities created here.
+- The frozen executable boundary for that dependency is recorded in
+  `hu-083-handoff.md`; it transfers integration responsibility without authorizing
+  a shared deploy, develop apply, or production activation.
 - HU-085 depends transitively on the HU-082/HU-083 integrated result.
 - HU-085 also consumes the latest sealed communication `planningDigest`; it must
   respect it exactly or complete the documented supersession/recommunication flow.

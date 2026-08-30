@@ -1622,6 +1622,26 @@ closes the final explicitly open functional acceptance cut in the HU-082 executi
 checklist. No shared Firebase, workbook, notification, deployment, or production data
 changed.
 
+## Local implementation checkpoint — HU-083 frozen handoff (2026-08-30)
+
+The HU-082-to-HU-083 boundary is now one explicit, versioned document rather than a
+set of scattered ownership notes. It freezes the schema-v1 sync command, stable
+path/idempotency identities, repository claim/authorize/complete lifecycle, public-
+write classifier, retention/ledger cleanup semantics and public mobile source.
+
+HU-083 accepts responsibility for real multi-season Sheets I/O, durable external-
+attempt and read-back evidence, real trigger/ledger persistence, rejected-event
+alerts and cleanup integration. The handoff keeps joins/departures/coverage/credits
+in HU-084 and production identity, configuration, deployment, activation and live
+rollback in HU-085. HU-083 remains blocked on HU-082 integration/merge; the handoff
+does not authorize a develop apply, shared deploy or production mutation.
+
+The handoff links its upstream executable test surfaces and lists the exact new
+integration evidence HU-083 must add. Documentation link/path checks and
+`git diff --check` pass; runtime gates are unchanged because this cut changes no
+code or operational configuration. No shared Firebase, Sheets, notification,
+deployment, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`

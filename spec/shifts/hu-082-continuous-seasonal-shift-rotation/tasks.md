@@ -1147,9 +1147,15 @@ occurred. Protected technical evidence remains outside the repository.
     incomplete frontier terminalizes as `invalid_planning_frontier`; replay
     creates no candidate, bundle, sync command, notification intent or public
     shift and advances neither rotation.
-- [ ] Record the handoff contract for HU-083; do not activate Firestore/app production.
+- [x] Record the handoff contract for HU-083; do not activate Firestore/app production.
   The separately authorized consultation-workbook publication remains communication
   evidence, not HU-083 sync or HU-085 activation evidence.
+  - [x] Freeze the exact schema-v1 sync-command/repository and public-event/
+    retention surfaces, with their stable paths, IDs, idempotency and fail-closed
+    rules, in `hu-083-handoff.md`.
+  - [x] Assign real multi-season Sheets I/O, durable external-attempt/read-back,
+    trigger/ledger persistence, alerting and cleanup evidence to HU-083 while
+    retaining coverage/credits in HU-084 and every production action in HU-085.
 - [x] Record zero Firestore/app activation and zero deployments for communication-
   baseline preparation, then retain source-manifest contrasts, all three digests, exact
   global approval, seal, render revalidation, separately authorized consultation-

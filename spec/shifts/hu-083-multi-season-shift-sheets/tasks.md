@@ -2,6 +2,9 @@
 
 ## 0. Dependency and read-only inventory
 
+- [x] Accept the frozen HU-082 integration boundary in
+  `../hu-082-continuous-seasonal-shift-rotation/hu-083-handoff.md`; retain the
+  implementation/merge dependency and every live-operation gate below.
 - [ ] Verify HU-082 / #266 and ADR-0013 are integrated.
 - [ ] Freeze base commit and create the dedicated HU-083 implementation branch.
 - [ ] Resolve the exact develop Firebase project and environment path.

@@ -52,6 +52,13 @@ must integrate the real multi-season Sheets adapter, durable external-attempt an
 read-back evidence, and ambiguous-outcome reconciliation; its overall dependency
 on the unfinished HU-082 story remains open.
 
+The exact upstream boundary is frozen in
+`spec/shifts/hu-082-continuous-seasonal-shift-rotation/hu-083-handoff.md`. HU-083
+must consume those schema-v1 command, repository, public-event and retention
+surfaces directly, add the real Sheets/trigger persistence evidence, and preserve
+the explicit HU-084/HU-085 exclusions. Recording the handoff does not satisfy the
+still-open HU-082 integration/merge dependency and authorizes no live operation.
+
 ## Upstream checkpoint — HU-082 public event classifier (2026-08-27)
 
 HU-082 now supplies the SDK-free classifier and exact registry codecs for

@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-30 | 📝 docs(shifts): freeze HU-083 handoff
 - 2026-08-29 | 📝 docs(shifts): reconcile recovery CAS evidence
 - 2026-08-24 | 📝 docs(shifts): define seasonal rotation rollout
 - 2026-08-23 | 📝 docs(ios): prepare HU-081 closeout
