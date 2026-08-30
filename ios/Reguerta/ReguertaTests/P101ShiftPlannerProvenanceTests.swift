@@ -6,6 +6,14 @@ import Testing
 
 @MainActor
 struct P101ShiftPlannerProvenanceTests {
+    @Test func installedShiftReaderStaysOnThePublicFlatCollection() {
+        let readerPath = FirestoreShiftRepository.collectionPath(environment: .develop)
+        let candidatePath = ReguertaFirestorePath(environment: .develop).collectionPath(.shiftPlanningCandidates)
+
+        #expect(readerPath == "develop/plus-collections/shifts")
+        #expect(readerPath != candidatePath)
+    }
+
     @Test func plannerProvenanceIsAdditiveAndKeepsAppSource() throws {
         let timestamp = Timestamp(date: Date(timeIntervalSince1970: 123))
         let plannerShift: [String: Any] = [

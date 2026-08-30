@@ -1524,6 +1524,27 @@ crash/timeout/lost-ack/late-completion and append-only attempt-ledger criteria. 
 still owns runtime export, IAM, deployment and live FCM evidence. No shared Firebase,
 FCM submission, notification, deployment, or production data changed.
 
+## Local implementation checkpoint — supported reader visibility (2026-08-30)
+
+The installed Android and iOS shift repositories now derive their collection from
+the shared environment path authority while remaining pinned to the public flat
+`plus-collections/shifts` feed and explicit server reads. Focused behavior tests on
+both platforms assert that exact production path independently from the private
+`shiftPlanningCandidates` path.
+
+Strict Rules acceptance proves an active member can query the public feed while the
+same identity cannot read either a staged candidate document or its collection.
+Admin planning inspection remains intentionally separate. The governed source-
+producer chain reads back an empty public feed after preview and stage, then the full
+delivery-plus-market manifest after the atomic activation.
+
+Functions lint/build, the 32/32 Rules lane, the focused 4/4 source-producer emulator
+lane, Android unit/lint, the focused official-Xcode test and the iOS fast-unit lane
+pass. This closes the supported-flat-reader half of the compound criterion. The
+transaction-budget overflow and mobile active-revision rollout block remain open for
+the next cut. No shared Firebase, workbook, mobile release, deployment, or production
+data changed.
+
 ## Suggested labels
 
 - `type:feature`

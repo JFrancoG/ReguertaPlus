@@ -14,7 +14,7 @@ actor FirestoreShiftRepository: ShiftRepository {
 
     func allShifts(environment: SessionEnvironment) async throws -> [ShiftAssignment] {
         try Task.checkCancellation()
-        let shiftsCollection = storedDB.reguertaCollection(.shifts, environment: environment)
+        let shiftsCollection = storedDB.collection(Self.collectionPath(environment: environment))
         do {
             let snapshot = try await shiftsCollection.getDocuments(source: .server)
             return try snapshot.documents
@@ -25,6 +25,10 @@ actor FirestoreShiftRepository: ShiftRepository {
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "shifts")
         }
+    }
+
+    static func collectionPath(environment: SessionEnvironment) -> String {
+        ReguertaFirestorePath(environment: environment).collectionPath(.shifts)
     }
 
     static func shift(documentID: String, data: [String: Any]) throws -> ShiftAssignment {

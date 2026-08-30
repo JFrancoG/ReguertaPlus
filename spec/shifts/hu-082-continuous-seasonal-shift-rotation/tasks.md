@@ -1106,6 +1106,14 @@ occurred. Protected technical evidence remains outside the repository.
 - [ ] Prove current supported flat readers never see candidate or partial data,
   and transaction-budget overflow makes no public write and blocks rollout for a
   mobile active-revision migration.
+  - [x] Android and iOS production shift readers derive only the exact flat
+    `plus-collections/shifts` path and retain explicit server reads. Strict Rules
+    let an active member query that feed while denying the staged candidate
+    document and collection; the governed emulator chain keeps the flat feed
+    empty through preview and stage, then publishes the complete bundle on
+    activation.
+  - [ ] Prove transaction-budget overflow makes no public write and blocks rollout
+    until the mobile active-revision migration is available.
 - [ ] Prove exact activation/repair/recovery Sheets-sync command and event vectors
   with an idempotent fake consumer; require HU-083 to prove the real adapter drains
   them without duplicate export/notification.

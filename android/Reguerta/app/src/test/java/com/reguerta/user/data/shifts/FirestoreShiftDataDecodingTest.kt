@@ -4,16 +4,30 @@ import com.google.firebase.Timestamp
 import com.reguerta.user.data.calendar.decodeDefaultDeliveryWeekday
 import com.reguerta.user.data.calendar.decodeDefaultDeliveryWeekdayCandidates
 import com.reguerta.user.data.calendar.decodeDeliveryCalendarOverrideDocuments
+import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
+import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
+import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.data.shiftswap.decodeShiftSwapRequestDocuments
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.RepositoryErrorKind
 import com.reguerta.user.domain.RepositoryException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.fail
 import org.junit.Test
 
 class FirestoreShiftDataDecodingTest {
+    @Test
+    fun `installed shift reader stays on the public flat collection`() {
+        val firestorePath = ReguertaFirestorePath(ReguertaFirestoreEnvironment.DEVELOP)
+        val readerPath = publicShiftsCollectionPath(firestorePath)
+        val candidatePath = firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFT_PLANNING_CANDIDATES)
+
+        assertEquals("develop/plus-collections/shifts", readerPath)
+        assertNotEquals(candidatePath, readerPath)
+    }
+
     @Test
     fun `successful empty queries remain empty`() {
         assertEquals(emptyList<Any>(), decodeShiftDocuments(emptyList()))

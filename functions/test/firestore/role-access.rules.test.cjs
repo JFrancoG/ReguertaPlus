@@ -1390,6 +1390,32 @@ test("admins can create only exact planning preview and stage requests", async (
   }
 });
 
+test("members see public shifts but never staged candidates", async () => {
+  for (const env of envs) {
+    const shiftPath = docPath(env, "shifts", "shift-public-2026");
+    const candidatePath = docPath(
+      env,
+      "shiftPlanningCandidates",
+      "bundle-private-2026",
+    );
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const database = context.firestore();
+      await database.doc(shiftPath).set({status: "planned"});
+      await database.doc(candidatePath).set({status: "staged"});
+    });
+    const memberDb = contextFor(actors.member).firestore();
+
+    const publicShifts = await assertSucceeds(
+      memberDb.collection(collectionPath(env, "shifts")).get(),
+    );
+    assert.equal(publicShifts.docs.map(({id}) => id).includes("shift-public-2026"), true);
+    await assertFails(memberDb.doc(candidatePath).get());
+    await assertFails(
+      memberDb.collection(collectionPath(env, "shiftPlanningCandidates")).get(),
+    );
+  }
+});
+
 test("only admins read staged candidates and no client mutates them", async () => {
   for (const env of envs) {
     const path = docPath(env, "shiftPlanningCandidates", "bundle-2026");

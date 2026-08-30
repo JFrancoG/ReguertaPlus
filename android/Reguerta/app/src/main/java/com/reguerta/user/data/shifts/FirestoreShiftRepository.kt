@@ -24,7 +24,7 @@ class FirestoreShiftRepository(
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 
     private val shiftsCollectionPath: String
-        get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFTS)
+        get() = publicShiftsCollectionPath(firestorePath)
 
     override suspend fun getAllShifts(): List<ShiftAssignment> = withContext(Dispatchers.IO) {
         try {
@@ -42,6 +42,9 @@ class FirestoreShiftRepository(
     }
 
 }
+
+internal fun publicShiftsCollectionPath(firestorePath: ReguertaFirestorePath): String =
+    firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFTS)
 
 internal fun decodeShiftDocuments(
     documents: List<Pair<String, Map<String, Any?>>>,
