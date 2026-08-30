@@ -704,7 +704,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   and the applicable sealed-and-communicated `planningDigest`, or supersedes,
   reapproves, reseals, and recommunicates the complete two-type baseline before
   activation.
-- [ ] The request accepts only the first incomplete planning-frontier season or
+- [x] The request accepts only the first incomplete planning-frontier season or
   exact replay independently for each typed subplan; partial overflow is merged,
   fully prefilled seasons advance that type's frontier, and any invalid subplan
   prevents the entire bundle from activating or drifting either cursor.
@@ -715,7 +715,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 - [ ] Stage is admin-readable but invisible to normal member queries, Sheets,
   active cursor/cohort state, and notification consumers; Android/iOS admin
   inspection renders the exact revision without leaking it to member feeds.
-- [ ] Drift in any digested fairness input, including roster, rotation/config/
+- [x] Drift in any digested fairness input, including roster, rotation/config/
   override versions and the enabled credit-ledger version, invalidates stage;
   activate rechecks all versions and commits any credit transitions atomically.
 - [ ] Activate accepts only the exact staged two-type bundle revision/digest and
@@ -734,7 +734,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 - [ ] Workbook/partition epoch and lease tests serialize activation versus recovery,
   reject stale retries before every batch, and block recovery when an external call
   cannot be proved drained/read back.
-- [ ] A live eligibility change after cohort freeze fails activation with no
+- [x] A live eligibility change after cohort freeze fails activation with no
   mutation until HU-084 or an approved migration resolves it.
 - [ ] Planner output uses `source = app` plus separate planner provenance and is
   decoded by the existing canonical mobile contract.

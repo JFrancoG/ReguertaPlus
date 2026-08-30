@@ -1139,7 +1139,14 @@ occurred. Protected technical evidence remains outside the repository.
 - [x] Prove safe resume retains the release lease, partial release blocks a
   superseding revision, terminal reconciliation clears it, and candidate lineage
   cannot mix migration baselines.
-- [ ] Prove membership mismatch and invalid planning frontier fail atomically.
+- [x] Prove membership mismatch and invalid planning frontier fail atomically.
+  - [x] A post-stage active-membership change terminalizes activation as
+    `fairness_input_drift`; replay is stable and the public shifts, maintenance
+    authority and both rotation documents remain byte-for-byte unchanged.
+  - [x] A preview targeting a season other than either type's independent first
+    incomplete frontier terminalizes as `invalid_planning_frontier`; replay
+    creates no candidate, bundle, sync command, notification intent or public
+    shift and advances neither rotation.
 - [ ] Record the handoff contract for HU-083; do not activate Firestore/app production.
   The separately authorized consultation-workbook publication remains communication
   evidence, not HU-083 sync or HU-085 activation evidence.

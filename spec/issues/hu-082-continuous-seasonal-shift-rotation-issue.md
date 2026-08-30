@@ -1603,6 +1603,25 @@ vectors pass. HU-083 still owns durable Firestore persistence, real trigger/aler
 wiring and cleanup execution. No shared Firebase, Sheets, notification, deployment,
 or production data changed.
 
+## Local implementation checkpoint — atomic planning rejection (2026-08-30)
+
+The governed Firestore-emulator chain now proves both remaining planning rejection
+boundaries against real persistence. A post-stage active-membership change reaches
+the activation CAS as `fairness_input_drift`; its deterministic terminal replay
+publishes no shift and leaves maintenance plus both rotation documents exactly as
+they were before the attempt.
+
+An independent preview request that targets market season 2027 while the authoritative
+market frontier is 2026 terminalizes as `invalid_planning_frontier`. Its replay keeps
+the same failure and creates no candidate, immutable bundle, sync command, held
+notification intent or public shift. The request/operation failure ledger is the only
+persisted effect, so neither type can advance from a partially valid two-type request.
+
+Functions build and the focused 5/5 governed source-producer emulator lane pass. This
+closes the final explicitly open functional acceptance cut in the HU-082 execution
+checklist. No shared Firebase, workbook, notification, deployment, or production data
+changed.
+
 ## Suggested labels
 
 - `type:feature`

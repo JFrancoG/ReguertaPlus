@@ -915,6 +915,104 @@ emulatorTest("invalid source drift preserves the last valid envelope", async () 
 });
 
 emulatorTest(
+  "rejects an invalid planning frontier without public state mutation",
+  async () => {
+    const database = new Firestore({projectId});
+    await clear(database);
+    await seed(database);
+    await refreshShiftPlanningLiveSource({
+      firestore: database,
+      environment,
+    });
+    const initialPublicState = await Promise.all([
+      database.doc(`${root}/shiftPlanningState/current`).get(),
+      database.doc(`${root}/shiftRotations/delivery`).get(),
+      database.doc(`${root}/shiftRotations/market`).get(),
+    ]);
+    const request = {
+      ...planningRequest({
+        requestId: "source-runtime-invalid-frontier",
+        bundleId: "source-runtime-invalid-frontier-bundle",
+        mode: "preview",
+        binding: null,
+      }),
+      subplans: {
+        delivery: {targetSeasonStartYear: 2026},
+        market: {targetSeasonStartYear: 2027},
+      },
+    };
+    await database.doc(
+      `${root}/shiftPlanningRequests/${request.requestId}`,
+    ).create(request);
+
+    const runtime = createFirestoreShiftPlanningRuntime(database);
+    const rejected = await runtime.executeRequest({
+      environment,
+      requestId: request.requestId,
+      request,
+      workerId: "source-runtime-invalid-frontier-worker",
+    });
+    assert.equal(rejected.kind, "lifecycle");
+    assert.equal(rejected.result.kind, "failed");
+    assert.equal(
+      rejected.result.summary.failure.code,
+      "invalid_planning_frontier",
+    );
+    assert.equal(rejected.result.persistenceResult, "committed");
+
+    const replay = await runtime.executeRequest({
+      environment,
+      requestId: request.requestId,
+      request,
+      workerId: "source-runtime-invalid-frontier-replay-worker",
+    });
+    assert.equal(replay.kind, "lifecycle");
+    assert.equal(replay.result.kind, "terminalReplay");
+    assert.equal(replay.result.summary.status, "failed");
+    assert.equal(
+      replay.result.summary.failure.code,
+      "invalid_planning_frontier",
+    );
+
+    const [
+      currentPublicState,
+      shifts,
+      candidates,
+      bundles,
+      syncCommands,
+      notificationIntents,
+    ] = await Promise.all([
+      Promise.all([
+        database.doc(`${root}/shiftPlanningState/current`).get(),
+        database.doc(`${root}/shiftRotations/delivery`).get(),
+        database.doc(`${root}/shiftRotations/market`).get(),
+      ]),
+      database.collection(`${root}/shifts`).get(),
+      database.collection(`${root}/shiftPlanningCandidates`).get(),
+      database.collection(`${root}/shiftPlanningBundles`).get(),
+      database.collection(`${root}/shiftPlanningSyncCommands`).get(),
+      database.collection(`${root}/shiftPlanningNotificationIntents`).get(),
+    ]);
+    assert.deepEqual(
+      currentPublicState.map((snapshot) => snapshot.data()),
+      initialPublicState.map((snapshot) => snapshot.data()),
+    );
+    for (const snapshot of [
+      shifts,
+      candidates,
+      bundles,
+      syncCommands,
+      notificationIntents,
+    ]) {
+      assert.equal(snapshot.size, 0);
+    }
+
+    await clear(database);
+    await database.terminate();
+  },
+);
+
+emulatorTest(
   "rejects fairness drift before governed activation and recovery",
   async () => {
     const database = new Firestore({projectId});
@@ -962,6 +1060,11 @@ emulatorTest(
     const policyReference = database.doc(
       `${root}/shiftPlanningState/sourcePolicy`,
     );
+    const initialPublicState = await Promise.all([
+      database.doc(`${root}/shiftPlanningState/current`).get(),
+      database.doc(`${root}/shiftRotations/delivery`).get(),
+      database.doc(`${root}/shiftRotations/market`).get(),
+    ]);
     const driftCases = [
       {
         name: "destination",
@@ -1076,6 +1179,16 @@ emulatorTest(
         (await database.doc(`${root}/shiftPlanningState/current`).get())
           .get("activeRevision"),
         null,
+        driftCase.name,
+      );
+      const currentPublicState = await Promise.all([
+        database.doc(`${root}/shiftPlanningState/current`).get(),
+        database.doc(`${root}/shiftRotations/delivery`).get(),
+        database.doc(`${root}/shiftRotations/market`).get(),
+      ]);
+      assert.deepEqual(
+        currentPublicState.map((snapshot) => snapshot.data()),
+        initialPublicState.map((snapshot) => snapshot.data()),
         driftCase.name,
       );
       await driftCase.restore();
