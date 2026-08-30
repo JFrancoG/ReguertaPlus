@@ -845,6 +845,78 @@ su propia autorizacion.
 versiones anonima y `config/member` solo los valores operativos seguros. Ningun
 backfill de esta HU modifica el contrato del arbol legacy `collections`.
 
+## 📦 Migracion controlada de pedidos HU-086
+
+`migrate:legacy-orders` sustituye el volcado desde la app publicada por una
+operacion puntual con Admin SDK. No requiere abrir Rules ni desplegar Functions.
+El origen esta cerrado en el propio script:
+
+- `production/collections/orders`;
+- `production/collections/orderLines`;
+- `production/plus-collections/products` para resolver snapshots.
+
+Solo acepta una semana por ejecucion, elegida entre `2026-W28` y `2026-W34`,
+ambas inclusive, y un unico destino. El comando live tambien exige exactamente el proyecto
+`reguerta-9f27f`, incorpora ese ID al digest y rechaza un
+`FIRESTORE_EMULATOR_HOST` heredado. El dry-run de develop es:
+
+```bash
+npm run migrate:legacy-orders -- \
+  --project reguerta-9f27f \
+  --target-env develop \
+  --week 2026-W28
+```
+
+La salida no contiene payloads ni IDs: muestra los conteos de esa semana,
+bloqueos y
+los digests SHA-256 de fuente, proyeccion y plan. Cualquier documento malformed,
+linea huerfana, duplicado `userId + weekKey` con alguna linea, producto ausente
+o documento destino divergente bloquea el apply completo. Los destinos identicos son no-op;
+solo se crean documentos ausentes y nunca se hace merge, update ni delete.
+El legacy es la entrada de esta proyeccion, no un espejo exclusivo: pedidos
+nativos de Reguerta+ bien formados y sin colision de ID, socio/semana u
+`orderId` pueden coexistir. El read-back verifica la proyeccion seleccionada,
+no la igualdad total del namespace destino.
+
+Como en el migrador publicado, el catalogo production es la autoridad de los
+snapshots de producto: `vendorId`, nombre, `priceAtOrder`, pricing, pack y unidad.
+`priceAtOrder` conserva el redondeo a centimos del migrador publicado; el
+subtotal legacy no se recalcula desde ese snapshot.
+La imagen puede usar el fallback legacy cuando el catalogo no la contiene; el
+sentinel historico de string vacio se normaliza a `null`. A
+diferencia del helper antiguo, esta herramienta no inventa vendors, nombres,
+precios ni unidades. Los campos de pack opcionales se omiten cuando el catalogo
+no los define; la ausencia o invalidez de un campo obligatorio bloquea el plan.
+Los documentos `orders` sin ninguna linea vinculada se registran y omiten como
+carritos vacios creados al entrar en el flujo legacy; no se convierten en
+pedidos historicos `confirmed` con total cero. Si existen lineas vinculadas pero
+son invalidas o incompatibles, el plan sigue bloqueando. Los carritos omitidos
+forman parte de los digests mediante un manifiesto interno que no se muestra en
+la salida y conservan las comprobaciones de colision por ID, socio/semana y
+`orderId`; antes de aplicar, una transaccion verifica que sigan vacios y sin
+destino concurrente. Si el helper legacy creo varios carritos vacios para el
+mismo socio y semana, se omiten todos solo cuando ninguno tiene lineas; la
+transaccion exige que la pertenencia completa del grupo siga siendo identica.
+
+Tras revisar el dry-run y recibir autorizacion explicita, se repite el mismo
+comando con:
+
+```text
+--apply --expected-plan-digest DIGEST_SHA256_REVISADO
+```
+
+El script recalcula el plan, exige el mismo digest, protege cada grupo de pedido
+en una transaccion. Dentro de ella vuelve a consultar la pertenencia completa de
+lineas por `orderId` y de pedidos por socio/semana para detectar inserciones de
+writers activos, ademas de comprobar versiones con precision de nanosegundos.
+Despues relee Firestore: el read-back debe devolver cero escrituras pendientes y
+los mismos digests de fuente y proyeccion. Si falla un grupo, los anteriores
+pueden haber quedado creados; se informa el numero agregado de escrituras y el
+siguiente paso siempre es un dry-run nuevo, nunca un merge o borrado automatico.
+Primero se completa y verifica `develop`; `production` requiere un dry-run nuevo,
+su propio digest y una autorizacion de escritura separada. La autorizacion de un
+paso no habilita el siguiente.
+
 ## 🛡️ Secuencia de rollout sin interrupcion
 
 0. **Baseline restaurado.** Se restauraron las Rules previas tras detectar los

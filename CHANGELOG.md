@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - 2026-08-30 | 📝 docs(shifts): freeze HU-083 handoff
 - 2026-08-29 | 📝 docs(shifts): reconcile recovery CAS evidence
 - 2026-08-24 | 📝 docs(shifts): define seasonal rotation rollout
+- 2026-08-28 | 📝 docs(hu-086): record delivery closeout
 - 2026-08-23 | 📝 docs(ios): prepare HU-081 closeout
 - 2026-08-23 | 📝 docs(ios): record HU-081 swap checkpoint
 - 2026-08-23 | 📝 docs(ios): start HU-081 swap ownership
@@ -98,6 +99,7 @@ All notable changes to this project will be documented in this file.
 - 2026-08-24 | ✨ feat(shifts): persist seasonal planning workflow
 - 2026-08-24 | ✨ feat(shifts): add seasonal planning bundle
 - 2026-08-24 | ✨ feat(shifts): add deterministic rotation planners
+- 2026-08-28 | ✨ feat(orders): add guarded weekly migration
 - 2026-07-29 | ✨ feat(order): refresh critical data before entry
 - 2026-07-27 | ✨ feat(ios): adopt linked authorization
 - 2026-07-27 | ✨ feat(android): adopt linked authorization
@@ -306,6 +308,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-08-30 | 🔧 chore(shifts): integrate main into HU-082
 - 2026-08-29 | 📦 build(android): update Navigation and Coil
 - 2026-08-26 | 📦 build(android): update AGP to 9.3.2
 - 2026-08-20 | 📦 build(android): update Firebase tooling
