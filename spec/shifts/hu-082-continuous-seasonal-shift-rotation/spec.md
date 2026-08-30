@@ -721,7 +721,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 - [ ] Activate accepts only the exact staged two-type bundle revision/digest and
   atomically makes both types active or neither before any held notification is
   released.
-- [ ] The initial flat-collection promotion fits one measured Firestore
+- [x] The initial flat-collection promotion fits one measured Firestore
   transaction for the combined delivery-plus-market manifest, and supported
   clients see either the prior or activated bundle, never one updated type or a
   partial projection; oversize manifests fail closed pending client migration.

@@ -266,6 +266,79 @@ test("resets and remeasures the actual batch for every SDK retry", async () => {
   await database.terminate();
 });
 
+test("write-budget overflow commits no public or state write", async () => {
+  const database = firestore();
+  const stateReference = database.doc("oversizeState/write-budget");
+  const shiftReference = database.doc(
+    "develop/plus-collections/shifts/shift-oversize-write",
+  );
+  await stateReference.set({revision: 1});
+  const committedRequests = captureTransactionCommits(database);
+
+  await assert.rejects(
+    database.runTransaction(async (transaction) => {
+      const state = await transaction.get(stateReference);
+      const mutations = [{
+        kind: "update",
+        documentPath: stateReference.path,
+        data: {revision: state.get("revision") + 1},
+      }, {
+        kind: "create",
+        documentPath: shiftReference.path,
+        data: {ownerUserId: "member-oversize"},
+      }];
+      return measureAndSealShiftPlanningFirestoreTransactionAttempt({
+        ...measurementInput({database, transaction, mutations}),
+        writeLimit: 1,
+      });
+    }, {maxAttempts: 1}),
+    (error) => error.code === "planning_bundle_oversize",
+  );
+
+  assert.equal(committedRequests.length, 0);
+  assert.equal((await stateReference.get()).get("revision"), 1);
+  assert.equal((await shiftReference.get()).exists, false);
+  await database.terminate();
+});
+
+test("byte-budget overflow commits no public or state write", async () => {
+  const database = firestore();
+  const stateReference = database.doc("oversizeState/byte-budget");
+  const shiftReference = database.doc(
+    "develop/plus-collections/shifts/shift-oversize-bytes",
+  );
+  await stateReference.set({revision: 1});
+  const committedRequests = captureTransactionCommits(database);
+
+  await assert.rejects(
+    database.runTransaction(async (transaction) => {
+      const state = await transaction.get(stateReference);
+      const mutations = [{
+        kind: "update",
+        documentPath: stateReference.path,
+        data: {revision: state.get("revision") + 1},
+      }, {
+        kind: "create",
+        documentPath: shiftReference.path,
+        data: {
+          ownerUserId: "member-oversize",
+          notes: "x".repeat(1_024),
+        },
+      }];
+      return measureAndSealShiftPlanningFirestoreTransactionAttempt({
+        ...measurementInput({database, transaction, mutations}),
+        byteLimit: 128,
+      });
+    }, {maxAttempts: 1}),
+    (error) => error.code === "planning_bundle_oversize",
+  );
+
+  assert.equal(committedRequests.length, 0);
+  assert.equal((await stateReference.get()).get("revision"), 1);
+  assert.equal((await shiftReference.get()).exists, false);
+  await database.terminate();
+});
+
 test("active public-shift fence rejects the complete measured attempt", async () => {
   const database = firestore();
   const shiftId = "shift-fenced-active";

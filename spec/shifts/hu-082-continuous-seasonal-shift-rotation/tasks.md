@@ -400,7 +400,7 @@ occurred. Protected technical evidence remains outside the repository.
     without adding candidate rows to normal member feeds. Only the admin who owns
     a completed preview may submit a new stage request, and it preserves the exact
     source request, bundle revision, and bundle digest.
-- [ ] Inventory current flat `shifts` readers and implement one measured atomic
+- [x] Inventory current flat `shifts` readers and implement one measured atomic
   public promotion transaction for the combined delivery/market projection, both
   rotation/cursors, active bundle metadata, digest-bound sync commands, and held
   intents. Measure forward and inverse serialized requests with the real adapter;
@@ -1103,7 +1103,7 @@ occurred. Protected technical evidence remains outside the repository.
     newly enabled credit policy all terminalize as `fairness_input_drift`, replay
     exactly, retain the prior cached source, publish no shift and leave the active
     revision null. Auth-only member metadata remains outside the fairness digest.
-- [ ] Prove current supported flat readers never see candidate or partial data,
+- [x] Prove current supported flat readers never see candidate or partial data,
   and transaction-budget overflow makes no public write and blocks rollout for a
   mobile active-revision migration.
   - [x] Android and iOS production shift readers derive only the exact flat
@@ -1112,8 +1112,11 @@ occurred. Protected technical evidence remains outside the repository.
     document and collection; the governed emulator chain keeps the flat feed
     empty through preview and stage, then publishes the complete bundle on
     activation.
-  - [ ] Prove transaction-budget overflow makes no public write and blocks rollout
-    until the mobile active-revision migration is available.
+  - [x] Real Firestore transaction attempts that exceed either the write/transform
+    gate or serialized-byte gate emit no CommitRequest, preserve the prior state,
+    create no public shift, and return `planning_bundle_oversize`. Because supported
+    clients remain on the flat reader, that failure admits no multi-batch fallback
+    and blocks rollout until a mobile active-revision migration is available.
 - [ ] Prove exact activation/repair/recovery Sheets-sync command and event vectors
   with an idempotent fake consumer; require HU-083 to prove the real adapter drains
   them without duplicate export/notification.

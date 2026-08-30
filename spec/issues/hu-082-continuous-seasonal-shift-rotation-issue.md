@@ -1545,6 +1545,25 @@ transaction-budget overflow and mobile active-revision rollout block remain open
 the next cut. No shared Firebase, workbook, mobile release, deployment, or production
 data changed.
 
+## Local implementation checkpoint — oversize rollout block (2026-08-30)
+
+The real Firestore transaction-attempt emulator now exercises both independent
+promotion limits. One attempt exceeds the combined write/transform allowance and
+another exceeds the serialized `CommitRequest` byte allowance. Both return the typed
+`planning_bundle_oversize` failure before transport: the captured transaction request
+count remains zero, the prior state revision is unchanged, and the public shift does
+not exist.
+
+Together with the installed-reader evidence, this closes the compatibility gate for
+the initial flat collection. A bundle that cannot fit one measured transaction has
+no visible multi-batch fallback and therefore cannot roll out while supported Android
+and iOS clients still read the unversioned public feed. An active-revision mobile
+reader remains a future migration, not an HU-082 implementation requirement.
+
+Functions lint/build, the full non-emulator HU-082 lane and the focused 9/9 real-
+transaction emulator lane pass. No shared Firebase, workbook, mobile release,
+deployment, or production data changed.
+
 ## Suggested labels
 
 - `type:feature`
