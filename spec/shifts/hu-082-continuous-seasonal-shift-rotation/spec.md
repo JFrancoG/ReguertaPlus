@@ -861,4 +861,4 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   separately authorized consultation-workbook publication passed live read-back while
   Firestore public shifts remained empty.
 - [x] Android/iOS parity is complete; no HU-082 mobile parity gap remains.
-- [ ] Issue, implementation branch, commits, and PR are linked.
+- [x] Issue #266, the implementation branch, focused commits, and PR #275 are linked.

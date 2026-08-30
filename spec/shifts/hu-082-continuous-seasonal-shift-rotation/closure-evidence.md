@@ -2,9 +2,9 @@
 
 ## Status
 
-HU-082 implementation is complete locally on
-`codex/hu-082-continuous-seasonal-shift-rotation`. The final delivery commit,
-pull request, and issue closure remain separate maintainer-authorized steps.
+HU-082 implementation is complete on
+`codex/hu-082-continuous-seasonal-shift-rotation`. Commit `216dc5f` records the
+closure evidence and PR #275 is the authorized delivery vehicle for issue #266.
 
 No shared Firebase project, production Firestore state, production Functions or
 Rules, runtime IAM binding, or app-visible production shift feed was changed by
@@ -59,9 +59,9 @@ HU-085 must activate the already communicated `planningDigest` exactly or record
 the complete supersession, reapproval, resealing, recommunication, and registry
 CAS evidence before activation.
 
-## Delivery remainder
+## Delivery handoff
 
-- Create the final focused commit for this closure cut and push it.
-- Open and link the pull request to issue #266.
-- Reconcile the live issue delivery-gate checkboxes with this evidence and close
-  the issue only after the repository delivery workflow authorizes it.
+At review time, PR #275 remained to be checked, merged, and verified before
+closing issue #266 and deleting the merged implementation branch. Those live
+GitHub results are verified in the delivery workflow rather than predicted by
+this pre-merge evidence snapshot.

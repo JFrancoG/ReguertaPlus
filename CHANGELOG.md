@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-30 | 📝 docs(shifts): link HU-082 delivery
 - 2026-08-30 | 📝 docs(shifts): close HU-082 implementation
 - 2026-08-30 | 📝 docs(shifts): freeze HU-083 handoff
 - 2026-08-29 | 📝 docs(shifts): reconcile recovery CAS evidence

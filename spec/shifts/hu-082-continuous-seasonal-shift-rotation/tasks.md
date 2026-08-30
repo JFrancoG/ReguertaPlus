@@ -1166,7 +1166,7 @@ occurred. Protected technical evidence remains outside the repository.
 - [x] Update the local spec/DoD, prepare the live issue checklist reconciliation,
   and record implementation evidence in `closure-evidence.md`.
 - [x] Document parity status and downstream residual ownership explicitly.
-- [ ] Link focused commits and PR to issue #266.
+- [x] Link focused commits and PR #275 to issue #266.
 - [x] Keep HU-083, HU-084, and HU-085 blockers/status synchronized without
   closing them implicitly.
 - [x] Confirm the HU-085 handoff requires respecting the communicated `planningDigest` or links the full
