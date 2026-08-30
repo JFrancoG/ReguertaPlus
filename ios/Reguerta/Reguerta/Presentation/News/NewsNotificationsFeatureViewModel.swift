@@ -13,6 +13,7 @@ final class NewsNotificationsFeatureViewModel {
     @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let newsRepository: any NewsRepository
     @ObservationIgnored let notificationRepository: any NotificationRepository
+    @ObservationIgnored let shiftNotificationDetailRepository: any ShiftNotificationDetailRepository
     @ObservationIgnored let pushNotificationPermissionProvider: any PushNotificationPermissionProvider
     @ObservationIgnored let imagePipelineManager: any ImagePipelineManager
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
@@ -28,6 +29,8 @@ final class NewsNotificationsFeatureViewModel {
     var newsDraft = NewsDraft()
     var notificationDraft = NotificationDraft()
     var notificationsFeed: [NotificationEvent] = []
+    var notificationShiftDetail: ShiftNotificationDetail?
+    var loadingNotificationDetailEventID: String?
     var readNotificationIds: Set<String> = []
     @ObservationIgnored var pendingConfirmedNotifications: [String: NotificationEvent] = [:]
     @ObservationIgnored var pendingConfirmedReadNotificationIds: Set<String> = []
@@ -55,6 +58,8 @@ final class NewsNotificationsFeatureViewModel {
     @ObservationIgnored var nextNotificationsRefreshOperationId: UInt64 = 0
     @ObservationIgnored var activeNotificationsRouteOperationId: UInt64?
     @ObservationIgnored var nextNotificationsRouteOperationId: UInt64 = 0
+    @ObservationIgnored var activeNotificationDetailOperationId: UInt64?
+    @ObservationIgnored var nextNotificationDetailOperationId: UInt64 = 0
     @ObservationIgnored var activePermissionRefreshOperationId: UInt64?
     @ObservationIgnored var nextPermissionRefreshOperationId: UInt64 = 0
     @ObservationIgnored var activeMarkReadOperationId: UInt64?
@@ -100,6 +105,8 @@ final class NewsNotificationsFeatureViewModel {
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         newsRepository: any NewsRepository,
         notificationRepository: any NotificationRepository,
+        shiftNotificationDetailRepository: any ShiftNotificationDetailRepository =
+            UnavailableShiftNotificationDetailRepository(),
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor () -> Int64,
         environmentProvider: @escaping @MainActor () -> SessionEnvironment = { .develop },
@@ -111,6 +118,7 @@ final class NewsNotificationsFeatureViewModel {
             feedbackCenter: feedbackCenter,
             newsRepository: newsRepository,
             notificationRepository: notificationRepository,
+            shiftNotificationDetailRepository: shiftNotificationDetailRepository,
             pushNotificationPermissionProvider: FixedPushNotificationPermissionProvider(isActive: true),
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider,
@@ -125,6 +133,8 @@ final class NewsNotificationsFeatureViewModel {
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         newsRepository: any NewsRepository,
         notificationRepository: any NotificationRepository,
+        shiftNotificationDetailRepository: any ShiftNotificationDetailRepository =
+            UnavailableShiftNotificationDetailRepository(),
         pushNotificationPermissionProvider: any PushNotificationPermissionProvider,
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor () -> Int64,
@@ -136,6 +146,7 @@ final class NewsNotificationsFeatureViewModel {
         self.feedbackCenter = feedbackCenter
         self.newsRepository = newsRepository
         self.notificationRepository = notificationRepository
+        self.shiftNotificationDetailRepository = shiftNotificationDetailRepository
         self.pushNotificationPermissionProvider = pushNotificationPermissionProvider
         self.imagePipelineManager = imagePipelineManager
         self.nowMillisProvider = nowMillisProvider

@@ -16,10 +16,10 @@ import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Date
 
-class FirestoreDeliveryCalendarRepository(
+internal class FirestoreDeliveryCalendarRepository(
     private val firestore: FirebaseFirestore,
+    private val mutationClient: FirebaseDeliveryCalendarMutationClient,
     private val environment: ReguertaFirestoreEnvironment? = null,
 ) : DeliveryCalendarRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
@@ -67,36 +67,11 @@ class FirestoreDeliveryCalendarRepository(
         }
     }
 
-    override suspend fun upsertOverride(override: DeliveryCalendarOverride): DeliveryCalendarOverride = withContext(Dispatchers.IO) {
-        val payload = mapOf(
-            "weekKey" to override.weekKey,
-            "deliveryDate" to Timestamp(Date(override.deliveryDateMillis)),
-            "ordersBlockedDate" to Timestamp(Date(override.ordersBlockedDateMillis)),
-            "ordersOpenAt" to Timestamp(Date(override.ordersOpenAtMillis)),
-            "ordersCloseAt" to Timestamp(Date(override.ordersCloseAtMillis)),
-            "updatedBy" to override.updatedBy,
-            "updatedAt" to Timestamp(Date(override.updatedAtMillis)),
-        )
-        try {
-            Tasks.await(
-                firestore.document("$calendarCollectionPath/${override.weekKey}").set(payload),
-            )
-            override
-        } catch (error: Exception) {
-            throw error.toRepositoryException(resource = "deliveryCalendar.write")
-        }
-    }
+    override suspend fun upsertOverride(override: DeliveryCalendarOverride): DeliveryCalendarOverride =
+        mutationClient.upsert(override)
 
     override suspend fun deleteOverride(weekKey: String) {
-        withContext(Dispatchers.IO) {
-            try {
-                Tasks.await(
-                    firestore.document("$calendarCollectionPath/$weekKey").delete(),
-                )
-            } catch (error: Exception) {
-                throw error.toRepositoryException(resource = "deliveryCalendar.write")
-            }
-        }
+        mutationClient.delete(weekKey)
     }
 }
 

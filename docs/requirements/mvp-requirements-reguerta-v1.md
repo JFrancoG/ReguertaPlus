@@ -120,11 +120,11 @@ Out of MVP (later phase):
 
 - RF-TURN-01 Provide global shifts screen (delivery + market).
 - RF-TURN-02 Show each member's next delivery and market shifts in a visible area.
-- RF-TURN-03 Shift planning uses only active members.
-- RF-TURN-04 New/reactivated members are appended at rotation end.
+- RF-TURN-03 Shift planning uses active members who are not real producers. Active common purchase managers represented as producers for `Compras Regüerta` remain eligible.
+- RF-TURN-04 Each shift type keeps one continuous rotation across seasonal projections. Roster changes never reorder a frozen/public round; until the assembly ratifies the reserve, entry, departure, and reactivation policy, any post-freeze eligibility drift blocks a new activation without changing published assignments.
 - RF-TURN-05 Provide swap request/accept/final confirm flow.
 - RF-TURN-06 Notify all members when a swap becomes effective.
-- RF-TURN-07 Market shift must have at least 3 assigned members; fallback from next in rotation.
+- RF-TURN-07 Every market date has exactly 3 distinct eligible assignees. Its 30 target-season positions consume the continuous market rotation and materialize the remainder of the boundary-active round in later projections; fewer than 3 eligible members fails closed.
 
 Governance note: final policy for post-publication absence replacement remains an assembly decision.
 
@@ -151,8 +151,8 @@ Governance note: final policy for post-publication absence replacement remains a
   - on iOS, only an unavailable model results in PDF-only consultation; an unrelated question, insufficient evidence, or generation failure publishes no answer and shows contextual guidance while PDF access remains available; Android develop retains its existing fallback pending parity,
   - no question, excerpt, or answer is sent to a cloud inference service,
   - Android on-device generation remains develop-only while the prerelease provider API and audience terms prevent production use.
-- RF-IA-02 Shifts can be integrated with Google Sheets (read/write).
-- RF-IA-03 MVP operational traceability for shift changes relies on global notifications.
+- RF-IA-02 Firestore is authoritative for shifts and rotation state. One stable workbook per environment exposes governed read/write seasonal projections, but Sheets never owns the cohort, round, cursor, or rotation owner.
+- RF-IA-03 Shift publication notifications are released only after governed activation and read-back. Canonical event/inbox records are idempotent generic references without member, date, or assignment detail; FCM remains at least once and may present duplicates.
 
 ### 3.11 App startup and synchronization
 

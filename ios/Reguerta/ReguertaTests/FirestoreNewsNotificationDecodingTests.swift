@@ -201,6 +201,38 @@ struct FirestoreNewsNotificationDecodingTests {
         expectInvalidNotification(extraSegment)
     }
 
+    @Test("Versioned planning notification requires generic copy and an authorized detail fetch")
+    func planningNotificationRequiresGenericCopy() throws {
+        let exact = validPlanningNotificationData()
+        let event = try FirestoreNotificationRepository.notificationEvent(
+            documentID: "planning-event",
+            data: exact,
+            source: .events
+        )
+
+        #expect(event.contentPolicy == .authorizedFetchRequired)
+
+        var richCopy = exact
+        richCopy["body"] = "Ana reparte el 2 de septiembre"
+        expectInvalidNotification(richCopy, documentID: "planning-event")
+
+        var partialMarker = exact
+        partialMarker.removeValue(forKey: "contentPolicy")
+        expectInvalidNotification(partialMarker, documentID: "planning-event")
+
+        var legacy = validNotificationData()
+        legacy["type"] = "shift_updated"
+        legacy["target"] = "users"
+        legacy["targetPayload"] = ["userIds": ["member-1"]]
+        #expect(
+            try FirestoreNotificationRepository.notificationEvent(
+                documentID: "legacy-shift-event",
+                data: legacy,
+                source: .events
+            ).contentPolicy == .embedded
+        )
+    }
+
     @Test("Notification week key accepts only absence, null or a non-empty String")
     func notificationValidatesOptionalWeekKey() throws {
         var missing = validNotificationData()
@@ -290,6 +322,22 @@ struct FirestoreNewsNotificationDecodingTests {
             "targetPayload": [String: Any](),
             "sentAt": Timestamp(date: Date(timeIntervalSince1970: 456)),
             "createdBy": " system ",
+            "weekKey": NSNull()
+        ]
+    }
+
+    private func validPlanningNotificationData() -> [String: Any] {
+        [
+            "schemaVersion": 1,
+            "operationKind": "shiftPlanningNotification",
+            "contentPolicy": "genericReferenceOnly",
+            "title": "Turnos actualizados",
+            "body": "Consulta la aplicación para ver la información actualizada.",
+            "type": "shift_updated",
+            "target": "users",
+            "targetPayload": ["userIds": ["member-1"]],
+            "sentAt": Timestamp(date: Date(timeIntervalSince1970: 456)),
+            "createdBy": "system",
             "weekKey": NSNull()
         ]
     }

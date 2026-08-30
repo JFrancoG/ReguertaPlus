@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-30 | 📝 docs(shifts): link HU-082 delivery
+- 2026-08-30 | 📝 docs(shifts): close HU-082 implementation
+- 2026-08-30 | 📝 docs(shifts): freeze HU-083 handoff
+- 2026-08-29 | 📝 docs(shifts): reconcile recovery CAS evidence
+- 2026-08-24 | 📝 docs(shifts): define seasonal rotation rollout
 - 2026-08-28 | 📝 docs(hu-086): record delivery closeout
 - 2026-08-23 | 📝 docs(ios): prepare HU-081 closeout
 - 2026-08-23 | 📝 docs(ios): record HU-081 swap checkpoint
@@ -31,6 +36,69 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-29 | ✨ feat(shifts): sanitize planning logs
+- 2026-08-29 | ✨ feat(shifts): stage completed previews
+- 2026-08-29 | ✨ feat(shifts): submit combined planning previews
+- 2026-08-29 | ✨ feat(shifts): expose planning request context
+- 2026-08-29 | ✨ feat(shifts): fence legacy shift trigger
+- 2026-08-29 | ✨ feat(shifts): fence bulk shift export
+- 2026-08-29 | ✨ feat(shifts): route calendar writes to command
+- 2026-08-29 | ✨ feat(shifts): add calendar mutation command
+- 2026-08-29 | ✨ feat(shifts): fence calendar trigger authority
+- 2026-08-29 | ✨ feat(shifts): fence legacy planner authority
+- 2026-08-29 | ✨ feat(shifts): fence Sheets import authority
+- 2026-08-29 | ✨ feat(shifts): fence swap planning authority
+- 2026-08-29 | ✨ feat(shifts): route notification push opens
+- 2026-08-29 | ✨ feat(shifts): open authorized notification detail
+- 2026-08-28 | ✨ feat(shifts): mark planning notifications generic
+- 2026-08-28 | ✨ feat(shifts): expose planning read-back
+- 2026-08-28 | ✨ feat(shifts): terminalize notification incidents
+
+- 2026-08-28 | ✨ feat(shifts): persist degraded incidents
+
+- 2026-08-28 | ✨ feat(shifts): enforce incident fences
+
+- 2026-08-28 | ✨ feat(shifts): model terminal incidents
+
+- 2026-08-28 | ✨ feat(shifts): persist batch reconciliation
+
+- 2026-08-28 | ✨ feat(shifts): reconcile notification batches
+- 2026-08-28 | ✨ feat(shifts): bind notification runtime
+- 2026-08-28 | ✨ feat(shifts): compose notification dispatch
+- 2026-08-28 | ✨ feat(shifts): reserve governed notifications
+- 2026-08-28 | ✨ feat(devices): defer blocked registration
+- 2026-08-28 | ✨ feat(shifts): fence legacy shift writers
+- 2026-08-28 | ✨ feat(shifts): fence v2 shift transactions
+- 2026-08-28 | ✨ feat(shifts): fence backend shift writers
+- 2026-08-28 | ✨ feat(shifts): fence notification-bound writers
+- 2026-08-28 | ✨ feat(shifts): bound notification transport attempts
+- 2026-08-28 | ✨ feat(shifts): persist notification dispatch attempts
+- 2026-08-28 | ✨ feat(shifts): release held notification effects
+- 2026-08-27 | ✨ feat(shifts): fence activation request lifecycle
+- 2026-08-27 | ✨ feat(shifts): retain public event evidence
+- 2026-08-27 | ✨ feat(shifts): classify controlled shift events
+- 2026-08-27 | ✨ feat(shifts): govern sync command retries
+- 2026-08-27 | ✨ feat(shifts): restrict recovery operator endpoint
+- 2026-08-26 | ✨ feat(shifts): authorize recovery execution
+- 2026-08-26 | ✨ feat(shifts): persist activation failures
+- 2026-08-26 | ✨ feat(shifts): route governed planning requests
+- 2026-08-26 | ✨ feat(shifts): recheck governed sources
+- 2026-08-26 | ✨ feat(shifts): produce governed sources
+- 2026-08-26 | ✨ feat(shifts): resolve planning CAS sources
+- 2026-08-26 | ✨ feat(shifts): execute planning CAS runtime
+- 2026-08-26 | ✨ feat(shifts): persist attempt outcomes
+- 2026-08-26 | ✨ feat(shifts): materialize inverse recoveries
+- 2026-08-26 | ✨ feat(shifts): materialize forward activations
+- 2026-08-25 | ✨ feat(shifts): add activation transaction contracts
+- 2026-08-25 | ✨ feat(shifts): add staged candidate positions
+- 2026-08-25 | ✨ feat(shifts): persist intake barrier evidence
+- 2026-08-25 | ✨ feat(shifts): add consultation baseline
+- 2026-08-24 | ✨ feat(shifts): enforce planning intake barrier
+- 2026-08-24 | ✨ feat(shifts): bind planning artifacts to state
+- 2026-08-24 | ✨ feat(shifts): orchestrate seasonal planning lifecycle
+- 2026-08-24 | ✨ feat(shifts): persist seasonal planning workflow
+- 2026-08-24 | ✨ feat(shifts): add seasonal planning bundle
+- 2026-08-24 | ✨ feat(shifts): add deterministic rotation planners
 - 2026-08-28 | ✨ feat(orders): add guarded weekly migration
 - 2026-07-29 | ✨ feat(order): refresh critical data before entry
 - 2026-07-27 | ✨ feat(ios): adopt linked authorization
@@ -88,6 +156,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-29 | 🐛 fix(shifts): require owned preview staging
+- 2026-08-29 | 🐛 fix(shifts): bind recovery replay identity
+- 2026-08-29 | 🐛 fix(shifts): deny client shift activation
+- 2026-08-29 | 🐛 fix(shifts): classify fairness input drift
+- 2026-08-29 | 🐛 fix(shifts): correct planning writer evidence
+- 2026-08-29 | 🐛 fix(shifts): block direct swap writes
+- 2026-08-29 | 🐛 fix(shifts): block direct shift writes
+- 2026-08-29 | 🐛 fix(shifts): block direct calendar writes
 - 2026-08-23 | 🐛 fix(ios): enforce Madrid delivery calendar
 - 2026-08-23 | 🐛 fix(ios): load member delivery calendar
 - 2026-08-21 | 🐛 fix(ios-ui): restore screen spacing and dialogs
@@ -178,6 +254,22 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-08-30 | ✅ test(shifts): prove atomic planning rejection
+- 2026-08-30 | ✅ test(shifts): prove rollback cleanup retention
+- 2026-08-30 | ✅ test(shifts): prove idempotent consumer handoff
+- 2026-08-30 | ✅ test(shifts): prove oversize rollout block
+- 2026-08-30 | ✅ test(shifts): prove public reader isolation
+- 2026-08-30 | ✅ test(shifts): prove dispatch crash recovery
+- 2026-08-30 | ✅ test(shifts): prove authenticated dispatch drift
+- 2026-08-30 | ✅ test(shifts): prove governed notification dispatch
+- 2026-08-29 | ✅ test(shifts): purge stale notification detail
+- 2026-08-29 | ✅ test(shifts): prove mobile activation refresh
+- 2026-08-29 | ✅ test(shifts): prove canonical notification release
+- 2026-08-29 | ✅ test(shifts): prove governed activation readback
+- 2026-08-29 | ✅ test(shifts): prove season boundary projection
+- 2026-08-29 | ✅ test(shifts): prove generated swap compatibility
+- 2026-08-28 | ✅ test(shifts): prove atomic activation publication
+- 2026-08-28 | ✅ test(shifts): prove planner provenance compatibility
 - 2026-08-19 | ✅ test(ios): add reproducible validation lanes
 - 2026-07-27 | ✅ test(ios): harden home news regression
 
@@ -216,6 +308,9 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-08-30 | 🔧 chore(shifts): integrate main into HU-082
+- 2026-08-29 | 📦 build(android): update Navigation and Coil
+- 2026-08-26 | 📦 build(android): update AGP to 9.3.2
 - 2026-08-20 | 📦 build(android): update Firebase tooling
 - 2026-08-18 | 📦 build(android): upgrade Gradle to 9.7.0
 - 2026-08-18 | 📦 build(android): refresh app dependencies

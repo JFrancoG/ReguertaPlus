@@ -15,6 +15,7 @@ import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.bylaws.AssetBylawsKnowledgeSource
 import com.reguerta.user.data.bylaws.createPlatformBylawsOnDeviceAssistant
 import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
+import com.reguerta.user.data.calendar.FirebaseDeliveryCalendarMutationClient
 import com.reguerta.user.data.commitments.FirestoreSeasonalCommitmentRepository
 import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
@@ -27,9 +28,11 @@ import com.reguerta.user.data.media.FirebaseImagePipelineManager
 import com.reguerta.user.data.news.FirestoreNewsRepository
 import com.reguerta.user.data.notifications.AndroidPushNotificationPermissionProvider
 import com.reguerta.user.data.notifications.FirestoreNotificationRepository
+import com.reguerta.user.data.notifications.FirebaseShiftNotificationDetailRepository
 import com.reguerta.user.data.profiles.FirestoreSharedProfileRepository
 import com.reguerta.user.data.products.FirestoreProductRepository
 import com.reguerta.user.data.shiftplanning.FirestoreShiftPlanningRequestRepository
+import com.reguerta.user.data.shiftplanning.FirebaseShiftPlanningRequestContextClient
 import com.reguerta.user.data.shifts.FirestoreShiftRepository
 import com.reguerta.user.data.shiftswap.FirebaseShiftSwapTransitionClient
 import com.reguerta.user.data.shiftswap.FirestoreShiftSwapRequestRepository
@@ -60,8 +63,6 @@ class SessionViewModelFactory(
         val productRepository = FirestoreProductRepository(firestore = firestore)
         val seasonalCommitmentRepository = FirestoreSeasonalCommitmentRepository(firestore = firestore)
         val shiftRepository = FirestoreShiftRepository(firestore = firestore)
-        val deliveryCalendarRepository = FirestoreDeliveryCalendarRepository(firestore = firestore)
-        val shiftPlanningRequestRepository = FirestoreShiftPlanningRequestRepository(firestore = firestore)
         val freshnessLocalRepository = DataStoreCriticalDataFreshnessLocalRepository(applicationContext)
         val deviceRegistrationRepository = FirestoreDeviceRegistrationRepository(firestore = firestore)
         val authorizedDeviceRegistrar = FirebaseAuthorizedDeviceRegistrar(
@@ -73,6 +74,30 @@ class SessionViewModelFactory(
         val authenticatedFunctionsClient = AuthenticatedFirebaseFunctionsClient.create(
             auth = auth,
             firebaseApp = firebaseApp,
+        )
+        val shiftPlanningRequestRepository = FirestoreShiftPlanningRequestRepository(
+            firestore = firestore,
+            contextClient = FirebaseShiftPlanningRequestContextClient(
+                functionCaller = authenticatedFunctionsClient,
+                requestedEnvironment = {
+                    ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+                },
+            ),
+        )
+        val deliveryCalendarRepository = FirestoreDeliveryCalendarRepository(
+            firestore = firestore,
+            mutationClient = FirebaseDeliveryCalendarMutationClient(
+                functionCaller = authenticatedFunctionsClient,
+                requestedEnvironment = {
+                    ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+                },
+            ),
+        )
+        val shiftNotificationDetailRepository = FirebaseShiftNotificationDetailRepository(
+            functionCaller = authenticatedFunctionsClient,
+            requestedEnvironment = {
+                ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+            },
         )
         val shiftSwapTransitionClient = FirebaseShiftSwapTransitionClient(
             functionCaller = authenticatedFunctionsClient,
@@ -126,6 +151,7 @@ class SessionViewModelFactory(
             ),
             authorizedDeviceRegistrar = authorizedDeviceRegistrar,
             pushNotificationPermissionProvider = pushNotificationPermissionProvider,
+            shiftNotificationDetailRepository = shiftNotificationDetailRepository,
             resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
                 remoteRepository = FirestoreCriticalDataFreshnessRemoteRepository(
                     firestore = firestore,

@@ -3,6 +3,11 @@ import {
   HttpRequestError,
   parseAppEnvironment,
 } from "./backend-security.js";
+import {
+  assertShiftPlanningWriterAuthority,
+  captureShiftPlanningWriterAuthority,
+  ShiftPlanningWriterAuthority,
+} from "./shift-planning-writer-authority.js";
 
 export type ShiftType = "delivery" | "market";
 
@@ -23,6 +28,38 @@ export type ShiftSwapResponseLike = ShiftSwapCandidateLike & {
   status: "available" | "unavailable";
   respondedAtMillis: number;
 };
+
+export type ShiftSwapPlanningAuthority = ShiftPlanningWriterAuthority;
+
+/**
+ * Captures the exact open planning authority for a reciprocal swap.
+ * Missing state preserves the pre-HU-082 legacy boundary until rollout.
+ * @param {unknown} value Current maintenance-state document, when present.
+ * @return {ShiftSwapPlanningAuthority | null} Immutable request authority.
+ */
+export const captureShiftSwapPlanningAuthority = (
+  value: unknown,
+): ShiftSwapPlanningAuthority | null =>
+  captureShiftPlanningWriterAuthority(value);
+
+/**
+ * Revalidates a request's captured planning authority before another mutation.
+ * Any maintenance transition or activation makes the old request stale.
+ * @param {unknown} capturedValue Authority persisted with the swap request.
+ * @param {unknown} currentStateValue Current maintenance-state document.
+ * @return {void}
+ */
+export const assertShiftSwapPlanningAuthority = (
+  capturedValue: unknown,
+  currentStateValue: unknown,
+): void => assertShiftPlanningWriterAuthority({
+  capturedValue,
+  currentStateValue,
+  changedCode: "shift_swap_planning_authority_changed",
+  changedMessage: "Shift planning authority changed after the swap request",
+  storedInvalidCode: "invalid_shift_swap_authority",
+  storedInvalidMessage: "Shift-swap planning authority is invalid",
+});
 
 export type ShiftSwapTransitionInput =
   | {

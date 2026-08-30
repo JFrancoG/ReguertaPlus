@@ -55,6 +55,7 @@ final class AccessRootViewModel {
     @ObservationIgnored var myOrderEntryTask: Task<Void, Never>?
     @ObservationIgnored var myOrderEntryGeneration: UInt64 = 0
     @ObservationIgnored var shiftSwapRouteGeneration: UInt64 = 0
+    @ObservationIgnored var skipsNextNotificationsPreparation = false
     var shellState = AuthShellState()
     var splashScale: CGFloat = SplashAnimationContract.initialScale
     var splashRotation: Double = SplashAnimationContract.initialRotation
@@ -281,6 +282,7 @@ private extension AccessRootViewModel {
             feedbackCenter: feedbackCenter,
             newsRepository: dependencies.newsRepository,
             notificationRepository: dependencies.notificationRepository,
+            shiftNotificationDetailRepository: dependencies.shiftNotificationDetailRepository,
             pushNotificationPermissionProvider: dependencies.pushNotificationPermissionProvider,
             imagePipelineManager: dependencies.imagePipelineManager,
             nowMillisProvider: dependencies.nowMillisProvider,
@@ -487,7 +489,11 @@ extension AccessRootViewModel {
             receivedOrdersHistoryTitleOverride = nil
         }
         if destination == .notifications {
-            Task { await newsNotificationsViewModel.prepareNotificationsRoute() }
+            if skipsNextNotificationsPreparation {
+                skipsNextNotificationsPreparation = false
+            } else {
+                Task { await newsNotificationsViewModel.prepareNotificationsRoute() }
+            }
         }
     }
 }

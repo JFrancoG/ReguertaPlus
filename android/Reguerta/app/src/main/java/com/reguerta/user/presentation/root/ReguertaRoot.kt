@@ -75,6 +75,7 @@ fun ReguertaRoot(
     var startupGateState by rootStateViewModel.startupGateState
     var startupGateRetryGeneration by rootStateViewModel.startupGateRetryGeneration
     var sessionStartupRefreshRequested by rootStateViewModel.sessionStartupRefreshRequested
+    var pendingShiftNotificationPush by rootStateViewModel.pendingShiftNotificationPush
     val isAuthenticatedSession = (
         state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
     )
@@ -213,6 +214,8 @@ fun ReguertaRoot(
                     pendingNewsDeletionId = state.pendingNewsDeletionId,
                     newsDeletionRequestRevision = state.newsDeletionRequestRevision,
                     notificationFeedItems = state.notificationFeedItems,
+                    notificationShiftDetail = state.notificationShiftDetail,
+                    loadingNotificationDetailEventId = state.loadingNotificationDetailEventId,
                     hasUnreadNotifications = state.hasUnreadNotifications,
                     notificationDraft = state.notificationDraft,
                     notificationEditorRevision = state.notificationEditorRevision,
@@ -245,6 +248,7 @@ fun ReguertaRoot(
                     isLoadingNotifications = state.isLoadingNotifications,
                     isSendingNotification = state.isSendingNotification,
                     showPushNotificationPermissionDialog = state.showPushNotificationPermissionDialog,
+                    pendingShiftNotificationPush = pendingShiftNotificationPush,
                     isLoadingProducts = state.isLoadingProducts,
                     isLoadingMyOrderProducts = state.isLoadingMyOrderProducts,
                     isSavingProduct = state.isSavingProduct,
@@ -258,6 +262,10 @@ fun ReguertaRoot(
                     isLoadingDeliveryCalendar = state.isLoadingDeliveryCalendar,
                     isSavingDeliveryCalendar = state.isSavingDeliveryCalendar,
                     isSubmittingShiftPlanningRequest = state.isSubmittingShiftPlanningRequest,
+                    shiftPlanningObservation = state.shiftPlanningObservation,
+                    shiftPlanningCandidate = state.shiftPlanningCandidate,
+                    isLoadingShiftPlanningCandidate = state.isLoadingShiftPlanningCandidate,
+                    isRefreshingShiftsAfterActivation = state.isRefreshingShiftsAfterActivation,
                     isSavingShiftSwapRequest = state.isSavingShiftSwapRequest,
                     isUpdatingShiftSwapRequest = state.isUpdatingShiftSwapRequest,
                     isAskingBylaws = state.isAskingBylaws,
@@ -277,6 +285,8 @@ fun ReguertaRoot(
                     onStartCreatingNews = viewModel::startCreatingNews,
                     onStartCreatingNotification = viewModel::startCreatingNotification,
                     onPrepareNotificationsRoute = viewModel::prepareNotificationsRoute,
+                    onConsumeShiftNotificationPush = rootStateViewModel::consumeShiftNotificationPush,
+                    onOpenNotificationDetail = viewModel::openNotificationDetail,
                     onPrepareBylawsRoute = viewModel::prepareBylawsRoute,
                     onCancelBylawsConsultation = viewModel::cancelBylawsConsultation,
                     onMarkVisibleNotificationsReadOnExit = viewModel::markVisibleNotificationsReadOnExit,
@@ -326,6 +336,7 @@ fun ReguertaRoot(
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
                     onSaveDeliveryCalendarOverride = viewModel::saveDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = viewModel::submitShiftPlanningRequest,
+                    onStageShiftPlanningPreview = viewModel::stageLatestShiftPlanningPreview,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onValidateMyOrderFreshnessReceipt = viewModel::isMyOrderFreshnessReceiptCurrent,
                     onOpenProducts = viewModel::refreshProducts,

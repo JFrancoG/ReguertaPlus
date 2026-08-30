@@ -3,13 +3,30 @@ const {test} = require("node:test");
 
 const {
   applyMemberSwap,
+  assertShiftSwapPlanningAuthority,
   assertActiveShiftSwapParticipants,
   assertShiftSwapTimingEligible,
   buildShiftSwapCandidates,
+  captureShiftSwapPlanningAuthority,
   parseShiftSwapTransitionInput,
   recomputeDeliveryHelpers,
   upsertShiftSwapResponse,
 } = require("../lib/shift-swap-security.js");
+
+const digest = (character) =>
+  `shift-planning:v1:sha256:${character.repeat(64)}`;
+
+const planningState = (overrides = {}) => ({
+  schemaVersion: 1,
+  stateRevision: 4,
+  writeEpoch: 7,
+  maintenanceStatus: "open",
+  activeRevision: "bundle-v2-1234567890abcdef12345678",
+  activeDigest: digest("a"),
+  intakeBarrier: null,
+  lastTransitionId: "activation-transition-1",
+  ...overrides,
+});
 
 test("parses the explicit shift-swap transition contract", () => {
   assert.deepEqual(parseShiftSwapTransitionInput({
@@ -30,6 +47,68 @@ test("parses the explicit shift-swap transition contract", () => {
     action: "apply",
     requestId: "request-1",
   }));
+});
+
+test("captures the exact open planning authority when state exists", () => {
+  assert.equal(captureShiftSwapPlanningAuthority(undefined), null);
+  assert.deepEqual(captureShiftSwapPlanningAuthority(planningState()), {
+    schemaVersion: 1,
+    stateRevision: 4,
+    writeEpoch: 7,
+    activeRevision: "bundle-v2-1234567890abcdef12345678",
+    activeDigest: digest("a"),
+  });
+
+  assert.throws(
+    () => captureShiftSwapPlanningAuthority(planningState({
+      maintenanceStatus: "closed",
+      intakeBarrier: {
+        revision: "barrier-revision-1",
+        digest: digest("b"),
+        verifiedAtMillis: 1_000,
+      },
+    })),
+    (error) => error.code === "shift_planning_maintenance",
+  );
+  assert.throws(
+    () => captureShiftSwapPlanningAuthority({...planningState(), extra: true}),
+    (error) => error.code === "invalid_shift_planning_state",
+  );
+});
+
+test("revalidates shift-swap planning authority without legacy drift", () => {
+  const authority = captureShiftSwapPlanningAuthority(planningState());
+  assert.doesNotThrow(() => assertShiftSwapPlanningAuthority(
+    authority,
+    planningState(),
+  ));
+  assert.doesNotThrow(() => assertShiftSwapPlanningAuthority(null, undefined));
+
+  for (const current of [
+    undefined,
+    planningState({stateRevision: 5}),
+    planningState({writeEpoch: 8}),
+    planningState({
+      activeRevision: "bundle-v2-abcdef1234567890abcdef12",
+      activeDigest: digest("c"),
+    }),
+  ]) {
+    assert.throws(
+      () => assertShiftSwapPlanningAuthority(authority, current),
+      (error) => error.code === "shift_swap_planning_authority_changed",
+    );
+  }
+  assert.throws(
+    () => assertShiftSwapPlanningAuthority(null, planningState()),
+    (error) => error.code === "shift_swap_planning_authority_changed",
+  );
+  assert.throws(
+    () => assertShiftSwapPlanningAuthority(
+      {...authority, unexpected: true},
+      planningState(),
+    ),
+    (error) => error.code === "invalid_shift_swap_authority",
+  );
 });
 
 test("builds candidates from future shifts of the same type", () => {

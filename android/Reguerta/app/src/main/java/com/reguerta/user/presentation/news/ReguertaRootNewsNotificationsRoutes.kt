@@ -4,7 +4,6 @@ import com.reguerta.user.presentation.root.NewsDraft
 import com.reguerta.user.presentation.root.NotificationDraft
 import com.reguerta.user.presentation.root.NotificationFeedItem
 import com.reguerta.user.presentation.root.ReguertaImagePickerField
-import com.reguerta.user.presentation.shifts.labelRes
 import com.reguerta.user.presentation.shifts.toNotificationDateLabel
 
 import android.net.Uri
@@ -37,6 +36,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -65,9 +65,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.reguerta.user.R
+import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
+import com.reguerta.user.domain.notifications.NotificationContentPolicy
 import com.reguerta.user.domain.notifications.NotificationEvent
+import com.reguerta.user.domain.notifications.ShiftNotificationDetail
+import com.reguerta.user.presentation.shifts.labelRes
 import com.reguerta.user.ui.components.auth.ReguertaDeleteListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaEditListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
@@ -353,7 +357,11 @@ fun NewsEditorRoute(
 @Composable
 fun NotificationsFeedRoute(
     notificationItems: List<NotificationFeedItem>,
+    shiftDetail: ShiftNotificationDetail?,
+    loadingDetailEventId: String?,
+    members: List<Member>,
     isLoading: Boolean,
+    onOpenDetail: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -375,6 +383,12 @@ fun NotificationsFeedRoute(
             notificationItems.forEach { item ->
                 NotificationFeedItemCard(
                     item = item,
+                    shiftDetail = shiftDetail?.takeIf { detail ->
+                        detail.eventId == item.notification.id
+                    },
+                    isLoadingDetail = loadingDetailEventId == item.notification.id,
+                    members = members,
+                    onOpenDetail = onOpenDetail,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -385,12 +399,15 @@ fun NotificationsFeedRoute(
 @Composable
 private fun NotificationFeedItemCard(
     item: NotificationFeedItem,
+    shiftDetail: ShiftNotificationDetail?,
+    isLoadingDetail: Boolean,
+    members: List<Member>,
+    onOpenDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val event = item.notification
-    val readStateDescription = stringResource(
-        if (item.isRead) R.string.notifications_status_read else R.string.notifications_status_unread,
-    )
+    val canOpenShiftDetail = event.type == "shift_updated" &&
+        event.contentPolicy == NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED
     val containerColor = if (item.isRead) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
     } else {
@@ -407,51 +424,143 @@ private fun NotificationFeedItemCard(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = containerColor),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+        if (canOpenShiftDetail) {
+            Card(
+                onClick = { onOpenDetail(event.id) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoadingDetail,
+                colors = CardDefaults.cardColors(containerColor = containerColor),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = event.notificationIcon(),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = event.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(
-                        imageVector = if (item.isRead) Icons.Filled.MarkEmailRead else Icons.Filled.MarkEmailUnread,
-                        contentDescription = readStateDescription,
-                        tint = if (item.isRead) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.tertiary
-                        },
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Text(
-                    text = event.body,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                NotificationFeedItemContent(
+                    item = item,
+                    shiftDetail = shiftDetail,
+                    isLoadingDetail = isLoadingDetail,
+                    members = members,
+                )
+            }
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = containerColor),
+            ) {
+                NotificationFeedItemContent(
+                    item = item,
+                    shiftDetail = shiftDetail,
+                    isLoadingDetail = isLoadingDetail,
+                    members = members,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun NotificationFeedItemContent(
+    item: NotificationFeedItem,
+    shiftDetail: ShiftNotificationDetail?,
+    isLoadingDetail: Boolean,
+    members: List<Member>,
+) {
+    val event = item.notification
+    val readStateDescription = stringResource(
+        if (item.isRead) R.string.notifications_status_read else R.string.notifications_status_unread,
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = event.notificationIcon(),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = event.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = if (item.isRead) Icons.Filled.MarkEmailRead else Icons.Filled.MarkEmailUnread,
+                contentDescription = readStateDescription,
+                tint = if (item.isRead) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.tertiary
+                },
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(
+            text = event.body,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (
+            event.type == "shift_updated" &&
+            event.contentPolicy == NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED
+        ) {
+            when {
+                isLoadingDetail -> Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    Text(
+                        text = stringResource(R.string.notifications_shift_detail_loading),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                shiftDetail != null -> NotificationShiftDetailContent(
+                    detail = shiftDetail,
+                    members = members,
+                )
+                else -> Text(
+                    text = stringResource(R.string.notifications_shift_detail_action),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationShiftDetailContent(
+    detail: ShiftNotificationDetail,
+    members: List<Member>,
+) {
+    val shift = detail.shift
+    val names = shift.assignedUserIds.joinToString(", ") { memberId ->
+        members.firstOrNull { member -> member.id == memberId }?.displayName ?: memberId
+    }
+    Text(
+        text = stringResource(
+            R.string.notifications_shift_detail_summary,
+            stringResource(shift.type.labelRes()),
+            shift.dateMillis.toNotificationDateLabel(),
+        ),
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Text(
+        text = stringResource(R.string.notifications_shift_detail_people, names),
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    shift.helperUserId?.let { helperUserId ->
+        val helperName = members.firstOrNull { member -> member.id == helperUserId }?.displayName ?: helperUserId
+        Text(
+            text = stringResource(R.string.notifications_shift_detail_helper, helperName),
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 

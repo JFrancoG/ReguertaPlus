@@ -50,6 +50,7 @@ Define collections and fields as a closed contract so Android, iOS, and backend 
 - Shift type: `delivery`, `market`
 - Shift status: `planned`, `swap_pending`, `confirmed`
 - Shift source: `app`, `google_sheets`
+- Planner-generated shift origin: `planner`
 - Swap request status: `open`, `cancelled`, `applied`
 - Swap response status: `available`, `unavailable`
 - Notification event type: `order_reminder`, `order_auto_generated`, `shift_swap_requested`, `shift_swap_available`, `shift_swap_unavailable`, `shift_swap_accepted`, `shift_swap_applied`, `shift_updated`, `news_published`, `admin_broadcast`
@@ -261,6 +262,9 @@ Snapshot rule:
 Delivery calendar strategy (canonical):
 - `weekKey` must match document ID.
 - Store only exception weeks in `deliveryCalendar`.
+- Mobile clients may read the collection but cannot write it directly. Admin
+  mutations use the authenticated delivery-calendar command; the backend derives
+  all persisted fields, actor identity, and timestamp.
 - If a week document is missing, resolve calendar from `config/global.deliveryDayOfWeek` fallback and derive blocked/open windows at runtime.
 
 ### 4.7 `seasonalCommitments/{commitmentId}`
@@ -277,25 +281,621 @@ Delivery calendar strategy (canonical):
 
 ### 4.8 `shifts/{shiftId}`
 
+- `planningSchemaVersion`: integer|null (exact `1` for HU-082 planner rows)
 - `type`: string (`delivery`|`market`) (required)
 - `date`: timestamp (required)
 - `assignedUserIds`: array<string> (required)
 - `helperUserId`: string|null
 - `status`: string (`planned`|`swap_pending`|`confirmed`) (required)
 - `source`: string (`app`|`google_sheets`) (required)
+- `origin`: string|null (`planner` for an HU-082 generated shift)
+- `planningRequestId`: string|null (stable planning-chain identity; equals the generated bundle ID for an HU-082 row)
+- `bundleRevision`: string|null (publication revision; required for an HU-082 planner row)
+- `bundleDigest`: string|null (digest bound to `bundleRevision`; required for an HU-082 planner row)
+- `writeEpoch`: integer|null (maintenance/publication epoch; required for an HU-082 planner row)
+- `projectionSeasonStartYear`: integer|null (season partition that contains the projected date)
+- `rotationOwnerUserId`: string|null (immutable fair-queue owner for a generated `delivery` shift)
+- `rotationOwnerUserIds`: array<string>|null (three immutable fair-queue owners for a generated `market` shift)
+- `roundNumber`: integer|null (delivery owner's one-based round)
+- `positionInRound`: integer|null (delivery owner's one-based position in its round)
+- `rotationPositions`: array<map>|null (market positions, aligned with `assignedUserIds`)
+  - `rotationOwnerUserId`: string (immutable fair-queue owner)
+  - `effectiveAssigneeUserId`: string (member currently expected to cover the position)
+  - `roundNumber`: integer (one-based)
+  - `positionInRound`: integer (one-based)
+- `planningReason`: string|null (`target`|`boundaryRoundRemainder` for delivery; market positions may also use `finalGroupPadding`)
+- `assignmentRevision`: integer|null (positive for HU-082 planner rows)
+- `completion`: map|null (required for HU-082 planner rows)
+  - `state`: string (`uncompleted`|`completed`)
+  - `revision`: integer (`0` while uncompleted; positive when completed)
+  - `actualHelperUserId`: string|null (required for completed delivery)
+  - `helperSourceAssignmentRevision`: integer|null
+  - `completedAt`: timestamp|null
+- `documentRevision`: integer|null (positive monotonic planner revision)
+- `lastBackendMutation`: map|null (required for HU-082 controlled writes)
+  - `schemaVersion`: integer (exact `1`)
+  - `kind`: string (`activation`|`recovery`|`repair`|`syncCorrection`)
+  - `operationId`: string
+  - `operationIntentDigest`: string
+  - `bundleRevision`: string
+  - `bundleDigest`: string
+  - `writeEpoch`: integer
+  - `targetPath`: string
+  - `documentRevision`: integer
+  - `payloadDigest`: string (exact document digest without this marker)
 - `createdAt`: timestamp (required)
 - `updatedAt`: timestamp (required)
 
+Mobile clients may read `shifts` but cannot create, update, or delete documents
+directly. Shift planning, Sheets compatibility, reciprocal swaps, completion,
+repair, and recovery remain authenticated backend workflows. The historical
+`source = app` value is a client-decoding compatibility contract, not evidence
+that a mobile client authored the document.
+
+HU-082 keeps effective assignment (`assignedUserIds`) separate from rotation
+ownership. A newly generated position initially copies its owner into its
+effective assignee, but later coverage or reassignment must not rewrite the
+owner, round, or position. Planner-generated shifts remain compatible with
+current clients by using `source = app`; `origin = planner` and the lineage
+fields distinguish them from legacy/imported rows. The bundle revision, digest,
+epoch, and complete ownership persistence listed here are written by the
+publication/activation adapter. Publication codec v1 enforces one
+assigned UID for delivery, exactly three distinct UIDs for market, UTC-midnight
+dates, coherent assignment/completion/document revisions, and exact rotation
+shape. Android and iOS compatibility regressions prove that installed-client
+decoders continue consuming their unchanged required fields, ignore the additive
+planner metadata, and still reject `source = planner` as noncanonical.
+
+The backend marker is historical provenance, not a permanent hash of every
+later backend mutation. A candidate `onShiftWritten` validates path, payload,
+revision, bundle, epoch, and operation intent only when the marker changes in
+that event. If a normal later backend mutation retains the same marker, it is handled
+normally even though the historical `payloadDigest` no longer matches. The
+governed schema-v2 runtime writes this codec locally/in emulators; production
+deployment and activation remain pending.
+
 ### 4.8.b `shiftPlanningRequests/{requestId}`
 
-- `type`: string (`delivery`|`market`) (required)
-- `requestedByUserId`: string (required)
-- `requestedAt`: timestamp (required)
-- `status`: string (`requested`|`processing`|`completed`|`failed`) (required)
-- `seasonLabel`: string|null (optional, backend completion summary)
-- `sheetName`: string|null (optional, backend completion summary)
-- `generatedCount`: number|null (optional, backend completion summary)
-- `errorMessage`: string|null (optional, only when failed)
+- `schemaVersion`: integer (required, exact value `2`)
+- `requestId`: string (required, equals the document ID)
+- `bundleId`: string (required, stable ID shared by both subplans)
+- `environment`: string (`develop`|`production`) (required, equals path `<env>`)
+- `requestedByUserId`: string (required, equals the linked requesting admin member)
+- `requestedAt`: timestamp (required Firestore `Timestamp`; the Functions parser normalizes it to `requestedAtMillis` internally)
+- `mode`: string (`preview`|`stage`|`activate`) (required)
+- `status`: string (required, exact intake value `requested`)
+- `expectedWriteEpoch`: integer (required, non-negative)
+- `expectedActiveRevision`: string|null (required optimistic precondition)
+- `subplans`: map (required, exact keys `delivery` and `market`)
+  - `delivery.targetSeasonStartYear`: integer (required, `2000...9998`)
+  - `market.targetSeasonStartYear`: integer (required, `2000...9998`)
+- `binding`: map|null (required)
+  - `preview`: must be `null`.
+  - `stage`: exact map `{ kind: "preview", sourceRequestId, bundleRevision, bundleDigest }`.
+  - `activate`: exact map `{ kind: "candidate", candidateId, bundleRevision, bundleDigest, candidateDigest }`.
+  - `bundleDigest` and `candidateDigest` format: `shift-planning:v1:sha256:<64 lowercase hexadecimal characters>`.
+
+This is an exact v2 intake schema: extra or missing fields fail validation, and
+the backend never infers either target season from the wall clock. In strict
+Rules, only an active linked admin may create and read requests; creation also
+binds `requestId`, `environment`, and `requestedByUserId` to authenticated path
+state. No client may update or delete a request.
+
+A private Firestore repository now implements the local/emulator lifecycle for
+all schema-v2 modes. A transactional claim binds the immutable intake to an
+operation and processing lease. The same worker may resume, a different worker
+receives `busy` while the lease is live, and an expired-lease takeover increments
+the fencing epoch so the previous owner can no longer finish. Exact terminal
+state replays without invoking planning or rewriting artifacts. Preview, stage,
+and activate therefore persist `requested -> processing -> completed|failed`
+with a stable typed summary and no raw internal error message. The governed
+schema-v2 runtime is isolated from the unchanged legacy route.
+
+### 4.8.c `shiftPlanningCandidates/{bundleId}`
+
+The local backend repository persists a versioned two-subplan staged-candidate
+header plus one immutable inspection document per planned public shift under
+`positions/{shiftId}`. A market document keeps its three ordered assignment
+positions together. This partition is outside the public `shifts` projection,
+Sheets export, and ordinary member queries. Strict Rules allow active linked
+admins to read/get/list only the candidate header and its `positions`
+subcollection; every client, including admins, is denied create, update, and
+delete. Only trusted backend code may write them.
+
+The pure contract and private repository enforce this artifact chain:
+
+1. `preview` produces a digest-bound receipt containing its request and bundle
+   identity, environment, requester, and `expectedStateDigest`. Completing
+   preview atomically persists the immutable bundle plus that receipt and the
+   terminal lifecycle. After claim, the lifecycle reads maintenance plus both
+   rotations coherently. Artifact schema v2 stores that complete normalized
+   read-set and its authoritative digest in the bundle's `expectedState`; the
+   receipt retains only the transitive digest. Preview accepts either open or
+   closed maintenance for inspection.
+2. `stage` must receive that exact persisted preview receipt. It loads the
+   persisted preview before a fresh authoritative-state
+   read, and the resolved bundle must bind exactly that read-set. Stage requires
+   closed maintenance and the same state as preview; maintenance entry therefore
+   invalidates an open-state preview and requires a new closed-state preview.
+   The repository reloads the source preview and bundle, then atomically
+   terminalizes the existing request/operation and creates without overwrite one
+   `status = staged` header plus every inspection position. The header contains source
+   preview/stage IDs, preview-receipt digest, expected-state digest, bundle
+   revision/digest, exact document/assignment counts, and `positionSetDigest`.
+   It contains no transaction measurement because the activation/recovery
+   request/operation IDs,
+   before-images, and opaque transaction token do not exist yet. Each child carries its canonical payload,
+   `positionDigest`, `candidateDigest`, and candidate/bundle lineage. Exact replay
+   verifies missing, extra, aliased, or altered children and never rewrites them.
+3. `activate` claims a request-only processing lease before entering the governed
+   CAS. Its operation path remains absent until the same atomic transaction
+   creates the completed activation terminal, so no provisional operation can
+   conflict with that tombstone. The preflight loader verifies the persisted
+   staged candidate, immutable preview bundle, and complete position set; every
+   transaction retry then rebuilds the live source and revalidates request digest,
+   worker, fencing epoch, lease interval, candidate, bundle, and positions before
+   public writes. A deterministic pre-commit rejection terminalizes only the
+   still-owned claim. A committed activation replays from its terminal and
+   retained forward outcome. Inverse recovery consumes that immutable terminal
+   and retains a separate directional outcome instead of reopening the request
+   or introducing a second lifecycle authority. The immutable preview bundle
+   remains the planning authority; positions remain a queryable inspection
+   projection, not a second authority.
+
+The planner remains side-effect free. The local/emulator repository proves
+private receipt, bundle, lifecycle, candidate-header, and inspection-position
+persistence. The governed runtime now reloads every live fairness input and
+executes the measured publication CAS in Firestore emulators; production deploy
+and activation remain explicitly pending.
+Bundle, receipt, and candidate use internal artifact schema v2 and
+`bundle-v2-*` revisions. Transaction measurements use their own internal schema
+v1. The request remains `schemaVersion = 2`; the public wire terminal summary
+remains `schemaVersion = 1`.
+
+The staged candidate is immutable and is not updated, restored, or captured as a
+before-image by either direction. Future activation request and operation records
+are also excluded from staged before-image targets; their terminal lifecycle is
+owned by the attempt that creates/claims them. Stage rejects any supplied
+`transactionEvidence` instead of persisting a synthetic future measurement.
+
+The pinned adapter `firestore-grpc-v1-fs8.7.0-r1` serializes the actual
+canonically ordered `WriteBatch` of one completely resolved attempt only after
+its real transaction token is available. Its transaction-attempt boundary now
+requires completed authoritative reads and the empty internal batch owned by the
+same pinned SDK `Transaction`, then canonically populates, measures, and seals
+that batch. Firestore commits that same inspected object after the callback.
+Successful measurement replaces the SDK operation closures with detached copies
+of the measured `Write` protos and makes operation storage adapter-owned. The
+commit guard uses a detached measured-token copy and reserializes the full request
+immediately before transport; a different token or byte sequence fails closed.
+SDK reset clears that authority, so every retried callback must resolve and
+measure again. Each immutable
+in-memory measurement binds `direction`,
+`manifestDigest`, database name, `writeSetDigest`, `commitRequestDigest`,
+`documentWriteCount`, `fieldTransformCount`,
+`maximumFieldTransformsPerDocument`, `requestByteCount`, `adapterRevision`, and
+`indexConfigurationDigest`; the opaque token is never returned or persisted.
+The request digest also remains in memory because persisting it inside the same
+measured request would make the digest self-referential. An immutable attempt
+outcome therefore requires a separate non-circular persistence protocol.
+The conservative HU-082 gate is 500 combined planned document writes and field
+transforms, no more than 500 transforms on one document, plus 10 MiB per exact
+protobuf `CommitRequest`. The pure budget remains structural until activation or
+recovery has resolved every ID, payload, precondition, and before-image.
+Measurement authority remains part of the fairness snapshot and exact
+expected-state envelope, so authority/read-set drift invalidates the candidate.
+The index digest binds the audited configuration but protobuf bytes do not include
+backend index-entry accounting; the separately governed isolated-clone rehearsal
+remains mandatory before production activation.
+
+Other digest-bound pure bundle invariants are:
+
+- `futureProjectionOccupancy` is independent per type and contains exact
+  `{ seasonStartYear, occupiedPositionCount, lineageRevision, lineageDigest }`
+  entries. It advances over already complete future projections and rejects
+  overlap, duplicate seasons, invalid capacity, or missing lineage.
+- A migration baseline is either absent everywhere or the exact same
+  `revision`/`digest` at bundle, delivery rotation, and market rotation scope.
+- Until HU-084 defines exact credit transitions, the credit ledger must be
+  disabled with zero planned transitions; every other value fails closed.
+- Activation freezes a typed cohort only when its boundary-active round remains
+  incomplete. A frozen cohort must preserve its ordered cursor cohort; live
+  eligibility drift may be inspected by preview but blocks stage and activate.
+- The bundle carries digest-bound forward and inverse manifests. The inverse
+  recovery manifest names created paths to delete, target paths whose persisted
+  before-images must be restored, before-image contract digests, required active
+  bundle/write-epoch CAS, and a strictly higher recovery epoch that is never
+  reused or decremented. The immutable bundle persisted by preview predates
+  activation and remains outside both write-sets: it is retained as replay
+  evidence and is never updated, restored, or deleted.
+- Both manifests carry `expectedStateDigest` and
+  `expectedAuthoritativeDigest`. The forward manifest records the maintenance
+  `stateRevision` and `writeEpoch` transition. The before-image contract for
+  `shiftPlanningState/current` covers the complete maintenance document.
+
+### 4.8.d HU-082 backend-only planning collections
+
+The following collection names are frozen for the private control plane:
+
+- `shiftPlanningState`: `current` holds maintenance state, monotonic
+  `writeEpoch`, and paired active-lineage keys `activeRevision`/`activeDigest`.
+- `shiftRotations`: independent versioned delivery and market rotation aggregates.
+- `shiftRotationMappings`: administrator-reviewed bootstrap/migration evidence.
+- `shiftPlanningBundles`: immutable bundle metadata, manifests, budgets, and lineage.
+- `shiftPlanningSyncCommands`: backend-owned Sheets commands bound to
+  workbook/revision, partition/state revision, expected and command partition
+  epochs, and a claim lease intent. The local schema has exact
+  `pending -> processing -> completed` states. Processing retains the immutable
+  `commandDigest` and fenced claim; completed replaces that live claim with exact
+  worker/attempt/fencing timestamps plus workbook-revision and partition-digest
+  read-back evidence. Clients cannot read or mutate any state.
+- `shiftPlanningNotificationIntents`: one held generic intent per assignment
+  position, bound to recipient UID, shift identity, and expected assignment,
+  membership, eligibility, and destination revisions. The local release
+  repository writes an immutable
+  `shiftPlanningNotificationIntents/{intentId}/releases/canonical` receipt only
+  in the same transaction that creates the stable legacy-compatible
+  `notificationEvents/{intentId}` and
+  `users/{recipientUserId}/notificationInbox/{intentId}` documents. The receipt
+  binds both completed Sheets-command read-backs, active bundle lineage, release
+  time, and the explicit at-least-once/possible-duplicate FCM policy. An exact
+  replay creates no additional event or inbox document; assignment, membership,
+  eligibility, or destination drift before the first release writes nothing.
+  Its backend-only children now also define the local dispatch protocol:
+  `dispatchState/current` contains only monotonic attempt/lease fencing, while
+  `dispatchAttempts/{attemptId}` retains each attempt's immutable identity,
+  validation digest, 30-second lease epoch/deadline, authenticated-start marker,
+  and terminal `accepted|unknown|failed` evidence. A terminal attempt is never
+  rewritten; an expired submitting attempt becomes possibly delivered `unknown`,
+  and a retry appends a newly revalidated attempt. No raw FCM token is retained
+  in the ledger: it stores the bound destination digest and target count, while
+  the freshly authorized transport receives current targets transiently.
+- `shiftPlanningNotificationFences`: mutable backend-only resource leases with
+  deterministic `member:{userId}` and `shift:{shiftId}` IDs. Dispatch claim
+  atomically acquires both for the same attempt/worker/epoch/validation digest;
+  another intent stays busy until both are free or expired. Definitive
+  `accepted|failed` completion removes only fences still owned by that attempt,
+  while ambiguous `unknown` keeps them through the original 30-second deadline.
+  The strict local Rules candidate fails closed for malformed fences and blocks
+  direct shift and member-device writes while the corresponding fence is active.
+- `shiftPlanningOperations`: idempotency/audit records plus recovery paths,
+  including the implemented request claim/lease/fencing lifecycle; future
+  operation records also carry recovery paths, persisted before-image
+  references/digests, active CAS, and monotonic recovery epoch.
+- `deliveryCalendarMutationReceipts`: immutable schema-v1 idempotency records
+  keyed by the stable calendar `operationId`. Each binds environment, week,
+  action, command digest, reciprocal active-admin actor, exact planning
+  authority, prior/resulting override digests, canonical result and trusted
+  commit time. Clients cannot read or mutate these receipts.
+- `shiftPlanningPublicEventLedgers`: immutable operation-retention bindings and
+  controlled/rejected public-event terminals. Stable IDs are
+  `operation-{operationId}` and `event-{64 lowercase digest hex}`.
+
+Publication codec v1 additionally freezes an activation terminal at
+`shiftPlanningOperations/{operationId}` with `operationKind = activation` and
+`state = committed`. It binds environment, request/candidate/bundle lineage,
+forward-manifest and expected-state digests, write epoch, callback
+`attemptedAt`, a target-sorted public-mutation manifest, contiguous before-image
+bindings, and `operationIntentDigest`. `attemptedAt` is the trusted callback
+clock sample rather than a server acknowledgement timestamp; the terminal
+document exists only if the same atomic transaction committed.
+
+Repair and sync-correction producers use the exact schema-v1 terminal
+`operationKind = controlledPublicMutation`, `state = committed`, with `kind`,
+operation/environment/bundle/epoch lineage, `committedAt`, target-sorted public
+create/update bindings, and `operationIntentDigest`. This record is the minimal
+allowlisted authority for a changed repair or sync-correction marker; it does not
+grant a client write path.
+
+The SDK-free event classifier treats a create/update as a controlled no-op only
+when its marker changed and the complete after-document matches its activation or
+controlled-mutation terminal. A recovery delete must match the exact activation
+before-document marker, payload/document revision/path, bundle/epoch/intent, and
+the recovery terminal deletion manifest. A retained marker routes later ordinary
+edits/deletes normally. A removed, unknown, forged, or otherwise unauthorized
+changed marker fails closed. Its stable `eventDigest` is the controlled-event
+ledger idempotency key.
+
+Retention schema v1 is producer-owned by HU-082 and persistence-owned by HU-083.
+The digest-bound policy contains `policyRevision`, the approved maximum end-to-
+end `maximumDeliveryRetryHorizonMillis`, positive `safetyMarginMillis`, and
+`policyDigest`. An `operation-{operationId}` record exactly stores
+`recordKind = publicEventOperationRetention`, `state = retained`, environment,
+controlled operation kind/ID/intent, millisecond `terminalAt`, the complete
+policy snapshot, exclusive `retainUntil`, and `retentionDigest`. It must be
+created atomically with the controlled terminal producer and cannot extend or
+rewrite that terminal.
+
+An `event-{digestHex}` terminal exactly stores `recordKind = publicEventLedger`,
+`state = terminal`, `outcome = controlledNoOp|rejected`, target/mutation,
+policy snapshot, exclusive `retainUntil`, `eventDigest`, and `ledgerDigest`.
+Controlled no-ops bind operation kind/ID/intent, forbid legacy side effects, and
+do not alert. Rejected changed-marker events instead bind the stable delivery
+event ID/time, failure code, `alertRequired = true`, null operation authority,
+and still forbid legacy side effects. Exact replay preserves the original
+terminal. Cleanup protects the operation terminal, operation-retention record,
+and every bound event terminal at `retainUntil`; they become eligible only when
+the cleanup clock is strictly later. HU-083 owns real create-or-exact-replay
+persistence, configured policy activation, alert delivery, trigger wiring, and
+integration evidence.
+
+An operator recovery is admitted only by the exact backend-owned document at
+`shiftPlanningOperations/{activationOperationId}/recoveryAuthorizations/`
+`{recoveryOperationId}`. Schema v1 fixes `mode = recovery`, `state = authorized`,
+environment and both operation IDs; bundle revision/digest; activation terminal
+intent digest; authorization window; and the complete expected maintenance
+binding (`stateRevision`, `writeEpoch`, closed status, active revision/digest,
+and last transition). `authorizationDigest` covers that canonical content with
+timestamps normalized to milliseconds. The local runtime reads this document
+before execution and again inside every recovery transaction retry. Clients,
+including admins, have no Rules read or write access to this nested allowlist.
+
+Each persisted `beforeImages/{ordinal}` document binds its operation, bundle,
+manifest, epoch, contiguous ordinal, target/envelope paths, target snapshot
+update time, capture-contract digest, encoded payload digest, and envelope
+digest. Codec `firestore-value-v1` losslessly tags Firestore maps, arrays,
+null/boolean/finite-number/string scalars, `Timestamp`, bytes, and `GeoPoint`.
+Sentinels, references, dates/class instances, cycles, accessors, sparse/extra
+array properties, symbol/hidden map properties, and unsupported values fail
+closed. `targetUpdateTime` binds the snapshot captured by activation; recovery
+decodes only a revalidated envelope and uses the target's new transaction-read
+`lastUpdateTime` for its restore CAS/precondition.
+
+The forward materializer requires a complete live activate result whose
+persisted-artifact digest matches the staged bundle/candidate/position set. It
+creates every flat public shift, optionally updates only the guarded predecessor
+helper, advances both rotations and active state, completes the request, creates
+the two sync commands, held intents, before-images, and the activation terminal.
+Every update uses its transaction-read `lastUpdateTime`; the complete mutation
+set must equal the forward budget and inverse create manifest before the pinned
+attempt adapter measures and seals it. Emulator evidence is local only: runtime
+loading and production activation remain pending.
+
+The inverse materializer re-digests the bundle/manifest and validates the
+activation terminal, completed request, contiguous before-images, unchanged
+created targets, exact active bundle/write-epoch CAS, and both sealed release
+leases. It deletes activation creates and restores all before-image targets with
+their current transaction `lastUpdateTime`. Restoration returns the prior active
+business lineage while advancing one fresh recovery epoch and monotonically
+incrementing aggregate revisions; both release leases clear. Exact replacement
+sets every retained top-level value (thereby replacing nested maps) and attaches
+delete sentinels for current top-level fields absent from the desired restored
+document. The operation record becomes `operationKind = activationRecovery`,
+`state = committed`, with forward/inverse manifest bindings, activation/recovery
+epochs, deleted paths, before-image bindings, restored lineage, and a
+non-self-referential `recoveryIntentDigest`. Before-images and the completed
+activation request remain; the request write is a guarded historical-terminal
+touch, not a claim that recovery never occurred. The exact inverse budget is
+measured/sealed by the pinned adapter and proven locally in the Firestore
+emulator. The local transaction-scoped resolver now reloads the live source,
+staged package, authoritative state/rotations, and before-image targets for each
+forward retry; the inverse resolver reloads every recovery target.
+
+After a measured forward or inverse transaction returns successfully, the local
+outcome protocol creates
+`shiftPlanningOperations/{operationId}/attemptOutcomes/{attemptId}`. The stable
+`attemptId` is `{direction}-{commitRequestDigestHex}`. Schema v1 requires
+`operationKind = planningTransactionAttemptOutcome`, `state = committed`, and
+`acknowledgement = transactionReturned`; it binds environment, operation intent,
+bundle revision/digest, write epoch, direction, post-return `recordedAt`, the
+complete exact measurement, `measurementDigest`, and `outcomeDigest`. It stores
+neither the opaque transaction token nor a claim of lower-level transport
+acknowledgement.
+
+The backend repository creates the outcome without overwrite in a separate
+transaction. A new outcome must match the current activation or recovery
+terminal, including intent, bundle, epoch, and direction-specific manifest.
+Exact retries converge on the immutable document and an independent read-back
+revalidates its path, key, fields, and digests. An already retained exact forward
+outcome remains valid historical evidence after the parent terminal transitions
+to recovery. The local CAS runtime invokes the resolver inside every Firestore
+retry and retains only the outcome belonging to the attempt returned by
+`runTransaction`. It replays an exact existing directional outcome without
+another CAS and fails closed if a committed terminal has lost that evidence.
+`shiftPlanningState/fairness` is the backend-only live-source envelope. Schema
+v1 contains `environment`, `sourceRevision`, `inputs`, and `sourceDigest`.
+`inputs` exactly contains the normalized fairness snapshot, delivery and market
+boundary/occupancy inputs, and the conservative write limit. The nested snapshot
+retains membership/roster, rotation, config/policy/calendar, override,
+credit-ledger, workbook-partition, measurement-authority, and migration-baseline
+versions. The envelope is re-digested before planning; any valid live drift must
+recompute a different bundle and fail the staged candidate binding without
+writing. The governed producer that refreshes this envelope from real sources
+is now implemented locally. It transactionally reads bounded `users` and
+per-eligible-member `devices` projections, `config/global`, bounded
+`deliveryCalendar`, maintenance, both rotations, and
+`shiftPlanningState/sourcePolicy`. It excludes authentication-only member
+metadata, hashes notification credentials instead of copying them, derives
+stable per-member membership/eligibility/destination revisions, and creates or
+replaces `fairness` only after every source validates. Exact replay performs no
+write; an invalid or over-limit source leaves the preceding envelope intact.
+The concrete forward resolver requires a live-source rebuilder and compares its
+same-transaction digest with the cached envelope during every Firestore retry;
+underlying drift therefore fails before any activation mutation even when
+`fairness` itself was not refreshed. The local `index.ts` trigger now classifies
+unversioned requests as legacy and routes every declared schema-v2 request away
+from that writer. Preview/stage use a read-only same-source comparison before
+private lifecycle persistence; activate enters the governed CAS directly so an
+exact terminal replay does not depend on an out-of-transaction preflight. The
+inverse recovery port is exported locally only through the exact-body HTTP adapter
+pinned to the future dedicated operator email, with sanitized correlated audit
+handling and the existing maintenance allowlist. HU-085 still owns principal
+provisioning, exact invoker IAM/negative permission proof, and deployment. Nothing
+is deployed.
+
+`shiftPlanningState/sourcePolicy` is the backend-only schema-v1 authority for
+inputs that cannot be inferred safely from application collections. It exactly
+contains `environment`, `policyRevision`, delivery and market continuity/
+prefix/occupancy inputs, release-lease duration, the disabled HU-084 credit
+ledger, workbook partitions and sync/measurement authority, and the conservative
+transaction write limit. It is an input to the producer, never a client or
+derived-cache contract.
+
+All eight collections are backend-only: strict Rules deny every client read and
+write, including admin clients. Their internal field schemas are not a mobile
+contract in this cut.
+
+The implemented local state repository treats these exact documents as one
+authoritative CAS read-set:
+
+- `shiftPlanningState/current` contains `schemaVersion`, monotonic
+  `stateRevision` and `writeEpoch`, `maintenanceStatus`, paired
+  `activeRevision`/`activeDigest`, `intakeBarrier`, and `lastTransitionId`.
+  `open` requires a null barrier; `closed` requires exact verified barrier
+  evidence (`revision`, `digest`, `verifiedAtMillis`).
+- `shiftPlanningState/fairness` contains the exact schema-v1 live-source
+  envelope and digest that preview/stage must use and every activation retry
+  re-reads. It is not a client contract or an independently trusted cache: the
+  governed producer rebuilds it from the real sources.
+- `shiftPlanningState/sourcePolicy` contains the exact backend-owned non-derived
+  inputs consumed while rebuilding `fairness`; malformed, mismatched, or
+  unsupported policy fails closed.
+- `shiftRotations/delivery` and `shiftRotations/market` contain the exact typed
+  aggregate, cursor, planning frontier, frozen-cohort state, paired active
+  lineage, last idempotency key, migration baseline, and optional release lease.
+  Both aggregates must match the global active lineage and each other's
+  migration baseline. The cohort is frozen exactly while its cursor is inside a
+  round; a round-boundary cursor requires `cohortFrozen = false` and an empty
+  frozen snapshot.
+- `shiftPlanningOperations/state-{transitionId}` stores immutable terminal
+  schema-v2 evidence for maintenance entry or pre-activation abort, including the exact
+  rotations needed to recompute both authoritative digests. A maintenance-entry
+  intent also stores `intakeBarrierExpiresAtMillis`; this field belongs to the
+  immutable operation, not to `shiftPlanningState/current`. The operation stores
+  the trusted transaction-callback clock sample as `attemptedAt`; this local,
+  runtime-disconnected flow has no deployed v1 operation state to migrate. An exact retry
+  replays its original result; an ID reused for another intent or altered digest
+  evidence fails closed.
+- `shiftPlanningOperations/barrier-evidence-{transitionId}` stores the complete immutable
+  intake-barrier evidence envelope under the stable environment and transition key.
+  Its exact schema-v1 wrapper is `schemaVersion`,
+  `operationKind = intakeBarrierEvidence`, `environment`, `transitionId`,
+  `evidence`, `evidenceDigest`, and Firestore `retainedAt`. That timestamp must
+  be millisecond-exact, non-negative, and no earlier than the packet's
+  `verifiedAtMillis`.
+- `shiftPlanningOperations/barrier-failure-{transitionId}` stores one immutable
+  failed-closure incident with
+  `operationKind = intakeBarrierFailureClosure`. It binds the environment and
+  transition to the exact `scopeDigest`, `holdRevision`, `checkpointDigest`, and
+  failure `phase`; it also records Firestore `failedAt` and the canonical
+  `failureDigest`. The domain read-back derives `failedAtMillis` from that exact
+  timestamp and retains no raw exception text.
+
+The fixed `barrier-evidence-` and `barrier-failure-` namespaces are disjoint, so
+no accepted transition ID can alias an evidence document to another
+transition's failure closure.
+
+Both barrier records use create-or-exact-replay semantics. A retry with the same
+canonical evidence or closure intent reads back the original record without
+updating its retention/failure instant. Reusing the stable key with another
+digest or binding, or finding a malformed or digest/binding-tampered record,
+fails closed without overwrite, repair, or early deletion. Every successful
+create or replay is followed by an exact Firestore read-back. The backend-only
+IAM boundary remains responsible for protecting the audit timestamps themselves;
+the repository also compares the complete transaction result, including its
+timestamp, with the immediate post-transaction read-back.
+
+This freezes only the local/emulator persistence contract and the incident
+journal used by the production-shaped adapter. It does not prove a live Rules,
+IAM, Functions/Eventarc, Drive, Workspace, queue, editor, or workbook fence; it
+does not authorize a deployment and exposes no reopening capability. Governed
+live implementations, wiring, and read-back evidence remain pending.
+
+Local maintenance entry and pre-activation abort each update only `current` and
+create one operation record in a transaction. Both revisions advance exactly
+once, active lineage is preserved, and abort clears the current barrier so new
+entry requires new evidence; the immutable operation retains the prior proof.
+Abort also requires the exact persisted entry operation still to own the current
+read-set and both rotation release leases to be null. A terminal abort replay
+revalidates both conditions against persisted evidence before returning.
+This state transition does not verify or reopen the external Rules/IAM fence.
+The entry transaction admits an attempt only when
+`verifiedAtMillis <= attemptedAtMillis <= intakeBarrierExpiresAtMillis`.
+`attemptedAtMillis` is not the physical Firestore server commit time. The
+external adapter must keep every fence held until the transaction resolves, so
+commit latency cannot reopen an intake gap.
+A raw repository entry replay remains historical evidence; the barrier
+coordinator accepts it only after reloading authoritative state and proving its
+after-digest is still current, maintenance remains closed, `lastTransitionId`
+matches, and the compact barrier is unchanged.
+The coordinator looks up terminal evidence before enforcing freshness: a missing
+operation requires a fresh packet, while an exact terminal operation may replay
+after expiry only by reading the already-retained full envelope. It never
+recreates missing historical evidence.
+Missing state is invalid and is never initialized or repaired implicitly.
+
+The same SDK-free normalizer supplies the bundle boundary. The bundle requires
+the legacy fairness rotation fields to equal both authoritative aggregates
+canonically, and persists the complete authoritative envelope plus measurement
+authority in schema-v2 `expectedState`. Barrier/status/revision/transition drift
+or any rotation aggregate drift changes the state and manifest digests. Preview
+receipts and staged candidates keep only `expectedStateDigest`, binding the same
+read-set transitively without duplicating it.
+
+Rollout state for this cut: the v2 wire parser, deterministic pure planners, and
+private Firestore repositories exist as local/emulator code. The request
+repository owns claim/lease/fencing/takeover/replay, atomically persists preview bundle plus
+receipt, reloads persisted preview/bundle before creating a non-overwritten stage
+header plus its digest-bound inspection positions, and offers a read-only
+activation preflight over candidate, immutable bundle, and positions. An SDK-free
+local orchestrator transactionally routes and claims preview/stage before
+planning, short-circuits busy and terminal replay, loads authoritative state for
+preview, reloads the exact preview and then authoritative state for stage,
+rejects a resolver result bound to any other read-set, terminalizes only typed
+deterministic failures, and routes activate to that no-write preflight without
+creating an operation or reading state. The state repository
+atomically reads maintenance plus both rotations, derives one canonical CAS
+digest, and implements runtime-disconnected, idempotent maintenance entry and
+abort.
+The local/emulator v2 runtime additionally resolves bundle-bound activation
+inside each retried Firestore transaction and submits one measured mutation set:
+the complete flat shift projection, both rotation/cursor and release-lease
+transitions, active state, exact request terminal, two Sheets commands, held
+notification intents, before-images, and the activation tombstone. Emulator
+read-back proves the complete commit, while a deliberate create conflict proves
+that neither cursor, active state, request lifecycle, nor any other create can
+advance partially. Held intents are written only to the backend-owned
+`shiftPlanningNotificationIntents` outbox with `state = held`; activation creates
+no consumable `notificationEvents` document. A local, non-exported release
+repository now proves the atomic canonical event/inbox/receipt effect after both
+Sheets partitions complete their read-back, including exact replay and stale
+membership rejection. It deliberately remains disconnected from `index.ts`
+until the FCM dispatch lease and append-only attempt ledger replace the legacy
+trigger path.
+The separate local dispatch repository is likewise not exported. It claims one
+short fenced attempt, revalidates the same assignment/member/device source again
+immediately before recording authenticated submission start, returns only a
+generic `eventId`/`shift_updated` push with a stable collapse key, and preserves
+late or expired submission as immutable `unknown`. Actual FCM invocation,
+server/Admin writer integration and trigger replacement remain pending. A local,
+non-exported Firebase adapter and executor now bound each transport wait to 10
+seconds inside the 30-second lease. Explicit per-target rejection is `failed`;
+timeout, throw, acknowledgement mismatch, or exhausted post-authorization lease
+budget is immutable possibly-delivered `unknown`. Known acceptance remains
+`accepted` even if a later target batch is ambiguous. The adapter retains neither
+raw acknowledgements nor errors and emits only generic title/body/data with stable
+Android and APNs collapse keys.
+Dispatch now publishes the deterministic member/shift resource fences described
+above in the same transaction as its attempt. The strict candidate consumes them
+for direct device and shift writes; accepted/definitive failure releases them,
+while `unknown` remains fenced until expiry. Backend Admin SDK writers bypass
+Rules. A shared transaction guard now serializes the authenticated admin member
+upsert and reciprocal shift-swap application against those exact documents; an
+active fence returns the stable HTTP conflict
+`shift_notification_dispatch_in_progress`, and malformed fence state fails
+closed. The measured v2 forward-activation and inverse-recovery attempt adapter
+also derives every exact public-shift target from its canonical mutation set and
+reads those fences before populating or sealing the SDK-owned batch; one active
+or malformed fence rejects the whole transaction. The legacy Sheets
+importer/planner still requires the same guard before any production wiring or
+deployment.
+Still pending and fail-closed are the isolated-clone size/index rehearsal, live
+Google control-plane implementations and trusted intake-barrier wiring, writer
+migration, notification dispatch/reconciliation consumers, production deployment,
+and live data changes. The local Phase 1 Rules
+candidate denies all client access to the new planning control plane; the local
+strict candidate allows only the exact admin request create/read and admin
+candidate read boundaries above. Neither Rules change has been deployed.
 
 ### 4.9 `shiftSwapRequests/{requestId}`
 
@@ -310,6 +910,10 @@ Delivery calendar strategy (canonical):
 - `requestedAt`: timestamp (required)
 - `confirmedAt`: timestamp|null
 - `appliedAt`: timestamp|null
+- `planningAuthority`: map|null (backend-owned; exact
+  `{ schemaVersion, stateRevision, writeEpoch, activeRevision, activeDigest }`
+  captured on creation and revalidated before response/application; `null` only
+  while the pre-HU-082 maintenance state is absent)
 
 ### 4.10 `news/{newsId}`
 
@@ -322,6 +926,9 @@ Delivery calendar strategy (canonical):
 
 ### 4.11 `notificationEvents/{eventId}` (recommended)
 
+- `schemaVersion`: integer (optional; `1` only for governed shift-planning events)
+- `operationKind`: string (optional; `shiftPlanningNotification` only with `schemaVersion = 1`)
+- `contentPolicy`: string (optional; `genericReferenceOnly` only with `schemaVersion = 1`)
 - `title`: string (required)
 - `body`: string (required)
 - `type`: string (`order_reminder`|`order_auto_generated`|`shift_swap_requested`|`shift_swap_available`|`shift_swap_unavailable`|`shift_swap_accepted`|`shift_swap_applied`|`shift_updated`|`news_published`|`admin_broadcast`) (required)
@@ -342,6 +949,13 @@ event. Clients list only their own inbox; only backend code writes or removes
 inbox documents. The global `notificationEvents` collection remains the source
 for dispatch and admin audit, not the strict Reguerta+ member feed query. The
 separate `collections` tree retains the published apps' legacy feed contract.
+
+The three optional planning fields form one all-or-none backend-only discriminator.
+Its event and inbox copy must use `type = shift_updated`, `target = users`,
+`createdBy = system`, no `weekKey`, and exactly the generic title/body defined by
+the shift-planning release contract. Android and iOS map that discriminator to an
+authorized-detail-fetch policy; unversioned events retain their legacy embedded
+content behavior. Client/admin event creation cannot reserve these fields.
 
 `targetPayload` contract:
 - For `target == all`: empty map.

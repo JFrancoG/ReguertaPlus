@@ -19,6 +19,7 @@ nonisolated struct AuthorizedDeviceRegistrationCommand: Equatable {
 
 nonisolated enum AuthorizedDeviceRegistrationResult: Equatable, Sendable {
     case registered
+    case deferred
     case skipped
     case failed
 }

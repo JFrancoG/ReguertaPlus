@@ -1,0 +1,1276 @@
+import {ShiftPlanningHeldNotificationIntent} from
+  "./shift-planning-bundle.js";
+import {
+  ShiftPlanningError,
+  ShiftRotationType,
+} from "./shift-planning-contract.js";
+import {
+  ShiftPlanningDigest,
+  createShiftPlanningDigest,
+} from "./shift-planning-digest.js";
+import {
+  ShiftPlanningNotificationDispatchAttempt,
+  ShiftPlanningNotificationDispatchState,
+  deriveShiftPlanningNotificationDispatchAggregate,
+  parseShiftPlanningNotificationDispatchAttempt,
+  parseShiftPlanningNotificationDispatchState,
+} from "./shift-planning-notification-dispatch.js";
+import {parseShiftPlanningHeldNotificationIntent} from
+  "./shift-planning-notification-release.js";
+import {
+  ShiftPlanningEnvironment,
+  ShiftPlanningReleaseLease,
+} from "./shift-planning-wire.js";
+
+export const SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION =
+  1 as const;
+export const SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_MAX_TTL_MILLIS =
+  86_400_000 as const;
+
+export type ShiftPlanningNotificationDispatchEvidence = {
+  intentId: string;
+  dispatchState: ShiftPlanningNotificationDispatchState;
+  attempts: readonly ShiftPlanningNotificationDispatchAttempt[];
+};
+
+export type ShiftPlanningNotificationSafeResumeIntent = {
+  intentId: string;
+  shiftId: string;
+  dispatchDisposition:
+    | "pending"
+    | "claimed"
+    | "submitting"
+    | "accepted"
+    | "unknown"
+    | "definitivelyFailed"
+    | "demonstrablyUnsubmitted";
+  authenticatedSubmissionPossible: boolean;
+  dispatchEvidenceDigest: ShiftPlanningDigest;
+};
+
+export type ShiftPlanningNotificationReleaseLeaseDegradeAction = {
+  action: "degrade";
+  type: ShiftRotationType;
+  expectedLease: ShiftPlanningReleaseLease;
+  replacementLease: ShiftPlanningReleaseLease;
+};
+
+export type ShiftPlanningNotificationSafeResume = {
+  schemaVersion:
+    typeof SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION;
+  operationKind: "notificationSafeResume";
+  incidentId: string;
+  environment: ShiftPlanningEnvironment;
+  state: "degraded";
+  resolution: "operatorRequired";
+  bundleId: string;
+  bundleRevision: string;
+  bundleDigest: ShiftPlanningDigest;
+  writeEpoch: number;
+  abandonedOwnerOperationId: string;
+  ownerUserId: string;
+  escalationTargetId: string;
+  enteredAtMillis: number;
+  expiresAtMillis: number;
+  intents: readonly ShiftPlanningNotificationSafeResumeIntent[];
+  affectedShiftIds: readonly string[];
+  releaseLeaseActions: readonly [
+    ShiftPlanningNotificationReleaseLeaseDegradeAction,
+    ShiftPlanningNotificationReleaseLeaseDegradeAction,
+  ];
+  safeResumeDigest: ShiftPlanningDigest;
+};
+
+export type ShiftPlanningNotificationTerminalIncidentCancellation = {
+  action: "cancelAndSupersede";
+  intentId: string;
+  incidentId: string;
+  cancelledAtMillis: number;
+};
+
+export type ShiftPlanningNotificationTerminalIncidentIntent = {
+  intentId: string;
+  shiftId: string;
+  resolution:
+    | "cancelledUnsubmitted"
+    | "possibleDeliveryCorrectionRequired"
+    | "definitivelyFailed";
+  attemptIds: readonly string[];
+  dispatchEvidenceDigest: ShiftPlanningDigest;
+};
+
+export type ShiftPlanningNotificationReleaseLeaseClearAction = {
+  action: "clear";
+  type: ShiftRotationType;
+  expectedLease: ShiftPlanningReleaseLease;
+};
+
+export type ShiftPlanningNotificationTerminalIncident = {
+  schemaVersion:
+    typeof SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION;
+  operationKind: "notificationTerminalIncident";
+  incidentId: string;
+  environment: ShiftPlanningEnvironment;
+  state: "terminal";
+  resolution: "incidentTerminalized";
+  bundleId: string;
+  bundleRevision: string;
+  bundleDigest: ShiftPlanningDigest;
+  writeEpoch: number;
+  ownerUserId: string;
+  escalationTargetId: string;
+  terminalizedAtMillis: number;
+  intents: readonly ShiftPlanningNotificationTerminalIncidentIntent[];
+  cancelledIntentIds: readonly string[];
+  possibleDeliveryIntentIds: readonly string[];
+  correctionRequiredIntentIds: readonly string[];
+  definitivelyFailedIntentIds: readonly string[];
+  cancellations: readonly
+    ShiftPlanningNotificationTerminalIncidentCancellation[];
+  releaseLeaseActions: readonly [
+    ShiftPlanningNotificationReleaseLeaseClearAction,
+    ShiftPlanningNotificationReleaseLeaseClearAction,
+  ];
+  terminalIncidentDigest: ShiftPlanningDigest;
+};
+
+type UnknownRecord = Record<string, unknown>;
+
+type AnalyzedIntent = {
+  intent: ShiftPlanningHeldNotificationIntent;
+  disposition: ShiftPlanningNotificationSafeResumeIntent[
+    "dispatchDisposition"
+  ];
+  authenticatedSubmissionPossible: boolean;
+  attemptIds: readonly string[];
+  dispatchEvidenceDigest: ShiftPlanningDigest;
+};
+
+const leaseFields = [
+  "type",
+  "bundleId",
+  "bundleRevision",
+  "bundleDigest",
+  "leaseEpoch",
+  "ownerOperationId",
+  "state",
+  "acquiredAtMillis",
+  "deadlineAtMillis",
+] as const;
+
+const safeResumeFields = [
+  "schemaVersion",
+  "operationKind",
+  "incidentId",
+  "environment",
+  "state",
+  "resolution",
+  "bundleId",
+  "bundleRevision",
+  "bundleDigest",
+  "writeEpoch",
+  "abandonedOwnerOperationId",
+  "ownerUserId",
+  "escalationTargetId",
+  "enteredAtMillis",
+  "expiresAtMillis",
+  "intents",
+  "affectedShiftIds",
+  "releaseLeaseActions",
+  "safeResumeDigest",
+] as const;
+
+const safeResumeIntentFields = [
+  "intentId",
+  "shiftId",
+  "dispatchDisposition",
+  "authenticatedSubmissionPossible",
+  "dispatchEvidenceDigest",
+] as const;
+
+const degradeActionFields = [
+  "action",
+  "type",
+  "expectedLease",
+  "replacementLease",
+] as const;
+
+const terminalIncidentFields = [
+  "schemaVersion",
+  "operationKind",
+  "incidentId",
+  "environment",
+  "state",
+  "resolution",
+  "bundleId",
+  "bundleRevision",
+  "bundleDigest",
+  "writeEpoch",
+  "ownerUserId",
+  "escalationTargetId",
+  "terminalizedAtMillis",
+  "intents",
+  "cancelledIntentIds",
+  "possibleDeliveryIntentIds",
+  "correctionRequiredIntentIds",
+  "definitivelyFailedIntentIds",
+  "cancellations",
+  "releaseLeaseActions",
+  "terminalIncidentDigest",
+] as const;
+
+const terminalIntentFields = [
+  "intentId",
+  "shiftId",
+  "resolution",
+  "attemptIds",
+  "dispatchEvidenceDigest",
+] as const;
+
+const cancellationFields = [
+  "action",
+  "intentId",
+  "incidentId",
+  "cancelledAtMillis",
+] as const;
+
+const clearActionFields = ["action", "type", "expectedLease"] as const;
+
+const failIncident = (message: string): never => {
+  throw new ShiftPlanningError("invalid_planning_transaction", message);
+};
+
+const failLeaseConflict = (message: string): never => {
+  throw new ShiftPlanningError("planning_release_lease_conflict", message);
+};
+
+const requireRecord = (value: unknown, name: string): UnknownRecord => {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Object.prototype
+  ) {
+    return failIncident(`${name} must be a plain object.`);
+  }
+  return value as UnknownRecord;
+};
+
+const requireExactFields = (
+  value: UnknownRecord,
+  fields: readonly string[],
+  name: string,
+): void => {
+  const actual = Object.keys(value);
+  if (
+    actual.length !== fields.length ||
+    actual.some((field) => !fields.includes(field))
+  ) {
+    failIncident(`${name} fields are not exact.`);
+  }
+};
+
+const requireIdentifier = (value: unknown, name: string): string => {
+  if (
+    typeof value !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)
+  ) {
+    return failIncident(`${name} is not a valid identifier.`);
+  }
+  return value;
+};
+
+const requireDigest = (value: unknown, name: string): ShiftPlanningDigest => {
+  if (
+    typeof value !== "string" ||
+    !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(value)
+  ) {
+    return failIncident(`${name} is not a planning digest.`);
+  }
+  return value as ShiftPlanningDigest;
+};
+
+const requireNonNegativeInteger = (value: unknown, name: string): number => {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    return failIncident(`${name} must be a non-negative integer.`);
+  }
+  return value as number;
+};
+
+const requirePositiveInteger = (value: unknown, name: string): number => {
+  const parsed = requireNonNegativeInteger(value, name);
+  if (parsed === 0) return failIncident(`${name} must be positive.`);
+  return parsed;
+};
+
+const requireEnvironment = (value: unknown): ShiftPlanningEnvironment => {
+  if (value !== "develop" && value !== "production") {
+    return failIncident("Planning environment is invalid.");
+  }
+  return value;
+};
+
+const parseReleaseLease = (
+  value: unknown,
+  type: ShiftRotationType,
+): ShiftPlanningReleaseLease => {
+  const lease = requireRecord(value, `${type} release lease`);
+  requireExactFields(lease, leaseFields, `${type} release lease`);
+  const acquiredAtMillis = requireNonNegativeInteger(
+    lease.acquiredAtMillis,
+    `${type} lease acquisition`,
+  );
+  const deadlineAtMillis = requireNonNegativeInteger(
+    lease.deadlineAtMillis,
+    `${type} lease deadline`,
+  );
+  if (
+    lease.type !== type ||
+    (
+      lease.state !== "sealed" &&
+      lease.state !== "releasing" &&
+      lease.state !== "degraded"
+    ) ||
+    deadlineAtMillis < acquiredAtMillis
+  ) {
+    return failLeaseConflict(`${type} release lease is invalid.`);
+  }
+  return {
+    type,
+    bundleId: requireIdentifier(lease.bundleId, `${type} lease bundleId`),
+    bundleRevision: requireIdentifier(
+      lease.bundleRevision,
+      `${type} lease bundleRevision`,
+    ),
+    bundleDigest: requireDigest(lease.bundleDigest, `${type} lease digest`),
+    leaseEpoch: requirePositiveInteger(lease.leaseEpoch, `${type} lease epoch`),
+    ownerOperationId: requireIdentifier(
+      lease.ownerOperationId,
+      `${type} lease owner`,
+    ),
+    state: lease.state,
+    acquiredAtMillis,
+    deadlineAtMillis,
+  };
+};
+
+const requirePairedLeases = (
+  delivery: ShiftPlanningReleaseLease,
+  market: ShiftPlanningReleaseLease,
+): void => {
+  if (
+    delivery.bundleId !== market.bundleId ||
+    delivery.bundleRevision !== market.bundleRevision ||
+    delivery.bundleDigest !== market.bundleDigest ||
+    delivery.leaseEpoch !== market.leaseEpoch ||
+    delivery.ownerOperationId !== market.ownerOperationId ||
+    delivery.acquiredAtMillis !== market.acquiredAtMillis ||
+    delivery.deadlineAtMillis !== market.deadlineAtMillis
+  ) {
+    failLeaseConflict("Release leases do not own one exact bundle batch.");
+  }
+};
+
+const intentOrdinal = (intentId: string, bundleRevision: string): number => {
+  const match = /^(.*)-notification-([1-9][0-9]*)$/.exec(intentId);
+  if (!match || match[1] !== bundleRevision) {
+    return failIncident("Notification intent ordinal is invalid.");
+  }
+  return requirePositiveInteger(Number(match[2]), "notification ordinal");
+};
+
+const requireIntentLineage = (
+  intent: ShiftPlanningHeldNotificationIntent,
+  lease: ShiftPlanningReleaseLease,
+): void => {
+  if (
+    intent.bundleRevision !== lease.bundleRevision ||
+    intent.bundleDigest !== lease.bundleDigest ||
+    intent.writeEpoch !== lease.leaseEpoch
+  ) {
+    failLeaseConflict("Notification intent drifted from its release lease.");
+  }
+};
+
+const canonicalIntents = (input: {
+  intents: readonly ShiftPlanningHeldNotificationIntent[];
+  lease: ShiftPlanningReleaseLease;
+}): readonly ShiftPlanningHeldNotificationIntent[] => {
+  const parsed = input.intents.map(parseShiftPlanningHeldNotificationIntent)
+    .map((intent) => ({
+      intent,
+      ordinal: intentOrdinal(intent.intentId, input.lease.bundleRevision),
+    }))
+    .sort((left, right) => left.ordinal - right.ordinal);
+  if (
+    parsed.length === 0 ||
+    new Set(parsed.map(({intent}) => intent.intentId)).size !== parsed.length ||
+    parsed.some(({ordinal}, index) => ordinal !== index + 1)
+  ) {
+    return failIncident(
+      "Notification batch intents are not complete and contiguous.",
+    );
+  }
+  parsed.forEach(({intent}) => requireIntentLineage(intent, input.lease));
+  return parsed.map(({intent}) => intent);
+};
+
+const evidenceDigest = (input: {
+  dispatchState: ShiftPlanningNotificationDispatchState;
+  attempts: readonly ShiftPlanningNotificationDispatchAttempt[];
+}): ShiftPlanningDigest => createShiftPlanningDigest({
+  dispatchState: {
+    schemaVersion: input.dispatchState.schemaVersion,
+    operationKind: input.dispatchState.operationKind,
+    intentId: input.dispatchState.intentId,
+    eventId: input.dispatchState.eventId,
+    attemptCount: input.dispatchState.attemptCount,
+    lastLeaseEpoch: input.dispatchState.lastLeaseEpoch,
+    activeLease: null,
+  },
+  attempts: input.attempts.map((attempt) => ({
+    schemaVersion: attempt.schemaVersion,
+    operationKind: attempt.operationKind,
+    intentId: attempt.intentId,
+    eventId: attempt.eventId,
+    attemptId: attempt.attemptId,
+    attemptOrdinal: attempt.attemptOrdinal,
+    lease: {
+      attemptId: attempt.lease.attemptId,
+      workerId: attempt.lease.workerId,
+      epoch: attempt.lease.epoch,
+      acquiredAtMillis: attempt.lease.acquiredAt.toMillis(),
+      expiresAtMillis: attempt.lease.expiresAt.toMillis(),
+    },
+    validation: attempt.validation,
+    state: attempt.state,
+    authenticatedStartedAtMillis:
+      attempt.authenticatedStartedAt?.toMillis() ?? null,
+    terminal: attempt.terminal === null ? null : {
+      outcome: attempt.terminal.outcome,
+      completedAtMillis: attempt.terminal.completedAt.toMillis(),
+      failureCode: attempt.terminal.failureCode,
+      acceptedTargetCount: attempt.terminal.acceptedTargetCount,
+      possiblyDelivered: attempt.terminal.possiblyDelivered,
+    },
+  })),
+});
+
+const analyzeIntent = (input: {
+  intent: ShiftPlanningHeldNotificationIntent;
+  evidence: ShiftPlanningNotificationDispatchEvidence;
+  observedAtMillis: number;
+}): AnalyzedIntent => {
+  const evidence = requireRecord(input.evidence, "dispatch evidence");
+  requireExactFields(
+    evidence,
+    ["intentId", "dispatchState", "attempts"],
+    "dispatch evidence",
+  );
+  const intentId = requireIdentifier(evidence.intentId, "evidence intentId");
+  if (!Array.isArray(evidence.attempts)) {
+    return failIncident("Dispatch attempts must be an array.");
+  }
+  const dispatchState = parseShiftPlanningNotificationDispatchState(
+    evidence.dispatchState,
+  );
+  const attempts = evidence.attempts.map(
+    parseShiftPlanningNotificationDispatchAttempt,
+  ).sort((left, right) => left.attemptOrdinal - right.attemptOrdinal);
+  if (
+    intentId !== input.intent.intentId ||
+    dispatchState.intentId !== intentId ||
+    dispatchState.eventId !== intentId ||
+    dispatchState.activeLease !== null ||
+    dispatchState.attemptCount !== attempts.length ||
+    dispatchState.lastLeaseEpoch !== attempts.length ||
+    attempts.some((attempt, index) =>
+      attempt.intentId !== intentId ||
+      attempt.eventId !== intentId ||
+      attempt.attemptOrdinal !== index + 1)
+  ) {
+    return failLeaseConflict("Dispatch evidence is not exact and inactive.");
+  }
+  if (attempts.some((attempt) => {
+    if (attempt.state === "terminal") {
+      return attempt.terminal.completedAt.toMillis() > input.observedAtMillis;
+    }
+    return attempt.lease.expiresAt.toMillis() > input.observedAtMillis;
+  })) {
+    return failLeaseConflict(
+      "Dispatch evidence is not settled at observation.",
+    );
+  }
+  const aggregate = deriveShiftPlanningNotificationDispatchAggregate(attempts);
+  const accepted = attempts.some((attempt) =>
+    attempt.state === "terminal" &&
+    attempt.terminal.outcome === "accepted");
+  const unknown = attempts.some((attempt) =>
+    attempt.state === "terminal" &&
+    attempt.terminal.outcome === "unknown");
+  const authenticatedSubmissionPossible =
+    accepted ||
+    unknown ||
+    aggregate === "submitting";
+  const disposition = accepted ? "accepted" : unknown ? "unknown" :
+    aggregate !== "failed" ? aggregate :
+      attempts.some(({authenticatedStartedAt}) =>
+        authenticatedStartedAt !== null) ?
+        "definitivelyFailed" : "demonstrablyUnsubmitted";
+  return {
+    intent: input.intent,
+    disposition,
+    authenticatedSubmissionPossible,
+    attemptIds: attempts.map(({attemptId}) => attemptId),
+    dispatchEvidenceDigest: evidenceDigest({dispatchState, attempts}),
+  };
+};
+
+const analyzeBatch = (input: {
+  intents: readonly ShiftPlanningHeldNotificationIntent[];
+  dispatchEvidence: readonly ShiftPlanningNotificationDispatchEvidence[];
+  observedAtMillis: number;
+}): readonly AnalyzedIntent[] => {
+  const evidenceByIntent = new Map<
+    string,
+    ShiftPlanningNotificationDispatchEvidence
+  >();
+  for (const value of input.dispatchEvidence) {
+    const evidence = requireRecord(value, "dispatch evidence");
+    const intentId = requireIdentifier(evidence.intentId, "evidence intentId");
+    if (evidenceByIntent.has(intentId)) {
+      return failIncident("Dispatch evidence is not unique.");
+    }
+    evidenceByIntent.set(
+      intentId,
+      value as ShiftPlanningNotificationDispatchEvidence,
+    );
+  }
+  if (
+    evidenceByIntent.size !== input.intents.length ||
+    [...evidenceByIntent.keys()].some((intentId) =>
+      !input.intents.some((intent) => intent.intentId === intentId))
+  ) {
+    return failIncident("Dispatch evidence does not cover the exact batch.");
+  }
+  return input.intents.map((intent) => analyzeIntent({
+    intent,
+    evidence: evidenceByIntent.get(intent.intentId) ??
+      failIncident("Dispatch evidence is missing."),
+    observedAtMillis: input.observedAtMillis,
+  }));
+};
+
+const sameValue = (left: unknown, right: unknown): boolean =>
+  createShiftPlanningDigest(left) === createShiftPlanningDigest(right);
+
+const safeResumeCore = (
+  safeResume: ShiftPlanningNotificationSafeResume,
+): Omit<ShiftPlanningNotificationSafeResume, "safeResumeDigest"> => {
+  const core: Partial<ShiftPlanningNotificationSafeResume> = {...safeResume};
+  delete core.safeResumeDigest;
+  return core as Omit<
+    ShiftPlanningNotificationSafeResume,
+    "safeResumeDigest"
+  >;
+};
+
+export const parseShiftPlanningNotificationSafeResume = (
+  value: unknown,
+): ShiftPlanningNotificationSafeResume => {
+  const candidate = requireRecord(value, "notification safe resume");
+  requireExactFields(
+    candidate,
+    safeResumeFields,
+    "notification safe resume",
+  );
+  if (
+    !Array.isArray(candidate.intents) ||
+    !Array.isArray(candidate.affectedShiftIds) ||
+    !Array.isArray(candidate.releaseLeaseActions)
+  ) {
+    return failIncident("Safe-resume collections are invalid.");
+  }
+  const incidentId = requireIdentifier(candidate.incidentId, "incidentId");
+  const enteredAtMillis = requireNonNegativeInteger(
+    candidate.enteredAtMillis,
+    "safe-resume entry instant",
+  );
+  const expiresAtMillis = requireNonNegativeInteger(
+    candidate.expiresAtMillis,
+    "safe-resume expiry instant",
+  );
+  if (
+    expiresAtMillis <= enteredAtMillis ||
+    expiresAtMillis - enteredAtMillis >
+      SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_MAX_TTL_MILLIS
+  ) {
+    return failIncident("Safe-resume expiry is outside its bounded policy.");
+  }
+  const intents: ShiftPlanningNotificationSafeResumeIntent[] =
+    candidate.intents.map((intentValue) => {
+      const intent = requireRecord(intentValue, "safe-resume intent");
+      requireExactFields(intent, safeResumeIntentFields, "safe-resume intent");
+      if (
+        intent.dispatchDisposition !== "pending" &&
+        intent.dispatchDisposition !== "claimed" &&
+        intent.dispatchDisposition !== "submitting" &&
+        intent.dispatchDisposition !== "accepted" &&
+        intent.dispatchDisposition !== "unknown" &&
+        intent.dispatchDisposition !== "definitivelyFailed" &&
+        intent.dispatchDisposition !== "demonstrablyUnsubmitted"
+      ) {
+        return failIncident("Safe-resume intent disposition is invalid.");
+      }
+      const authenticatedSubmissionPossible =
+        intent.dispatchDisposition === "submitting" ||
+        intent.dispatchDisposition === "accepted" ||
+        intent.dispatchDisposition === "unknown";
+      if (
+        intent.authenticatedSubmissionPossible !==
+        authenticatedSubmissionPossible
+      ) {
+        return failIncident("Safe-resume delivery evidence is incoherent.");
+      }
+      return {
+        intentId: requireIdentifier(intent.intentId, "safe-resume intentId"),
+        shiftId: requireIdentifier(intent.shiftId, "safe-resume shiftId"),
+        dispatchDisposition: intent.dispatchDisposition,
+        authenticatedSubmissionPossible,
+        dispatchEvidenceDigest: requireDigest(
+          intent.dispatchEvidenceDigest,
+          "safe-resume dispatch evidence digest",
+        ),
+      };
+    });
+  if (new Set(intents.map(({intentId}) => intentId)).size !== intents.length) {
+    return failIncident("Safe-resume intents are not unique.");
+  }
+  const affectedShiftIds = candidate.affectedShiftIds.map((shiftId) =>
+    requireIdentifier(shiftId, "affected shiftId"));
+  const expectedAffectedShiftIds = [
+    ...new Set(intents.map(({shiftId}) => shiftId)),
+  ].sort();
+  if (
+    affectedShiftIds.some((shiftId, index) =>
+      shiftId !== expectedAffectedShiftIds[index]) ||
+    affectedShiftIds.length !== expectedAffectedShiftIds.length
+  ) {
+    return failIncident("Safe-resume affected shifts are not canonical.");
+  }
+  if (candidate.releaseLeaseActions.length !== 2) {
+    return failIncident("Safe-resume lease actions are not paired.");
+  }
+  const parseDegradeAction = (
+    actionValue: unknown,
+    type: ShiftRotationType,
+  ): ShiftPlanningNotificationReleaseLeaseDegradeAction => {
+    const action = requireRecord(actionValue, "safe-resume lease action");
+    requireExactFields(
+      action,
+      degradeActionFields,
+      "safe-resume lease action",
+    );
+    if (action.action !== "degrade" || action.type !== type) {
+      return failIncident("Safe-resume lease action order is invalid.");
+    }
+    return {
+      action: "degrade" as const,
+      type,
+      expectedLease: parseReleaseLease(action.expectedLease, type),
+      replacementLease: parseReleaseLease(action.replacementLease, type),
+    };
+  };
+  const actions = [
+    parseDegradeAction(candidate.releaseLeaseActions[0], "delivery"),
+    parseDegradeAction(candidate.releaseLeaseActions[1], "market"),
+  ] as const;
+  const expectedDelivery = actions[0].expectedLease;
+  const expectedMarket = actions[1].expectedLease;
+  const replacementDelivery = actions[0].replacementLease;
+  const replacementMarket = actions[1].replacementLease;
+  requirePairedLeases(expectedDelivery, expectedMarket);
+  requirePairedLeases(replacementDelivery, replacementMarket);
+  if (
+    expectedDelivery.state === "degraded" ||
+    expectedMarket.state === "degraded" ||
+    replacementDelivery.state !== "degraded" ||
+    replacementMarket.state !== "degraded" ||
+    replacementDelivery.ownerOperationId !== incidentId ||
+    replacementDelivery.acquiredAtMillis !== enteredAtMillis ||
+    replacementDelivery.deadlineAtMillis !== expiresAtMillis ||
+    replacementDelivery.bundleId !== expectedDelivery.bundleId ||
+    replacementDelivery.bundleRevision !== expectedDelivery.bundleRevision ||
+    replacementDelivery.bundleDigest !== expectedDelivery.bundleDigest ||
+    replacementDelivery.leaseEpoch !== expectedDelivery.leaseEpoch
+  ) {
+    return failLeaseConflict("Safe-resume replacement lease is invalid.");
+  }
+  const safeResume: ShiftPlanningNotificationSafeResume = {
+    schemaVersion:
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION,
+    operationKind: "notificationSafeResume" as const,
+    incidentId,
+    environment: requireEnvironment(candidate.environment),
+    state: "degraded" as const,
+    resolution: "operatorRequired" as const,
+    bundleId: requireIdentifier(candidate.bundleId, "bundleId"),
+    bundleRevision: requireIdentifier(
+      candidate.bundleRevision,
+      "bundleRevision",
+    ),
+    bundleDigest: requireDigest(candidate.bundleDigest, "bundle digest"),
+    writeEpoch: requirePositiveInteger(candidate.writeEpoch, "writeEpoch"),
+    abandonedOwnerOperationId: requireIdentifier(
+      candidate.abandonedOwnerOperationId,
+      "abandonedOwnerOperationId",
+    ),
+    ownerUserId: requireIdentifier(candidate.ownerUserId, "ownerUserId"),
+    escalationTargetId: requireIdentifier(
+      candidate.escalationTargetId,
+      "escalationTargetId",
+    ),
+    enteredAtMillis,
+    expiresAtMillis,
+    intents,
+    affectedShiftIds,
+    releaseLeaseActions: actions,
+    safeResumeDigest: requireDigest(
+      candidate.safeResumeDigest,
+      "safeResumeDigest",
+    ),
+  };
+  if (
+    candidate.schemaVersion !==
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION ||
+    candidate.operationKind !== "notificationSafeResume" ||
+    candidate.state !== "degraded" ||
+    candidate.resolution !== "operatorRequired" ||
+    safeResume.bundleId !== expectedDelivery.bundleId ||
+    safeResume.bundleRevision !== expectedDelivery.bundleRevision ||
+    safeResume.bundleDigest !== expectedDelivery.bundleDigest ||
+    safeResume.writeEpoch !== expectedDelivery.leaseEpoch ||
+    safeResume.abandonedOwnerOperationId !==
+      expectedDelivery.ownerOperationId ||
+    createShiftPlanningDigest(safeResumeCore(safeResume)) !==
+      safeResume.safeResumeDigest
+  ) {
+    return failIncident("Safe-resume evidence is invalid.");
+  }
+  return safeResume;
+};
+
+/**
+ * Freezes an abandoned notification batch into a bounded degraded mode. The
+ * complete inactive dispatch evidence is summarized, both release leases move
+ * to one incident owner, and only affected shifts remain mutation-fenced.
+ * @param {object} input Exact batch, ownership, evidence, and TTL authority.
+ * @return {object} Deterministic dual-lease degraded-mode proposal.
+ */
+export const createShiftPlanningNotificationSafeResume = (input: {
+  environment: ShiftPlanningEnvironment;
+  incidentId: string;
+  ownerUserId: string;
+  escalationTargetId: string;
+  deliveryLease: ShiftPlanningReleaseLease;
+  marketLease: ShiftPlanningReleaseLease;
+  intents: readonly ShiftPlanningHeldNotificationIntent[];
+  dispatchEvidence: readonly ShiftPlanningNotificationDispatchEvidence[];
+  enteredAtMillis: number;
+  ttlMillis: number;
+}): ShiftPlanningNotificationSafeResume => {
+  const environment = requireEnvironment(input.environment);
+  const incidentId = requireIdentifier(input.incidentId, "incidentId");
+  const ownerUserId = requireIdentifier(input.ownerUserId, "ownerUserId");
+  const escalationTargetId = requireIdentifier(
+    input.escalationTargetId,
+    "escalationTargetId",
+  );
+  const enteredAtMillis = requireNonNegativeInteger(
+    input.enteredAtMillis,
+    "safe-resume entry instant",
+  );
+  const ttlMillis = requirePositiveInteger(input.ttlMillis, "safe-resume TTL");
+  if (ttlMillis > SHIFT_PLANNING_NOTIFICATION_SAFE_RESUME_MAX_TTL_MILLIS) {
+    return failIncident("Safe-resume TTL exceeds its bounded policy.");
+  }
+  const expiresAtMillis = enteredAtMillis + ttlMillis;
+  if (!Number.isSafeInteger(expiresAtMillis)) {
+    return failIncident("Safe-resume expiry is not representable.");
+  }
+  const deliveryLease = parseReleaseLease(input.deliveryLease, "delivery");
+  const marketLease = parseReleaseLease(input.marketLease, "market");
+  requirePairedLeases(deliveryLease, marketLease);
+  if (deliveryLease.state === "degraded" || marketLease.state === "degraded") {
+    return failLeaseConflict(
+      "An existing degraded incident cannot be replaced.",
+    );
+  }
+  if (enteredAtMillis < deliveryLease.deadlineAtMillis) {
+    return failLeaseConflict("Release batch has not reached its deadline.");
+  }
+  const intents = canonicalIntents({
+    intents: input.intents,
+    lease: deliveryLease,
+  });
+  const analyzed = analyzeBatch({
+    intents,
+    dispatchEvidence: input.dispatchEvidence,
+    observedAtMillis: enteredAtMillis,
+  });
+  const replacementLease = (
+    type: ShiftRotationType,
+  ): ShiftPlanningReleaseLease => ({
+    type,
+    bundleId: deliveryLease.bundleId,
+    bundleRevision: deliveryLease.bundleRevision,
+    bundleDigest: deliveryLease.bundleDigest,
+    leaseEpoch: deliveryLease.leaseEpoch,
+    ownerOperationId: incidentId,
+    state: "degraded",
+    acquiredAtMillis: enteredAtMillis,
+    deadlineAtMillis: expiresAtMillis,
+  });
+  const core = {
+    schemaVersion:
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION,
+    operationKind: "notificationSafeResume" as const,
+    incidentId,
+    environment,
+    state: "degraded" as const,
+    resolution: "operatorRequired" as const,
+    bundleId: deliveryLease.bundleId,
+    bundleRevision: deliveryLease.bundleRevision,
+    bundleDigest: requireDigest(deliveryLease.bundleDigest, "bundle digest"),
+    writeEpoch: deliveryLease.leaseEpoch,
+    abandonedOwnerOperationId: deliveryLease.ownerOperationId,
+    ownerUserId,
+    escalationTargetId,
+    enteredAtMillis,
+    expiresAtMillis,
+    intents: analyzed.map((item) => ({
+      intentId: item.intent.intentId,
+      shiftId: item.intent.shiftId,
+      dispatchDisposition: item.disposition,
+      authenticatedSubmissionPossible: item.authenticatedSubmissionPossible,
+      dispatchEvidenceDigest: item.dispatchEvidenceDigest,
+    })),
+    affectedShiftIds: [...new Set(intents.map(({shiftId}) => shiftId))].sort(),
+    releaseLeaseActions: [
+      {
+        action: "degrade" as const,
+        type: "delivery" as const,
+        expectedLease: deliveryLease,
+        replacementLease: replacementLease("delivery"),
+      },
+      {
+        action: "degrade" as const,
+        type: "market" as const,
+        expectedLease: marketLease,
+        replacementLease: replacementLease("market"),
+      },
+    ] as const,
+  };
+  return {...core, safeResumeDigest: createShiftPlanningDigest(core)};
+};
+
+const requireIdentifierArray = (value: unknown, name: string): string[] => {
+  if (!Array.isArray(value)) {
+    return failIncident(`${name} must be an array.`);
+  }
+  const parsed = value.map((item) => requireIdentifier(item, name));
+  if (new Set(parsed).size !== parsed.length) {
+    return failIncident(`${name} must be unique.`);
+  }
+  return parsed;
+};
+
+/**
+ * Parses immutable terminal-incident evidence and verifies its exact category,
+ * cancellation, dual-lease, chronology, and digest relationships.
+ * @param {unknown} value Persisted terminal-incident candidate.
+ * @return {object} Canonical terminal incident.
+ */
+export const parseShiftPlanningNotificationTerminalIncident = (
+  value: unknown,
+): ShiftPlanningNotificationTerminalIncident => {
+  const candidate = requireRecord(value, "notification terminal incident");
+  requireExactFields(
+    candidate,
+    terminalIncidentFields,
+    "notification terminal incident",
+  );
+  if (
+    candidate.schemaVersion !==
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION ||
+    candidate.operationKind !== "notificationTerminalIncident" ||
+    candidate.state !== "terminal" ||
+    candidate.resolution !== "incidentTerminalized" ||
+    !Array.isArray(candidate.intents) ||
+    !Array.isArray(candidate.cancellations) ||
+    !Array.isArray(candidate.releaseLeaseActions)
+  ) {
+    return failIncident("Terminal-incident discriminator is invalid.");
+  }
+  const incidentId = requireIdentifier(candidate.incidentId, "incidentId");
+  const bundleRevision = requireIdentifier(
+    candidate.bundleRevision,
+    "bundleRevision",
+  );
+  const terminalizedAtMillis = requireNonNegativeInteger(
+    candidate.terminalizedAtMillis,
+    "terminal incident instant",
+  );
+  const intents: ShiftPlanningNotificationTerminalIncidentIntent[] =
+    candidate.intents.map((intentValue) => {
+      const intent = requireRecord(intentValue, "terminal incident intent");
+      requireExactFields(
+        intent,
+        terminalIntentFields,
+        "terminal incident intent",
+      );
+      if (
+        intent.resolution !== "cancelledUnsubmitted" &&
+      intent.resolution !== "possibleDeliveryCorrectionRequired" &&
+      intent.resolution !== "definitivelyFailed"
+      ) {
+        return failIncident("Terminal intent resolution is invalid.");
+      }
+      return {
+        intentId: requireIdentifier(intent.intentId, "terminal intentId"),
+        shiftId: requireIdentifier(intent.shiftId, "terminal shiftId"),
+        resolution: intent.resolution,
+        attemptIds: requireIdentifierArray(
+          intent.attemptIds,
+          "terminal attemptIds",
+        ),
+        dispatchEvidenceDigest: requireDigest(
+          intent.dispatchEvidenceDigest,
+          "terminal dispatch evidence digest",
+        ),
+      };
+    });
+  if (
+    intents.length === 0 ||
+    new Set(intents.map(({intentId}) => intentId)).size !== intents.length ||
+    intents.some((intent, index) =>
+      intentOrdinal(intent.intentId, bundleRevision) !== index + 1)
+  ) {
+    return failIncident("Terminal intent set is not complete and canonical.");
+  }
+  const cancelledIntentIds = requireIdentifierArray(
+    candidate.cancelledIntentIds,
+    "cancelled intentIds",
+  );
+  const possibleDeliveryIntentIds = requireIdentifierArray(
+    candidate.possibleDeliveryIntentIds,
+    "possible-delivery intentIds",
+  );
+  const correctionRequiredIntentIds = requireIdentifierArray(
+    candidate.correctionRequiredIntentIds,
+    "correction-required intentIds",
+  );
+  const definitivelyFailedIntentIds = requireIdentifierArray(
+    candidate.definitivelyFailedIntentIds,
+    "definitively-failed intentIds",
+  );
+  const cancellations = candidate.cancellations.map((cancellationValue) => {
+    const cancellation = requireRecord(
+      cancellationValue,
+      "terminal cancellation",
+    );
+    requireExactFields(
+      cancellation,
+      cancellationFields,
+      "terminal cancellation",
+    );
+    const intentId = requireIdentifier(
+      cancellation.intentId,
+      "cancelled intentId",
+    );
+    if (
+      cancellation.action !== "cancelAndSupersede" ||
+      cancellation.incidentId !== incidentId ||
+      cancellation.cancelledAtMillis !== terminalizedAtMillis
+    ) {
+      return failIncident("Terminal cancellation is invalid.");
+    }
+    return {
+      action: "cancelAndSupersede" as const,
+      intentId,
+      incidentId,
+      cancelledAtMillis: terminalizedAtMillis,
+    };
+  });
+  if (candidate.releaseLeaseActions.length !== 2) {
+    return failIncident("Terminal release-lease actions are not paired.");
+  }
+  const parseClearAction = (
+    actionValue: unknown,
+    type: ShiftRotationType,
+  ): ShiftPlanningNotificationReleaseLeaseClearAction => {
+    const action = requireRecord(actionValue, "release-lease clear action");
+    requireExactFields(
+      action,
+      clearActionFields,
+      "release-lease clear action",
+    );
+    if (action.action !== "clear" || action.type !== type) {
+      return failIncident("Release-lease clear action is invalid.");
+    }
+    return {
+      action: "clear",
+      type,
+      expectedLease: parseReleaseLease(action.expectedLease, type),
+    };
+  };
+  const releaseLeaseActions = [
+    parseClearAction(candidate.releaseLeaseActions[0], "delivery"),
+    parseClearAction(candidate.releaseLeaseActions[1], "market"),
+  ] as const;
+  const deliveryLease = releaseLeaseActions[0].expectedLease;
+  const marketLease = releaseLeaseActions[1].expectedLease;
+  requirePairedLeases(deliveryLease, marketLease);
+  const core = {
+    schemaVersion:
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION,
+    operationKind: "notificationTerminalIncident" as const,
+    incidentId,
+    environment: requireEnvironment(candidate.environment),
+    state: "terminal" as const,
+    resolution: "incidentTerminalized" as const,
+    bundleId: requireIdentifier(candidate.bundleId, "bundleId"),
+    bundleRevision,
+    bundleDigest: requireDigest(candidate.bundleDigest, "bundle digest"),
+    writeEpoch: requirePositiveInteger(candidate.writeEpoch, "writeEpoch"),
+    ownerUserId: requireIdentifier(candidate.ownerUserId, "ownerUserId"),
+    escalationTargetId: requireIdentifier(
+      candidate.escalationTargetId,
+      "escalationTargetId",
+    ),
+    terminalizedAtMillis,
+    intents,
+    cancelledIntentIds,
+    possibleDeliveryIntentIds,
+    correctionRequiredIntentIds,
+    definitivelyFailedIntentIds,
+    cancellations,
+    releaseLeaseActions,
+  };
+  const expectedCancelled = intents
+    .filter(({resolution}) => resolution === "cancelledUnsubmitted")
+    .map(({intentId}) => intentId);
+  const expectedPossible = intents
+    .filter(({resolution}) =>
+      resolution === "possibleDeliveryCorrectionRequired")
+    .map(({intentId}) => intentId);
+  const expectedFailed = intents
+    .filter(({resolution}) => resolution === "definitivelyFailed")
+    .map(({intentId}) => intentId);
+  const terminalIncidentDigest = requireDigest(
+    candidate.terminalIncidentDigest,
+    "terminal incident digest",
+  );
+  if (
+    deliveryLease.state !== "degraded" ||
+    marketLease.state !== "degraded" ||
+    deliveryLease.ownerOperationId !== incidentId ||
+    terminalizedAtMillis < deliveryLease.deadlineAtMillis ||
+    core.bundleId !== deliveryLease.bundleId ||
+    core.bundleRevision !== deliveryLease.bundleRevision ||
+    core.bundleDigest !== deliveryLease.bundleDigest ||
+    core.writeEpoch !== deliveryLease.leaseEpoch ||
+    !sameValue(cancelledIntentIds, expectedCancelled) ||
+    !sameValue(possibleDeliveryIntentIds, expectedPossible) ||
+    !sameValue(correctionRequiredIntentIds, expectedPossible) ||
+    !sameValue(definitivelyFailedIntentIds, expectedFailed) ||
+    !sameValue(
+      cancellations.map(({intentId}) => intentId),
+      expectedCancelled,
+    ) ||
+    createShiftPlanningDigest(core) !== terminalIncidentDigest
+  ) {
+    return failIncident("Terminal-incident evidence is inconsistent.");
+  }
+  return {...core, terminalIncidentDigest};
+};
+
+/**
+ * Terminalizes an expired degraded batch without erasing possible-delivery
+ * history. Cancellation is exact and mandatory only for intents whose complete
+ * dispatch history proves authenticated submission never began.
+ * @param {object} input Safe-resume authority and current terminal evidence.
+ * @return {object} Deterministic dual-lease terminal-incident proposal.
+ */
+export const createShiftPlanningNotificationTerminalIncident = (input: {
+  safeResume: ShiftPlanningNotificationSafeResume;
+  deliveryLease: ShiftPlanningReleaseLease;
+  marketLease: ShiftPlanningReleaseLease;
+  intents: readonly ShiftPlanningHeldNotificationIntent[];
+  dispatchEvidence: readonly ShiftPlanningNotificationDispatchEvidence[];
+  cancellations: readonly
+    ShiftPlanningNotificationTerminalIncidentCancellation[];
+  terminalizedAtMillis: number;
+}): ShiftPlanningNotificationTerminalIncident => {
+  const safeResume = parseShiftPlanningNotificationSafeResume(
+    input.safeResume,
+  );
+  const terminalizedAtMillis = requireNonNegativeInteger(
+    input.terminalizedAtMillis,
+    "terminal incident instant",
+  );
+  if (terminalizedAtMillis < safeResume.expiresAtMillis) {
+    return failLeaseConflict("Safe-resume TTL has not expired.");
+  }
+  const deliveryLease = parseReleaseLease(input.deliveryLease, "delivery");
+  const marketLease = parseReleaseLease(input.marketLease, "market");
+  requirePairedLeases(deliveryLease, marketLease);
+  if (
+    !sameValue(
+      deliveryLease,
+      safeResume.releaseLeaseActions[0].replacementLease,
+    ) ||
+    !sameValue(marketLease, safeResume.releaseLeaseActions[1].replacementLease)
+  ) {
+    return failLeaseConflict(
+      "Degraded release leases drifted from the incident.",
+    );
+  }
+  const intents = canonicalIntents({
+    intents: input.intents,
+    lease: deliveryLease,
+  });
+  const currentIntentIdentity = intents.map(({intentId, shiftId}) => ({
+    intentId,
+    shiftId,
+  }));
+  const safeResumeIntentIdentity = safeResume.intents.map(
+    ({intentId, shiftId}) => ({intentId, shiftId}),
+  );
+  const affectedShiftIds = [
+    ...new Set(intents.map(({shiftId}) => shiftId)),
+  ].sort();
+  if (
+    !sameValue(currentIntentIdentity, safeResumeIntentIdentity) ||
+    !sameValue(affectedShiftIds, safeResume.affectedShiftIds)
+  ) {
+    return failLeaseConflict(
+      "Incident intent identity drifted during safe resume.",
+    );
+  }
+  const analyzed = analyzeBatch({
+    intents,
+    dispatchEvidence: input.dispatchEvidence,
+    observedAtMillis: terminalizedAtMillis,
+  });
+  const cancellations = new Map<
+    string,
+    ShiftPlanningNotificationTerminalIncidentCancellation
+  >();
+  for (const value of input.cancellations) {
+    const cancellation = requireRecord(value, "incident cancellation");
+    requireExactFields(
+      cancellation,
+      ["action", "intentId", "incidentId", "cancelledAtMillis"],
+      "incident cancellation",
+    );
+    const intentId = requireIdentifier(
+      cancellation.intentId,
+      "cancel intentId",
+    );
+    const cancelledAtMillis = requireNonNegativeInteger(
+      cancellation.cancelledAtMillis,
+      "cancellation instant",
+    );
+    if (
+      cancellation.action !== "cancelAndSupersede" ||
+      cancellation.incidentId !== safeResume.incidentId ||
+      cancelledAtMillis !== terminalizedAtMillis ||
+      cancellations.has(intentId)
+    ) {
+      return failIncident("Incident cancellation is not exact and unique.");
+    }
+    cancellations.set(intentId, {
+      action: "cancelAndSupersede",
+      intentId,
+      incidentId: safeResume.incidentId,
+      cancelledAtMillis,
+    });
+  }
+  const mustCancel = analyzed.filter(({disposition}) =>
+    disposition === "pending" ||
+    disposition === "claimed" ||
+    disposition === "demonstrablyUnsubmitted");
+  if (
+    cancellations.size !== mustCancel.length ||
+    mustCancel.some(({intent}) => !cancellations.has(intent.intentId)) ||
+    [...cancellations.keys()].some((intentId) =>
+      !mustCancel.some(({intent}) => intent.intentId === intentId))
+  ) {
+    return failLeaseConflict(
+      "Cancellation does not cover exactly demonstrably unsubmitted intents.",
+    );
+  }
+  const terminalIntents = analyzed.map((item) => {
+    const resolution = item.authenticatedSubmissionPossible ?
+      "possibleDeliveryCorrectionRequired" as const :
+      item.disposition === "definitivelyFailed" ?
+        "definitivelyFailed" as const : "cancelledUnsubmitted" as const;
+    return {
+      intentId: item.intent.intentId,
+      shiftId: item.intent.shiftId,
+      resolution,
+      attemptIds: item.attemptIds,
+      dispatchEvidenceDigest: item.dispatchEvidenceDigest,
+    };
+  });
+  const orderedCancellations = mustCancel.map(({intent}) =>
+    cancellations.get(intent.intentId) ??
+      failIncident("Required cancellation is missing."));
+  const possibleDeliveryIntentIds = terminalIntents
+    .filter(({resolution}) =>
+      resolution === "possibleDeliveryCorrectionRequired")
+    .map(({intentId}) => intentId);
+  const core = {
+    schemaVersion:
+      SHIFT_PLANNING_NOTIFICATION_TERMINAL_INCIDENT_SCHEMA_VERSION,
+    operationKind: "notificationTerminalIncident" as const,
+    incidentId: safeResume.incidentId,
+    environment: safeResume.environment,
+    state: "terminal" as const,
+    resolution: "incidentTerminalized" as const,
+    bundleId: safeResume.bundleId,
+    bundleRevision: safeResume.bundleRevision,
+    bundleDigest: safeResume.bundleDigest,
+    writeEpoch: safeResume.writeEpoch,
+    ownerUserId: safeResume.ownerUserId,
+    escalationTargetId: safeResume.escalationTargetId,
+    terminalizedAtMillis,
+    intents: terminalIntents,
+    cancelledIntentIds: terminalIntents
+      .filter(({resolution}) => resolution === "cancelledUnsubmitted")
+      .map(({intentId}) => intentId),
+    possibleDeliveryIntentIds,
+    correctionRequiredIntentIds: possibleDeliveryIntentIds,
+    definitivelyFailedIntentIds: terminalIntents
+      .filter(({resolution}) => resolution === "definitivelyFailed")
+      .map(({intentId}) => intentId),
+    cancellations: orderedCancellations,
+    releaseLeaseActions: [
+      {
+        action: "clear" as const,
+        type: "delivery" as const,
+        expectedLease: deliveryLease,
+      },
+      {
+        action: "clear" as const,
+        type: "market" as const,
+        expectedLease: marketLease,
+      },
+    ] as const,
+  };
+  return {
+    ...core,
+    terminalIncidentDigest: createShiftPlanningDigest(core),
+  };
+};

@@ -42,9 +42,11 @@ import {
 } from "./backend-security.js";
 import {
   applyMemberSwap,
+  assertShiftSwapPlanningAuthority,
   assertActiveShiftSwapParticipants,
   assertShiftSwapTimingEligible,
   buildShiftSwapCandidates,
+  captureShiftSwapPlanningAuthority,
   parseShiftSwapTransitionInput,
   recomputeDeliveryHelpers,
   ShiftLike,
@@ -54,11 +56,68 @@ import {
 } from "./shift-swap-security.js";
 import {buildNotificationInboxDocument} from "./notification-inbox.js";
 import {buildMemberDirectoryDocument} from "./member-directory.js";
+import {isEligibleForShiftRotation} from "./shift-eligibility.js";
+import {
+  classifyShiftPlanningCreatedRequest,
+  createFirestoreShiftPlanningRuntime,
+} from "./shift-planning-firestore-runtime.js";
+import {
+  createFirestoreShiftPlanningOperatorRecoveryExecutor,
+} from "./shift-planning-operator-recovery.js";
+import {
+  createShiftPlanningOperatorRecoveryHttpFunction,
+} from "./shift-planning-operator-http.js";
+import {
+  resolveShiftPlanningNotificationDetail,
+} from "./shift-planning-notification-detail.js";
+import {
+  ShiftPlanningNotificationGuardedShiftWriteResult,
+  ShiftPlanningNotificationWriterResource,
+  inspectShiftPlanningNotificationWriterFences,
+  runShiftPlanningNotificationGuardedShiftWrite,
+} from "./shift-planning-firestore-notification-writer-fence.js";
+import {
+  assertShiftPlanningWriterAuthorityFromReference,
+  assertShiftPlanningWriterAuthorityInTransaction,
+  captureShiftPlanningWriterAuthorityFromReference,
+  ShiftPlanningWriterAuthority,
+} from "./shift-planning-writer-authority.js";
+import {
+  createShiftPlanningExternalWriterFence,
+  runShiftPlanningExternalWriterMutation,
+  ShiftPlanningExternalWriterFence,
+} from "./shift-planning-external-writer-fence.js";
+import {
+  classifyShiftPlanningNotificationDeliveryAuthority,
+} from "./shift-planning-notification-delivery-authority.js";
+import {
+  parseDeliveryCalendarMutationContextInput,
+  parseDeliveryCalendarMutationInput,
+} from "./delivery-calendar-command.js";
+import {
+  createFirestoreDeliveryCalendarCommandRepository,
+} from "./delivery-calendar-firestore-command.js";
+import {
+  executeShiftPlanningRequestContextRequest,
+} from "./shift-planning-request-context.js";
+import {
+  createFirestoreShiftPlanningRequestContextRepository,
+} from "./shift-planning-firestore-request-context.js";
+import {
+  logShiftPlanningOperationalEvent,
+} from "./shift-planning-operational-log.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 const messaging = getMessaging(firebaseApp);
+const shiftPlanningRuntime = createFirestoreShiftPlanningRuntime(firestore);
+const shiftPlanningRecoveryExecutor =
+  createFirestoreShiftPlanningOperatorRecoveryExecutor(firestore);
+const deliveryCalendarCommandRepository =
+  createFirestoreDeliveryCalendarCommandRepository(firestore);
+const shiftPlanningRequestContextRepository =
+  createFirestoreShiftPlanningRequestContextRepository(firestore);
 
 setGlobalOptions({
   region: "europe-west1",
@@ -67,6 +126,12 @@ setGlobalOptions({
   memory: "256MiB",
   timeoutSeconds: 60,
 });
+
+export const executeShiftPlanningRecovery =
+  createShiftPlanningOperatorRecoveryHttpFunction(
+    shiftPlanningRecoveryExecutor,
+    logger,
+  );
 
 let ENV = "develop";
 
@@ -310,6 +375,40 @@ const sendHttpError = (response: Response, error: unknown): void => {
       message: "Internal server error",
     },
   });
+};
+
+const requireShiftPlanningNotificationResourcesWritable = async (
+  transaction: Transaction,
+  environment: AppEnvironment,
+  resources: readonly ShiftPlanningNotificationWriterResource[],
+  now: Timestamp,
+): Promise<void> => {
+  const result = await inspectShiftPlanningNotificationWriterFences({
+    firestore,
+    transaction,
+    root: `${environment}/plus-collections`,
+    resources,
+    now,
+  });
+  if (result.kind === "busy") {
+    throw shiftPlanningNotificationDispatchInProgressError();
+  }
+};
+
+const shiftPlanningNotificationDispatchInProgressError = () =>
+  new HttpRequestError(
+    409,
+    "shift_notification_dispatch_in_progress",
+    "A shift notification is being delivered. Try again shortly.",
+  );
+
+const requireShiftPlanningNotificationGuardedWrite = <Value>(
+  result: ShiftPlanningNotificationGuardedShiftWriteResult<Value>,
+): Value => {
+  if (result.kind === "busy") {
+    throw shiftPlanningNotificationDispatchInProgressError();
+  }
+  return result.value;
 };
 
 const parseAdminTargetEnvironments = (
@@ -2105,8 +2204,9 @@ type ShiftPlanningRequestRecord = {
 };
 
 type PlanningMemberRef = MemberSheetRef & {
+  isActive: boolean;
   roles: string[];
-  producerCatalogEnabled: boolean;
+  isCommonPurchaseManager: boolean;
   createdAtMillis: number;
   updatedAtMillis: number;
 };
@@ -2194,6 +2294,9 @@ const getSheetsClient = async () => {
 
 const shiftsCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/shifts`);
+
+const shiftPlanningMaintenanceStateReference = (env: AppEnvironment) =>
+  firestore.doc(`${env}/plus-collections/shiftPlanningState/current`);
 
 const normalizeLookupKey = (value: string): string =>
   value
@@ -2666,50 +2769,87 @@ const withDerivedDeliveryHelpers = (
 };
 
 const syncShiftRowsIntoFirestore = async (
-  env: string,
+  env: AppEnvironment,
   rows: NormalizedShiftSheetRow[],
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<number> => {
-  const collection = firestore.collection(`${env}/plus-collections/shifts`);
+  const root = `${env}/plus-collections`;
+  const collection = firestore.collection(`${root}/shifts`);
+  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
   const importedAt = FieldValue.serverTimestamp();
-  const importedIds = rows.map((row) => row.shiftId);
+  const importedIds = new Set(rows.map((row) => row.shiftId));
   let writes = 0;
 
+  const authorizePlanningWrite = async (transaction: Transaction) => {
+    await assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference: planningStateReference,
+      capturedValue: planningAuthority,
+      changedCode: "shift_import_planning_authority_changed",
+      changedMessage: "Shift import planning authority changed",
+    });
+  };
+
   for (const row of rows) {
-    const ref = collection.doc(row.shiftId);
-    const existing = await ref.get();
-    const existingCreatedAt = existing.get("createdAt");
-    await ref.set({
-      type: row.type,
-      date: row.date,
-      assignedUserIds: row.assignedUserIds,
-      helperUserId: row.helperUserId,
-      status: row.status,
-      source: row.source,
-      createdAt: existingCreatedAt instanceof Timestamp ?
-        existingCreatedAt :
-        FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      syncMeta: {
-        origin: "google_sheets",
-        rowKey: row.rowKey,
-        rowNumber: row.rowNumber,
-        sheetName: row.sheetName,
-        importedAt,
+    const result = await runShiftPlanningNotificationGuardedShiftWrite({
+      firestore,
+      root,
+      shiftId: row.shiftId,
+      clock: () => Timestamp.now(),
+      authorize: authorizePlanningWrite,
+      mutate: ({transaction, reference, snapshot}) => {
+        const existingCreatedAt = snapshot.get("createdAt");
+        transaction.set(reference, {
+          type: row.type,
+          date: row.date,
+          assignedUserIds: row.assignedUserIds,
+          helperUserId: row.helperUserId,
+          status: row.status,
+          source: row.source,
+          createdAt: existingCreatedAt instanceof Timestamp ?
+            existingCreatedAt :
+            FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          syncMeta: {
+            origin: "google_sheets",
+            rowKey: row.rowKey,
+            rowNumber: row.rowNumber,
+            sheetName: row.sheetName,
+            importedAt,
+          },
+        }, {merge: true});
       },
-    }, {merge: true});
+    });
+    requireShiftPlanningNotificationGuardedWrite(result);
     writes += 1;
   }
 
   const staleSnapshot = await collection
     .where("source", "==", "google_sheets")
     .get();
-  const staleDocs = staleSnapshot.docs.filter((doc) =>
-    !importedIds.includes(doc.id)
+  const staleDocs = staleSnapshot.docs.filter(
+    (doc) => !importedIds.has(doc.id),
   );
-  while (staleDocs.length > 0) {
-    const batch = firestore.batch();
-    staleDocs.splice(0, 400).forEach((doc) => batch.delete(doc.ref));
-    await batch.commit();
+  for (const staleDoc of staleDocs) {
+    const result = await runShiftPlanningNotificationGuardedShiftWrite({
+      firestore,
+      root,
+      shiftId: staleDoc.id,
+      clock: () => Timestamp.now(),
+      authorize: authorizePlanningWrite,
+      mutate: ({transaction, reference, snapshot}) => {
+        if (
+          !snapshot.exists ||
+          snapshot.get("source") !== "google_sheets" ||
+          importedIds.has(snapshot.id)
+        ) {
+          return false;
+        }
+        transaction.delete(reference);
+        return true;
+      },
+    });
+    requireShiftPlanningNotificationGuardedWrite(result);
   }
 
   return writes;
@@ -2907,6 +3047,7 @@ const upsertShiftRowInSheet = async (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
   deliveryOverrides: DeliveryCalendarOverrideMap,
+  writerFence: ShiftPlanningExternalWriterFence | null,
 ): Promise<"updated" | "appended"> => {
   const valuesResponse = await sheets.spreadsheets.values.get({
     spreadsheetId,
@@ -2915,6 +3056,11 @@ const upsertShiftRowInSheet = async (
   const rows = valuesResponse.data.values || [];
   const normalizedRows = rows.map((row) => row.map((cell) => `${cell}`));
   const effectiveDate = resolveEffectiveDeliveryDate(shift, deliveryOverrides);
+  const runSheetMutation = <Result>(
+    mutation: () => Promise<Result>,
+  ): Promise<Result> => writerFence ?
+      runShiftPlanningExternalWriterMutation(writerFence, mutation) :
+      mutation();
 
   if (shift.type === "delivery") {
     const targetWeekKey = timestampToIsoWeekKey(effectiveDate);
@@ -2926,7 +3072,7 @@ const upsertShiftRowInSheet = async (
         timestampToIsoWeekKey(rowDate) === targetWeekKey
       ) {
         const rowNumber = rowOffset + 1;
-        await sheets.spreadsheets.values.update({
+        await runSheetMutation(() => sheets.spreadsheets.values.update({
           spreadsheetId,
           range: `${parseSheetName(range)}!A${rowNumber}:F${rowNumber}`,
           valueInputOption: "RAW",
@@ -2935,12 +3081,12 @@ const upsertShiftRowInSheet = async (
               toDeliveryHumanRow(shift, membersById, effectiveDate, row),
             ],
           },
-        });
+        }));
         return "updated";
       }
     }
 
-    await sheets.spreadsheets.values.append({
+    await runSheetMutation(() => sheets.spreadsheets.values.append({
       spreadsheetId,
       range: `${parseSheetName(range)}!A:F`,
       valueInputOption: "RAW",
@@ -2951,7 +3097,7 @@ const upsertShiftRowInSheet = async (
           toDeliveryHumanRow(shift, membersById, effectiveDate),
         ],
       },
-    });
+    }));
     return "appended";
   }
 
@@ -2979,11 +3125,11 @@ const upsertShiftRowInSheet = async (
         existingSupportRows,
       );
 
-      await sheets.spreadsheets.values.update({
+      await runSheetMutation(() => sheets.spreadsheets.values.update({
         spreadsheetId,
         range:
-          `${parseSheetName(range)}!A${dateRowNumber}:` +
-          `C${dateRowNumber + 5}`,
+            `${parseSheetName(range)}!A${dateRowNumber}:` +
+            `C${dateRowNumber + 5}`,
         valueInputOption: "RAW",
         requestBody: {
           values: [
@@ -2992,12 +3138,12 @@ const upsertShiftRowInSheet = async (
             ...supportRows,
           ],
         },
-      });
+      }));
       return "updated";
     }
   }
 
-  await sheets.spreadsheets.values.append({
+  await runSheetMutation(() => sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${parseSheetName(range)}!A:C`,
     valueInputOption: "RAW",
@@ -3009,7 +3155,7 @@ const upsertShiftRowInSheet = async (
         ...toMarketHumanSupportRows(shift, membersById),
       ],
     },
-  });
+  }));
   return "appended";
 };
 
@@ -3029,7 +3175,7 @@ const isShiftPlanningRequestType = (
 ): value is ShiftPlanningRequestType =>
   value === "delivery" || value === "market";
 
-const parseShiftPlanningRequest = (
+const parseLegacyShiftPlanningRequest = (
   snapshot: DocumentSnapshot,
 ): ShiftPlanningRequestRecord | null => {
   if (!snapshot.exists) {
@@ -3138,7 +3284,7 @@ const getDefaultDeliveryDayWireValue = async (
   return "WED";
 };
 
-const listActivePlanningMembers = async (
+const listEligiblePlanningMembers = async (
   env: string,
 ): Promise<PlanningMemberRef[]> => {
   const snapshot = await plusUsersCollection(env)
@@ -3157,9 +3303,10 @@ const listActivePlanningMembers = async (
           parseString(doc.get("emailNormalized")) ||
           "",
         phone: parseString(doc.get("phone")),
+        isActive: doc.get("isActive") === true,
         roles: parseRoles(doc.get("roles")),
-        producerCatalogEnabled:
-          doc.get("producerCatalogEnabled") !== false,
+        isCommonPurchaseManager:
+          doc.get("isCommonPurchaseManager") === true,
         createdAtMillis: createdAt instanceof Timestamp ?
           createdAt.toMillis() :
           0,
@@ -3168,9 +3315,7 @@ const listActivePlanningMembers = async (
           0,
       };
     })
-    .filter((member) =>
-      !(member.roles.includes("producer") && member.producerCatalogEnabled)
-    );
+    .filter(isEligibleForShiftRotation);
 };
 
 const shuffleArray = <T>(values: T[]): T[] => {
@@ -3467,39 +3612,61 @@ const buildMarketSheetValues = (
 };
 
 const persistPlannedShifts = async (
-  env: string,
+  env: AppEnvironment,
   requestId: string,
   shifts: FirestoreShiftRecord[],
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<number> => {
-  const collection = shiftsCollection(env);
+  const root = `${env}/plus-collections`;
+  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
   let writes = 0;
 
+  const authorizePlanningWrite = async (transaction: Transaction) => {
+    await assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference: planningStateReference,
+      capturedValue: planningAuthority,
+      changedCode: "shift_planner_planning_authority_changed",
+      changedMessage: "Shift planner authority changed",
+    });
+  };
+
   for (const shift of shifts) {
-    const ref = collection.doc(shift.id);
-    const existing = await ref.get();
-    const existingCreatedAt = existing.get("createdAt");
-    await ref.set({
-      type: shift.type,
-      date: shift.date,
-      assignedUserIds: shift.assignedUserIds,
-      helperUserId: shift.helperUserId,
-      status: shift.status,
-      source: shift.source,
-      createdAt: existingCreatedAt instanceof Timestamp ?
-        existingCreatedAt :
-        FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      planningMeta: {
-        requestId,
-        seasonLabel:
-          shift.syncSheetName?.replace(/^turnos-(reparto|mercado)\s+/i, "") ||
-          null,
+    const result = await runShiftPlanningNotificationGuardedShiftWrite({
+      firestore,
+      root,
+      shiftId: shift.id,
+      clock: () => Timestamp.now(),
+      authorize: authorizePlanningWrite,
+      mutate: ({transaction, reference, snapshot}) => {
+        const existingCreatedAt = snapshot.get("createdAt");
+        transaction.set(reference, {
+          type: shift.type,
+          date: shift.date,
+          assignedUserIds: shift.assignedUserIds,
+          helperUserId: shift.helperUserId,
+          status: shift.status,
+          source: shift.source,
+          createdAt: existingCreatedAt instanceof Timestamp ?
+            existingCreatedAt :
+            FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          planningMeta: {
+            requestId,
+            seasonLabel:
+              shift.syncSheetName?.replace(
+                /^turnos-(reparto|mercado)\s+/i,
+                "",
+              ) || null,
+          },
+          syncMeta: {
+            origin: "planner",
+            sheetName: shift.syncSheetName,
+          },
+        }, {merge: true});
       },
-      syncMeta: {
-        origin: "planner",
-        sheetName: shift.syncSheetName,
-      },
-    }, {merge: true});
+    });
+    requireShiftPlanningNotificationGuardedWrite(result);
     writes += 1;
   }
 
@@ -3507,45 +3674,112 @@ const persistPlannedShifts = async (
 };
 
 const createShiftPlanningNotification = async (
-  env: string,
+  env: AppEnvironment,
   type: ShiftPlanningRequestType,
   seasonLabel: string,
   requestedByUserId: string,
   userIds: string[],
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<void> => {
   const uniqueUserIds = Array.from(new Set(userIds));
   if (uniqueUserIds.length === 0) {
     return;
   }
-  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
-    title: `Nuevos turnos de ${shiftTypeLabelEs(type)}`,
-    body:
-      `Ya tienes disponibles los turnos de ${shiftTypeLabelEs(type)} ` +
-      `para la temporada ${seasonLabel}.`,
-    type: "shift_planning_generated",
-    target: "users",
-    targetPayload: {
-      userIds: uniqueUserIds,
-    },
-    createdBy: requestedByUserId,
-    sentAt: FieldValue.serverTimestamp(),
+  const root = `${env}/plus-collections`;
+  const eventReference = firestore.collection(
+    `${root}/notificationEvents`,
+  ).doc();
+  await firestore.runTransaction(async (transaction) => {
+    await assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference: shiftPlanningMaintenanceStateReference(env),
+      capturedValue: planningAuthority,
+      changedCode: "shift_planner_planning_authority_changed",
+      changedMessage: "Shift planner authority changed",
+    });
+    transaction.create(eventReference, {
+      title: `Nuevos turnos de ${shiftTypeLabelEs(type)}`,
+      body:
+        `Ya tienes disponibles los turnos de ${shiftTypeLabelEs(type)} ` +
+        `para la temporada ${seasonLabel}.`,
+      type: "shift_planning_generated",
+      target: "users",
+      targetPayload: {
+        userIds: uniqueUserIds,
+      },
+      createdBy: requestedByUserId,
+      sentAt: FieldValue.serverTimestamp(),
+    });
   });
 };
 
-const dispatchShiftUpdatedNotification = async (
-  env: string,
+const shiftExportStateMatches = (
+  current: FirestoreShiftRecord,
+  expected: FirestoreShiftRecord,
+): boolean => current.id === expected.id &&
+  current.type === expected.type &&
+  current.date.toMillis() === expected.date.toMillis() &&
+  current.status === expected.status &&
+  current.source === expected.source &&
+  current.helperUserId === expected.helperUserId &&
+  current.syncSheetName === expected.syncSheetName &&
+  JSON.stringify(current.assignedUserIds) ===
+    JSON.stringify(expected.assignedUserIds);
+
+const persistShiftExportEffects = async (
+  env: AppEnvironment,
   shift: FirestoreShiftRecord,
+  targetRange: string,
+  exportMode: "updated" | "appended",
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<void> => {
+  const root = `${env}/plus-collections`;
   const dateLabel = timestampToSheetDate(shift.date);
-  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
-    title: "Shift updated",
-    body: `${shift.type} shift updated for ${dateLabel}.`,
-    type: SHIFT_NOTIFICATION_TYPE,
-    target: "all",
-    targetPayload: {},
-    createdBy: "system",
-    sentAt: FieldValue.serverTimestamp(),
+  const eventReference = firestore.collection(
+    `${root}/notificationEvents`,
+  ).doc();
+  const result = await runShiftPlanningNotificationGuardedShiftWrite({
+    firestore,
+    root,
+    shiftId: shift.id,
+    clock: () => Timestamp.now(),
+    authorize: (transaction) =>
+      assertShiftPlanningWriterAuthorityInTransaction({
+        transaction,
+        stateReference: shiftPlanningMaintenanceStateReference(env),
+        capturedValue: planningAuthority,
+        changedCode: "shift_export_trigger_planning_authority_changed",
+        changedMessage: "Shift export trigger planning authority changed",
+      }),
+    mutate: ({transaction, reference, snapshot}) => {
+      const current = toShiftRecord(snapshot);
+      if (!current || !shiftExportStateMatches(current, shift)) {
+        throw new HttpRequestError(
+          409,
+          "shift_export_source_changed",
+          "Shift changed while its export was being confirmed",
+        );
+      }
+      transaction.set(reference, {
+        syncMeta: {
+          origin: "app",
+          sheetName: parseSheetName(targetRange),
+          exportedAt: FieldValue.serverTimestamp(),
+          exportMode,
+        },
+      }, {merge: true});
+      transaction.create(eventReference, {
+        title: "Shift updated",
+        body: `${shift.type} shift updated for ${dateLabel}.`,
+        type: SHIFT_NOTIFICATION_TYPE,
+        target: "all",
+        targetPayload: {},
+        createdBy: "system",
+        sentAt: FieldValue.serverTimestamp(),
+      });
+    },
   });
+  requireShiftPlanningNotificationGuardedWrite(result);
 };
 
 const formatNotificationDate = (
@@ -3561,11 +3795,12 @@ const formatNotificationDate = (
 };
 
 const createDeliveryCalendarNotification = async (
-  env: string,
+  env: AppEnvironment,
   weekKey: string,
   updatedByUserId: string | null,
   nextDate: Timestamp | null,
   previousDate: Timestamp | null,
+  planningAuthority: ShiftPlanningWriterAuthority | null,
 ): Promise<void> => {
   if (!nextDate && !previousDate) {
     return;
@@ -3583,14 +3818,27 @@ const createDeliveryCalendarNotification = async (
     ) :
     `El reparto de la semana ${weekKey} vuelve a su dia por defecto.`;
 
-  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
-    title,
-    body,
-    type: "delivery_calendar_updated",
-    target: "all",
-    targetPayload: {},
-    createdBy: updatedByUserId || "system",
-    sentAt: FieldValue.serverTimestamp(),
+  const root = `${env}/plus-collections`;
+  const eventReference = firestore.collection(
+    `${root}/notificationEvents`,
+  ).doc();
+  await firestore.runTransaction(async (transaction) => {
+    await assertShiftPlanningWriterAuthorityInTransaction({
+      transaction,
+      stateReference: shiftPlanningMaintenanceStateReference(env),
+      capturedValue: planningAuthority,
+      changedCode: "delivery_calendar_planning_authority_changed",
+      changedMessage: "Delivery calendar planning authority changed",
+    });
+    transaction.create(eventReference, {
+      title,
+      body,
+      type: "delivery_calendar_updated",
+      target: "all",
+      targetPayload: {},
+      createdBy: updatedByUserId || "system",
+      sentAt: FieldValue.serverTimestamp(),
+    });
   });
 };
 
@@ -3623,7 +3871,7 @@ const readAllShifts = async (
 };
 
 const exportAllShiftsToGoogleSheets = async (
-  env: string,
+  env: AppEnvironment,
 ): Promise<{
   exportedCount: number;
   deliveryCount: number;
@@ -3643,6 +3891,19 @@ const exportAllShiftsToGoogleSheets = async (
     readAllShifts(env),
     readDeliveryCalendarOverrideMap(env),
   ]);
+  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
+  const writerFence = await createShiftPlanningExternalWriterFence({
+    capture: () => captureShiftPlanningWriterAuthorityFromReference(
+      planningStateReference,
+    ),
+    revalidate: (captured) =>
+      assertShiftPlanningWriterAuthorityFromReference({
+        stateReference: planningStateReference,
+        capturedValue: captured,
+        changedCode: "shift_export_planning_authority_changed",
+        changedMessage: "Shift export planning authority changed",
+      }),
+  });
   let deliveryCount = 0;
   let marketCount = 0;
 
@@ -3656,6 +3917,7 @@ const exportAllShiftsToGoogleSheets = async (
       shift,
       membersById,
       deliveryOverrides,
+      writerFence,
     );
     if (shift.type === "market") {
       marketCount += 1;
@@ -3663,6 +3925,7 @@ const exportAllShiftsToGoogleSheets = async (
       deliveryCount += 1;
     }
   }
+  await writerFence.finish();
 
   return {
     exportedCount: shifts.length,
@@ -3672,7 +3935,7 @@ const exportAllShiftsToGoogleSheets = async (
 };
 
 const syncShiftsFromGoogleSheetsInternal = async (
-  env: string,
+  env: AppEnvironment,
 ): Promise<{
   importedCount: number;
   deliveryCount: number;
@@ -3700,7 +3963,15 @@ const syncShiftsFromGoogleSheetsInternal = async (
     )
   );
   const rows = withDerivedDeliveryHelpers(rowsByRange.flat());
-  const importedCount = await syncShiftRowsIntoFirestore(env, rows);
+  const planningAuthority =
+    await captureShiftPlanningWriterAuthorityFromReference(
+      shiftPlanningMaintenanceStateReference(env),
+    );
+  const importedCount = await syncShiftRowsIntoFirestore(
+    env,
+    rows,
+    planningAuthority,
+  );
 
   return {
     importedCount,
@@ -3768,6 +4039,23 @@ export const onNotificationEventCreated = onDocumentCreatedWithAuthContext(
 
     const eventId = event.params.eventId;
     const eventData = parseBody(snapshot.data());
+    const releaseReceipt = await firestore.doc(
+      `${env}/plus-collections/shiftPlanningNotificationIntents/` +
+        `${eventId}/releases/canonical`,
+    ).get();
+    const deliveryAuthority =
+      classifyShiftPlanningNotificationDeliveryAuthority({
+        eventId,
+        event: eventData,
+        releaseReceipt: releaseReceipt.exists ? releaseReceipt.data() : null,
+      });
+    if (deliveryAuthority === "governed") {
+      logger.info(
+        "Canonical shift notification reserved for governed dispatch",
+        {env, eventId},
+      );
+      return;
+    }
     const payload = parseNotificationDispatchPayload(
       eventData
     );
@@ -3834,6 +4122,84 @@ export const syncShiftsFromGoogleSheets = onRequest(async (req, res) => {
   }
 });
 
+export const resolveDeliveryCalendarMutationContext = onRequest(
+  async (req, res) => {
+    try {
+      requirePostMethod(req.method);
+      if (Object.keys(req.query).length !== 0) {
+        throw new HttpRequestError(
+          400,
+          "invalid_delivery_calendar_command",
+          "Delivery calendar commands do not accept query parameters",
+        );
+      }
+      const input = parseDeliveryCalendarMutationContextInput(req.body);
+      const identity = await verifyRequestIdentity(req);
+      await requireAdminInEnvironment(input.environment, identity);
+      const context = await deliveryCalendarCommandRepository
+        .resolveMutationContext(input);
+      res.status(200).json({ok: true, ...context});
+    } catch (error) {
+      sendHttpError(res, error);
+    }
+  },
+);
+
+export const resolveShiftPlanningRequestContext = onRequest(
+  async (req, res) => {
+    try {
+      const context = await executeShiftPlanningRequestContextRequest({
+        method: req.method,
+        query: req.query,
+        body: req.body,
+      }, {
+        verifyIdentity: () => verifyRequestIdentity(req),
+        requireAdmin: requireAdminInEnvironment,
+        resolveContext: (input) =>
+          shiftPlanningRequestContextRepository.resolve(input),
+      });
+      res.status(200).json({ok: true, ...context});
+    } catch (error) {
+      sendHttpError(res, error);
+    }
+  },
+);
+
+export const transitionDeliveryCalendarOverride = onRequest(
+  async (req, res) => {
+    try {
+      requirePostMethod(req.method);
+      if (Object.keys(req.query).length !== 0) {
+        throw new HttpRequestError(
+          400,
+          "invalid_delivery_calendar_command",
+          "Delivery calendar commands do not accept query parameters",
+        );
+      }
+      const input = parseDeliveryCalendarMutationInput(req.body);
+      const identity = await verifyRequestIdentity(req);
+      const actor = await requireAdminInEnvironment(
+        input.environment,
+        identity,
+      );
+      const result = await deliveryCalendarCommandRepository.transition(
+        input,
+        {uid: identity.uid, memberId: actor.memberId},
+      );
+      logger.info("Delivery calendar command completed", {
+        environment: input.environment,
+        operationId: input.operationId,
+        action: input.action,
+        weekKey: input.weekKey,
+        replayed: result.replayed,
+      });
+      res.status(200).json({ok: true, ...result});
+    } catch (error) {
+      sendHttpError(res, error);
+    }
+  },
+);
+
 export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
   try {
     requirePostMethod(req.method);
@@ -3853,7 +4219,7 @@ export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
 });
 
 const processShiftPlanningRequest = async (
-  env: string,
+  env: AppEnvironment,
   request: ShiftPlanningRequestRecord,
 ): Promise<{
   seasonLabel: string;
@@ -3863,7 +4229,7 @@ const processShiftPlanningRequest = async (
   const seasonStartYear = targetSeasonStartYearFromNow();
   const seasonLabel = buildSeasonLabel(seasonStartYear);
   const existingShifts = await readAllShifts(env);
-  const activeMembers = await listActivePlanningMembers(env);
+  const activeMembers = await listEligiblePlanningMembers(env);
 
   if (activeMembers.length === 0) {
     throw new Error("No active members available for planning.");
@@ -3907,6 +4273,11 @@ const processShiftPlanningRequest = async (
     ) :
     buildMarketSheetValues(plannedShifts, seasonLabel, membersById);
 
+  const planningAuthority =
+    await captureShiftPlanningWriterAuthorityFromReference(
+      shiftPlanningMaintenanceStateReference(env),
+    );
+
   await updateWholeSheet(
     sheets,
     sheetConfig.spreadsheetId,
@@ -3914,13 +4285,19 @@ const processShiftPlanningRequest = async (
     sheetValues,
   );
 
-  await persistPlannedShifts(env, request.id, plannedShifts);
+  await persistPlannedShifts(
+    env,
+    request.id,
+    plannedShifts,
+    planningAuthority,
+  );
   await createShiftPlanningNotification(
     env,
     request.type,
     seasonLabel,
     request.requestedByUserId,
     plannedShifts.flatMap((shift) => shift.assignedUserIds),
+    planningAuthority,
   );
 
   return {
@@ -3947,11 +4324,50 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
       return;
     }
 
-    const request = parseShiftPlanningRequest(snapshot);
-    if (!request || request.status !== "requested") {
-      logger.warn("Skipping malformed shift planning request", {
-        env,
+    const route = classifyShiftPlanningCreatedRequest(snapshot.data());
+    if (route === "unsupportedVersion") {
+      logShiftPlanningOperationalEvent(logger, {
+        kind: "requestRejected",
+        environment: parseAppEnvironment(env),
         requestId: event.params.requestId,
+        failureCode: "unsupported_schema_version",
+      });
+      return;
+    }
+    if (route === "v2") {
+      try {
+        const result = await shiftPlanningRuntime.executeRequest({
+          environment: parseAppEnvironment(env),
+          requestId: event.params.requestId,
+          request: snapshot.data(),
+          workerId: "shift-planning-trigger-v2",
+        });
+        logShiftPlanningOperationalEvent(logger, {
+          kind: "requestRouted",
+          environment: parseAppEnvironment(env),
+          requestId: event.params.requestId,
+          routeKind: result.kind,
+          resultKind: result.result.kind,
+        });
+      } catch (error) {
+        logShiftPlanningOperationalEvent(logger, {
+          kind: "requestFailed",
+          environment: parseAppEnvironment(env),
+          requestId: event.params.requestId,
+          error,
+        });
+        throw error;
+      }
+      return;
+    }
+
+    const request = parseLegacyShiftPlanningRequest(snapshot);
+    if (!request || request.status !== "requested") {
+      logShiftPlanningOperationalEvent(logger, {
+        kind: "requestRejected",
+        environment: parseAppEnvironment(env),
+        requestId: event.params.requestId,
+        failureCode: "invalid_legacy_request",
       });
       return;
     }
@@ -3962,7 +4378,10 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
     }, {merge: true});
 
     try {
-      const summary = await processShiftPlanningRequest(env, request);
+      const summary = await processShiftPlanningRequest(
+        parseAppEnvironment(env),
+        request,
+      );
       await snapshot.ref.set({
         status: "completed",
         completedAt: FieldValue.serverTimestamp(),
@@ -3970,11 +4389,13 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
         sheetName: summary.sheetName,
         generatedCount: summary.generatedCount,
       }, {merge: true});
-      logger.info("✅ Shift planning completed", {
-        env,
+      logShiftPlanningOperationalEvent(logger, {
+        kind: "legacyCompleted",
+        environment: parseAppEnvironment(env),
         requestId: request.id,
-        type: request.type,
-        ...summary,
+        planningType: request.type,
+        seasonLabel: summary.seasonLabel,
+        generatedCount: summary.generatedCount,
       });
     } catch (error) {
       await snapshot.ref.set({
@@ -3983,10 +4404,11 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
         errorMessage:
           error instanceof Error ? error.message : "Unknown planning error",
       }, {merge: true});
-      logger.error("❌ Shift planning failed", {
-        env,
+      logShiftPlanningOperationalEvent(logger, {
+        kind: "legacyFailed",
+        environment: parseAppEnvironment(env),
         requestId: request.id,
-        type: request.type,
+        planningType: request.type,
         error,
       });
     }
@@ -4058,6 +4480,23 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       loadMembersById(env),
       readDeliveryCalendarOverrideMap(env),
     ]);
+    const environment = parseAppEnvironment(env);
+    const planningStateReference =
+      shiftPlanningMaintenanceStateReference(environment);
+    const planningAuthority =
+      await captureShiftPlanningWriterAuthorityFromReference(
+        planningStateReference,
+      );
+    const writerFence = await createShiftPlanningExternalWriterFence({
+      capture: async () => planningAuthority,
+      revalidate: (captured) =>
+        assertShiftPlanningWriterAuthorityFromReference({
+          stateReference: planningStateReference,
+          capturedValue: captured,
+          changedCode: "shift_export_trigger_planning_authority_changed",
+          changedMessage: "Shift export trigger planning authority changed",
+        }),
+    });
 
     const result = await upsertShiftRowInSheet(
       sheets,
@@ -4066,18 +4505,17 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       after,
       membersById,
       deliveryOverrides,
+      writerFence,
     );
+    await writerFence.finish();
 
-    await afterSnapshot.ref.set({
-      syncMeta: {
-        origin: "app",
-        sheetName: parseSheetName(targetRange),
-        exportedAt: FieldValue.serverTimestamp(),
-        exportMode: result,
-      },
-    }, {merge: true});
-
-    await dispatchShiftUpdatedNotification(env, after);
+    await persistShiftExportEffects(
+      environment,
+      after,
+      targetRange,
+      result,
+      planningAuthority,
+    );
 
     logger.info("✅ Confirmed shift exported to Google Sheets", {
       env,
@@ -4117,7 +4555,8 @@ onDocumentWrittenWithAuthContext(
     );
 
     try {
-      const sheetConfig = getSheetConfig(env);
+      const environment = parseAppEnvironment(env);
+      const sheetConfig = getSheetConfig(environment);
       if (!sheetConfig) {
         throw new Error(
           `Missing sheets configuration for env=${env}. ` +
@@ -4142,8 +4581,29 @@ onDocumentWrittenWithAuthContext(
         timestampToIsoWeekKey(shift.date) === weekKey
       );
 
+      if (matchingDeliveryShifts.length === 0) {
+        logger.info("✅ Delivery calendar override has no matching shifts", {
+          env,
+          weekKey,
+        });
+        return;
+      }
+
+      const planningStateReference =
+        shiftPlanningMaintenanceStateReference(environment);
+      const planningAuthority =
+        await captureShiftPlanningWriterAuthorityFromReference(
+          planningStateReference,
+        );
+
       let updatedCount = 0;
       for (const shift of matchingDeliveryShifts) {
+        await assertShiftPlanningWriterAuthorityFromReference({
+          stateReference: planningStateReference,
+          capturedValue: planningAuthority,
+          changedCode: "delivery_calendar_planning_authority_changed",
+          changedMessage: "Delivery calendar planning authority changed",
+        });
         await upsertShiftRowInSheet(
           sheets,
           sheetConfig.spreadsheetId,
@@ -4151,9 +4611,16 @@ onDocumentWrittenWithAuthContext(
           shift,
           membersById,
           deliveryOverrides,
+          null,
         );
         updatedCount += 1;
       }
+      await assertShiftPlanningWriterAuthorityFromReference({
+        stateReference: planningStateReference,
+        capturedValue: planningAuthority,
+        changedCode: "delivery_calendar_planning_authority_changed",
+        changedMessage: "Delivery calendar planning authority changed",
+      });
 
       logger.info("✅ Delivery calendar override reflected in Google Sheets", {
         env,
@@ -4161,15 +4628,14 @@ onDocumentWrittenWithAuthContext(
         updatedCount,
       });
 
-      if (updatedCount > 0) {
-        await createDeliveryCalendarNotification(
-          env,
-          weekKey,
-          updatedByUserId,
-          nextDate,
-          previousDate,
-        );
-      }
+      await createDeliveryCalendarNotification(
+        environment,
+        weekKey,
+        updatedByUserId,
+        nextDate,
+        previousDate,
+        planningAuthority,
+      );
     } catch (error) {
       logger.error(
         "❌ Failed to reflect delivery calendar override in Google Sheets",
@@ -4420,6 +4886,81 @@ export const resolveAuthorizedMember = onRequest(async (req, res) => {
   }
 });
 
+const shiftNotificationDetailUnavailable = () => new HttpRequestError(
+  404,
+  "shift_notification_detail_unavailable",
+  "Current shift notification detail is unavailable",
+);
+
+export const resolveShiftNotificationDetail = onRequest(async (req, res) => {
+  try {
+    requirePostMethod(req.method);
+    const environment = parseRequestEnvironment(req);
+    const eventId = parseString(parseBody(req.body).eventId);
+    if (
+      !eventId ||
+      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(eventId)
+    ) {
+      throw shiftNotificationDetailUnavailable();
+    }
+    const identity = await verifyRequestIdentity(req);
+    const actor = await requireLinkedMember(environment, identity);
+    const root = `${environment}/plus-collections`;
+    const detail = await firestore.runTransaction(async (transaction) => {
+      const linkRef = authLinksCollection(environment).doc(identity.uid);
+      const memberRef = usersCollection(environment).doc(actor.memberId);
+      const inboxRef = memberRef.collection("notificationInbox").doc(eventId);
+      const intentRef = firestore.doc(
+        `${root}/shiftPlanningNotificationIntents/${eventId}`,
+      );
+      const releaseRef = intentRef.collection("releases").doc("canonical");
+      const [linkSnapshot, memberSnapshot, inboxSnapshot, intentSnapshot,
+        releaseSnapshot] = await Promise.all([
+        transaction.get(linkRef),
+        transaction.get(memberRef),
+        transaction.get(inboxRef),
+        transaction.get(intentRef),
+        transaction.get(releaseRef),
+      ]);
+      if (
+        !linkSnapshot.exists ||
+        !memberSnapshot.exists ||
+        !inboxSnapshot.exists ||
+        !intentSnapshot.exists ||
+        !releaseSnapshot.exists
+      ) {
+        return null;
+      }
+      const currentActor = resolveLinkedMember(
+        identity.uid,
+        linkSnapshot.data(),
+        memberSnapshot.data(),
+      );
+      if (currentActor.memberId !== actor.memberId) return null;
+      const shiftId = parseString(parseBody(intentSnapshot.data()).shiftId);
+      if (!shiftId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(shiftId)) {
+        return null;
+      }
+      const shiftRef = firestore.doc(`${root}/shifts/${shiftId}`);
+      const shiftSnapshot = await transaction.get(shiftRef);
+      if (!shiftSnapshot.exists) return null;
+      return resolveShiftPlanningNotificationDetail({
+        eventId,
+        memberId: currentActor.memberId,
+        inboxValue: inboxSnapshot.data(),
+        intentValue: intentSnapshot.data(),
+        releaseValue: releaseSnapshot.data(),
+        shiftValue: shiftSnapshot.data(),
+        shiftTargetPath: shiftRef.path,
+      });
+    });
+    if (!detail) throw shiftNotificationDetailUnavailable();
+    res.status(200).json(detail);
+  } catch (error) {
+    sendHttpError(res, error);
+  }
+});
+
 export const upsertMemberByAdmin = onRequest(async (req, res) => {
   try {
     requirePostMethod(req.method);
@@ -4530,6 +5071,12 @@ export const upsertMemberByAdmin = onRequest(async (req, res) => {
         payload.authUid = null;
         payload.createdAt = FieldValue.serverTimestamp();
       }
+      await requireShiftPlanningNotificationResourcesWritable(
+        transaction,
+        environment,
+        [{scope: "member", resourceId: memberId}],
+        Timestamp.now(),
+      );
       transaction.set(memberRef, payload, {merge: true});
     });
 
@@ -4559,6 +5106,7 @@ type StoredShiftSwapRequest = {
   status: "open" | "cancelled" | "applied";
   candidates: ShiftSwapCandidateLike[];
   responses: ShiftSwapResponseLike[];
+  planningAuthority: unknown;
 };
 
 const toShiftSwapStoredShift = (
@@ -4647,6 +5195,7 @@ const toStoredShiftSwapRequest = (
     status,
     candidates: parseShiftSwapCandidates(data.candidates),
     responses: parseShiftSwapResponses(data.responses),
+    planningAuthority: data.planningAuthority,
   };
 };
 
@@ -4729,12 +5278,23 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
 
     if (input.action === "create") {
       const requestRef = requests.doc(requestId);
+      const planningStateRef = shiftPlanningMaintenanceStateReference(
+        input.environment,
+      );
       await firestore.runTransaction(async (transaction) => {
-        const [shiftSnapshot, activeUsersSnapshot] = await Promise.all([
+        const [
+          shiftSnapshot,
+          activeUsersSnapshot,
+          planningStateSnapshot,
+        ] = await Promise.all([
           transaction.get(shifts),
           transaction.get(usersCollection(input.environment)
             .where("isActive", "==", true)),
+          transaction.get(planningStateRef),
         ]);
+        const planningAuthority = captureShiftSwapPlanningAuthority(
+          planningStateSnapshot.data(),
+        );
         const storedShifts = shiftSnapshot.docs
           .map(toShiftSwapStoredShift)
           .filter((shift): shift is ShiftSwapStoredShift => Boolean(shift));
@@ -4794,6 +5354,7 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
           requestedAt: now,
           confirmedAt: null,
           appliedAt: null,
+          planningAuthority,
         });
         setShiftSwapNotification(transaction, input.environment, {
           title: "Solicitud de cambio de turno",
@@ -4808,12 +5369,24 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
     } else if (input.action === "respond") {
       const requestRef = requests.doc(requestId);
       const candidateShiftRef = shifts.doc(input.candidateShiftId);
+      const planningStateRef = shiftPlanningMaintenanceStateReference(
+        input.environment,
+      );
       await firestore.runTransaction(async (transaction) => {
-        const [requestSnapshot, candidateShiftSnapshot] = await Promise.all([
+        const [
+          requestSnapshot,
+          candidateShiftSnapshot,
+          planningStateSnapshot,
+        ] = await Promise.all([
           transaction.get(requestRef),
           transaction.get(candidateShiftRef),
+          transaction.get(planningStateRef),
         ]);
         const swapRequest = requireOpenShiftSwapRequest(requestSnapshot);
+        assertShiftSwapPlanningAuthority(
+          swapRequest.planningAuthority,
+          planningStateSnapshot.data(),
+        );
         const candidate = swapRequest.candidates.find((item) =>
           item.userId === actor.memberId &&
           item.shiftId === input.candidateShiftId
@@ -4868,12 +5441,24 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
       });
     } else {
       const requestRef = requests.doc(requestId);
+      const planningStateRef = shiftPlanningMaintenanceStateReference(
+        input.environment,
+      );
       await firestore.runTransaction(async (transaction) => {
-        const [requestSnapshot, shiftSnapshot] = await Promise.all([
+        const [
+          requestSnapshot,
+          shiftSnapshot,
+          planningStateSnapshot,
+        ] = await Promise.all([
           transaction.get(requestRef),
           transaction.get(shifts),
+          transaction.get(planningStateRef),
         ]);
         const swapRequest = requireOpenShiftSwapRequest(requestSnapshot);
+        assertShiftSwapPlanningAuthority(
+          swapRequest.planningAuthority,
+          planningStateSnapshot.data(),
+        );
         if (swapRequest.requesterUserId !== actor.memberId) {
           throw new HttpRequestError(
             403,
@@ -4950,7 +5535,7 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
           return shift;
         });
         const recomputed = recomputeDeliveryHelpers(replaced);
-        recomputed.forEach((shift, index) => {
+        const changedShifts = recomputed.filter((shift, index) => {
           const original = storedShifts[index];
           const assignmentsChanged =
             shift.assignedUserIds.length !== original.assignedUserIds.length ||
@@ -4958,15 +5543,25 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
               userId !== original.assignedUserIds[assignmentIndex]
             );
           const helperChanged = shift.helperUserId !== original.helperUserId;
-          if (assignmentsChanged || helperChanged) {
-            transaction.update(shift.ref, {
-              assignedUserIds: shift.assignedUserIds,
-              helperUserId: shift.helperUserId,
-              status: "confirmed",
-              source: "app",
-              updatedAt: applyNow,
-            });
-          }
+          return assignmentsChanged || helperChanged;
+        });
+        await requireShiftPlanningNotificationResourcesWritable(
+          transaction,
+          input.environment,
+          changedShifts.map((shift) => ({
+            scope: "shift",
+            resourceId: shift.id,
+          })),
+          applyNow,
+        );
+        changedShifts.forEach((shift) => {
+          transaction.update(shift.ref, {
+            assignedUserIds: shift.assignedUserIds,
+            helperUserId: shift.helperUserId,
+            status: "confirmed",
+            source: "app",
+            updatedAt: applyNow,
+          });
         });
         transaction.update(requestRef, {
           status: "applied",

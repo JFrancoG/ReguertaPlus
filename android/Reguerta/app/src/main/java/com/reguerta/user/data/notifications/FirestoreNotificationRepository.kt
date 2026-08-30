@@ -12,6 +12,7 @@ import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.notifications.NotificationEvent
+import com.reguerta.user.domain.notifications.NotificationContentPolicy
 import com.reguerta.user.domain.notifications.NotificationRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -170,6 +171,7 @@ internal data class NotificationDocumentDto(
     val createdBy: String,
     val sentAtMillis: Long,
     val weekKey: String?,
+    val contentPolicy: NotificationContentPolicy,
 ) {
     fun toDomain(): NotificationEvent = NotificationEvent(
         id = id,
@@ -183,6 +185,7 @@ internal data class NotificationDocumentDto(
         createdBy = createdBy,
         sentAtMillis = sentAtMillis,
         weekKey = weekKey,
+        contentPolicy = contentPolicy,
     )
 
     companion object {
@@ -205,18 +208,33 @@ internal data class NotificationDocumentDto(
             }
             val target = data.requiredExactNotificationString("target", source, documentId)
             val audience = data.requiredNotificationAudience(target, source, documentId)
+            val title = data.requiredNotificationString("title", source, documentId)
+            val body = data.requiredNotificationString("body", source, documentId)
+            val createdBy = data.requiredNotificationString("createdBy", source, documentId)
+            val weekKey = data.optionalNotificationString("weekKey", source, documentId)
             return NotificationDocumentDto(
                 id = documentId,
-                title = data.requiredNotificationString("title", source, documentId),
-                body = data.requiredNotificationString("body", source, documentId),
+                title = title,
+                body = body,
                 type = type,
                 target = target,
                 userIds = audience.userIds,
                 segmentType = audience.segmentType,
                 targetRole = audience.targetRole,
-                createdBy = data.requiredNotificationString("createdBy", source, documentId),
+                createdBy = createdBy,
                 sentAtMillis = data.requiredNotificationTimestampMillis("sentAt", source, documentId),
-                weekKey = data.optionalNotificationString("weekKey", source, documentId),
+                weekKey = weekKey,
+                contentPolicy = data.notificationContentPolicy(
+                    title = title,
+                    body = body,
+                    type = type,
+                    target = target,
+                    audience = audience,
+                    createdBy = createdBy,
+                    weekKey = weekKey,
+                    source = source,
+                    documentId = documentId,
+                ),
             )
         }
     }
@@ -227,6 +245,42 @@ private data class DecodedNotificationAudience(
     val segmentType: String? = null,
     val targetRole: MemberRole? = null,
 )
+
+private fun Map<String, Any?>.notificationContentPolicy(
+    title: String,
+    body: String,
+    type: String,
+    target: String,
+    audience: DecodedNotificationAudience,
+    createdBy: String,
+    weekKey: String?,
+    source: NotificationDocumentSource,
+    documentId: String,
+): NotificationContentPolicy {
+    val fields = setOf("schemaVersion", "operationKind", "contentPolicy")
+    val present = keys.intersect(fields)
+    if (present.isEmpty()) return NotificationContentPolicy.EMBEDDED
+    val schemaVersion = this["schemaVersion"] as? Number
+    if (
+        present != fields ||
+        schemaVersion?.toDouble() != 1.0 ||
+        schemaVersion.toLong() != 1L ||
+        this["operationKind"] != "shiftPlanningNotification" ||
+        this["contentPolicy"] != "genericReferenceOnly" ||
+        title != "Turnos actualizados" ||
+        body != "Consulta la aplicación para ver la información actualizada." ||
+        type != "shift_updated" ||
+        target != "users" ||
+        audience.userIds.size != 1 ||
+        audience.segmentType != null ||
+        audience.targetRole != null ||
+        createdBy != "system" ||
+        weekKey != null
+    ) {
+        invalidNotificationDocument(source, documentId)
+    }
+    return NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED
+}
 
 private fun Map<String, Any?>.requiredNotificationAudience(
     target: String,

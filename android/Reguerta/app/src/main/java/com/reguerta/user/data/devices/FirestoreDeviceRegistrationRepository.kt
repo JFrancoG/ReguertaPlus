@@ -3,11 +3,13 @@ package com.reguerta.user.data.devices
 import android.util.Log
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.SetOptions
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.domain.devices.DeviceRegistrationRepository
+import com.reguerta.user.domain.devices.DeviceRegistrationWriteBlockedException
 import com.reguerta.user.domain.devices.RegisteredDevice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -50,8 +52,16 @@ class FirestoreDeviceRegistrationRepository(
             "lastSeenAt" to Timestamp(device.lastSeenAtMillis / 1_000, ((device.lastSeenAtMillis % 1_000) * 1_000_000).toInt()),
         )
 
+        val existing = try {
+            deviceDocument.get().await()
+        } catch (error: CancellationException) {
+            Log.d(TAG, "Device registration superseded before read")
+            throw error
+        } catch (error: Throwable) {
+            Log.e(TAG, "Failed to read device registration from Firestore")
+            throw error
+        }
         try {
-            val existing = deviceDocument.get().await()
             ensureSessionCurrent(isSessionCurrent)
             if (!existing.exists()) {
                 payload["firstSeenAt"] = Timestamp(
@@ -83,7 +93,7 @@ class FirestoreDeviceRegistrationRepository(
             throw error
         } catch (error: Throwable) {
             Log.e(TAG, "Failed to save device registration in Firestore")
-            throw error
+            throw deviceRegistrationCommitError(error)
         }
     }
 
@@ -93,3 +103,13 @@ class FirestoreDeviceRegistrationRepository(
         }
     }
 }
+
+internal fun deviceRegistrationCommitError(error: Throwable): Throwable =
+    if (
+        error is FirebaseFirestoreException &&
+        error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED
+    ) {
+        DeviceRegistrationWriteBlockedException(error)
+    } else {
+        error
+    }

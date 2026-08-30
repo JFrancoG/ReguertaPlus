@@ -15,6 +15,7 @@ enum ReguertaFirestoreCollection: String, Sendable {
     case sharedProfiles
     case shifts
     case shiftPlanningRequests
+    case shiftPlanningCandidates
     case shiftSwapRequests
     case news
     case notificationEvents

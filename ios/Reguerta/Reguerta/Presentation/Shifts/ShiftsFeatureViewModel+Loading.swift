@@ -134,40 +134,81 @@ extension ShiftsFeatureViewModel {
         }
     }
 
-    func requestShiftPlanning(_ type: ShiftPlanningRequestType) {
+    func requestShiftPlanningPreview() {
         guard authorizedSessionContext?.session.member.isAdmin == true else { return }
-        if pendingShiftPlanningType != type ||
-            pendingShiftPlanningRequestId == nil ||
-            pendingShiftPlanningRequestedAtMillis == nil {
-            pendingShiftPlanningRequestId = planningRequestIDProvider()
-            pendingShiftPlanningRequestedAtMillis = nowMillisProvider()
+        guard let deliverySeason = Int(shiftPlanningDeliverySeasonInput),
+              let marketSeason = Int(shiftPlanningMarketSeasonInput),
+              (2000...9998).contains(deliverySeason),
+              (2000...9998).contains(marketSeason),
+              let memberID = authorizedSessionContext?.session.member.id else { return }
+        if pendingShiftPlanningRequest?.intent == .preview,
+           pendingShiftPlanningRequest?.deliveryTargetSeasonStartYear == deliverySeason,
+           pendingShiftPlanningRequest?.marketTargetSeasonStartYear == marketSeason {
+            return
         }
-        pendingShiftPlanningType = type
+        let requestID = planningRequestIDProvider()
+        pendingShiftPlanningRequest = ShiftPlanningRequest(
+            id: requestID,
+            bundleId: "\(requestID)-bundle",
+            requestedByUserId: memberID,
+            requestedAtMillis: nowMillisProvider(),
+            deliveryTargetSeasonStartYear: deliverySeason,
+            marketTargetSeasonStartYear: marketSeason,
+            intent: .preview
+        )
+    }
+
+    var canStageLatestShiftPlanningPreview: Bool {
+        guard let context = authorizedSessionContext,
+              context.session.member.isAdmin,
+              let observation = shiftPlanningObservation,
+              observation.mode == .preview,
+              observation.status == .completed,
+              observation.requestedByUserId == context.session.member.id,
+              let summary = observation.completedSummary,
+              (2000...9998).contains(summary.delivery.targetSeasonStartYear),
+              (2000...9998).contains(summary.market.targetSeasonStartYear) else { return false }
+        return true
+    }
+
+    func requestShiftPlanningStage() {
+        guard canStageLatestShiftPlanningPreview,
+              let context = authorizedSessionContext,
+              let observation = shiftPlanningObservation,
+              let summary = observation.completedSummary else { return }
+        let preview = ShiftPlanningPreviewReference(
+            sourceRequestId: observation.id,
+            bundleRevision: summary.bundleRevision,
+            bundleDigest: summary.bundleDigest
+        )
+        let intent = ShiftPlanningRequestIntent.stage(preview)
+        if pendingShiftPlanningRequest?.intent == intent { return }
+        pendingShiftPlanningRequest = ShiftPlanningRequest(
+            id: planningRequestIDProvider(),
+            bundleId: observation.bundleId,
+            requestedByUserId: context.session.member.id,
+            requestedAtMillis: nowMillisProvider(),
+            deliveryTargetSeasonStartYear: summary.delivery.targetSeasonStartYear,
+            marketTargetSeasonStartYear: summary.market.targetSeasonStartYear,
+            intent: intent
+        )
     }
 
     func dismissShiftPlanningRequest() {
-        pendingShiftPlanningType = nil
-        pendingShiftPlanningRequestId = nil
-        pendingShiftPlanningRequestedAtMillis = nil
+        pendingShiftPlanningRequest = nil
     }
 
     func confirmShiftPlanningRequest() async {
-        guard let type = pendingShiftPlanningType else { return }
-        guard let requestId = pendingShiftPlanningRequestId, !requestId.isEmpty else { return }
-        guard let requestedAtMillis = pendingShiftPlanningRequestedAtMillis else { return }
-        guard let context = authorizedSessionContext, context.session.member.isAdmin else { return }
+        guard let request = pendingShiftPlanningRequest else { return }
+        guard let context = authorizedSessionContext,
+              context.session.member.isAdmin,
+              request.requestedByUserId == context.session.member.id else { return }
         guard let submissionOperationId = beginPlanningSubmissionOperation() else { return }
 
         defer { finishPlanningSubmissionOperation(submissionOperationId) }
         do {
             _ = try await shiftPlanningRequestRepository.submit(
-                request: ShiftPlanningRequest(
-                    id: requestId,
-                    type: type,
-                    requestedByUserId: context.session.member.id,
-                    requestedAtMillis: requestedAtMillis,
-                    status: .requested
-                ),
+                request: request,
                 environment: context.environment
             )
         } catch is CancellationError {
@@ -178,10 +219,8 @@ extension ShiftsFeatureViewModel {
             }
             return
         }
-        guard isCurrentSession(context), pendingShiftPlanningRequestId == requestId else { return }
-        pendingShiftPlanningType = nil
-        pendingShiftPlanningRequestId = nil
-        pendingShiftPlanningRequestedAtMillis = nil
+        guard isCurrentSession(context), pendingShiftPlanningRequest?.id == request.id else { return }
+        pendingShiftPlanningRequest = nil
     }
 }
 
@@ -214,6 +253,7 @@ extension ShiftsFeatureViewModel {
     }
 
     func reset() {
+        resetShiftPlanningObservation()
         invalidateShiftSwapMutationOwner()
         currentSession = nil
         currentMember = nil
@@ -329,9 +369,7 @@ extension ShiftsFeatureViewModel {
         selectedDeliveryCalendarWeekKey = nil
         selectedDeliveryCalendarWeekday = .wednesday
         originalDeliveryCalendarWeekday = .wednesday
-        pendingShiftPlanningType = nil
-        pendingShiftPlanningRequestId = nil
-        pendingShiftPlanningRequestedAtMillis = nil
+        pendingShiftPlanningRequest = nil
     }
 
     func beginShiftsRefreshOperation() -> UInt64 {

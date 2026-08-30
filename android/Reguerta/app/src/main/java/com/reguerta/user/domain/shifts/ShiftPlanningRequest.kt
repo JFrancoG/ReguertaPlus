@@ -12,10 +12,26 @@ enum class ShiftPlanningRequestStatus {
     FAILED,
 }
 
+data class ShiftPlanningPreviewReference(
+    val sourceRequestId: String,
+    val bundleRevision: String,
+    val bundleDigest: String,
+)
+
+sealed interface ShiftPlanningRequestIntent {
+    data object Preview : ShiftPlanningRequestIntent
+
+    data class Stage(
+        val preview: ShiftPlanningPreviewReference,
+    ) : ShiftPlanningRequestIntent
+}
+
 data class ShiftPlanningRequest(
     val id: String,
-    val type: ShiftPlanningRequestType,
+    val bundleId: String,
     val requestedByUserId: String,
     val requestedAtMillis: Long,
-    val status: ShiftPlanningRequestStatus,
+    val deliveryTargetSeasonStartYear: Int,
+    val marketTargetSeasonStartYear: Int,
+    val intent: ShiftPlanningRequestIntent = ShiftPlanningRequestIntent.Preview,
 )

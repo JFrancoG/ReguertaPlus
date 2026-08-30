@@ -9,8 +9,6 @@ import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
-import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
-import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftStatus
 import com.reguerta.user.domain.shifts.ShiftType
@@ -33,23 +31,19 @@ class ChainedPrimaryRepositoryTest {
     }
 
     @Test
-    fun `shift read and write failures propagate without fallback`() = runBlocking {
+    fun `shift read failures propagate without fallback`() = runBlocking {
         val readFailure = IllegalStateException("read")
-        val writeFailure = IllegalStateException("write")
         val fallback = RecordingShiftRepository(shifts = listOf(shift()))
         val repository = ChainedShiftRepository(
             primary = RecordingShiftRepository(
                 shifts = emptyList(),
                 readFailure = readFailure,
-                writeFailure = writeFailure,
             ),
             fallback = fallback,
         )
 
         assertSameFailure(readFailure) { repository.getAllShifts() }
-        assertSameFailure(writeFailure) { repository.upsertShift(shift()) }
         assertEquals(0, fallback.readCalls)
-        assertEquals(0, fallback.writeCalls)
     }
 
     @Test
@@ -105,7 +99,7 @@ class ChainedPrimaryRepositoryTest {
     @Test
     fun `planning submit returns primary result and never invokes fallback`() = runBlocking {
         val request = planningRequest()
-        val primaryResult = request.copy(status = ShiftPlanningRequestStatus.COMPLETED)
+        val primaryResult = request.copy(bundleId = "bundle-2")
         val primary = RecordingPlanningRepository(result = primaryResult)
         val fallback = RecordingPlanningRepository(result = request)
         val repository = ChainedShiftPlanningRequestRepository(primary, fallback)
@@ -162,31 +156,24 @@ class ChainedPrimaryRepositoryTest {
 
     private fun planningRequest() = ShiftPlanningRequest(
         id = "planning-1",
-        type = ShiftPlanningRequestType.DELIVERY,
+        bundleId = "bundle-1",
         requestedByUserId = "member-1",
         requestedAtMillis = 1_000L,
-        status = ShiftPlanningRequestStatus.REQUESTED,
+        deliveryTargetSeasonStartYear = 2026,
+        marketTargetSeasonStartYear = 2026,
     )
 }
 
 private class RecordingShiftRepository(
     private val shifts: List<ShiftAssignment>,
     private val readFailure: Throwable? = null,
-    private val writeFailure: Throwable? = null,
 ) : ShiftRepository {
     var readCalls = 0
-    var writeCalls = 0
 
     override suspend fun getAllShifts(): List<ShiftAssignment> {
         readCalls += 1
         readFailure?.let { throw it }
         return shifts
-    }
-
-    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment {
-        writeCalls += 1
-        writeFailure?.let { throw it }
-        return shift
     }
 }
 

@@ -224,12 +224,23 @@ private struct FirestoreNotificationDocumentDTO {
     let createdBy: String
     let sentAtMillis: Int64
     let weekKey: String?
+    let contentPolicy: NotificationContentPolicy
 }
 
 private struct FirestoreNotificationAudienceDTO {
     let userIDs: [String]
     let segmentType: String?
     let role: MemberRole?
+}
+
+private struct FirestoreNotificationDecodedContent {
+    let title: String
+    let body: String
+    let type: String
+    let target: String
+    let audience: FirestoreNotificationAudienceDTO
+    let createdBy: String
+    let weekKey: String?
 }
 
 private enum FirestoreNotificationDocumentDecoder {
@@ -269,20 +280,67 @@ private enum FirestoreNotificationDocumentDecoder {
         guard canonicalTypes.contains(type) else { throw RepositoryError.invalidData(resource: resource) }
         let target = try exactRequiredString(data, field: "target", resource: resource)
         let audience = try decodeAudience(data, target: target, resource: resource)
+        let title = try requiredString(data, field: "title", resource: resource)
+        let body = try requiredString(data, field: "body", resource: resource)
+        let createdBy = try requiredString(data, field: "createdBy", resource: resource)
+        let weekKey = try optionalString(data, field: "weekKey", resource: resource)
+        let content = FirestoreNotificationDecodedContent(
+            title: title,
+            body: body,
+            type: type,
+            target: target,
+            audience: audience,
+            createdBy: createdBy,
+            weekKey: weekKey
+        )
 
-        return try FirestoreNotificationDocumentDTO(
+        return FirestoreNotificationDocumentDTO(
             documentID: documentID,
-            title: requiredString(data, field: "title", resource: resource),
-            body: requiredString(data, field: "body", resource: resource),
+            title: title,
+            body: body,
             type: type,
             target: target,
             userIDs: audience.userIDs,
             segmentType: audience.segmentType,
             targetRole: audience.role,
-            createdBy: requiredString(data, field: "createdBy", resource: resource),
-            sentAtMillis: requiredTimestampMillis(data, field: "sentAt", resource: resource),
-            weekKey: optionalString(data, field: "weekKey", resource: resource)
+            createdBy: createdBy,
+            sentAtMillis: try requiredTimestampMillis(data, field: "sentAt", resource: resource),
+            weekKey: weekKey,
+            contentPolicy: try contentPolicy(
+                data,
+                content: content,
+                resource: resource
+            )
         )
+    }
+
+    private static func contentPolicy(
+        _ data: [String: Any],
+        content: FirestoreNotificationDecodedContent,
+        resource: String
+    ) throws -> NotificationContentPolicy {
+        let fields: Set<String> = ["schemaVersion", "operationKind", "contentPolicy"]
+        let present = Set(data.keys).intersection(fields)
+        guard !present.isEmpty else { return .embedded }
+        guard present == fields,
+              let schemaVersion = data["schemaVersion"] as? NSNumber,
+              CFGetTypeID(schemaVersion) != CFBooleanGetTypeID(),
+              schemaVersion.doubleValue == 1,
+              schemaVersion.intValue == 1,
+              data["operationKind"] as? String == "shiftPlanningNotification",
+              data["contentPolicy"] as? String == "genericReferenceOnly",
+              content.title == "Turnos actualizados",
+              content.body == "Consulta la aplicación para ver la información actualizada.",
+              content.type == "shift_updated",
+              content.target == "users",
+              content.audience.userIDs.count == 1,
+              content.audience.segmentType == nil,
+              content.audience.role == nil,
+              content.createdBy == "system",
+              content.weekKey == nil else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return .authorizedFetchRequired
     }
 
     private static func decodeAudience(
@@ -382,7 +440,8 @@ private enum FirestoreNotificationDocumentMapper {
             targetRole: dto.targetRole,
             createdBy: dto.createdBy,
             sentAtMillis: dto.sentAtMillis,
-            weekKey: dto.weekKey
+            weekKey: dto.weekKey,
+            contentPolicy: dto.contentPolicy
         )
     }
 }

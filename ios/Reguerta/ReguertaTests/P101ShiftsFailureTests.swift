@@ -345,10 +345,6 @@ private final class ThrowingShiftRepository: ShiftRepository {
     func allShifts(environment _: SessionEnvironment) async throws -> [ShiftAssignment] {
         throw RepositoryError.unavailable(resource: "shifts")
     }
-
-    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
-        shift
-    }
 }
 
 @MainActor

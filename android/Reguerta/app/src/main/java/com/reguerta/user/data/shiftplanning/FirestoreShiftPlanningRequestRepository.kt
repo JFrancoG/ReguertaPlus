@@ -9,154 +9,288 @@ import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.data.firestore.toRepositoryException
 import com.reguerta.user.domain.RepositoryErrorKind
 import com.reguerta.user.domain.RepositoryException
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidateReference
+import com.reguerta.user.domain.shifts.ShiftPlanningInspectionRepository
+import com.reguerta.user.domain.shifts.ShiftPlanningPreviewReference
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestIntent
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
-import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
-import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
 
-class FirestoreShiftPlanningRequestRepository(
+class FirestoreShiftPlanningRequestRepository internal constructor(
     private val firestore: FirebaseFirestore,
+    private val contextClient: FirebaseShiftPlanningRequestContextClient,
     private val environment: ReguertaFirestoreEnvironment? = null,
-) : ShiftPlanningRequestRepository {
+) : ShiftPlanningRequestRepository, ShiftPlanningInspectionRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 
     private val requestsCollectionPath: String
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFT_PLANNING_REQUESTS)
 
-    override suspend fun submitShiftPlanningRequest(request: ShiftPlanningRequest): ShiftPlanningRequest = withContext(Dispatchers.IO) {
-        val persisted = request.normalizedStableIntent()
-        val payload = mapOf(
-            "type" to persisted.type.wireValue(),
-            "requestedByUserId" to persisted.requestedByUserId,
-            "requestedAt" to Timestamp(
-                persisted.requestedAtMillis / 1_000,
-                ((persisted.requestedAtMillis % 1_000) * 1_000_000).toInt(),
-            ),
-            "status" to persisted.status.wireValue(),
-        )
-        try {
-            Tasks.await(
-                firestore.runTransaction { transaction ->
-                    val document = firestore.collection(requestsCollectionPath).document(persisted.id)
-                    val snapshot = transaction.get(document)
-                    when (
-                        val resolution = resolveShiftPlanningPersistence(
-                            documentExists = snapshot.exists(),
-                            data = snapshot.data ?: emptyMap(),
-                            expected = persisted,
-                        )
-                    ) {
-                        ShiftPlanningPersistenceResolution.Create -> {
-                            transaction.set(document, payload)
-                            persisted
-                        }
+    private val candidatesCollectionPath: String
+        get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFT_PLANNING_CANDIDATES)
 
-                        is ShiftPlanningPersistenceResolution.AcknowledgeExisting -> resolution.request
-                    }
-                },
+    override fun observeLatestRequest(): Flow<ShiftPlanningRequestObservation?> = callbackFlow {
+        val registration = firestore.collection(requestsCollectionPath)
+            .orderBy("requestedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(25)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error.toShiftPlanningRepositoryException("shiftPlanningRequests.read"))
+                    return@addSnapshotListener
+                }
+                try {
+                    val observation = snapshot?.documents
+                        ?.asSequence()
+                        ?.mapNotNull { document ->
+                            decodeShiftPlanningObservation(
+                                documentId = document.id,
+                                data = document.data ?: emptyMap(),
+                            )
+                        }
+                        ?.firstOrNull()
+                    trySend(observation).getOrThrow()
+                } catch (failure: Exception) {
+                    close(failure.toShiftPlanningRepositoryException("shiftPlanningRequests.read"))
+                }
+            }
+        awaitClose { registration.remove() }
+    }
+
+    override suspend fun getStagedCandidate(
+        reference: ShiftPlanningCandidateReference,
+    ): ShiftPlanningCandidate = withContext(Dispatchers.IO) {
+        try {
+            val document = firestore.collection(candidatesCollectionPath).document(reference.candidateId)
+            val header = Tasks.await(document.get())
+            val positions = Tasks.await(document.collection("positions").get())
+            decodeShiftPlanningCandidate(
+                documentId = header.id,
+                data = header.data ?: emptyMap(),
+                positionDocuments = positions.documents.map { it.id to (it.data ?: emptyMap()) },
+                reference = reference,
             )
         } catch (error: Exception) {
-            throw error.toShiftPlanningRepositoryException()
+            throw error.toShiftPlanningRepositoryException("shiftPlanningCandidates.read")
         }
     }
+
+    override suspend fun submitShiftPlanningRequest(request: ShiftPlanningRequest): ShiftPlanningRequest =
+        withContext(Dispatchers.IO) {
+            try {
+                val resolved = resolveShiftPlanningRequest(request, contextClient.resolve())
+                Tasks.await(
+                    firestore.runTransaction { transaction ->
+                        val document = firestore.collection(requestsCollectionPath).document(resolved.request.id)
+                        val snapshot = transaction.get(document)
+                        when (
+                            resolveShiftPlanningPersistence(
+                                documentExists = snapshot.exists(),
+                                documentId = document.id,
+                                data = snapshot.data ?: emptyMap(),
+                                expected = resolved,
+                            )
+                        ) {
+                            ShiftPlanningPersistenceResolution.Create -> {
+                                transaction.set(document, resolved.firestorePayload())
+                                resolved.request
+                            }
+
+                            ShiftPlanningPersistenceResolution.AcknowledgeExisting -> resolved.request
+                        }
+                    },
+                )
+            } catch (error: Exception) {
+                throw error.toShiftPlanningRepositoryException("shiftPlanningRequests.write")
+            }
+        }
 }
 
-internal sealed interface ShiftPlanningPersistenceResolution {
-    data object Create : ShiftPlanningPersistenceResolution
+internal data class ResolvedShiftPlanningRequest(
+    val request: ShiftPlanningRequest,
+    val context: ShiftPlanningRequestContext,
+)
 
-    data class AcknowledgeExisting(
-        val request: ShiftPlanningRequest,
-    ) : ShiftPlanningPersistenceResolution
+internal enum class ShiftPlanningPersistenceResolution {
+    Create,
+    AcknowledgeExisting,
 }
+
+internal fun resolveShiftPlanningRequest(
+    request: ShiftPlanningRequest,
+    context: ShiftPlanningRequestContext,
+): ResolvedShiftPlanningRequest {
+    val normalizedId = request.id.trim()
+    val normalizedIntent = request.intent.normalized(normalizedId)
+    if (
+        !PLANNING_IDENTIFIER.matches(normalizedId) ||
+        !PLANNING_IDENTIFIER.matches(request.bundleId.trim()) ||
+        !PLANNING_IDENTIFIER.matches(request.requestedByUserId.trim()) ||
+        request.requestedAtMillis < 0 ||
+        request.deliveryTargetSeasonStartYear !in VALID_SEASON_RANGE ||
+        request.marketTargetSeasonStartYear !in VALID_SEASON_RANGE ||
+        context.environment !in VALID_ENVIRONMENTS ||
+        context.expectedWriteEpoch < 0 ||
+        context.expectedActiveRevision?.let { !PLANNING_IDENTIFIER.matches(it) } == true
+    ) {
+        invalidShiftPlanningRequest()
+    }
+    return ResolvedShiftPlanningRequest(
+        request = request.copy(
+            id = normalizedId,
+            bundleId = request.bundleId.trim(),
+            requestedByUserId = request.requestedByUserId.trim(),
+            intent = normalizedIntent,
+        ),
+        context = context,
+    )
+}
+
+internal fun ResolvedShiftPlanningRequest.firestorePayload(): Map<String, Any?> = mapOf(
+    "schemaVersion" to 2,
+    "requestId" to request.id,
+    "bundleId" to request.bundleId,
+    "environment" to context.environment,
+    "requestedByUserId" to request.requestedByUserId,
+    "requestedAt" to Timestamp(
+        request.requestedAtMillis / 1_000,
+        ((request.requestedAtMillis % 1_000) * 1_000_000).toInt(),
+    ),
+    "mode" to request.intent.wireMode(),
+    "status" to "requested",
+    "expectedWriteEpoch" to context.expectedWriteEpoch,
+    "expectedActiveRevision" to context.expectedActiveRevision,
+    "subplans" to mapOf(
+        "delivery" to mapOf("targetSeasonStartYear" to request.deliveryTargetSeasonStartYear),
+        "market" to mapOf("targetSeasonStartYear" to request.marketTargetSeasonStartYear),
+    ),
+    "binding" to request.intent.firestoreBinding(),
+)
 
 internal fun resolveShiftPlanningPersistence(
     documentExists: Boolean,
+    documentId: String,
     data: Map<String, Any?>,
-    expected: ShiftPlanningRequest,
+    expected: ResolvedShiftPlanningRequest,
 ): ShiftPlanningPersistenceResolution {
-    if (
-        expected.id.isBlank() ||
-        expected.requestedByUserId.isBlank() ||
-        expected.status != ShiftPlanningRequestStatus.REQUESTED
-    ) {
-        invalidShiftPlanningRequest()
-    }
+    val request = expected.request
+    if (request.id != documentId) invalidShiftPlanningRequest()
     if (!documentExists) return ShiftPlanningPersistenceResolution.Create
 
-    val persistedType = when (data.requiredString("type").lowercase()) {
-        "delivery" -> ShiftPlanningRequestType.DELIVERY
-        "market" -> ShiftPlanningRequestType.MARKET
-        else -> invalidShiftPlanningRequest()
-    }
-    val persistedRequester = data.requiredString("requestedByUserId")
-    val persistedRequestedAt = data.requiredTimestampMillis("requestedAt")
-    val persistedStatus = when (data.requiredString("status").lowercase()) {
-        "requested" -> ShiftPlanningRequestStatus.REQUESTED
-        "processing" -> ShiftPlanningRequestStatus.PROCESSING
-        "completed" -> ShiftPlanningRequestStatus.COMPLETED
-        "failed" -> ShiftPlanningRequestStatus.FAILED
-        else -> invalidShiftPlanningRequest()
-    }
+    val status = data.requiredString("status")
+    val subplans = data.requiredMap("subplans")
     if (
-        persistedType != expected.type ||
-        persistedRequester != expected.requestedByUserId ||
-        persistedRequestedAt != expected.requestedAtMillis
+        data.requiredLong("schemaVersion") != 2L ||
+        data.requiredString("requestId") != request.id ||
+        data.requiredString("bundleId") != request.bundleId ||
+        data.requiredString("environment") != expected.context.environment ||
+        data.requiredString("requestedByUserId") != request.requestedByUserId ||
+        data.requiredTimestampMillis("requestedAt") != request.requestedAtMillis ||
+        data.requiredString("mode") != request.intent.wireMode() ||
+        status !in VALID_STATUSES ||
+        !data.hasCompatibleBinding(request.intent) ||
+        subplans.requiredTargetSeason("delivery") != request.deliveryTargetSeasonStartYear ||
+        subplans.requiredTargetSeason("market") != request.marketTargetSeasonStartYear
     ) {
         invalidShiftPlanningRequest()
     }
-    return ShiftPlanningPersistenceResolution.AcknowledgeExisting(
-        request = expected.copy(status = persistedStatus),
-    )
+    return ShiftPlanningPersistenceResolution.AcknowledgeExisting
 }
 
-private fun ShiftPlanningRequest.normalizedStableIntent(): ShiftPlanningRequest {
-    val normalizedId = id.trim()
-    val normalizedRequester = requestedByUserId.trim()
-    if (
-        normalizedId.isEmpty() ||
-        normalizedRequester.isEmpty() ||
-        status != ShiftPlanningRequestStatus.REQUESTED
-    ) {
-        invalidShiftPlanningRequest()
+private fun ShiftPlanningRequestIntent.normalized(requestId: String): ShiftPlanningRequestIntent = when (this) {
+    ShiftPlanningRequestIntent.Preview -> this
+    is ShiftPlanningRequestIntent.Stage -> {
+        val sourceRequestId = preview.sourceRequestId.trim()
+        val bundleRevision = preview.bundleRevision.trim()
+        val bundleDigest = preview.bundleDigest.trim()
+        if (
+            !PLANNING_IDENTIFIER.matches(sourceRequestId) ||
+            sourceRequestId == requestId ||
+            !PLANNING_IDENTIFIER.matches(bundleRevision) ||
+            !PLANNING_DIGEST.matches(bundleDigest)
+        ) {
+            invalidShiftPlanningRequest()
+        }
+        ShiftPlanningRequestIntent.Stage(
+            ShiftPlanningPreviewReference(
+                sourceRequestId = sourceRequestId,
+                bundleRevision = bundleRevision,
+                bundleDigest = bundleDigest,
+            ),
+        )
     }
-    return copy(
-        id = normalizedId,
-        requestedByUserId = normalizedRequester,
+}
+
+private fun ShiftPlanningRequestIntent.wireMode(): String = when (this) {
+    ShiftPlanningRequestIntent.Preview -> "preview"
+    is ShiftPlanningRequestIntent.Stage -> "stage"
+}
+
+private fun ShiftPlanningRequestIntent.firestoreBinding(): Map<String, String>? = when (this) {
+    ShiftPlanningRequestIntent.Preview -> null
+    is ShiftPlanningRequestIntent.Stage -> mapOf(
+        "kind" to "preview",
+        "sourceRequestId" to preview.sourceRequestId,
+        "bundleRevision" to preview.bundleRevision,
+        "bundleDigest" to preview.bundleDigest,
     )
 }
 
-private fun Map<String, Any?>.requiredString(field: String): String {
-    val value = this[field] as? String ?: invalidShiftPlanningRequest()
-    return value.trim().takeIf(String::isNotEmpty) ?: invalidShiftPlanningRequest()
+private fun Map<String, Any?>.hasCompatibleBinding(intent: ShiftPlanningRequestIntent): Boolean = when (intent) {
+    ShiftPlanningRequestIntent.Preview -> this["binding"] == null
+    is ShiftPlanningRequestIntent.Stage -> {
+        val binding = requiredMap("binding")
+        binding.keys == setOf("kind", "sourceRequestId", "bundleRevision", "bundleDigest") &&
+            binding.requiredString("kind") == "preview" &&
+            binding.requiredString("sourceRequestId") == intent.preview.sourceRequestId &&
+            binding.requiredString("bundleRevision") == intent.preview.bundleRevision &&
+            binding.requiredString("bundleDigest") == intent.preview.bundleDigest
+    }
 }
+
+private fun Map<String, Any?>.requiredString(field: String): String =
+    (this[field] as? String)?.trim()?.takeIf(String::isNotEmpty) ?: invalidShiftPlanningRequest()
+
+private fun Map<String, Any?>.requiredLong(field: String): Long =
+    (this[field] as? Number)?.toLong() ?: invalidShiftPlanningRequest()
 
 private fun Map<String, Any?>.requiredTimestampMillis(field: String): Long =
     (this[field] as? Timestamp)?.toDate()?.time ?: invalidShiftPlanningRequest()
+
+@Suppress("UNCHECKED_CAST")
+private fun Map<String, Any?>.requiredMap(field: String): Map<String, Any?> =
+    this[field] as? Map<String, Any?> ?: invalidShiftPlanningRequest()
+
+private fun Map<String, Any?>.requiredTargetSeason(type: String): Int {
+    val subplan = requiredMap(type)
+    if (subplan.keys != setOf("targetSeasonStartYear")) invalidShiftPlanningRequest()
+    val year = subplan.requiredLong("targetSeasonStartYear")
+    return year.toInt().takeIf { year == it.toLong() && it in VALID_SEASON_RANGE }
+        ?: invalidShiftPlanningRequest()
+}
 
 private fun invalidShiftPlanningRequest(): Nothing = throw RepositoryException(
     kind = RepositoryErrorKind.INVALID_DATA,
     resource = "shiftPlanningRequests.document",
 )
 
-private fun Throwable.toShiftPlanningRepositoryException(): Throwable {
+private fun Throwable.toShiftPlanningRepositoryException(resource: String): Throwable {
     var current: Throwable? = this
     while (current != null) {
         if (current is RepositoryException) return current
         current = current.cause
     }
-    return toRepositoryException(resource = "shiftPlanningRequests.write")
+    return toRepositoryException(resource = resource)
 }
 
-private fun ShiftPlanningRequestType.wireValue(): String = when (this) {
-    ShiftPlanningRequestType.DELIVERY -> "delivery"
-    ShiftPlanningRequestType.MARKET -> "market"
-}
-
-private fun ShiftPlanningRequestStatus.wireValue(): String = when (this) {
-    ShiftPlanningRequestStatus.REQUESTED -> "requested"
-    ShiftPlanningRequestStatus.PROCESSING -> "processing"
-    ShiftPlanningRequestStatus.COMPLETED -> "completed"
-    ShiftPlanningRequestStatus.FAILED -> "failed"
-}
+private val VALID_ENVIRONMENTS = setOf("develop", "production")
+private val VALID_STATUSES = setOf("requested", "processing", "completed", "failed")
+private val VALID_SEASON_RANGE = 2000..9998
+private val PLANNING_IDENTIFIER = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+private val PLANNING_DIGEST = Regex("^shift-planning:v1:sha256:[a-f0-9]{64}$")

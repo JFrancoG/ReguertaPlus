@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -27,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
@@ -34,6 +37,10 @@ import com.reguerta.user.domain.access.isProducer
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
+import com.reguerta.user.domain.shifts.ShiftPlanningMode
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.ui.components.auth.ReguertaDialog
@@ -56,6 +63,10 @@ fun SettingsRoute(
     isLoadingDeliveryCalendar: Boolean,
     isSavingDeliveryCalendar: Boolean,
     isSubmittingShiftPlanningRequest: Boolean,
+    shiftPlanningObservation: ShiftPlanningRequestObservation?,
+    shiftPlanningCandidate: ShiftPlanningCandidate?,
+    isLoadingShiftPlanningCandidate: Boolean,
+    isRefreshingShiftsAfterActivation: Boolean,
     isUpdatingProducerCatalogVisibility: Boolean,
     isDevelopImpersonationEnabled: Boolean,
     nowOverrideMillis: Long?,
@@ -66,7 +77,8 @@ fun SettingsRoute(
     onAppAppearanceChanged: (AppAppearance) -> Unit,
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
-    onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
+    onSubmitShiftPlanningRequest: (Int, Int, onSuccess: () -> Unit) -> Unit,
+    onStageShiftPlanningPreview: (onSuccess: () -> Unit) -> Unit,
 ) {
     var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Column(
@@ -108,8 +120,15 @@ fun SettingsRoute(
             )
             HorizontalDivider()
             AdminShiftPlanningSection(
+                currentMemberId = currentMember.id,
+                members = members,
                 isSubmitting = isSubmittingShiftPlanningRequest,
+                observation = shiftPlanningObservation,
+                candidate = shiftPlanningCandidate,
+                isLoadingCandidate = isLoadingShiftPlanningCandidate,
+                isRefreshingAfterActivation = isRefreshingShiftsAfterActivation,
                 onSubmit = onSubmitShiftPlanningRequest,
+                onStage = onStageShiftPlanningPreview,
             )
         }
 
@@ -384,10 +403,22 @@ private fun AdminDeliveryCalendarSection(
 
 @Composable
 private fun AdminShiftPlanningSection(
+    currentMemberId: String,
+    members: List<Member>,
     isSubmitting: Boolean,
-    onSubmit: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
+    observation: ShiftPlanningRequestObservation?,
+    candidate: ShiftPlanningCandidate?,
+    isLoadingCandidate: Boolean,
+    isRefreshingAfterActivation: Boolean,
+    onSubmit: (Int, Int, onSuccess: () -> Unit) -> Unit,
+    onStage: (onSuccess: () -> Unit) -> Unit,
 ) {
-    var pendingType by rememberSaveable { mutableStateOf<ShiftPlanningRequestType?>(null) }
+    var deliverySeasonInput by rememberSaveable { mutableStateOf("") }
+    var marketSeasonInput by rememberSaveable { mutableStateOf("") }
+    var isConfirmingPreview by rememberSaveable { mutableStateOf(false) }
+    var isConfirmingStage by rememberSaveable { mutableStateOf(false) }
+    val deliverySeason = deliverySeasonInput.toIntOrNull()?.takeIf { it in 2000..9998 }
+    val marketSeason = marketSeasonInput.toIntOrNull()?.takeIf { it in 2000..9998 }
 
     Text(
         text = stringResource(R.string.settings_shift_planning_title),
@@ -398,27 +429,28 @@ private fun AdminShiftPlanningSection(
         text = stringResource(R.string.settings_shift_planning_subtitle),
         style = MaterialTheme.typography.bodyMedium,
     )
-    Row(
+    OutlinedTextField(
+        value = deliverySeasonInput,
+        onValueChange = { deliverySeasonInput = it.filter(Char::isDigit).take(4) },
+        label = { Text(stringResource(R.string.settings_shift_planning_delivery_season)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-    ) {
-        ReguertaButton(
-            label = stringResource(R.string.settings_shift_planning_action_generate_delivery),
-            onClick = { pendingType = ShiftPlanningRequestType.DELIVERY },
-            modifier = Modifier.weight(1f),
-            textStyle = MaterialTheme.typography.titleMedium,
-            horizontalPadding = 8.dp,
-            enabled = !isSubmitting,
-        )
-        ReguertaButton(
-            label = stringResource(R.string.settings_shift_planning_action_generate_market),
-            onClick = { pendingType = ShiftPlanningRequestType.MARKET },
-            modifier = Modifier.weight(1f),
-            textStyle = MaterialTheme.typography.titleMedium,
-            horizontalPadding = 8.dp,
-            enabled = !isSubmitting,
-        )
-    }
+    )
+    OutlinedTextField(
+        value = marketSeasonInput,
+        onValueChange = { marketSeasonInput = it.filter(Char::isDigit).take(4) },
+        label = { Text(stringResource(R.string.settings_shift_planning_market_season)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ReguertaButton(
+        label = stringResource(R.string.settings_shift_planning_action_preview),
+        onClick = { isConfirmingPreview = true },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !isSubmitting && deliverySeason != null && marketSeason != null,
+    )
     if (isSubmitting) {
         Text(
             text = stringResource(R.string.settings_shift_planning_submitting),
@@ -426,30 +458,131 @@ private fun AdminShiftPlanningSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-
-    pendingType?.let { type ->
-        val title = if (type == ShiftPlanningRequestType.DELIVERY) {
-            stringResource(R.string.settings_shift_planning_alert_title_delivery)
-        } else {
-            stringResource(R.string.settings_shift_planning_alert_title_market)
+    observation?.let { request ->
+        val statusResource = when {
+            isRefreshingAfterActivation -> R.string.settings_shift_planning_status_syncing
+            request.status == ShiftPlanningRequestStatus.REQUESTED ->
+                R.string.settings_shift_planning_status_requested
+            request.status == ShiftPlanningRequestStatus.PROCESSING ->
+                R.string.settings_shift_planning_status_processing
+            request.status == ShiftPlanningRequestStatus.COMPLETED ->
+                R.string.settings_shift_planning_status_completed
+            else -> R.string.settings_shift_planning_status_failed
         }
+        Text(
+            text = stringResource(statusResource),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        request.completedSummary?.let { summary ->
+            Text(
+                text = stringResource(
+                    R.string.settings_shift_planning_summary_format,
+                    summary.delivery.generatedShiftCount,
+                    summary.market.generatedShiftCount,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (
+            request.mode == ShiftPlanningMode.PREVIEW &&
+            request.status == ShiftPlanningRequestStatus.COMPLETED &&
+            request.requestedByUserId == currentMemberId &&
+            request.completedSummary != null
+        ) {
+            ReguertaButton(
+                label = stringResource(R.string.settings_shift_planning_action_stage),
+                onClick = { isConfirmingStage = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSubmitting,
+            )
+        }
+    }
+    if (isLoadingCandidate) {
+        Text(
+            text = stringResource(R.string.settings_shift_planning_candidate_loading),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    candidate?.let { stagedCandidate ->
+        Text(
+            text = stringResource(
+                R.string.settings_shift_planning_candidate_format,
+                stagedCandidate.positionDocumentCount,
+                stagedCandidate.assignmentPositionCount,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        stagedCandidate.positions.forEach { position ->
+            val type = stringResource(
+                if (position.type == ShiftPlanningRequestType.DELIVERY) {
+                    R.string.settings_shift_planning_position_delivery
+                } else {
+                    R.string.settings_shift_planning_position_market
+                },
+            )
+            val assignees = position.assignedUserIds.joinToString { userId ->
+                members.firstOrNull { it.id == userId }?.displayName ?: userId
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(
+                        R.string.settings_shift_planning_position_format,
+                        position.scheduledDate,
+                        type,
+                        assignees,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                position.helperUserId?.let { helperId ->
+                    val helperName = members.firstOrNull { it.id == helperId }?.displayName ?: helperId
+                    Text(
+                        text = stringResource(R.string.settings_shift_planning_helper_format, helperName),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+
+    if (isConfirmingPreview && deliverySeason != null && marketSeason != null) {
         ReguertaDialog(
             type = ReguertaDialogType.INFO,
-            title = title,
+            title = stringResource(R.string.settings_shift_planning_alert_title_preview),
             message = stringResource(R.string.settings_shift_planning_alert_message),
             primaryAction = ReguertaDialogAction(
                 label = stringResource(R.string.common_action_confirm),
                 onClick = {
-                    onSubmit(type) {
-                        pendingType = null
+                    onSubmit(deliverySeason, marketSeason) {
+                        isConfirmingPreview = false
                     }
                 },
             ),
             secondaryAction = ReguertaDialogAction(
                 label = stringResource(R.string.common_action_cancel),
-                onClick = { pendingType = null },
+                onClick = { isConfirmingPreview = false },
             ),
-            onDismissRequest = { pendingType = null },
+            onDismissRequest = { isConfirmingPreview = false },
+        )
+    }
+    if (isConfirmingStage) {
+        ReguertaDialog(
+            type = ReguertaDialogType.INFO,
+            title = stringResource(R.string.settings_shift_planning_alert_title_stage),
+            message = stringResource(R.string.settings_shift_planning_alert_message_stage),
+            primaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.common_action_confirm),
+                onClick = { onStage { isConfirmingStage = false } },
+            ),
+            secondaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.common_action_cancel),
+                onClick = { isConfirmingStage = false },
+            ),
+            onDismissRequest = { isConfirmingStage = false },
         )
     }
 }

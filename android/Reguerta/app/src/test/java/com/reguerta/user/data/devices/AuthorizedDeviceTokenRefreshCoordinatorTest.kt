@@ -1,6 +1,7 @@
 package com.reguerta.user.data.devices
 
 import com.reguerta.user.domain.devices.DeviceRegistrationRepository
+import com.reguerta.user.domain.devices.DeviceRegistrationWriteBlockedException
 import com.reguerta.user.domain.devices.RegisteredDevice
 import java.nio.file.Files
 import java.nio.file.Path
@@ -163,6 +164,26 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
             ),
             repository.registrations,
         )
+    }
+
+    @Test
+    fun `dispatch blocked registration retries on next authorized token event`() = runTest {
+        val store = FakeAuthorizedDeviceTokenStore(context = authorizedContext())
+        val repository = RecordingDeviceRegistrationRepository(blockedWriteCount = 1)
+        val coordinator = coordinator(store = store, repository = repository)
+
+        assertEquals(
+            AuthorizedDeviceTokenRefreshResult.DEFERRED,
+            coordinator.refresh("TOKEN-A"),
+        )
+        assertEquals("TOKEN-A", store.firebaseInstallationId)
+        assertTrue(repository.registrations.isEmpty())
+
+        assertEquals(
+            AuthorizedDeviceTokenRefreshResult.UPLOADED,
+            coordinator.refresh("TOKEN-A"),
+        )
+        assertEquals(listOf("TOKEN-A"), repository.registrations.map { it.registrationId })
     }
 
     @Test
@@ -449,8 +470,10 @@ private class RecordingDeviceRegistrationRepository(
     private val suspendedToken: String? = null,
     private val started: CompletableDeferred<Unit>? = null,
     private val release: CompletableDeferred<Unit>? = null,
+    blockedWriteCount: Int = 0,
 ) : DeviceRegistrationRepository {
     val registrations = CopyOnWriteArrayList<RecordedRegistration>()
+    private var blockedWritesRemaining = blockedWriteCount
 
     override suspend fun registerDevice(
         memberId: String,
@@ -460,6 +483,10 @@ private class RecordingDeviceRegistrationRepository(
     ): RegisteredDevice {
         if (!isSessionCurrent()) {
             throw CancellationException("Registration superseded before test write")
+        }
+        if (blockedWritesRemaining > 0) {
+            blockedWritesRemaining -= 1
+            throw DeviceRegistrationWriteBlockedException(IllegalStateException("blocked"))
         }
         if (device.firebaseInstallationId == suspendedToken) {
             started?.complete(Unit)

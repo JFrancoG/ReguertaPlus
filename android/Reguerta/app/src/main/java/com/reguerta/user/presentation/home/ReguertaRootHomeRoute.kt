@@ -27,6 +27,8 @@ import com.reguerta.user.presentation.root.NewsSaveResult
 import com.reguerta.user.presentation.root.NotificationDraft
 import com.reguerta.user.presentation.root.NotificationFeedItem
 import com.reguerta.user.presentation.root.NotificationSendResult
+import com.reguerta.user.domain.notifications.ShiftNotificationDetail
+import com.reguerta.user.domain.notifications.ShiftNotificationPushReference
 import com.reguerta.user.presentation.root.ProductDraft
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SharedProfileDraft
@@ -97,7 +99,8 @@ import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.shifts.ShiftAssignment
-import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
+import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
@@ -132,6 +135,8 @@ internal fun HomeRoute(
     pendingNewsDeletionId: String?,
     newsDeletionRequestRevision: Long,
     notificationFeedItems: List<NotificationFeedItem>,
+    notificationShiftDetail: ShiftNotificationDetail?,
+    loadingNotificationDetailEventId: String?,
     hasUnreadNotifications: Boolean,
     notificationDraft: NotificationDraft,
     notificationEditorRevision: Long,
@@ -162,6 +167,7 @@ internal fun HomeRoute(
     isLoadingNotifications: Boolean,
     isSendingNotification: Boolean,
     showPushNotificationPermissionDialog: Boolean,
+    pendingShiftNotificationPush: ShiftNotificationPushReference?,
     isLoadingProducts: Boolean,
     isLoadingMyOrderProducts: Boolean,
     isSavingProduct: Boolean,
@@ -175,6 +181,10 @@ internal fun HomeRoute(
     isLoadingDeliveryCalendar: Boolean,
     isSavingDeliveryCalendar: Boolean,
     isSubmittingShiftPlanningRequest: Boolean,
+    shiftPlanningObservation: ShiftPlanningRequestObservation?,
+    shiftPlanningCandidate: ShiftPlanningCandidate?,
+    isLoadingShiftPlanningCandidate: Boolean,
+    isRefreshingShiftsAfterActivation: Boolean,
     isSavingShiftSwapRequest: Boolean,
     isUpdatingShiftSwapRequest: Boolean,
     isAskingBylaws: Boolean,
@@ -193,7 +203,9 @@ internal fun HomeRoute(
     onSaveMemberDraft: (String?, onSuccess: (String) -> Unit) -> Unit,
     onStartCreatingNews: () -> Unit,
     onStartCreatingNotification: () -> Unit,
-    onPrepareNotificationsRoute: () -> Unit,
+    onPrepareNotificationsRoute: (String?) -> Unit,
+    onConsumeShiftNotificationPush: (ShiftNotificationPushReference) -> Unit,
+    onOpenNotificationDetail: (String) -> Unit,
     onPrepareBylawsRoute: () -> Unit,
     onCancelBylawsConsultation: () -> Unit,
     onMarkVisibleNotificationsReadOnExit: () -> Unit,
@@ -242,7 +254,8 @@ internal fun HomeRoute(
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
-    onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
+    onSubmitShiftPlanningRequest: (Int, Int, onSuccess: () -> Unit) -> Unit,
+    onStageShiftPlanningPreview: (onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Long?,
     onValidateMyOrderFreshnessReceipt: (Long?) -> Boolean,
     onOpenProducts: () -> Unit,
@@ -361,7 +374,7 @@ internal fun HomeRoute(
         isDrawerOpen = false
     }
 
-    fun navigateHome(destination: HomeDestination) {
+    fun navigateHome(destination: HomeDestination, openingNotificationEventId: String? = null) {
         val previousDestination = currentDestination
         if (previousDestination == HomeDestination.NOTIFICATIONS && destination != HomeDestination.NOTIFICATIONS) {
             onMarkVisibleNotificationsReadOnExit()
@@ -389,7 +402,7 @@ internal fun HomeRoute(
         if (destination == HomeDestination.NEWS) {
             onRefreshNews()
         } else if (destination == HomeDestination.NOTIFICATIONS) {
-            onPrepareNotificationsRoute()
+            onPrepareNotificationsRoute(openingNotificationEventId)
         } else if (destination == HomeDestination.PRODUCTS) {
             onRefreshProducts()
         } else if (destination == HomeDestination.PROFILE) {
@@ -405,6 +418,15 @@ internal fun HomeRoute(
         } else if (destination == HomeDestination.SETTINGS) {
             onRefreshDeliveryCalendar()
         }
+    }
+
+    LaunchedEffect(pendingShiftNotificationPush) {
+        val reference = pendingShiftNotificationPush ?: return@LaunchedEffect
+        navigateHome(
+            destination = HomeDestination.NOTIFICATIONS,
+            openingNotificationEventId = reference.eventId,
+        )
+        onConsumeShiftNotificationPush(reference)
     }
 
     fun requestMyOrderEntry() {
@@ -741,8 +763,12 @@ internal fun HomeRoute(
                     )
 
                     HomeDestination.NOTIFICATIONS -> NotificationsFeedRoute(
-                    notificationItems = notificationFeedItems,
-                    isLoading = isLoadingNotifications,
+                        notificationItems = notificationFeedItems,
+                        shiftDetail = notificationShiftDetail,
+                        loadingDetailEventId = loadingNotificationDetailEventId,
+                        members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                        isLoading = isLoadingNotifications,
+                        onOpenDetail = onOpenNotificationDetail,
                     )
 
                     HomeDestination.ADMIN_BROADCAST -> NotificationEditorRoute(
@@ -904,6 +930,10 @@ internal fun HomeRoute(
                     isLoadingDeliveryCalendar = isLoadingDeliveryCalendar,
                     isSavingDeliveryCalendar = isSavingDeliveryCalendar,
                     isSubmittingShiftPlanningRequest = isSubmittingShiftPlanningRequest,
+                    shiftPlanningObservation = shiftPlanningObservation,
+                    shiftPlanningCandidate = shiftPlanningCandidate,
+                    isLoadingShiftPlanningCandidate = isLoadingShiftPlanningCandidate,
+                    isRefreshingShiftsAfterActivation = isRefreshingShiftsAfterActivation,
                     isUpdatingProducerCatalogVisibility = isUpdatingProducerCatalogVisibility,
                     isDevelopImpersonationEnabled = isDevelopImpersonationEnabled,
                     nowOverrideMillis = nowOverrideMillis,
@@ -915,6 +945,7 @@ internal fun HomeRoute(
                     onSetProducerCatalogVisibility = onSetProducerCatalogVisibility,
                     onSaveDeliveryCalendarOverride = onSaveDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = onSubmitShiftPlanningRequest,
+                    onStageShiftPlanningPreview = onStageShiftPlanningPreview,
                     )
 
                     HomeDestination.USERS -> UsersRoute(

@@ -4,6 +4,30 @@ import Testing
 
 @MainActor
 struct ReguertaShiftsAdminViewModelTests {
+    @Test func revokedAdminSessionCannotPublishLaterPlanningObservation() async {
+        let admin = adminMember(id: "admin_1", displayName: "Admin")
+        let shiftRepository = CountingPlanningShiftRepository()
+        let planningRepository = ControlledPlanningObservationRepository()
+        let viewModel = makeShiftsViewModel(
+            currentMember: admin,
+            members: [admin],
+            shiftRepository: shiftRepository,
+            shiftPlanningRequestRepository: planningRepository
+        )
+        viewModel.handleSessionModeChange(viewModel.sessionViewModel.mode)
+        await planningRepository.waitUntilObserved()
+        await awaitCurrentShiftsRefresh(in: viewModel)
+        let initialReadCount = await shiftRepository.readCount
+
+        viewModel.sessionViewModel.mode = .signedOut
+        viewModel.handleSessionModeChange(.signedOut)
+        await planningRepository.emit(completedActivationObservation())
+        await Task.yield()
+
+        #expect(viewModel.shiftPlanningObservation == nil)
+        #expect(await shiftRepository.readCount == initialReadCount)
+    }
+
     @Test func shiftsViewModelConfirmsSwapWithoutDirectShiftWrites() async {
         let scenario = await makeConfirmShiftSwapTestScenario()
 
@@ -63,7 +87,9 @@ struct ReguertaShiftsAdminViewModelTests {
         viewModel.selectedDeliveryCalendarWeekday = .friday
 
         await viewModel.saveDeliveryCalendarOverride()
-        viewModel.requestShiftPlanning(.delivery)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
         await viewModel.confirmShiftPlanningRequest()
 
         #expect(await calendarRepository.allOverrides(environment: .develop).isEmpty)
@@ -170,14 +196,17 @@ struct ReguertaShiftsAdminViewModelTests {
             nowMillisProvider: { 123 }
         )
 
-        viewModel.requestShiftPlanning(.market)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
         await viewModel.confirmShiftPlanningRequest()
 
         let submitted = await planningRepository.submittedRequests()
-        #expect(submitted.map(\.type) == [.market])
+        #expect(submitted.first?.deliveryTargetSeasonStartYear == 2026)
+        #expect(submitted.first?.marketTargetSeasonStartYear == 2027)
         #expect(submitted.first?.requestedByUserId == admin.id)
         #expect(submitted.first?.requestedAtMillis == 123)
-        #expect(viewModel.pendingShiftPlanningType == nil)
+        #expect(viewModel.pendingShiftPlanningRequest == nil)
     }
 
     @Test func shiftsViewModelRetainsCalendarEditorWhenRepositoryRejectsMutation() async {
@@ -259,11 +288,13 @@ struct ReguertaShiftsAdminViewModelTests {
             members: [admin],
             shiftPlanningRequestRepository: RejectingShiftPlanningRequestRepository()
         )
-        viewModel.requestShiftPlanning(.market)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
 
         await viewModel.confirmShiftPlanningRequest()
 
-        #expect(viewModel.pendingShiftPlanningType == .market)
+        #expect(viewModel.pendingShiftPlanningRequest?.marketTargetSeasonStartYear == 2027)
         #expect(viewModel.isSubmittingShiftPlanningRequest == false)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
@@ -286,6 +317,60 @@ struct ReguertaShiftsAdminViewModelTests {
                 is InMemoryDeliveryCalendarRepository
         )
     }
+}
+
+private func completedActivationObservation() -> ShiftPlanningRequestObservation {
+    ShiftPlanningRequestObservation(
+        id: "activate-request",
+        bundleId: "bundle-2026",
+        requestedByUserId: "admin_1",
+        requestedAtMillis: 1,
+        mode: .activate,
+        status: .completed,
+        completedSummary: nil,
+        failure: nil,
+        candidateReference: nil
+    )
+}
+
+private actor ControlledPlanningObservationRepository: ShiftPlanningRequestRepository {
+    private var continuation: AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error>.Continuation?
+    private var observationWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func submit(request: ShiftPlanningRequest, environment _: SessionEnvironment) async -> ShiftPlanningRequest {
+        request
+    }
+
+    func observeLatestV2Request(
+        environment _: SessionEnvironment
+    ) async -> AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error> {
+        let pair = AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error>.makeStream()
+        continuation = pair.continuation
+        observationWaiters.forEach { $0.resume() }
+        observationWaiters.removeAll()
+        return pair.stream
+    }
+
+    func emit(_ observation: ShiftPlanningRequestObservation?) {
+        continuation?.yield(observation)
+    }
+
+    func waitUntilObserved() async {
+        guard continuation == nil else { return }
+        await withCheckedContinuation { continuation in
+            observationWaiters.append(continuation)
+        }
+    }
+}
+
+private actor CountingPlanningShiftRepository: ShiftRepository {
+    private(set) var readCount = 0
+
+    func allShifts(environment _: SessionEnvironment) -> [ShiftAssignment] {
+        readCount += 1
+        return []
+    }
+
 }
 
 private actor RecordingDeliveryCalendarRepository: DeliveryCalendarRepository {

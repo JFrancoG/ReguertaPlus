@@ -220,6 +220,20 @@ class FirestoreSecurityBoundarySourceTest {
         assertFalse(client.contains("requesterUserId"))
     }
 
+    @Test
+    fun `delivery calendar mutations have no direct firestore write path`() {
+        val repository = readMainSource("data/calendar/FirestoreDeliveryCalendarRepository.kt")
+        val client = readMainSource("data/calendar/FirebaseDeliveryCalendarMutationClient.kt")
+
+        assertFalse(repository.contains(".set("))
+        assertFalse(repository.contains(".update("))
+        assertFalse(repository.contains(".delete()"))
+        assertTrue(client.contains("resolveDeliveryCalendarMutationContext"))
+        assertTrue(client.contains("transitionDeliveryCalendarOverride"))
+        assertFalse(client.contains("updatedByUserId"))
+        assertFalse(client.contains("updatedAtMillisProvider"))
+    }
+
     private fun readMainSource(relativePath: String): String {
         val projectRoot = findProjectRoot(Path.of(System.getProperty("user.dir")))
         return Files.readString(projectRoot.resolve("app/src/main/java/com/reguerta/user/$relativePath"))

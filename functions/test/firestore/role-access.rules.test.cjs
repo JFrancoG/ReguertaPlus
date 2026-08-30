@@ -542,6 +542,154 @@ test("device registration validates platform metadata and timestamps", async () 
   }
 });
 
+test("resource fences and shift rules block client writers", async () => {
+  for (const env of envs) {
+    const memberDb = contextFor(actors.member).firestore();
+    const adminDb = contextFor(actors.admin).firestore();
+    const memberId = actors.member.memberId;
+    const shiftId = "shift-fenced";
+    const fences = collectionPath(env, "shiftPlanningNotificationFences");
+    const memberFence = `${fences}/member:${memberId}`;
+    const shiftFence = `${fences}/shift:${shiftId}`;
+    const fence = (scope, resourceId) => ({
+      schemaVersion: 1,
+      operationKind: "notificationDispatchResourceFence",
+      scope,
+      resourceId,
+      intentId: "intent-fenced",
+      eventId: "event-fenced",
+      attemptId: "attempt-fenced",
+      workerId: "worker-fenced",
+      leaseEpoch: 1,
+      acquiredAt: new Date("2098-12-31T23:59:30Z"),
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      validationDigest: `shift-planning:v1:sha256:${"f".repeat(64)}`,
+    });
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await db.doc(memberFence).set(fence("member", memberId));
+      await db.doc(shiftFence).set(fence("shift", shiftId));
+    });
+    const devicePath = `${docPath(env, "users", memberId)}/devices/fenced`;
+    const device = {
+      deviceId: "fenced",
+      platform: "android",
+      appVersion: "1.0",
+      osVersion: "16",
+      apiLevel: 36,
+      firstSeenAt: new Date("2026-07-01T00:00:00Z"),
+      lastSeenAt: new Date("2026-07-02T00:00:00Z"),
+      fcmToken: null,
+      tokenUpdatedAt: null,
+      firebaseInstallationId: "FID-fenced",
+      registrationUpdatedAt: new Date("2026-07-02T00:00:00Z"),
+    };
+    await assertFails(memberDb.doc(devicePath).set(device));
+    await assertFails(
+      memberDb.doc(
+        `${docPath(env, "users", memberId)}/devices/device_${memberId}`,
+      ).delete(),
+    );
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).set({
+      type: "delivery",
+      assignedUserIds: [memberId],
+      status: "confirmed",
+      source: "app",
+    }));
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await db.doc(memberFence).update({
+        acquiredAt: new Date("2019-12-31T23:59:30Z"),
+        expiresAt: new Date("2020-01-01T00:00:00Z"),
+      });
+      await db.doc(shiftFence).update({
+        acquiredAt: new Date("2019-12-31T23:59:30Z"),
+        expiresAt: new Date("2020-01-01T00:00:00Z"),
+      });
+    });
+    await assertSucceeds(memberDb.doc(devicePath).set(device));
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).set({
+      type: "delivery",
+      assignedUserIds: [memberId],
+      status: "confirmed",
+      source: "app",
+    }));
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(memberFence).update({
+        operationKind: "malformed",
+      });
+    });
+    await assertFails(memberDb.doc(devicePath).set({
+      ...device,
+      lastSeenAt: new Date("2026-07-03T00:00:00Z"),
+    }));
+  }
+});
+
+test("notification incident fences never grant shift client writes", async () => {
+  for (const env of envs) {
+    const adminDb = contextFor(actors.admin).firestore();
+    const shiftId = "shift-incident-fenced";
+    const fencePath = `${collectionPath(
+      env,
+      "shiftPlanningNotificationIncidentFences",
+    )}/shift:${shiftId}`;
+    const fence = {
+      schemaVersion: 1,
+      operationKind: "notificationIncidentShiftFence",
+      shiftId,
+      incidentId: "incident-fenced",
+      bundleRevision: "bundle-fenced",
+      bundleDigest: `shift-planning:v1:sha256:${"a".repeat(64)}`,
+      ownerUserId: "operator-fenced",
+      acquiredAt: new Date("2098-12-31T00:00:00Z"),
+      expiresAt: new Date("2099-01-01T00:00:00Z"),
+      safeResumeDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+    };
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(fencePath).set(fence);
+    });
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).set({
+      type: "delivery",
+      assignedUserIds: [actors.member.memberId],
+      status: "confirmed",
+      source: "app",
+    }));
+    await assertFails(
+      adminDb.doc(docPath(env, "shifts", "shift-not-incident-fenced")).set({
+        type: "delivery",
+        assignedUserIds: [actors.member.memberId],
+        status: "confirmed",
+        source: "app",
+      }),
+    );
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(fencePath).update({
+        acquiredAt: new Date("2019-12-31T00:00:00Z"),
+        expiresAt: new Date("2020-01-01T00:00:00Z"),
+      });
+    });
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).set({
+      type: "delivery",
+      assignedUserIds: [actors.member.memberId],
+      status: "confirmed",
+      source: "app",
+    }));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(fencePath).update({
+        operationKind: "malformed",
+        acquiredAt: new Date("2098-12-31T00:00:00Z"),
+        expiresAt: new Date("2099-01-01T00:00:00Z"),
+      });
+    });
+    await assertFails(adminDb.doc(docPath(env, "shifts", shiftId)).update({
+      status: "completed",
+    }));
+  }
+});
+
 test("catalog writes require producer or common-purchase capability and immutable ownership", async () => {
   for (const env of envs) {
     const ownPayload = {
@@ -879,7 +1027,7 @@ test("admin governance does not imply producer ownership", async () => {
       publishedAt: new Date(),
       active: true,
     }));
-    await assertSucceeds(adminDb.doc(docPath(env, "deliveryCalendar", "2026-W31")).set({
+    await assertFails(adminDb.doc(docPath(env, "deliveryCalendar", "2026-W31")).set({
       weekKey: "2026-W31",
       updatedBy: actors.admin.memberId,
     }));
@@ -893,6 +1041,18 @@ test("admin governance does not imply producer ownership", async () => {
       type: "admin_broadcast",
       target: "all",
       targetPayload: {},
+      createdBy: actors.admin.memberId,
+      sentAt: new Date(),
+    }));
+    await assertFails(adminDb.doc(docPath(env, "notificationEvents", "event_reserved_planning")).set({
+      schemaVersion: 1,
+      operationKind: "shiftPlanningNotification",
+      contentPolicy: "genericReferenceOnly",
+      title: "Private shift detail",
+      body: "Member and date",
+      type: "shift_updated",
+      target: "users",
+      targetPayload: {userIds: [actors.member.memberId]},
       createdBy: actors.admin.memberId,
       sentAt: new Date(),
     }));
@@ -912,6 +1072,84 @@ test("admin governance does not imply producer ownership", async () => {
   }
 });
 
+test("delivery calendar is active-member readable and backend-only writable", async () => {
+  for (const env of envs) {
+    const existing = docPath(env, "deliveryCalendar", "2026-W36");
+    const created = docPath(env, "deliveryCalendar", "2026-W37");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({
+        weekKey: "2026-W36",
+        updatedBy: actors.admin.memberId,
+      });
+    });
+    const memberDb = contextFor(actors.member).firestore();
+    const adminDb = contextFor(actors.admin).firestore();
+    const inactiveDb = contextFor(actors.inactive).firestore();
+    const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertSucceeds(memberDb.doc(existing).get());
+    await assertSucceeds(adminDb.doc(existing).get());
+    await assertFails(inactiveDb.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(adminDb.doc(created).set({
+      weekKey: "2026-W37",
+      updatedBy: actors.admin.memberId,
+    }));
+    await assertFails(adminDb.doc(existing).update({updatedBy: actors.admin.memberId}));
+    await assertFails(adminDb.doc(existing).delete());
+    await assertFails(memberDb.doc(created).set({weekKey: "2026-W37"}));
+  }
+});
+
+test("shifts are active-member readable and backend-only writable", async () => {
+  for (const env of envs) {
+    const existing = docPath(env, "shifts", "shift-existing");
+    const created = docPath(env, "shifts", "shift-created");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({
+        type: "delivery",
+        source: "app",
+      });
+    });
+    const memberDb = contextFor(actors.member).firestore();
+    const adminDb = contextFor(actors.admin).firestore();
+    const inactiveDb = contextFor(actors.inactive).firestore();
+    const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertSucceeds(memberDb.doc(existing).get());
+    await assertSucceeds(adminDb.doc(existing).get());
+    await assertFails(inactiveDb.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(adminDb.doc(created).set({type: "delivery", source: "app"}));
+    await assertFails(adminDb.doc(existing).update({status: "confirmed"}));
+    await assertFails(adminDb.doc(existing).delete());
+    await assertFails(memberDb.doc(created).set({type: "delivery", source: "app"}));
+  }
+});
+
+test("shift swaps are active-member readable and backend-only writable", async () => {
+  for (const env of envs) {
+    const existing = docPath(env, "shiftSwapRequests", "swap-existing");
+    const created = docPath(env, "shiftSwapRequests", "swap-created");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({status: "open"});
+    });
+    const memberDb = contextFor(actors.member).firestore();
+    const adminDb = contextFor(actors.admin).firestore();
+    const inactiveDb = contextFor(actors.inactive).firestore();
+    const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertSucceeds(memberDb.doc(existing).get());
+    await assertSucceeds(adminDb.doc(existing).get());
+    await assertFails(inactiveDb.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(adminDb.doc(created).set({status: "open"}));
+    await assertFails(adminDb.doc(existing).update({status: "cancelled"}));
+    await assertFails(adminDb.doc(existing).delete());
+    await assertFails(memberDb.doc(created).set({status: "open"}));
+  }
+});
+
 test("sensitive system workflows reject direct member writes", async () => {
   for (const env of envs) {
     const memberDb = contextFor(actors.member).firestore();
@@ -925,7 +1163,7 @@ test("sensitive system workflows reject direct member writes", async () => {
         source: "app",
       }),
     );
-    await assertSucceeds(
+    await assertFails(
       adminDb.doc(docPath(env, "shifts", "shift_admin_write")).set({
         type: "delivery",
         assignedUserIds: [actors.member.memberId],
@@ -943,5 +1181,342 @@ test("sensitive system workflows reject direct member writes", async () => {
     await assertFails(
       adminDb.doc(docPath(env, "unknownCollection", "unknown")).set({ok: true}),
     );
+  }
+});
+
+test("admins can create only exact planning preview and stage requests", async () => {
+  for (const env of envs) {
+    const adminDb = contextFor(actors.admin).firestore();
+    const requests = collectionPath(env, "shiftPlanningRequests");
+    const valid = {
+      schemaVersion: 2,
+      requestId: "planning-preview",
+      bundleId: "bundle-2026",
+      environment: env,
+      requestedByUserId: actors.admin.memberId,
+      requestedAt: new Date(),
+      mode: "preview",
+      status: "requested",
+      expectedWriteEpoch: 7,
+      expectedActiveRevision: "active-6",
+      subplans: {
+        delivery: {targetSeasonStartYear: 2026},
+        market: {targetSeasonStartYear: 2026},
+      },
+      binding: null,
+    };
+    const digestBinding = {
+      bundleRevision: "bundle-v1-0123456789abcdef",
+      bundleDigest: `shift-planning:v1:sha256:${"a".repeat(64)}`,
+    };
+    const completedPreview = (overrides = {}) => ({
+      ...valid,
+      status: "completed",
+      lifecycle: {
+        state: "completed",
+        summary: {
+          status: "completed",
+          mode: "preview",
+          bundleId: valid.bundleId,
+          ...digestBinding,
+        },
+        artifact: {
+          kind: "preview",
+          receipt: {
+            requestId: valid.requestId,
+            bundleId: valid.bundleId,
+            environment: env,
+            requestedByUserId: actors.admin.memberId,
+            ...digestBinding,
+          },
+        },
+      },
+      ...overrides,
+    });
+
+    await assertSucceeds(adminDb.doc(`${requests}/planning-preview`).set(valid));
+    await assertFails(adminDb.doc(`${requests}/legacy-request`).set({
+      type: "delivery",
+      requestedByUserId: actors.admin.memberId,
+      status: "requested",
+    }));
+    await assertFails(adminDb.doc(`${requests}/wrong-environment`).set({
+      ...valid,
+      requestId: "wrong-environment",
+      environment: env === "develop" ? "production" : "develop",
+    }));
+    await assertFails(adminDb.doc(`${requests}/extra-field`).set({
+      ...valid,
+      requestId: "extra-field",
+      rawErrorMessage: "must never be client controlled",
+    }));
+    await assertFails(adminDb.doc(`${requests}/padded-bundle`).set({
+      ...valid,
+      requestId: "padded-bundle",
+      bundleId: " padded ",
+    }));
+    await assertFails(adminDb.doc(`${requests}/unbound-stage`).set({
+      ...valid,
+      requestId: "unbound-stage",
+      mode: "stage",
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-from-pending`).set({
+      ...valid,
+      requestId: "stage-from-pending",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "planning-preview",
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-from-missing`).set({
+      ...valid,
+      requestId: "stage-from-missing",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "missing-preview",
+        ...digestBinding,
+      },
+    }));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const privilegedDb = context.firestore();
+      await privilegedDb.doc(`${requests}/planning-preview`).set(
+        completedPreview(),
+      );
+      await privilegedDb.doc(`${requests}/foreign-preview`).set(
+        completedPreview({
+          requestId: "foreign-preview",
+          requestedByUserId: actors.member.memberId,
+          lifecycle: {
+            ...completedPreview().lifecycle,
+            artifact: {
+              kind: "preview",
+              receipt: {
+                ...completedPreview().lifecycle.artifact.receipt,
+                requestId: "foreign-preview",
+                requestedByUserId: actors.member.memberId,
+              },
+            },
+          },
+        }),
+      );
+    });
+    await assertSucceeds(adminDb.doc(`${requests}/planning-stage`).set({
+      ...valid,
+      requestId: "planning-stage",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "planning-preview",
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-from-foreign`).set({
+      ...valid,
+      requestId: "stage-from-foreign",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "foreign-preview",
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-with-digest-drift`).set({
+      ...valid,
+      requestId: "stage-with-digest-drift",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "planning-preview",
+        ...digestBinding,
+        bundleDigest: `shift-planning:v1:sha256:${"c".repeat(64)}`,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/planning-activate`).set({
+      ...valid,
+      requestId: "planning-activate",
+      mode: "activate",
+      binding: {
+        kind: "candidate",
+        candidateId: valid.bundleId,
+        candidateDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/activate-without-candidate-digest`).set({
+      ...valid,
+      requestId: "activate-without-candidate-digest",
+      mode: "activate",
+      binding: {
+        kind: "candidate",
+        candidateId: valid.bundleId,
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-from-candidate`).set({
+      ...valid,
+      requestId: "stage-from-candidate",
+      mode: "stage",
+      binding: {
+        kind: "candidate",
+        candidateId: valid.bundleId,
+        candidateDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/activate-preview`).set({
+      ...valid,
+      requestId: "activate-preview",
+      mode: "activate",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "planning-preview",
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/activate-other-candidate`).set({
+      ...valid,
+      requestId: "activate-other-candidate",
+      mode: "activate",
+      binding: {
+        kind: "candidate",
+        candidateId: "another-bundle",
+        candidateDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+        ...digestBinding,
+      },
+    }));
+  }
+});
+
+test("members see public shifts but never staged candidates", async () => {
+  for (const env of envs) {
+    const shiftPath = docPath(env, "shifts", "shift-public-2026");
+    const candidatePath = docPath(
+      env,
+      "shiftPlanningCandidates",
+      "bundle-private-2026",
+    );
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const database = context.firestore();
+      await database.doc(shiftPath).set({status: "planned"});
+      await database.doc(candidatePath).set({status: "staged"});
+    });
+    const memberDb = contextFor(actors.member).firestore();
+
+    const publicShifts = await assertSucceeds(
+      memberDb.collection(collectionPath(env, "shifts")).get(),
+    );
+    assert.equal(publicShifts.docs.map(({id}) => id).includes("shift-public-2026"), true);
+    await assertFails(memberDb.doc(candidatePath).get());
+    await assertFails(
+      memberDb.collection(collectionPath(env, "shiftPlanningCandidates")).get(),
+    );
+  }
+});
+
+test("only admins read staged candidates and no client mutates them", async () => {
+  for (const env of envs) {
+    const path = docPath(env, "shiftPlanningCandidates", "bundle-2026");
+    const positionPath = `${path}/positions/delivery-2026-09-02`;
+    const newCandidatePath = docPath(
+      env,
+      "shiftPlanningCandidates",
+      "bundle-create-denied",
+    );
+    const newPositionPath = `${path}/positions/market-create-denied`;
+    const unexpectedChildPath = `${path}/unexpected/document`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(path).set({
+        schemaVersion: 1,
+        bundleId: "bundle-2026",
+        bundleRevision: "bundle-v1-2026",
+      });
+      await context.firestore().doc(positionPath).set({
+        type: "delivery",
+        date: "2026-09-02",
+      });
+      await context.firestore().doc(unexpectedChildPath).set({
+        private: true,
+      });
+    });
+    const adminDb = contextFor(actors.admin).firestore();
+    const memberDb = contextFor(actors.member).firestore();
+
+    await assertSucceeds(adminDb.doc(path).get());
+    await assertSucceeds(adminDb.doc(positionPath).get());
+    await assertSucceeds(adminDb.collection(`${path}/positions`).get());
+    await assertFails(adminDb.doc(unexpectedChildPath).get());
+    await assertSucceeds(
+      adminDb.collection(collectionPath(env, "shiftPlanningCandidates")).get(),
+    );
+    await assertFails(memberDb.doc(path).get());
+    await assertFails(memberDb.doc(positionPath).get());
+    await assertFails(
+      memberDb.collection(collectionPath(env, "shiftPlanningCandidates")).get(),
+    );
+    await assertFails(memberDb.collection(`${path}/positions`).get());
+    await assertFails(adminDb.doc(newCandidatePath).set({schemaVersion: 1}));
+    await assertFails(adminDb.doc(newPositionPath).set({type: "market"}));
+    await assertFails(adminDb.doc(path).set({schemaVersion: 1}));
+    await assertFails(adminDb.doc(positionPath).set({type: "market"}));
+    await assertFails(adminDb.doc(path).update({bundleId: "tampered"}));
+    await assertFails(adminDb.doc(positionPath).delete());
+    await assertFails(adminDb.doc(path).delete());
+  }
+});
+
+test("planner state, rotations and outboxes remain backend-only", async () => {
+  const privateCollections = [
+    "shiftPlanningState",
+    "shiftRotations",
+    "shiftRotationMappings",
+    "shiftPlanningBundles",
+    "shiftPlanningSyncCommands",
+    "shiftPlanningNotificationIntents",
+    "shiftPlanningNotificationFences",
+    "shiftPlanningNotificationIncidentFences",
+    "shiftPlanningOperations",
+    "deliveryCalendarMutationReceipts",
+  ];
+  for (const env of envs) {
+    const adminDb = contextFor(actors.admin).firestore();
+    for (const collection of privateCollections) {
+      const path = docPath(env, collection, "private-document");
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().doc(path).set({schemaVersion: 1});
+      });
+      await assertFails(adminDb.doc(path).get());
+      await assertFails(adminDb.doc(path).set({schemaVersion: 1}));
+      await assertFails(adminDb.doc(path).update({schemaVersion: 2}));
+      await assertFails(adminDb.doc(path).delete());
+    }
+    const intentPath = docPath(
+      env,
+      "shiftPlanningNotificationIntents",
+      "private-document",
+    );
+    const nestedPaths = [
+      `${intentPath}/releases/canonical`,
+      `${intentPath}/dispatchState/current`,
+      `${intentPath}/dispatchAttempts/attempt-1`,
+      `${intentPath}/terminalState/current`,
+      `${docPath(env, "shiftPlanningOperations", "private-operation")}/` +
+        "attemptOutcomes/forward-private",
+      `${docPath(env, "shiftPlanningOperations", "private-operation")}/` +
+        "beforeImages/1",
+      `${docPath(env, "shiftPlanningOperations", "private-operation")}/` +
+        "recoveryAuthorizations/recovery-private",
+    ];
+    for (const path of nestedPaths) {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().doc(path).set({schemaVersion: 1});
+      });
+      await assertFails(adminDb.doc(path).get());
+      await assertFails(adminDb.doc(path).set({schemaVersion: 1}));
+      await assertFails(adminDb.doc(path).update({schemaVersion: 2}));
+      await assertFails(adminDb.doc(path).delete());
+    }
   }
 });

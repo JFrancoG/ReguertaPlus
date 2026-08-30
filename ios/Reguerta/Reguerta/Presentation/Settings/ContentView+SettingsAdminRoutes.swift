@@ -240,54 +240,167 @@ struct SettingsRouteView: View {
             Text(localizedKey(AccessL10nKey.settingsShiftPlanningSubtitle))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textSecondary)
-            HStack(spacing: tokens.spacing.sm) {
-                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateDelivery)) {
-                    shiftsViewModel.requestShiftPlanning(.delivery)
-                }
-                .frame(maxWidth: .infinity)
-                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateMarket)) {
-                    shiftsViewModel.requestShiftPlanning(.market)
-                }
-                .frame(maxWidth: .infinity)
+            TextField(
+                localizedKey(AccessL10nKey.settingsShiftPlanningDeliverySeason),
+                text: shiftPlanningSeasonBinding(\.shiftPlanningDeliverySeasonInput)
+            )
+            .keyboardType(.numberPad)
+            .textFieldStyle(.roundedBorder)
+            TextField(
+                localizedKey(AccessL10nKey.settingsShiftPlanningMarketSeason),
+                text: shiftPlanningSeasonBinding(\.shiftPlanningMarketSeasonInput)
+            )
+            .keyboardType(.numberPad)
+            .textFieldStyle(.roundedBorder)
+            reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionPreview)) {
+                shiftsViewModel.requestShiftPlanningPreview()
             }
-            .frame(maxWidth: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity)
+            .disabled(!hasValidShiftPlanningSeasons)
             .disabled(shiftsViewModel.isSubmittingShiftPlanningRequest)
             if shiftsViewModel.isSubmittingShiftPlanningRequest {
                 Text(localizedKey(AccessL10nKey.settingsShiftPlanningSubmitting))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
             }
+            if let observation = shiftsViewModel.shiftPlanningObservation {
+                Text(localizedKey(shiftPlanningStatusKey(observation)))
+                    .font(tokens.typography.bodySecondary.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                if let summary = observation.completedSummary {
+                    Text(
+                        l10n(
+                            AccessL10nKey.settingsShiftPlanningSummaryFormat,
+                            summary.delivery.generatedShiftCount,
+                            summary.market.generatedShiftCount
+                        )
+                    )
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                }
+                if shiftsViewModel.canStageLatestShiftPlanningPreview {
+                    reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionStage)) {
+                        shiftsViewModel.requestShiftPlanningStage()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .disabled(shiftsViewModel.isSubmittingShiftPlanningRequest)
+                }
+            }
+            if shiftsViewModel.isLoadingShiftPlanningCandidate {
+                Text(localizedKey(AccessL10nKey.settingsShiftPlanningCandidateLoading))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
+            if let candidate = shiftsViewModel.shiftPlanningCandidate {
+                Text(
+                    l10n(
+                        AccessL10nKey.settingsShiftPlanningCandidateFormat,
+                        candidate.positionDocumentCount,
+                        candidate.assignmentPositionCount
+                    )
+                )
+                .font(tokens.typography.bodySecondary.weight(.semibold))
+                ForEach(candidate.positions) { position in
+                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                        Text(
+                            l10n(
+                                AccessL10nKey.settingsShiftPlanningPositionFormat,
+                                position.scheduledDate,
+                                l10n(
+                                    position.type == .delivery
+                                        ? AccessL10nKey.shiftsTypeDelivery
+                                        : AccessL10nKey.shiftsTypeMarket
+                                ),
+                                position.assignedUserIds.map(shiftPlanningMemberName).joined(separator: ", ")
+                            )
+                        )
+                        .font(tokens.typography.label)
+                        if let helperUserId = position.helperUserId {
+                            Text(
+                                l10n(
+                                    AccessL10nKey.settingsShiftPlanningHelperFormat,
+                                    shiftPlanningMemberName(helperUserId)
+                                )
+                            )
+                            .font(tokens.typography.label)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
         }
         .alert(
-            shiftsViewModel.pendingShiftPlanningType == nil
-                ? localizedKey("")
-                : localizedKey(
-                    shiftsViewModel.pendingShiftPlanningType == .delivery
-                        ? AccessL10nKey.settingsShiftPlanningAlertTitleDelivery
-                        : AccessL10nKey.settingsShiftPlanningAlertTitleMarket
-                ),
+            localizedKey(shiftPlanningConfirmationTitleKey),
             isPresented: Binding(
-                get: { shiftsViewModel.pendingShiftPlanningType != nil },
+                get: { shiftsViewModel.pendingShiftPlanningRequest != nil },
                 set: { presented in
                     if !presented {
                         shiftsViewModel.dismissShiftPlanningRequest()
                     }
                 }
-            ),
-            presenting: shiftsViewModel.pendingShiftPlanningType
-        ) { type in
+            )
+        ) {
             Button(localizedKey(AccessL10nKey.commonActionCancel), role: .cancel) {
                 shiftsViewModel.dismissShiftPlanningRequest()
             }
             Button(localizedKey(AccessL10nKey.commonActionConfirm)) {
-                shiftsViewModel.requestShiftPlanning(type)
                 Task { await shiftsViewModel.confirmShiftPlanningRequest() }
             }
-        } message: { _ in
-            Text(localizedKey(AccessL10nKey.settingsShiftPlanningAlertMessage))
+        } message: {
+            Text(localizedKey(shiftPlanningConfirmationMessageKey))
         }
     }
 
+    private var shiftPlanningConfirmationTitleKey: String {
+        guard case .stage = shiftsViewModel.pendingShiftPlanningRequest?.intent else {
+            return AccessL10nKey.settingsShiftPlanningAlertTitlePreview
+        }
+        return AccessL10nKey.settingsShiftPlanningAlertTitleStage
+    }
+
+    private var shiftPlanningConfirmationMessageKey: String {
+        guard case .stage = shiftsViewModel.pendingShiftPlanningRequest?.intent else {
+            return AccessL10nKey.settingsShiftPlanningAlertMessage
+        }
+        return AccessL10nKey.settingsShiftPlanningAlertMessageStage
+    }
+
+    private var hasValidShiftPlanningSeasons: Bool {
+        guard let delivery = Int(shiftsViewModel.shiftPlanningDeliverySeasonInput),
+              let market = Int(shiftsViewModel.shiftPlanningMarketSeasonInput) else { return false }
+        return (2000...9998).contains(delivery) && (2000...9998).contains(market)
+    }
+
+    private func shiftPlanningSeasonBinding(
+        _ keyPath: ReferenceWritableKeyPath<ShiftsFeatureViewModel, String>
+    ) -> Binding<String> {
+        Binding(
+            get: { shiftsViewModel[keyPath: keyPath] },
+            set: { shiftsViewModel[keyPath: keyPath] = String($0.filter(\.isNumber).prefix(4)) }
+        )
+    }
+
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
+
+    private func shiftPlanningStatusKey(_ observation: ShiftPlanningRequestObservation) -> String {
+        if shiftsViewModel.isRefreshingShiftsAfterActivation {
+            return AccessL10nKey.settingsShiftPlanningStatusSyncing
+        }
+        switch observation.status {
+        case .requested:
+            return AccessL10nKey.settingsShiftPlanningStatusRequested
+        case .processing:
+            return AccessL10nKey.settingsShiftPlanningStatusProcessing
+        case .completed:
+            return AccessL10nKey.settingsShiftPlanningStatusCompleted
+        case .failed:
+            return AccessL10nKey.settingsShiftPlanningStatusFailed
+        }
+    }
+
+    private func shiftPlanningMemberName(_ userId: String) -> String {
+        shiftsViewModel.currentSession?.members.first { $0.id == userId }?.displayName ?? userId
+    }
 
 }

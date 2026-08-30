@@ -53,8 +53,10 @@ struct ProductsShiftsSessionRevisionSafetyTests {
             shiftPlanningRequestRepository: repository,
             nowMillisProvider: { 123 }
         )
-        viewModel.requestShiftPlanning(.market)
-        let requestID = viewModel.pendingShiftPlanningRequestId
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
+        let requestID = viewModel.pendingShiftPlanningRequest?.id
         let submission = Task { await viewModel.confirmShiftPlanningRequest() }
         defer {
             submission.cancel()
@@ -71,8 +73,8 @@ struct ProductsShiftsSessionRevisionSafetyTests {
         await submission.value
         #expect(viewModel.isSubmittingShiftPlanningRequest == false)
         #expect(viewModel.activePlanningSubmissionOperationId == nil)
-        #expect(viewModel.pendingShiftPlanningType == .market)
-        #expect(viewModel.pendingShiftPlanningRequestId == requestID)
+        #expect(viewModel.pendingShiftPlanningRequest?.marketTargetSeasonStartYear == 2027)
+        #expect(viewModel.pendingShiftPlanningRequest?.id == requestID)
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
@@ -117,7 +119,9 @@ struct ProductsShiftsSessionRevisionSafetyTests {
             shiftPlanningRequestRepository: repository,
             nowMillisProvider: { 123 }
         )
-        viewModel.requestShiftPlanning(.market)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
         let submission = Task { await viewModel.confirmShiftPlanningRequest() }
         defer {
             submission.cancel()
@@ -132,7 +136,7 @@ struct ProductsShiftsSessionRevisionSafetyTests {
 
         #expect(viewModel.isSubmittingShiftPlanningRequest == false)
         #expect(viewModel.activePlanningSubmissionOperationId == nil)
-        #expect(viewModel.pendingShiftPlanningType == .market)
+        #expect(viewModel.pendingShiftPlanningRequest?.marketTargetSeasonStartYear == 2027)
     }
 
 }

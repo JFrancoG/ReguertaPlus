@@ -528,6 +528,41 @@ test("builds an immutable notification inbox copy without dispatch state", () =>
     segmentType: "role",
     role: "producer",
   });
+  assert.deepEqual(buildNotificationInboxDocument("event-planning", {
+    schemaVersion: 1,
+    operationKind: "shiftPlanningNotification",
+    contentPolicy: "genericReferenceOnly",
+    title: "Turnos actualizados",
+    body: "Consulta la aplicación para ver la información actualizada.",
+    type: "shift_updated",
+    target: "users",
+    targetPayload: {userIds: ["member-1"]},
+    createdBy: "system",
+    sentAt,
+  }, "member-1"), {
+    notificationEventId: "event-planning",
+    schemaVersion: 1,
+    operationKind: "shiftPlanningNotification",
+    contentPolicy: "genericReferenceOnly",
+    title: "Turnos actualizados",
+    body: "Consulta la aplicación para ver la información actualizada.",
+    type: "shift_updated",
+    target: "users",
+    targetPayload: {userIds: ["member-1"]},
+    createdBy: "system",
+    sentAt,
+  });
+  assert.equal(buildNotificationInboxDocument("event-planning", {
+    schemaVersion: 1,
+    operationKind: "shiftPlanningNotification",
+    title: "Private shift detail",
+    body: "Member and date",
+    type: "shift_updated",
+    target: "users",
+    targetPayload: {userIds: ["member-1"]},
+    createdBy: "system",
+    sentAt,
+  }, "member-1"), null);
   assert.equal(buildNotificationInboxDocument("event-1", {
     title: "Missing fields",
   }, "member-1"), null);

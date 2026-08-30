@@ -4,8 +4,19 @@ import Foundation
 import Synchronization
 
 enum ShiftPlanningRequestTransactionDecision: Equatable {
-    case create(ShiftPlanningRequest)
+    case create(ResolvedShiftPlanningRequest)
     case acknowledge(ShiftPlanningRequest)
+}
+
+struct ShiftPlanningRequestContext: Equatable {
+    let environment: SessionEnvironment
+    let expectedWriteEpoch: Int64
+    let expectedActiveRevision: String?
+}
+
+struct ResolvedShiftPlanningRequest: Equatable {
+    let request: ShiftPlanningRequest
+    let context: ShiftPlanningRequestContext
 }
 
 enum ShiftPlanningRequestTransactionOutcome {
@@ -16,32 +27,47 @@ enum ShiftPlanningRequestTransactionOutcome {
 
 protocol ShiftPlanningRequestTransactionExecuting: Sendable {
     func execute(
-        request: ShiftPlanningRequest,
-        environment: SessionEnvironment,
+        request: ResolvedShiftPlanningRequest,
         completion: @escaping @Sendable (ShiftPlanningRequestTransactionOutcome) -> Void
     )
 }
 
 actor FirestoreShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
     private let transactionExecutor: any ShiftPlanningRequestTransactionExecuting
+    private let inspectionExecutor: (any ShiftPlanningInspectionExecuting)?
+    private let contextResolver: @Sendable (SessionEnvironment) async throws -> ShiftPlanningRequestContext
 
-    init(firebaseAppName: String) {
+    init(firebaseAppName: String, functionsClient: AuthenticatedFirebaseFunctionsClient) {
         self.transactionExecutor = FirestoreShiftPlanningRequestTransactionExecutor(firebaseAppName: firebaseAppName)
+        self.inspectionExecutor = FirestoreShiftPlanningInspectionExecutor(firebaseAppName: firebaseAppName)
+        let resolver = FirebaseShiftPlanningRequestContextResolver(functionsClient: functionsClient)
+        self.contextResolver = { environment in
+            try await resolver.resolve(environment: environment)
+        }
     }
 
-    init(transactionExecutor: any ShiftPlanningRequestTransactionExecuting) {
+    init(
+        transactionExecutor: any ShiftPlanningRequestTransactionExecuting,
+        contextResolver: @escaping @Sendable (SessionEnvironment) async throws -> ShiftPlanningRequestContext = {
+            ShiftPlanningRequestContext(
+                environment: $0,
+                expectedWriteEpoch: 7,
+                expectedActiveRevision: "active-6"
+            )
+        }
+    ) {
         self.transactionExecutor = transactionExecutor
+        self.inspectionExecutor = nil
+        self.contextResolver = contextResolver
     }
 
     func submit(request: ShiftPlanningRequest, environment: SessionEnvironment) async throws -> ShiftPlanningRequest {
-        guard !request.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw RepositoryError.invalidData(resource: "shiftPlanningRequests.document")
-        }
-
         try Task.checkCancellation()
+        let context = try await contextResolver(environment)
+        let resolved = try Self.resolve(request: request, context: context)
         let transactionExecutor = transactionExecutor
         let outcome = await withCheckedContinuation { continuation in
-            transactionExecutor.execute(request: request, environment: environment) { outcome in
+            transactionExecutor.execute(request: resolved) { outcome in
                 continuation.resume(returning: outcome)
             }
         }
@@ -57,16 +83,202 @@ actor FirestoreShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
         }
     }
 
+    func observeLatestV2Request(
+        environment: SessionEnvironment
+    ) async -> AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error> {
+        guard let inspectionExecutor else {
+            return AsyncThrowingStream { continuation in continuation.finish() }
+        }
+        return AsyncThrowingStream { continuation in
+            let observationTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    guard let self else { return }
+                    let outcome = await self.latestV2Request(
+                        environment: environment,
+                        executor: inspectionExecutor
+                    )
+                    switch outcome {
+                    case .success(let request):
+                        continuation.yield(request)
+                    case .failure(let error):
+                        continuation.finish(throwing: error)
+                        return
+                    }
+                    do {
+                        try await ContinuousClock().sleep(for: .seconds(2))
+                    } catch {
+                        return
+                    }
+                }
+            }
+            continuation.onTermination = { _ in observationTask.cancel() }
+        }
+    }
+
+    func stagedCandidate(reference: ShiftPlanningCandidateReference) async throws -> ShiftPlanningCandidate {
+        guard let inspectionExecutor else {
+            throw RepositoryError.invalidData(resource: "shiftPlanningCandidates.unavailable")
+        }
+        try Task.checkCancellation()
+        let outcome = await withCheckedContinuation { continuation in
+            inspectionExecutor.loadStagedCandidate(reference: reference) { outcome in
+                continuation.resume(returning: outcome)
+            }
+        }
+        try Task.checkCancellation()
+        switch outcome {
+        case .success(let candidate):
+            return candidate
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    private func latestV2Request(
+        environment: SessionEnvironment,
+        executor: any ShiftPlanningInspectionExecuting
+    ) async -> ShiftPlanningObservationOutcome {
+        await withCheckedContinuation { continuation in
+            executor.loadLatestV2Request(environment: environment) { outcome in
+                continuation.resume(returning: outcome)
+            }
+        }
+    }
+
     static func transactionDecision(
         documentID: String,
         data: [String: Any]?,
-        requested: ShiftPlanningRequest
+        requested: ResolvedShiftPlanningRequest
     ) throws -> ShiftPlanningRequestTransactionDecision {
         try ShiftPlanningRequestTransactionCodec.transactionDecision(
             documentID: documentID,
             data: data,
             requested: requested
         )
+    }
+
+    static func resolve(
+        request: ShiftPlanningRequest,
+        context: ShiftPlanningRequestContext
+    ) throws -> ResolvedShiftPlanningRequest {
+        try ShiftPlanningRequestTransactionCodec.resolve(request: request, context: context)
+    }
+
+    static func firestoreData(for request: ResolvedShiftPlanningRequest) -> [String: Any] {
+        ShiftPlanningRequestTransactionCodec.firestoreData(for: request)
+    }
+
+}
+
+private enum ShiftPlanningObservationOutcome {
+    case success(ShiftPlanningRequestObservation?)
+    case failure(RepositoryError)
+}
+
+private enum ShiftPlanningCandidateOutcome {
+    case success(ShiftPlanningCandidate)
+    case failure(RepositoryError)
+}
+
+private protocol ShiftPlanningInspectionExecuting: Sendable {
+    func loadLatestV2Request(
+        environment: SessionEnvironment,
+        handler: @escaping @Sendable (ShiftPlanningObservationOutcome) -> Void
+    )
+
+    func loadStagedCandidate(
+        reference: ShiftPlanningCandidateReference,
+        completion: @escaping @Sendable (ShiftPlanningCandidateOutcome) -> Void
+    )
+}
+
+private final class FirestoreShiftPlanningInspectionExecutor: ShiftPlanningInspectionExecuting, Sendable {
+    private let storedDB: Mutex<Firestore>
+
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for shift planning inspection")
+        }
+        self.storedDB = Mutex(Firestore.firestore(app: app))
+    }
+
+    func loadLatestV2Request(
+        environment: SessionEnvironment,
+        handler: @escaping @Sendable (ShiftPlanningObservationOutcome) -> Void
+    ) {
+        let path = ReguertaFirestorePath(environment: environment).collectionPath(.shiftPlanningRequests)
+        storedDB.withLock { db in
+            db.collection(path)
+                .order(by: "requestedAt", descending: true)
+                .limit(to: 25)
+                .getDocuments { snapshot, error in
+                    if let error {
+                        handler(.failure(Self.repositoryError(error, resource: "shiftPlanningRequests.read")))
+                        return
+                    }
+                    do {
+                        let request = try snapshot?.documents.lazy.compactMap { document in
+                            try ShiftPlanningInspectionCodec.observation(
+                                documentID: document.documentID,
+                                data: document.data()
+                            )
+                        }.first
+                        handler(.success(request))
+                    } catch let error as RepositoryError {
+                        handler(.failure(error))
+                    } catch {
+                        handler(.failure(.unknown(resource: "shiftPlanningRequests.read")))
+                    }
+                }
+        }
+    }
+
+    func loadStagedCandidate(
+        reference: ShiftPlanningCandidateReference,
+        completion: @escaping @Sendable (ShiftPlanningCandidateOutcome) -> Void
+    ) {
+        let path = ReguertaFirestorePath(environment: reference.environment)
+            .documentPath(in: .shiftPlanningCandidates, documentId: reference.candidateId)
+        storedDB.withLock { db in
+            let document = db.document(path)
+            document.getDocument { snapshot, error in
+                if let error {
+                    completion(.failure(Self.repositoryError(error, resource: "shiftPlanningCandidates.read")))
+                    return
+                }
+                guard let snapshot, snapshot.exists, let data = snapshot.data() else {
+                    completion(.failure(.invalidData(resource: "shiftPlanningCandidates.document")))
+                    return
+                }
+                let storedHeader = Mutex((documentID: snapshot.documentID, data: data))
+                document.collection("positions").getDocuments { positions, error in
+                    if let error {
+                        completion(.failure(Self.repositoryError(error, resource: "shiftPlanningCandidates.positions")))
+                        return
+                    }
+                    do {
+                        let candidate = try storedHeader.withLock { header in
+                            try ShiftPlanningInspectionCodec.candidate(
+                                documentID: header.documentID,
+                                data: header.data,
+                                positionDocuments: positions?.documents.map { ($0.documentID, $0.data()) } ?? [],
+                                reference: reference
+                            )
+                        }
+                        completion(.success(candidate))
+                    } catch let error as RepositoryError {
+                        completion(.failure(error))
+                    } catch {
+                        completion(.failure(.unknown(resource: "shiftPlanningCandidates.read")))
+                    }
+                }
+            }
+        }
+    }
+
+    private static func repositoryError(_ error: any Error, resource: String) -> RepositoryError {
+        FirestoreRepositoryErrorMapper.map(error, resource: resource) as? RepositoryError ??
+            .unknown(resource: resource)
     }
 }
 
@@ -83,12 +295,11 @@ private final class FirestoreShiftPlanningRequestTransactionExecutor:
     }
 
     func execute(
-        request: ShiftPlanningRequest,
-        environment: SessionEnvironment,
+        request: ResolvedShiftPlanningRequest,
         completion: @escaping @Sendable (ShiftPlanningRequestTransactionOutcome) -> Void
     ) {
-        let documentPath = ReguertaFirestorePath(environment: environment)
-            .documentPath(in: .shiftPlanningRequests, documentId: request.id)
+        let documentPath = ReguertaFirestorePath(environment: request.context.environment)
+            .documentPath(in: .shiftPlanningRequests, documentId: request.request.id)
         let context = storedDB.withLock { storedDB in
             FirestoreShiftPlanningRequestTransactionContext(
                 document: storedDB.document(documentPath),
@@ -135,9 +346,9 @@ private final class FirestoreShiftPlanningRequestTransactionExecutor:
 
 private final class FirestoreShiftPlanningRequestTransactionContext: Sendable {
     private let document: Mutex<DocumentReference>
-    private let requested: ShiftPlanningRequest
+    private let requested: ResolvedShiftPlanningRequest
 
-    init(document: DocumentReference, requested: ShiftPlanningRequest) {
+    init(document: DocumentReference, requested: ResolvedShiftPlanningRequest) {
         self.document = Mutex(document)
         self.requested = requested
     }
@@ -169,71 +380,11 @@ private final class FirestoreShiftPlanningRequestTransactionContext: Sendable {
                     ShiftPlanningRequestTransactionCodec.firestoreData(for: requestToCreate),
                     forDocument: document
                 )
-                return ShiftPlanningRequestTransactionResult.success(requestToCreate)
+                return ShiftPlanningRequestTransactionResult.success(requestToCreate.request)
             case .acknowledge(let existing):
                 return ShiftPlanningRequestTransactionResult.success(existing)
             }
         }
-    }
-}
-
-private enum ShiftPlanningRequestTransactionCodec {
-    static func transactionDecision(
-        documentID: String,
-        data: [String: Any]?,
-        requested: ShiftPlanningRequest
-    ) throws -> ShiftPlanningRequestTransactionDecision {
-        guard !documentID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              requested.id == documentID,
-              !requested.requestedByUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              requested.requestedAtMillis >= 0,
-              requested.status == .requested else {
-            throw RepositoryError.invalidData(resource: "shiftPlanningRequests.document")
-        }
-        guard let data else { return .create(requested) }
-
-        guard let typeValue = data["type"] as? String,
-              let type = ShiftPlanningRequestType(rawValue: typeValue),
-              let requestedByUserId = data["requestedByUserId"] as? String,
-              !requestedByUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let requestedAt = data["requestedAt"] as? Timestamp,
-              let statusValue = data["status"] as? String,
-              let status = ShiftPlanningRequestStatus(rawValue: statusValue) else {
-            throw RepositoryError.invalidData(resource: "shiftPlanningRequests.document")
-        }
-        let expectedRequestedAt = timestamp(for: requested.requestedAtMillis)
-        guard type == requested.type,
-              requestedByUserId == requested.requestedByUserId,
-              requestedAt.seconds == expectedRequestedAt.seconds,
-              requestedAt.nanoseconds == expectedRequestedAt.nanoseconds else {
-            throw RepositoryError.invalidData(resource: "shiftPlanningRequests.document")
-        }
-
-        return .acknowledge(
-            ShiftPlanningRequest(
-                id: documentID,
-                type: type,
-                requestedByUserId: requestedByUserId,
-                requestedAtMillis: requested.requestedAtMillis,
-                status: status
-            )
-        )
-    }
-
-    static func firestoreData(for request: ShiftPlanningRequest) -> [String: Any] {
-        [
-            "type": request.type.rawValue,
-            "requestedByUserId": request.requestedByUserId,
-            "requestedAt": timestamp(for: request.requestedAtMillis),
-            "status": request.status.rawValue
-        ]
-    }
-
-    private static func timestamp(for millis: Int64) -> Timestamp {
-        Timestamp(
-            seconds: millis / 1_000,
-            nanoseconds: Int32((millis % 1_000) * 1_000_000)
-        )
     }
 }
 

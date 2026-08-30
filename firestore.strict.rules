@@ -41,6 +41,107 @@ service cloud.firestore {
       return /databases/$(database)/documents/$(env)/plus-collections/users/$(userId)/devices/$(deviceId);
     }
 
+    function notificationResourceFencePath(env, scope, resourceId) {
+      let fenceId = scope + ":" + resourceId;
+      return /databases/$(database)/documents/$(env)/plus-collections/shiftPlanningNotificationFences/$(fenceId);
+    }
+
+    function notificationIncidentShiftFencePath(env, shiftId) {
+      let fenceId = "shift:" + shiftId;
+      return /databases/$(database)/documents/$(env)/plus-collections/shiftPlanningNotificationIncidentFences/$(fenceId);
+    }
+
+    function isExactNotificationIncidentShiftFence(fence, shiftId) {
+      return fence.keys().hasOnly([
+          "schemaVersion",
+          "operationKind",
+          "shiftId",
+          "incidentId",
+          "bundleRevision",
+          "bundleDigest",
+          "ownerUserId",
+          "acquiredAt",
+          "expiresAt",
+          "safeResumeDigest",
+        ]) &&
+        fence.schemaVersion == 1 &&
+        fence.operationKind == "notificationIncidentShiftFence" &&
+        fence.shiftId == shiftId &&
+        isPlanningIdentifier(fence.shiftId) &&
+        isPlanningIdentifier(fence.incidentId) &&
+        isPlanningIdentifier(fence.bundleRevision) &&
+        isPlanningIdentifier(fence.ownerUserId) &&
+        fence.bundleDigest is string &&
+        fence.bundleDigest.matches(
+          "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+        ) &&
+        fence.acquiredAt is timestamp &&
+        fence.expiresAt is timestamp &&
+        fence.expiresAt > fence.acquiredAt &&
+        fence.expiresAt <= fence.acquiredAt + duration.value(24, "h") &&
+        fence.safeResumeDigest is string &&
+        fence.safeResumeDigest.matches(
+          "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+        );
+    }
+
+    function notificationIncidentShiftFenceAllowsMutation(env, shiftId) {
+      let fencePath = notificationIncidentShiftFencePath(env, shiftId);
+      let fence = exists(fencePath) ? get(fencePath).data : {};
+      return !exists(fencePath) || (
+        isExactNotificationIncidentShiftFence(fence, shiftId) &&
+        fence.expiresAt <= request.time
+      );
+    }
+
+    function isExactNotificationResourceFence(fence, scope, resourceId) {
+      return fence.keys().hasOnly([
+          "schemaVersion",
+          "operationKind",
+          "scope",
+          "resourceId",
+          "intentId",
+          "eventId",
+          "attemptId",
+          "workerId",
+          "leaseEpoch",
+          "acquiredAt",
+          "expiresAt",
+          "validationDigest",
+        ]) &&
+        fence.schemaVersion == 1 &&
+        fence.operationKind == "notificationDispatchResourceFence" &&
+        fence.scope == scope &&
+        fence.resourceId == resourceId &&
+        isPlanningIdentifier(fence.resourceId) &&
+        isPlanningIdentifier(fence.intentId) &&
+        isPlanningIdentifier(fence.eventId) &&
+        isPlanningIdentifier(fence.attemptId) &&
+        isPlanningIdentifier(fence.workerId) &&
+        fence.leaseEpoch is int &&
+        fence.leaseEpoch > 0 &&
+        fence.acquiredAt is timestamp &&
+        fence.expiresAt is timestamp &&
+        fence.expiresAt == fence.acquiredAt + duration.value(30, "s") &&
+        fence.validationDigest is string &&
+        fence.validationDigest.matches(
+          "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+        );
+    }
+
+    function notificationResourceFenceAllowsMutation(env, scope, resourceId) {
+      let fencePath = notificationResourceFencePath(env, scope, resourceId);
+      let fence = exists(fencePath) ? get(fencePath).data : {};
+      let dispatchAllows = !exists(fencePath) || (
+        isExactNotificationResourceFence(fence, scope, resourceId) &&
+        fence.expiresAt <= request.time
+      );
+      return dispatchAllows && (
+        scope != "shift" ||
+        notificationIncidentShiftFenceAllowsMutation(env, resourceId)
+      );
+    }
+
     function actorData(env) {
       return get(userPath(env, actorId(env))).data;
     }
@@ -115,6 +216,132 @@ service cloud.firestore {
 
     function changedOnly(fields) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function hasExactKeys(data, fields) {
+      return data.keys().hasAll(fields) && data.keys().hasOnly(fields);
+    }
+
+    function isValidPlanningTargetSubplan(data) {
+      return data is map &&
+        hasExactKeys(data, ["targetSeasonStartYear"]) &&
+        data.targetSeasonStartYear is int &&
+        data.targetSeasonStartYear >= 2000 &&
+        data.targetSeasonStartYear <= 9998;
+    }
+
+    function isPlanningIdentifier(value) {
+      return value is string &&
+        value.matches("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$");
+    }
+
+    function isValidPlanningDigestBinding(binding) {
+      return isPlanningIdentifier(binding.bundleRevision) &&
+        binding.bundleDigest is string &&
+        binding.bundleDigest.matches(
+          "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+        );
+    }
+
+    function planningRequestPath(env, requestId) {
+      return /databases/$(database)/documents/$(env)/plus-collections/shiftPlanningRequests/$(requestId);
+    }
+
+    function isOwnedCompletedPlanningPreview(env, binding, bundleId) {
+      let source = get(planningRequestPath(env, binding.sourceRequestId)).data;
+      return exists(planningRequestPath(env, binding.sourceRequestId)) &&
+        source.schemaVersion == 2 &&
+        source.requestId == binding.sourceRequestId &&
+        source.bundleId == bundleId &&
+        source.environment == env &&
+        source.requestedByUserId == actorId(env) &&
+        source.mode == "preview" &&
+        source.status == "completed" &&
+        source.binding == null &&
+        source.lifecycle is map &&
+        source.lifecycle.state == "completed" &&
+        source.lifecycle.summary is map &&
+        source.lifecycle.summary.status == "completed" &&
+        source.lifecycle.summary.mode == "preview" &&
+        source.lifecycle.summary.bundleId == bundleId &&
+        source.lifecycle.summary.bundleRevision == binding.bundleRevision &&
+        source.lifecycle.summary.bundleDigest == binding.bundleDigest &&
+        source.lifecycle.artifact is map &&
+        source.lifecycle.artifact.kind == "preview" &&
+        source.lifecycle.artifact.receipt is map &&
+        source.lifecycle.artifact.receipt.requestId ==
+          binding.sourceRequestId &&
+        source.lifecycle.artifact.receipt.bundleId == bundleId &&
+        source.lifecycle.artifact.receipt.environment == env &&
+        source.lifecycle.artifact.receipt.requestedByUserId == actorId(env) &&
+        source.lifecycle.artifact.receipt.bundleRevision ==
+          binding.bundleRevision &&
+        source.lifecycle.artifact.receipt.bundleDigest == binding.bundleDigest;
+    }
+
+    function isValidPlanningBinding(env, mode, binding, requestId, bundleId) {
+      return (mode == "preview" && binding == null) ||
+        (
+          mode == "stage" &&
+          binding is map &&
+          hasExactKeys(binding, [
+            "kind",
+            "sourceRequestId",
+            "bundleRevision",
+            "bundleDigest",
+          ]) &&
+          binding.kind == "preview" &&
+          isPlanningIdentifier(binding.sourceRequestId) &&
+          binding.sourceRequestId != requestId &&
+          isValidPlanningDigestBinding(binding) &&
+          isOwnedCompletedPlanningPreview(env, binding, bundleId)
+        );
+    }
+
+    function isValidShiftPlanningRequest(env, requestId) {
+      let data = request.resource.data;
+      let fields = [
+        "schemaVersion",
+        "requestId",
+        "bundleId",
+        "environment",
+        "requestedByUserId",
+        "requestedAt",
+        "mode",
+        "status",
+        "expectedWriteEpoch",
+        "expectedActiveRevision",
+        "subplans",
+        "binding",
+      ];
+      return hasExactKeys(data, fields) &&
+        data.schemaVersion == 2 &&
+        data.requestId == requestId &&
+        isPlanningIdentifier(data.requestId) &&
+        isPlanningIdentifier(data.bundleId) &&
+        data.environment == env &&
+        isPlanningIdentifier(data.requestedByUserId) &&
+        data.requestedByUserId == actorId(env) &&
+        data.requestedAt is timestamp &&
+        data.mode in ["preview", "stage"] &&
+        data.status == "requested" &&
+        data.expectedWriteEpoch is int &&
+        data.expectedWriteEpoch >= 0 &&
+        (
+          data.expectedActiveRevision == null ||
+          isPlanningIdentifier(data.expectedActiveRevision)
+        ) &&
+        data.subplans is map &&
+        hasExactKeys(data.subplans, ["delivery", "market"]) &&
+        isValidPlanningTargetSubplan(data.subplans.delivery) &&
+        isValidPlanningTargetSubplan(data.subplans.market) &&
+        isValidPlanningBinding(
+          env,
+          data.mode,
+          data.binding,
+          requestId,
+          data.bundleId
+        );
     }
 
     function validLastDeviceReference(env, userId) {
@@ -365,6 +592,11 @@ service cloud.firestore {
 
     function isValidAdminNotificationCreate(env, data) {
       return isAdmin(env) &&
+        !data.keys().hasAny([
+          "schemaVersion",
+          "operationKind",
+          "contentPolicy",
+        ]) &&
         data.get("createdBy", "") == actorId(env) &&
         data.get("title", "") is string &&
         data.get("title", "").size() > 0 &&
@@ -417,8 +649,11 @@ service cloud.firestore {
         );
 
       match /devices/{deviceId} {
-        allow read, delete: if isActor(env, userId);
+        allow read: if isActor(env, userId);
+        allow delete: if isActor(env, userId) &&
+          notificationResourceFenceAllowsMutation(env, "member", userId);
         allow create, update: if isActor(env, userId) &&
+          notificationResourceFenceAllowsMutation(env, "member", userId) &&
           isValidDeviceData(deviceId, request.resource.data);
       }
 
@@ -501,24 +736,33 @@ service cloud.firestore {
 
     match /{env}/plus-collections/deliveryCalendar/{weekKey} {
       allow read: if isActiveMember(env);
-      allow create, update: if isAdmin(env) &&
-        request.resource.data.get("weekKey", "") == weekKey &&
-        request.resource.data.get("updatedBy", "") == actorId(env);
-      allow delete: if isAdmin(env);
+      allow create, update, delete: if false;
+    }
+
+    match /{env}/plus-collections/deliveryCalendarMutationReceipts/{operationId} {
+      allow read, write: if false;
     }
 
     match /{env}/plus-collections/shifts/{shiftId} {
       allow read: if isActiveMember(env);
-      allow create, update, delete: if isAdmin(env);
+      allow create, update, delete: if false;
     }
 
     match /{env}/plus-collections/shiftPlanningRequests/{requestId} {
       allow read: if isAdmin(env);
       allow create: if isAdmin(env) &&
-        request.resource.data.get("requestedByUserId", "") == actorId(env) &&
-        request.resource.data.get("status", "") == "requested" &&
-        request.resource.data.get("type", "") in ["delivery", "market"];
+        isValidShiftPlanningRequest(env, requestId);
       allow update, delete: if false;
+    }
+
+    match /{env}/plus-collections/shiftPlanningCandidates/{bundleId} {
+      allow read: if isAdmin(env);
+      allow create, update, delete: if false;
+    }
+
+    match /{env}/plus-collections/shiftPlanningCandidates/{bundleId}/positions/{positionId} {
+      allow read: if isAdmin(env);
+      allow create, update, delete: if false;
     }
 
     match /{env}/plus-collections/shiftSwapRequests/{requestId} {

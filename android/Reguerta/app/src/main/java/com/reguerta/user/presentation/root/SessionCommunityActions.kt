@@ -8,8 +8,10 @@ import com.reguerta.user.data.media.ImageUploadResult
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationEvent
+import com.reguerta.user.domain.notifications.NotificationContentPolicy
 import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.notifications.PushNotificationPermissionProvider
+import com.reguerta.user.domain.notifications.ShiftNotificationDetailRepository
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.domain.access.AccessCapability
@@ -33,6 +35,7 @@ internal class SessionCommunityActions(
     private val scope: CoroutineScope,
     private val newsRepository: NewsRepository,
     private val notificationRepository: NotificationRepository,
+    private val shiftNotificationDetailRepository: ShiftNotificationDetailRepository,
     private val sharedProfileRepository: SharedProfileRepository,
     private val imagePipelineManager: ImagePipelineManager,
     private val nowMillisProvider: () -> Long,
@@ -58,6 +61,8 @@ internal class SessionCommunityActions(
     private var nextNotificationsRefreshToken = 0L
     private var activeNotificationsRefresh: ActiveCommunityOperation? = null
     private var notificationsRetryJob: Job? = null
+    private var nextNotificationDetailToken = 0L
+    private var activeNotificationDetail: ActiveCommunityOperation? = null
     private var nextNewsMutationToken = 0L
     private var activeNewsMutation: ActiveNewsMutation? = null
     private var nextNotificationMutationToken = 0L
@@ -272,28 +277,108 @@ internal class SessionCommunityActions(
     fun refreshNotifications() {
         startNotificationsRefreshCycle(
             prepareRoute = false,
+            openingEventId = null,
             shouldEmitFailureFeedback = { true },
         )
     }
 
-    fun prepareNotificationsRoute() {
+    fun prepareNotificationsRoute(openingEventId: String? = null) {
         startNotificationsRefreshCycle(
             prepareRoute = true,
+            openingEventId = openingEventId,
             shouldEmitFailureFeedback = { true },
         )
+    }
+
+    fun openNotificationDetail(eventId: String) {
+        val initialState = uiState.value
+        val mode = initialState.mode as? SessionMode.Authorized ?: return
+        val context = CommunitySessionContext.from(initialState, mode)
+        val event = initialState.notificationsFeed.firstOrNull { candidate ->
+            candidate.id == eventId &&
+                candidate.type == "shift_updated" &&
+                candidate.target == "users" &&
+                candidate.userIds == listOf(mode.member.id) &&
+                candidate.contentPolicy == NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED &&
+                candidate.isVisibleTo(mode.member)
+        } ?: return
+        nextNotificationDetailToken += 1
+        val operation = ActiveCommunityOperation(context, nextNotificationDetailToken)
+        activeNotificationDetail = operation
+        if (!updateCommunityStateIfCurrent(context) {
+                it.copy(
+                    notificationShiftDetail = null,
+                    loadingNotificationDetailEventId = event.id,
+                )
+            }
+        ) {
+            if (activeNotificationDetail == operation) activeNotificationDetail = null
+            return
+        }
+        scope.launch {
+            try {
+                val detail = shiftNotificationDetailRepository.getCurrentDetail(
+                    eventId = event.id,
+                    memberId = mode.member.id,
+                )
+                currentCoroutineContext().ensureActive()
+                if (
+                    activeNotificationDetail != operation ||
+                    detail.eventId != event.id ||
+                    mode.member.id !in detail.shift.assignedUserIds
+                ) {
+                    return@launch
+                }
+                activeNotificationDetail = null
+                updateCommunityStateIfCurrent(context) { state ->
+                    val isStillGeneric = state.notificationsFeed.any { current ->
+                        current.id == event.id &&
+                            current.type == "shift_updated" &&
+                            current.target == "users" &&
+                            current.userIds == listOf(mode.member.id) &&
+                            current.contentPolicy == NotificationContentPolicy.AUTHORIZED_FETCH_REQUIRED
+                    }
+                    if (isStillGeneric) {
+                        state.copy(
+                            notificationShiftDetail = detail,
+                            loadingNotificationDetailEventId = null,
+                        )
+                    } else {
+                        state.copy(
+                            notificationShiftDetail = null,
+                            loadingNotificationDetailEventId = null,
+                        )
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                finishNotificationDetail(operation)
+                throw cancellation
+            } catch (_: Exception) {
+                if (finishNotificationDetail(operation)) {
+                    emitMessage(R.string.feedback_unable_load_data)
+                }
+            }
+        }
     }
 
     private fun startNotificationsRefreshCycle(
         prepareRoute: Boolean,
+        openingEventId: String?,
         shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
     ) {
         notificationsRetryJob?.cancel()
         notificationsRetryJob = null
-        refreshNotificationsAttempt(prepareRoute, shouldEmitFailureFeedback, retryOnFailure = true)
+        refreshNotificationsAttempt(
+            prepareRoute = prepareRoute,
+            openingEventId = openingEventId,
+            shouldEmitFailureFeedback = shouldEmitFailureFeedback,
+            retryOnFailure = true,
+        )
     }
 
     private fun refreshNotificationsAttempt(
         prepareRoute: Boolean,
+        openingEventId: String?,
         shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
         retryOnFailure: Boolean,
     ) {
@@ -317,7 +402,7 @@ internal class SessionCommunityActions(
                     null
                 }
                 currentCoroutineContext().ensureActive()
-                completeNotificationsRefresh(context, token) { state ->
+                val didComplete = completeNotificationsRefresh(context, token) { state ->
                     val visibleNotifications = allNotifications.filter { event ->
                         event.isVisibleTo(mode.member)
                     }
@@ -350,6 +435,9 @@ internal class SessionCommunityActions(
                             ?: state.showPushNotificationPermissionDialog,
                     )
                 }
+                if (didComplete && openingEventId != null) {
+                    openNotificationDetail(openingEventId)
+                }
             } catch (cancellation: CancellationException) {
                 finishNotificationsRefresh(context, token)
                 throw cancellation
@@ -357,7 +445,12 @@ internal class SessionCommunityActions(
                 if (!finishNotificationsRefresh(context, token)) return@launch
                 if (
                     retryOnFailure &&
-                    scheduleNotificationsRetry(context, prepareRoute, shouldEmitFailureFeedback)
+                    scheduleNotificationsRetry(
+                        context = context,
+                        prepareRoute = prepareRoute,
+                        openingEventId = openingEventId,
+                        shouldEmitFailureFeedback = shouldEmitFailureFeedback,
+                    )
                 ) return@launch
                 if (shouldEmitFailureFeedback(uiState.value)) {
                     emitMessage(R.string.feedback_unable_load_data)
@@ -368,6 +461,13 @@ internal class SessionCommunityActions(
 
     fun markVisibleNotificationsReadOnExit() {
         val initialState = uiState.value
+        activeNotificationDetail = null
+        uiState.update {
+            it.copy(
+                notificationShiftDetail = null,
+                loadingNotificationDetailEventId = null,
+            )
+        }
         val mode = initialState.mode as? SessionMode.Authorized ?: return
         val context = CommunitySessionContext.from(initialState, mode)
         if (!isCurrentCommunitySession(context)) return
@@ -890,6 +990,7 @@ internal class SessionCommunityActions(
             }
             startNotificationsRefreshCycle(
                 prepareRoute = false,
+                openingEventId = null,
                 shouldEmitFailureFeedback = { state ->
                     postAcknowledgementOwnership?.matches(state) == true &&
                         isCurrentCommunitySession(context, state)
@@ -920,6 +1021,7 @@ internal class SessionCommunityActions(
     private fun scheduleNotificationsRetry(
         context: CommunitySessionContext,
         prepareRoute: Boolean,
+        openingEventId: String?,
         shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
     ): Boolean {
         val retryDelayMillis = automaticLoadRetryDelayMillis ?: return false
@@ -929,7 +1031,12 @@ internal class SessionCommunityActions(
             if (notificationsRetryJob !== retryJob) return@launch
             notificationsRetryJob = null
             if (!isCurrentCommunitySession(context)) return@launch
-            refreshNotificationsAttempt(prepareRoute, shouldEmitFailureFeedback, retryOnFailure = false)
+            refreshNotificationsAttempt(
+                prepareRoute = prepareRoute,
+                openingEventId = openingEventId,
+                shouldEmitFailureFeedback = shouldEmitFailureFeedback,
+                retryOnFailure = false,
+            )
         }
         notificationsRetryJob?.cancel()
         notificationsRetryJob = retryJob
@@ -1109,11 +1216,14 @@ internal class SessionCommunityActions(
     ): Long? {
         if (!isCurrentCommunitySession(context)) return null
         nextNotificationsRefreshToken += 1
+        activeNotificationDetail = null
         val operation = ActiveCommunityOperation(context, nextNotificationsRefreshToken)
         activeNotificationsRefresh = operation
         if (!updateCommunityStateIfCurrent(context) {
                 it.copy(
                     isLoadingNotifications = true,
+                    notificationShiftDetail = null,
+                    loadingNotificationDetailEventId = null,
                     showPushNotificationPermissionDialog = if (prepareRoute) {
                         false
                     } else {
@@ -1144,6 +1254,17 @@ internal class SessionCommunityActions(
         if (activeNotificationsRefresh != operation) return false
         activeNotificationsRefresh = null
         return updateCommunityStateIfCurrent(context) { it.copy(isLoadingNotifications = false) }
+    }
+
+    private fun finishNotificationDetail(operation: ActiveCommunityOperation): Boolean {
+        if (activeNotificationDetail != operation) return false
+        activeNotificationDetail = null
+        return updateCommunityStateIfCurrent(operation.context) {
+            it.copy(
+                notificationShiftDetail = null,
+                loadingNotificationDetailEventId = null,
+            )
+        }
     }
 
     private fun invalidateNewsRefresh(context: CommunitySessionContext): Boolean {

@@ -60,6 +60,8 @@ class ReguertaFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "FirebaseMessagingService received a refreshed installation registration")
         try {
             when (registrationCallbackRunner.handle(installationId)) {
+                AuthorizedDeviceTokenRefreshResult.DEFERRED ->
+                    Log.d(TAG, "Push credential upload deferred until the next authorized event")
                 AuthorizedDeviceTokenRefreshResult.STORED_ONLY ->
                     Log.d(TAG, "Push credential stored without an authorized upload")
                 AuthorizedDeviceTokenRefreshResult.STALE_SESSION ->

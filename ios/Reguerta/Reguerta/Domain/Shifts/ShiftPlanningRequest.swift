@@ -12,10 +12,23 @@ nonisolated enum ShiftPlanningRequestStatus: String, Equatable, Sendable {
     case failed
 }
 
+nonisolated struct ShiftPlanningPreviewReference: Equatable {
+    let sourceRequestId: String
+    let bundleRevision: String
+    let bundleDigest: String
+}
+
+nonisolated enum ShiftPlanningRequestIntent: Equatable {
+    case preview
+    case stage(ShiftPlanningPreviewReference)
+}
+
 nonisolated struct ShiftPlanningRequest: Identifiable, Equatable {
     let id: String
-    let type: ShiftPlanningRequestType
+    let bundleId: String
     let requestedByUserId: String
     let requestedAtMillis: Int64
-    let status: ShiftPlanningRequestStatus
+    let deliveryTargetSeasonStartYear: Int
+    let marketTargetSeasonStartYear: Int
+    let intent: ShiftPlanningRequestIntent
 }

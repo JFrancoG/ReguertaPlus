@@ -10,13 +10,17 @@ import Testing
 struct FirestoreShiftPlanningRequestRepositoryTests {
     @Test func createsOnlyWhenAbsentAndAcknowledgesCompatibleExistingState() throws {
         let request = planningRequest()
+        let resolved = try FirestoreShiftPlanningRequestRepository.resolve(
+            request: request,
+            context: planningContext()
+        )
 
         #expect(
             try FirestoreShiftPlanningRequestRepository.transactionDecision(
                 documentID: request.id,
                 data: nil,
-                requested: request
-            ) == .create(request)
+                requested: resolved
+            ) == .create(resolved)
         )
 
         for status in [
@@ -25,22 +29,29 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
             .completed,
             .failed
         ] {
-            let existing = requestWithStatus(status, basedOn: request)
+            let existing = firestoreData(for: resolved).merging(["status": status.rawValue]) { _, replacement in
+                replacement
+            }
             #expect(
                 try FirestoreShiftPlanningRequestRepository.transactionDecision(
                     documentID: request.id,
-                    data: firestoreData(for: existing),
-                    requested: request
-                ) == .acknowledge(existing)
+                    data: existing,
+                    requested: resolved
+                ) == .acknowledge(request)
             )
         }
     }
 
-    @Test func rejectsAnIncompatibleOrMalformedExistingRequest() {
+    @Test func rejectsAnIncompatibleOrMalformedExistingRequest() throws {
         let request = planningRequest()
-        let validData = firestoreData(for: requestWithStatus(.completed, basedOn: request))
+        let resolved = try FirestoreShiftPlanningRequestRepository.resolve(
+            request: request,
+            context: planningContext()
+        )
+        let validData = firestoreData(for: resolved).merging(["status": "completed"]) { _, replacement in replacement }
         let invalidVariants: [[String: Any]] = [
-            validData.merging(["type": "delivery"]) { _, replacement in replacement },
+            validData.merging(["bundleId": "bundle_2"]) { _, replacement in replacement },
+            validData.merging(["environment": "production"]) { _, replacement in replacement },
             validData.merging(["requestedByUserId": "admin_2"]) { _, replacement in replacement },
             validData.merging(
                 ["requestedAt": Timestamp(seconds: 124, nanoseconds: 0)]
@@ -54,39 +65,23 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
                 try FirestoreShiftPlanningRequestRepository.transactionDecision(
                     documentID: request.id,
                     data: data,
-                    requested: request
+                    requested: resolved
                 )
             }
         }
 
-        for status in [
-            ShiftPlanningRequestStatus.processing,
-            .completed,
-            .failed
+        for invalidIntent in [
+            planningRequest(id: " "),
+            planningRequest(bundleId: " "),
+            planningRequest(deliverySeason: 1999),
+            planningRequest(marketSeason: 9999)
         ] {
-            let invalidIntent = requestWithStatus(status, basedOn: request)
             #expect(throws: RepositoryError.invalidData(resource: "shiftPlanningRequests.document")) {
-                try FirestoreShiftPlanningRequestRepository.transactionDecision(
-                    documentID: invalidIntent.id,
-                    data: nil,
-                    requested: invalidIntent
+                try FirestoreShiftPlanningRequestRepository.resolve(
+                    request: invalidIntent,
+                    context: planningContext()
                 )
             }
-        }
-
-        let blankIdentifier = ShiftPlanningRequest(
-            id: " ",
-            type: request.type,
-            requestedByUserId: request.requestedByUserId,
-            requestedAtMillis: request.requestedAtMillis,
-            status: .requested
-        )
-        #expect(throws: RepositoryError.invalidData(resource: "shiftPlanningRequests.document")) {
-            try FirestoreShiftPlanningRequestRepository.transactionDecision(
-                documentID: blankIdentifier.id,
-                data: nil,
-                requested: blankIdentifier
-            )
         }
     }
 
@@ -132,41 +127,112 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
         }
     }
 
-    private func planningRequest() -> ShiftPlanningRequest {
-        ShiftPlanningRequest(
-            id: "planning_1",
-            type: .market,
-            requestedByUserId: "admin_1",
-            requestedAtMillis: 123_456,
-            status: .requested
+    @Test func completedPreviewStagesThroughOneExactDigestBinding() throws {
+        let request = stageRequest()
+        let resolved = try FirestoreShiftPlanningRequestRepository.resolve(
+            request: request,
+            context: planningContext()
+        )
+        let payload = firestoreData(for: resolved)
+
+        #expect(payload["mode"] as? String == "stage")
+        #expect(
+            payload["binding"] as? [String: String] == [
+                "kind": "preview",
+                "sourceRequestId": "planning_1",
+                "bundleRevision": "bundle-revision-1",
+                "bundleDigest": planningDigest
+            ]
+        )
+        #expect(
+            try FirestoreShiftPlanningRequestRepository.transactionDecision(
+                documentID: request.id,
+                data: payload.merging(["status": "completed"]) { _, replacement in replacement },
+                requested: resolved
+            ) == .acknowledge(request)
         )
     }
 
-    private func requestWithStatus(
-        _ status: ShiftPlanningRequestStatus,
-        basedOn request: ShiftPlanningRequest
+    @Test func stageRejectsAChangedOrSelfReferencingPreviewBinding() throws {
+        let request = stageRequest()
+        let resolved = try FirestoreShiftPlanningRequestRepository.resolve(
+            request: request,
+            context: planningContext()
+        )
+        let changedBinding: [String: String] = [
+            "kind": "preview",
+            "sourceRequestId": "planning_1",
+            "bundleRevision": "bundle-revision-2",
+            "bundleDigest": planningDigest
+        ]
+
+        #expect(throws: RepositoryError.invalidData(resource: "shiftPlanningRequests.document")) {
+            try FirestoreShiftPlanningRequestRepository.transactionDecision(
+                documentID: request.id,
+                data: firestoreData(for: resolved).merging(
+                    ["binding": changedBinding]
+                ) { _, replacement in replacement },
+                requested: resolved
+            )
+        }
+        #expect(throws: RepositoryError.invalidData(resource: "shiftPlanningRequests.document")) {
+            try FirestoreShiftPlanningRequestRepository.resolve(
+                request: stageRequest(sourceRequestID: "stage_1"),
+                context: planningContext()
+            )
+        }
+    }
+
+    private func planningRequest(
+        id: String = "planning_1",
+        bundleId: String = "bundle_1",
+        deliverySeason: Int = 2026,
+        marketSeason: Int = 2027
     ) -> ShiftPlanningRequest {
         ShiftPlanningRequest(
-            id: request.id,
-            type: request.type,
-            requestedByUserId: request.requestedByUserId,
-            requestedAtMillis: request.requestedAtMillis,
-            status: status
+            id: id,
+            bundleId: bundleId,
+            requestedByUserId: "admin_1",
+            requestedAtMillis: 123_456,
+            deliveryTargetSeasonStartYear: deliverySeason,
+            marketTargetSeasonStartYear: marketSeason,
+            intent: .preview
         )
     }
 
-    private func firestoreData(for request: ShiftPlanningRequest) -> [String: Any] {
-        [
-            "type": request.type.rawValue,
-            "requestedByUserId": request.requestedByUserId,
-            "requestedAt": Timestamp(
-                seconds: request.requestedAtMillis / 1_000,
-                nanoseconds: Int32((request.requestedAtMillis % 1_000) * 1_000_000)
-            ),
-            "status": request.status.rawValue
-        ]
+    private func planningContext() -> ShiftPlanningRequestContext {
+        ShiftPlanningRequestContext(
+            environment: .develop,
+            expectedWriteEpoch: 7,
+            expectedActiveRevision: "active-6"
+        )
+    }
+
+    private func stageRequest(sourceRequestID: String = "planning_1") -> ShiftPlanningRequest {
+        ShiftPlanningRequest(
+            id: "stage_1",
+            bundleId: "bundle_1",
+            requestedByUserId: "admin_1",
+            requestedAtMillis: 123_456,
+            deliveryTargetSeasonStartYear: 2026,
+            marketTargetSeasonStartYear: 2027,
+            intent: .stage(
+                ShiftPlanningPreviewReference(
+                    sourceRequestId: sourceRequestID,
+                    bundleRevision: "bundle-revision-1",
+                    bundleDigest: planningDigest
+                )
+            )
+        )
+    }
+
+    private func firestoreData(for request: ResolvedShiftPlanningRequest) -> [String: Any] {
+        FirestoreShiftPlanningRequestRepository.firestoreData(for: request)
     }
 }
+
+private let planningDigest =
+    "shift-planning:v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 private final class ControlledShiftPlanningTransactionExecutor:
     ShiftPlanningRequestTransactionExecuting,
@@ -179,8 +245,7 @@ private final class ControlledShiftPlanningTransactionExecutor:
     private let state = Mutex(State())
 
     func execute(
-        request: ShiftPlanningRequest,
-        environment: SessionEnvironment,
+        request: ResolvedShiftPlanningRequest,
         completion: @escaping @Sendable (ShiftPlanningRequestTransactionOutcome) -> Void
     ) {
         let waiters = state.withLock { state in

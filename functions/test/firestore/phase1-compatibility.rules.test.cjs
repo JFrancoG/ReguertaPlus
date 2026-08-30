@@ -26,6 +26,20 @@ const legacyCollections = [
   "products",
   "users",
 ];
+const privateShiftPlanningCollections = [
+  "shiftPlanningRequests",
+  "shiftPlanningState",
+  "shiftRotations",
+  "shiftRotationMappings",
+  "shiftPlanningBundles",
+  "shiftPlanningCandidates",
+  "shiftPlanningSyncCommands",
+  "shiftPlanningNotificationIntents",
+  "shiftPlanningNotificationFences",
+  "shiftPlanningNotificationIncidentFences",
+  "shiftPlanningOperations",
+  "deliveryCalendarMutationReceipts",
+];
 
 let testEnv;
 
@@ -88,6 +102,72 @@ test("phase 1 leaves the previously deployed plus contract unchanged", async () 
   }
 });
 
+test("phase 1 keeps delivery calendar readable but rejects every direct write", async () => {
+  const db = testEnv.authenticatedContext("plus-user").firestore();
+  const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+  for (const env of envs) {
+    const existing = `${env}/plus-collections/deliveryCalendar/2026-W36`;
+    const created = `${env}/plus-collections/deliveryCalendar/2026-W37`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({
+        weekKey: "2026-W36",
+        updatedBy: "backend",
+      });
+    });
+
+    await assertSucceeds(db.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(db.doc(created).set({
+      weekKey: "2026-W37",
+      updatedBy: "legacy-client",
+    }));
+    await assertFails(db.doc(existing).update({updatedBy: "offline-queue"}));
+    await assertFails(db.doc(existing).delete());
+  }
+});
+
+test("phase 1 keeps shifts readable but rejects every direct write", async () => {
+  const db = testEnv.authenticatedContext("plus-user").firestore();
+  const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+  for (const env of envs) {
+    const existing = `${env}/plus-collections/shifts/shift-existing`;
+    const created = `${env}/plus-collections/shifts/shift-created`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({
+        type: "delivery",
+        source: "app",
+      });
+    });
+
+    await assertSucceeds(db.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(db.doc(created).set({type: "delivery", source: "app"}));
+    await assertFails(db.doc(existing).update({status: "confirmed"}));
+    await assertFails(db.doc(existing).delete());
+  }
+});
+
+test("phase 1 keeps shift swaps readable but rejects direct writes", async () => {
+  const db = testEnv.authenticatedContext("plus-user").firestore();
+  const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+  for (const env of envs) {
+    const existing = `${env}/plus-collections/shiftSwapRequests/swap-existing`;
+    const created = `${env}/plus-collections/shiftSwapRequests/swap-created`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(existing).set({status: "open"});
+    });
+
+    await assertSucceeds(db.doc(existing).get());
+    await assertFails(unauthenticatedDb.doc(existing).get());
+    await assertFails(db.doc(created).set({status: "open"}));
+    await assertFails(db.doc(existing).update({status: "cancelled"}));
+    await assertFails(db.doc(existing).delete());
+  }
+});
+
 test("phase 1 exposes only public startup config without authentication", async () => {
   const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
 
@@ -113,4 +193,25 @@ test("phase 1 rejects unsupported environments and unrelated roots", async () =>
     db.doc("preview/collections/users/user").set({value: true}),
   );
   await assertFails(db.doc("unrelated/root/document/value").set({value: true}));
+});
+
+test("phase 1 closes every private shift-planning partition", async () => {
+  const db = testEnv.authenticatedContext("legacy-admin").firestore();
+
+  for (const env of envs) {
+    for (const collection of privateShiftPlanningCollections) {
+      const path = `${env}/plus-collections/${collection}/private-document`;
+      const nestedPath = `${path}/nested/value`;
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().doc(path).set({schemaVersion: 1});
+        await context.firestore().doc(nestedPath).set({schemaVersion: 1});
+      });
+      await assertFails(db.doc(path).get());
+      await assertFails(db.doc(nestedPath).get());
+      await assertFails(db.doc(path).set({schemaVersion: 1}));
+      await assertFails(db.doc(nestedPath).set({schemaVersion: 1}));
+      await assertFails(db.doc(path).update({schemaVersion: 2}));
+      await assertFails(db.doc(path).delete());
+    }
+  }
 });

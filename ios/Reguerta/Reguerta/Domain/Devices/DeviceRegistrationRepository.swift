@@ -2,6 +2,7 @@ import Foundation
 
 enum DeviceRegistrationRepositoryError: Error, Equatable {
     case staleSession
+    case temporarilyBlocked
     case unavailable
 }
 

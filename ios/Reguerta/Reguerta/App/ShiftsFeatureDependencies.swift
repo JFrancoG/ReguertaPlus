@@ -21,8 +21,14 @@ struct ShiftsFeatureDependencies {
                 firebaseAppName: db.app.name,
                 functionsClient: functionsClient
             ),
-            shiftPlanningRequestRepository: FirestoreShiftPlanningRequestRepository(firebaseAppName: db.app.name),
-            deliveryCalendarRepository: FirestoreDeliveryCalendarRepository(firebaseAppName: db.app.name),
+            shiftPlanningRequestRepository: FirestoreShiftPlanningRequestRepository(
+                firebaseAppName: db.app.name,
+                functionsClient: functionsClient
+            ),
+            deliveryCalendarRepository: FirestoreDeliveryCalendarRepository(
+                firebaseAppName: db.app.name,
+                functionsClient: functionsClient
+            ),
             nowMillisProvider: nowMillisProvider,
             environmentProvider: { environmentProvider.snapshot().environment }
         )

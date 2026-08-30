@@ -2278,6 +2278,23 @@
         }
       }
     },
+    "feedback.shift_planning.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift planning failed. Review the request status before trying again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La planificación de turnos ha fallado. Revisa el estado antes de volver a intentarlo."
+          }
+        }
+      }
+    },
     "feedback.unable_load_data" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5267,6 +5284,91 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notificación enviada"
+          }
+        }
+      }
+    },
+    "notifications.shift_detail.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View current shift details"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consultar el turno actualizado"
+          }
+        }
+      }
+    },
+    "notifications.shift_detail.assigned_members_format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assigned members: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Responsables: %@"
+          }
+        }
+      }
+    },
+    "notifications.shift_detail.helper_format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helper: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ayudante: %@"
+          }
+        }
+      }
+    },
+    "notifications.shift_detail.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading current shift details…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consultando el turno actualizado…"
+          }
+        }
+      }
+    },
+    "notifications.shift_detail.summary_format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %@"
           }
         }
       }
@@ -8349,36 +8451,53 @@
         }
       }
     },
-    "settings.shift_planning.action.generate_delivery" : {
+    "settings.shift_planning.action.preview" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate delivery"
+            "value" : "Preview combined plan"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generar reparto"
+            "value" : "Previsualizar planificación conjunta"
           }
         }
       }
     },
-    "settings.shift_planning.action.generate_market" : {
+    "settings.shift_planning.action.stage" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate market"
+            "value" : "Prepare this preview"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generar mercado"
+            "value" : "Preparar esta previsualización"
+          }
+        }
+      }
+    },
+    "settings.shift_planning.delivery_season" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delivery season start year"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Año inicial de temporada de reparto"
           }
         }
       }
@@ -8389,49 +8508,153 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A new plan with active members will be created, written to the next-season sheet, and assigned members will be notified. If you run it again, that season will be regenerated."
+            "value" : "This creates a private delivery-plus-market preview for the two entered season frontiers. It does not activate shifts or notify members."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se creará una planificación nueva con socios activos, se escribirá en la sheet de la temporada siguiente y se notificará a los socios asignados. Si vuelves a lanzarlo, se regenerará esa temporada."
+            "value" : "Se creará una previsualización privada conjunta de reparto y mercado para las dos fronteras de temporada indicadas. No se activarán turnos ni se avisará a los socios."
           }
         }
       }
     },
-    "settings.shift_planning.alert.title.delivery" : {
+    "settings.shift_planning.alert.message.stage" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate delivery shifts"
+            "value" : "This stores an immutable private candidate from exactly this completed preview. It does not activate shifts, change the public schedule, or notify members."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generar turnos de reparto"
+            "value" : "Se guardará un candidato privado e inmutable a partir exactamente de esta previsualización completada. No se activarán turnos, no cambiará el calendario público ni se avisará a los socios."
           }
         }
       }
     },
-    "settings.shift_planning.alert.title.market" : {
+    "settings.shift_planning.alert.title.preview" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate market shifts"
+            "value" : "Preview combined shifts"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generar turnos de mercado"
+            "value" : "Previsualizar turnos conjuntos"
           }
         }
+      }
+    },
+    "settings.shift_planning.alert.title.stage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare preview for review"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparar previsualización para revisión"
+          }
+        }
+      }
+    },
+    "settings.shift_planning.market_season" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Market season start year"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Año inicial de temporada de mercado"
+          }
+        }
+      }
+    },
+    "settings.shift_planning.candidate.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Staged candidate: %lld shifts and %lld assignments" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Candidato preparado: %lld turnos y %lld asignaciones" } }
+      }
+    },
+    "settings.shift_planning.candidate.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading the staged candidate..." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando el candidato preparado..." } }
+      }
+    },
+    "settings.shift_planning.helper.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Helper: %@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ayudante: %@" } }
+      }
+    },
+    "settings.shift_planning.position.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%1$@ · %2$@ · %3$@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "%1$@ · %2$@ · %3$@" } }
+      }
+    },
+    "settings.shift_planning.status.completed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest v2 request: completed" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Última solicitud v2: completada" } }
+      }
+    },
+    "settings.shift_planning.status.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest v2 request: failed" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Última solicitud v2: fallida" } }
+      }
+    },
+    "settings.shift_planning.status.processing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest v2 request: processing" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Última solicitud v2: procesándose" } }
+      }
+    },
+    "settings.shift_planning.status.requested" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest v2 request: queued" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Última solicitud v2: en cola" } }
+      }
+    },
+    "settings.shift_planning.status.syncing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Activation completed; refreshing shifts..." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Activación completada; actualizando turnos..." } }
+      }
+    },
+    "settings.shift_planning.summary.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delivery: %lld shifts · Market: %lld shifts" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Reparto: %lld turnos · Mercado: %lld turnos" } }
       }
     },
     "settings.shift_planning.submitting" : {
@@ -8457,13 +8680,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate a new season with active members, write the new sheet, and notify assigned members."
+            "value" : "Preview one combined delivery and market plan for two explicit season frontiers."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Genera una temporada nueva con socios activos, escribe la hoja nueva y avisa a los socios asignados."
+            "value" : "Previsualiza conjuntamente reparto y mercado para dos fronteras de temporada explícitas."
           }
         }
       }

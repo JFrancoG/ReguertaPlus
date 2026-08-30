@@ -54,7 +54,7 @@ final class FirestoreDeviceRegistrationRepository: DeviceRegistrationRepository 
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            throw DeviceRegistrationRepositoryError.unavailable
+            throw deviceRegistrationCommitError(from: error)
         }
         return device
     }
@@ -78,4 +78,14 @@ final class FirestoreDeviceRegistrationRepository: DeviceRegistrationRepository 
         }
         return payload
     }
+}
+
+func deviceRegistrationCommitError(from error: any Error) -> DeviceRegistrationRepositoryError {
+    let nsError = error as NSError
+    guard nsError.domain == FirestoreErrorDomain,
+          let code = FirestoreErrorCode.Code(rawValue: nsError.code),
+          code == .permissionDenied else {
+        return .unavailable
+    }
+    return .temporarilyBlocked
 }

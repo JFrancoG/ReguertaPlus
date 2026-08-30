@@ -1,12 +1,14 @@
 package com.reguerta.user.data.devices
 
 import com.reguerta.user.domain.devices.DeviceRegistrationRepository
+import com.reguerta.user.domain.devices.DeviceRegistrationWriteBlockedException
 import com.reguerta.user.domain.devices.RegisteredDevice
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withTimeout
 
 internal enum class AuthorizedDeviceTokenRefreshResult {
+    DEFERRED,
     STORED_ONLY,
     STALE_SESSION,
     UPLOADED,
@@ -68,18 +70,22 @@ internal class AuthorizedDeviceTokenRefreshCoordinator(
             store.getOrCreateDeviceId(),
             nowMillis,
         )
-        repository.registerDevice(
-            memberId = authorizedContext.memberId,
-            environment = authorizedContext.environment,
-            device = device,
-            isSessionCurrent = {
-                store.getAuthorizedSessionContext() == authorizedContext &&
-                    store.getFirebaseInstallationId() == normalizedInstallationId &&
-                    currentAuthUidProvider() == authorizedContext.authUid &&
-                    processSession.match(authorizedContext) ==
-                    AuthorizedDeviceProcessSessionMatch.CURRENT
-            },
-        )
+        try {
+            repository.registerDevice(
+                memberId = authorizedContext.memberId,
+                environment = authorizedContext.environment,
+                device = device,
+                isSessionCurrent = {
+                    store.getAuthorizedSessionContext() == authorizedContext &&
+                        store.getFirebaseInstallationId() == normalizedInstallationId &&
+                        currentAuthUidProvider() == authorizedContext.authUid &&
+                        processSession.match(authorizedContext) ==
+                        AuthorizedDeviceProcessSessionMatch.CURRENT
+                },
+            )
+        } catch (_: DeviceRegistrationWriteBlockedException) {
+            return AuthorizedDeviceTokenRefreshResult.DEFERRED
+        }
         return AuthorizedDeviceTokenRefreshResult.UPLOADED
     }
 }

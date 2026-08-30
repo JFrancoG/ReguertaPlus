@@ -14,7 +14,9 @@ struct P101ShiftsOperationSafetyTests {
             shiftPlanningRequestRepository: repository,
             nowMillisProvider: { now.nowMillis }
         )
-        viewModel.requestShiftPlanning(.market)
+        viewModel.shiftPlanningDeliverySeasonInput = "2026"
+        viewModel.shiftPlanningMarketSeasonInput = "2027"
+        viewModel.requestShiftPlanningPreview()
 
         await viewModel.confirmShiftPlanningRequest()
         now.nowMillis = 222
@@ -28,7 +30,7 @@ struct P101ShiftsOperationSafetyTests {
         #expect(requests[0].id == requests[1].id)
         #expect(requests[0].requestedAtMillis == 111)
         #expect(requests[0].requestedAtMillis == requests[1].requestedAtMillis)
-        #expect(viewModel.pendingShiftPlanningType == nil)
+        #expect(viewModel.pendingShiftPlanningRequest == nil)
     }
 
     @Test func cancellationDoesNotPublishFailureFeedback() async {
@@ -128,10 +130,6 @@ private final class CancelledShiftRepository: ShiftRepository {
     func allShifts(environment _: SessionEnvironment) async throws -> [ShiftAssignment] {
         throw CancellationError()
     }
-
-    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
-        shift
-    }
 }
 
 private actor RejectingOncePlanningRepository: ShiftPlanningRequestRepository {
@@ -185,10 +183,6 @@ private actor SuspendedFirstShiftRepository: ShiftRepository {
         readyWaiters.forEach { $0.1.resume() }
         guard completedCount == 1 else { return subsequentResult }
         return await withCheckedContinuation { firstReadContinuation = $0 }
-    }
-
-    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
-        shift
     }
 
     func recordedEnvironments() -> [SessionEnvironment] {
