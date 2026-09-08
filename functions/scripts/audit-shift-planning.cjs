@@ -8,6 +8,8 @@ const {createShiftSheetsConfig, resolveShiftSheetsTab} = require("../lib/shift-s
 const {buildShiftSheetsProjections, SHIFT_SHEETS_LIMITS: limits} = require("../lib/shift-sheets.js");
 const {readShiftSheetsImport} = require("../lib/shift-sheets-import.js");
 const {readShiftSheetsImportMapping} = require("../lib/shift-sheets-import-http.js");
+const {resolveShiftRotationBootstrap} = require("../lib/shift-rotation-bootstrap.js");
+const {consumeRotationPositions} = require("../lib/shift-planning-contract.js");
 const MAX_BYTES = 4 * 1024 * 1024;
 const types = ["delivery", "market"];
 const requireValue = (condition) => { if (!condition) throw new Error("invalid_audit_evidence"); };
@@ -49,12 +51,114 @@ const validateGrid = (spreadsheet, workbookId) => {
   requireValue(cells <= limits.readCells);
 };
 
+// These are captured contracts, not permission to reconstruct ownership from assignees.
+const bootstrapSources = ["versionedState", "ownerHistory", "approvedMapping"];
+const metadataKeys = ["revision", "digest", "provenance"];
+const validIds = (values) => Array.isArray(values) && values.length > 0 && values.length <= limits.projectionRows &&
+  values.every(id) && new Set(values).size === values.length;
+const cursorShape = (value) => exact(value, ["schemaVersion", "type", "cohortUserIds", "roundNumber", "nextMemberIndex"]) &&
+  validIds(value.cohortUserIds);
+const metadataShape = (value) => metadataKeys.every((key) => typeof value[key] === "string" && value[key].length <= 1024);
+const validateBootstrapShape = (input) => {
+  requireValue(exact(input, ["type", "eligibleUserIds", "isTrulyNewRotation", ...bootstrapSources, "legacyDeliveryHelper"]) &&
+    types.includes(input.type) && validIds(input.eligibleUserIds) && typeof input.isTrulyNewRotation === "boolean");
+  const state = input.versionedState, history = input.ownerHistory, mapping = input.approvedMapping, helper = input.legacyDeliveryHelper;
+  if (state !== null) requireValue(exact(state, [...metadataKeys, "rotation"]) && metadataShape(state) && cursorShape(state.rotation));
+  if (history !== null) {
+    requireValue(exact(history, [...metadataKeys, "entries"]) && metadataShape(history) && Array.isArray(history.entries) &&
+      history.entries.length <= limits.projectionRows * 3);
+    for (const entry of history.entries) requireValue(exact(entry, ["type", "chronologySequence", "roundNumber", "positionInRound",
+      "rotationOwnerUserId", "cohortUserIds", "evidence"]) && id(entry.rotationOwnerUserId) && validIds(entry.cohortUserIds) &&
+      typeof entry.evidence === "string" && entry.evidence.length <= 1024);
+  }
+  if (mapping !== null) requireValue(exact(mapping, [...metadataKeys, "approvalStatus", "type", "orderedUserIds", "roundNumber",
+    "nextMemberIndex", "stableTieOrder", "evidence"]) && metadataShape(mapping) && validIds(mapping.orderedUserIds) &&
+    validIds(mapping.stableTieOrder) && typeof mapping.evidence === "string" && mapping.evidence.length <= 1024);
+  if (helper !== null) {
+    const keys = helper?.kind === "unique" ? ["kind", "userId", "evidenceRevision", "evidenceDigest"] :
+      helper?.kind === "ambiguous" ? ["kind", "candidateUserIds", "evidenceDigest"] : ["kind", "userId", "evidenceDigest"];
+    requireValue(exact(helper, keys) && ["unique", "ambiguous", "ineligible"].includes(helper.kind) &&
+      typeof helper.evidenceDigest === "string" && helper.evidenceDigest.length <= 1024 &&
+      (helper.kind === "ambiguous" ? validIds(helper.candidateUserIds) : id(helper.userId)) &&
+      (helper.kind !== "unique" || (typeof helper.evidenceRevision === "string" && helper.evidenceRevision.length <= 1024)));
+  }
+};
+
+const auditLineage = (input, findings) => {
+  requireValue(exact(input.lineage, types));
+  const summaries = {};
+  for (const type of types) {
+    const start = findings.length, evidence = input.lineage[type];
+    const add = (code, rowIndex = null) => findings.push({code, rowIndex, type});
+    if (evidence === null) { add("missing_lineage_evidence"); summaries[type] = {status: "missing"}; continue; }
+    try {
+      requireValue(exact(evidence, ["beforeDate", "bootstrap", "rows", "rotationAfterHorizon"]));
+      validateBootstrapShape(evidence.bootstrap);
+      requireValue(cursorShape(evidence.rotationAfterHorizon) && Array.isArray(evidence.rows) && evidence.rows.length <= limits.projectionRows);
+      for (const row of evidence.rows) requireValue(exact(row, ["shiftId", "positions"]) && id(row.shiftId) &&
+        Array.isArray(row.positions) && row.positions.length <= 3 && row.positions.every((position) =>
+          exact(position, ["roundNumber", "positionInRound"]) && Number.isSafeInteger(position.roundNumber) &&
+          position.roundNumber > 0 && Number.isSafeInteger(position.positionInRound) && position.positionInRound > 0));
+      const dates = [...input.expectedDates[type]].sort(), bootstrap = evidence.bootstrap;
+      if (evidence.beforeDate !== dates[0] || bootstrap.type !== type || evidence.rotationAfterHorizon.type !== type) {
+        add("lineage_boundary_mismatch"); summaries[type] = {status: "rejected"}; continue;
+      }
+      const eligible = input.members.filter((member) => member.eligibleTypes.includes(type)).map((member) => member.userId).sort();
+      if (!same([...bootstrap.eligibleUserIds].sort(), eligible) || eligible.length < (type === "delivery" ? 2 : 3)) {
+        add("bootstrap_roster_mismatch"); summaries[type] = {status: "rejected"}; continue;
+      }
+      let selected;
+      try { selected = resolveShiftRotationBootstrap(bootstrap); } catch {
+        add("invalid_rotation_bootstrap"); summaries[type] = {status: "rejected"}; continue;
+      }
+      // Selection retains HU-082 precedence; the audit still surfaces contradictory lower-priority evidence.
+      for (const source of bootstrapSources.filter((source) => source !== selected.source && bootstrap[source] !== null)) {
+        const alternative = {...bootstrap, versionedState: null, ownerHistory: null, approvedMapping: null, [source]: bootstrap[source]};
+        try {
+          if (!same(resolveShiftRotationBootstrap(alternative).rotation, selected.rotation)) add("conflicting_bootstrap_source");
+        } catch { add("invalid_bootstrap_alternative"); }
+      }
+      const width = type === "delivery" ? 1 : 3;
+      const expected = consumeRotationPositions(selected.rotation, dates.length * width);
+      // Validate the resulting boundary too, including safe-integer round overflow.
+      consumeRotationPositions(expected.nextRotation, 0);
+      const rowIds = dates.map((date) => `shift_${type}_${date.replaceAll("-", "")}`);
+      for (const observed of evidence.rows) if (!rowIds.includes(observed.shiftId)) add("unexpected_position_evidence");
+      for (const [offset, shiftId] of rowIds.entries()) {
+        const sources = input.source.map((entry, index) => ({entry, index})).filter(({entry}) => entry.row?.id === shiftId);
+        const observed = evidence.rows.filter((row) => row.shiftId === shiftId);
+        const index = sources.length === 1 ? sources[0].index : null;
+        if (sources.length !== 1) add(sources.length ? "ambiguous_lineage_source" : "missing_lineage_source");
+        if (observed.length !== 1) add(observed.length ? "duplicate_position_evidence" : "missing_position_evidence", index);
+        const positions = expected.positions.slice(offset * width, (offset + 1) * width);
+        if (sources.length === 1) {
+          const row = sources[0].entry.row;
+          if (row.type !== type || row.date !== dates[offset]) add("lineage_source_mismatch", index);
+          if (!Array.isArray(row.rotationOwnerUserIds) || !same(row.rotationOwnerUserIds, positions.map((position) => position.rotationOwnerUserId))) {
+            add("rotation_owner_sequence_mismatch", index);
+          }
+        }
+        if (observed.length === 1 && !same(observed[0].positions, positions.map(({roundNumber, positionInRound}) => ({roundNumber, positionInRound})))) {
+          add("rotation_position_mismatch", index);
+        }
+      }
+      if (!same(evidence.rotationAfterHorizon, expected.nextRotation)) add("rotation_cursor_mismatch");
+      summaries[type] = {status: findings.length === start ? "consistent" : "findings", selectedSource: selected.source,
+        bootstrapDigest: digest(selected), expectedPositionCount: expected.positions.length};
+    } catch {
+      add("invalid_lineage_evidence"); summaries[type] = {status: "rejected"};
+    }
+  }
+  return summaries;
+};
+
 /** Audits supplied evidence, never certifies its capture or invents rotation lineage. */
 const auditShiftPlanning = async (evidence, target) => {
   requireValue(Buffer.byteLength(JSON.stringify(evidence)) <= MAX_BYTES);
   const input = structuredClone(evidence);
   requireValue(exact(input, ["schemaVersion", "target", "capturedAt", "aliases", "tabs", "workbookVersion",
-    "spreadsheet", "source", "members", "expectedDates"]) && input.schemaVersion === 1);
+    "spreadsheet", "source", "members", "expectedDates", ...(input.schemaVersion === 2 ? ["lineage"] : [])]) &&
+    [1, 2].includes(input.schemaVersion));
   requireValue(exact(target, ["projectId", "environment", "workbookId"]) &&
     /^[a-z][a-z0-9-]{4,62}$/.test(target.projectId) && same(input.target, target));
   requireValue(typeof input.capturedAt === "string" && /^\d{4}-\d{2}-\d{2}T/.test(input.capturedAt) &&
@@ -165,9 +269,11 @@ const auditShiftPlanning = async (evidence, target) => {
       add("unreadable_sheet_snapshot"); crossStore = "rejected";
     }
   }
-  const body = {schemaVersion: 1, mode: "audit", scope: "supplied_snapshot", inputDigest: digest(input),
-    readyForRepair: false, crossStore, findings,
-    pendingChecks: ["rotation_lineage_and_rounds", "bootstrap_mapping_and_last_helper", "historical_eligibility_and_boundary_helpers", "trusted_capture_and_live_completeness"],
+  const lineage = input.schemaVersion === 2 ? auditLineage(input, findings) : null;
+  const body = {schemaVersion: input.schemaVersion, mode: "audit", scope: "supplied_snapshot", inputDigest: digest(input),
+    readyForRepair: false, crossStore, findings, ...(lineage ? {lineage} : {}),
+    pendingChecks: [...(lineage ? [] : ["rotation_lineage_and_rounds", "bootstrap_mapping_and_last_helper"]),
+      "historical_eligibility_and_boundary_helpers", "trusted_capture_and_live_completeness"],
     status: findings.length ? "findings" : "no_findings_in_checked_scope"};
   return {...body, reportDigest: digest(body)};
 };

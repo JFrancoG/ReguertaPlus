@@ -177,9 +177,182 @@ test("CLI writes only reports and rejects apply, wrong target and malformed inpu
     const apply = [...args]; apply[2] = "apply"; result = run(apply); assert.equal(result.status, 1); assert.equal(result.stdout, "");
     result = run([...args, "--apply", "yes"]); assert.equal(result.status, 1);
     const wrong = [...args]; wrong[6] = "wrong-project"; assert.equal(run(wrong).status, 1);
+    writeFileSync(path, JSON.stringify(await lineageFixture())); result = run();
+    assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).schemaVersion, 2);
+    assert.equal(JSON.parse(result.stdout).lineage.market.status, "consistent");
     input.source[0].row.source = "planner"; writeFileSync(path, JSON.stringify(input));
     result = run(); assert.equal(result.status, 2); assert.ok(codes(JSON.parse(result.stdout)).includes("invalid_source"));
     writeFileSync(path, "private malformed payload"); result = run();
     assert.equal(result.status, 1); assert.doesNotMatch(result.stderr, /private malformed payload/);
   } finally { rmSync(directory, {recursive: true, force: true}); }
+});
+
+const rotation = (type, roundNumber = 1, nextMemberIndex = 0) => ({schemaVersion: 1, type,
+  cohortUserIds: ["a", "b", "c", "d"], roundNumber, nextMemberIndex});
+const bootstrap = (type) => ({type, eligibleUserIds: ["a", "b", "c", "d"], isTrulyNewRotation: false,
+  versionedState: {revision: "captured-before-horizon", digest: "captured-state-ref", provenance: "fixture-state", rotation: rotation(type)},
+  ownerHistory: null, approvedMapping: null, legacyDeliveryHelper: null});
+const lineageFixture = async () => {
+  const input = await fixture(); input.schemaVersion = 2;
+  input.lineage = {
+    delivery: {beforeDate: "2026-08-27", bootstrap: bootstrap("delivery"), rotationAfterHorizon: rotation("delivery", 1, 3),
+      rows: input.source.slice(0, 3).map(({row}, index) => ({shiftId: row.id, positions: [{roundNumber: 1, positionInRound: index + 1}]}))},
+    market: {beforeDate: "2026-09-20", bootstrap: bootstrap("market"), rotationAfterHorizon: rotation("market", 1, 3),
+      rows: [{shiftId: input.source[3].row.id, positions: [1, 2, 3].map((positionInRound) => ({roundNumber: 1, positionInRound}))}]},
+  };
+  return input;
+};
+const approvedMapping = (type, roundNumber = 1, nextMemberIndex = 0) => ({approvalStatus: "approved", type,
+  orderedUserIds: ["a", "b", "c", "d"], roundNumber, nextMemberIndex, stableTieOrder: ["a", "b", "c", "d"],
+  revision: "review-r1", digest: "review-d1", provenance: "review-fixture", evidence: "reviewed mapping fixture"});
+const legacyHelper = (userId) => ({kind: "unique", userId, evidenceRevision: "helper-r1", evidenceDigest: "helper-d1"});
+const ownerHistory = (type) => ({revision: "history-r1", digest: "history-d1", provenance: "captured-owner-history",
+  entries: [1, 2, 3, 4].map((positionInRound, index) => ({type, chronologySequence: index,
+    roundNumber: 1, positionInRound, rotationOwnerUserId: ["a", "b", "c", "d"][index],
+    cohortUserIds: ["a", "b", "c", "d"], evidence: `owner-position-${index}`}))});
+
+test("v2 binds both lineage streams to source owners, round positions and final cursors", async () => {
+  const input = await lineageFixture(), before = clone(input), report = await auditShiftPlanning(input, target);
+  assert.deepEqual(report.findings, []); assert.equal(report.schemaVersion, 2);
+  assert.equal(report.lineage.delivery.status, "consistent"); assert.equal(report.lineage.market.status, "consistent");
+  assert.equal(report.lineage.market.expectedPositionCount, 3); assert.equal(report.readyForRepair, false);
+  assert.ok(!report.pendingChecks.includes("rotation_lineage_and_rounds"));
+  assert.deepEqual(input, before); assert.deepEqual(await auditShiftPlanning(input, target), report);
+  input.lineage.delivery.bootstrap.versionedState.revision = "new-observation";
+  assert.notEqual((await auditShiftPlanning(input, target)).reportDigest, report.reportDigest);
+});
+
+test("v1 remains scoped and rejects silently adding v2 evidence to its schema", async () => {
+  const input = await fixture(), report = await auditShiftPlanning(input, target);
+  assert.equal(report.schemaVersion, 1); assert.equal(report.lineage, undefined);
+  assert.ok(report.pendingChecks.includes("rotation_lineage_and_rounds"));
+  input.lineage = {}; await assert.rejects(auditShiftPlanning(input, target));
+});
+
+test("consumes delivery across seasons and three market positions across a round boundary", async () => {
+  const input = await lineageFixture();
+  for (const type of ["delivery", "market"]) {
+    input.lineage[type].bootstrap.versionedState.rotation = rotation(type, 7, 3);
+    input.lineage[type].rotationAfterHorizon = rotation(type, 8, 2);
+  }
+  input.source.slice(0, 3).forEach(({row}, index) => { row.rotationOwnerUserIds = [["d"], ["a"], ["b"]][index]; });
+  input.lineage.delivery.rows.forEach((row, index) => { row.positions = [[{roundNumber: 7, positionInRound: 4}],
+    [{roundNumber: 8, positionInRound: 1}], [{roundNumber: 8, positionInRound: 2}]][index]; });
+  input.source[3].row.rotationOwnerUserIds = ["d", "a", "b"];
+  input.lineage.market.rows[0].positions = [{roundNumber: 7, positionInRound: 4}, {roundNumber: 8, positionInRound: 1}, {roundNumber: 8, positionInRound: 2}];
+  const report = await auditShiftPlanning(input, target);
+  assert.equal(report.lineage.delivery.status, "consistent"); assert.equal(report.lineage.market.status, "consistent");
+  // Effective assignments remain a/b/c: they are deliberately different from owners.
+  assert.ok(!codes(report).includes("rotation_owner_sequence_mismatch"));
+});
+
+test("repeated/skipped owners, forged rounds and final cursor drift are independently diagnosed", async () => {
+  const input = await lineageFixture(); input.source[1].row.rotationOwnerUserIds = ["a"];
+  input.source[3].row.rotationOwnerUserIds = ["a", "c", "d"];
+  input.lineage.delivery.rows[2].positions[0].roundNumber = 2;
+  input.lineage.market.rotationAfterHorizon.nextMemberIndex = 0;
+  const report = await auditShiftPlanning(input, target);
+  assert.equal(report.findings.filter((item) => item.code === "rotation_owner_sequence_mismatch").length, 2);
+  assert.ok(codes(report).includes("rotation_position_mismatch")); assert.ok(codes(report).includes("rotation_cursor_mismatch"));
+});
+
+test("assignment-only swaps do not change lineage evidence or owner sequence", async () => {
+  const input = await lineageFixture(); input.source[1].row.assignedUserIds = ["d"]; input.source[0].row.helperUserId = "d";
+  const report = await auditShiftPlanning(input, target);
+  assert.equal(report.lineage.delivery.status, "consistent");
+  assert.ok(!codes(report).includes("rotation_owner_sequence_mismatch"));
+});
+
+test("missing evidence, duplicate positions and truncated source never pass lineage", async () => {
+  let input = await lineageFixture(); input.lineage.delivery = null;
+  assert.ok(codes(await auditShiftPlanning(input, target)).includes("missing_lineage_evidence"));
+  input = await lineageFixture(); input.lineage.delivery.rows.pop();
+  input.lineage.market.rows.push(clone(input.lineage.market.rows[0])); input.source.splice(1, 1);
+  const report = await auditShiftPlanning(input, target);
+  for (const code of ["missing_lineage_source", "missing_position_evidence", "duplicate_position_evidence"]) assert.ok(codes(report).includes(code));
+});
+
+test("corrupt authoritative state never falls back to a valid mapping", async () => {
+  const input = await lineageFixture(); const b = input.lineage.market.bootstrap;
+  b.versionedState.rotation.nextMemberIndex = 9; b.approvedMapping = approvedMapping("market");
+  const report = await auditShiftPlanning(input, target);
+  assert.equal(report.lineage.market.status, "rejected"); assert.ok(codes(report).includes("invalid_rotation_bootstrap"));
+});
+
+test("valid state keeps precedence while contradictory lower-priority evidence is surfaced", async () => {
+  const input = await lineageFixture(); const b = input.lineage.market.bootstrap;
+  b.approvedMapping = approvedMapping("market", 4, 1);
+  let report = await auditShiftPlanning(input, target);
+  assert.equal(report.lineage.market.selectedSource, "versionedState"); assert.ok(codes(report).includes("conflicting_bootstrap_source"));
+  b.approvedMapping.stableTieOrder.reverse(); report = await auditShiftPlanning(input, target);
+  assert.ok(codes(report).includes("invalid_bootstrap_alternative"));
+});
+
+test("history is validated in chronology order and binds the cursor before the audited window", async () => {
+  const input = await lineageFixture();
+  for (const type of ["delivery", "market"]) {
+    const evidence = input.lineage[type], b = evidence.bootstrap;
+    b.versionedState = null; b.ownerHistory = ownerHistory(type); b.ownerHistory.entries.reverse();
+    if (type === "delivery") b.legacyDeliveryHelper = legacyHelper("a");
+    evidence.rows.forEach((row) => row.positions.forEach((position) => { position.roundNumber = 2; }));
+    evidence.rotationAfterHorizon.roundNumber = 2;
+  }
+  let report = await auditShiftPlanning(input, target);
+  assert.equal(report.lineage.delivery.status, "consistent"); assert.equal(report.lineage.market.selectedSource, "ownerHistory");
+  input.lineage.market.bootstrap.ownerHistory.entries.pop();
+  report = await auditShiftPlanning(input, target);
+  assert.equal(report.lineage.market.status, "consistent");
+  // A suffix is valid history; remove an internal chronology position to prove the gap.
+  input.lineage.market.bootstrap.ownerHistory.entries.splice(1, 1);
+  assert.ok(codes(await auditShiftPlanning(input, target)).includes("invalid_rotation_bootstrap"));
+});
+
+test("approved mappings enforce tie order and the inherited delivery helper gate", async () => {
+  const input = await lineageFixture(); const b = input.lineage.delivery.bootstrap;
+  b.versionedState = null; b.approvedMapping = approvedMapping("delivery"); b.legacyDeliveryHelper = legacyHelper("a");
+  let report = await auditShiftPlanning(input, target); assert.equal(report.lineage.delivery.status, "consistent");
+  for (const helper of [null, legacyHelper("b"), {kind: "ambiguous", candidateUserIds: ["a", "b"], evidenceDigest: "ambiguous"}]) {
+    b.legacyDeliveryHelper = helper;
+    assert.ok(codes(await auditShiftPlanning(input, target)).includes("invalid_rotation_bootstrap"));
+  }
+  b.legacyDeliveryHelper = legacyHelper("a"); b.approvedMapping.stableTieOrder.reverse();
+  assert.ok(codes(await auditShiftPlanning(input, target)).includes("invalid_rotation_bootstrap"));
+});
+
+test("boundary/type/roster mismatch and malformed lineage contracts are rejected", async () => {
+  for (const [mutate, expected] of [
+    [(input) => { input.lineage.delivery.beforeDate = "2026-09-03"; }, "lineage_boundary_mismatch"],
+    [(input) => { input.lineage.delivery.bootstrap.type = "market"; }, "lineage_boundary_mismatch"],
+    [(input) => { input.lineage.delivery.bootstrap.eligibleUserIds.pop(); }, "bootstrap_roster_mismatch"],
+    [(input) => { input.lineage.market.rows[0].positions[0].extra = true; }, "invalid_lineage_evidence"],
+    [(input) => { input.lineage.market.bootstrap.versionedState = null; }, "invalid_rotation_bootstrap"],
+    [(input) => { input.lineage.market.rows[0].shiftId = "unrelated-shift"; }, "unexpected_position_evidence"],
+    [(input) => { input.lineage.delivery.bootstrap.legacyDeliveryHelper = {...legacyHelper("a"), kind: "guess"}; }, "invalid_lineage_evidence"],
+    [(input) => { input.lineage.market.bootstrap.ownerHistory = {...ownerHistory("market"), entries: Array(1501).fill(ownerHistory("market").entries[0])}; }, "invalid_lineage_evidence"],
+  ]) { const input = await lineageFixture(); mutate(input); assert.ok(codes(await auditShiftPlanning(input, target)).includes(expected), expected); }
+});
+
+
+test("ten market dates consume thirty owner positions with exact round and cursor continuity", async () => {
+  const input = await lineageFixture(), source = clone(input.source[3]);
+  const dates = ["2026-09-20", "2026-10-20", "2026-11-20", "2026-12-20", "2027-01-20", "2027-02-20", "2027-03-20", "2027-04-20", "2027-05-20", "2027-06-20"];
+  const groups = [["a", "b", "c"], ["d", "a", "b"], ["c", "d", "a"], ["b", "c", "d"]];
+  input.expectedDates.market = dates;
+  input.source = input.source.slice(0, 3).concat(dates.map((date, index) => ({...clone(source), row: {...clone(source.row),
+    id: `shift_market_${date.replaceAll("-", "")}`, date, rotationOwnerUserIds: groups[index % 4], assignedUserIds: groups[index % 4]}})));
+  input.lineage.market.rows = input.source.slice(3).map(({row}, index) => ({shiftId: row.id,
+    positions: [0, 1, 2].map((offset) => ({roundNumber: Math.floor((index * 3 + offset) / 4) + 1, positionInRound: (index * 3 + offset) % 4 + 1}))}));
+  input.lineage.market.rotationAfterHorizon = rotation("market", 8, 2);
+  const report = await auditShiftPlanning(input, target);
+  assert.equal(report.lineage.market.status, "consistent"); assert.equal(report.lineage.market.expectedPositionCount, 30);
+  input.source[12].row.rotationOwnerUserIds = ["a", "b", "c"];
+  assert.ok(codes(await auditShiftPlanning(input, target)).includes("rotation_owner_sequence_mismatch"));
+});
+
+test("truly new rotation requires an approved mapping at round one and cursor zero", async () => {
+  const input = await lineageFixture(), b = input.lineage.market.bootstrap;
+  b.versionedState = null; b.isTrulyNewRotation = true; b.approvedMapping = approvedMapping("market");
+  assert.equal((await auditShiftPlanning(input, target)).lineage.market.status, "consistent");
+  b.approvedMapping.nextMemberIndex = 1;
+  assert.ok(codes(await auditShiftPlanning(input, target)).includes("invalid_rotation_bootstrap"));
 });

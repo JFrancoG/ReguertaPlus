@@ -326,11 +326,11 @@ npm run --silent audit:shift-planning -- --mode audit --input /ruta/absoluta/sna
 Los tres identificadores deben coincidir exactamente con `target` del archivo;
 los valores del ejemplo son sintéticos. No se selecciona el proyecto por variables
 ambientales. La captura live y su auditor autorizado siguen siendo un paso separado.
-La evidencia JSON v1 contiene exactamente:
+La evidencia JSON v1 contiene exactamente estos campos; v2 añade `lineage`:
 
 | Campo | Contenido |
 | --- | --- |
-| `schemaVersion` | `1` |
+| `schemaVersion` | `1` o `2` |
 | `target` | `projectId`, `environment`, `workbookId` |
 | `capturedAt` | Fecha UTC ISO, con milisegundos, declarada por la captura |
 | `aliases`, `tabs` | Aliases y mapeo explícito del contrato de importación |
@@ -359,11 +359,53 @@ un origen inválido la deja sin evaluar. Nunca se interpreta ausencia como borra
 Stdout contiene JSON con `inputDigest`, `reportDigest`, hallazgos y comprobaciones
 pendientes; stderr muestra un resumen. Salidas: `0` sin hallazgos **en el alcance
 comprobado**, `2` con hallazgos, `1` con argumentos/evidencia rechazados. La herramienta
-no certifica captura, permisos, completitud live, calendario aprobado, linaje/rondas,
-bootstrap, elegibilidad histórica ni ayudantes en los extremos. Siempre devuelve
+no certifica captura, permisos, completitud live ni calendario aprobado. En v1,
+linaje/rondas y bootstrap quedan sin evaluar; la elegibilidad histórica y los
+ayudantes en los extremos siguen pendientes en ambas versiones. Siempre devuelve
 `readyForRepair: false`; incluso `0` no completa HU-083 ni autoriza apply. El digest
 vincula exactamente el archivo normalizado (incluido el orden de arrays), no acredita
 su procedencia. Validación local: `npm run test:shift-planning:audit`.
+
+El undécimo corte conserva v1 y añade evidencia v2 de linaje para ambos tipos:
+`lineage: {delivery: ..., market: ...}`. Cada tipo puede ser `null` (hallazgo de
+falta de evidencia) o contener exactamente:
+
+| Campo | Evidencia observada |
+| --- | --- |
+| `beforeDate` | Primera fecha de `expectedDates[type]`; el bootstrap debe describir el estado inmediatamente anterior a ese horizonte |
+| `bootstrap` | Contrato `ShiftRotationBootstrapInput` de HU-082, con los siete campos explícitos: `type`, `eligibleUserIds`, `isTrulyNewRotation`, `versionedState`, `ownerHistory`, `approvedMapping`, `legacyDeliveryHelper`; los cuatro últimos admiten `null` |
+| `rows` | `[{shiftId, positions: [{roundNumber, positionInRound}, ...]}]`; metadatos observados de cada turno del horizonte, una posición para reparto y tres para mercado |
+| `rotationAfterHorizon` | Cursor observado después del horizonte completo: `schemaVersion`, `type`, `cohortUserIds`, `roundNumber`, `nextMemberIndex` |
+
+Los formatos anidados de bootstrap son los existentes en
+[`shift-rotation-bootstrap.ts`](src/shift-rotation-bootstrap.ts); se comprueban también
+sus claves y límites antes de resolverlos. Los propietarios salen exclusivamente de
+`source[].row.rotationOwnerUserIds`, nunca de los asignados efectivos. El auditor
+ordena las fechas y consume las posiciones con `consumeRotationPositions`: compara
+propietarios, ronda/posición y cursor final, sin reiniciar en septiembre. Mercado
+consume tres posiciones por fecha, incluso si un grupo cruza una ronda. Faltas o
+duplicados en `rows` o en su origen no cuentan como una comprobación satisfactoria.
+
+Se conserva la prioridad HU-082: estado versionado, historial reproducible y mapeo
+aprobado; un estado corrupto no permite fallback. La auditoría informa por separado
+fuentes alternativas inválidas o contradictorias, aunque la selección principal sea
+válida. El historial se ordena por su secuencia explícita y los mapeos respetan orden
+estable y continuidad del ayudante heredado según HU-082. El estado versionado
+conserva su excepción de helper heredado; comprobar ayudantes fuera del horizonte
+sigue pendiente. No se inventa un mapeo para resolver un conflicto.
+
+La cohorte debe coincidir con el roster elegible suministrado para ese tipo. Esta
+versión audita una cohorte congelada por horizonte; no reconstruye cambios históricos
+de membresía ni aprueba la política HU-084. Las referencias `revision`, `digest` y
+`provenance`, igual que `approvalStatus`, son evidencia declarada en el archivo: no
+se certifica su origen, la aprobación externa, la captura ni el calendario. Un cursor
+capturado después de generar filas no puede etiquetarse como estado anterior.
+
+El informe v2 añade `lineage` por tipo con estado, fuente seleccionada y digest del
+bootstrap resuelto, sin volcar UIDs ni evidencia privada. La ausencia o el rechazo se
+reflejan en hallazgos; v1 sigue marcando linaje/bootstrap como no evaluados. Las dos
+versiones mantienen `readyForRepair: false`; coherencia interna no equivale a permiso
+para preparar/aplicar una reparación live. La CLI y sus códigos de salida no cambian.
 
 El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
 (`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y

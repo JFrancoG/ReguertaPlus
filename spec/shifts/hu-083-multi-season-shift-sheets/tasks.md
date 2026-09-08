@@ -191,6 +191,10 @@
     identities, source/projection validity, current eligibility, helpers and
     cross-store comparison. Live capture/completeness and historical rotation/
     bootstrap/round evidence remain unevaluated; no repair readiness is claimed.
+  - [x] Eleventh local cut adds v2 bootstrap, owner/round positions and final-cursor
+    consistency using HU-082 resolution/consumption. Alternative conflicts and
+    legacy helper gates are explicit; trusted capture, approved horizon and
+    historical membership/boundary evidence still prevent repair readiness.
 - [ ] Implement deterministic dry-run repair plan and digest.
 - [ ] Define the immutable post-repair two-type migration-baseline revision/digest;
   persist/read it back only on safe apply, or emit its expected digest plus exact

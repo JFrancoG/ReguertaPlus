@@ -483,6 +483,56 @@ project reorder is untouched. Next audit work must bind historical rotation/boot
 and approved horizon evidence before any dry-run repair; human conversion and the
 safe-apply/zero-write rehearsal remain separate pending story gates.
 
+### Eleventh local cut — lineage and round audit (approved 2026-09-08)
+
+Tenth cut is committed and pushed as `4189e7b`; its unchanged lint/build, audit 14/14
+and Sheets 44/44 results are reused for delivery. Extend the existing offline auditor
+with explicit schema-v2 lineage evidence for both types; preserve v1 as a scoped
+audit with lineage unevaluated. Each type binds bootstrap evidence immediately before
+the first expected date, observed per-row round positions and the cursor after the
+whole expected horizon. Reuse HU-082 bootstrap resolution and position consumption.
+
+Check exact roster/type/boundary, missing/corrupt bootstrap, contradictory alternative
+sources, owner order, per-row round/position and final cursor. Market consumes three
+positions per date, including round boundaries. Effective assignments never supply
+ownership. Keep HU-082 source precedence; report alternative conflicts separately
+instead of changing planner behavior or hiding them. Do not infer missing historical
+mappings, approve admin evidence, persist a baseline or claim live capture authority.
+
+Exercise versioned state/history/approved mappings, cross-season/round continuation,
+market groups, gaps/repeats, corrupted state without fallback, legacy helper gates,
+contradictory evidence, assignment-only swaps, missing/duplicate position evidence,
+v1 compatibility and deterministic digests. Local/offline only: no new endpoint,
+network client, live data, IAM, deploy, repair or conversion. Repair readiness stays
+false; approved calendar/capture, historical eligibility and boundary helpers remain
+explicit limitations before dry-run/repair and the guarded rehearsal.
+
+### Eleventh-cut validation checkpoint — 2026-09-08
+
+The existing offline auditor accepts strict v2 lineage evidence for delivery and
+market while preserving the v1 scoped contract. It resolves bootstrap with HU-082
+precedence, checks contradictory alternatives separately, consumes the expected
+horizon and compares observed owners/round positions/final cursor. It never derives
+ownership from effective assignments. Missing/duplicate rows or evidence, corrupt
+state, conflicting mappings and inherited-helper failures remain explicit findings.
+No runtime planning/Functions/mobile contract changed and no new service was added.
+
+Validation: Functions lint/build and Node syntax check passed; audit 27/27 (including
+v1/v2 CLI execution, exact 30-position market continuation, cross-season/round owners,
+history chronology, approved-mapping tie order, corrupt state without fallback,
+alternative conflicts, legacy helper, malformed/bounded evidence and assignment-only
+swaps); Sheets 44/44; planning 294 passed with 51 emulator-only skips. `git diff
+--check` passed. No emulator suite was rerun because this cut only extends the offline
+CLI and reuses unchanged SDK-free HU-082 algorithms.
+
+Remote HEAD is tenth-cut `4189e7b`; eleventh-cut changes remain local and uncommitted.
+Issue #267 remains open. The main-checkout Xcode reorder is preserved. There was no
+live capture, Firebase/Sheets write, notification, IAM change or deployment. Even v2
+consistency does not authenticate captured/approved evidence or certify calendar,
+historical membership and boundary helpers; repair readiness remains false. Dry-run
+repair/baseline/rollback tooling, human conversion and the guarded rehearsal remain
+pending before story closure.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its
