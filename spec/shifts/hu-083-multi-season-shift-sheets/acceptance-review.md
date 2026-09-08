@@ -54,13 +54,29 @@ changes between apply and write-back also reject. Functions lint/build pass;
 emulator cases pass without skips/failures. No live data is used or changed; this
 cut remains local and uncommitted.
 
+## Cut-23 local update
+
+Cut 22 is pushed as `e51d16c`. Cut 23 creates/appends readable seasonal tabs
+through the existing atomic adapter: literal dates, names/phones, delivery helper
+and three-person market blocks. It preserves existing assignments and annotations;
+changed identities, ambiguous dates and pending replacements reject before submit.
+Visible data binds operation digests; retained operations only inspect. The
+round-trip test imports new tabs, including a calendar override across seasons.
+Validation: Functions lint/build, 183/183 local cases, import emulator 45/45 and
+consumer emulator 17/17; zero failures/skips. Sheets is a fake, members fictional.
+Worker composition with trusted Firestore labels/calendar, adoption of other
+historical layouts, legacy generation/sync and live develop acceptance remain open.
+No mobile contract, endpoint, live data, deploy, IAM or FCM change. Cut 23 is local.
+
+
 ## Result
 
 The canonical adapter, private sync/import entry points, controlled-event audit,
 repair tooling and the three seasonal human writer routes have local/emulator
-evidence, including reviewed human apply/write-back. HU-083 remains open:
-generation/new-tab creation and the activation worker still need the selected
-readable contract, and legacy sync remains separate; real-data
+evidence, including reviewed human apply/write-back and readable generation/new-tab
+creation. HU-083 remains open: the activation worker needs trusted display/calendar
+composition, historical layouts need adoption, and legacy generation/sync remain
+separate; real-data
 safe-apply or exact zero-write deferral is also incomplete. The archive/technical
 conversion proposal is not selected for the user workflow.
 
@@ -72,7 +88,7 @@ schemas. Obtain the missing real inputs for the operational evidence gates.
 | Requirement | Current evidence | Remaining boundary |
 | --- | --- | --- |
 | Explicit environment/workbook and seasonal aliases | [Config](../../../functions/src/shift-sheets-config.ts), config tests; new worker/import reject missing or cross-environment authority | Cut 19 routes legacy callers through the shared strict resolver; deployed configuration remains unverified |
-| Stable identity, create/merge, carryover and manual-field preservation | [Canonical adapter](../../../functions/src/shift-sheets.ts), [behavior tests](../../../functions/test/shift-sheets.test.cjs) | Actual human tabs reject technical headers; no live conversion is certified |
+| Stable identity, create/merge, carryover and manual-field preservation | [Canonical adapter](../../../functions/src/shift-sheets.ts), [behavior tests](../../../functions/test/shift-sheets.test.cjs) | Readable generation is local in cut 23; other historical headers require adoption; no live conversion is certified |
 | Seasonal union and guarded effective assignments | [Import reader](../../../functions/src/shift-sheets-import.ts), [planner](../../../functions/src/shift-sheets-import-plan.ts), [Firestore adapter](../../../functions/src/shift-sheets-firestore-import.ts) | Human apply/write-back is locally integrated in cut 22; legacy sync remains separate |
 | Explicit pull, claims, exact manifest and bounded retry | [Worker](../../../functions/src/shift-planning-sheets-worker.ts), [consumer](../../../functions/src/shift-planning-sheets-consumer.ts), exported `executeShiftPlanningSheetsSync` | No live invoker/scheduler configuration or deployment |
 | Durable Sheets attempt, replay and unknown-outcome reconciliation | Consumer/import emulator cases, shared workbook reservation, exact cells/marker/version checks | Protocol evidence is not an external-writer fence or physical cross-store CAS |

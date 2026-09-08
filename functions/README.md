@@ -1450,6 +1450,44 @@ Parámetros opcionales:
 - `envs=develop,production` (lista separada por comas)
 
 
+## Generación legible sin borrados (HU-083, corte 23)
+
+El adaptador `createShiftSheetsAdapter` admite `generationRows` junto a las
+proyecciones del backend. Cada registro aporta fecha visible, nombres/teléfonos
+con sus IDs y helper; se exige correspondencia con los IDs de la proyección,
+identidades no ambiguas y fechas válidas. El calendario efectivo puede mover un
+reparto dentro de su semana, pero la fecha lógica conserva la autoridad de ruta,
+incluso al cruzar agosto/septiembre. Estos datos visibles participan en el digest
+que vincula autorización, marcador y lectura posterior.
+
+Las pestañas nuevas se crean en el mismo `batchUpdate` que sus celdas y marcador.
+El reparto usa cabecera `Fecha | Persona | Teléfono | Notas | Cambio | Ayuda`;
+el mercado, `Fecha / Persona | Teléfono | Notas / Cambio`, seguido de una fila de
+fecha y exactamente tres personas. Son valores literales `dd/mm/aaaa` y nombres,
+sin columnas técnicas visibles. El importador existente las reconoce con la
+cabecera declarada como decoración revisada; la prueba de ida y vuelta incluye
+un reparto cuya fecha visible cruza de temporada.
+
+La ampliación acepta esta cabecera exacta o una pestaña vacía, conserva las filas
+existentes y añade al final las fechas ausentes; no reordena ni borra filas.
+Una asignación/teléfono diferente, fecha ambigua o sustitución pendiente exige
+revisión. Solo el helper F de un reparto existente se refresca desde el backend;
+D:E y C de mercado se conservan, incluidas notas, fórmulas y formato. Las fórmulas,
+protecciones y celdas combinadas impiden escribir en celdas gestionadas. Se
+mantienen los límites de lectura, cuadrícula y tamaño de petición del adaptador.
+
+La llamada reutiliza autorización previa, envío único y recuperación mediante
+`inspect`. Un resultado incierto no prueba un rechazo y nunca se reenvía desde
+la recuperación. El llamador debe persistir/vincular los datos visibles y excluir
+escritores concurrentes; la API de Sheets no proporciona CAS entre almacenes.
+La composición del worker con socios/calendario de Firestore, la adopción de
+otras cabeceras históricas y la sustitución de la generación/sync antiguos siguen
+pendientes. Este corte no cambia endpoints ni despliega o modifica datos reales.
+
+Validación: lint/build, 183/183 casos locales (10 nuevos) y regresiones de
+importación 45/45 y consumidor 17/17 en Firestore Emulator. Sheets usa un fake
+que aplica lotes atómicos; esta evidencia no sustituye aceptación en develop.
+
 ## Aplicación y escritura legibles (HU-083, corte 22)
 
 El endpoint privado de importación completa `prepare → apply → writeBack` también

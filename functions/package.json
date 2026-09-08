@@ -3,7 +3,7 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
-    "test:shift-sheets": "npm run build && node --test test/shift-sheets-config.test.cjs test/shift-sheets.test.cjs test/shift-sheets-import.test.cjs test/shift-sheets-import-http.test.cjs",
+    "test:shift-sheets": "npm run build && node --test test/shift-sheets-config.test.cjs test/shift-sheets.test.cjs test/shift-sheets-human-generation.test.cjs test/shift-sheets-import.test.cjs test/shift-sheets-import-http.test.cjs",
     "test:shift-planning:public-event-audit:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-public-event-audit --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-firestore-public-event-audit.test.cjs\"",
     "test:order-reminder:unit": "npm run build && node --test test/order-reminder-scheduler.test.cjs",
     "test:firebase-admin:contract": "node --test test/firebase-admin-modernization.test.cjs",

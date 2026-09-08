@@ -38,6 +38,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(sheets): generate readable seasonal tabs
+
 - 2026-09-08 | ✨ feat(shifts): plan human sheet conversion offline
 
 - 2026-09-08 | ✨ feat(shifts): rehearse guarded repair transactions

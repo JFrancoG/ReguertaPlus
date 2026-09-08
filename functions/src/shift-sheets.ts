@@ -7,6 +7,15 @@ import {
   quoteShiftSheetsTitle,
   resolveShiftSheetsTab,
 } from "./shift-sheets-config.js";
+import {
+  SHIFT_SHEETS_HUMAN_HEADERS,
+  ShiftSheetsHumanBlock,
+  ShiftSheetsHumanGenerationRow,
+  buildShiftSheetsHumanBlocks,
+  shiftSheetsDateFromCell,
+  shiftSheetsHumanLiteral,
+  shiftSheetsISOWeekKey,
+} from "./shift-sheets-human-layout.js";
 
 export type ShiftSheetsProjectionRow = {
   id: string;
@@ -104,6 +113,7 @@ type OperationInput = {
   operationId: string;
   rows: readonly ShiftSheetsProjectionRow[];
   humanRows?: readonly ShiftSheetsHumanWriteBackRow[];
+  generationRows?: readonly ShiftSheetsHumanGenerationRow[];
 };
 
 const fail = (code: string, message: string): never => {
@@ -188,9 +198,12 @@ const projectionDigestFor = (
   config: ShiftSheetsConfig,
   projections: readonly Projection[],
   humanRows: readonly ShiftSheetsHumanWriteBackRow[] = [],
+  humanBlocks: readonly ShiftSheetsHumanBlock[] = [],
 ): string => digest({
   environment: config.environment, workbookId: config.workbookId,
   headers: SHIFT_SHEETS_HEADERS, projections,
+  ...(humanBlocks.length ? {humanHeaders: SHIFT_SHEETS_HUMAN_HEADERS,
+    humanBlocks} : {}),
   ...(humanRows.length ? {humanRows: humanRows.map((row) => ({
     id: row.id, sheetName: row.sheetName, sheetId: row.sheetId,
     rowNumber: row.rowNumber, after: row.after,
@@ -363,6 +376,152 @@ const requireHumanImage = (
   }
 };
 
+// Generation owns the labeled layout below. Other human decorations require
+// explicit adoption; a familiar tab title alone never authorizes a rewrite.
+const humanGenerationLocations = (
+  config: ShiftSheetsConfig, sheet: Sheet, type: "delivery" | "market",
+): Map<string, number> => {
+  const cells = shiftSheetsGridRows(sheet);
+  const headers = SHIFT_SHEETS_HUMAN_HEADERS[type];
+  if (headers.some((header, column) =>
+    shiftSheetsHumanLiteral(cells[0]?.[column]) !== header)) {
+    return fail("sheets_header_mismatch", "Readable tab needs layout review.");
+  }
+  const dates = new Map<string, number>();
+  const weeks = new Set<string>();
+  for (let index = 1; index < cells.length; index += 1) {
+    if (!(cells[index] ?? []).some((cell) => cellText(cell))) continue;
+    const date = shiftSheetsDateFromCell(
+      shiftSheetsHumanLiteral(cells[index]?.[0]),
+    );
+    resolveShiftSheetsTab(config, type, date);
+    const key = type === "delivery" ? shiftSheetsISOWeekKey(date) : date;
+    if (dates.has(date) || weeks.has(key)) {
+      return fail("duplicate_sheets_row", "Readable dates are ambiguous.");
+    }
+    dates.set(date, index);
+    weeks.add(key);
+    const height = type === "delivery" ? 1 : 4;
+    for (let offset = type === "delivery" ? 0 : 1;
+      offset < height; offset += 1) {
+      const column = type === "delivery" ? 1 : 0;
+      if (!shiftSheetsHumanLiteral(cells[index + offset]?.[column]).trim()) {
+        return fail("sheets_manual_conflict", "Readable person is missing.");
+      }
+      shiftSheetsHumanLiteral(cells[index + offset]?.[column + 1]);
+    }
+    index += height - 1;
+  }
+  return dates;
+};
+
+const planHumanGeneration = (
+  config: ShiftSheetsConfig, spreadsheet: Spreadsheet,
+  blocks: readonly ShiftSheetsHumanBlock[],
+): Pick<ShiftSheetsMergePlan, "requests" | "sheets"> => {
+  const requests: Request[] = [];
+  const sheets: {title: string; sheetId: number}[] = [];
+  const usedIds = new Set(spreadsheet.sheets?.map((sheet) =>
+    sheet.properties?.sheetId));
+  for (const title of new Set(blocks.map((block) => block.title))) {
+    const selected = blocks.filter((block) => block.title === title);
+    const type = selected[0].type;
+    const matches = spreadsheet.sheets?.filter((sheet) =>
+      sheet.properties?.title === title) ?? [];
+    if (matches.length > 1) {
+      return fail("duplicate_sheets_tab", "Readable tab is duplicated.");
+    }
+    let sheet = matches[0];
+    if (!sheet) {
+      let sheetId = 1;
+      while (usedIds.has(sheetId)) sheetId += 1;
+      usedIds.add(sheetId);
+      sheet = {properties: {sheetId, title,
+        gridProperties: {rowCount: 1000, columnCount: 26}}};
+      requests.push({addSheet: {properties: sheet.properties}});
+    }
+    validateSheetSize(sheet);
+    const sheetId = sheet.properties?.sheetId as number;
+    sheets.push({title, sheetId});
+    const cells = shiftSheetsGridRows(sheet);
+    const hasContent = cells.some((row) => row.some((cell) => cellText(cell)));
+    const locations = hasContent ?
+      humanGenerationLocations(config, sheet, type) : new Map<string, number>();
+    let nextRow = Math.max(1, cells.reduce((last, row, index) =>
+      row.some((cell) => cellText(cell)) ? index + 1 : last, 1));
+    const patches: {row: number; column: number; value: string}[] = [];
+    if (!hasContent) {
+      SHIFT_SHEETS_HUMAN_HEADERS[type].forEach(
+        (value, column) => patches.push({row: 0, column, value}),
+      );
+    }
+    for (const block of selected) {
+      const existing = locations.get(block.visibleDate);
+      if (type === "delivery" && existing === undefined &&
+        [...locations.keys()].some((date) => shiftSheetsISOWeekKey(date) ===
+          shiftSheetsISOWeekKey(block.visibleDate))) {
+        return fail("sheets_manual_conflict", "Visible delivery date changed.");
+      }
+      const start = existing ?? nextRow;
+      if (existing === undefined) nextRow += block.values.length;
+      block.values.forEach((line, offset) => line.forEach((value, column) => {
+        const annotation = type === "delivery" ?
+          column === 3 || column === 4 : column === 2;
+        if (annotation) {
+          const replacement = type === "delivery" ? column === 4 : offset > 0;
+          if (existing !== undefined && replacement && /^lo hace\s+.+$/i.test(
+            cells[start + offset]?.[column]?.userEnteredValue?.stringValue
+              ?.trim() ?? "",
+          )) fail("sheets_manual_conflict", "Replacement needs import review.");
+          return;
+        }
+        if (existing !== undefined) {
+          const current = shiftSheetsHumanLiteral(
+            cells[start + offset]?.[column],
+          );
+          // Dates may retain their existing literal formatting. Only helper F
+          // is refreshed; changed assignments must pass the reviewed importer.
+          if (offset === 0 && column === 0) return;
+          if (!(type === "delivery" && column === 5)) {
+            if (current !== value) {
+              fail("sheets_manual_conflict",
+                "Existing human assignment differs from generation.");
+            }
+            return;
+          }
+        }
+        if (cellText(cells[start + offset]?.[column]) !== value) {
+          patches.push({row: start + offset, column, value});
+        }
+      }));
+    }
+    if (nextRow > SHIFT_SHEETS_LIMITS.tabRows) {
+      return fail("sheets_limit", "Readable generation exceeds the row limit.");
+    }
+    const grid = sheet.properties?.gridProperties;
+    const width = SHIFT_SHEETS_HUMAN_HEADERS[type].length;
+    if (nextRow > (grid?.rowCount ?? 0) || width > (grid?.columnCount ?? 0)) {
+      requests.push({updateSheetProperties: {
+        properties: {sheetId, gridProperties: {
+          rowCount: Math.max(grid?.rowCount ?? 0, nextRow),
+          columnCount: Math.max(grid?.columnCount ?? 0, width),
+        }}, fields: "gridProperties.rowCount,gridProperties.columnCount",
+      }});
+    }
+    for (const patch of patches) {
+      requireWritable(sheet, cells, patch.row, patch.column);
+      requests.push({updateCells: {
+        range: {sheetId, startRowIndex: patch.row, endRowIndex: patch.row + 1,
+          startColumnIndex: patch.column, endColumnIndex: patch.column + 1},
+        rows: [{values: [patch.value ?
+          {userEnteredValue: {stringValue: patch.value}} : {}]}],
+        fields: "userEnteredValue",
+      }});
+    }
+  }
+  return {requests, sheets};
+};
+
 /**
  * Plans literal cell patches by stable ID without mutating the snapshot.
  * A changed exported rowDigest is a manual-edit conflict, not permission to
@@ -372,6 +531,7 @@ const requireHumanImage = (
  * @param {ShiftSheetsProjectionRow[]} inputRows Detached target projections.
  * @param {ShiftSheetsReviewedRow[]} reviewedRows Exact import before-images.
  * @param {ShiftSheetsHumanWriteBackRow[]} humanRows Reviewed readable blocks.
+ * @param {ShiftSheetsHumanGenerationRow[]} generationRows Trusted display data.
  * @return {ShiftSheetsMergePlan} Pure plan without external operation markers.
  */
 export const planShiftSheetsMerge = (
@@ -380,6 +540,7 @@ export const planShiftSheetsMerge = (
   inputRows: readonly ShiftSheetsProjectionRow[],
   reviewedRows?: readonly ShiftSheetsReviewedRow[],
   humanRows: readonly ShiftSheetsHumanWriteBackRow[] = [],
+  generationRows?: readonly ShiftSheetsHumanGenerationRow[],
 ): ShiftSheetsMergePlan => {
   if (spreadsheet.spreadsheetId !== config.workbookId) {
     return fail(
@@ -388,6 +549,17 @@ export const planShiftSheetsMerge = (
   }
   const projections = buildShiftSheetsProjections(config, inputRows);
   validateHumanRows(projections, humanRows);
+  if (generationRows) {
+    if (humanRows.length || reviewedRows) {
+      return fail("sheets_manual_conflict",
+        "Generation cannot mix import review.");
+    }
+    const blocks = buildShiftSheetsHumanBlocks(
+      config, inputRows, generationRows,
+    );
+    return {...planHumanGeneration(config, spreadsheet, blocks), projections,
+      projectionDigest: projectionDigestFor(config, projections, [], blocks)};
+  }
   const canonical = projections.filter((row) =>
     !humanRows.some((human) => human.id === row.id));
   if (reviewedRows && (reviewedRows.length !== canonical.length ||
@@ -700,8 +872,18 @@ export const createShiftSheetsAdapter = (input: {
     const humanRows = structuredClone([...(operation.humanRows ?? [])])
       .sort((a, b) => a.id.localeCompare(b.id));
     validateHumanRows(projections, humanRows);
-    return {operationId: operation.operationId, projections, humanRows,
-      projectionDigest: projectionDigestFor(config, projections, humanRows)};
+    const generationRows = operation.generationRows ?
+      structuredClone(operation.generationRows) : undefined;
+    if (generationRows && humanRows.length) {
+      return fail("sheets_manual_conflict",
+        "Generation cannot mix import review.");
+    }
+    const humanBlocks = generationRows ?
+      buildShiftSheetsHumanBlocks(config, operation.rows, generationRows) : [];
+    return {generationRows, humanBlocks, operationId: operation.operationId,
+      projections, humanRows,
+      projectionDigest: projectionDigestFor(config, projections, humanRows,
+        humanBlocks)};
   };
 
   const inspectDetached = async (
@@ -723,6 +905,35 @@ export const createShiftSheetsAdapter = (input: {
         if (!sheet || markerFor(sheet)?.metadataValue !== markerValue(
           operation.operationId, operation.projectionDigest,
         )) throw new Error("Operation marker is not current.");
+        const blocks = operation.humanBlocks.filter((block) =>
+          block.title === title);
+        if (blocks.length) {
+          const locations = humanGenerationLocations(
+            config, sheet, blocks[0].type,
+          );
+          const cells = shiftSheetsGridRows(sheet);
+          for (const block of blocks) {
+            const start = locations.get(block.visibleDate);
+            if (start === undefined) {
+              throw new Error("Readable date is missing.");
+            }
+            block.values.forEach((line, offset) => {
+              line.forEach((value, column) => {
+                if ((offset === 0 && column === 0) ||
+                (block.type === "delivery" ? column === 3 || column === 4 :
+                  column === 2)) return;
+                if (shiftSheetsHumanLiteral(
+                  cells[start + offset]?.[column],
+                ) !== value) {
+                  throw new Error("Readable projection changed.");
+                }
+              });
+            });
+          }
+          actual.push(...operation.projections.filter((row) =>
+            row.title === title));
+          continue;
+        }
         const humanRows = operation.humanRows.filter((row) =>
           row.sheetName === title);
         if (humanRows.length) {
@@ -756,7 +967,7 @@ export const createShiftSheetsAdapter = (input: {
         }
       }
       const readBackDigest = projectionDigestFor(config, actual,
-        operation.humanRows);
+        operation.humanRows, operation.humanBlocks);
       if (readBackDigest !== operation.projectionDigest) {
         throw new Error("Projection read-back differs.");
       }
@@ -809,7 +1020,7 @@ export const createShiftSheetsAdapter = (input: {
       });
       if (retained) return inspectDetached(frozen);
       const plan = planShiftSheetsMerge(config, read, rows, reviewedRows,
-        frozen.humanRows);
+        frozen.humanRows, frozen.generationRows);
       const requests = [...plan.requests];
       for (const target of plan.sheets) {
         const sheet = read.sheets?.find((item) =>

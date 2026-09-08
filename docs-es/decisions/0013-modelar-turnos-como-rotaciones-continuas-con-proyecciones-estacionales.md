@@ -872,6 +872,15 @@ anterior; cambios de calendario tras apply impiden la escritura de vuelta. La
 exclusión real de escritores sigue siendo un requisito operativo separado, no una
 garantía de la API de Sheets.
 
+La generación legible usa el mismo adaptador y protocolo de envío. Nombres,
+teléfonos y fechas efectivas de confianza vinculan el digest de proyección;
+pestañas estacionales nuevas, celdas literales y marcadores comparten un lote
+atómico. Las tablas legibles reconocidas añaden fechas ausentes y conservan
+asignaciones/anotaciones existentes; solo se refresca el helper de reparto cuya
+autoridad es el backend. Otros formatos históricos, asignaciones distintas y
+sustituciones pendientes exigen revisión. La composición del worker debe vincular
+socios/calendario de Firestore antes de activar este modo.
+
 ## Estado de aprobación e implementación
 
 El mantenedor aceptó este ADR el 2026-08-24 para implementar HU-082 y validarla

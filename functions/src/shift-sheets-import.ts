@@ -1,4 +1,6 @@
 import type {sheets_v4 as SheetsV4} from "googleapis";
+import {shiftSheetsDateFromCell as dateFromCell,
+  shiftSheetsISOWeekKey as isoWeekKey} from "./shift-sheets-human-layout.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {requireShiftSheetsWorkbookVersion} from
   "./shift-planning-sheets-submission.js";
@@ -67,39 +69,6 @@ const text = (cell?: SheetsV4.Schema$CellData): string => {
     return failShiftSheetsImport("Import cell is oversized.");
   }
   return String(result);
-};
-
-const dateFromCell = (value: string): string => {
-  const cell = normalize(value);
-  const long = /^(\d{1,2}) (?:de )?([a-z]+) (?:de )?(\d{4})$/.exec(cell);
-  if (long) {
-    const month = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
-      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-      .indexOf(long[2]) + 1;
-    if (month) {
-      return `${long[3]}-${String(month).padStart(2, "0")}-` +
-        long[1].padStart(2, "0");
-    }
-  }
-  const european = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cell);
-  if (european) {
-    return `${european[3]}-` +
-    `${european[2].padStart(2, "0")}-${european[1].padStart(2, "0")}`;
-  }
-  if (/^\d{5}$/.test(cell)) {
-    return new Date(Date.UTC(1899, 11, 30) + Number(cell) * 86400000)
-      .toISOString().slice(0, 10);
-  }
-  return cell;
-};
-
-const isoWeekKey = (date: string): string => {
-  const day = new Date(`${date}T00:00:00Z`);
-  day.setUTCDate(day.getUTCDate() + 4 - (day.getUTCDay() || 7));
-  const year = day.getUTCFullYear();
-  const week = Math.ceil(((day.getTime() - Date.UTC(year, 0, 1)) /
-    86400000 + 1) / 7);
-  return `${year}-W${String(week).padStart(2, "0")}`;
 };
 
 // Annotation formulas are preserved by writers and never resolve identities.

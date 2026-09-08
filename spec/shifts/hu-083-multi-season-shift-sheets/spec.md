@@ -55,7 +55,12 @@ Cut twenty-two integrates reviewed human apply/write-back without converting to
 technical tables. The prepared cell images and existing durable submission fence
 preserve other annotations; only an applied `lo hace Nombre` instruction is consumed
 so it cannot override a later assignment again. Preparation stays read-only for
-public shifts. Generation/new tabs, activation worker and legacy sync remain open.
+public shifts.
+Cut twenty-three adds explicit readable generation/new-tab creation to the same
+adapter. Exact labeled tables append absent dates, preserve existing assignments
+and annotations, and refresh only the backend-owned delivery helper. Visible
+labels/calendar dates bind the projection digest. Activation-worker composition,
+adoption of other historical layouts and legacy generation/sync remain open.
 
 - Keep one stable workbook for develop/test and one stable workbook for
   production.

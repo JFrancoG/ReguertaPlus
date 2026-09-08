@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — twenty-first cut pushed; twenty-second human apply/write-back validated locally
+- State: IN PROGRESS — twenty-second cut pushed; twenty-third readable generation validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -840,6 +840,20 @@ Firestore, deployment, IAM or FCM change occurred. Mobile code/contract is uncha
 mobile gates were not rerun. The unrelated main-checkout Xcode reorder is preserved.
 HU-083 remains open. Next: generation/new human tabs and activation integration,
 then legacy sync migration/retirement and the remaining real-data evidence gates.
+
+### Twenty-third local cut — readable generation (approved 2026-09-08)
+
+Cut 22 is pushed as `e51d16c`. Cut 23 creates/appends readable seasonal tabs
+through the existing atomic adapter: literal dates, names/phones, delivery helper
+and three-person market blocks. It preserves existing assignments and annotations;
+changed identities, ambiguous dates and pending replacements reject before submit.
+Visible data binds operation digests; retained operations only inspect. The
+round-trip test imports new tabs, including a calendar override across seasons.
+Validation: Functions lint/build, 183/183 local cases, import emulator 45/45 and
+consumer emulator 17/17; zero failures/skips. Sheets is a fake, members fictional.
+Worker composition with trusted Firestore labels/calendar, adoption of other
+historical layouts, legacy generation/sync and live develop acceptance remain open.
+No mobile contract, endpoint, live data, deploy, IAM or FCM change. Cut 23 is local.
 
 ## Workbook decision
 

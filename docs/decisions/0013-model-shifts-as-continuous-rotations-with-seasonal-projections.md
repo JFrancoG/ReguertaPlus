@@ -841,6 +841,14 @@ visible cells. A retained marker is inspected without requiring the old before-i
 calendar changes after apply reject write-back. Live writer exclusion remains a
 separate operational requirement, not a guarantee of the Sheets API.
 
+Readable generation uses the same adapter and submission protocol. Trusted
+names, phones and effective dates bind the projection digest; missing seasonal
+tabs, literal cells and operation markers share one atomic batch. Recognized
+readable tables append absent dates and preserve existing assignments/annotations;
+only the backend-owned delivery helper is refreshed. Other historical layouts,
+assignment differences and pending replacements require review. Worker composition
+must bind Firestore display/calendar data before this mode is activated.
+
 ## Approval and implementation status
 
 The maintainer accepted this ADR on 2026-08-24 for HU-082 implementation and

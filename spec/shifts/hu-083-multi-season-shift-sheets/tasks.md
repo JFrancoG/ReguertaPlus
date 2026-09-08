@@ -150,6 +150,9 @@ they do not certify live conversion or retire the legacy writer paths.
 - [ ] Replace fixed single ranges with explicit workbook plus seasonal-tab
   routing.
 - [x] Implement idempotent list/discover/create for tabs.
+  - [x] Cut twenty-three adds explicit readable generation to the atomic adapter,
+    including missing-tab creation, append, helper refresh and import round-trip.
+    Worker display/calendar composition and historical-layout adoption remain open.
 - [ ] Replace whole-tab clear/rewrite with stable-identity merge/upsert.
   - [x] Canonical adapter does bounded merges. Legacy `updateWholeSheet` remains
     reachable from the old generation path; do not claim repository-wide removal.
@@ -161,7 +164,8 @@ they do not certify live conversion or retire the legacy writer paths.
 - [x] Route full export, incremental export, and overrides by explicit tab
   metadata. Cut twenty uses logical dates/explicit aliases and bounded human ranges;
   exported HTTP/event/override integration passes. Missing/oversized tabs reject;
-  human creation/activation-worker and legacy sync integration remain open.
+  readable creation is local in cut twenty-three; activation-worker and legacy
+  generation/sync integration remain open.
 - [x] Consume digest-bound activation-sync commands by exact partition manifest
   and stable idempotency key through explicit post-commit pull/invocation.
 - [x] Claim pending commands transactionally and rediscover/retry them after lost

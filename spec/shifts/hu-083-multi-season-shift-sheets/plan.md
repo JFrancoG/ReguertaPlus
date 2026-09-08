@@ -901,6 +901,22 @@ HU-083 validates the new behavior only in local tests/emulators. Its
 optional live develop repair is a direct, bounded script operation and never a
 develop-only Functions or Rules deploy.
 
+### Twenty-third local cut — readable generation (approved 2026-09-08)
+
+Cut 22 is pushed as `e51d16c`. This cut adds explicit readable generation to
+the existing atomic Sheets adapter: names/phones, visible dates, delivery
+helpers and three-person market blocks. It creates missing seasonal tabs and
+appends to the same recognized layout without clearing or replacing existing
+rows. Changed assignments, ambiguous dates and incompatible layouts require
+review; annotation cells remain untouched. The existing operation marker,
+authorization callback and inspect-only recovery remain the sole protocol.
+
+Validation passes: lint/build, 183/183 local cases, import emulator 45/45 and
+consumer emulator 17/17 (zero failures/skips). Resulting cells, carryover
+preservation, conflicts, import round-trip and uncertain submission are covered. Worker composition with trusted Firestore
+labels/calendar, legacy generation replacement and live develop acceptance
+remain subsequent integration work. No deployment or live writes are in scope.
+
 ## 2. Expected implementation impact
 
 ### Functions
