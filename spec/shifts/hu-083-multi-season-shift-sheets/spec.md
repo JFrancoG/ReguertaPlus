@@ -61,6 +61,11 @@ adapter. Exact labeled tables append absent dates, preserve existing assignments
 and annotations, and refresh only the backend-owned delivery helper. Visible
 labels/calendar dates bind the projection digest. Activation-worker composition,
 adoption of other historical layouts and legacy generation/sync remain open.
+Cut twenty-four connects the existing activation worker to that readable adapter.
+Private schema-v2 receipts retain exact names/phones/calendar dates and source
+versions. The reservation transaction rejects changed versions; recovery uses
+persisted labels and retains active public-lineage checks. Canonical schema-v1
+receipts remain readable. Historical-layout adoption and legacy paths remain open.
 
 - Keep one stable workbook for develop/test and one stable workbook for
   production.

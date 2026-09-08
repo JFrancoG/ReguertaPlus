@@ -1450,6 +1450,39 @@ Parámetros opcionales:
 - `envs=develop,production` (lista separada por comas)
 
 
+## Worker de activación legible (HU-083, corte 24)
+
+`executeShiftPlanningSheetsSync` compone ahora el consumidor existente con la
+generación legible. El origen reúne en una transacción los turnos activados, sus
+socios asignados/helpers y los documentos presentes o ausentes del calendario de
+reparto. Lee nombres y teléfonos (`phoneNumber`, con los alias heredados ya
+admitidos); no sustituye nombres ausentes por UID. Interpreta `deliveryDate` en
+Europe/Madrid y exige su semana exacta. La fecha lógica sigue eligiendo la pestaña.
+
+Los nuevos recibos privados de envío usan `schemaVersion: 2` y guardan los valores
+visibles exactos, el entorno y las versiones de todos esos documentos. Antes de
+crear el recibo y reservar el libro, el repositorio vuelve a leer esas versiones
+en su transacción: cambios de socios/turnos o creación/cambio/borrado de un override
+impiden enviar. Se limita el conjunto a 500 documentos y la parte legible del
+recibo a 900000 bytes, con validación exacta de campos y rutas del entorno.
+Los nombres/teléfonos quedan en recibos privados; la respuesta HTTP y los logs
+operativos siguen sin exponer filas. No se añaden permisos ni endpoints.
+
+Tras persistir un envío, toda recuperación usa los nombres/fechas de ese recibo;
+no los reconstruye a partir de un directorio o calendario que pudo cambiar. La
+revisión activa y los turnos públicos siguen validándose como antes. Los recibos
+canónicos `schemaVersion: 1` conservan su lectura/reconciliación sin exigir socios.
+El mismo recibo, reserva de libro y marcador gobiernan envío único y recuperación.
+La comprobación de versiones protege hasta la reserva: sigue siendo necesaria la
+exclusión operativa de escritores durante la llamada externa; no es CAS de Sheets.
+
+Validación: lint/build, 186/186 casos locales y emulador Firestore con consumidor
+23/23, importación 45/45 y repositorio 7/7; cero fallos/omisiones. Se prueban fechas
+Madrid, alias de teléfono, origen cambiante, respuesta perdida, recuperación con
+socios/calendario modificados y recibos canónicos previos. Sheets sigue siendo un
+fake. Quedan adopción de otras cabeceras históricas, generación/sync antiguos y
+aceptación real en develop. No hay despliegue ni cambios en datos reales o apps.
+
 ## Generación legible sin borrados (HU-083, corte 23)
 
 El adaptador `createShiftSheetsAdapter` admite `generationRows` junto a las

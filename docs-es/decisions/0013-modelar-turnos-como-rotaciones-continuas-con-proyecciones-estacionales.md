@@ -881,6 +881,15 @@ autoridad es el backend. Otros formatos históricos, asignaciones distintas y
 sustituciones pendientes exigen revisión. La composición del worker debe vincular
 socios/calendario de Firestore antes de activar este modo.
 
+El consumidor de activación guarda ya las filas legibles exactas en recibos
+privados schema-v2. Las versiones acotadas de socios/calendario/turnos públicos se
+leen con la proyección activada y se vuelven a comprobar en la transacción del
+recibo, incluidos overrides ausentes. La recuperación usa los datos visibles
+guardados y conserva la validación del linaje público activo; los recibos canónicos
+schema-v1 mantienen su inspección original. Se amplía la reserva existente del
+libro, sin cambiar HTTP ni permisos. Sigue siendo necesaria la exclusión de
+escritores externos tras reservar.
+
 ## Estado de aprobación e implementación
 
 El mantenedor aceptó este ADR el 2026-08-24 para implementar HU-082 y validarla

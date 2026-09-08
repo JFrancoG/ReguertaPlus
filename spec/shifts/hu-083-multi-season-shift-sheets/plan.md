@@ -917,6 +917,21 @@ preservation, conflicts, import round-trip and uncertain submission are covered.
 labels/calendar, legacy generation replacement and live develop acceptance
 remain subsequent integration work. No deployment or live writes are in scope.
 
+### Twenty-fourth local cut — readable activation worker (approved 2026-09-08)
+
+Cut 23 is pushed as `9c4e507`. Wire the existing consumer to readable generation
+using bounded Firestore member/calendar reads alongside activated public rows.
+Persist exact display rows in the existing submission receipt and recheck source
+versions transactionally before its single external batch. Recovery uses those
+persisted labels, not mutable directory data. Preserve schema-v1 canonical receipt
+recovery; new submissions use a versioned readable receipt. Validate with the real
+Firestore emulator, fake Sheets, source races and lost-response recovery. No new
+queue/endpoint, live data, deployment, IAM or notifications are in scope.
+
+Implemented locally. Validation passes: lint/build, 186/186 local cases, consumer
+emulator 23/23, import 45/45 and repository 7/7; zero failures/skips. Historical
+layout adoption and legacy generation/sync remain separate integration work.
+
 ## 2. Expected implementation impact
 
 ### Functions

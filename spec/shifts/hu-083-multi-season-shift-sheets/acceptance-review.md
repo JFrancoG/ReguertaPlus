@@ -69,13 +69,26 @@ historical layouts, legacy generation/sync and live develop acceptance remain op
 No mobile contract, endpoint, live data, deploy, IAM or FCM change. Cut 23 is local.
 
 
+## Cut-24 local update
+
+Cut 23 is pushed as `9c4e507`. The existing worker now generates readable sheets
+from activated rows plus bounded Firestore member/calendar data. Private schema-v2
+receipts persist exact labels/dates and source versions; the reservation transaction
+rechecks all versions, including absent overrides. Recovery uses persisted display
+data; old schema-v1 canonical receipts still inspect without directory reads.
+Validation: lint/build, 186/186 local cases, consumer emulator 23/23, import 45/45
+and repository 7/7, zero failures/skips. Sheets is fake and members fictional.
+Cut 24 remains local. Historical-layout adoption, legacy generation/sync and live
+develop acceptance remain open. No new endpoint, mobile contract, live mutation,
+deploy, IAM or FCM change. Existing external writer-exclusion requirements remain.
+
 ## Result
 
 The canonical adapter, private sync/import entry points, controlled-event audit,
 repair tooling and the three seasonal human writer routes have local/emulator
 evidence, including reviewed human apply/write-back and readable generation/new-tab
-creation. HU-083 remains open: the activation worker needs trusted display/calendar
-composition, historical layouts need adoption, and legacy generation/sync remain
+creation and the activation worker's trusted display/calendar composition. HU-083
+remains open: historical layouts need adoption, and legacy generation/sync remain
 separate; real-data
 safe-apply or exact zero-write deferral is also incomplete. The archive/technical
 conversion proposal is not selected for the user workflow.
@@ -94,10 +107,10 @@ schemas. Obtain the missing real inputs for the operational evidence gates.
 | Durable Sheets attempt, replay and unknown-outcome reconciliation | Consumer/import emulator cases, shared workbook reservation, exact cells/marker/version checks | Protocol evidence is not an external-writer fence or physical cross-store CAS |
 | Controlled event suppression and recovery identity | [Trigger](../../../functions/src/shift-planning-public-event-trigger.ts), actual exported-trigger emulator cases, durable audit 32/32 | Both candidate trigger revisions and explicit policy need HU-085 rollout; ordinary effects keep their existing route |
 | Retention and rejection | Typed retention policy, durable controlled/rejected ledgers, strict/phase1 access tests | Operator logs do not prove alert delivery; real policy/retention lifecycle remains an operational gate |
-| Full export, ordinary incremental export and overrides | Cut-20 human routing and exported-handler integration tests | Readable existing-tab updates are local; human-tab creation, worker integration and legacy sync remain open |
+| Full export, ordinary incremental export and overrides | Cut-20 human routing and exported-handler integration tests | Readable updates, tab creation and worker integration are local; historical layout adoption and legacy generation/sync remain open |
 | Ownership, completed history and predecessor/current/successor CAS | New import emulator coverage; strict ownership/provenance Rules and retained-marker routing | Does not certify all legacy mutation routes or current deployed behavior |
 | Audit, repair documents, baseline and inverse | [Auditor](../../../functions/scripts/audit-shift-planning.cjs), [repair review](../../../functions/scripts/repair-planned-shifts.cjs), [materializer](../../../functions/scripts/materialize-shift-repair.cjs), loopback/demo [rehearsal](../../../functions/scripts/rehearse-shift-repair.cjs) | Supplied snapshots and synthetic commits do not prove capture completeness, historical membership or live inverse authority |
-| Human-facing layout | Readable/editable date-name sheets selected; cut-20 writer preserves annotation columns | Archive/technical-table proposal is not selected. Reviewed human apply/write-back is integrated; legacy sync, generation and worker integration remain open |
+| Human-facing layout | Readable/editable date-name sheets selected; cut-20 writer preserves annotation columns | Archive/technical-table proposal is not selected. Reviewed human apply/write-back and the readable worker are integrated; historical layout adoption and legacy generation/sync remain open |
 | Real develop repair or zero-write HU-085 deferral | [Bounded layout inventory](inventory.md) and the supplied-snapshot tooling | No trusted dual-store baseline, exact real-data manifests, unchanged-source proof or completed deferral acceptance |
 
 ## Candidate legacy routes still present
@@ -162,9 +175,9 @@ base, so their gates were not rerun. Actual app read-back remains a live gate.
 1. Keep the selected readable/editable date-name layout; do not deploy the
    unselected archive/technical-table workflow. This choice does not authorize
    live conversion.
-2. Integrate generation/new-tab creation, the activation worker and the legacy
-   sync endpoint, preserving ordinary notifications and existing fences.
-   Reviewed human apply/write-back is locally integrated in cut 22.
+2. Integrate or retire the legacy generation/sync paths and adopt historical
+   layouts, preserving ordinary notifications and existing fences. Reviewed human
+   apply/write-back (cut 22), generation (cut 23) and worker (cut 24) are local.
 3. Obtain trusted Firestore/Sheets evidence through the separately bounded auditor
    defined in [spec.md](spec.md). Inventory alone is not backup authority. Verify
    approved calendars, ownership/bootstrap and historical/helper boundaries.

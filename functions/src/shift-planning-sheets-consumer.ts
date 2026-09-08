@@ -1,4 +1,4 @@
-import {Firestore} from "@google-cloud/firestore";
+import {Firestore, Timestamp} from "@google-cloud/firestore";
 import type {drive_v3 as DriveV3} from "googleapis";
 import {buildShiftPlanningCandidatePositionSet} from
   "./shift-planning-candidate.js";
@@ -9,6 +9,7 @@ import {
   parseShiftPlanningPublicShiftDocument,
 } from "./shift-planning-publication-contract.js";
 import {
+  ShiftPlanningReadableSubmission,
   failSheetsSubmission,
   requireShiftSheetsWorkbookVersion,
 } from "./shift-planning-sheets-submission.js";
@@ -30,17 +31,23 @@ import {
   createShiftSheetsAdapter,
 } from "./shift-sheets.js";
 
+import {shiftSheetsISOWeekKey} from "./shift-sheets-human-layout.js";
+
 /**
  * Loads exactly the activated partition, including its predecessor update.
+ * New submissions also read the display directory and absent/present calendar
+ * documents in this transaction; their versions fence receipt creation.
  * No caller-supplied rows or mutable assignment projections are authoritative.
  * @param {object} input Pinned environment/workbook and immutable command.
- * @return {ShiftSheetsProjectionRow[]} Exact current activation projections.
+ * @return {object} Activated projections and optional versioned display data.
  */
-export const loadShiftPlanningSheetsProjection = async (input: {
+const loadShiftPlanningSheetsSource = async (input: {
   firestore: Firestore;
   config: ShiftSheetsConfig;
   command: ShiftPlanningProcessingSyncCommand;
-}): Promise<readonly ShiftSheetsProjectionRow[]> => {
+  readable: boolean;
+}): Promise<{rows: readonly ShiftSheetsProjectionRow[];
+  readable?: ShiftPlanningReadableSubmission}> => {
   const {firestore, config, command} = input;
   if (command.workbookId !== config.workbookId) {
     return failSheetsSubmission("Command targets another configured workbook.");
@@ -140,7 +147,67 @@ export const loadShiftPlanningSheetsProjection = async (input: {
       createShiftPlanningDigest(command.affectedProjectionSeasonStartYears)) {
       return failSheetsSubmission("Affected seasons differ from actual rows.");
     }
-    return rows;
+    if (!input.readable) return {rows};
+    const userIds = new Set(rows.flatMap((row) =>
+      [...row.assignedUserIds,
+        ...(row.helperUserId ? [row.helperUserId] : [])]));
+    const weeks = new Set(rows.filter((row) => row.type === "delivery")
+      .map((row) => shiftSheetsISOWeekKey(row.date)));
+    if (rows.length + userIds.size + weeks.size > 500) {
+      return failSheetsSubmission("Readable source exceeds the bounded limit.");
+    }
+    const displayPaths = [...[...userIds].sort().map((id) =>
+      `${root}/users/${id}`), ...[...weeks].sort().map((week) =>
+      `${root}/deliveryCalendar/${week}`)];
+    const display = await transaction.getAll(...displayPaths.map((path) =>
+      firestore.doc(path)));
+    const members = new Map(display.filter((doc) =>
+      doc.ref.parent.id === "users").map((doc) => {
+      const value = doc.data();
+      const phoneKeys = ["phoneNumber", "phone", "telephone", "telefono"];
+      if (!value || typeof value.displayName !== "string" ||
+        !value.displayName.trim() || !Array.isArray(value.roles) ||
+        !value.roles.includes("member") || phoneKeys.some((key) =>
+        value[key] != null && typeof value[key] !== "string")) {
+        return failSheetsSubmission("Readable member identity is missing.");
+      }
+      return [doc.id, {userId: doc.id, name: value.displayName,
+        phone: phoneKeys.map((key) => value[key] as string | undefined)
+          .find((phone) => phone?.trim()) ?? ""}] as const;
+    }));
+    const calendar = new Map(display.filter((doc) =>
+      doc.ref.parent.id === "deliveryCalendar" && doc.exists).map((doc) => {
+      const timestamp = doc.get("deliveryDate");
+      if (!(timestamp instanceof Timestamp) ||
+        (doc.get("weekKey") != null && doc.get("weekKey") !== doc.id)) {
+        return failSheetsSubmission("Readable calendar identity is invalid.");
+      }
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Madrid", year: "numeric", month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(timestamp.toDate());
+      const part = (type: string) =>
+        parts.find((item) => item.type === type)?.value;
+      const date = `${part("year")}-${part("month")}-${part("day")}`;
+      if (shiftSheetsISOWeekKey(date) !== doc.id) {
+        return failSheetsSubmission("Readable calendar week changed.");
+      }
+      return [doc.id, date] as const;
+    }));
+    const memberFor = (id: string) => {
+      const member = members.get(id);
+      if (!member) return failSheetsSubmission("Readable member is absent.");
+      return member;
+    };
+    return {rows, readable: {environment: config.environment,
+      rows: rows.map((row) => ({id: row.id,
+        visibleDate: calendar.get(shiftSheetsISOWeekKey(row.date)) ?? row.date,
+        assignees: row.assignedUserIds.map((id) => memberFor(id)),
+        helper: row.helperUserId ? {userId: row.helperUserId,
+          name: memberFor(row.helperUserId).name} : null})),
+      sourceVersions: [...snapshots, ...display].map((doc) => ({
+        path: doc.ref.path, updateTime: doc.updateTime ?? null,
+      }))}};
   });
 };
 
@@ -167,6 +234,8 @@ export const createShiftSheetsWorkbookVersionReader = (input: {
 
 /**
  * Bridges command claims to one physical Sheets batch and durable read-back.
+ * New submissions persist readable display data; legacy receipts still inspect
+ * canonical cells. Recovery never rebuilds submitted labels from live members.
  * Before I/O, the repository serializes submissions for both partitions. After
  * an uncertain outcome every invocation is read-only, even beyond lease expiry.
  * External human/API writers still require the operational fence from HU-085.
@@ -193,13 +262,21 @@ export const createFirestoreShiftPlanningSheetsConsumer = (input: {
       return failSheetsSubmission("Read-back has no matching submission.");
     }
     if (receipt.evidence !== null) return receipt.evidence;
-    const rows = await loadShiftPlanningSheetsProjection({...input, command});
+    const {rows} = await loadShiftPlanningSheetsSource({...input, command,
+      readable: false});
+    if (receipt.readable &&
+      receipt.readable.environment !== input.config.environment) {
+      return failSheetsSubmission(
+        "Readable receipt targets another environment.",
+      );
+    }
     let observed;
     let version: string;
     try {
       const before = await input.readWorkbookVersion();
       observed = await input.sheets.inspect({
         operationId: command.idempotencyKey, rows,
+        generationRows: receipt.readable?.rows,
       });
       version = await input.readWorkbookVersion();
       if (before !== version || observed.kind !== "verified" ||
@@ -226,9 +303,12 @@ export const createFirestoreShiftPlanningSheetsConsumer = (input: {
       const token = tokenFor(command);
       if (await input.repository.readSubmission(token)) return inspect(command);
       const beforeWorkbookRevision = await input.readWorkbookVersion();
-      const rows = await loadShiftPlanningSheetsProjection({...input, command});
+      const {rows, readable} = await loadShiftPlanningSheetsSource({
+        ...input, command, readable: true,
+      });
       await input.sheets.reconcile({
         operationId: command.idempotencyKey, rows,
+        generationRows: readable?.rows,
         async authorizeMutation(batch) {
           if (batch.workbookId !== command.workbookId ||
             await input.readWorkbookVersion() !== beforeWorkbookRevision) {
@@ -236,7 +316,7 @@ export const createFirestoreShiftPlanningSheetsConsumer = (input: {
           }
           await authorizeMutation();
           await input.repository.prepareSubmission({token, binding: {
-            beforeWorkbookRevision,
+            beforeWorkbookRevision, readable,
             projectionDigest: batch.projectionDigest,
             requestDigest: batch.requestDigest,
           }});

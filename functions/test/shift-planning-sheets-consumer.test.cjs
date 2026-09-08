@@ -41,6 +41,10 @@ const setup = async ({predecessor = false} = {}) => {
   for (const mutation of activation.mutations) batch.set(firestore.doc(mutation.documentPath), mutation.data);
   batch.set(firestore.doc(`${root}/shiftPlanningBundles/${value.preflight.bundle.bundleRevision}`), value.preflight.bundle);
   batch.set(firestore.doc(`${root}/shiftPlanningState/sourcePolicy`), {environment: "develop", sync: snapshot.sync});
+  const userIds = new Set(activation.publicDocuments.flatMap(({document}) =>
+    [...document.assignedUserIds, ...(document.helperUserId ? [document.helperUserId] : [])]));
+  for (const id of userIds) batch.set(firestore.doc(`${root}/users/${id}`),
+    {displayName: `Persona ${id.slice(7)}`, phoneNumber: `600${id.slice(7).padStart(6, "0")}`, roles: ["member"]});
   await batch.commit();
   const repository = createFirestoreShiftPlanningSyncCommandRepository(firestore, () => Timestamp.fromMillis(now));
   const service = sheetsService(config.workbookId);
@@ -86,8 +90,19 @@ test("real executor drains both activated partitions through one batch each and 
     assert.equal(receipt.evidence.workbookRevision, (await f.partition(type)).workbookRevision);
     assert.ok(receipt.requestDigest.startsWith("shift-sheets:v1:sha256:"));
   }
-  const actualIds = f.service.state.sheets.flatMap((sheet) => sheet.data[0].rowData.slice(1).map((_, index) => content(sheet, index + 1, 0).stringValue));
-  assert.deepEqual(actualIds.sort(), f.activation.publicDocuments.map((item) => item.targetPath.split("/").at(-1)).sort());
+  for (const type of ["delivery", "market"]) {
+    const receipt = await f.receipt(type);
+    assert.equal(receipt.schemaVersion, 2);
+    assert.equal(receipt.readable.environment, "develop");
+    assert.deepEqual(receipt.readable.rows.map((row) => row.id).sort(),
+      f.activation.publicDocuments.filter((item) => item.document.type === type).map((item) => item.targetPath.split("/").at(-1)).sort());
+  }
+  const delivery = f.service.state.sheets.find((sheet) => sheet.properties.title.includes("reparto"));
+  const market = f.service.state.sheets.find((sheet) => sheet.properties.title.includes("mercado"));
+  assert.equal(content(delivery, 0, 0).stringValue, "Fecha");
+  assert.equal(content(market, 0, 0).stringValue, "Fecha / Persona");
+  assert.match(content(delivery, 1, 1).stringValue, /^Persona /);
+  assert.match(content(market, 2, 0).stringValue, /^Persona /);
   const reads = f.metadataReads;
   assert.equal((await f.execute()).kind, "terminalReplay");
   assert.equal(f.metadataReads, reads);
@@ -248,9 +263,9 @@ test("the prior-season predecessor helper is included in the exact command and S
   assert.deepEqual(command.affectedProjectionSeasonStartYears, [2025, 2026, 2027]);
   assert.equal((await f.execute()).kind, "completed");
   const priorTab = f.service.state.sheets.find((sheet) => sheet.properties.title === "turnos-reparto 2025-26");
-  assert.equal(content(priorTab, 1, 0).stringValue, f.prior.predecessorPath.split("/").at(-1));
-  assert.equal(content(priorTab, 1, 6).stringValue, "member-1");
-  assert.equal(content(priorTab, 1, 4).stringValue, '["member-6"]');
+  assert.match(content(priorTab, 1, 0).stringValue, /^\d{2}\/\d{2}\/2026$/);
+  assert.equal(content(priorTab, 1, 5).stringValue, "Persona 1");
+  assert.equal(content(priorTab, 1, 1).stringValue, "Persona 6");
 });
 
 
@@ -335,4 +350,117 @@ test("HTTP poll stops at an uncertain real submission and later invocations neve
   assert.equal(f.service.mutations.length, 1);
   const other = f.value.liveResult.syncCommands.find((command) => command.commandId !== firstId);
   assert.equal((await firestore.doc(`${root}/shiftPlanningSyncCommands/${other.commandId}`).get()).get("state"), "pending");
+});
+
+const {shiftSheetsISOWeekKey} = require("../lib/shift-sheets-human-layout.js");
+
+test("readable worker uses Madrid calendar dates and member phone aliases, persisting the exact display", async () => {
+  const f = await setup();
+  const first = f.activation.publicDocuments.find((item) => item.document.type === "delivery");
+  const date = first.document.date.toDate(); const logical = date.toISOString().slice(0, 10);
+  date.setUTCDate(date.getUTCDate() + (date.getUTCDay() === 0 ? -1 : 1));
+  const visible = date.toISOString().slice(0, 10); const week = shiftSheetsISOWeekKey(logical);
+  await firestore.doc(`${root}/deliveryCalendar/${week}`).set({weekKey: week,
+    deliveryDate: Timestamp.fromDate(new Date(`${visible}T00:30:00+02:00`))});
+  const memberId = first.document.assignedUserIds[0];
+  await firestore.doc(`${root}/users/${memberId}`).set({displayName: "Socio con alias", roles: ["member"], telephone: "611222333"});
+  assert.equal((await f.execute()).kind, "completed");
+  const receipt = await f.receipt();
+  const display = receipt.readable.rows.find((row) => row.id === first.targetPath.split("/").at(-1));
+  assert.equal(display.visibleDate, visible); assert.equal(display.assignees[0].name, "Socio con alias");
+  assert.equal(display.assignees[0].phone, "611222333");
+  assert.ok(receipt.readable.sourceVersions.some((item) => item.path === `${root}/deliveryCalendar/${week}` && item.updateTime instanceof Timestamp));
+  const shownDate = visible.split("-").reverse().join("/");
+  assert.ok(f.service.state.sheets.some((sheet) => sheet.data[0].rowData.some((line) =>
+    line.values?.[0]?.userEnteredValue?.stringValue === shownDate && line.values?.[1]?.userEnteredValue?.stringValue === "Socio con alias")));
+});
+
+test("member edits and newly created calendar overrides between planning and submission reject atomically", async () => {
+  for (const mutation of ["member", "calendar", "shift"]) {
+    const f = await setup(); const prepare = f.repository.prepareSubmission;
+    f.repository.prepareSubmission = async (input) => {
+      const sources = input.binding.readable.sourceVersions;
+      if (mutation === "member") {
+        const path = sources.find((source) => source.path.includes("/users/")).path;
+        await firestore.doc(path).update({displayName: "Renamed during planning"});
+      } else if (mutation === "calendar") {
+        const path = sources.find((source) => source.path.includes("/deliveryCalendar/") && source.updateTime === null).path;
+        await firestore.doc(path).set({weekKey: path.split("/").at(-1), deliveryDate: Timestamp.now()});
+      } else {
+        const path = sources.find((source) => source.path.includes("/shifts/")).path;
+        await firestore.doc(path).update({unrelated: "changed after source read"});
+      }
+      return prepare(input);
+    };
+    await assert.rejects(f.execute(), invalid);
+    assert.equal(f.service.mutations.length, 0); assert.equal(await f.receipt(), undefined);
+    // Each iteration starts from a fresh emulator fixture, including old source documents.
+    assert.equal((await fetch(`http://${host}/emulator/v1/projects/${projectId}/databases/(default)/documents`, {method: "DELETE"})).ok, true);
+  }
+});
+
+test("uncertain readable submission recovers with persisted labels after directory and calendar changes", async () => {
+  const f = await setup();
+  f.service.onMutation = async () => {f.changeVersion(); f.service.failRead = true;};
+  assert.equal((await f.execute()).kind, "reconciliationRequired");
+  const receipt = await f.receipt();
+  for (const source of receipt.readable.sourceVersions) {
+    if (source.path.includes("/users/")) await firestore.doc(source.path).delete();
+    if (source.path.includes("/deliveryCalendar/")) await firestore.doc(source.path).set({changed: true});
+  }
+  now += 200000; f.service.failRead = false;
+  assert.equal((await f.execute()).kind, "completed");
+  assert.equal(f.service.mutations.length, 1);
+  assert.deepEqual((await f.receipt()).readable, receipt.readable);
+});
+
+test("legacy schema-v1 canonical receipts still reconcile without member or calendar data", async () => {
+  const f = await setup();
+  const claim = await f.repository.claim({environment: "develop", commandId: f.commandId(), workerId: "legacy", attemptId: "legacy-attempt"});
+  const command = claim.command; const token = await f.token();
+  const rows = f.activation.publicDocuments.filter((item) => item.document.type === "delivery").map(({targetPath, document}) => ({
+    id: targetPath.split("/").at(-1), type: document.type, date: document.date.toDate().toISOString().slice(0, 10),
+    assignedUserIds: document.assignedUserIds, rotationOwnerUserIds: document.rotationOwnerUserIds ?? [document.rotationOwnerUserId],
+    helperUserId: document.helperUserId, status: document.status, source: document.source, origin: document.origin}));
+  const adapter = createShiftSheetsAdapter({config, sheets: f.service});
+  await adapter.reconcile({operationId: command.idempotencyKey, rows, authorizeMutation: async (binding) => {
+    await f.repository.authorizeBatch(token);
+    await f.repository.prepareSubmission({token, binding: {beforeWorkbookRevision: "10",
+      projectionDigest: binding.projectionDigest, requestDigest: binding.requestDigest}});
+  }});
+  assert.equal((await f.receipt()).schemaVersion, 1);
+  for (const doc of (await firestore.collection(`${root}/users`).get()).docs) await doc.ref.delete();
+  assert.equal((await f.execute()).kind, "completed"); assert.equal(f.service.mutations.length, 1);
+});
+
+test("readable receipt codec rejects incomplete, cross-scope and oversized recovery data", async () => {
+  const f = await setup(); assert.equal((await f.execute()).kind, "completed");
+  const receipt = await f.receipt();
+  for (const mutate of [
+    (value) => {value.schemaVersion = 1;},
+    (value) => {value.readable.sourceVersions.pop();},
+    (value) => {value.readable.sourceVersions[0].path = "production/plus-collections/users/other";},
+    (value) => {value.readable.rows[0].assignees[0].name = "x".repeat(1025);},
+    (value) => {value.readable.rows[0].visibleDate = "2026-02-30";},
+    (value) => {value.readable.rows[0].assignees = [null];},
+  ]) {
+    const value = {...receipt, readable: {...receipt.readable, rows: structuredClone(receipt.readable.rows),
+      sourceVersions: receipt.readable.sourceVersions.map((source) => ({...source}))}};
+    mutate(value); assert.throws(() => parseShiftPlanningSheetsSubmission(value), invalid);
+  }
+});
+
+test("missing named members and invalid calendar authority reject before Sheets writes", async () => {
+  for (const scenario of ["member", "calendar"]) {
+    const f = await setup();
+    const first = f.activation.publicDocuments.find((item) => item.document.type === "delivery").document;
+    if (scenario === "member") await firestore.doc(`${root}/users/${first.assignedUserIds[0]}`).delete();
+    else {
+      const week = shiftSheetsISOWeekKey(first.date.toDate().toISOString().slice(0, 10));
+      await firestore.doc(`${root}/deliveryCalendar/${week}`).set({weekKey: "wrong", deliveryDate: Timestamp.now()});
+    }
+    await assert.rejects(f.execute(), invalid);
+    assert.equal(f.service.mutations.length, 0); assert.equal(await f.receipt(), undefined);
+    assert.equal((await fetch(`http://${host}/emulator/v1/projects/${projectId}/databases/(default)/documents`, {method: "DELETE"})).ok, true);
+  }
 });

@@ -849,6 +849,14 @@ only the backend-owned delivery helper is refreshed. Other historical layouts,
 assignment differences and pending replacements require review. Worker composition
 must bind Firestore display/calendar data before this mode is activated.
 
+The activation consumer now persists exact readable rows in private schema-v2
+submission receipts. Bounded member/calendar/public-row versions are read with
+the activation projection and checked again in the receipt transaction, including
+absent calendar entries. Recovery uses persisted display data while retaining
+active public-lineage checks; schema-v1 canonical receipts keep their original
+inspection path. This extends the existing workbook reservation, not the HTTP
+surface or permissions. External writer exclusion remains necessary after reserve.
+
 ## Approval and implementation status
 
 The maintainer accepted this ADR on 2026-08-24 for HU-082 implementation and

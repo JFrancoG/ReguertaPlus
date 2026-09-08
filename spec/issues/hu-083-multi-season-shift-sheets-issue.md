@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — twenty-second cut pushed; twenty-third readable generation validated locally
+- State: IN PROGRESS — twenty-third cut pushed; twenty-fourth readable worker validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -854,6 +854,19 @@ consumer emulator 17/17; zero failures/skips. Sheets is a fake, members fictiona
 Worker composition with trusted Firestore labels/calendar, adoption of other
 historical layouts, legacy generation/sync and live develop acceptance remain open.
 No mobile contract, endpoint, live data, deploy, IAM or FCM change. Cut 23 is local.
+
+### Twenty-fourth local cut — readable activation worker (approved 2026-09-08)
+
+Cut 23 is pushed as `9c4e507`. The existing worker now generates readable sheets
+from activated rows plus bounded Firestore member/calendar data. Private schema-v2
+receipts persist exact labels/dates and source versions; the reservation transaction
+rechecks all versions, including absent overrides. Recovery uses persisted display
+data; old schema-v1 canonical receipts still inspect without directory reads.
+Validation: lint/build, 186/186 local cases, consumer emulator 23/23, import 45/45
+and repository 7/7, zero failures/skips. Sheets is fake and members fictional.
+Cut 24 remains local. Historical-layout adoption, legacy generation/sync and live
+develop acceptance remain open. No new endpoint, mobile contract, live mutation,
+deploy, IAM or FCM change. Existing external writer-exclusion requirements remain.
 
 ## Workbook decision
 

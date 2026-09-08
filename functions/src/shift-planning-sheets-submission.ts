@@ -8,9 +8,19 @@ import {
   parseShiftPlanningPersistedSyncCommand,
 } from "./shift-planning-sync-command.js";
 
+import {ShiftSheetsHumanGenerationRow, shiftSheetsISOWeekKey} from
+  "./shift-sheets-human-layout.js";
+
+export type ShiftPlanningReadableSubmission = {
+  environment: "develop" | "production";
+  rows: readonly ShiftSheetsHumanGenerationRow[];
+  sourceVersions: readonly {path: string; updateTime: Timestamp | null}[];
+};
+
 /** One possible external submission, never an authorization to retry it. */
 export type ShiftPlanningSheetsSubmission = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
+  readable?: ShiftPlanningReadableSubmission;
   command: ShiftPlanningProcessingSyncCommand;
   projectionDigest: string;
   requestDigest: string;
@@ -21,7 +31,7 @@ export type ShiftPlanningSheetsSubmission = {
 
 export type ShiftPlanningSheetsSubmissionBinding = Pick<
   ShiftPlanningSheetsSubmission,
-  "projectionDigest" | "requestDigest" | "beforeWorkbookRevision"
+  "projectionDigest" | "requestDigest" | "beforeWorkbookRevision" | "readable"
 >;
 
 export const failSheetsSubmission = (message: string): never => {
@@ -41,6 +51,83 @@ export const requireShiftSheetsWorkbookVersion = (value: unknown): string => {
   return value;
 };
 
+const parseReadableSubmission = (
+  value: unknown, command: ShiftPlanningProcessingSyncCommand,
+): ShiftPlanningReadableSubmission => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return failSheetsSubmission("Readable submission is missing.");
+  }
+  const record = value as ShiftPlanningReadableSubmission;
+  const exact = (value: object, keys: string[]) => value &&
+    Object.keys(value).length === keys.length &&
+    Object.keys(value).every((key) => keys.includes(key));
+  const id = (value: unknown) => typeof value === "string" &&
+    /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
+  const text = (value: unknown, required = true) =>
+    typeof value === "string" && value.length <= 1024 &&
+    (!required || Boolean(value.trim()));
+  if (!exact(record, ["environment", "rows", "sourceVersions"]) ||
+    !["develop", "production"].includes(record.environment) ||
+    !Array.isArray(record.rows) || !record.rows.length ||
+    record.rows.length > 500 || !Array.isArray(record.sourceVersions) ||
+    record.sourceVersions.length > 500 ||
+    Buffer.byteLength(JSON.stringify(record)) > 900000) {
+    return failSheetsSubmission("Readable submission exceeds its contract.");
+  }
+  const root = `${record.environment}/plus-collections`;
+  const expected = new Set<string>();
+  const ids = new Set<string>();
+  for (const row of record.rows) {
+    if (!exact(row, ["id", "visibleDate", "assignees", "helper"]) ||
+      !id(row.id) || ids.has(row.id) ||
+      !row.id.startsWith(`shift_${command.type}_`) ||
+      typeof row.visibleDate !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(row.visibleDate) ||
+      !Number.isFinite(Date.parse(row.visibleDate)) ||
+      new Date(row.visibleDate).toISOString().slice(0, 10) !==
+        row.visibleDate ||
+      !Array.isArray(row.assignees) ||
+      row.assignees.length !== (command.type === "delivery" ? 1 : 3) ||
+      new Set(row.assignees.map((person: {userId?: unknown}) =>
+        person?.userId)).size !==
+        row.assignees.length) {
+      return failSheetsSubmission("Readable row identity is invalid.");
+    }
+    ids.add(row.id);
+    expected.add(`${root}/shifts/${row.id}`);
+    if (command.type === "delivery") {
+      expected.add(`${root}/deliveryCalendar/` +
+        shiftSheetsISOWeekKey(row.visibleDate));
+    }
+    for (const person of row.assignees) {
+      if (!exact(person, ["userId", "name", "phone"]) ||
+        !id(person.userId) || !text(person.name) ||
+        !text(person.phone, false)) {
+        return failSheetsSubmission("Readable assignee is invalid.");
+      }
+      expected.add(`${root}/users/${person.userId}`);
+    }
+    if (row.helper !== null) {
+      if (command.type !== "delivery" ||
+        !exact(row.helper, ["userId", "name"]) ||
+        !id(row.helper.userId) || !text(row.helper.name)) {
+        return failSheetsSubmission("Readable helper is invalid.");
+      }
+      expected.add(`${root}/users/${row.helper.userId}`);
+    }
+  }
+  if (record.sourceVersions.length !== expected.size ||
+    record.sourceVersions.some((source) =>
+      !exact(source, ["path", "updateTime"]) || !expected.delete(source.path) ||
+      (!(source.updateTime instanceof Timestamp) &&
+        !(source.updateTime === null &&
+          source.path.startsWith(`${root}/deliveryCalendar/`))))) {
+    return failSheetsSubmission("Readable source versions are incomplete.");
+  }
+  return {environment: record.environment, rows: structuredClone(record.rows),
+    sourceVersions: record.sourceVersions.map((source) => ({...source}))};
+};
+
 /**
  * Reuses the existing completion codec for exact read-back evidence.
  * A submission can remain unresolved indefinitely after a crash or timeout.
@@ -55,8 +142,9 @@ export const parseShiftPlanningSheetsSubmission = (
   }
   const record = value as Record<string, unknown>;
   const keys = ["schemaVersion", "command", "projectionDigest",
-    "requestDigest", "beforeWorkbookRevision", "submittedAt", "evidence"];
-  if (record.schemaVersion !== 1 ||
+    "requestDigest", "beforeWorkbookRevision", "submittedAt", "evidence",
+    ...(record.schemaVersion === 2 ? ["readable"] : [])];
+  if (![1, 2].includes(record.schemaVersion as number) ||
     Object.keys(record).length !== keys.length ||
     Object.keys(record).some((key) => !keys.includes(key))) {
     return failSheetsSubmission("Sheets submission fields are not exact.");
@@ -76,7 +164,9 @@ export const parseShiftPlanningSheetsSubmission = (
     return digest;
   };
   const result: ShiftPlanningSheetsSubmission = {
-    schemaVersion: 1,
+    schemaVersion: record.schemaVersion as 1 | 2,
+    ...(record.schemaVersion === 2 ?
+      {readable: parseReadableSubmission(record.readable, command)} : {}),
     command,
     projectionDigest: sheetDigest(record.projectionDigest),
     requestDigest: sheetDigest(record.requestDigest),
@@ -203,7 +293,7 @@ export const parseShiftSheetsImportSubmission = (
 
 /**
  * One workbook pointer serializes activation and import submissions. Legacy
- * schema-v1 activation receipts retain their exact existing representation.
+ * schema-v1 canonical and schema-v2 readable receipts retain their identity.
  * @param {unknown} value Current workbook submission document.
  * @return {object} Fully validated submission with a shared workbook identity.
  */

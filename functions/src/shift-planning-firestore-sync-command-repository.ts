@@ -595,8 +595,23 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
         return failSync("Sheets submission already exists; inspect only.");
       }
       const receipt = parseShiftPlanningSheetsSubmission({
-        schemaVersion: 1, command, ...binding, submittedAt: now, evidence: null,
+        schemaVersion: binding.readable ? 2 : 1, command, ...binding,
+        submittedAt: now, evidence: null,
       });
+      if (receipt.readable) {
+        if (receipt.readable.environment !== token.environment) {
+          return failSync("Readable source targets another environment.");
+        }
+        const versions = receipt.readable.sourceVersions;
+        const sources = await transaction.getAll(...versions.map((source) =>
+          firestore.doc(source.path)));
+        if (sources.some((source, index) => source.exists ?
+          (!source.updateTime ||
+            !versions[index].updateTime?.isEqual(source.updateTime)) :
+          versions[index].updateTime !== null)) {
+          return failSync("Readable source changed before submission.");
+        }
+      }
       let expectedRevision = command.workbookRevision;
       if (workbook.exists) {
         const preceding = parseShiftSheetsWorkbookSubmission(workbook.data());
