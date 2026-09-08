@@ -360,3 +360,17 @@ they do not certify live conversion or retire the legacy writer paths.
   evidence, and residuals to HU-085.
 - [ ] Link focused commits and PR to issue #267.
 - [ ] Report any Android/iOS parity or live-data residual explicitly.
+
+## Cut 27 integration checkpoint (2026-09-09)
+
+- [x] Commit/push reviewed historical compatibility: `ec301ec`.
+- [x] Review complete backend integration and reconcile current acceptance evidence.
+- [x] Correct readable helper write-back and already-effective instructions while
+  preserving frozen history, source revisions and controlled-event suppression.
+- [x] Align annotation-only rows and formatted empty decorations across readers.
+- [x] Reuse readable mappings/calendars for offline repair proposals and the existing
+  bounded Firestore repair/inverse rehearsal. Preserve row identity and annotations.
+- [x] Run full local regression and 20 relevant emulator suites, including the
+  cases skipped outside the emulator. Detailed results: `acceptance-review.md`.
+- [ ] Cut 28: real source evidence and exact repair or zero-write deferral.
+- [ ] Cut 29: acceptance and separately authorized delivery/closure.

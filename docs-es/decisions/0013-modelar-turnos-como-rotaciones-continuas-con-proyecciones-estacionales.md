@@ -904,6 +904,14 @@ Conserva F histórica como semana/anotación; solo las cabeceras nuevas usan F p
 ayuda. Mercado conserva huecos entre bloques, con tres participantes contiguos
 por fecha. Esta compatibilidad local no acredita ni autoriza reescribir el libro real.
 
+La revisión de integración de HU-083 conserva el protocolo de recibos existente
+para escribir ayudas legibles y consumir instrucciones, incluso si el asignado
+ya coincide, sin cambiar la revisión de asignación. El historial completado queda
+congelado. La reparación offline reutiliza diseño y calendario revisados sin
+conversión, conserva posiciones/anotaciones y emite deltas de celdas gestionadas.
+El ensayo Firestore existente sigue limitado a loopback/demo; esto no habilita
+un ejecutor real entre almacenes ni acredita autoridad operativa.
+
 ## Estado de aprobación e implementación
 
 El mantenedor aceptó este ADR el 2026-08-24 para implementar HU-082 y validarla

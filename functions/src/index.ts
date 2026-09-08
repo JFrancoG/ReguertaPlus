@@ -125,7 +125,8 @@ import {
   resolveShiftSheetsHumanRange,
 } from "./shift-sheets-config.js";
 import {createShiftSheetsAdapter} from "./shift-sheets.js";
-import {SHIFT_SHEETS_HUMAN_HEADERS, shiftSheetsDateFromCell} from
+import {SHIFT_SHEETS_HUMAN_HEADERS, shiftSheetsDateFromCell,
+  shiftSheetsLiteralRowsEqual} from
   "./shift-sheets-human-layout.js";
 import {
   createFirestoreShiftPlanningSheetsConsumer,
@@ -2610,14 +2611,10 @@ const upsertShiftRowInSheet = async (
     throw new Error("Ordinary export needs a reviewed human layout.");
   }
   const decorations = new Set<number>();
-  const trimmed = (cells: readonly string[]) => {
-    const copy = [...cells];
-    while (copy[copy.length - 1] === "") copy.pop();
-    return JSON.stringify(copy);
-  };
   for (const decoration of reviewed?.decorations ?? []) {
-    if (trimmed(normalizedRows[decoration.rowNumber - 1] ?? []) !==
-      trimmed(decoration.cells) || parseDateInput(decoration.cells[0])) {
+    if (!shiftSheetsLiteralRowsEqual(
+      normalizedRows[decoration.rowNumber - 1] ?? [], decoration.cells,
+    ) || parseDateInput(decoration.cells[0])) {
       throw new Error("Reviewed export decoration changed.");
     }
     decorations.add(decoration.rowNumber - 1);

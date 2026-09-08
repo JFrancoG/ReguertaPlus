@@ -488,12 +488,13 @@ test("repair CLI emits a private review artifact and rejects apply without touch
 });
 
 
-test("repair rejects human conversion and never overwrites formulas or unidentified cell content", async () => {
+test("repair preserves human layouts and rejects conversion, formulas and unidentified cell content", async () => {
   const human = await lineageFixture(); const tab = human.tabs[0]; tab.layout = "delivery_human";
   human.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title).data = [{rowData: [{values:
     ["27/08/2026", "Persona a", "90000000a"].map((stringValue) => ({userEnteredValue: {stringValue}}))}]}];
   assert.deepEqual((await auditShiftPlanning(human, target)).findings, []);
-  await assert.rejects(repair(human, human));
+  assert.deepEqual((await repair(human, human)).sheetsChanges, []);
+  await assert.rejects(repair(human, await lineageFixture()));
   const proposal = await lineageFixture(), input = clone(proposal);
   input.source[0].row.source = "planner";
   const sheet = input.spreadsheet.sheets.find((sheet) => sheet.properties.title === input.tabs[0].title);
@@ -952,4 +953,109 @@ test("baseline and inverse CLI remain file-only and require the exact materializ
     const partial = spawnSync(process.execPath, args.slice(0, -2), {encoding: "utf8"}); assert.equal(partial.status, 1); assert.equal(partial.stdout, "");
     args[args.length - 1] = "wrong"; const stale = spawnSync(process.execPath, args, {encoding: "utf8"}); assert.equal(stale.status, 1); assert.equal(stale.stdout, "");
   } finally { rmSync(directory, {recursive: true, force: true}); }
+});
+
+const readableRepairFixture = async () => {
+  const proposal = await lineageFixture();
+  proposal.deliveryCalendar = [{weekKey: "2026-W36", date: "2026-09-04"}];
+  const config = createShiftSheetsConfig({environment: target.environment, workbooks: {develop: target.workbookId}, aliases: proposal.aliases});
+  const sheets = sheetsService(target.workbookId), rows = proposal.source.map((entry) => entry.row);
+  const names = new Map(proposal.members.map((member) => [member.userId, member.names[0]]));
+  const {shiftSheetsISOWeekKey} = require("../lib/shift-sheets-human-layout.js");
+  await createShiftSheetsAdapter({config, sheets}).reconcile({operationId: "readable-repair-fixture", rows,
+    generationRows: rows.map((row) => ({id: row.id,
+      visibleDate: row.type === "delivery" && shiftSheetsISOWeekKey(row.date) === "2026-W36" ? "2026-09-04" : row.date,
+      assignees: row.assignedUserIds.map((userId) => ({userId, name: names.get(userId), phone: ""})),
+      helper: row.helperUserId ? {userId: row.helperUserId, name: names.get(row.helperUserId)} : null})),
+    authorizeMutation: async () => {}});
+  proposal.spreadsheet = clone(sheets.state);
+  proposal.tabs = proposal.tabs.map((tab) => ({...tab, layout: `${tab.type}_human`, decorations: [{rowNumber: 1,
+    cells: proposal.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title).data[0].rowData[0].values.map((cell) => cell.userEnteredValue.stringValue)}]}));
+  const first = proposal.spreadsheet.sheets.find((sheet) => sheet.properties.title === proposal.tabs.find((tab) => tab.type === "delivery").title);
+  setCell(first, 1, 3, {userEnteredValue: {formulaValue: "=1+2"}, note: "Anotación conservada"});
+  return proposal;
+};
+
+test("readable repair audits calendar overrides and emits exact helper corrections without table conversion", async () => {
+  const proposal = await readableRepairFixture(), input = clone(proposal);
+  const first = input.spreadsheet.sheets.find((sheet) => sheet.properties.title === input.tabs.find((tab) => tab.type === "delivery").title);
+  setCell(first, 1, 5, {userEnteredValue: {stringValue: "Ayuda antigua"}});
+  assert.ok(codes(await auditShiftPlanning(input, target)).includes("cross_store_helper_disagreement"));
+  input.source[0].row.source = "planner";
+  const plan = await repair(input, proposal);
+  assert.equal(plan.readyForApply, false); assert.equal(plan.sheetsChanges.length, 1);
+  assert.equal(plan.sheetsChanges[0].columnNumber, 6);
+  assert.equal(plan.projectionChanges.length, 1);
+  assert.deepEqual(await auditShiftPlanning(proposal, target).then((report) => report.findings), []);
+  assert.deepEqual(await repair(input, proposal), plan);
+});
+
+test("readable repair rejects notes, moved rows, changed calendar and protected cells", async () => {
+  for (const scenario of ["note", "move", "calendar", "protected", "date", "formula"]) {
+    const input = await readableRepairFixture(), proposal = clone(input);
+    const tab = input.tabs.find((tab) => tab.type === "delivery" && tab.seasonStartYear === 2026);
+    const old = input.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title);
+    const next = proposal.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title);
+    if (scenario === "note") setCell(next, 1, 3, {userEnteredValue: {stringValue: "No sustituir notas"}});
+    if (scenario === "move") [next.data[0].rowData[1], next.data[0].rowData[2]] = [next.data[0].rowData[2], next.data[0].rowData[1]];
+    if (scenario === "calendar") proposal.deliveryCalendar[0].date = "2026-09-03";
+    if (scenario === "date") setCell(next, 1, 0, {userEnteredValue: {stringValue: "2026-09-04"}});
+    if (scenario === "formula") setCell(old, 1, 5, {userEnteredValue: {formulaValue: "=1"}});
+    if (scenario === "protected") {
+      setCell(old, 1, 5, {userEnteredValue: {stringValue: "Ayuda antigua"}});
+      old.protectedRanges = next.protectedRanges = [{range: {sheetId: old.properties.sheetId,
+        startRowIndex: 1, endRowIndex: 2, startColumnIndex: 5, endColumnIndex: 6}}];
+    }
+    await assert.rejects(repair(input, proposal), undefined, scenario);
+  }
+});
+
+test("readable repair can restore a missing dated row without moving its neighbors", async () => {
+  const proposal = await readableRepairFixture(), input = clone(proposal);
+  const missing = proposal.source[2];
+  input.source = input.source.filter((entry) => entry.row.id !== missing.row.id);
+  input.lineage.delivery.rows = input.lineage.delivery.rows.filter((row) => row.shiftId !== missing.row.id);
+  Object.assign(missing, {documentRevision: 0, assignmentRevision: 0});
+  const tab = input.tabs.find((tab) => tab.type === "delivery" && tab.seasonStartYear === 2026);
+  const sheet = input.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title);
+  sheet.data[0].rowData.pop();
+  const plan = await repair(input, proposal);
+  assert.equal(plan.projectionChanges.length, 1); assert.equal(plan.projectionChanges[0].before, null);
+  assert.ok(plan.sheetsChanges.length >= 2);
+  assert.ok(plan.sheetsChanges.every((change) => change.rowNumber === 3));
+  setCell(sheet, 2, 3, {userEnteredValue: {stringValue: "Nota que no puede ocupar una fecha nueva"}});
+  await assert.rejects(repair(input, proposal));
+});
+
+test("historical readable repair preserves the week column and display title", async () => {
+  const proposal = await readableRepairFixture();
+  for (const tab of proposal.tabs.filter((tab) => tab.type === "delivery")) {
+    const sheet = proposal.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title);
+    sheet.data[0].rowData[0] = {values: [{userEnteredValue: {stringValue: "REPARTOS"}}]};
+    tab.decorations = [{rowNumber: 1, cells: ["REPARTOS"]}];
+    for (let row = 1; row < sheet.data[0].rowData.length; row++) setCell(sheet, row, 5, {userEnteredValue: {formulaValue: "=35"}});
+  }
+  const input = clone(proposal); input.source[0].row.source = "planner";
+  const plan = await repair(input, proposal);
+  assert.equal(plan.projectionChanges.length, 1); assert.deepEqual(plan.sheetsChanges, []);
+});
+
+
+test("new historical repair rows carry only their exact ISO week in F", async () => {
+  const proposal = await readableRepairFixture();
+  const tab = proposal.tabs.find((tab) => tab.type === "delivery" && tab.seasonStartYear === 2026);
+  const sheet = proposal.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title);
+  sheet.data[0].rowData[0] = {values: [{userEnteredValue: {stringValue: "REPARTOS"}}]};
+  tab.decorations = [{rowNumber: 1, cells: ["REPARTOS"]}];
+  setCell(sheet, 1, 5, {userEnteredValue: {formulaValue: "=36"}});
+  setCell(sheet, 2, 5, {userEnteredValue: {stringValue: "37"}});
+  const input = clone(proposal), missing = proposal.source[2];
+  input.source = input.source.filter((entry) => entry.row.id !== missing.row.id);
+  input.lineage.delivery.rows = input.lineage.delivery.rows.filter((row) => row.shiftId !== missing.row.id);
+  input.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title).data[0].rowData.pop();
+  Object.assign(missing, {documentRevision: 0, assignmentRevision: 0});
+  const plan = await repair(input, proposal);
+  assert.ok(plan.sheetsChanges.some((cell) => cell.rowNumber === 3 && cell.columnNumber === 6 && cell.after.stringValue === "37"));
+  setCell(sheet, 2, 5, {userEnteredValue: {stringValue: "38"}});
+  await assert.rejects(repair(input, proposal));
 });

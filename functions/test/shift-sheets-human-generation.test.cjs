@@ -217,6 +217,7 @@ test("reviewed historical aliases, month headings and market spacing survive gen
       [], [], ["SIGUIENTE MES"]], [0, 9]),
   ];
   const service = sheetsService(); service.state.sheets = tabs.map((tab) => tab.sheet);
+  for (const tab of tabs) tab.sheet.data[0].rowData[0].values.push({userEnteredFormat: {textFormat: {bold: true}}});
   const before = clone(service.state.sheets);
   const generationTabs = tabs.map((tab) => tab.mapping);
   const rows = [...deliveryRows, ...marketRows, row("shift_delivery_20260909", "2026-09-09"),
@@ -270,4 +271,20 @@ test("historical layout is detached, digest-bound and inspect-only after lost ac
   const changed = clone(saved); changed[0].decorations.push({rowNumber: 4, cells: ["new title"]});
   await assert.rejects(f.run("history-uncertain", rows, display(rows), {generationTabs: changed}), {code: "sheets_marker_conflict"});
   assert.equal(f.sheets.mutations.length, 1);
+});
+
+test("standalone annotation rows survive generation and orphan identities still reject", async () => {
+  for (const type of ["delivery", "market"]) {
+    const f = fixture(); const rows = [row(`shift_${type}_20260905`, "2026-09-05", type)];
+    await f.run(`annotations-${type}`, rows);
+    const sheet = f.sheets.state.sheets[0], index = sheet.data[0].rowData.length;
+    setCell(sheet, index, type === "delivery" ? 3 : 2, {userEnteredValue: {formulaValue: "=1+2"}, note: "Conservar"});
+    assert.equal((await f.run(`preserve-${type}`, rows)).kind, "verified");
+    const actual = f.sheets.state.sheets[0];
+    assert.equal(content(actual, index, type === "delivery" ? 3 : 2).formulaValue, "=1+2");
+    setCell(actual, index, 1, {userEnteredValue: {stringValue: "Persona sin fecha"}});
+    const batches = f.sheets.mutations.length;
+    await assert.rejects(f.run(`orphan-${type}`, rows), {code: "sheets_manual_conflict"});
+    assert.equal(f.sheets.mutations.length, batches);
+  }
 });

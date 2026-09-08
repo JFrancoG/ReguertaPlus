@@ -109,8 +109,33 @@ Sheets is a public-API fake and all people are fictional; no real workbook,
 Firestore data, deployment, IAM or FCM was changed. Mobile code and its public
 contract are unchanged, so mobile validation was not rerun.
 
-This cut remains uncommitted. Actual reviewed decorations, complete protection/
+Cut 26 is pushed as `ec301ec`. Actual reviewed decorations, complete protection/
 merge inventory and the real repair/deferral artifacts remain unverified.
+
+## Cut-27 integration review — 2026-09-09
+
+Cut 26 is committed/pushed as `ec301ec`. This review covers the HU-083 delta from
+`515b9f8`: configuration/routing, readable and canonical adapters, private import/
+worker composition, shared submission reservations, event suppression/retention,
+repair/materialization/rehearsal, Rules and the unchanged mobile boundary. It is
+a source review plus local/emulator evidence, not a deployed-system audit.
+
+Four integration findings were corrected in this cut:
+
+| Finding | Correction and evidence |
+| --- | --- |
+| **P1 — readable import left helper F stale.** Changing the next lead updated the backend predecessor helper but retained the old visible name. | New-header write-back binds helper ID/name to the projected row and verifies that exact header. A generation → import/apply/write-back → generation emulator test verifies the corrected helper and lost-response recovery. Historical F remains untouched. |
+| **P2 — an already-effective `lo hace` instruction remained pending forever.** An unchanged assignment produced no command to consume the instruction. | Reviewed write-back can consume it with a controlled document revision; assignment revision, owners and completed history stay unchanged. Completed-row and no-notification regressions are covered. This does not normalize every unchanged name/phone merely for formatting. |
+| **P2 — readers disagreed about decorations and standalone notes.** Formatted trailing empty cells or annotation-only rows could prevent the next generation/import. | All three paths share literal-row comparison; generation preserves annotation-only rows and still rejects orphan identities/instructions. The four-tab round-trip includes trailing formatting. |
+| **P1 — repair proposals still required technical tables.** The chosen readable workflow could not produce a repair plan; captured calendar overrides and visible helper drift were absent from offline audit. | Existing offline tools now reuse the reviewed human reader, bind an optional captured calendar, diagnose stale helper names, preserve old row positions/annotations, and allow missing rows only in empty space. New historical F accepts only its exact ISO week. Readable snapshots also reach the existing bounded Firestore materializer and emulator inverse. No live apply or alternate workflow is introduced. |
+
+The existing receipts, digest checks and shared reservation have concrete recovery
+responsibilities and are retained. No generic orchestration layer, new endpoint,
+queue, deployment or mobile abstraction was added. The ordinary event/export routes
+still use their existing writer fences rather than the durable import/activation
+receipt protocol; this distinction remains explicit for rollout. Prepared commands
+whose recomputed plan changes require a fresh reviewed digest; already submitted
+receipts keep their original inspect-only recovery.
 
 ## Result
 
@@ -118,28 +143,28 @@ The canonical adapter, private sync/import entry points, controlled-event audit,
 repair tooling and the three seasonal human writer routes have local/emulator
 evidence, including reviewed human apply/write-back and readable generation/new-tab
 creation and the activation worker's trusted display/calendar composition. HU-083
-remains open: historical adoption is locally implemented; full integration review and real-data
-safe-apply or exact zero-write deferral is also incomplete. The archive/technical
+remains open: local integration review is complete; real-data safe-apply or exact
+zero-write deferral and final acceptance/delivery remain incomplete. The archive/technical
 conversion proposal is not selected for the user workflow.
 
-Continue the existing pipeline integration rather than adding generic review
-schemas. Obtain the missing real inputs for the operational evidence gates.
+Next obtain the real inputs for the operational evidence gates. Cut 27 remains
+local/uncommitted; no additional implementation cut is planned before that work.
 
 ## Implementation and acceptance map
 
 | Requirement | Current evidence | Remaining boundary |
 | --- | --- | --- |
 | Explicit environment/workbook and seasonal aliases | [Config](../../../functions/src/shift-sheets-config.ts), config tests; new worker/import reject missing or cross-environment authority | Cut 19 routes legacy callers through the shared strict resolver; deployed configuration remains unverified |
-| Stable identity, create/merge, carryover and manual-field preservation | [Canonical adapter](../../../functions/src/shift-sheets.ts), [behavior tests](../../../functions/test/shift-sheets.test.cjs) | Readable generation is local in cut 23; other historical headers require adoption; no live conversion is certified |
+| Stable identity, create/merge, carryover and manual-field preservation | [Canonical adapter](../../../functions/src/shift-sheets.ts), [behavior tests](../../../functions/test/shift-sheets.test.cjs) | Readable generation, reviewed historical adoption and their import round-trip pass locally; the real workbook map still needs review |
 | Seasonal union and guarded effective assignments | [Import reader](../../../functions/src/shift-sheets-import.ts), [planner](../../../functions/src/shift-sheets-import-plan.ts), [Firestore adapter](../../../functions/src/shift-sheets-firestore-import.ts) | Human apply/write-back is locally integrated in cut 22; legacy sync retires locally in cut 25 |
 | Explicit pull, claims, exact manifest and bounded retry | [Worker](../../../functions/src/shift-planning-sheets-worker.ts), [consumer](../../../functions/src/shift-planning-sheets-consumer.ts), exported `executeShiftPlanningSheetsSync` | No live invoker/scheduler configuration or deployment |
 | Durable Sheets attempt, replay and unknown-outcome reconciliation | Consumer/import emulator cases, shared workbook reservation, exact cells/marker/version checks | Protocol evidence is not an external-writer fence or physical cross-store CAS |
 | Controlled event suppression and recovery identity | [Trigger](../../../functions/src/shift-planning-public-event-trigger.ts), actual exported-trigger emulator cases, durable audit 32/32 | Both candidate trigger revisions and explicit policy need HU-085 rollout; ordinary effects keep their existing route |
 | Retention and rejection | Typed retention policy, durable controlled/rejected ledgers, strict/phase1 access tests | Operator logs do not prove alert delivery; real policy/retention lifecycle remains an operational gate |
-| Full export, ordinary incremental export and overrides | Cut-20 human routing and exported-handler integration tests | Readable updates, tab creation and worker integration are local; historical layout adoption and real acceptance remain open |
+| Full export, ordinary incremental export and overrides | Cut-20 human routing and exported-handler integration tests | Readable updates, tab creation and worker integration are local; historical adoption passes locally; real acceptance remains open |
 | Ownership, completed history and predecessor/current/successor CAS | New import emulator coverage; strict ownership/provenance Rules and retained-marker routing | Does not certify all legacy mutation routes or current deployed behavior |
 | Audit, repair documents, baseline and inverse | [Auditor](../../../functions/scripts/audit-shift-planning.cjs), [repair review](../../../functions/scripts/repair-planned-shifts.cjs), [materializer](../../../functions/scripts/materialize-shift-repair.cjs), loopback/demo [rehearsal](../../../functions/scripts/rehearse-shift-repair.cjs) | Supplied snapshots and synthetic commits do not prove capture completeness, historical membership or live inverse authority |
-| Human-facing layout | Readable/editable date-name sheets selected; cut-20 writer preserves annotation columns | Archive/technical-table proposal is not selected. Reviewed human apply/write-back and the readable worker are integrated; historical layout adoption and real acceptance remain open |
+| Human-facing layout | Readable/editable date-name sheets selected; cut-20 writer preserves annotation columns | Archive/technical-table proposal is not selected. Reviewed human apply/write-back and the readable worker are integrated; historical adoption passes locally; real acceptance remains open |
 | Real develop repair or zero-write HU-085 deferral | [Bounded layout inventory](inventory.md) and the supplied-snapshot tooling | No trusted dual-store baseline, exact real-data manifests, unchanged-source proof or completed deferral acceptance |
 
 ## Candidate legacy routes still present
@@ -161,52 +186,58 @@ The new pipeline is composed in `index.ts` as `executeShiftSheetsImport`,
 `executeShiftPlanningSheetsSync` and `onShiftPlanningPublicWritten`. Their presence
 is not evidence that the table above already uses them.
 
-## Validation at the reviewed commit
+## Validation after cut 27
 
-Functions lint and TypeScript build pass. The local test union contains the 60
-unique files selected by these existing scripts:
-
-- `test:shift-planning:unit`
-- `test:backend-security`
-- `test:migrations`
-- `test:shift-sheets`
-- `test:shift-planning:audit`
-- `test:shift-repair:authority`
-- `test:shift-sheets:conversion`
-
-The union ran once with Node's test runner: **492 passed, 51 skipped, 0 failed**.
-The 51 cases require their emulator context; this run does not claim to execute
-them. The focused emulator runs below are their own evidence, not proof that
-all 51 skipped cases were subsequently covered.
+Functions `npm run lint` and `npm run build` pass. The same test-script union as
+before now resolves to 61 unique files: `test:shift-planning:unit`,
+`test:backend-security`, `test:migrations`, `test:shift-sheets`,
+`test:shift-planning:audit`, `test:shift-repair:authority` and
+`test:shift-sheets:conversion`. Run once together: **525 passed, 51 skipped,
+0 failed**. Every one of those 51 skipped test names was matched to a passing
+execution in the emulator suites below; none remains unvalidated for lack of its
+emulator context. Two new regressions first reproduced stale helper F and the
+unconsumed already-effective instruction before the fixes.
 
 | Existing npm script | Passed | Skipped |
 | --- | ---: | ---: |
-| `test:shift-planning:sheets-consumer:emulator` | 17 | 0 |
-| `test:shift-sheets:import:emulator` | 40 | 0 |
+| `test:shift-sheets:import:emulator` | 48 | 0 |
+| `test:shift-planning:sheets-consumer:emulator` | 24 | 0 |
 | `test:shift-planning:public-event-audit:emulator` | 32 | 0 |
-| `test:shift-planning:public-event-trigger:emulator` | 12 | 0 |
+| `test:shift-planning:public-event-trigger:emulator` | 35 | 0 |
 | `test:shift-planning:sync-command:emulator` | 7 | 0 |
-| `test:shift-repair:emulator` | 6 | 0 |
+| `test:shift-repair:emulator` | 7 | 0 |
 | `test:firestore-role-access` | 32 | 0 |
 | `test:firestore-phase1` | 8 | 0 |
 | `test:rules` | 6 | 0 |
+| `test:shift-planning:attempt-outcome:emulator` | 5 | 0 |
+| `test:shift-planning:cas-runtime:emulator` | 8 | 0 |
+| `test:shift-planning:notification-safe-resume:emulator` | 4 | 0 |
+| `test:shift-planning:notification-terminal-repository:emulator` | 6 | 0 |
+| `test:shift-planning:source-producer:emulator` | 6 | 0 |
+| `test:shift-planning:source-resolver:emulator` | 2 | 0 |
+| `test:shift-planning:forward-materializer:emulator` | 7 | 0 |
+| `test:shift-planning:inverse-materializer:emulator` | 5 | 0 |
+| `test:shift-planning:notification-dispatch:emulator` | 15 | 0 |
+| `test:shift-planning:notification-release:emulator` | 6 | 0 |
+| `test:shift-planning:notification-writer-fence:emulator` | 12 | 0 |
 
-These are **160 passing emulator test executions**, including some unit cases
-also present in the local union; do not sum the tables as unique test coverage.
-Each emulator script used its existing `demo-*` project, ran sequentially under
-Java 21 and shut down normally. Sheets behavior used the public-API fake; no real
-Google Sheet was changed. No Functions/Rules deployment, live source mutation,
-IAM change or FCM send occurred. No Android/iOS code changed against the HU-083
-base, so their gates were not rerun. Actual app read-back remains a live gate.
+The table represents **275 passing emulator executions**, including unit cases
+also counted in the local union; these are not 800 unique tests. All suites used
+their existing `demo-*` projects, sequentially under Java 21, and stopped normally.
+After the repair/calendar changes, the affected offline union and repair/import
+emulator suites were rerun; unrelated green suites were reused without code drift.
+Sheets and transport are fakes. No real workbook/Firestore data, deployment, IAM
+or FCM was changed. No Android/iOS code or public wire contract changed against the
+HU-083 base, so mobile gates were not rerun; real app read-back remains a live gate.
+`git diff --check` passes. The unrelated main-checkout Xcode reorder is preserved.
 
 ## Remaining execution order
 
 1. Keep the selected readable/editable date-name layout; do not deploy the
    unselected archive/technical-table workflow. This choice does not authorize
    live conversion.
-2. Run complete integration validation after local historical adoption (cut 26). Reviewed
-   import (cut 22), generation (cut 23), worker (cut 24) and legacy retirement
-   (cut 25) are local. Preserve ordinary notifications and existing fences.
+2. Local integration review (cut 27) is complete, including fixes and full backend
+   regression. Preserve ordinary notifications and existing fences at rollout.
 3. Obtain trusted Firestore/Sheets evidence through the separately bounded auditor
    defined in [spec.md](spec.md). Inventory alone is not backup authority. Verify
    approved calendars, ownership/bootstrap and historical/helper boundaries.
@@ -228,3 +259,7 @@ these outcomes rather than silently adding another series of technical cuts.
 
 After cut 26, three planned outcomes remain (cuts 27–29), plus at most 1–2
 corrective cuts for demonstrated defects. Access/approval waiting is not a cut.
+
+After cut 27, two planned outcomes remain: (28) real evidence and exact repair or
+zero-write deferral, then (29) acceptance/delivery. No new technical cut is added.
+Any demonstrated future defect must be reported against these outcomes.

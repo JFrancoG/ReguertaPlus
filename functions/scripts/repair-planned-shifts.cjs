@@ -6,6 +6,9 @@ const {readFileSync, statSync} = require("node:fs");
 const {auditShiftPlanning, MAX_BYTES} = require("./audit-shift-planning.cjs");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {SHIFT_SHEETS_HEADERS: headers, shiftSheetsGridRows} = require("../lib/shift-sheets.js");
+const {readShiftSheetsImport} = require("../lib/shift-sheets-import.js");
+const {createShiftSheetsConfig} = require("../lib/shift-sheets-config.js");
+const {shiftSheetsISOWeekKey} = require("../lib/shift-sheets-human-layout.js");
 const {Timestamp} = require("@google-cloud/firestore");
 const {encodeShiftPlanningFirestoreValue, decodeShiftPlanningFirestoreValue, decodeShiftPlanningFirestoreDocument} =
   require("../lib/shift-planning-publication-contract.js");
@@ -24,7 +27,7 @@ const intersects = (range, row, column) => range && row >= (range.startRowIndex 
 const literal = (cell) => cell?.userEnteredValue ?? null;
 const unmanagedCell = (cell) => { const {userEnteredValue, ...rest} = cell ?? {}; return rest; };
 
-const cellChanges = (before, after, selectedTitles, sourceIds) => {
+const cellChanges = (before, after, selectedTabs, sourceRows, humanRows) => {
   requireValue(before.sheets.length === after.sheets.length);
   const changes = [];
   for (const sheet of [...before.sheets].sort((a, b) => a.properties.sheetId - b.properties.sheetId)) {
@@ -39,20 +42,44 @@ const cellChanges = (before, after, selectedTitles, sourceIds) => {
         (range.startColumnIndex ?? 0) < (range.endColumnIndex ?? Infinity));
     }
     const oldRows = shiftSheetsGridRows(sheet), newRows = shiftSheetsGridRows(next);
-    const selected = selectedTitles.has(sheet.properties.title);
-    requireValue(!selected || headers.every((header, index) => literal(oldRows[0]?.[index])?.stringValue === header &&
+    const tab = selectedTabs.find((item) => item.title === sheet.properties.title);
+    const selected = Boolean(tab), human = selected && tab.layout !== "canonical";
+    const cellsByPosition = new Map();
+    for (const block of humanRows.after.filter((item) => item.sheetId === sheet.properties.sheetId)) {
+      const previous = humanRows.before.find((item) => item.id === block.id);
+      if (!previous) {
+        for (let offset = 0; offset < block.before.length; offset++) {
+          requireValue((oldRows[block.rowNumber - 1 + offset] ?? []).every((cell) =>
+            literal(cell) === null || same(literal(cell), {stringValue: ""})));
+        }
+      }
+      if (tab.type === "delivery" && !block.helper && !previous) {
+        const value = literal(newRows[block.rowNumber - 1]?.[5]);
+        const week = String(Number(shiftSheetsISOWeekKey(sourceRows.get(block.id).row.date).split("-W")[1]));
+        requireValue(!value || Object.keys(value).length === 0 || value.stringValue === "" ||
+          String(value.stringValue ?? value.numberValue) === week);
+      }
+      for (let offset = 0; offset < block.before.length; offset++) {
+        const row = block.rowNumber - 1 + offset;
+        const columns = tab.type === "delivery" ? [1, 2, ...(block.helper || !previous ? [5] : [])] : offset > 0 ? [0, 1] : [];
+        if (!previous && offset === 0) columns.push(0);
+        columns.forEach((column) => cellsByPosition.set(`${row}:${column}`, block.id));
+      }
+    }
+    requireValue(!selected || human || headers.every((header, index) => literal(oldRows[0]?.[index])?.stringValue === header &&
       !literal(oldRows[0]?.[index])?.formulaValue));
     for (let row = 0; row < Math.max(oldRows.length, newRows.length); row += 1) {
       const oldId = literal(oldRows[row]?.[0])?.stringValue, newId = literal(newRows[row]?.[0])?.stringValue;
-      if (row > 0) requireValue(!oldId || oldId === newId);
-      if (row > 0 && !oldId && newId) requireValue((oldRows[row] ?? []).slice(0, headers.length).every((cell) =>
+      if (!human && row > 0) requireValue(!oldId || oldId === newId);
+      if (!human && row > 0 && !oldId && newId) requireValue((oldRows[row] ?? []).slice(0, headers.length).every((cell) =>
         literal(cell) === null || same(literal(cell), {stringValue: ""})));
       for (let column = 0; column < Math.max(oldRows[row]?.length ?? 0, newRows[row]?.length ?? 0); column += 1) {
         const oldCell = oldRows[row]?.[column], newCell = newRows[row]?.[column];
         requireValue(same(unmanagedCell(oldCell), unmanagedCell(newCell)));
         const oldValue = literal(oldCell), newValue = literal(newCell);
         if (same(oldValue, newValue)) continue;
-        requireValue(selected && row > 0 && column < headers.length && identity(newId) && sourceIds.has(newId) &&
+        const managedId = human ? cellsByPosition.get(`${row}:${column}`) : newId;
+        requireValue(selected && (human || (row > 0 && column < headers.length)) && identity(managedId) && sourceRows.has(managedId) &&
           !Object.hasOwn(oldValue ?? {}, "formulaValue") && !Object.hasOwn(newValue ?? {}, "formulaValue"));
         requireValue(!(sheet.merges ?? []).some((range) => intersects(range, row, column)));
         requireValue(!(sheet.protectedRanges ?? []).some((protection) => !protection.range ||
@@ -138,7 +165,7 @@ const planShiftRepair = async ({input, proposal, target, expectedInputDigest, ex
   requireValue(originalAudit.inputDigest === expectedInputDigest && proposedAudit.inputDigest === expectedProposalDigest);
   requireValue(proposedAudit.findings.length === 0 && proposedAudit.crossStore === "evaluated");
   for (const key of ["target", "capturedAt", "aliases", "tabs", "workbookVersion", "members", "expectedDates"]) requireValue(same(before[key], after[key]));
-  requireValue(before.tabs.every((tab) => tab.layout === "canonical"));
+  requireValue(same(before.deliveryCalendar ?? [], after.deliveryCalendar ?? []));
   for (const type of ["delivery", "market"]) {
     requireValue(originalAudit.lineage[type]?.selectedSource && proposedAudit.lineage[type]?.status === "consistent" &&
       same(before.lineage[type].bootstrap, after.lineage[type].bootstrap) && same(before.lineage[type].beforeDate, after.lineage[type].beforeDate));
@@ -182,8 +209,26 @@ const planShiftRepair = async ({input, proposal, target, expectedInputDigest, ex
     const value = (snapshot) => ({rows: snapshot.lineage[type].rows, rotationAfterHorizon: snapshot.lineage[type].rotationAfterHorizon});
     if (!same(value(before), value(after))) lineageChanges.push({type, before: value(before), after: value(after)});
   }
+  const humanTabs = after.tabs.filter((tab) => tab.layout !== "canonical");
+  const humanRows = {before: [], after: []};
+  if (humanTabs.length) {
+    const config = createShiftSheetsConfig({environment: target.environment,
+      workbooks: {[target.environment]: target.workbookId}, aliases: after.aliases});
+    // Use the proposed valid backend rows solely to resolve stable date identities.
+    // Missing old rows are allowed; moved, deleted or ambiguous old rows are not.
+    const readHuman = async (spreadsheet) => (await readShiftSheetsImport({config, tabs: humanTabs,
+      baseline: after.source.map((entry) => entry.row), members: after.members, deliveryCalendar: after.deliveryCalendar,
+      readWorkbookVersion: async () => after.workbookVersion,
+      sheets: {get: async () => ({data: structuredClone(spreadsheet)})}})).humanRows;
+    humanRows.before = await readHuman(before.spreadsheet);
+    humanRows.after = await readHuman(after.spreadsheet);
+    for (const row of humanRows.before) {
+      const next = humanRows.after.find((item) => item.id === row.id);
+      requireValue(next && row.sheetId === next.sheetId && row.rowNumber === next.rowNumber);
+    }
+  }
   const sheetsChanges = cellChanges(before.spreadsheet, after.spreadsheet,
-    new Set(after.tabs.map((tab) => tab.title)), new Set(newRows.keys()));
+    after.tabs, newRows, humanRows);
   const firestoreEvidence = capture === null ? null : bindFirestoreCapture(capture, expectedCaptureDigest, before, after);
   const body = {schemaVersion: firestoreEvidence ? 2 : 1, mode: "dry-run", scope: "normalized_projection_review", readyForApply: false,
     ...(firestoreEvidence ? {firestoreEvidence} : {}),

@@ -12,7 +12,7 @@ const encode = (value) => encodeShiftPlanningFirestoreValue(value, "fixture", ne
 const PROJECT_ID = "demo-reguerta-hu083-repair";
 const root = "develop/plus-collections";
 const cursor = (type, nextMemberIndex = 3) => ({schemaVersion: 1, type, cohortUserIds: ["a", "b", "c", "d"], roundNumber: 1, nextMemberIndex});
-const repairFixture = async ({firestore, createMissing = false} = {}) => {
+const repairFixture = async ({firestore, createMissing = false, readable = false} = {}) => {
   const target = {projectId: PROJECT_ID, environment: "develop", workbookId: "fixture-book"};
   const authority = {bundleRevision: "bundle-r1", bundleDigest: digest({fixture: "bundle"}), writeEpoch: 7};
   const rows = ["2026-08-27", "2026-09-03", "2026-09-10"].map((date, index) => ({id: `shift_delivery_${date.replaceAll("-", "")}`,
@@ -21,7 +21,11 @@ const repairFixture = async ({firestore, createMissing = false} = {}) => {
   rows.push({id: "shift_market_20260920", type: "market", date: "2026-09-20", rotationOwnerUserIds: ["a", "b", "c"],
     assignedUserIds: ["a", "b", "c"], helperUserId: null, status: "planned", source: "app", origin: "planner"});
   const config = createShiftSheetsConfig({environment: "develop", workbooks: {develop: target.workbookId}}), sheets = sheetsService(target.workbookId);
-  await createShiftSheetsAdapter({config, sheets}).reconcile({operationId: "fixture", rows, authorizeMutation: async () => {}});
+  await createShiftSheetsAdapter({config, sheets}).reconcile({operationId: "fixture", rows,
+    ...(readable ? {generationRows: rows.map((row) => ({id: row.id, visibleDate: row.date,
+      assignees: row.assignedUserIds.map((userId) => ({userId, name: "Fixture " + userId, phone: ""})),
+      helper: row.helperUserId ? {userId: row.helperUserId, name: "Fixture " + row.helperUserId} : null}))} : {}),
+    authorizeMutation: async () => {}});
   const proposal = {schemaVersion: 2, target, capturedAt: "2026-09-08T12:00:00.000Z", aliases: [], workbookVersion: "17", spreadsheet: clone(sheets.state),
     tabs: [...new Map(rows.map((row) => {const tab = resolveShiftSheetsTab(config, row.type, row.date); return [tab.title, {...tab, layout: "canonical", decorations: []}];})).values()],
     source: rows.map((row) => ({row, documentRevision: 2, assignmentRevision: 1, completionRevision: 0, completed: false})),
@@ -33,6 +37,9 @@ const repairFixture = async ({firestore, createMissing = false} = {}) => {
         ownerHistory: null, approvedMapping: null, legacyDeliveryHelper: null}, rotationAfterHorizon: cursor(type),
       rows: rows.filter((row) => row.type === type).map((row, index) => ({shiftId: row.id,
         positions: (type === "delivery" ? [index + 1] : [1, 2, 3]).map((positionInRound) => ({roundNumber: 1, positionInRound}))}))}]))};
+  if (readable) proposal.tabs = proposal.tabs.map((tab) => ({...tab, layout: `${tab.type}_human`,
+    decorations: [{rowNumber: 1, cells: proposal.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title)
+      .data[0].rowData[0].values.map((cell) => cell.userEnteredValue.stringValue)}]}));
   const input = clone(proposal); input.source[3].row.source = "planner";
   for (const sheet of input.spreadsheet.sheets) {
     const rowIndex = sheet.data[0].rowData.findIndex((row) => row.values[0]?.userEnteredValue?.stringValue === rows[3].id);

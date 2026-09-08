@@ -16,6 +16,23 @@ export const SHIFT_SHEETS_HUMAN_HEADERS = Object.freeze({
   market: ["Fecha / Persona", "Teléfono", "Notas / Cambio"],
 });
 
+/**
+ * Empty trailing grid cells carry no literal decoration authority.
+ * @param {string[]} actual Literal cells from the complete reviewed row.
+ * @param {string[]} expected Approved decoration values.
+ * @return {boolean} Equality ignoring only trailing empty cells.
+ */
+export const shiftSheetsLiteralRowsEqual = (
+  actual: readonly string[], expected: readonly string[],
+): boolean => {
+  const trim = (cells: readonly string[]) => {
+    let end = cells.length;
+    while (end > 0 && cells[end - 1] === "") end -= 1;
+    return cells.slice(0, end);
+  };
+  return JSON.stringify(trim(actual)) === JSON.stringify(trim(expected));
+};
+
 export const shiftSheetsISOWeekKey = (date: string): string => {
   const day = new Date(`${date}T00:00:00Z`);
   day.setUTCDate(day.getUTCDate() + 4 - (day.getUTCDay() || 7));

@@ -79,6 +79,12 @@ Historical delivery F remains a week/annotation column, not an implicit helper
 migration. Title/month rows and inter-block spacing are retained. The real book
 still requires its own reviewed mapping and evidence; synthetic tests do not
 establish either. Complete integration review is next.
+Cut twenty-seven completes local integration review and corrects helper write-back,
+already-effective instructions and decoration handling. Offline audit/repair now
+accept reviewed readable layouts plus optional captured `deliveryCalendar` entries;
+the calendar is immutable between input/proposal. Repair preserves old human row
+positions, annotations and formulas and emits exact deltas for approved managed
+cells. The next gate is actual evidence, not another implementation slice.
 
 - Keep one stable workbook for develop/test and one stable workbook for
   production.

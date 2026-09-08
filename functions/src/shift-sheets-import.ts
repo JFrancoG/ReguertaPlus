@@ -1,5 +1,7 @@
 import type {sheets_v4 as SheetsV4} from "googleapis";
-import {shiftSheetsDateFromCell as dateFromCell,
+import {SHIFT_SHEETS_HUMAN_HEADERS, shiftSheetsHumanLiteral,
+  shiftSheetsLiteralRowsEqual,
+  shiftSheetsDateFromCell as dateFromCell,
   shiftSheetsISOWeekKey as isoWeekKey} from "./shift-sheets-human-layout.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {requireShiftSheetsWorkbookVersion} from
@@ -265,7 +267,12 @@ export const readShiftSheetsImport = async (input: {
           values[replacement].stringValue?.trim() ?? "",
         )) values[replacement] = {};
       });
+      const helperColumn = delivery &&
+        SHIFT_SHEETS_HUMAN_HEADERS.delivery.every((header, column) =>
+          shiftSheetsCellValue(cells[0]?.[column]).stringValue === header);
+      if (helperColumn) shiftSheetsHumanLiteral(cells[rowNumber - 1]?.[5]);
       humanRows.push({id, sheetName: tab.title,
+        ...(helperColumn ? {helper: {userId: null, name: ""}} : {}),
         sheetId: sheet.properties?.sheetId as number, rowNumber,
         assignedUserIds: [...assignedUserIds], before, after});
     }
@@ -291,7 +298,8 @@ export const readShiftSheetsImport = async (input: {
       [row.rowNumber, row.cells]));
     // Check the full row, not just managed columns, before ignoring decoration.
     for (const [rowNumber, cells] of decorations) {
-      if (!same((rows[rowNumber - 1] ?? []).map(text), cells)) {
+      if (!shiftSheetsLiteralRowsEqual(
+        (rows[rowNumber - 1] ?? []).map(text), cells)) {
         return failShiftSheetsImport("Reviewed decoration row changed.");
       }
     }
@@ -359,6 +367,36 @@ export const readShiftSheetsImport = async (input: {
       !same((rows[0] ?? []).slice(0, 11).map(text), SHIFT_SHEETS_HEADERS)) {
       return failShiftSheetsImport("Canonical header is missing.");
     }
+  }
+  // Only the exact new header owns F. Historical F remains an annotation.
+  // Match the planner's effective lead changes, including the predecessor.
+  // Completed predecessors are excluded from write-back by the source planner.
+  const delivery = baseline.filter((row) => row.type === "delivery")
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const effectiveLead = (row: ShiftSheetsProjectionRow) =>
+    assignments.find((item) => item.id === row.id)?.assignedUserIds[0] ??
+      row.assignedUserIds[0];
+  for (const human of humanRows.filter((row) => row.helper !== undefined)) {
+    const current = delivery.find((row) => row.id === human.id);
+    if (!current) {
+      return failShiftSheetsImport("Helper has no delivery source.");
+    }
+    const next = delivery[delivery.indexOf(current) + 1];
+    const leadChanged = effectiveLead(current) !== current.assignedUserIds[0];
+    const nextChanged = next &&
+      effectiveLead(next) !== next.assignedUserIds[0];
+    const userId = next && (leadChanged || nextChanged) ?
+      effectiveLead(next) : current.helperUserId;
+    const name = userId === null ? "" :
+      members.find((member) => member.userId === userId)?.names[0];
+    if (name === undefined || name.length > 1024 ||
+      (userId !== null && (!name.trim() ||
+        resolver.resolve(name, "") !== userId))) {
+      return failShiftSheetsImport("Reviewed helper has no unique name.");
+    }
+    human.helper = {userId, name};
+    human.after = [{values: [...human.after[0].values.slice(0, 5),
+      name ? {stringValue: name} : {}]}];
   }
   const missingIds = projections.filter((row) =>
     tabs.some((tab) => tab.title === row.title) && !seen.has(row.id))

@@ -997,6 +997,31 @@ was added. Remaining outcomes: (27) complete integration review, (28) real evide
 and exact repair or zero-write deferral, (29) acceptance/delivery. The existing
 allowance of 1–2 corrective cuts applies only to demonstrated findings.
 
+### Twenty-seventh local cut — complete integration review (approved 2026-09-09)
+
+Cut 26 is pushed as `ec301ec`. Reviewed the complete HU-083 source/acceptance delta
+and ran the full existing local regression plus 20 demo Firestore/Rules suites.
+Corrected stale new-header helper write-back, unconsumed already-effective change
+instructions, inconsistent annotation/decoration handling and the repair tool's
+obsolete canonical-only restriction. The offline auditor also binds captured
+calendar overrides and diagnoses stale visible helpers. Existing protocols and
+fences are reused; no generic layer or real mutation is introduced.
+
+The [acceptance review](acceptance-review.md#cut-27-integration-review--2026-09-09)
+records findings, evidence and remaining operational boundaries. The readable
+repair proposal cannot move/delete old rows, overwrite notes/formulas, alter
+calendar authority or touch protected/merged cells. It emits exact cell deltas;
+the existing loopback rehearsal executes only its bounded Firestore side.
+Historical F remains a week/annotation field. No mobile/public wire changes.
+
+Validation passes: lint/build, 525 local tests and 275 emulator executions across
+20 suites; all 51 local emulator-only skips are covered there.
+
+Cut 27 is local/uncommitted. Remaining planned outcomes are (28) real evidence with
+exact repair or zero-write deferral and (29) acceptance/delivery. There is no new
+technical cut in the plan. Source access, reviewed mapping, backup and writer
+exclusion remain actual gates, not facts established by synthetic tests.
+
 ## 2. Expected implementation impact
 
 ### Functions

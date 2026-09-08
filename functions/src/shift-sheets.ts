@@ -15,6 +15,7 @@ import {
   shiftSheetsDateFromCell,
   shiftSheetsHumanLiteral,
   shiftSheetsISOWeekKey,
+  shiftSheetsLiteralRowsEqual,
 } from "./shift-sheets-human-layout.js";
 
 import type {ShiftSheetsImportTab} from "./shift-sheets-import.js";
@@ -101,6 +102,7 @@ export type ShiftSheetsHumanWriteBackRow = {
   sheetId: number;
   rowNumber: number;
   assignedUserIds: readonly string[];
+  helper?: {userId: string | null; name: string};
   before: readonly {values: readonly SheetsV4.Schema$ExtendedValue[]}[];
   after: readonly {values: readonly SheetsV4.Schema$ExtendedValue[]}[];
 };
@@ -318,6 +320,16 @@ const validateHumanRows = (
       row.before.length !== height || row.after.length !== height) {
       return fail("sheets_manual_conflict", "Human review is not exact.");
     }
+    if (row.helper !== undefined && (!delivery ||
+      projection.values[6] !== (row.helper.userId ?? "") ||
+      (row.helper.userId !== null && !identifier(row.helper.userId)) ||
+      typeof row.helper.name !== "string" || row.helper.name.length > 1024 ||
+      (row.helper.userId === null ? row.helper.name !== "" :
+        !row.helper.name.trim()) ||
+      digest(row.after[0].values[5]) !== digest(row.helper.name ?
+        {stringValue: row.helper.name} : {}))) {
+      return fail("sheets_manual_conflict", "Reviewed helper is detached.");
+    }
     ids.add(row.id);
     row.before.forEach((before, offset) => {
       const key = `${row.sheetName}:${row.rowNumber + offset}`;
@@ -357,7 +369,9 @@ const validateHumanRows = (
         const consumed = person && column === replacement &&
           /^lo hace\s+.+$/i.test(value.stringValue?.trim() ?? "") &&
           Object.keys(target).length === 0;
-        if (!identity && !consumed) {
+        const helper = row.helper !== undefined && delivery && column === 5 &&
+          value.formulaValue == null && value.boolValue == null;
+        if (!identity && !consumed && !helper) {
           return fail("sheets_manual_conflict", "Human annotation changed.");
         }
       });
@@ -373,7 +387,8 @@ const requireHumanImage = (
   sheet: Sheet, row: ShiftSheetsHumanWriteBackRow, image: "before" | "after",
 ): void => {
   const cells = shiftSheetsGridRows(sheet);
-  if (sheet.properties?.sheetId !== row.sheetId ||
+  if ((row.helper !== undefined && !hasGeneratedHeader(sheet, "delivery")) ||
+    sheet.properties?.sheetId !== row.sheetId ||
     row[image].some((line, offset) => line.values.some((value, column) =>
       digest(value) !== digest(shiftSheetsCellValue(
         cells[row.rowNumber - 1 + offset]?.[column],
@@ -417,10 +432,7 @@ const humanGenerationLocations = (
   for (const row of reviewed?.decorations ?? []) {
     const actual = (cells[row.rowNumber - 1] ?? []).map((cell) =>
       shiftSheetsHumanLiteral(cell));
-    while (actual.at(-1) === "") actual.pop();
-    const expected = [...row.cells];
-    while (expected.at(-1) === "") expected.pop();
-    if (digest(actual) !== digest(expected)) {
+    if (!shiftSheetsLiteralRowsEqual(actual, row.cells)) {
       fail("sheets_manual_conflict", "Reviewed decoration changed.");
     }
     // A reviewed decoration may not hide an assignment/date row.
@@ -434,9 +446,19 @@ const humanGenerationLocations = (
   for (let index = generated ? 1 : 0; index < cells.length; index += 1) {
     if (decorations.has(index) ||
       !(cells[index] ?? []).some((cell) => cellText(cell))) continue;
-    const date = shiftSheetsDateFromCell(
-      shiftSheetsHumanLiteral(cells[index]?.[0]),
-    );
+    const first = shiftSheetsHumanLiteral(cells[index]?.[0]);
+    if (!first.trim()) {
+      const identityColumns = type === "delivery" ? [1, 2] : [1];
+      const replacement = cells[index]?.[type === "delivery" ? 4 : 2]
+        ?.userEnteredValue?.stringValue ?? "";
+      if (identityColumns.some((column) =>
+        shiftSheetsHumanLiteral(cells[index]?.[column]).trim()) ||
+        /^lo hace(?:\s|$)/i.test(replacement.trim())) {
+        fail("sheets_manual_conflict", "Human identity lacks a date or name.");
+      }
+      continue;
+    }
+    const date = shiftSheetsDateFromCell(first);
     resolveShiftSheetsTab(config, type, date);
     const key = type === "delivery" ? shiftSheetsISOWeekKey(date) : date;
     if (dates.has(date) || weeks.has(key)) {

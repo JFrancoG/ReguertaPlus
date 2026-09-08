@@ -93,7 +93,20 @@ export const planShiftSheetsImport = (input: {
       createShiftPlanningDigest(assignment.assignedUserIds) !==
       createShiftPlanningDigest(current.row.assignedUserIds);
     const changedStatus = assignment.status !== current.row.status;
-    if (!changedLead && !changedStatus) continue;
+    const human = observation.humanRows?.find((row) =>
+      row.id === assignment.id);
+    const normalize = !current.completed && human && (
+      human.before.some((row, offset) => {
+        const column = assignment.type === "delivery" ? 4 : 2;
+        return (assignment.type === "delivery" || offset > 0) &&
+          /^lo hace\s+.+$/i.test(
+            row.values[column].stringValue?.trim() ?? "",
+          ) &&
+          Object.keys(human.after[offset].values[column]).length === 0;
+      }) || (human.helper !== undefined &&
+        createShiftPlanningDigest(human.before[0].values[5]) !==
+          createShiftPlanningDigest(human.after[0].values[5])));
+    if (!changedLead && !changedStatus && !normalize) continue;
     if (current.completed || assignment.status === "swap_pending" ||
       current.row.status === "swap_pending") {
       return failShiftSheetsImport(

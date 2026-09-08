@@ -870,6 +870,14 @@ a helper column; only new labeled tabs own helper F. Variable inter-block market
 spacing is preserved; each date still requires three contiguous participants.
 This is local compatibility, not approval or evidence for a real workbook rewrite.
 
+HU-083 integration review retains the existing receipt protocol for readable
+helper write-back and instruction consumption, including unchanged effective
+assignments without assignment-revision changes. Completed history stays frozen.
+Offline repair reuses the reviewed readable layout and captured calendar without
+conversion, preserves old row positions/annotations and emits exact managed-cell
+deltas. Its existing Firestore rehearsal remains loopback/demo-only; no live
+cross-store executor or operational authority is implied.
+
 ## Approval and implementation status
 
 The maintainer accepted this ADR on 2026-08-24 for HU-082 implementation and

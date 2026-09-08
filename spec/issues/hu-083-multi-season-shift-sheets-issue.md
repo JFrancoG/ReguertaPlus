@@ -1,13 +1,14 @@
 # [HU-083] Multi-season shift Sheets and develop repair
 
-## Cut 26 checkpoint — 2026-09-08
+## Cut 27 checkpoint — 2026-09-09
 
-Cut 25 pushed: `f1afc6d`. Cut 26 is local: reviewed historical mappings now drive
-generation/export and persist in readable recovery receipts; titles, spacing and
-historical F survive. Lint/build pass, local regression 200 passes (11 skips covered
-by emulator), consumer 24/24, exported handlers 27/27, fences 12/12. No live writes.
-Real-book mapping/evidence remain unverified. Next: cuts 27–29 (integration review,
-real evidence and repair/deferral, acceptance). Details: `spec/shifts/hu-083-multi-season-shift-sheets/plan.md`.
+Cut 26 pushed: `ec301ec`. Cut 27 is local: complete integration review fixes
+readable helper write-back, already-effective instructions, annotations and the
+repair planner's obsolete technical-table restriction. Reviewed calendars and
+readable repair/inverse are covered. Lint/build pass; 525 local passes and 275
+emulator executions across 20 suites; all 51 local skips pass there. No live writes.
+Remaining: cut 28 real evidence/repair-or-deferral, cut 29 acceptance/delivery.
+Details: `spec/shifts/hu-083-multi-season-shift-sheets/acceptance-review.md`.
 
 ## Tracking
 

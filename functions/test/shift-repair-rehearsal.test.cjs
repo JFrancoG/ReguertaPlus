@@ -91,3 +91,17 @@ test("review digest and index-policy validation cannot be bypassed to send a tra
   await assert.rejects(run(fixture, "forward", undefined, {emulator: {host: "https://127.0.0.1:8080", projectId: PROJECT_ID}}));
   assert.deepEqual(await readAll(fixture), before);
 });
+
+
+test("readable snapshots produce the same bounded Firestore repair and inverse without converting Sheets", async () => {
+  const fixture = await repairFixture({firestore, readable: true, createMissing: true});
+  const original = await readAll(fixture);
+  assert.ok(fixture.options.input.tabs.every((tab) => tab.layout !== "canonical"));
+  const sheets = structuredClone(fixture.options.input.spreadsheet);
+  const forward = await run(fixture, "forward");
+  assert.equal(forward.outcome, "committed");
+  assert.equal((await run(fixture, "forward", forward.readBack)).outcome, "replayed");
+  await run(fixture, "inverse", forward.readBack);
+  assert.deepEqual((await readAll(fixture)).map(({updateTime, ...row}) => row), original.map(({updateTime, ...row}) => row));
+  assert.deepEqual(fixture.options.input.spreadsheet, sheets);
+});

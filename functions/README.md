@@ -1437,6 +1437,37 @@ Parámetros opcionales:
 - `envs=develop,production` (lista separada por comas)
 
 
+## Revisión integral y correcciones (HU-083, corte 27)
+
+La importación revisada actualiza también el nombre de ayuda de la columna F en
+las pestañas con la cabecera nueva exacta. El nombre/ID quedan vinculados a la
+proyección y a la imagen revisada del recibo. La F histórica sigue conservándose.
+Una instrucción `lo hace Nombre` que ya coincide con Firestore puede consumirse:
+se registra una revisión documental controlada sin cambiar la revisión de
+asignación, propietarios ni historial completado. Preparaciones cuyo plan cambie
+requieren un digest revisado nuevo; los lotes ya enviados conservan su recuperación.
+
+Generación/importación/exportado comparten la comparación de decoraciones sin
+contar vacíos finales de formato. Las filas de anotaciones se conservan; nombres
+o instrucciones huérfanas siguen rechazándose. No hay normalización masiva de
+nombres o teléfonos que no requieren un cambio revisado.
+
+El auditor offline y `repair-planned-shifts.cjs` admiten el formato legible elegido.
+La evidencia puede incluir `deliveryCalendar: [{weekKey, date}]`, capturado y
+revisado; no se infiere ni modifica entre entrada y propuesta. La auditoría detecta
+ayudas visibles desactualizadas. La propuesta mantiene las pestañas, metadatos,
+filas existentes y anotaciones: permite corregir celdas gestionadas o completar
+filas ausentes en espacios vacíos, nunca mover filas o sustituir fórmulas/notas.
+Las filas históricas nuevas solo admiten su semana ISO exacta en F. El materializador
+y ensayo existentes aceptan esas evidencias; el ensayo ejecuta únicamente la parte
+Firestore en un emulador loopback/demo. Los deltas Sheets siguen siendo un artefacto
+de revisión, sin nuevo ejecutor real ni conversión a tabla técnica.
+
+La revisión/validación completas se registran en
+[`acceptance-review.md`](../spec/shifts/hu-083-multi-season-shift-sheets/acceptance-review.md).
+No hay despliegue, mutación real, cambio IAM ni envío FCM; los contratos móviles
+no cambian. Quedan evidencia real y reparación/aplazamiento exactos, y aceptación.
+
 ## Compatibilidad histórica revisada (HU-083, corte 26)
 
 La generación y el worker reutilizan `SHIFT_SHEETS_IMPORT_TABS_<ENV>` para adoptar

@@ -7,7 +7,7 @@ const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-diges
 const {createShiftSheetsConfig, resolveShiftSheetsTab} = require("../lib/shift-sheets-config.js");
 const {buildShiftSheetsProjections, SHIFT_SHEETS_LIMITS: limits} = require("../lib/shift-sheets.js");
 const {readShiftSheetsImport} = require("../lib/shift-sheets-import.js");
-const {readShiftSheetsImportMapping} = require("../lib/shift-sheets-import-http.js");
+const {readShiftSheetsImportMapping} = require("../lib/shift-sheets-import-mapping.js");
 const {resolveShiftRotationBootstrap} = require("../lib/shift-rotation-bootstrap.js");
 const {consumeRotationPositions} = require("../lib/shift-planning-contract.js");
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -157,13 +157,15 @@ const auditShiftPlanning = async (evidence, target) => {
   requireValue(Buffer.byteLength(JSON.stringify(evidence)) <= MAX_BYTES);
   const input = structuredClone(evidence);
   requireValue(exact(input, ["schemaVersion", "target", "capturedAt", "aliases", "tabs", "workbookVersion",
-    "spreadsheet", "source", "members", "expectedDates", ...(input.schemaVersion === 2 ? ["lineage"] : [])]) &&
+    "spreadsheet", "source", "members", "expectedDates", ...(input.schemaVersion === 2 ? ["lineage"] : []),
+    ...(Object.hasOwn(input, "deliveryCalendar") ? ["deliveryCalendar"] : [])]) &&
     [1, 2].includes(input.schemaVersion));
   requireValue(exact(target, ["projectId", "environment", "workbookId"]) &&
     /^[a-z][a-z0-9-]{4,62}$/.test(target.projectId) && same(input.target, target));
   requireValue(typeof input.capturedAt === "string" && /^\d{4}-\d{2}-\d{2}T/.test(input.capturedAt) &&
     new Date(input.capturedAt).toISOString() === input.capturedAt);
   requireValue(typeof input.workbookVersion === "string" && /^[1-9][0-9]*$/.test(input.workbookVersion));
+  requireValue(!Object.hasOwn(input, "deliveryCalendar") || Array.isArray(input.deliveryCalendar));
   requireValue(Array.isArray(input.aliases));
   const config = createShiftSheetsConfig({environment: target.environment,
     workbooks: {[target.environment]: target.workbookId}, aliases: input.aliases});
@@ -252,12 +254,17 @@ const auditShiftPlanning = async (evidence, target) => {
   if (comparable) {
     try {
       const observation = await readShiftSheetsImport({config, tabs, members: input.members,
-        baseline: input.source.map((entry) => entry.row), readWorkbookVersion: async () => input.workbookVersion,
+        baseline: input.source.map((entry) => entry.row), deliveryCalendar: input.deliveryCalendar, readWorkbookVersion: async () => input.workbookVersion,
         sheets: {get: async () => ({data: structuredClone(input.spreadsheet)})}});
       for (const missing of observation.missingIds) add("missing_sheet_row", input.source.findIndex((entry) => entry.row.id === missing));
       for (const assignment of observation.assignments) {
         const index = input.source.findIndex((entry) => entry.row.id === assignment.id), row = input.source[index].row;
         if (!same(row.assignedUserIds, assignment.assignedUserIds) || row.status !== assignment.status) add("cross_store_disagreement", index);
+      }
+      for (const row of observation.humanRows) {
+        if (row.helper && !same(row.before[0].values[5], row.after[0].values[5])) {
+          add("cross_store_helper_disagreement", input.source.findIndex((entry) => entry.row.id === row.id));
+        }
       }
       // The union reader checks selected partitions; every source partition must be selected too.
       for (const {entry, index} of valid) {

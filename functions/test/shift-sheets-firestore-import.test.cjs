@@ -769,3 +769,67 @@ test("human changes after review or calendar changes after apply cannot obtain a
     if (!changeCalendar) assert.equal((await fetch(`http://${host}/emulator/v1/projects/${projectId}/databases/(default)/documents`, {method: "DELETE"})).ok, true);
   }
 });
+
+test("generated delivery import refreshes predecessor helper cells and can be generated again", async () => {
+  const f = await setup();
+  f.service.state.sheets = [];
+  const display = (rows) => rows.map((row) => ({id: row.id, visibleDate: row.date,
+    assignees: row.assignedUserIds.map((userId) => ({userId, name: userId, phone: ""})),
+    helper: row.helperUserId ? {userId: row.helperUserId, name: row.helperUserId} : null}));
+  const adapter = createShiftSheetsAdapter({config, sheets: f.service});
+  await adapter.reconcile({operationId: "readable-initial", rows: f.rows, generationRows: display(f.rows), authorizeMutation: async () => {}});
+  const tabs = f.tabs.map((tab) => ({...tab, layout: `${tab.type}_human`, decorations: [{rowNumber: 1,
+    cells: f.service.state.sheets.find((sheet) => sheet.properties.title === tab.title).data[0].rowData[0].values.map((c) => c.userEnteredValue.stringValue)}]}));
+  const locate = (row) => {
+    const sheet = f.service.state.sheets.find((item) => item.properties.title === resolveShiftSheetsTab(config, row.type, row.date).title);
+    const index = sheet.data[0].rowData.findIndex((line) => line.values?.[0]?.userEnteredValue?.stringValue === row.date.split("-").reverse().join("/"));
+    return {sheet, index};
+  };
+  const target = locate(f.target);
+  setCell(target.sheet, target.index, 4, {userEnteredValue: {stringValue: "lo hace member-3"}});
+  f.changeVersion(); f.service.mutations.length = 0;
+  const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore, config, tabs, sheets: f.service,
+    clock: () => Timestamp.fromMillis(now), readWorkbookVersion: f.readWorkbookVersion});
+  const {plan} = await api.prepare("generated-import");
+  await api.apply("generated-import", plan.planDigest);
+  f.service.loseAcknowledgement = true;
+  assert.equal((await api.writeBack("generated-import", plan.planDigest)).kind, "completed");
+  const prior = locate(f.rows.find((row) => row.id === f.predecessorId));
+  assert.equal(prior.sheet.data[0].rowData[prior.index].values[5].userEnteredValue.stringValue, "member-3");
+  const updated = await Promise.all(f.rows.map(async (row) => projection(row.id, await f.readShift(row.id))));
+  assert.equal((await adapter.reconcile({operationId: "after-reviewed-import", rows: updated, generationRows: display(updated),
+    authorizeMutation: async () => {}})).kind, "verified");
+  assert.equal((await api.prepare("after-reimport")).kind, "unchanged");
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
+});
+
+test("already-effective instruction is consumed without changing assignments or assignment revision", async () => {
+  const f = await readableMarketImport();
+  const sheet = f.service.state.sheets.find((item) => item.properties.title === f.marketTab.title);
+  setCell(sheet, 1, 2, {userEnteredValue: {stringValue: `lo hace ${f.marketTarget.assignedUserIds[0]}`}});
+  const before = await f.readShift(f.marketTarget.id);
+  const {kind, plan} = await f.api.prepare("same-assignee");
+  assert.equal(kind, "prepared");
+  await f.api.apply("same-assignee", plan.planDigest);
+  await f.api.writeBack("same-assignee", plan.planDigest);
+  const after = await f.readShift(f.marketTarget.id);
+  assert.deepEqual(after.assignedUserIds, before.assignedUserIds);
+  assert.equal(after.assignmentRevision, before.assignmentRevision);
+  assert.equal(after.documentRevision, before.documentRevision + 1);
+  assert.equal(f.service.state.sheets.find((item) => item.properties.title === f.marketTab.title).data[0].rowData[1].values[2].userEnteredValue, undefined);
+  assert.equal((await f.api.prepare("same-assignee-replay")).kind, "unchanged");
+});
+
+test("an already-effective instruction never reopens completed history", async () => {
+  const f = await readableMarketImport();
+  const sheet = f.service.state.sheets.find((item) => item.properties.title === f.marketTab.title);
+  setCell(sheet, 1, 2, {userEnteredValue: {stringValue: `lo hace ${f.marketTarget.assignedUserIds[0]}`}});
+  const old = await f.readShift(f.marketTarget.id);
+  await firestore.doc(`${root}/shifts/${f.marketTarget.id}`).update({completion: {state: "completed", revision: 1,
+    actualHelperUserId: null, helperSourceAssignmentRevision: null, completedAt: Timestamp.fromMillis(now)},
+    updatedAt: Timestamp.fromMillis(now), documentRevision: old.documentRevision + 1});
+  const before = await f.readShift(f.marketTarget.id);
+  assert.equal((await f.api.prepare("completed-instruction")).kind, "unchanged");
+  assert.deepEqual(await f.readShift(f.marketTarget.id), before);
+  assert.equal(f.service.mutations.length, 0);
+});
