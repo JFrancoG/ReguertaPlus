@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — eighth cut pushed; ninth cut validated locally
+- State: IN PROGRESS — ninth cut pushed; tenth cut validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -379,6 +379,51 @@ notification occurred. No mobile contracts changed; Android/iOS checks were not
 rerun. The main checkout's unrelated Xcode project reorder remains untouched.
 Human layout/conversion, audit/repair tooling, retention/alert composition and
 rehearsal remain pending; consumed-command recovery stays closed.
+
+### Tenth local cut — offline snapshot audit (approved 2026-09-08)
+
+Ninth cut is committed and pushed as `095126b`. Its unchanged validation is reused
+for delivery. Start the read-only audit tooling with one offline CLI over bounded
+JSON evidence: exact project/environment/workbook, explicit expected dates, source
+rows with completion/revisions, roster, reviewed tab mapping and captured Sheets
+grid/version. Reuse canonical projection validation and the existing union import
+reader. Report duplicate identities/dates, missing/extra dates, invalid source or
+shape/group, current eligibility, adjacent delivery/helper violations and cross-store
+disagreement. Completed helper history is not recomputed.
+
+The CLI has audit mode only, no SDK credentials, network adapter, apply or repair.
+Emit a stable input/report digest, machine findings and a concise human summary.
+Mark lineage/round/bootstrap evidence, trusted capture and live completeness as
+unevaluated; an internally consistent supplied snapshot is not HU-083 acceptance or
+permission to repair. No historical ownership is inferred from effective assignees.
+Reject malformed/oversized/wrong-target evidence, prove deterministic diagnostics,
+zero input mutation and CLI rejection of apply. Human conversion, dry-run/rollback,
+live evidence collection and full bootstrap auditing remain later gates.
+
+### Tenth-cut validation checkpoint — 2026-09-08
+
+The offline `audit-shift-planning.cjs` command is implemented with exact target and
+bounded normalized snapshot input, canonical/human import-reader reuse, findings,
+input/report digests, explicit unevaluated checks and `readyForRepair: false`.
+It has no mutation/network client path. Invalid source skips cross-store evaluation;
+missing/ambiguous Sheet data rejects the complete comparison. A successful scoped
+audit does not infer historical ownership, certify capture or authorize repair.
+
+Validation: Functions lint/build passed; the new audit suite passed 14/14, including
+actual CLI execution without credentials, unchanged input/directory, malformed and
+wrong-target rejection, apply rejection, canonical/human snapshots, cross-season
+helpers, completed history, dates/duplicates, invalid source/group, eligibility,
+manual edits, missing rows/tabs, formula/authority cells and bounded grids. Existing
+Sheets suite passed 44/44. Node syntax check and `git diff --check` passed. Runtime
+Functions/mobile contracts are unchanged; ninth-cut emulator/planning/security
+results were reused for its commit and not rerun for this offline-only CLI.
+
+Ninth cut is confirmed on the remote as `095126b`; tenth-cut code/docs remain local
+and uncommitted. Issue #267 stays open. No live capture, Firebase/Sheets write,
+deployment, IAM change or notification occurred. The unrelated main-checkout Xcode
+project reorder is untouched. Next audit work must bind historical rotation/bootstrap
+and approved horizon evidence before any dry-run repair; human conversion and the
+safe-apply/zero-write rehearsal remain separate pending story gates.
 
 ## Workbook decision
 

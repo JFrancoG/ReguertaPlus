@@ -187,6 +187,10 @@
 
 - [ ] Implement read-only audit for gaps, duplicates, eligibility, rounds,
   helpers, market groups, sources, and cross-store disagreement.
+  - [x] Tenth local cut adds bounded offline snapshot diagnostics for dates,
+    identities, source/projection validity, current eligibility, helpers and
+    cross-store comparison. Live capture/completeness and historical rotation/
+    bootstrap/round evidence remain unevaluated; no repair readiness is claimed.
 - [ ] Implement deterministic dry-run repair plan and digest.
 - [ ] Define the immutable post-repair two-type migration-baseline revision/digest;
   persist/read it back only on safe apply, or emit its expected digest plus exact

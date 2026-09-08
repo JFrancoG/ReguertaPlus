@@ -313,6 +313,58 @@ Este corte no despliega ni configura recursos live. Prueba reproducible local:
 exportados con snapshots SDK/autoridad Firestore en un proyecto demo, sin Sheets
 ni FCM reales.
 
+### Auditoría local de snapshots (HU-083, décimo corte)
+
+`audit-shift-planning.cjs` lee exclusivamente un archivo JSON local (máximo 4 MiB).
+No inicializa clientes Firebase/Google, no usa credenciales y no tiene modo apply,
+conexión live ni generador de reparaciones. Primero compilar `npm run build` y luego:
+
+```sh
+npm run --silent audit:shift-planning -- --mode audit --input /ruta/absoluta/snapshot.json --project demo-reguerta-audit --environment develop --workbook audit-book
+```
+
+Los tres identificadores deben coincidir exactamente con `target` del archivo;
+los valores del ejemplo son sintéticos. No se selecciona el proyecto por variables
+ambientales. La captura live y su auditor autorizado siguen siendo un paso separado.
+La evidencia JSON v1 contiene exactamente:
+
+| Campo | Contenido |
+| --- | --- |
+| `schemaVersion` | `1` |
+| `target` | `projectId`, `environment`, `workbookId` |
+| `capturedAt` | Fecha UTC ISO, con milisegundos, declarada por la captura |
+| `aliases`, `tabs` | Aliases y mapeo explícito del contrato de importación |
+| `workbookVersion` | Versión Drive positiva conservada como texto |
+| `spreadsheet` | Snapshot de `spreadsheets.get`: ID, metadatos y grids `userEnteredValue` de todas las pestañas incluidas |
+| `source` | Array de `{row, documentRevision, assignmentRevision, completionRevision, completed}`; `row` es la proyección `ShiftSheetsProjectionRow` |
+| `members` | Array de `{userId, names, phones, eligibleTypes}` del lector de importación |
+| `expectedDates` | `{delivery: ["YYYY-MM-DD", ...], market: ["YYYY-MM-DD", ...]}`; horizonte explícito para ambos tipos |
+
+El archivo es evidencia normalizada, no un export Firestore bruto. Debe conservar
+las revisiones, el estado real de completado y cualquier valor inválido observado
+(por ejemplo `source: "planner"`); no corregirlos durante la preparación. Cada grid
+debe traer `data` y `rowData` explícitos, y cada fila `values`, incluso vacíos.
+El formato humano necesita su mapeo revisado; no se deduce del nombre de la pestaña.
+El snapshot puede contener datos personales: el informe solo emite códigos, índices
+de `source`, fechas del horizonte y digests, nunca nombres, teléfonos ni errores raw.
+
+Se detectan identidades/fechas duplicadas, huecos y fechas extra respecto al horizonte,
+fuente inválida, proyecciones/grupos inválidos, inelegibilidad actual, líderes
+adyacentes iguales, ayudantes planificados incoherentes y diferencias entre almacenes.
+La comparación de ayudantes cruza temporadas, pero no salta huecos del horizonte ni
+recalcula ayudantes completados. La elegibilidad actual se comprueba solo para turnos
+no completados. Una lectura Sheets incompleta/ambigua rechaza toda la comparación;
+un origen inválido la deja sin evaluar. Nunca se interpreta ausencia como borrado.
+
+Stdout contiene JSON con `inputDigest`, `reportDigest`, hallazgos y comprobaciones
+pendientes; stderr muestra un resumen. Salidas: `0` sin hallazgos **en el alcance
+comprobado**, `2` con hallazgos, `1` con argumentos/evidencia rechazados. La herramienta
+no certifica captura, permisos, completitud live, calendario aprobado, linaje/rondas,
+bootstrap, elegibilidad histórica ni ayudantes en los extremos. Siempre devuelve
+`readyForRepair: false`; incluso `0` no completa HU-083 ni autoriza apply. El digest
+vincula exactamente el archivo normalizado (incluido el orden de arrays), no acredita
+su procedencia. Validación local: `npm run test:shift-planning:audit`.
+
 El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
 (`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y
 la identidad runtime quedan para HU-085; no se amplía el permiso del operador de
