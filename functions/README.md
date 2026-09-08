@@ -341,6 +341,38 @@ lectura. Sigue siendo necesaria la exclusión operativa de escritores externos.
 La ruta todavía consume comandos de activación; no habilita recuperación de
 comandos consumidos ni reemplaza las barreras de recovery existentes.
 
+El noveno corte exporta `executeShiftSheetsImport` como HTTP privado, sin scheduler
+ni despliegue. Acepta POST sin query con `schemaVersion: 1`, `environment`,
+`operationId` y una sola operación:
+
+- `mode: "prepare"`: carga el origen y devuelve el plan completo con `planDigest`.
+  Puede persistir el comando inmutable en Firestore privado; no modifica turnos
+  públicos ni celdas. El plan contiene asignaciones por UID y guardas del origen:
+  su respuesta es privada y lleva `Cache-Control: no-store`.
+- `mode: "apply"` y `expectedPlanDigest`: exige el digest exacto revisado y aplica
+  atómicamente las correcciones en Firestore tras revalidar la autoridad.
+- `mode: "writeBack"` y el mismo `expectedPlanDigest`: completa explícitamente
+  la escritura pendiente en Sheets. Nunca se encadena automáticamente con apply.
+
+El cuerpo no acepta filas, origen, configuración ni políticas. Además del workbook,
+aliases y política de retención del entorno, la composición exige el JSON revisado
+`SHIFT_SHEETS_IMPORT_TABS_DEVELOP` o `SHIFT_SHEETS_IMPORT_TABS_PRODUCTION`. Cada entrada
+contiene exactamente `type`, `seasonStartYear`, `title`, `layout` y `decorations`;
+el título debe resolver al alias/ruta configurado. `layout` es `canonical` (con
+`decorations: []`), `delivery_human` o `market_human` según el tipo. Cada decoración
+contiene solo `rowNumber` (base 1) y `cells` literales. No se infiere el formato ni se
+convierte el libro: una preparación humana sigue bloqueada para apply hasta la
+conversión revisada. Los límites de pestañas, filas y columnas son los del adaptador.
+
+Devuelve 200 con el plan o resultado, 400 para un comando mal formado, 405 para otro
+método, 409 para rechazo o reconciliación pendiente y 503 para un fallo inesperado.
+Apply/writeBack devuelven metadatos de resultado, sin payload interno. Ante pérdida
+de respuesta se repite la misma operación con el mismo ID/digest; un envío incierto
+solo permite lectura/reconciliación y nunca otro envío. Los logs omiten diagnósticos
+privados. HU-085 debe establecer IAM, identidad runtime y exclusión de escritores.
+`npm run test:shift-sheets:import:emulator` cubre los tres modos sobre Firestore demo
+y Sheets simulado, incluidos digest alterado, revisión obsoleta y replay.
+
 Las revisiones de libro del bundle son observaciones por partición y pueden
 diferir; no son tokens CAS de Sheets. El ejecutor entrega al consumidor un callback
 para revalidar autoridad antes de cada lote. El consumidor carga las filas exactas

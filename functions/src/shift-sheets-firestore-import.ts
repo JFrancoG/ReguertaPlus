@@ -131,7 +131,7 @@ const parsePrepared = (value: unknown): PreparedImport => {
 };
 
 /**
- * Local preparation/apply/write-back; no public handler or deployment.
+ * Internal preparation/apply/write-back behind the private import handler.
  * Preparation owns source loading and persists the exact reviewed plan. Apply
  * re-reads the full bounded queries, so edits, deletions and inserted neighbors
  * participate in the same transaction as source/eligibility/fence checks.

@@ -131,6 +131,11 @@ import {createFirestoreShiftPlanningSyncCommandRepository} from
 import {createShiftPlanningSheetsWorkerHttpFunction} from
   "./shift-planning-sheets-worker.js";
 
+import {createFirestoreShiftSheetsImport} from
+  "./shift-sheets-firestore-import.js";
+import {createShiftSheetsImportHttpFunction, readShiftSheetsImportMapping} from
+  "./shift-sheets-import-http.js";
+
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
@@ -4430,6 +4435,35 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
   }
 );
 
+const getPlanningSheetsClients = () => {
+  const auth = new google.auth.GoogleAuth({scopes: [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
+  ]});
+  return {
+    sheets: google.sheets({version: "v4", auth}).spreadsheets,
+    files: google.drive({version: "v3", auth}).files,
+  };
+};
+
+export const executeShiftSheetsImport = createShiftSheetsImportHttpFunction({
+  importerFor: (environment) => {
+    const config = readShiftSheetsWorkerConfig(environment, process.env);
+    const tabs = readShiftSheetsImportMapping(config, process.env);
+    const retentionPolicy = readShiftPlanningPublicEventPolicy(
+      environment, process.env,
+    );
+    const clients = getPlanningSheetsClients();
+    return createFirestoreShiftSheetsImport({
+      firestore, config, tabs, retentionPolicy, sheets: clients.sheets,
+      readWorkbookVersion: createShiftSheetsWorkbookVersionReader({
+        workbookId: config.workbookId, files: clients.files,
+      }),
+    });
+  },
+  logger,
+});
+
 const sheetsSyncRepository =
   createFirestoreShiftPlanningSyncCommandRepository(firestore);
 
@@ -4438,17 +4472,14 @@ export const executeShiftPlanningSheetsSync =
     repository: sheetsSyncRepository,
     consumerFor: (environment) => {
       const config = readShiftSheetsWorkerConfig(environment, process.env);
-      const auth = new google.auth.GoogleAuth({scopes: [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.metadata.readonly",
-      ]});
+      const clients = getPlanningSheetsClients();
       return createFirestoreShiftPlanningSheetsConsumer({
         firestore, config, repository: sheetsSyncRepository,
         sheets: createShiftSheetsAdapter({config,
-          sheets: google.sheets({version: "v4", auth}).spreadsheets}),
+          sheets: clients.sheets}),
         readWorkbookVersion: createShiftSheetsWorkbookVersionReader({
           workbookId: config.workbookId,
-          files: google.drive({version: "v3", auth}).files,
+          files: clients.files,
         }),
       });
     },

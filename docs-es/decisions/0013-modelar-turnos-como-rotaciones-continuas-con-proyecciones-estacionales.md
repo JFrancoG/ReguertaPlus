@@ -832,6 +832,16 @@ fallback al otro.
   cada gate posterior, de modo que una aprobación de notificaciones retrasada no
   deje producción indisponible indefinidamente.
 
+El noveno corte local de HU-083 expone la API existente de importación mediante
+una entrada HTTP privada. Prepare devuelve el plan completo revisable y puede
+persistir únicamente su comando backend; apply y write-back siguen siendo llamadas
+separadas que exigen ese digest exacto. Libro, aliases, layout/decoraciones y política
+de retención proceden de configuración explícita por entorno, nunca del cuerpo.
+La conversión del formato humano sigue bloqueada hasta su revisión. Un envío externo
+incierto solo permite reconciliación por lectura, nunca reenvío. No añade despliegue,
+permisos IAM del invocador ni scheduler; HU-085 conserva la identidad runtime y la
+exclusión de escritores externos.
+
 ## Estado de aprobación e implementación
 
 El mantenedor aceptó este ADR el 2026-08-24 para implementar HU-082 y validarla

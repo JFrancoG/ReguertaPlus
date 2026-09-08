@@ -804,6 +804,15 @@ no fallback to the other.
   window. Keep a timeboxed rollback/resume outcome for every later gate so
   delayed notification approval cannot leave production unavailable indefinitely.
 
+HU-083's ninth local cut exposes the existing import API through a private HTTP
+entry. Prepare returns the complete reviewable plan and may persist only its
+backend command; apply and write-back remain separate invocations requiring that
+exact plan digest. Workbook, aliases, tab layout/decorations and retention policy
+come from explicit environment configuration, never request input. Human-layout
+conversion remains gated. Unknown external submissions permit read-only
+reconciliation, never resend. This adds no deployment, caller IAM grant or scheduler;
+HU-085 still owns runtime identity and external-writer exclusion.
+
 ## Approval and implementation status
 
 The maintainer accepted this ADR on 2026-08-24 for HU-082 implementation and

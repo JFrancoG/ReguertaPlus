@@ -570,3 +570,63 @@ test("one import writes delivery and market patches in the same physical batch",
   }
   assert.equal((await f.resultRef().get()).get("writeBackRows").length, 3);
 });
+
+const {createShiftSheetsImportHttpHandler} = require("../lib/shift-sheets-import-http.js");
+const invokeImport = async (f, mode, expectedPlanDigest) => {
+  const result = {};
+  const response = {setHeader() { return response; }, status(v) { result.status = v; return response; }, json(v) { result.body = v; return response; }};
+  const handler = createShiftSheetsImportHttpHandler({importerFor: (environment) => {
+    assert.equal(environment, "develop"); return f.api;
+  }, logger: {error() {}}});
+  const body = {schemaVersion: 1, environment: "develop", operationId: "http-import-1", mode,
+    ...(expectedPlanDigest ? {expectedPlanDigest} : {})};
+  await handler({method: "POST", query: {}, body}, response);
+  return result;
+};
+
+test("HTTP import keeps review, atomic apply and write-back separate and replayable", async () => {
+  const f = await setup();
+  const before = await f.readShift(f.target.id);
+  const prepared = await invokeImport(f, "prepare");
+  assert.equal(prepared.status, 200); assert.equal(prepared.body.plan.patches.length, 2);
+  const digest = prepared.body.plan.planDigest;
+  assert.deepEqual(await f.readShift(f.target.id), before);
+  assert.equal((await f.resultRef("http-import-1").get()).exists, false);
+  const invalid = await invokeImport(f, "apply", "shift-planning:v1:sha256:" + "0".repeat(64));
+  assert.equal(invalid.status, 409); assert.deepEqual(await f.readShift(f.target.id), before);
+  const applied = await invokeImport(f, "apply", digest);
+  assert.equal(applied.status, 200); assert.equal(applied.body.kind, "committed");
+  assert.deepEqual((await f.readShift(f.target.id)).assignedUserIds, ["member-3"]);
+  assert.equal(f.service.mutations.length, 0);
+  const written = await invokeImport(f, "writeBack", digest);
+  assert.equal(written.status, 200); assert.equal(written.body.kind, "completed");
+  assert.equal(f.service.mutations.length, 1);
+  const reads = f.versionReads; f.changeVersion();
+  for (const mode of ["apply", "writeBack"]) {
+    const replay = await invokeImport(f, mode, digest);
+    assert.equal(replay.status, 200); assert.equal(replay.body.kind, "replayed");
+  }
+  assert.equal(f.versionReads, reads); assert.equal(f.service.mutations.length, 1);
+});
+
+test("HTTP apply rejects stale reviewed authority without public changes", async () => {
+  const f = await setup(); const before = await f.readShift(f.target.id);
+  const prepared = await invokeImport(f, "prepare"); f.changeVersion();
+  const result = await invokeImport(f, "apply", prepared.body.plan.planDigest);
+  assert.equal(result.status, 409); assert.deepEqual(await f.readShift(f.target.id), before);
+  assert.equal((await f.resultRef("http-import-1").get()).exists, false);
+  assert.equal(f.service.mutations.length, 0);
+});
+
+test("HTTP write-back reports uncertainty and never turns a retry into another batch", async () => {
+  const f = await setup(); const prepared = await invokeImport(f, "prepare");
+  const digest = prepared.body.plan.planDigest;
+  assert.equal((await invokeImport(f, "apply", digest)).status, 200);
+  f.service.rejectBeforeApply = true;
+  const first = await invokeImport(f, "writeBack", digest);
+  assert.equal(first.status, 409); assert.equal(first.body.kind, "reconciliationRequired");
+  f.service.rejectBeforeApply = false;
+  const retry = await invokeImport(f, "writeBack", digest);
+  assert.equal(retry.status, 409); assert.equal(retry.body.kind, "reconciliationRequired");
+  assert.equal(f.service.mutations.length, 1);
+});

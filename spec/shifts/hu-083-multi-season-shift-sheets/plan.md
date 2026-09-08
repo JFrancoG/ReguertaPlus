@@ -393,6 +393,51 @@ worker IAM/identity, approved runtime configuration and external writer exclusio
 Human layout/conversion, import endpoint, audit/repair tooling, retention/alert
 composition and rehearsal remain pending; consumed-command recovery stays closed.
 
+### Ninth local cut — reviewed import HTTP entry (approved 2026-09-08)
+
+Eighth cut is committed and pushed as `1876fc6`; unchanged lint/build and the
+17 consumer, 38 Sheets, 12 trigger, 294 planning (51 emulator-only skips) and 31
+security results are reused. Expose the existing import preparation/apply/write-back
+through a private, explicitly invoked HTTP function. Keep three distinct modes:
+prepare returns the exact reviewable plan; apply and writeBack require its digest.
+Caller input cannot provide rows, source authority, workbook, retention or layout.
+
+Compose environment-scoped workbook/aliases, explicit reviewed import-tab mapping,
+retention policy and the existing concrete Google/Firestore adapters at invocation.
+Reject invalid configuration/HTTP input before mutations; keep replay, manual-edit
+conflict and unknown-submission behavior in the existing import implementation.
+A prepared plan is backend-only persistence, not a public assignment change.
+No automatic apply or write-back is implied by preparation or an HTTP retry.
+
+Prove the HTTP sequence, tampered digest, stale authority, terminal replay and
+uncertain write-back with Firestore emulator and fake Google API boundaries.
+No deployment, IAM grant, live invocation, human-layout conversion, scheduler,
+notification release or shared data mutation is authorized by this local cut.
+
+### Ninth-cut validation checkpoint — 2026-09-08
+
+`executeShiftSheetsImport` now composes the existing import API as a private HTTP
+function. Prepare returns the exact plan; apply/writeBack require its digest and
+return only outcome metadata. Strict request fields and environment-owned reviewed
+tab mapping prevent caller-supplied source/configuration. No additional persistence
+or workflow layer was introduced. The worker shares the same Sheets/Drive client
+construction; existing import authority, receipts and replay remain unchanged.
+
+Validation: Functions lint/build passed; Sheets/config/import/HTTP 44/44;
+Firestore import emulator 40/40; Sheets consumer emulator 17/17; exported public-event
+trigger suite 12/12; planning 294 passed with 51 emulator-only skips; backend security
+31/31. HTTP emulator cases prove separate preparation/apply/write-back, changed
+workbook rejection, tampered digest rejection, terminal replay without new Google
+I/O and an uncertain submission that is never resent. Google boundaries are fake;
+these checks do not prove live IAM, workbook permissions or external-writer exclusion.
+
+The ninth cut remains local and uncommitted. Remote HEAD is eighth-cut `1876fc6`.
+Issue #267 remains open. No deployment, live Firestore/Sheets write, IAM change or
+notification occurred. No mobile contracts changed; Android/iOS checks were not
+rerun. The main checkout's unrelated Xcode project reorder remains untouched.
+Human layout/conversion, audit/repair tooling, retention/alert composition and
+rehearsal remain pending; consumed-command recovery stays closed.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its
