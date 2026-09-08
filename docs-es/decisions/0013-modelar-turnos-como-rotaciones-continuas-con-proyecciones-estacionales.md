@@ -384,6 +384,22 @@ recovery deletes contra su before-document de activacion y el manifest inverse d
 borrado. Devuelve un digest estable del no-op auditado; un marcador retenido sigue
 siendo ordinario y un marcador cambiado sin autoridad exacta falla cerrado.
 
+El sexto corte local de HU-083 versiona el terminal de recovery a schema v2 y
+conserva el `activationTerminal` exacto dentro del mismo documento y digest de
+recovery. Recovery UPDATE exige la actualización pública exacta de la activación
+archivada y que el after reproduzca sin cambios el before-image persistido ligado
+por digest. La identidad del evento usa ID/digest de recovery, nunca el marcador
+histórico restaurado. Los eventos retrasados de activación usan la autoridad
+archivada. Los terminales schema v1 siguen admitiendo lectura estricta; sus UPDATE
+de recovery sin prueba fallan cerrado. Se mantienen rutas y número de escrituras;
+la admisión mide el terminal mayor mediante el adaptador público de ADR-0014.
+
+Ambas operaciones lógicas requieren bindings explícitos de retención. El terminal
+físico y los before-images son evidencia compartida: la caducidad de un único
+registro no permite eliminarlos mientras otra dependencia los necesite. Este corte
+no habilita TTL ni ejecutor de cleanup. La composición de trigger, alerta y política
+sigue pendiente; no cambia el comportamiento live.
+
 El productor local complementario de retencion congela ahora el schema v1 sin
 conectar el trigger. Una politica ligada por digest contiene el horizonte maximo
 end-to-end aprobado de entrega/reintento y un margen de seguridad positivo. Cada

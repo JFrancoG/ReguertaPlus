@@ -244,13 +244,64 @@ emulator start failed on an occupied port; the rerun completed on the normal por
 No mobile contract change or new Android/iOS gate. No live source mutation,
 Functions/Rules deployment or notification send.
 
-Fourth and fifth cuts remain local and uncommitted; the pushed branch still ends
-at third-cut `48fb799`. English/Spanish ADR-0013, README and issue #267 reflect this
+At this fifth-cut checkpoint, fourth and fifth cuts were still local and
+uncommitted, with remote HEAD at third-cut `48fb799` (subsequently pushed below). English/Spanish ADR-0013, README and issue #267 reflect this
 checkpoint. Next integration work remains explicit human-layout conversion,
 endpoint/legacy-trigger composition including inverse-event identity, baseline and
 audit/repair tooling plus the guarded rehearsal. Operational exclusion of live
 activation, ordinary writers and external collaborators is still required; this
 local receipt protocol is not a cross-service CAS or complete HU-083 delivery.
+
+### Sixth local cut — recovery event authority (approved 2026-09-08)
+
+Fourth and fifth cuts are committed and pushed as `8375483` and `60bf91f`.
+The fourth staged tree independently passed lint/build and 20 import emulator cases;
+the unchanged fifth tree reused its 137 passing cases and reran lint/build.
+
+Before wiring the real trigger, complete recovery UPDATE classification and delayed
+activation authority. Recovery currently replaces the activation terminal and restores
+an older marker, so the auditor cannot safely distinguish that restoration from an
+old activation replay. Version the recovery terminal explicitly to retain the exact
+original activation terminal inside the same physical operation document. Preserve
+strict schema-v1 decoding for existing artifacts; legacy recovery UPDATEs without
+archived authority remain rejected. Keep manifest paths/write counts unchanged and
+measure the larger payload with the existing transaction admission path.
+
+Require an exact activated before payload plus the digest-bound persisted before-image
+for recovery UPDATEs. Bind the decision to the recovery ID/intent, never the restored
+old marker. For delayed activation events, validate against the archived original
+terminal. Revalidate persisted ledgers and retain both logical operations' evidence;
+shared physical authority and envelopes remain protected from any generic cleanup.
+No TTL/cleanup executor is enabled. Prove real forward/inverse materializations,
+emulator persistence/replay, missing/altered envelopes and delayed event order.
+
+This local cut does not wire `index.ts`, deploy, convert human tabs, write live data
+or send alerts/FCM. Explicit policy/retention composition, external writer fencing,
+human conversion, endpoints, audit/repair and rehearsal remain story-level gates.
+
+### Sixth-cut validation checkpoint — 2026-09-08
+
+Recovery terminal v2 now archives the exact activation in the same physical
+operation document. Recovery UPDATE binds the activated before and persisted
+before-image to the recovery ID/intent; delayed activation CREATE/UPDATE uses the
+archive. Recovery selection precedes restored-marker replay. Strict v1 decoding
+and ordinary retained-marker edits remain supported; unproven recovery UPDATEs
+remain fail-closed. No new persistence paths or transaction writes were introduced.
+
+Validation: Functions lint/build pass; the public-event audit, inverse materializer,
+attempt-outcome and CAS-runtime suites pass **50/50 with no skips** in the Firestore
+emulator (including 32 audit cases). A real forward/inverse transaction fixture
+retains the original terminal, restores the predecessor and passes admission with
+all 156 inverse writes. Planning regression passes 279 cases with 51 explicitly
+emulator-only skips; these skipped cases are not claimed as executed by that run.
+No mobile code changed, so Android/iOS gates were not rerun. ADR-0013 EN/ES and
+Functions README describe the version and shared-evidence retention requirement.
+
+Sixth-cut changes remain local and uncommitted; remote HEAD is `60bf91f` after the
+authorized fourth/fifth push. Both logical retention bindings and shared physical
+authority must remain available; no generic cleanup executor is enabled. Trigger,
+alert/policy composition, human-layout conversion, endpoints, audit/repair and
+rehearsal remain pending. No shared deployment, live data mutation or message send.
 
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,

@@ -36,6 +36,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(shifts): audit recovery updates with retained authority
+
 - 2026-09-08 | ✨ feat(sheets): complete durable import write-back
 
 - 2026-09-08 | ✨ feat(sheets): apply reviewed imports atomically

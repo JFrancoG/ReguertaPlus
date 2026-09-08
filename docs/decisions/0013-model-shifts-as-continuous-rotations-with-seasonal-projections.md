@@ -371,6 +371,22 @@ inverse deletion manifest. It returns a stable audited-no-op event digest; a
 retained marker remains ordinary and a changed marker without exact authority
 fails closed.
 
+HU-083's sixth local cut versions the recovery terminal to schema v2, retaining
+an exact `activationTerminal` within the same operation document and recovery
+intent digest. Recovery UPDATE requires the archived activation's exact public
+update and the persisted digest-bound before-image reproduced exactly by the
+after snapshot. Its event identity uses the recovery ID/intent, never the restored
+historical marker. Delayed activation events use the archived activation authority.
+Schema-v1 terminals remain strictly readable; their unproven recovery UPDATEs fail
+closed. Mutation paths/counts stay unchanged, and admission measures the larger
+terminal through ADR-0014's public transaction adapter.
+
+Both logical operations require explicit retention bindings. The physical terminal
+and before-images are shared evidence: a single expired retention record is not
+permission to delete them while another dependency still needs them. No TTL or
+cleanup executor is enabled by this cut. Trigger, alert and policy composition
+remain pending; no live behavior is changed.
+
 The companion local retention producer now freezes schema v1 without wiring the
 trigger. A digest-bound policy carries the approved maximum end-to-end delivery/
 retry horizon plus a positive safety margin. A controlled terminal gets one

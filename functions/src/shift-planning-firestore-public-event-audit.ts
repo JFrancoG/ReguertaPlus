@@ -94,8 +94,8 @@ const knownDeleteAuthority = (
  * The caller supplies stable CloudEvent time and an explicit retention policy;
  * SDK failures reject the call and must remain retryable at the trigger.
  * The caller receives alertRequired as a signal, not proof of alert delivery.
- * Recovery updates remain rejected until their exact before-image contract is
- * integrated. This adapter neither creates retention nor cleans up terminals.
+ * Recovery updates require the archived activation and persisted before-image.
+ * This adapter neither creates retention nor cleans up shared terminals.
  * A recovery delete whose registry was lost cannot recover its old ledger ID;
  * it records an alertable rejection. Retaining those terminals is mandatory.
  * @param {Firestore} firestore Environment-scoped authority and ledger store.
@@ -184,7 +184,15 @@ export const createFirestoreShiftPlanningPublicEventAudit = (
             if (!(error instanceof ShiftPlanningError)) throw error;
             return reject();
           }
-          if (afterMarker !== null) {
+          const beforeOperation = beforeMarker === null ? null :
+            await readOperation(beforeMarker.operationId);
+          // An epoch rewind cannot borrow the restored marker's old ledger.
+          const restoration = beforeMarker !== null && afterMarker !== null &&
+            (afterMarker.writeEpoch < beforeMarker.writeEpoch ||
+             (afterMarker.writeEpoch === beforeMarker.writeEpoch &&
+              field(beforeOperation, "operationKind") ===
+                "activationRecovery"));
+          if (afterMarker !== null && !restoration) {
             const decision = createShiftPlanningControlledPublicEventDecision({
               operationKind: afterMarker.kind,
               mutationKind: input.before === null ? "create" : "update",
@@ -226,8 +234,6 @@ export const createFirestoreShiftPlanningPublicEventAudit = (
               };
             }
           }
-          const beforeOperation = beforeMarker === null ? null :
-            await readOperation(beforeMarker.operationId);
           if (input.after === null && beforeMarker !== null) {
             try {
               if (!knownDeleteAuthority(
@@ -240,13 +246,35 @@ export const createFirestoreShiftPlanningPublicEventAudit = (
               return reject();
             }
           }
-          const isRecovery = field(beforeOperation, "operationKind") ===
-          "activationRecovery";
-          // Restoring an old marker must not masquerade as its old activation.
-          const operation = input.after === null || isRecovery ?
+          let operation = input.after === null || restoration ?
             beforeOperation :
             afterMarker === null ? null :
               await readOperation(afterMarker.operationId);
+          let recoveryBeforeImage: unknown = null;
+          const isRecovery = (input.after === null || restoration) &&
+            field(operation, "operationKind") === "activationRecovery";
+          if (restoration && !isRecovery) return reject();
+          try {
+            if (isRecovery && restoration) {
+              const recovery = parseShiftPlanningRecoveryOperationTerminal(
+                operation,
+              );
+              const binding = recovery.restoredBeforeImages.find((item) =>
+                item.targetPath === input.targetPath);
+              if (!binding || !recovery.activationTerminal) return reject();
+              const snapshot = await transaction.get(firestore.doc(
+                binding.envelopePath,
+              ));
+              recoveryBeforeImage = snapshot.data() ?? null;
+            } else if (!isRecovery &&
+                field(operation, "operationKind") === "activationRecovery") {
+              operation = parseShiftPlanningRecoveryOperationTerminal(operation)
+                .activationTerminal ?? null;
+            }
+          } catch (error) {
+            if (!(error instanceof ShiftPlanningError)) throw error;
+            return reject();
+          }
           const operationId = isRecovery ?
             field(operation, "recoveryOperationId") : afterMarker?.operationId;
           let retention: ShiftPlanningPublicEventOperationRetention | null =
@@ -268,7 +296,9 @@ export const createFirestoreShiftPlanningPublicEventAudit = (
               }
             }
           }
-          const boundInput = {...unboundInput, operation, retention};
+          const boundInput = {
+            ...unboundInput, operation, retention, recoveryBeforeImage,
+          };
           const outcome = produceShiftPlanningPublicEventAudit(boundInput);
           if (outcome.kind === "ordinary") {
             return {outcome, persistence: "notRequired"};

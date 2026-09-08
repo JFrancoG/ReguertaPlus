@@ -281,9 +281,17 @@ rechaza el lote completo, no lo fragmenta ni descarta filas.
 a los codecs de HU-082, con política de retención explícita y tiempo estable del
 CloudEvent. Propaga fallos transitorios y devuelve la señal `alertRequired`; esa
 señal todavía no prueba envío de una alerta. No elimina terminales ni crea una
-política de retención por defecto. Recovery de UPDATE sigue rechazado hasta cerrar
-su binding exacto; no se conecta este adaptador a `onShiftWritten` mientras quede
-ese caso pendiente.
+política de retención por defecto. El sexto corte local admite recovery UPDATE
+solo con el before activado exacto y el after idéntico al before-image persistido.
+El terminal recovery v2 conserva `activationTerminal` en el mismo documento y liga
+ese archivo por digest: los eventos retrasados de activación usan su autoridad
+original; las restauraciones usan el ID/digest de recovery. Los artefactos recovery
+v1 siguen decodificándose estrictamente y sus UPDATE sin archivo se rechazan.
+Se necesitan bindings de retención explícitos para ambas operaciones lógicas.
+El terminal físico compartido y sus before-images deben conservarse hasta que todas
+sus dependencias permitan eliminarlos; no hay TTL ni ejecutor de cleanup habilitado.
+La conexión a `onShiftWritten`, la política operativa y el envío de alertas siguen
+pendientes.
 
 Las revisiones de libro del bundle son observaciones por partición y pueden
 diferir; no son tokens CAS de Sheets. El ejecutor entrega al consumidor un callback
@@ -722,7 +730,9 @@ que ambos release leases sigan sellados por esa operacion. El batch inverse borr
 solo esos creates y restaura targets con su `lastUpdateTime`. Recupera el lineage
 de negocio anterior, pero avanza un `writeEpoch` nuevo y revisiones monotonicamente
 superiores, limpia ambos leases y reemplaza el tombstone por un terminal de
-recovery ligado por digest. Para no dejar campos posteriores, la restauracion
+recovery v2 ligado por digest, que conserva el terminal de activación original
+en `activationTerminal`. No añade rutas ni escrituras; el payload mayor atraviesa
+la admisión existente de transacciones y documentos. Para no dejar campos posteriores, la restauracion
 reescribe mapas top-level completos y usa `FieldValue.delete()` en los campos
 top-level que ya no deben existir. Before-images y request historica completada
 se conservan. Un vector de emulador confirma la restauración atómica mediante

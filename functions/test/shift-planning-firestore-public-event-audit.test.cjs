@@ -12,6 +12,7 @@ const {
 const {
   attachShiftPlanningBackendMutationMarker,
   buildShiftPlanningPublicShiftMaterialization,
+  createShiftPlanningPublicShiftMaterialization,
   createShiftPlanningActivationOperationTerminal,
 } = require("../lib/shift-planning-publication-contract.js");
 const {
@@ -276,7 +277,7 @@ const recovery = (activation, restoredPath, deletedPath = `${root}/shifts/shift_
   const record = {
     schemaVersion: 1, operationKind: "activationRecovery", state: "committed",
     operationId: activation.operationId, recoveryOperationId: "recovery-1",
-    environment: "develop", requestId: "preview-1",
+    environment: "develop", requestId: activation.requestId,
     bundleRevision: activation.bundleRevision, bundleDigest: activation.bundleDigest,
     forwardManifestDigest: activation.forwardManifestDigest,
     inverseManifestDigest: digest("inverse"),
@@ -312,12 +313,16 @@ emulatorTest("unsupported recovery UPDATE cannot masquerade as the restored old 
     ...input, operation: old.operation, retention: old.retention, policy: policy(),
   });
   assert.equal(oldAuthorityDecision.kind, "controlledNoOp");
+  // Recovery authority must be resolved before an old-marker replay shortcut.
+  await firestore.doc(shiftPlanningPublicEventLedgerPath({
+    environment: "develop", eventDigest: oldAuthorityDecision.ledger.eventDigest,
+  })).create(oldAuthorityDecision.ledger);
 
   const result = await adapter().audit(input);
   assert.equal(result.outcome.kind, "failClosed");
   assert.equal(result.outcome.legacySideEffectsAllowed, false);
   assert.equal(result.outcome.alertRequired, true);
-  assert.equal((await ledgers()).size, 1);
+  assert.equal((await ledgers()).size, 2);
 });
 
 for (const authorityChange of ["missing", "recovered"]) {
@@ -433,4 +438,213 @@ emulatorTest("controlled replay cannot approve a payload changed under the old m
     ...value.input, after: {...value.document, helperUserId: "member-9"},
   }), invalidContract);
   assert.equal((await ledgers()).size, 1);
+});
+
+const {recoveryEventFixture} = require("./shift-planning-recovery-event-fixture.cjs");
+const {applyShiftPlanningForwardActivationAttempt} =
+  require("../lib/shift-planning-forward-materializer.js");
+const {applyShiftPlanningInverseRecoveryAttempt} =
+  require("../lib/shift-planning-inverse-materializer.js");
+const recoveryRetention = (value, kind = "recovery") => {
+  const operation = kind === "recovery" ? value.recovery.operation : value.activation.operation;
+  return createShiftPlanningPublicEventOperationRetention({
+    environment: "develop", controlledOperationKind: kind,
+    operationId: kind === "recovery" ? operation.recoveryOperationId : operation.operationId,
+    operationIntentDigest: kind === "recovery" ?
+      operation.recoveryIntentDigest : operation.operationIntentDigest,
+    terminalAt: kind === "recovery" ? operation.recoveredAt : operation.attemptedAt,
+    policy: policy(),
+  });
+};
+const seedRecoveryRetention = async (value) => {
+  const batch = firestore.batch();
+  for (const kind of ["activation", "recovery"]) {
+    const retention = recoveryRetention(value, kind);
+    batch.create(firestore.doc(shiftPlanningPublicEventOperationRetentionPath({
+      environment: "develop", operationId: retention.operationId,
+    })), retention);
+  }
+  await batch.commit();
+};
+const seedRecovery = async (value) => {
+  const batch = firestore.batch();
+  batch.create(firestore.doc(value.recovery.operationPath), value.recovery.operation);
+  for (const envelope of value.activation.beforeImages) {
+    batch.create(firestore.doc(envelope.envelopePath), envelope);
+  }
+  await batch.commit();
+  await seedRecoveryRetention(value);
+};
+const produceRecovery = (value, overrides = {}) => produceShiftPlanningPublicEventAudit({
+  ...value.input, operation: value.recovery.operation,
+  recoveryBeforeImage: value.recoveryBeforeImage,
+  retention: recoveryRetention(value), policy: policy(), ...overrides,
+});
+
+test("real recovery UPDATE binds both snapshots to the recovery identity", () => {
+  const value = recoveryEventFixture();
+  assert.deepEqual(parseShiftPlanningRecoveryOperationTerminal(value.recovery.operation)
+    .activationTerminal, value.activation.operation);
+  const outcome = produceRecovery(value);
+  assert.equal(outcome.kind, "controlledNoOp");
+  assert.equal(outcome.decision.operationKind, "recovery");
+  assert.equal(outcome.decision.operationId, value.inverseInput.recoveryOperationId);
+  assert.equal(outcome.decision.operationIntentDigest, value.recovery.operation.recoveryIntentDigest);
+  assert.notEqual(outcome.decision.operationId, value.input.after.lastBackendMutation.operationId);
+  assert.equal(outcome.legacySideEffectsAllowed, false);
+});
+
+test("recovery rejects missing, substituted or modified evidence and snapshots", () => {
+  const value = recoveryEventFixture();
+  for (const overrides of [
+    {recoveryBeforeImage: null},
+    {recoveryBeforeImage: value.activation.beforeImages.find((item) => item.targetPath !== value.input.targetPath)},
+    {recoveryBeforeImage: {...value.recoveryBeforeImage, envelopeDigest: digest("corrupt")}},
+    {before: {...value.input.before, helperUserId: "member-9"}},
+    {after: {...value.input.after, helperUserId: "member-9"}},
+    {operation: {...value.recovery.operation, activationTerminal: null}},
+    {operation: {...value.recovery.operation, activationTerminal: {
+      ...value.activation.operation, attemptedAt: Timestamp.fromMillis(1),
+    }}},
+  ]) assert.equal(produceRecovery(value, overrides).kind, "failClosed");
+});
+
+test("schema v1 remains strict and cannot silently acquire an activation archive", () => {
+  const value = recoveryEventFixture();
+  const legacy = recovery(value.activation.operation, value.input.targetPath);
+  assert.equal(parseShiftPlanningRecoveryOperationTerminal(legacy).schemaVersion, 1);
+  assert.equal(produceRecovery(value, {operation: legacy}).kind, "failClosed");
+  assert.throws(() => parseShiftPlanningRecoveryOperationTerminal({
+    ...legacy, activationTerminal: value.activation.operation,
+  }));
+});
+
+emulatorTest("committed forward/inverse payloads preserve authority and admit the larger terminal", async () => {
+  const value = recoveryEventFixture();
+  const base = value.forwardInput;
+  const batch = firestore.batch();
+  for (const document of [base.requestDocument, ...base.beforeImageDocuments]) {
+    batch.create(firestore.doc(document.targetPath), document.data);
+  }
+  await batch.commit();
+  const read = async (transaction, document) => {
+    const snapshot = await transaction.get(firestore.doc(document.targetPath));
+    return {targetPath: snapshot.ref.path, data: snapshot.data(), updateTime: snapshot.updateTime};
+  };
+  const forward = await firestore.runTransaction(async (transaction) =>
+    applyShiftPlanningForwardActivationAttempt({
+      ...base, firestore, transaction,
+      requestDocument: await read(transaction, base.requestDocument),
+      beforeImageDocuments: await Promise.all(base.beforeImageDocuments.map((item) => read(transaction, item))),
+    }));
+  const inverse = value.inverseInput;
+  const recovered = await firestore.runTransaction(async (transaction) =>
+    applyShiftPlanningInverseRecoveryAttempt({
+      ...inverse, firestore, transaction,
+      activationOperationDocument: await read(transaction, inverse.activationOperationDocument),
+      requestDocument: await read(transaction, inverse.requestDocument),
+      beforeImageDocuments: await Promise.all(inverse.beforeImageDocuments.map((item) => read(transaction, item))),
+      currentDocuments: await Promise.all(inverse.currentDocuments.map((item) => read(transaction, item))),
+    }));
+  assert.equal(recovered.measurement.documentWriteCount, base.preflight.bundle.artifact.budgets.inverse.totalWrites);
+  const persisted = (await firestore.doc(value.recovery.operationPath).get()).data();
+  assert.deepEqual(parseShiftPlanningRecoveryOperationTerminal(persisted).activationTerminal,
+    forward.materialization.operation);
+  assert.deepEqual((await firestore.doc(value.input.targetPath).get()).data(), value.input.after);
+  value.recovery = recovered.materialization;
+  value.activation = forward.materialization;
+  value.input.before = forward.materialization.publicDocuments.find((item) =>
+    item.targetPath === value.input.targetPath).document;
+  await seedRecoveryRetention(value);
+  const result = await adapter().audit(value.input);
+  assert.equal(result.outcome.kind, "controlledNoOp");
+  assert.equal(result.outcome.decision.operationKind, "recovery");
+});
+
+emulatorTest("recovery UPDATE and delayed activation UPDATE/CREATE retain distinct replay ledgers", async () => {
+  const value = recoveryEventFixture();
+  await seedRecovery(value);
+  const results = await Promise.all(Array.from({length: 3}, (_, index) =>
+    adapter().audit({...value.input, eventId: `recovery-delivery-${index}`})));
+  assert.equal(results.filter((item) => item.persistence === "created").length, 1);
+  assert.equal(results.filter((item) => item.persistence === "replayed").length, 2);
+  for (const result of results) assert.equal(result.outcome.decision.operationKind, "recovery");
+  const created = value.activation.publicDocuments.find((item) => item.mutationKind === "create");
+  for (const input of [
+    {...value.input, eventId: "delayed-update", before: value.input.after, after: value.input.before},
+    {...value.input, eventId: "delayed-create", targetPath: created.targetPath, before: null, after: created.document},
+  ]) {
+    const result = await adapter().audit(input);
+    assert.equal(result.outcome.kind, "controlledNoOp");
+    assert.equal(result.outcome.decision.operationKind, "activation");
+    assert.equal(result.outcome.decision.operationId, value.activation.operation.operationId);
+    assert.equal((await adapter().audit(input)).persistence, "replayed");
+  }
+  const replay = await adapter(policy("new-policy", 120_000)).audit(value.input);
+  assert.deepEqual(replay.outcome.ledger, results[0].outcome.ledger);
+  assert.equal((await ledgers()).size, 3);
+  const ordinary = await adapter().audit({...value.input, before: value.input.after,
+    after: {...value.input.after, helperUserId: "member-9"}});
+  assert.equal(ordinary.outcome.kind, "ordinary");
+  assert.equal(ordinary.persistence, "notRequired");
+  assert.equal((await ledgers()).size, 3);
+});
+
+for (const corruption of ["missing terminal", "missing envelope", "invalid archive", "missing retention"]) {
+  emulatorTest(`recovery UPDATE rejects ${corruption} without ordinary effects`, async () => {
+    const value = recoveryEventFixture();
+    await seedRecovery(value);
+    if (corruption === "missing terminal") await firestore.doc(value.recovery.operationPath).delete();
+    if (corruption === "missing envelope") await firestore.doc(value.recoveryBeforeImage.envelopePath).delete();
+    if (corruption === "invalid archive") await firestore.doc(value.recovery.operationPath)
+      .update({"activationTerminal.operationIntentDigest": digest("corrupt")});
+    if (corruption === "missing retention") await firestore.doc(shiftPlanningPublicEventOperationRetentionPath({
+      environment: "develop", operationId: value.recovery.operation.recoveryOperationId,
+    })).delete();
+    const result = await adapter().audit(value.input);
+    assert.equal(result.outcome.kind, "failClosed");
+    assert.equal(result.outcome.legacySideEffectsAllowed, false);
+    assert.equal(result.outcome.alertRequired, true);
+    assert.equal((await adapter().audit(value.input)).persistence, "replayed");
+  });
+}
+
+emulatorTest("v2 recovery DELETE requires the archived created-document payload", async () => {
+  const value = recoveryEventFixture();
+  await seedRecovery(value);
+  const created = value.activation.publicDocuments.find((item) => item.mutationKind === "create");
+  const input = {...value.input, targetPath: created.targetPath, before: created.document, after: null};
+  const result = await adapter().audit(input);
+  assert.equal(result.outcome.kind, "controlledNoOp");
+  assert.equal(result.outcome.decision.operationKind, "recovery");
+  const changed = await adapter().audit({...input, eventId: "modified-before-delete",
+    before: {...created.document, helperUserId: "member-9"}});
+  assert.equal(changed.outcome.kind, "failClosed");
+});
+
+
+emulatorTest("a newer controlled update remains valid after the earlier activation was recovered", async () => {
+  const value = recoveryEventFixture();
+  await seedRecovery(value);
+  const {lastBackendMutation, ...payload} = value.input.before;
+  const materialization = createShiftPlanningPublicShiftMaterialization({
+    targetPath: value.input.targetPath,
+    payload: {...payload, writeEpoch: 10, documentRevision: payload.documentRevision + 1},
+  });
+  const operation = createShiftPlanningControlledMutationOperationTerminal({
+    operationId: "repair-after-recovery", kind: "repair", environment: "develop",
+    committedAt: value.input.eventTime, writeEpoch: 10,
+    bundleRevision: payload.bundleRevision, bundleDigest: payload.bundleDigest,
+    publicMutations: [{mutationKind: "update", targetPath: value.input.targetPath,
+      documentRevision: materialization.documentRevision, payloadDigest: materialization.payloadDigest}],
+  });
+  const retention = createShiftPlanningPublicEventOperationRetention({
+    environment: "develop", controlledOperationKind: "repair", operationId: operation.operationId,
+    operationIntentDigest: operation.operationIntentDigest, terminalAt: operation.committedAt, policy: policy(),
+  });
+  await seed({operation, retention});
+  const result = await adapter().audit({...value.input,
+    after: attachShiftPlanningControlledMutationMarker({materialization, operation})});
+  assert.equal(result.outcome.kind, "controlledNoOp");
+  assert.equal(result.outcome.decision.operationId, operation.operationId);
 });

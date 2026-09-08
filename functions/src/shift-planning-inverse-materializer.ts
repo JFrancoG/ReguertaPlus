@@ -35,7 +35,7 @@ import {
   parseShiftRotationAggregateWire,
 } from "./shift-planning-wire.js";
 
-export const SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION = 1 as const;
+export const SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION = 2 as const;
 
 export type ShiftPlanningRecoveryReadDocument = {
   targetPath: string;
@@ -44,7 +44,8 @@ export type ShiftPlanningRecoveryReadDocument = {
 };
 
 export type ShiftPlanningRecoveryOperationTerminal = {
-  schemaVersion: typeof SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION;
+  schemaVersion: 1 | typeof SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION;
+  activationTerminal?: ShiftPlanningActivationOperationTerminal;
   operationKind: "activationRecovery";
   state: "committed";
   operationId: string;
@@ -760,6 +761,7 @@ const createRecoveryOperation = (input: {
     inverseManifestDigest:
       artifact.transactionRequirements.inverseManifestDigest,
     activationOperationIntentDigest: input.activation.operationIntentDigest,
+    activationTerminal: input.activation,
     expectedStateDigest: artifact.manifests.inverse.expectedStateDigest,
     activationWriteEpoch: artifact.activationWriteEpoch,
     recoveryWriteEpoch: input.recoveryWriteEpoch,
@@ -785,6 +787,13 @@ const recoveryOperationDigestCore = (
   >,
 ): object => ({
   ...value,
+  ...(value.activationTerminal ? {activationTerminal: {
+    ...value.activationTerminal,
+    attemptedAt: {
+      seconds: value.activationTerminal.attemptedAt.seconds,
+      nanoseconds: value.activationTerminal.attemptedAt.nanoseconds,
+    },
+  }} : {}),
   recoveredAt: {
     seconds: value.recoveredAt.seconds,
     nanoseconds: value.recoveredAt.nanoseconds,
@@ -795,6 +804,8 @@ const recoveryOperationDigestCore = (
  * Parses the terminal that replaces one committed activation after a valid
  * inverse recovery. It preserves the original activation binding while adding
  * the strictly newer recovery epoch and its own non-self-referential digest.
+ * Schema v2 archives the exact activation for delayed public events; legacy v1
+ * remains strictly readable without claiming that missing authority exists.
  * @param {unknown} value Persisted recovery operation document.
  * @return {ShiftPlanningRecoveryOperationTerminal} Canonical terminal.
  */
@@ -804,12 +815,14 @@ export const parseShiftPlanningRecoveryOperationTerminal = (
   const operation = requireRecord(value, "recovery operation");
   requireExactFields(
     operation,
-    recoveryOperationFields,
+    operation.schemaVersion === 2 ?
+      [...recoveryOperationFields, "activationTerminal"] :
+      recoveryOperationFields,
     "recovery operation",
   );
   if (
-    operation.schemaVersion !==
-      SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION ||
+    (operation.schemaVersion !== 1 && operation.schemaVersion !==
+      SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION) ||
     operation.operationKind !== "activationRecovery" ||
     operation.state !== "committed"
   ) {
@@ -932,7 +945,12 @@ export const parseShiftPlanningRecoveryOperationTerminal = (
     ShiftPlanningRecoveryOperationTerminal,
     "recoveryIntentDigest"
   > = {
-    schemaVersion: SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION,
+    schemaVersion: operation.schemaVersion === 1 ? 1 : 2,
+    ...(operation.schemaVersion === 2 ? {activationTerminal:
+      parseShiftPlanningActivationOperationTerminal(
+        operation.activationTerminal,
+      ),
+    } : {}),
     operationKind: "activationRecovery",
     state: "committed",
     operationId,
@@ -967,6 +985,19 @@ export const parseShiftPlanningRecoveryOperationTerminal = (
     deletedPaths,
     restoredBeforeImages,
   };
+  const archived = withoutDigest.activationTerminal;
+  if (archived && (archived.operationId !== operationId ||
+    archived.environment !== environment || archived.requestId !== requestId ||
+    archived.bundleRevision !== withoutDigest.bundleRevision ||
+    archived.bundleDigest !== withoutDigest.bundleDigest ||
+    archived.forwardManifestDigest !== withoutDigest.forwardManifestDigest ||
+    archived.writeEpoch !== activationWriteEpoch ||
+    archived.operationIntentDigest !==
+      withoutDigest.activationOperationIntentDigest ||
+    createShiftPlanningDigest(archived.beforeImages) !==
+      createShiftPlanningDigest(restoredBeforeImages))) {
+    return failInverse("Archived activation is detached from recovery.");
+  }
   const recoveryIntentDigest = requireDigest(
     operation.recoveryIntentDigest,
     "recovery intent digest",

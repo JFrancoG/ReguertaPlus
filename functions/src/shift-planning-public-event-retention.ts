@@ -901,6 +901,7 @@ export const produceShiftPlanningPublicEventAudit = (input: {
   before: unknown | null;
   after: unknown | null;
   operation: unknown | null;
+  recoveryBeforeImage?: unknown;
   retention: ShiftPlanningPublicEventOperationRetention | null;
   policy: ShiftPlanningPublicEventRetentionPolicy;
 }): ShiftPlanningPublicEventProducerOutcome => {
@@ -910,6 +911,7 @@ export const produceShiftPlanningPublicEventAudit = (input: {
       before: input.before,
       after: input.after,
       operation: input.operation,
+      recoveryBeforeImage: input.recoveryBeforeImage,
     });
     if (decision.kind === "ordinary") {
       return {
