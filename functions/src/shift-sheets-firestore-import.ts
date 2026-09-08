@@ -1,4 +1,4 @@
-import {DocumentSnapshot, Firestore, Timestamp, Transaction} from
+import {DocumentSnapshot, FieldPath, Firestore, Timestamp, Transaction} from
   "@google-cloud/firestore";
 import type {sheets_v4 as SheetsV4} from "googleapis";
 import {isEligibleForShiftRotation} from "./shift-eligibility.js";
@@ -23,8 +23,13 @@ import {
   parseShiftPlanningPublicEventRetentionPolicy,
   shiftPlanningPublicEventOperationRetentionPath,
 } from "./shift-planning-public-event-retention.js";
-import {parseShiftPlanningSheetsSubmission} from
-  "./shift-planning-sheets-submission.js";
+import {
+  parseShiftSheetsImportSubmission,
+  parseShiftSheetsWorkbookSubmission,
+  requireShiftSheetsWorkbookVersion,
+} from "./shift-planning-sheets-submission.js";
+import {parseShiftPlanningWorkbookPartition} from
+  "./shift-planning-firestore-sync-command-repository.js";
 import {captureShiftPlanningWriterAuthority} from
   "./shift-planning-writer-authority.js";
 import {parseShiftRotationAggregateWire} from "./shift-planning-wire.js";
@@ -40,11 +45,21 @@ import {
   ShiftSheetsImportSource,
   planShiftSheetsImport,
 } from "./shift-sheets-import-plan.js";
-import {SHIFT_SHEETS_LIMITS, ShiftSheetsProjectionRow} from "./shift-sheets.js";
+import {
+  SHIFT_SHEETS_LIMITS, ShiftSheetsProjectionRow, createShiftSheetsAdapter,
+} from "./shift-sheets.js";
 
 const MAX_PATCHES = 100;
 type ImportPlan = ReturnType<typeof planShiftSheetsImport>;
 type Observation = Awaited<ReturnType<typeof readShiftSheetsImport>>;
+type ImportResult = {
+  commandDigest: string;
+  planDigest: string;
+  operationIntentDigest: string;
+  writeBackRows: ShiftSheetsProjectionRow[];
+  writeBackState: "pending";
+  resultDigest: string;
+};
 type PreparedImport = {
   schemaVersion: 1;
   operationId: string;
@@ -116,7 +131,7 @@ const parsePrepared = (value: unknown): PreparedImport => {
 };
 
 /**
- * Local preparation/apply composition; no public handler or deployment.
+ * Local preparation/apply/write-back; no public handler or deployment.
  * Preparation owns source loading and persists the exact reviewed plan. Apply
  * re-reads the full bounded queries, so edits, deletions and inserted neighbors
  * participate in the same transaction as source/eligibility/fence checks.
@@ -124,14 +139,13 @@ const parsePrepared = (value: unknown): PreparedImport => {
  * Drive version checks are observations and cannot make Sheets part of this
  * CAS.
  * @param {object} input Trusted pinned configuration, APIs and backend clock.
- * @return {object} Explicit prepare/apply operations, never
- * notifications/Sheets writes.
+ * @return {object} Explicit prepare/apply/write-back, never notifications.
  */
 export const createFirestoreShiftSheetsImport = (input: {
   firestore: Firestore;
   config: ShiftSheetsConfig;
   tabs: readonly ShiftSheetsImportTab[];
-  sheets: Pick<SheetsV4.Resource$Spreadsheets, "get">;
+  sheets: Pick<SheetsV4.Resource$Spreadsheets, "get" | "batchUpdate">;
   readWorkbookVersion(): Promise<string>;
   clock?: () => Timestamp;
   retentionPolicy: ShiftPlanningPublicEventRetentionPolicy;
@@ -149,6 +163,10 @@ export const createFirestoreShiftSheetsImport = (input: {
   const configurationDigest = digest({config, tabs, retentionPolicy});
   const root = `${config.environment}/plus-collections`;
   const clock = input.clock ?? (() => Timestamp.now());
+  const workbookReference = firestore.doc(
+    `${root}/shiftPlanningState/sheetsSubmission`,
+  );
+  const adapter = createShiftSheetsAdapter({config, sheets});
   const references = (operationId: string) => {
     if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/.test(operationId)) {
       return failShiftSheetsImport("Import operation ID is invalid.");
@@ -163,7 +181,8 @@ export const createFirestoreShiftSheetsImport = (input: {
     );
     return {operation, retention,
       command: operation.collection("sheetsImport").doc("prepared"),
-      result: operation.collection("sheetsImport").doc("result")};
+      result: operation.collection("sheetsImport").doc("result"),
+      submission: operation.collection("sheetsImport").doc("submission")};
   };
   const bindCommand = (snapshot: DocumentSnapshot, operationId: string) => {
     const command = parsePrepared(snapshot.data());
@@ -173,7 +192,9 @@ export const createFirestoreShiftSheetsImport = (input: {
     }
     return command;
   };
-  const loadSource = async (transaction: Transaction) => {
+  const loadSource = async (
+    transaction: Transaction, ownImportId?: string,
+  ) => {
     const stateReferences = ["shiftPlanningState/current",
       "shiftPlanningState/sourcePolicy", "shiftRotations/delivery",
       "shiftRotations/market", "shiftPlanningState/sheetsSubmission"]
@@ -204,7 +225,9 @@ export const createFirestoreShiftSheetsImport = (input: {
       const rotation = parseShiftRotationAggregateWire(
         states[index + 2].data(), type as "delivery" | "market",
       );
-      const partition = policy?.sync?.partitions?.[type];
+      const partition = parseShiftPlanningWorkbookPartition(
+        policy?.sync?.partitions?.[type],
+      );
       if (rotation.releaseLease !== null ||
         rotation.activeRevision !== authority.activeRevision ||
         rotation.activeDigest !== authority.activeDigest ||
@@ -216,9 +239,13 @@ export const createFirestoreShiftSheetsImport = (input: {
         );
       }
     }
-    if (states[4].exists &&
-      parseShiftPlanningSheetsSubmission(states[4].data()).evidence === null) {
-      return failShiftSheetsImport("A Sheets submission remains unresolved.");
+    if (states[4].exists) {
+      const current = parseShiftSheetsWorkbookSubmission(states[4].data());
+      if (current.workbookId !== config.workbookId ||
+        (current.evidence === null &&
+          current.importOperationId !== ownImportId)) {
+        return failShiftSheetsImport("A Sheets submission remains unresolved.");
+      }
     }
     const documents = new Map(shifts.docs.map((snapshot) => [snapshot.id,
       parseShiftPlanningPublicShiftDocument({
@@ -247,7 +274,7 @@ export const createFirestoreShiftSheetsImport = (input: {
     operation: DocumentSnapshot,
     retention: DocumentSnapshot,
     command: PreparedImport,
-  ) => {
+  ): ImportResult => {
     const terminal = parseShiftPlanningControlledMutationOperationTerminal(
       operation.data(),
     );
@@ -262,7 +289,8 @@ export const createFirestoreShiftSheetsImport = (input: {
       if (!guard) return failShiftSheetsImport("Result has no source guard.");
       return {...guard.row, ...patch};
     });
-    if (retained.operationId !== terminal.operationId ||
+    if (terminal.kind !== "syncCorrection" ||
+      retained.operationId !== terminal.operationId ||
       retained.operationIntentDigest !== terminal.operationIntentDigest ||
       retained.policyDigest !== retentionPolicy.policyDigest ||
       !record || record.commandDigest !== command.commandDigest ||
@@ -284,7 +312,77 @@ export const createFirestoreShiftSheetsImport = (input: {
         "Import result is not an exact terminal replay.",
       );
     }
-    return record;
+    return record as ImportResult;
+  };
+  const readWriteBack = async (
+    transaction: Transaction, operationId: string, planDigest: string,
+  ) => {
+    const refs = references(operationId);
+    const [prepared, result, operation, retention, submitted, workbook] =
+      await transaction.getAll(refs.command, refs.result, refs.operation,
+        refs.retention, refs.submission, workbookReference);
+    const command = bindCommand(prepared, operationId);
+    const record = resultFor(result, operation, retention, command);
+    const receipt = parseShiftSheetsImportSubmission(submitted.data());
+    if (command.plan.planDigest !== planDigest ||
+      receipt.planDigest !== planDigest ||
+      receipt.resultDigest !== record.resultDigest ||
+      receipt.environment !== config.environment ||
+      receipt.workbookId !== config.workbookId ||
+      receipt.operationId !== refs.operation.id ||
+      receipt.beforeWorkbookRevision !== command.observation.workbookRevision) {
+      return failShiftSheetsImport("Write-back is not bound to its import.");
+    }
+    // Once acknowledged, replay never reopens the reservation or reads Google.
+    if (receipt.evidence) return {refs, command, record, receipt};
+    if (encodedDigest(workbook.data()) !== encodedDigest(receipt)) {
+      return failShiftSheetsImport("Import lost its workbook reservation.");
+    }
+    const live = await loadSource(transaction, refs.operation.id);
+    const terminal = parseShiftPlanningControlledMutationOperationTerminal(
+      operation.data(),
+    );
+    const originalRows = live.source.map((item) =>
+      command.plan.patches.some((patch) => patch.id === item.row.id) ?
+        command.plan.sourceGuards.find((guard) =>
+          guard.row.id === item.row.id)?.row : item.row);
+    if (live.authority.activeRevision !== terminal.bundleRevision ||
+      live.authority.activeDigest !== terminal.bundleDigest ||
+      live.authority.writeEpoch !== terminal.writeEpoch ||
+      digest(live.members) !== command.observation.membershipDigest ||
+      digest(originalRows) !== command.observation.baselineDigest) {
+      return failShiftSheetsImport("Import source changed before write-back.");
+    }
+    for (const binding of terminal.publicMutations) {
+      const doc = parseShiftPlanningPublicShiftDocument({
+        targetPath: binding.targetPath,
+        value: live.documents.get(binding.targetPath.split("/").pop() ?? ""),
+        expectedOperationIntentDigest: terminal.operationIntentDigest,
+      });
+      if (doc.documentRevision !== binding.documentRevision ||
+        doc.lastBackendMutation.operationId !== terminal.operationId ||
+        doc.lastBackendMutation.payloadDigest !== binding.payloadDigest) {
+        return failShiftSheetsImport("Import row changed after commit.");
+      }
+    }
+    for (const guard of command.plan.sourceGuards) {
+      if (command.plan.patches.some((patch) => patch.id === guard.row.id)) {
+        continue;
+      }
+      const current = live.source.find((item) => item.row.id === guard.row.id);
+      if (digest(current) !== digest(guard)) {
+        return failShiftSheetsImport("Import neighbor changed after commit.");
+      }
+    }
+    const fence = await inspectShiftPlanningNotificationWriterFences({
+      firestore, transaction, root, now: clock(),
+      resources: command.plan.sourceGuards.map(({row}) =>
+        ({scope: "shift" as const, resourceId: row.id})),
+    });
+    if (fence.kind === "busy") {
+      return failShiftSheetsImport("Notification fence blocks write-back.");
+    }
+    return {refs, command, record, receipt};
   };
   return {
     async prepare(operationId: string) {
@@ -339,6 +437,116 @@ export const createFirestoreShiftSheetsImport = (input: {
       return plan.patches.length ? {kind: "prepared" as const, plan} :
         {kind: "unchanged" as const, plan};
     },
+    async writeBack(operationId: string, expectedPlanDigest: string) {
+      const read = (transaction: Transaction) =>
+        readWriteBack(transaction, operationId, expectedPlanDigest);
+      const initial = await firestore.runTransaction(read);
+      if (initial.receipt.evidence) {
+        return {kind: "replayed" as const, evidence: initial.receipt.evidence};
+      }
+      const operation = {operationId: initial.refs.operation.id,
+        rows: initial.record.writeBackRows};
+      if (initial.receipt.batch === null) {
+        const before = requireShiftSheetsWorkbookVersion(
+          await input.readWorkbookVersion(),
+        );
+        if (before !== initial.receipt.beforeWorkbookRevision) {
+          return failShiftSheetsImport("Workbook changed before write-back.");
+        }
+        await adapter.reconcile({...operation,
+          reviewedRows: initial.command.observation.canonicalRows
+            .filter((row) => operation.rows.some((target) =>
+              target.id === row.id)),
+          async authorizeMutation(binding) {
+            if (binding.workbookId !== config.workbookId ||
+              await input.readWorkbookVersion() !== before) {
+              return failShiftSheetsImport("Workbook changed during planning.");
+            }
+            await firestore.runTransaction(async (transaction) => {
+              const live = await read(transaction);
+              if (live.receipt.batch !== null) {
+                return failShiftSheetsImport(
+                  "Submitted import is inspect-only.",
+                );
+              }
+              const receipt = parseShiftSheetsImportSubmission({
+                ...live.receipt, batch: {
+                  projectionDigest: binding.projectionDigest,
+                  requestDigest: binding.requestDigest, submittedAt: clock(),
+                },
+              });
+              transaction.set(live.refs.submission, receipt);
+              transaction.set(workbookReference, receipt);
+            });
+          },
+        });
+      }
+      const submitted = await firestore.runTransaction(read);
+      if (submitted.receipt.evidence) {
+        return {kind: "replayed" as const,
+          evidence: submitted.receipt.evidence};
+      }
+      const batch = submitted.receipt.batch;
+      if (!batch) {
+        return failShiftSheetsImport(
+          "Sheets marker has no recorded submission.",
+        );
+      }
+      let version: string;
+      let observed;
+      try {
+        const before = requireShiftSheetsWorkbookVersion(
+          await input.readWorkbookVersion(),
+        );
+        observed = await adapter.inspect(operation);
+        version = requireShiftSheetsWorkbookVersion(
+          await input.readWorkbookVersion(),
+        );
+        if (before !== version || observed.kind !== "verified" ||
+          observed.readBackDigest !== batch.projectionDigest ||
+          BigInt(version) <= BigInt(submitted.receipt.beforeWorkbookRevision)) {
+          return {kind: "reconciliationRequired" as const};
+        }
+      } catch {
+        return {kind: "reconciliationRequired" as const};
+      }
+      const evidence = {workbookRevision: version,
+        partitionDigest: digest({projectionDigest: observed.readBackDigest})};
+      return firestore.runTransaction(async (transaction) => {
+        const live = await read(transaction);
+        if (live.receipt.evidence) {
+          return {kind: "replayed" as const, evidence: live.receipt.evidence};
+        }
+        if (encodedDigest(live.receipt) !== encodedDigest(submitted.receipt)) {
+          return failShiftSheetsImport("Submission changed during read-back.");
+        }
+        const policyReference = firestore.doc(
+          `${root}/shiftPlanningState/sourcePolicy`,
+        );
+        const policy = await transaction.get(policyReference);
+        const partitions = (["delivery", "market"] as const).map((type) => {
+          const partition = parseShiftPlanningWorkbookPartition(
+            policy.get(`sync.partitions.${type}`),
+          );
+          if (partition.stateRevision >= Number.MAX_SAFE_INTEGER) {
+            return failShiftSheetsImport("Workbook state revision exhausted.");
+          }
+          return {type, partition: {...partition,
+            stateRevision: partition.stateRevision + 1,
+            workbookRevision: evidence.workbookRevision}};
+        });
+        const receipt = parseShiftSheetsImportSubmission({
+          ...live.receipt, evidence,
+        });
+        transaction.set(live.refs.submission, receipt);
+        transaction.set(workbookReference, receipt);
+        for (const {type, partition} of partitions) {
+          transaction.update(policyReference,
+            new FieldPath("sync", "partitions", type), partition);
+        }
+        return {kind: "completed" as const, evidence};
+      });
+    },
     async apply(operationId: string, expectedPlanDigest: string) {
       const refs = references(operationId);
       const command = bindCommand(await refs.command.get(), operationId);
@@ -359,9 +567,9 @@ export const createFirestoreShiftSheetsImport = (input: {
         return failShiftSheetsImport("Workbook changed after import review.");
       }
       return firestore.runTransaction(async (transaction) => {
-        const [stored, result, operation, retention] = await transaction.getAll(
-          refs.command, refs.result, refs.operation, refs.retention,
-        );
+        const [stored, result, operation, retention, submission] =
+          await transaction.getAll(refs.command, refs.result,
+            refs.operation, refs.retention, refs.submission);
         if (bindCommand(stored, operationId).commandDigest !==
           command.commandDigest) {
           return failShiftSheetsImport("Import command changed before apply.");
@@ -370,7 +578,7 @@ export const createFirestoreShiftSheetsImport = (input: {
           return {kind: "replayed" as const,
             result: resultFor(result, operation, retention, command)};
         }
-        if (operation.exists || retention.exists) {
+        if (operation.exists || retention.exists || submission.exists) {
           return failShiftSheetsImport(
             "Import terminal exists without its result.",
           );
@@ -387,6 +595,13 @@ export const createFirestoreShiftSheetsImport = (input: {
         });
         if (plan.planDigest !== expectedPlanDigest) {
           return failShiftSheetsImport("Import plan changed after review.");
+        }
+        if (plan.patches.some((patch) =>
+          !command.observation.canonicalRows.some((row) =>
+            row.id === patch.id))) {
+          return failShiftSheetsImport(
+            "Affected human tabs require conversion before apply.",
+          );
         }
         const checkedAt = clock();
         const fence = await inspectShiftPlanningNotificationWriterFences({
@@ -465,6 +680,16 @@ export const createFirestoreShiftSheetsImport = (input: {
             terminalAt: checkedAt, policy: retentionPolicy,
           }));
         transaction.create(refs.result, outcome);
+        const reservation = parseShiftSheetsImportSubmission({
+          schemaVersion: 1, kind: "importWriteBack",
+          environment: config.environment, workbookId: config.workbookId,
+          operationId: refs.operation.id, planDigest: expectedPlanDigest,
+          resultDigest: outcome.resultDigest,
+          beforeWorkbookRevision: command.observation.workbookRevision,
+          batch: null, evidence: null,
+        });
+        transaction.create(refs.submission, reservation);
+        transaction.set(workbookReference, reservation);
         return {kind: "committed" as const, result: outcome};
       });
     },

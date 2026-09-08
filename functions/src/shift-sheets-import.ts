@@ -12,6 +12,7 @@ import {
   SHIFT_SHEETS_HEADERS,
   SHIFT_SHEETS_LIMITS,
   ShiftSheetsProjectionRow,
+  ShiftSheetsReviewedRow,
   buildShiftSheetsProjections,
   readShiftSheetsSnapshot,
   shiftSheetsGridRows,
@@ -164,6 +165,7 @@ export const readShiftSheetsImport = async (input: {
     return failShiftSheetsImport("Workbook changed during import read.");
   }
   const assignments: ShiftSheetsImportedAssignment[] = [];
+  const canonicalRows: ShiftSheetsReviewedRow[] = [];
   const seen = new Set<string>();
   const add = (tab: ShiftSheetsImportTab, dateCell: string, rowNumber: number,
     assignedUserIds: string[], canonical?: string[]) => {
@@ -200,6 +202,8 @@ export const readShiftSheetsImport = async (input: {
         );
       }
       status = canonical[7] as ShiftSheetsProjectionRow["status"];
+      canonicalRows.push({id, sheetName: tab.title, rowNumber,
+        values: [...canonical]});
     }
     seen.add(id);
     assignments.push({id, type: tab.type, date, assignedUserIds, status,
@@ -296,6 +300,7 @@ export const readShiftSheetsImport = async (input: {
   const observation = {
     environment: config.environment, workbookId: config.workbookId,
     workbookRevision: after, assignments, missingIds,
+    canonicalRows: canonicalRows.sort((a, b) => a.id.localeCompare(b.id)),
     baselineDigest: createShiftPlanningDigest(baseline),
     mappingDigest: createShiftPlanningDigest({config, tabs}),
     membershipDigest: createShiftPlanningDigest(members),

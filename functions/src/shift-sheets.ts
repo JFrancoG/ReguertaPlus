@@ -74,6 +74,14 @@ export type ShiftSheetsBatchBinding = {
   requestDigest: string;
 };
 
+/** Exact managed cells read by a reviewed canonical import. */
+export type ShiftSheetsReviewedRow = {
+  id: string;
+  sheetName: string;
+  rowNumber: number;
+  values: readonly string[];
+};
+
 type OperationInput = {
   operationId: string;
   rows: readonly ShiftSheetsProjectionRow[];
@@ -254,12 +262,14 @@ const validateSheetSize = (sheet: Sheet): number => {
  * @param {ShiftSheetsConfig} config Exact environment and alias authority.
  * @param {Spreadsheet} spreadsheet Complete bounded grids for affected tabs.
  * @param {ShiftSheetsProjectionRow[]} inputRows Detached target projections.
+ * @param {ShiftSheetsReviewedRow[]} reviewedRows Exact import before-images.
  * @return {ShiftSheetsMergePlan} Pure plan without external operation markers.
  */
 export const planShiftSheetsMerge = (
   config: ShiftSheetsConfig,
   spreadsheet: Spreadsheet,
   inputRows: readonly ShiftSheetsProjectionRow[],
+  reviewedRows?: readonly ShiftSheetsReviewedRow[],
 ): ShiftSheetsMergePlan => {
   if (spreadsheet.spreadsheetId !== config.workbookId) {
     return fail(
@@ -267,6 +277,15 @@ export const planShiftSheetsMerge = (
     );
   }
   const projections = buildShiftSheetsProjections(config, inputRows);
+  if (reviewedRows && (reviewedRows.length !== projections.length ||
+    new Set(reviewedRows.map((row) => row.id)).size !== reviewedRows.length ||
+    reviewedRows.some((row) => !projections.some((projection) =>
+      projection.id === row.id && projection.title === row.sheetName) ||
+      !Number.isSafeInteger(row.rowNumber) || row.rowNumber < 2 ||
+      row.values.length !== SHIFT_SHEETS_HEADERS.length ||
+      row.values.some((value) => typeof value !== "string")))) {
+    return fail("sheets_manual_conflict", "Reviewed rows are not exact.");
+  }
   const requests: Request[] = [];
   const sheets: {title: string; sheetId: number}[] = [];
   const usedIds = new Set((spreadsheet.sheets ?? [])
@@ -341,7 +360,15 @@ export const planShiftSheetsMerge = (
     if (!hasContent) patches.push({row: 0, values: SHIFT_SHEETS_HEADERS});
     for (const projection of projections.filter((row) => row.title === title)) {
       const existing = byId.get(projection.id);
-      if (existing !== undefined) {
+      const reviewed = reviewedRows?.find((row) => row.id === projection.id);
+      if (reviewed && (existing === undefined ||
+        existing + 1 !== reviewed.rowNumber ||
+        SHIFT_SHEETS_HEADERS.some((_, column) =>
+          cellText(rows[existing]?.[column]) !== reviewed.values[column] ||
+          rows[existing]?.[column]?.userEnteredValue?.formulaValue != null))) {
+        return fail("sheets_manual_conflict", "Reviewed import cells changed.");
+      }
+      if (existing !== undefined && !reviewed) {
         const values = SHIFT_SHEETS_HEADERS.slice(0, -1)
           .map((_, column) => cellText(rows[existing]?.[column]));
         if (values.some((_, column) =>
@@ -590,8 +617,11 @@ export const createShiftSheetsAdapter = (input: {
     async reconcile(operation: OperationInput & {
       authorizeMutation(batch: ShiftSheetsBatchBinding): Promise<void>;
       signal?: AbortSignal;
+      reviewedRows?: readonly ShiftSheetsReviewedRow[];
     }): Promise<ShiftSheetsReadBack> {
       const frozen = detached(operation);
+      const reviewedRows = operation.reviewedRows ?
+        structuredClone(operation.reviewedRows) : undefined;
       const read = await snapshot(frozen.projections);
       // Caller-owned arrays may have changed while the snapshot was loading.
       const rows: ShiftSheetsProjectionRow[] = frozen.projections
@@ -606,7 +636,7 @@ export const createShiftSheetsAdapter = (input: {
           source: row.values[8] as ShiftSheetsProjectionRow["source"],
           origin: row.values[9] || null,
         }));
-      const plan = planShiftSheetsMerge(config, read, rows);
+      const plan = planShiftSheetsMerge(config, read, rows, reviewedRows);
       const requests = [...plan.requests];
       let replay = false;
       for (const target of plan.sheets) {

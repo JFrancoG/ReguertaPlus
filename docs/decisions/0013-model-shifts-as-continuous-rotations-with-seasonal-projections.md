@@ -443,6 +443,21 @@ serialization/acknowledgement, public endpoints, legacy trigger integration and
 live rollout remain pending. Drive version observation does not replace external
 writer exclusion or establish a cross-service CAS.
 
+The fifth local cut completes canonical import write-back using the existing
+adapter and shared workbook submission pointer. Import apply additionally reserves
+the workbook and creates its private receipt atomically (at most 105 writes total).
+A review binds the exact canonical managed cells; only those before-images may be
+replaced, while ordinary export still rejects manual edits. Human layouts remain
+readable for review but require explicit conversion before affected imports apply.
+A recorded batch is inspect-only indefinitely after an unknown result. Exact
+marker/cell read-back and a stable advancing Drive version acknowledge the separate
+receipt and both workbook partition revisions atomically. The original result stays
+immutable. Pending imports block activation export claims/submissions and other
+imports; acknowledged replay cannot overwrite a later workbook reservation. This
+adds no queue, activation-command imitation, endpoint/legacy trigger wiring or live
+deployment. Live activation and ordinary/external writers still require the agreed
+operational fence; no cross-service CAS or automatic lease-expiry recovery is claimed.
+
 Sheets commands are serialized by a monotonic epoch and lease per workbook/
 partition. A worker validates command plus active revision/digest before each batch
 and records read-back afterward. Recovery first supersedes and drains the activation

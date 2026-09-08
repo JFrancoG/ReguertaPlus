@@ -14,6 +14,7 @@ import {ShiftPlanningError} from "./shift-planning-contract.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {
   parseShiftPlanningSheetsSubmission,
+  parseShiftSheetsWorkbookSubmission,
 } from "./shift-planning-sheets-submission.js";
 import {
   ShiftPlanningCompletedSyncCommand,
@@ -171,7 +172,7 @@ const parsePartitionLease = (
   };
 };
 
-const parsePartition = (
+export const parseShiftPlanningWorkbookPartition = (
   value: unknown,
 ): ShiftPlanningWorkbookPartition => {
   const partition = requireRecord(value, "sync workbook partition");
@@ -224,7 +225,7 @@ const requireSourcePolicy = (
   );
   return {
     reference: snapshot.ref,
-    partition: parsePartition(partitions[command.type]),
+    partition: parseShiftPlanningWorkbookPartition(partitions[command.type]),
   };
 };
 
@@ -452,6 +453,15 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       if (persisted.state === "completed") {
         return {kind: "terminalReplay", command: persisted};
       }
+      const workbook = await transaction.get(
+        workbookSubmissionReference(firestore, environment),
+      );
+      if (workbook.exists) {
+        const current = parseShiftSheetsWorkbookSubmission(workbook.data());
+        if (current.importOperationId && current.evidence === null) {
+          return failSync("Workbook is reserved by an unfinished import.");
+        }
+      }
       const now = clock();
       if (persisted.state === "processing") {
         const token = tokenFor(environment, persisted);
@@ -589,8 +599,8 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       });
       let expectedRevision = command.workbookRevision;
       if (workbook.exists) {
-        const preceding = parseShiftPlanningSheetsSubmission(workbook.data());
-        if (preceding.command.workbookId !== command.workbookId ||
+        const preceding = parseShiftSheetsWorkbookSubmission(workbook.data());
+        if (preceding.workbookId !== command.workbookId ||
           preceding.evidence === null) {
           return failSync("Workbook has unresolved Sheets work or changed ID.");
         }

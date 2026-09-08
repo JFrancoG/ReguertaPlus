@@ -267,3 +267,27 @@ test("a changing Drive version during read-back stays unresolved despite matchin
   assert.equal((await f.execute()).kind, "completed");
   assert.equal(f.service.mutations.length, 1);
 });
+
+test("activation refuses a reserved import and accepts its later verified workbook revision", async () => {
+  const {parseShiftSheetsImportSubmission} = require("../lib/shift-planning-sheets-submission.js");
+  const f = await setup();
+  const pointer = firestore.doc(`${root}/shiftPlanningState/sheetsSubmission`);
+  const receipt = parseShiftSheetsImportSubmission({schemaVersion: 1, kind: "importWriteBack", environment: "develop",
+    workbookId: config.workbookId, operationId: "sheets-import-earlier", resultDigest: createShiftPlanningDigest({result: "earlier"}),
+    planDigest: createShiftPlanningDigest({plan: "earlier"}), beforeWorkbookRevision: "10", batch: null, evidence: null});
+  await pointer.set(receipt);
+  for (const type of ["delivery", "market"]) {
+    await assert.rejects(f.execute(type), /reserved by an unfinished import/);
+    assert.equal((await f.reference(type).get()).get("state"), "pending");
+  }
+  const projectionDigest = "shift-sheets:v1:sha256:" + "a".repeat(64);
+  const verified = parseShiftSheetsImportSubmission({...receipt,
+    batch: {projectionDigest, requestDigest: "shift-sheets:v1:sha256:" + "b".repeat(64), submittedAt: Timestamp.fromMillis(now)},
+    evidence: {workbookRevision: "11", partitionDigest: createShiftPlanningDigest({projectionDigest})}});
+  await pointer.set(verified); f.changeVersion();
+  assert.equal((await f.execute()).kind, "completed");
+  assert.equal((await f.receipt()).beforeWorkbookRevision, "11");
+  assert.equal((await f.receipt()).evidence.workbookRevision, "12");
+  assert.equal(f.service.mutations.length, 1);
+  assert.equal((await pointer.get()).get("command.type"), "delivery");
+});

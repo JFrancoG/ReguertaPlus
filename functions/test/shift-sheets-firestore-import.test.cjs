@@ -48,8 +48,10 @@ const setup = async () => {
   service.mutations.length = 0;
   const tabs = [...new Map(rows.map((row) => { const tab = resolveShiftSheetsTab(config, row.type, row.date); return [tab.title, {...tab, layout: "canonical", decorations: []}]; })).values()];
   let version = "11";
+  service.onMutation = async () => { version = String(BigInt(version) + 1n); };
   let versionReads = 0;
-  const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore, config, tabs, sheets: service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion: async () => { versionReads += 1; return version; }});
+  const readWorkbookVersion = async () => { versionReads += 1; return version; };
+  const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore, config, tabs, sheets: service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion});
   const target = rows.filter((row) => row.type === "delivery" && row.date.startsWith("2026-09")).sort((a, b) => a.date.localeCompare(b.date))[0];
   const predecessorId = prior.predecessorPath.split("/").at(-1);
   const edit = (id = target.id, assigned = ["member-3"]) => {
@@ -59,10 +61,11 @@ const setup = async () => {
   };
   edit();
   const readShift = async (id) => (await firestore.doc(`${root}/shifts/${id}`).get()).data();
-  return {api, service, rows, target, predecessorId, readShift, edit, tabs,
+  return {api, service, rows, target, predecessorId, readShift, edit, tabs, activation, readWorkbookVersion,
     sealedLease: states.find((item) => item.documentPath.endsWith("/delivery")).data.releaseLease,
-    changeVersion() { version = "12"; }, get versionReads() { return versionReads; },
+    changeVersion() { version = String(BigInt(version) + 1n); }, get versionReads() { return versionReads; },
     async prepared(id = "operation-1") { return api.prepare(id); },
+    submissionRef: (id = "operation-1") => firestore.doc(`${root}/shiftPlanningOperations/sheets-import-${id}/sheetsImport/submission`),
     resultRef: (id = "operation-1") => firestore.doc(`${root}/shiftPlanningOperations/sheets-import-${id}/sheetsImport/result`),
     commandRef: (id = "operation-1") => firestore.doc(`${root}/shiftPlanningOperations/sheets-import-${id}/sheetsImport/prepared`),
     operationRef: (id = "operation-1") => firestore.doc(`${root}/shiftPlanningOperations/sheets-import-${id}`),
@@ -213,7 +216,7 @@ test("rotation release leases and a claimed workbook partition block import prep
   await firestore.doc(`${root}/shiftRotations/delivery`).update({releaseLease: f.sealedLease});
   await assert.rejects(f.prepared(), invalid);
   await firestore.doc(`${root}/shiftRotations/delivery`).update({releaseLease: null});
-  await firestore.doc(`${root}/shiftPlanningState/sourcePolicy`).update({"sync.partitions.delivery.lease": {state: "claimed"}});
+  await firestore.doc(`${root}/shiftPlanningState/sourcePolicy`).update({"sync.partitions.delivery.lease": {state: "claimed", ownerOperationId: "other-writer", leaseEpoch: 1, acquiredAtMillis: now, deadlineAtMillis: now + 30000}});
   await assert.rejects(f.prepared(), invalid);
   assert.equal((await f.commandRef().get()).exists, false);
 });
@@ -286,6 +289,8 @@ test("human delivery rows use canonical member phoneNumber and reject contradict
   const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore, config, tabs, sheets: f.service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion: async () => "11"});
   const {plan} = await api.prepare("human");
   assert.deepEqual(plan.patches.find((patch) => patch.id === f.target.id).assignedUserIds, ["member-3"]);
+  await assert.rejects(api.apply("human", plan.planDigest), invalid);
+  assert.equal((await f.operationRef("human").get()).exists, false);
   setCell(sheet, 0, 2, {userEnteredValue: {stringValue: "699999999"}});
   await assert.rejects(api.prepare("contradictory-phone"), invalid);
 });
@@ -297,21 +302,271 @@ test("noncanonical member roles reject preparation before any public write", asy
   assert.equal((await f.commandRef().get()).exists, false);
 });
 
+const committedImport = async () => {
+  const f = await setup();
+  const {plan} = await f.prepared();
+  await f.api.apply("operation-1", plan.planDigest);
+  return Object.assign(f, {plan, writeBack: () => f.api.writeBack("operation-1", plan.planDigest)});
+};
+const workbookPointer = () => firestore.doc(`${root}/shiftPlanningState/sheetsSubmission`);
 
-test("market imports update effective assignees without changing rotation ownership", async () => {
+test("write-back updates reviewed cells and both seasons, preserves unrelated content, and acknowledges once", async () => {
+  const {content} = require("./shift-sheets-api-fixture.cjs");
+  const f = await committedImport();
+  const resultBefore = (await f.resultRef().get()).data();
+  const sourceBefore = await f.readShift(f.target.id);
+  const untouched = JSON.parse(JSON.stringify(f.service.state.sheets.find((sheet) => sheet.properties.title.includes("mercado"))));
+  const sheet = f.service.state.sheets.find((sheet) => sheet.data[0].rowData.some((row) => row.values[0]?.userEnteredValue?.stringValue === f.target.id));
+  const index = sheet.data[0].rowData.findIndex((row) => row.values[0]?.userEnteredValue?.stringValue === f.target.id);
+  setCell(sheet, index, 11, {userEnteredValue: {formulaValue: "=1+2"}});
+  setCell(sheet, index, 5, {userEnteredFormat: {backgroundColor: {red: 0.7}}});
+  const reservation = (await f.submissionRef().get()).data();
+  assert.equal(reservation.batch, null);
+  assert.deepEqual((await workbookPointer().get()).data(), reservation);
+  const result = await f.writeBack();
+  assert.equal(result.kind, "completed");
+  assert.equal(result.evidence.workbookRevision, "12");
+  assert.equal(f.service.mutations.length, 1);
+  for (const row of resultBefore.writeBackRows) {
+    const actualSheet = f.service.state.sheets.find((sheet) => sheet.data[0].rowData.some((item) => item.values[0]?.userEnteredValue?.stringValue === row.id));
+    const actualIndex = actualSheet.data[0].rowData.findIndex((item) => item.values[0]?.userEnteredValue?.stringValue === row.id);
+    assert.deepEqual(JSON.parse(content(actualSheet, actualIndex, 5).stringValue), row.assignedUserIds);
+    assert.equal(content(actualSheet, actualIndex, 6).stringValue, row.helperUserId ?? "");
+    const actualCells = actualSheet.data[0].rowData[actualIndex].values.slice(0, 10).map((cell) => cell.userEnteredValue.stringValue);
+    const expectedHash = "shift-sheets:v1:sha256:" + require("node:crypto").createHash("sha256").update(JSON.stringify(actualCells)).digest("hex");
+    assert.equal(content(actualSheet, actualIndex, 10).stringValue, expectedHash);
+  }
+  const updated = f.service.state.sheets.find((item) => item.properties.title === sheet.properties.title);
+  assert.equal(content(updated, index, 11).formulaValue, "=1+2");
+  assert.equal(updated.data[0].rowData[index].values[5].userEnteredFormat.backgroundColor.red, 0.7);
+  assert.deepEqual(f.service.state.sheets.find((item) => item.properties.title === untouched.properties.title), untouched);
+  assert.deepEqual((await f.resultRef().get()).data(), resultBefore);
+  assert.deepEqual(await f.readShift(f.target.id), sourceBefore);
+  for (const type of ["delivery", "market"]) {
+    const partition = (await firestore.doc(`${root}/shiftPlanningState/sourcePolicy`).get()).get(`sync.partitions.${type}`);
+    assert.equal(partition.workbookRevision, "12");
+    assert.equal(partition.lease, null);
+  }
+  const receipt = (await f.submissionRef().get()).data();
+  assert.deepEqual(receipt.evidence, result.evidence);
+  assert.deepEqual((await workbookPointer().get()).data(), receipt);
+  const reads = f.service.reads.length; const versions = f.versionReads;
+  f.changeVersion();
+  assert.equal((await f.writeBack()).kind, "replayed");
+  assert.equal(f.service.reads.length, reads);
+  assert.equal(f.versionReads, versions);
+  assert.equal((await f.api.prepare("next-unchanged")).kind, "unchanged");
+});
+
+test("an unfinished import blocks a second import and activation claims for both partitions", async () => {
+  const {createFirestoreShiftPlanningSyncCommandRepository} = require("../lib/shift-planning-firestore-sync-command-repository.js");
+  const f = await committedImport();
+  await assert.rejects(f.api.prepare("second-import"), invalid);
+  const repository = createFirestoreShiftPlanningSyncCommandRepository(firestore, () => Timestamp.fromMillis(now));
+  for (const item of f.activation.mutations.filter((item) => item.documentPath.includes("/shiftPlanningSyncCommands/"))) {
+    await firestore.doc(item.documentPath).set(item.data);
+    await assert.rejects(repository.claim({environment: "develop", commandId: item.data.commandId, workerId: "activation", attemptId: "attempt"}), /reserved by an unfinished import/);
+    assert.equal((await firestore.doc(item.documentPath).get()).get("state"), "pending");
+  }
+  assert.equal(f.service.mutations.length, 0);
+});
+
+test("lost write-back response is verified without resending", async () => {
+  const f = await committedImport(); f.service.loseAcknowledgement = true;
+  assert.equal((await f.writeBack()).kind, "completed");
+  assert.equal(f.service.mutations.length, 1);
+  assert.notEqual((await f.submissionRef().get()).get("evidence"), null);
+});
+
+test("unknown write-back never resends after elapsed time and retains the shared reservation", async () => {
+  const f = await committedImport(); f.service.rejectBeforeApply = true;
+  assert.equal((await f.writeBack()).kind, "reconciliationRequired");
+  const original = (await f.submissionRef().get()).data();
+  now += 86400000;
+  f.service.rejectBeforeApply = false;
+  assert.equal((await f.writeBack()).kind, "reconciliationRequired");
+  assert.equal(f.service.mutations.length, 1);
+  assert.deepEqual((await f.submissionRef().get()).data(), original);
+  await assert.rejects(f.api.prepare("next"), invalid);
+});
+
+test("concurrent write-back callers can submit only one batch", async () => {
+  const f = await committedImport();
+  const results = await Promise.allSettled([f.writeBack(), f.writeBack()]);
+  assert.ok(results.some((result) => result.status === "fulfilled" && ["completed", "replayed"].includes(result.value.kind)));
+  assert.equal(f.service.mutations.length, 1);
+  assert.notEqual((await f.submissionRef().get()).get("evidence"), null);
+});
+
+test("an in-flight batch stays inspect-only and can confirm under its original receipt", async () => {
+  const f = await committedImport();
+  let release; let entered;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const arrival = new Promise((resolve) => { entered = resolve; });
+  const send = f.service.batchUpdate; let calls = 0;
+  f.service.batchUpdate = async (...args) => { calls += 1; entered(); await gate; return send(...args); };
+  const execution = f.writeBack();
+  await arrival;
+  try {
+    const original = (await f.submissionRef().get()).data();
+    now += 86400000;
+    assert.equal((await f.writeBack()).kind, "reconciliationRequired");
+    assert.equal(calls, 1);
+    release();
+    assert.equal((await execution).kind, "completed");
+    assert.deepEqual((await f.submissionRef().get()).get("batch"), original.batch);
+    assert.equal(calls, 1);
+  } finally { release(); await execution.catch(() => {}); }
+});
+
+test("unavailable read-back leaves the original submission inspect-only until verification succeeds", async () => {
+  const f = await committedImport(); const onMutation = f.service.onMutation;
+  f.service.onMutation = async () => { await onMutation(); f.service.failRead = true; };
+  assert.equal((await f.writeBack()).kind, "reconciliationRequired");
+  assert.equal((await f.submissionRef().get()).get("evidence"), null);
+  f.service.failRead = false;
+  assert.equal((await f.writeBack()).kind, "completed");
+  assert.equal(f.service.mutations.length, 1);
+});
+
+test("Firestore source changed during Sheets planning rejects submission before I/O", async () => {
+  const f = await committedImport(); const get = f.service.get; let changed = false;
+  f.service.get = async (...args) => {
+    if (!changed && args[0].ranges) { changed = true; await firestore.doc(`${root}/users/member-3`).update({isActive: false}); }
+    return get(...args);
+  };
+  await assert.rejects(f.writeBack());
+  assert.equal(f.service.mutations.length, 0);
+  assert.equal((await f.submissionRef().get()).get("batch"), null);
+});
+
+test("changed reviewed cells, formulas and protection cannot be overwritten", async () => {
+  const f = await committedImport();
+  const sheet = f.service.state.sheets.find((sheet) => sheet.data[0].rowData.some((row) => row.values[0]?.userEnteredValue?.stringValue === f.target.id));
+  const index = sheet.data[0].rowData.findIndex((row) => row.values[0]?.userEnteredValue?.stringValue === f.target.id);
+  for (const value of [{stringValue: '["member-4"]'}, {formulaValue: '=CONCATENATE("member-3")'}]) {
+    setCell(sheet, index, 5, {userEnteredValue: value});
+    await assert.rejects(f.writeBack());
+  }
+  setCell(sheet, index, 5, {userEnteredValue: {stringValue: '["member-3"]'}});
+  sheet.protectedRanges = [{range: {sheetId: sheet.properties.sheetId}}];
+  await assert.rejects(f.writeBack());
+  assert.equal(f.service.mutations.length, 0);
+  assert.equal((await f.submissionRef().get()).get("batch"), null);
+});
+
+test("changed workbook revision and wrong reviewed digest reject write-back before mutation", async () => {
+  const f = await committedImport();
+  await assert.rejects(f.api.writeBack("operation-1", "wrong"), invalid);
+  f.changeVersion(); await assert.rejects(f.writeBack(), invalid);
+  assert.equal(f.service.mutations.length, 0);
+});
+
+test("a crash before atomic acknowledgement leaves receipt and partition revisions unchanged", async () => {
+  const f = await committedImport();
+  const failing = new Proxy(firestore, {get(target, key) {
+    if (key === "runTransaction") return (callback) => target.runTransaction((transaction) => callback(new Proxy(transaction, {get(tx, method) {
+      if (method === "set") return (ref, value, ...args) => { if (value?.kind === "importWriteBack" && value.evidence) throw new Error("acknowledgement outage"); return tx.set(ref, value, ...args); };
+      const value = Reflect.get(tx, method); return typeof value === "function" ? value.bind(tx) : value;
+    }})));
+    const value = Reflect.get(target, key); return typeof value === "function" ? value.bind(target) : value;
+  }});
+  const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore: failing, config, tabs: f.tabs, sheets: f.service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion: f.readWorkbookVersion});
+  await assert.rejects(api.writeBack("operation-1", f.plan.planDigest), /acknowledgement outage/);
+  assert.equal((await f.submissionRef().get()).get("evidence"), null);
+  assert.equal((await firestore.doc(`${root}/shiftPlanningState/sourcePolicy`).get()).get("sync.partitions.delivery.workbookRevision"), "10");
+  assert.equal((await f.writeBack()).kind, "completed");
+  assert.equal(f.service.mutations.length, 1);
+});
+
+test("changed source after physical submission cannot acknowledge or silently release the reservation", async () => {
+  const f = await committedImport(); const onMutation = f.service.onMutation;
+  f.service.onMutation = async () => { await onMutation(); await firestore.doc(`${root}/shifts/${f.target.id}`).update({status: "confirmed"}); };
+  await assert.rejects(f.writeBack());
+  await assert.rejects(f.writeBack());
+  assert.equal(f.service.mutations.length, 1);
+  assert.equal((await f.submissionRef().get()).get("evidence"), null);
+});
+
+test("acknowledged replay cannot overwrite a subsequent import reservation", async () => {
+  const f = await committedImport();
+  assert.equal((await f.writeBack()).kind, "completed");
+  f.edit(f.target.id, ["member-4"]); f.changeVersion();
+  const {plan} = await f.api.prepare("second");
+  await f.api.apply("second", plan.planDigest);
+  const pointer = (await workbookPointer().get()).data();
+  assert.equal(pointer.operationId, "sheets-import-second");
+  const reads = f.service.reads.length;
+  assert.equal((await f.writeBack()).kind, "replayed");
+  assert.equal(f.service.reads.length, reads);
+  assert.deepEqual((await workbookPointer().get()).data(), pointer);
+  assert.equal((await f.api.writeBack("second", plan.planDigest)).kind, "completed");
+  assert.equal(f.service.mutations.length, 2);
+  assert.deepEqual((await f.resultRef().get()).get("writeBackRows").find((row) => row.id === f.target.id).assignedUserIds, ["member-3"]);
+});
+
+test("an unstable Drive observation prevents acknowledgement even with exact cells", async () => {
+  const f = await committedImport(); const get = f.service.get; const onMutation = f.service.onMutation;
+  f.service.onMutation = async () => { await onMutation(); f.service.get = async (...args) => { f.changeVersion(); return get(...args); }; };
+  assert.equal((await f.writeBack()).kind, "reconciliationRequired");
+  assert.equal((await f.submissionRef().get()).get("evidence"), null);
+  f.service.get = get;
+  assert.equal((await f.writeBack()).kind, "completed");
+  assert.equal(f.service.mutations.length, 1);
+});
+
+test("receipt corruption cannot authorize another send or release another workbook", async () => {
+  const f = await committedImport();
+  const receipt = (await f.submissionRef().get()).data();
+  for (const delta of [{resultDigest: "shift-planning:v1:sha256:" + "a".repeat(64)}, {workbookId: "wrong-book"}, {operationId: "sheets-import-other"}, {evidence: {workbookRevision: "12", partitionDigest: "shift-planning:v1:sha256:" + "b".repeat(64)}}]) {
+    await f.submissionRef().set({...receipt, ...delta});
+    await assert.rejects(f.writeBack());
+  }
+  assert.equal(f.service.mutations.length, 0);
+  assert.deepEqual((await workbookPointer().get()).data(), receipt);
+});
+
+test("a notification fence acquired after import commit blocks write-back before submission", async () => {
+  const f = await committedImport();
+  await firestore.doc(`${root}/shiftPlanningNotificationFences/shift:${f.predecessorId}`).set({schemaVersion: 1,
+    operationKind: "notificationDispatchResourceFence", scope: "shift", resourceId: f.predecessorId,
+    intentId: "intent", eventId: "event", attemptId: "attempt", workerId: "worker", leaseEpoch: 1,
+    acquiredAt: Timestamp.fromMillis(now - 1000), expiresAt: Timestamp.fromMillis(now + 29000),
+    validationDigest: `shift-planning:v1:sha256:${"f".repeat(64)}`});
+  await assert.rejects(f.writeBack(), /Notification fence blocks write-back/);
+  assert.equal(f.service.mutations.length, 0);
+  assert.equal((await f.submissionRef().get()).get("batch"), null);
+});
+
+test("a neighbor revision changed after commit blocks write-back despite unchanged projected cells", async () => {
+  const f = await committedImport();
+  const neighbor = f.plan.sourceGuards.find((guard) => !f.plan.patches.some((patch) => patch.id === guard.row.id));
+  assert.ok(neighbor);
+  await firestore.doc(`${root}/shifts/${neighbor.row.id}`).update({documentRevision: neighbor.documentRevision + 1});
+  await assert.rejects(f.writeBack(), /neighbor changed after commit/);
+  assert.equal(f.service.mutations.length, 0);
+  assert.equal((await f.submissionRef().get()).get("batch"), null);
+});
+
+test("one import writes delivery and market patches in the same physical batch", async () => {
   const f = await setup();
   const market = f.rows.find((row) => row.type === "market");
   const before = await f.readShift(market.id);
-  const assigned = [...market.assignedUserIds].reverse();
-  f.edit(market.id, assigned);
+  const assignees = [...market.assignedUserIds].reverse();
+  f.edit(market.id, assignees);
   const {plan} = await f.prepared();
   await f.api.apply("operation-1", plan.planDigest);
+  assert.equal((await f.api.writeBack("operation-1", plan.planDigest)).kind, "completed");
+  assert.equal(f.service.mutations.length, 1);
+  const row = f.service.state.sheets.flatMap((sheet) => sheet.data[0].rowData).find((row) => row.values[0]?.userEnteredValue?.stringValue === market.id);
+  assert.deepEqual(JSON.parse(row.values[5].userEnteredValue.stringValue), assignees);
   const after = await f.readShift(market.id);
-  assert.deepEqual(after.assignedUserIds, assigned);
-  assert.deepEqual(after.rotationPositions.map((item) => item.effectiveAssigneeUserId), assigned);
-  for (let i = 0; i < 3; i++) {
-    for (const key of ["rotationOwnerUserId", "roundNumber", "positionInRound", "planningReason"]) assert.deepEqual(after.rotationPositions[i][key], before.rotationPositions[i][key]);
+  assert.deepEqual(after.rotationOwnerUserIds, market.rotationOwnerUserIds);
+  assert.deepEqual(after.rotationPositions.map((position) => position.effectiveAssigneeUserId), assignees);
+  for (let index = 0; index < 3; index++) {
+    for (const key of ["rotationOwnerUserId", "roundNumber", "positionInRound", "planningReason"]) {
+      assert.deepEqual(after.rotationPositions[index][key], before.rotationPositions[index][key]);
+    }
   }
-  assert.deepEqual(after.rotationOwnerUserIds, before.rotationOwnerUserIds);
-  assert.deepEqual(after.completion, before.completion);
+  assert.equal((await f.resultRef().get()).get("writeBackRows").length, 3);
 });

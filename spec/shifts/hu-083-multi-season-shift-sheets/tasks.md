@@ -58,9 +58,32 @@
   durable event classification and replay without Google I/O or duplicate writes.
 - [x] Validate lint/build, 19 import emulator cases, 38 Sheets cases and 40
   strict/phase1 Rules cases, all without skips; align English/Spanish ADR-0013.
-- [ ] Integrate pending write-back with existing durable Sheets submission
+- [x] Integrate pending write-back with existing durable Sheets submission
   receipts/serialization and separate acknowledgement; keep real endpoint/trigger
   wiring and story-level repair/rollout gates open.
+
+## Fifth local cut — 2026-09-08
+
+- [x] Persist exact canonical cells in the reviewed observation; permit bounded
+  write-back over those cells while ordinary export keeps its manual-edit guard.
+- [x] Reserve the existing shared workbook submission pointer atomically with
+  the import result; block other imports and activation export claims/submissions.
+- [x] Persist one batch identity before I/O; recover unknown calls only by read-back,
+  without lease-expiry resubmission or an additional queue/worker abstraction.
+- [x] Acknowledge exact marker/cells and stable advancing Drive version together
+  with both partition revisions, separately from the immutable import result.
+- [x] Preserve later reservations on acknowledged replay; reject stale source,
+  neighbors, membership, workbook revisions, notification fences and corrupt receipts.
+- [x] Fix market effective-assignee metadata while preserving owners/round/position;
+  prove delivery and market changes in a single physical Sheets batch.
+- [x] Reject apply over affected human tabs until explicit conversion exists;
+  preserve read-only human-layout preparation.
+- [x] Validate lint/build and 137 cases: import 37, consumer 15, sync repository 7,
+  Sheets 38, strict Rules 32, phase1 Rules 8; no skips or live data writes.
+- [x] Align README, English/Spanish ADR-0013 and the open issue checkpoint.
+- [ ] Deliver the fourth/fifth local cuts through their separately requested Git gate.
+- [ ] Continue explicit layout conversion and endpoint/legacy-trigger integration,
+  including inverse-event identity; complete baseline/audit/repair and rehearsal.
 
 ## 0. Dependency and read-only inventory
 

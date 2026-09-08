@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — fourth local cut validated; transactional import
+- State: IN PROGRESS — fifth local cut validated; durable import write-back
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -118,6 +118,75 @@ serialization, with acknowledgement separate from the immutable result. That
 integration, endpoints/legacy trigger wiring, inverse-event identity, baseline,
 audit/repair and guarded rehearsal remain open. Drive version observations cannot
 replace external-writer exclusion. This checkpoint does not complete HU-083.
+
+### Fifth local cut — durable import write-back (approved 2026-09-08)
+
+Continue on the same issue/branch with the fourth cut still uncommitted. Persist
+an import reservation in the existing current-workbook submission document in the
+same transaction as the import result. Reuse the Sheets adapter and its receipt /
+exact read-back protocol; the shared pointer must serialize activation exports and
+import write-back in both directions. Do not disguise import work as an activation
+command or create another queue/worker abstraction.
+
+Bind canonical managed cells observed by the reader into its immutable review.
+Permit write-back over only those exact reviewed cells, preserving ordinary export
+conflict rejection, unrelated cells, formulas, protection and formatting. Human
+layout reads remain reviewable, but apply must reject affected human tabs before
+public writes until their explicit conversion exists. No automatic layout rewrite.
+
+An explicit write-back operation reloads the committed result, current source and
+fences, records one submission before I/O, and sends at most one batch. After any
+unknown outcome all retries inspect only; elapsed time cannot authorize resending.
+Exact marker/cell read-back and stable advancing Drive observation acknowledge the
+receipt, release the shared reservation and update workbook partition revisions
+atomically. Keep the import result immutable and replay acknowledgement without
+Google I/O. Stale source/authority or altered reviewed cells fail closed.
+
+Validate success, concurrent callers, lost response, in-flight/unknown recovery,
+crash before acknowledgement, source/Google drift, private Rules and activation /
+import serialization with real Firestore emulation and public Google API fixtures.
+No live mutation, deployment, endpoint/legacy trigger wiring or notification send.
+External-writer exclusion remains required for eventual live use; Drive is not CAS.
+
+### Fifth-cut validation checkpoint — 2026-09-08
+
+The canonical import now completes its local `prepare -> apply -> writeBack` path.
+The import transaction reserves the existing shared workbook pointer and creates
+its private receipt alongside all public patches, terminal, retention and immutable
+result (100 patches maximum, 105 writes maximum). The reviewed observation binds
+exact canonical cells and row locations. Human tab reads remain reviewable, but
+apply rejects affected human tabs before any public write until explicit layout
+conversion is available.
+
+The receipt distinguishes a reservation from a physically submitted batch. Unknown
+outcomes remain inspect-only regardless of elapsed time. Stable advancing Drive
+observation plus exact marker/cell read-back acknowledge the receipt and update both
+partition revisions atomically; the import result is never rewritten. A pending
+import excludes other imports and activation export claims/submissions. Later exact
+replay does no Google I/O and cannot overwrite another operation's reservation.
+Source/neighborhood/membership or notification-fence drift prevents submission or
+acknowledgement. Failed acknowledgement can resume without resending the batch.
+
+The combined delivery/market test found and fixed a fourth-cut omission: market
+`rotationPositions.effectiveAssigneeUserId` must change with `assignedUserIds`.
+Original owners, round numbers, position indexes and planning reasons are preserved;
+the HU-082 public codec remains unchanged.
+
+Validation: Functions lint/build pass; **37/37** import/write-back emulator cases,
+**15/15** activation consumer cases, **7/7** sync repository cases, **38/38** Sheets
+units, **32/32** strict Rules and **8/8** phase1 Rules. All **137 cases** passed
+without skips; Google uses public-API fixtures and Firestore is emulated. An initial
+emulator start failed on an occupied port; the rerun completed on the normal ports.
+No mobile contract change or new Android/iOS gate. No live source mutation,
+Functions/Rules deployment or notification send.
+
+Fourth and fifth cuts remain local and uncommitted; the pushed branch still ends
+at third-cut `48fb799`. English/Spanish ADR-0013, README and issue #267 reflect this
+checkpoint. Next integration work remains explicit human-layout conversion,
+endpoint/legacy-trigger composition including inverse-event identity, baseline and
+audit/repair tooling plus the guarded rehearsal. Operational exclusion of live
+activation, ordinary writers and external collaborators is still required; this
+local receipt protocol is not a cross-service CAS or complete HU-083 delivery.
 
 ## Workbook decision
 

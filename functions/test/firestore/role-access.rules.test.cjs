@@ -1503,6 +1503,8 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
         "sheetsImport/prepared",
       `${docPath(env, "shiftPlanningOperations", "sheets-import-test")}/` +
         "sheetsImport/result",
+      `${docPath(env, "shiftPlanningOperations", "sheets-import-test")}/` +
+        "sheetsImport/submission",
       `${docPath(env, "shiftPlanningSyncCommands", "command")}/` +
         "externalSubmissions/sheets",
       `${intentPath}/releases/canonical`,

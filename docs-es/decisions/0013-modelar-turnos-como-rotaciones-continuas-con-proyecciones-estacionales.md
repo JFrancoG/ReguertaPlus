@@ -459,6 +459,23 @@ integración del trigger legacy y puesta en servicio real. Observar la versión 
 Drive no sustituye la exclusión de escritores externos ni establece CAS entre
 servicios.
 
+El quinto corte local completa el write-back de importaciones canónicas usando
+el adaptador existente y el registro compartido de envíos del libro. Aplicar añade
+atómicamente una reserva del libro y su recibo privado (hasta 105 escrituras en
+total). La revisión vincula las celdas canónicas exactas; sólo permite sustituir
+esos valores, mientras la exportación ordinaria sigue rechazando cambios manuales.
+Los formatos humanos pueden leerse para revisión pero exigen conversión explícita
+antes de aplicar parches sobre ellos. Un lote registrado sólo puede inspeccionarse
+tras un resultado desconocido, sin caducidad que autorice reenviar. Marcador/celdas
+exactos y versión Drive estable y posterior confirman el recibo separado y las
+revisiones de ambas particiones de forma atómica. El resultado original permanece
+inmutable. Una importación pendiente bloquea reclamación/envío de exportaciones de
+activación y otras importaciones; un replay confirmado no sobrescribe reservas
+posteriores. No añade cola, imitación de comandos de activación, endpoints/trigger
+legacy ni despliegue real. La activación real y los escritores ordinarios/externos
+siguen necesitando el cerco operativo acordado; no se afirma CAS entre servicios ni
+recuperación automática al caducar una lease.
+
 Los comandos Sheets se serializan con epoch monotónico y lease por libro/partición.
 El worker valida comando y revisión/digest activos antes de cada batch y registra
 read-back. Recovery sustituye y drena primero worker/llamada externa de activación;
