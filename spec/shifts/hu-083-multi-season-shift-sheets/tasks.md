@@ -156,11 +156,12 @@ they do not certify live conversion or retire the legacy writer paths.
 - [x] Import the union of allowed tabs and bound reconciliation to successfully
   read partitions. Cut twenty-one makes reviewed human preparation compatible
   with readable dates/annotations and trusted delivery-calendar overrides; human
-  apply/write-back and the legacy sync endpoint remain open.
+  apply/write-back is integrated locally in cut twenty-two; the legacy sync
+  endpoint remains open.
 - [x] Route full export, incremental export, and overrides by explicit tab
   metadata. Cut twenty uses logical dates/explicit aliases and bounded human ranges;
   exported HTTP/event/override integration passes. Missing/oversized tabs reject;
-  human creation/import/activation-worker integration remains open.
+  human creation/activation-worker and legacy sync integration remain open.
 - [x] Consume digest-bound activation-sync commands by exact partition manifest
   and stable idempotency key through explicit post-commit pull/invocation.
 - [x] Claim pending commands transactionally and rediscover/retry them after lost

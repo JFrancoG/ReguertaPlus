@@ -251,3 +251,80 @@ for (const sameOperation of [true, false]) {
     }
   });
 }
+
+
+const readableFixture = () => {
+  const f = fixture();
+  const value = row("shift_delivery_20260903", "2026-09-03", {assignedUserIds: ["member-b"]});
+  const sv = (stringValue) => ({stringValue});
+  const before = [{values: [sv("3/9/2026"), sv("Persona A"), sv("900000001"), {formulaValue: "=1+2"}, sv("lo hace Persona B"), sv("36")]}];
+  const after = clone(before); after[0].values[1] = sv("Persona B"); after[0].values[2] = {}; after[0].values[4] = {};
+  const human = {id: value.id, sheetName: "turnos-reparto 2026-27", sheetId: 17, rowNumber: 2,
+    assignedUserIds: ["member-b"], before, after};
+  f.sheets.state.sheets = [{properties: {sheetId: 17, title: human.sheetName, gridProperties: {rowCount: 20, columnCount: 10}},
+    data: [{rowData: [{values: [{userEnteredValue: sv("SEPTIEMBRE")}]},
+      {values: before[0].values.map((userEnteredValue) => ({userEnteredValue, note: "Anotación", userEnteredFormat: {textFormat: {bold: true}}}))},
+      {values: [{userEnteredValue: sv("Siguiente turno")}]},
+    ]}]}];
+  const operation = {operationId: "readable-1", rows: [value], humanRows: [human]};
+  return {...f, value, human, operation, run: () => f.reconcile(operation.operationId, operation.rows, {humanRows: operation.humanRows})};
+};
+
+test("readable write-back consumes the reviewed instruction while preserving formulas, notes, formatting and following rows", async () => {
+  const f = readableFixture();
+  const before = clone(f.sheets.state);
+  assert.equal((await f.run()).kind, "verified");
+  const sheet = f.sheets.state.sheets[0];
+  assert.equal(content(sheet, 1, 1).stringValue, "Persona B");
+  assert.equal(content(sheet, 1, 2), undefined, "no inherited phone");
+  assert.equal(content(sheet, 1, 4), undefined, "applied substitution cannot act again");
+  for (const column of [0, 3, 5]) assert.deepEqual(sheet.data[0].rowData[1].values[column], before.sheets[0].data[0].rowData[1].values[column]);
+  assert.deepEqual(sheet.data[0].rowData[1].values[1].userEnteredFormat, before.sheets[0].data[0].rowData[1].values[1].userEnteredFormat);
+  assert.equal(sheet.data[0].rowData[1].values[1].note, "Anotación");
+  assert.deepEqual(sheet.data[0].rowData[2], before.sheets[0].data[0].rowData[2]);
+  assert.equal(f.sheets.mutations.length, 1);
+  assert.equal((await f.run()).kind, "verified", "retained marker recovers without requiring the old before-image");
+  assert.equal(f.sheets.mutations.length, 1);
+  setCell(sheet, 1, 3, {userEnteredValue: {formulaValue: "=9"}});
+  assert.equal((await f.adapter.inspect(f.operation)).kind, "ambiguous");
+  assert.equal((await f.run()).kind, "ambiguous");
+  assert.equal(f.sheets.mutations.length, 1);
+});
+
+test("readable merge rejects changed images, sheet identities, protected cells and merged cells before authorization", async () => {
+  for (const mutate of [
+    (f) => setCell(f.sheets.state.sheets[0], 1, 3, {userEnteredValue: {formulaValue: "=9"}}),
+    (f) => { f.sheets.state.sheets[0].properties.sheetId = 99; },
+    (f) => { f.sheets.state.sheets[0].protectedRanges = [{range: {sheetId: 17, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 1, endColumnIndex: 2}}]; },
+    (f) => { f.sheets.state.sheets[0].merges = [{sheetId: 17, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 1, endColumnIndex: 3}]; },
+    (f) => { f.human.after[0].values[3] = {stringValue: "overwrite formula"}; },
+    (f) => { f.human.assignedUserIds = ["member-c"]; },
+    (f) => { f.operation.humanRows.push(clone(f.human)); },
+  ]) {
+    const f = readableFixture(); mutate(f); let authorized = false;
+    await assert.rejects(f.adapter.reconcile({...f.operation, authorizeMutation: async () => { authorized = true; }}));
+    assert.equal(authorized, false); assert.equal(f.sheets.mutations.length, 0);
+  }
+});
+
+test("readable lost acknowledgements and unavailable read-back never resend retained operations", async () => {
+  const f = readableFixture(); f.sheets.loseAcknowledgement = true;
+  assert.equal((await f.run()).kind, "verified");
+  assert.equal(f.sheets.mutations.length, 1);
+  const g = readableFixture(); g.sheets.onMutation = async () => { g.sheets.failRead = true; };
+  assert.equal((await g.run()).kind, "ambiguous");
+  g.sheets.failRead = false;
+  assert.equal((await g.adapter.inspect(g.operation)).kind, "verified");
+  assert.equal(g.sheets.mutations.length, 1);
+});
+
+test("readable review is detached before I/O and a changed desired image cannot reuse the operation ID", async () => {
+  const f = readableFixture(); const get = f.sheets.get;
+  const original = clone(f.operation);
+  f.sheets.get = async (...args) => { f.human.after[0].values[1] = {stringValue: "Changed during I/O"}; return get(...args); };
+  assert.equal((await f.run()).kind, "verified");
+  assert.equal(content(f.sheets.state.sheets[0], 1, 1).stringValue, "Persona B");
+  assert.equal((await f.adapter.inspect(original)).kind, "verified");
+  await assert.rejects(f.run(), {code: "sheets_marker_conflict"});
+  assert.equal(f.sheets.mutations.length, 1);
+});

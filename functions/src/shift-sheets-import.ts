@@ -13,6 +13,8 @@ import {
   SHIFT_SHEETS_LIMITS,
   ShiftSheetsProjectionRow,
   ShiftSheetsReviewedRow,
+  ShiftSheetsHumanWriteBackRow,
+  shiftSheetsCellValue,
   buildShiftSheetsProjections,
   readShiftSheetsSnapshot,
   shiftSheetsGridRows,
@@ -209,6 +211,7 @@ export const readShiftSheetsImport = async (input: {
   }
   const assignments: ShiftSheetsImportedAssignment[] = [];
   const canonicalRows: ShiftSheetsReviewedRow[] = [];
+  const humanRows: ShiftSheetsHumanWriteBackRow[] = [];
   const seen = new Set<string>();
   const add = (tab: ShiftSheetsImportTab, dateCell: string, rowNumber: number,
     assignedUserIds: string[], canonical?: string[]) => {
@@ -256,6 +259,46 @@ export const readShiftSheetsImport = async (input: {
       status = canonical[7] as ShiftSheetsProjectionRow["status"];
       canonicalRows.push({id, sheetName: tab.title, rowNumber,
         values: [...canonical]});
+    }
+    if (!canonical) {
+      const sheet = snapshot.sheets?.find((item) =>
+        item.properties?.title === tab.title);
+      if (!sheet || !Number.isSafeInteger(sheet.properties?.sheetId)) {
+        return failShiftSheetsImport("Human sheet identity is missing.");
+      }
+      const cells = shiftSheetsGridRows(sheet);
+      const delivery = tab.type === "delivery";
+      const before = Array.from({length: delivery ? 1 : 4}, (_, offset) => ({
+        values: Array.from({length: delivery ? 6 : 3}, (_, column) => {
+          const value = shiftSheetsCellValue(
+            cells[rowNumber - 1 + offset]?.[column],
+          );
+          if (Object.values(value).some((scalar) =>
+            typeof scalar === "string" && scalar.length > 1024)) {
+            return failShiftSheetsImport("Human review cell is oversized.");
+          }
+          return value;
+        }),
+      }));
+      const after = structuredClone(before);
+      assignedUserIds.forEach((userId, index) => {
+        const member = members.find((item) => item.userId === userId);
+        if (!member?.names[0]?.trim() || member.names[0].length > 1024 ||
+          (member.phones[0]?.length ?? 0) > 1024) {
+          return failShiftSheetsImport("Human assignee has no display name.");
+        }
+        const values = after[delivery ? 0 : index + 1].values;
+        values[delivery ? 1 : 0] = {stringValue: member.names[0]};
+        values[delivery ? 2 : 1] = member.phones[0] ?
+          {stringValue: member.phones[0]} : {};
+        const replacement = delivery ? 4 : 2;
+        if (/^lo hace\s+.+$/i.test(
+          values[replacement].stringValue?.trim() ?? "",
+        )) values[replacement] = {};
+      });
+      humanRows.push({id, sheetName: tab.title,
+        sheetId: sheet.properties?.sheetId as number, rowNumber,
+        assignedUserIds: [...assignedUserIds], before, after});
     }
     seen.add(id);
     assignments.push({id, type: tab.type, date, assignedUserIds, status,
@@ -356,6 +399,7 @@ export const readShiftSheetsImport = async (input: {
     environment: config.environment, workbookId: config.workbookId,
     workbookRevision: after, assignments, missingIds,
     canonicalRows: canonicalRows.sort((a, b) => a.id.localeCompare(b.id)),
+    humanRows: humanRows.sort((a, b) => a.id.localeCompare(b.id)),
     baselineDigest: createShiftPlanningDigest(baseline),
     mappingDigest: createShiftPlanningDigest({config, tabs}),
     membershipDigest: createShiftPlanningDigest(members),

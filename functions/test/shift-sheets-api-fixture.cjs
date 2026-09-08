@@ -45,7 +45,12 @@ const sheetsService = (workbookId = "book-development") => {
         assert.equal(request.updateCells.fields, "userEnteredValue");
         const {range, rows} = request.updateCells;
         const sheet = next.sheets.find((item) => item.properties.sheetId === range.sheetId);
-        rows[0].values.forEach((cell, column) => setCell(sheet, range.startRowIndex, range.startColumnIndex + column, cell));
+        rows[0].values.forEach((cell, column) => {
+          setCell(sheet, range.startRowIndex, range.startColumnIndex + column, cell);
+          if (!Object.hasOwn(cell, "userEnteredValue")) {
+            delete sheet.data[0].rowData[range.startRowIndex].values[range.startColumnIndex + column].userEnteredValue;
+          }
+        });
       } else if (request.createDeveloperMetadata) {
         const marker = request.createDeveloperMetadata.developerMetadata;
         const sheet = next.sheets.find((item) => item.properties.sheetId === marker.location.sheetId);

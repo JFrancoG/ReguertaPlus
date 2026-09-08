@@ -832,6 +832,15 @@ resolve to a unique logical shift/tab. Calendar document changes participate in
 the existing source digest and transaction checks. Human preparation alone does
 not authorize apply without its reviewed readable write-back path.
 
+Readable apply/write-back now reuses the existing atomic source correction and
+reserved single-submission protocol. Exact human block images bind cell location,
+visible before/after values and sheet identity. Normalization changes name/phone
+and clears only a consumed literal replacement instruction, preserving all other
+annotations and formulas. Backend ownership/helper history is never derived from
+visible cells. A retained marker is inspected without requiring the old before-image;
+calendar changes after apply reject write-back. Live writer exclusion remains a
+separate operational requirement, not a guarantee of the Sheets API.
+
 ## Approval and implementation status
 
 The maintainer accepted this ADR on 2026-08-24 for HU-082 implementation and

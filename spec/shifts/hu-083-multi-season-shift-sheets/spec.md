@@ -51,7 +51,11 @@ Cut twenty-one makes reviewed preparation compatible with Spanish dates and
 annotation formulas/notes. Literal `lo hace Nombre` is the replacement instruction;
 other notes do not assign people. Visible delivery overrides are resolved only
 from the trusted Madrid calendar, whose documents participate in source guards.
-Human apply/write-back remains pending; preparation does not change public shifts.
+Cut twenty-two integrates reviewed human apply/write-back without converting to
+technical tables. The prepared cell images and existing durable submission fence
+preserve other annotations; only an applied `lo hace Nombre` instruction is consumed
+so it cannot override a later assignment again. Preparation stays read-only for
+public shifts. Generation/new tabs, activation worker and legacy sync remain open.
 
 - Keep one stable workbook for develop/test and one stable workbook for
   production.

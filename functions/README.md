@@ -730,8 +730,9 @@ contiene exactamente `type`, `seasonStartYear`, `title`, `layout` y `decorations
 el título debe resolver al alias/ruta configurado. `layout` es `canonical` (con
 `decorations: []`), `delivery_human` o `market_human` según el tipo. Cada decoración
 contiene solo `rowNumber` (base 1) y `cells` literales. No se infiere el formato ni se
-convierte el libro: una preparación humana sigue bloqueada para apply hasta la
-conversión revisada. Los límites de pestañas, filas y columnas son los del adaptador.
+convierte el libro. Desde el corte 22, los formatos humanos también permiten
+apply/writeBack con las imágenes exactas revisadas; no requieren tablas técnicas.
+Los límites de pestañas, filas y columnas son los del adaptador.
 
 Devuelve 200 con el plan o resultado, 400 para un comando mal formado, 405 para otro
 método, 409 para rechazo o reconciliación pendiente y 503 para un fallo inesperado.
@@ -866,9 +867,10 @@ El lector conserva las once celdas canónicas de cada fila dentro de la observac
 revisada. El write-back sólo admite esos valores exactos, incluida la ubicación,
 antes de sustituir asignados, helper, estado y digest. El exportador ordinario sigue
 rechazando ediciones manuales; columnas ajenas, fórmulas fuera del área gestionada
-y formato permanecen intactos. Leer/planificar pestañas humanas sigue disponible,
-pero aplicar parches sobre ellas se rechaza antes de escribir Firestore hasta que
-exista una conversión explícita. El quinto corte no convierte formatos.
+y formato permanecen intactos. El corte 22 amplía ese protocolo a bloques humanos
+con imágenes antes/después revisadas. Actualiza nombre/teléfono y consume únicamente
+la instrucción literal `lo hace …` aplicada; conserva fechas y otras anotaciones.
+No convierte el libro ni cambia el contrato de propiedad de la rotación.
 
 El recibo `sheetsImport/submission` y el documento compartido
 `shiftPlanningState/sheetsSubmission` contienen la misma reserva `importWriteBack`.
@@ -1448,6 +1450,35 @@ Parámetros opcionales:
 - `envs=develop,production` (lista separada por comas)
 
 
+## Aplicación y escritura legibles (HU-083, corte 22)
+
+El endpoint privado de importación completa `prepare → apply → writeBack` también
+con `delivery_human` y `market_human`, incluso junto a pestañas técnicas revisadas.
+La preparación guarda el ID de pestaña, la fila y las imágenes literales antes y
+después del bloque; los nombres de salida proceden del nombre visible del socio,
+sin añadir su UID como alias. Apply conserva propiedad, cursor e historial y exige
+una imagen revisada para cada parche, incluido el helper de la temporada anterior.
+
+El mismo adaptador y recibo durable envían un lote de celdas y marcadores. Se revisan
+los valores originales, el ID de pestaña y las protecciones/mezclas de las celdas
+que cambiarán. La máscara `userEnteredValue` conserva formato y comentarios;
+una celda vacía bajo esa máscara consume la sustitución literal ya aplicada.
+Véase [UpdateCellsRequest](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest).
+Las demás notas, fórmulas y cabeceras se conservan y se comprueban en la lectura
+posterior. No se escriben fechas lógicas, propietarios ni IDs en columnas humanas.
+
+Una respuesta incierta conserva la reserva y solo permite inspección, aunque pase
+el tiempo. Un marcador retenido se comprueba antes de exigir la imagen anterior;
+jamás provoca reenvío. También se verifica que el calendario siga siendo el
+revisado entre el commit Firestore y la escritura de vuelta. Preparar, aplicar y
+escribir siguen siendo invocaciones separadas, sin envío de FCM.
+
+Validación: lint/build, 173/173 casos locales, 45/45 del emulador de importación y
+17/17 del consumidor existente, sin fallos ni omisiones. Sheets es un fake y los
+socios son ficticios. Quedan generación/nuevas pestañas, el worker de activación
+y la migración o retirada del endpoint antiguo de sincronización.
+Las pruebas no acreditan exclusión real de escritores, backups ni rollout.
+
 ## Preparación desde hojas legibles (HU-083, corte 21)
 
 El importador revisado admite la salida legible de reparto/mercado: fechas largas,
@@ -1465,7 +1496,7 @@ un fake y los socios son ficticios.
 Los títulos/meses revisados en `decorations` siguen exigiendo su imagen literal
 exacta; las fórmulas admitidas pertenecen a las anotaciones de los turnos.
 
-El corte prepara el plan; no habilita todavía `apply`/`writeBack` humano ni migra
+En el corte 21 se preparaba el plan sin habilitar aún `apply`/`writeBack` humano ni migra
 el endpoint antiguo `syncShiftsFromGoogleSheets`. Sigue pendiente conectar la
 escritura humana con el protocolo durable, además de generación/nuevas pestañas y
 worker de activación. No modifica libros reales, datos públicos ni envía FCM.
@@ -1609,7 +1640,8 @@ efectos del renombrado sobre referencias de fórmulas/protecciones, fence exclus
 CAS/revisión y read-back live, ensayo en un clon restaurado y autorización final
 siguen pendientes. Preservar fórmulas como datos en un JSON no prueba cómo Sheets
 las reescribirá al renombrar. Las imágenes no son cuerpos `batchUpdate`, ni prueban
-metadatos omitidos por el capturador; el apply humano sigue cerrado.
+metadatos omitidos por el capturador. Esta alternativa de conversión no es el
+flujo elegido; el corte 22 integra apply/writeBack directamente en las hojas legibles.
 
 Validación focalizada: `npm run test:shift-sheets:conversion`.
 

@@ -82,9 +82,28 @@ export type ShiftSheetsReviewedRow = {
   values: readonly string[];
 };
 
+/** Exact readable block and assignment normalization, bound at review. */
+export type ShiftSheetsHumanWriteBackRow = {
+  id: string;
+  sheetName: string;
+  sheetId: number;
+  rowNumber: number;
+  assignedUserIds: readonly string[];
+  before: readonly {values: readonly SheetsV4.Schema$ExtendedValue[]}[];
+  after: readonly {values: readonly SheetsV4.Schema$ExtendedValue[]}[];
+};
+
+export const shiftSheetsCellValue = (cell?: Cell):
+  SheetsV4.Schema$ExtendedValue => cell?.userEnteredValue?.stringValue === "" ?
+  {} : Object.fromEntries(
+    Object.entries(cell?.userEnteredValue ?? {}).filter(([, value]) =>
+      value !== null && value !== undefined),
+  );
+
 type OperationInput = {
   operationId: string;
   rows: readonly ShiftSheetsProjectionRow[];
+  humanRows?: readonly ShiftSheetsHumanWriteBackRow[];
 };
 
 const fail = (code: string, message: string): never => {
@@ -168,9 +187,14 @@ export const buildShiftSheetsProjections = (
 const projectionDigestFor = (
   config: ShiftSheetsConfig,
   projections: readonly Projection[],
+  humanRows: readonly ShiftSheetsHumanWriteBackRow[] = [],
 ): string => digest({
   environment: config.environment, workbookId: config.workbookId,
   headers: SHIFT_SHEETS_HEADERS, projections,
+  ...(humanRows.length ? {humanRows: humanRows.map((row) => ({
+    id: row.id, sheetName: row.sheetName, sheetId: row.sheetId,
+    rowNumber: row.rowNumber, after: row.after,
+  }))} : {}),
 });
 
 export const shiftSheetsGridRows = (sheet: Sheet): Cell[][] => {
@@ -255,6 +279,90 @@ const validateSheetSize = (sheet: Sheet): number => {
   return (grid?.rowCount ?? 0) * (grid?.columnCount ?? 0);
 };
 
+const validateHumanRows = (
+  projections: readonly Projection[],
+  humanRows: readonly ShiftSheetsHumanWriteBackRow[],
+): void => {
+  const occupied = new Set<string>();
+  const ids = new Set<string>();
+  for (const row of humanRows) {
+    const projection = projections.find((item) => item.id === row.id);
+    const delivery = projection?.values[1] === "delivery";
+    const height = delivery ? 1 : 4;
+    const width = delivery ? 6 : 3;
+    if (!projection || ids.has(row.id) ||
+      projection.title !== row.sheetName ||
+      projection.values[5] !== JSON.stringify(row.assignedUserIds) ||
+      !Number.isSafeInteger(row.sheetId) || row.sheetId < 0 ||
+      !Number.isSafeInteger(row.rowNumber) || row.rowNumber < 1 ||
+      row.rowNumber + height - 1 > SHIFT_SHEETS_LIMITS.tabRows ||
+      row.before.length !== height || row.after.length !== height) {
+      return fail("sheets_manual_conflict", "Human review is not exact.");
+    }
+    ids.add(row.id);
+    row.before.forEach((before, offset) => {
+      const key = `${row.sheetName}:${row.rowNumber + offset}`;
+      const after = row.after[offset];
+      if (occupied.has(key) || before.values.length !== width ||
+        after.values.length !== width) {
+        return fail("sheets_manual_conflict", "Human blocks overlap.");
+      }
+      occupied.add(key);
+      before.values.forEach((value, column) => {
+        const target = after.values[column];
+        for (const cell of [value, target]) {
+          const keys = Object.keys(cell);
+          if (keys.length > 1 || keys.some((key) =>
+            !["stringValue", "numberValue", "boolValue", "formulaValue"]
+              .includes(key)) || Object.entries(cell).some(([key, scalar]) =>
+            key === "numberValue" ? !Number.isFinite(scalar) :
+              key === "boolValue" ? typeof scalar !== "boolean" :
+                typeof scalar !== "string" || scalar.length > 1024)) {
+            return fail("sheets_manual_conflict", "Human cell is invalid.");
+          }
+        }
+        const person = delivery || offset > 0;
+        const name = delivery ? 1 : 0;
+        const replacement = delivery ? 4 : 2;
+        if (person && (column === name || column === name + 1) &&
+          ((Object.keys(target).length > 0 &&
+            typeof target.stringValue !== "string") ||
+            (column === name && !target.stringValue?.trim()))) {
+          return fail("sheets_manual_conflict", "Human name/phone is invalid.");
+        }
+        if (offset === 0 && column === 0 && value.formulaValue != null) {
+          return fail("sheets_manual_conflict", "Human date is not literal.");
+        }
+        if (digest(value) === digest(target)) return;
+        const identity = person && (column === name || column === name + 1);
+        const consumed = person && column === replacement &&
+          /^lo hace\s+.+$/i.test(value.stringValue?.trim() ?? "") &&
+          Object.keys(target).length === 0;
+        if (!identity && !consumed) {
+          return fail("sheets_manual_conflict", "Human annotation changed.");
+        }
+      });
+    });
+  }
+  if (projections.some((row) => !ids.has(row.id) &&
+    humanRows.some((human) => human.sheetName === row.title))) {
+    fail("sheets_manual_conflict", "A tab cannot mix reviewed layouts.");
+  }
+};
+
+const requireHumanImage = (
+  sheet: Sheet, row: ShiftSheetsHumanWriteBackRow, image: "before" | "after",
+): void => {
+  const cells = shiftSheetsGridRows(sheet);
+  if (sheet.properties?.sheetId !== row.sheetId ||
+    row[image].some((line, offset) => line.values.some((value, column) =>
+      digest(value) !== digest(shiftSheetsCellValue(
+        cells[row.rowNumber - 1 + offset]?.[column],
+      ))))) {
+    fail("sheets_manual_conflict", "Reviewed human cells changed.");
+  }
+};
+
 /**
  * Plans literal cell patches by stable ID without mutating the snapshot.
  * A changed exported rowDigest is a manual-edit conflict, not permission to
@@ -263,6 +371,7 @@ const validateSheetSize = (sheet: Sheet): number => {
  * @param {Spreadsheet} spreadsheet Complete bounded grids for affected tabs.
  * @param {ShiftSheetsProjectionRow[]} inputRows Detached target projections.
  * @param {ShiftSheetsReviewedRow[]} reviewedRows Exact import before-images.
+ * @param {ShiftSheetsHumanWriteBackRow[]} humanRows Reviewed readable blocks.
  * @return {ShiftSheetsMergePlan} Pure plan without external operation markers.
  */
 export const planShiftSheetsMerge = (
@@ -270,6 +379,7 @@ export const planShiftSheetsMerge = (
   spreadsheet: Spreadsheet,
   inputRows: readonly ShiftSheetsProjectionRow[],
   reviewedRows?: readonly ShiftSheetsReviewedRow[],
+  humanRows: readonly ShiftSheetsHumanWriteBackRow[] = [],
 ): ShiftSheetsMergePlan => {
   if (spreadsheet.spreadsheetId !== config.workbookId) {
     return fail(
@@ -277,9 +387,12 @@ export const planShiftSheetsMerge = (
     );
   }
   const projections = buildShiftSheetsProjections(config, inputRows);
-  if (reviewedRows && (reviewedRows.length !== projections.length ||
+  validateHumanRows(projections, humanRows);
+  const canonical = projections.filter((row) =>
+    !humanRows.some((human) => human.id === row.id));
+  if (reviewedRows && (reviewedRows.length !== canonical.length ||
     new Set(reviewedRows.map((row) => row.id)).size !== reviewedRows.length ||
-    reviewedRows.some((row) => !projections.some((projection) =>
+    reviewedRows.some((row) => !canonical.some((projection) =>
       projection.id === row.id && projection.title === row.sheetName) ||
       !Number.isSafeInteger(row.rowNumber) || row.rowNumber < 2 ||
       row.values.length !== SHIFT_SHEETS_HEADERS.length ||
@@ -290,7 +403,7 @@ export const planShiftSheetsMerge = (
   const sheets: {title: string; sheetId: number}[] = [];
   const usedIds = new Set((spreadsheet.sheets ?? [])
     .map((sheet) => sheet.properties?.sheetId));
-  const titles = new Set(projections.map((row) => row.title));
+  const titles = new Set(canonical.map((row) => row.title));
   const locations = new Map<string, string>();
   const dateOwners = new Map<string, string>();
   for (const sheet of spreadsheet.sheets ?? []) {
@@ -323,7 +436,7 @@ export const planShiftSheetsMerge = (
       );
     }
   }
-  for (const title of new Set(projections.map((row) => row.title))) {
+  for (const title of titles) {
     const matches = (spreadsheet.sheets ?? [])
       .filter((sheet) => sheet.properties?.title === title);
     if (matches.length > 1) {
@@ -421,7 +534,38 @@ export const planShiftSheetsMerge = (
       }
     }
   }
-  return {projectionDigest: projectionDigestFor(config, projections),
+  for (const human of humanRows) {
+    const matches = spreadsheet.sheets?.filter((sheet) =>
+      sheet.properties?.title === human.sheetName) ?? [];
+    if (matches.length !== 1) {
+      return fail("sheets_manual_conflict", "Reviewed human tab is missing.");
+    }
+    const sheet = matches[0];
+    validateSheetSize(sheet);
+    requireHumanImage(sheet, human, "before");
+    const cells = shiftSheetsGridRows(sheet);
+    if (!sheets.some((item) => item.sheetId === human.sheetId)) {
+      sheets.push({title: human.sheetName, sheetId: human.sheetId});
+    }
+    human.after.forEach((line, offset) => {
+      line.values.forEach((value, column) => {
+        if (digest(value) === digest(human.before[offset].values[column])) {
+          return;
+        }
+        const row = human.rowNumber - 1 + offset;
+        requireWritable(sheet, cells, row, column);
+        requests.push({updateCells: {
+          range: {sheetId: human.sheetId,
+            startRowIndex: row, endRowIndex: row + 1,
+            startColumnIndex: column, endColumnIndex: column + 1},
+          rows: [{values: [Object.keys(value).length ?
+            {userEnteredValue: value} : {}]}],
+          fields: "userEnteredValue",
+        }});
+      });
+    });
+  }
+  return {projectionDigest: projectionDigestFor(config, projections, humanRows),
     projections, requests, sheets};
 };
 
@@ -553,8 +697,11 @@ export const createShiftSheetsAdapter = (input: {
       return fail("invalid_sheets_operation", "Operation ID is invalid.");
     }
     const projections = buildShiftSheetsProjections(config, operation.rows);
-    return {operationId: operation.operationId, projections,
-      projectionDigest: projectionDigestFor(config, projections)};
+    const humanRows = structuredClone([...(operation.humanRows ?? [])])
+      .sort((a, b) => a.id.localeCompare(b.id));
+    validateHumanRows(projections, humanRows);
+    return {operationId: operation.operationId, projections, humanRows,
+      projectionDigest: projectionDigestFor(config, projections, humanRows)};
   };
 
   const inspectDetached = async (
@@ -576,6 +723,16 @@ export const createShiftSheetsAdapter = (input: {
         if (!sheet || markerFor(sheet)?.metadataValue !== markerValue(
           operation.operationId, operation.projectionDigest,
         )) throw new Error("Operation marker is not current.");
+        const humanRows = operation.humanRows.filter((row) =>
+          row.sheetName === title);
+        if (humanRows.length) {
+          for (const human of humanRows) {
+            requireHumanImage(sheet, human, "after");
+          }
+          actual.push(...operation.projections.filter((row) =>
+            row.title === title));
+          continue;
+        }
         const rows = shiftSheetsGridRows(sheet);
         if (SHIFT_SHEETS_HEADERS.some((header, column) =>
           cellText(rows[0]?.[column]) !== header ||
@@ -598,7 +755,8 @@ export const createShiftSheetsAdapter = (input: {
             .map((_, column) => cellText(cells[column]))});
         }
       }
-      const readBackDigest = projectionDigestFor(config, actual);
+      const readBackDigest = projectionDigestFor(config, actual,
+        operation.humanRows);
       if (readBackDigest !== operation.projectionDigest) {
         throw new Error("Projection read-back differs.");
       }
@@ -636,29 +794,29 @@ export const createShiftSheetsAdapter = (input: {
           source: row.values[8] as ShiftSheetsProjectionRow["source"],
           origin: row.values[9] || null,
         }));
-      const plan = planShiftSheetsMerge(config, read, rows, reviewedRows);
+      // A retained marker is recovery even if the original before-image has
+      // already been replaced. It must never turn into another submission.
+      const retained = read.sheets?.some((sheet) => {
+        const marker = markerFor(sheet);
+        if (!marker) return false;
+        const previous = JSON.parse(marker.metadataValue ?? "");
+        if (previous.operationId !== frozen.operationId) return false;
+        if (marker.metadataValue !== markerValue(frozen.operationId,
+          frozen.projectionDigest)) {
+          return fail("sheets_marker_conflict", "Operation ID was reused.");
+        }
+        return true;
+      });
+      if (retained) return inspectDetached(frozen);
+      const plan = planShiftSheetsMerge(config, read, rows, reviewedRows,
+        frozen.humanRows);
       const requests = [...plan.requests];
-      let replay = false;
       for (const target of plan.sheets) {
         const sheet = read.sheets?.find((item) =>
           item.properties?.sheetId === target.sheetId);
         const marker = sheet ? markerFor(sheet) : null;
         const value = markerValue(frozen.operationId, plan.projectionDigest);
         if (marker) {
-          let prior: {operationId?: string};
-          try {
-            prior = JSON.parse(marker.metadataValue ?? "");
-          } catch {
-            return fail(
-              "sheets_marker_conflict", "Operation marker is invalid.",
-            );
-          }
-          if (prior.operationId === frozen.operationId) {
-            if (marker.metadataValue !== value) {
-              return fail("sheets_marker_conflict", "Operation ID was reused.");
-            }
-            replay = true;
-          }
           requests.push({updateDeveloperMetadata: {
             dataFilters: [{developerMetadataLookup: {
               metadataId: marker.metadataId,
@@ -672,8 +830,6 @@ export const createShiftSheetsAdapter = (input: {
           }}});
         }
       }
-      // Any retained marker means this is recovery, never a reason to resend.
-      if (replay) return inspectDetached(frozen);
       if (Buffer.byteLength(JSON.stringify({requests}), "utf8") >
         SHIFT_SHEETS_LIMITS.requestBytes) {
         return fail(

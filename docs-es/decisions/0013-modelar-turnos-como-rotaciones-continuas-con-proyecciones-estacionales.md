@@ -862,6 +862,16 @@ cambios de calendario participan en el digest de fuente y comprobaciones
 transaccionales existentes. La preparación humana no habilita aplicar hasta
 integrar su escritura de vuelta legible y revisada.
 
+La aplicación/escritura legible reutiliza la corrección atómica del origen y el
+protocolo existente de reserva y envío único. Las imágenes exactas del bloque
+vinculan ubicación, valores visibles antes/después e identidad de pestaña. Solo se
+normaliza nombre/teléfono y se vacía la instrucción literal de sustitución consumida;
+se conservan las demás anotaciones y fórmulas. La propiedad e historial del helper
+siguen en el backend. Un marcador retenido se inspecciona sin exigir la imagen
+anterior; cambios de calendario tras apply impiden la escritura de vuelta. La
+exclusión real de escritores sigue siendo un requisito operativo separado, no una
+garantía de la API de Sheets.
+
 ## Estado de aprobación e implementación
 
 El mantenedor aceptó este ADR el 2026-08-24 para implementar HU-082 y validarla

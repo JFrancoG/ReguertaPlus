@@ -104,7 +104,7 @@ const parseMember = (snapshot: DocumentSnapshot): ShiftSheetsImportMember => {
     .find((candidate) => candidate?.trim());
   return {
     userId: snapshot.id,
-    names: [snapshot.id, value.displayName],
+    names: [value.displayName],
     phones: phone ? [phone] : [],
     eligibleTypes: isEligibleForShiftRotation({
       roles: value.roles, isActive: value.isActive,
@@ -370,6 +370,7 @@ export const createFirestoreShiftSheetsImport = (input: {
       live.authority.activeDigest !== terminal.bundleDigest ||
       live.authority.writeEpoch !== terminal.writeEpoch ||
       digest(live.members) !== command.observation.membershipDigest ||
+      digest(live.deliveryCalendar) !== command.observation.calendarDigest ||
       digest(originalRows) !== command.observation.baselineDigest) {
       return failShiftSheetsImport("Import source changed before write-back.");
     }
@@ -466,7 +467,10 @@ export const createFirestoreShiftSheetsImport = (input: {
         return {kind: "replayed" as const, evidence: initial.receipt.evidence};
       }
       const operation = {operationId: initial.refs.operation.id,
-        rows: initial.record.writeBackRows};
+        rows: initial.record.writeBackRows,
+        humanRows: (initial.command.observation.humanRows ?? [])
+          .filter((row) => initial.record.writeBackRows.some((target) =>
+            target.id === row.id))};
       if (initial.receipt.batch === null) {
         const before = requireShiftSheetsWorkbookVersion(
           await input.readWorkbookVersion(),
@@ -619,9 +623,12 @@ export const createFirestoreShiftSheetsImport = (input: {
         }
         if (plan.patches.some((patch) =>
           !command.observation.canonicalRows.some((row) =>
-            row.id === patch.id))) {
+            row.id === patch.id) &&
+          !(command.observation.humanRows ?? []).some((row) =>
+            row.id === patch.id &&
+            digest(row.assignedUserIds) === digest(patch.assignedUserIds)))) {
           return failShiftSheetsImport(
-            "Human apply requires the reviewed readable write-back.",
+            "Apply needs an exact reviewed write-back for every patch.",
           );
         }
         const checkedAt = clock();

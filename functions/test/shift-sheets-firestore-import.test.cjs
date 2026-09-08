@@ -235,7 +235,7 @@ test("a failure while constructing the second write commits neither shift nor te
     });
     const value = Reflect.get(target, key); return typeof value === "function" ? value.bind(target) : value;
   }});
-  const broken = createFirestoreShiftSheetsImport({retentionPolicy, firestore: failing, config, tabs: f.tabs, sheets: f.service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion: async () => "11"});
+  const broken = createFirestoreShiftSheetsImport({retentionPolicy, firestore: failing, config, tabs: f.tabs, sheets: f.service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion: f.readWorkbookVersion});
   await assert.rejects(broken.apply("operation-1", plan.planDigest), /second write failure/);
   assert.deepEqual(await f.readShift(f.target.id), targetBefore);
   assert.deepEqual(await f.readShift(f.predecessorId), predecessorBefore);
@@ -286,13 +286,19 @@ test("human delivery rows use canonical member phoneNumber and reject contradict
   const sheet = f.service.state.sheets.find((sheet) => sheet.properties.title === tab.title);
   sheet.data[0].rowData = rows.map((row) => ({values: [row.date, row.assignedUserIds[0], `600${row.assignedUserIds[0].replace("member-", "").padStart(6, "0")}`, "", row.id === f.target.id ? "lo hace member-3" : ""].map((stringValue) => ({userEnteredValue: {stringValue}}))}));
   const tabs = f.tabs.map((item) => item === tab ? {...item, layout: "delivery_human"} : item);
-  const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore, config, tabs, sheets: f.service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion: async () => "11"});
+  const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore, config, tabs, sheets: f.service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion: f.readWorkbookVersion});
   const {plan} = await api.prepare("human");
   assert.deepEqual(plan.patches.find((patch) => patch.id === f.target.id).assignedUserIds, ["member-3"]);
-  await assert.rejects(api.apply("human", plan.planDigest), invalid);
-  assert.equal((await f.operationRef("human").get()).exists, false);
+  const phone = structuredClone(sheet.data[0].rowData[0].values[2]);
   setCell(sheet, 0, 2, {userEnteredValue: {stringValue: "699999999"}});
   await assert.rejects(api.prepare("contradictory-phone"), invalid);
+  setCell(sheet, 0, 2, phone);
+  assert.equal((await api.apply("human", plan.planDigest)).kind, "committed");
+  assert.equal((await api.writeBack("human", plan.planDigest)).kind, "completed");
+  const resultSheet = f.service.state.sheets.find((item) => item.properties.title === tab.title);
+  const targetIndex = rows.findIndex((row) => row.id === f.target.id);
+  assert.equal(resultSheet.data[0].rowData[targetIndex].values[1].userEnteredValue.stringValue, "member-3");
+  assert.equal(resultSheet.data[0].rowData[targetIndex].values[4].userEnteredValue, undefined);
 });
 
 test("noncanonical member roles reject preparation before any public write", async () => {
@@ -660,9 +666,14 @@ test("prepares the readable seasonal union with real names, notes, formulas and 
   assert.equal(result.plan.patches.find((patch) => patch.id === f.predecessorId).helperUserId, "member-3");
   assert.deepEqual(await f.readShift(f.target.id), before);
   assert.deepEqual(f.service.state, originalSheets);
-  await assert.rejects(api.apply("readable-union", result.plan.planDigest), invalid);
-  assert.equal((await f.operationRef("readable-union").get()).exists, false);
-  assert.equal(f.service.mutations.length, 0);
+  assert.equal((await api.apply("readable-union", result.plan.planDigest)).kind, "committed");
+  assert.equal((await api.writeBack("readable-union", result.plan.planDigest)).kind, "completed");
+  assert.equal((await api.writeBack("readable-union", result.plan.planDigest)).kind, "replayed");
+  assert.equal(f.service.mutations.length, 1);
+  for (const sheet of f.service.state.sheets) {
+    const original = originalSheets.sheets.find((item) => item.properties.sheetId === sheet.properties.sheetId);
+    assert.deepEqual(sheet.data, original.data, "already edited human values and annotations remain unchanged");
+  }
   assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
 });
 
@@ -682,4 +693,79 @@ test("calendar edits during preparation or after review invalidate the import so
   await assert.rejects(f.api.apply("calendar-reviewed", plan.planDigest), invalid);
   assert.equal((await f.operationRef("calendar-reviewed").get()).exists, false);
   assert.equal(f.service.mutations.length, 0);
+});
+
+
+const readableMarketImport = async () => {
+  const f = await setup(); f.edit(f.target.id, f.target.assignedUserIds);
+  const target = f.rows.find((row) => row.type === "market");
+  const tab = f.tabs.find((item) => item.type === "market" && item.title === resolveShiftSheetsTab(config, "market", target.date).title);
+  const users = await firestore.collection(`${root}/users`).get();
+  const substitute = users.docs.find((doc) => !target.assignedUserIds.includes(doc.id)).id;
+  const tabs = f.tabs.map((item) => item === tab ? {...item, layout: "market_human"} : item);
+  const rows = f.rows.filter((row) => row.type === "market" && resolveShiftSheetsTab(config, row.type, row.date).title === tab.title);
+  const sheet = f.service.state.sheets.find((item) => item.properties.title === tab.title);
+  const values = rows.flatMap((row) => [[row.date, "Nota cabecera"], ...row.assignedUserIds.map((id, index) =>
+    [id, "", row.id === target.id && index === 0 ? `lo hace ${substitute}` : "Nota conservada"])]);
+  sheet.data[0].rowData = values.map((row) => ({values: row.map((stringValue) => ({userEnteredValue: {stringValue}}))}));
+  setCell(sheet, 2, 2, {userEnteredValue: {formulaValue: "=1+2"}, note: "Comentario", userEnteredFormat: {textFormat: {bold: true}}});
+  const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore, config, tabs, sheets: f.service,
+    clock: () => Timestamp.fromMillis(now), readWorkbookVersion: f.readWorkbookVersion});
+  return {...f, api, marketTarget: target, marketTab: tab, substitute, marketBefore: structuredClone(sheet)};
+};
+
+test("HTTP human prepare/apply/write-back replaces one market participant, consumes only its instruction and replays once", async () => {
+  const f = await readableMarketImport();
+  const before = await f.readShift(f.marketTarget.id);
+  const prepared = await invokeImport(f, "prepare");
+  assert.equal(prepared.status, 200);
+  const digest = prepared.body.plan.planDigest;
+  assert.equal(prepared.body.plan.patches.length, 1);
+  assert.equal((await invokeImport(f, "apply", digest)).body.kind, "committed");
+  f.service.loseAcknowledgement = true;
+  assert.equal((await invokeImport(f, "writeBack", digest)).body.kind, "completed");
+  const after = await f.readShift(f.marketTarget.id);
+  assert.deepEqual(after.assignedUserIds, [f.substitute, ...before.assignedUserIds.slice(1)]);
+  assert.deepEqual(after.rotationOwnerUserIds, before.rotationOwnerUserIds);
+  assert.deepEqual(after.completion, before.completion);
+  const sheet = f.service.state.sheets.find((item) => item.properties.title === f.marketTab.title);
+  assert.equal(sheet.data[0].rowData[1].values[0].userEnteredValue.stringValue, f.substitute);
+  assert.equal(sheet.data[0].rowData[1].values[2].userEnteredValue, undefined);
+  assert.deepEqual(sheet.data[0].rowData[0], f.marketBefore.data[0].rowData[0]);
+  assert.deepEqual(sheet.data[0].rowData.slice(2), f.marketBefore.data[0].rowData.slice(2));
+  assert.equal(f.service.mutations.length, 1);
+  assert.equal((await invokeImport(f, "writeBack", digest)).body.kind, "replayed");
+  assert.equal((await invokeImport(f, "apply", digest)).body.kind, "replayed");
+  assert.equal(f.service.mutations.length, 1);
+  assert.equal((await f.api.prepare("after-human-write-back")).kind, "unchanged");
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
+});
+
+test("human unknown submissions stay inspect-only after elapsed time", async () => {
+  const f = await readableMarketImport(); const {plan} = await f.api.prepare("human-unknown");
+  await f.api.apply("human-unknown", plan.planDigest);
+  f.service.rejectBeforeApply = true;
+  assert.equal((await f.api.writeBack("human-unknown", plan.planDigest)).kind, "reconciliationRequired");
+  now += 86400000;
+  assert.equal((await f.api.writeBack("human-unknown", plan.planDigest)).kind, "reconciliationRequired");
+  assert.equal(f.service.mutations.length, 1);
+  assert.equal((await f.submissionRef("human-unknown").get()).get("evidence"), null);
+});
+
+test("human changes after review or calendar changes after apply cannot obtain a Sheets submission", async () => {
+  for (const changeCalendar of [false, true]) {
+    const f = await readableMarketImport(); const id = `human-stale-${changeCalendar}`;
+    const {plan} = await f.api.prepare(id); await f.api.apply(id, plan.planDigest);
+    if (changeCalendar) {
+      await firestore.doc(`${root}/deliveryCalendar/2026-W36`).set({deliveryDate: Timestamp.fromDate(new Date("2026-09-04T00:00:00Z"))});
+    } else {
+      const sheet = f.service.state.sheets.find((item) => item.properties.title === f.marketTab.title);
+      setCell(sheet, 2, 2, {userEnteredValue: {formulaValue: "=9"}});
+    }
+    await assert.rejects(f.api.writeBack(id, plan.planDigest));
+    assert.equal((await f.submissionRef(id).get()).get("batch"), null);
+    assert.equal(f.service.mutations.length, 0);
+    // Each fixture needs an isolated store; the unfinished reservation stays intact.
+    if (!changeCalendar) assert.equal((await fetch(`http://${host}/emulator/v1/projects/${projectId}/databases/(default)/documents`, {method: "DELETE"})).ok, true);
+  }
 });

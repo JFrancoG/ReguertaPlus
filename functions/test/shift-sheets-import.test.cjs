@@ -327,3 +327,12 @@ test("human authority formulas, impossible Spanish dates and orphaned identities
   human(f, "delivery", 2025, [["", "Persona A", "900000000"]]);
   await assert.rejects(f.read(), invalid);
 });
+
+
+test("oversized preserved formulas reject preparation before producing a human write-back image", async () => {
+  const f = await setup();
+  human(f, "delivery", 2025, [["27/08/2026", "Persona A", "900000000"]]);
+  setCell(f.service.state.sheets[0], 0, 3, {userEnteredValue: {formulaValue: "=" + "x".repeat(1024)}});
+  await assert.rejects(f.read(), invalid);
+  assert.equal(f.service.mutations.length, 0);
+});

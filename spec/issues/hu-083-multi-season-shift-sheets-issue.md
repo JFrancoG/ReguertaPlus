@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — twentieth cut pushed; twenty-first readable import preparation validated locally
+- State: IN PROGRESS — twenty-first cut pushed; twenty-second human apply/write-back validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -818,6 +818,28 @@ No mobile code/contract changed, so mobile gates were not rerun. The unrelated
 main-checkout Xcode reorder remains untouched.
 Next: integrate that human write-back, followed by generation/new tabs and the
 activation worker. The accepted readable-layout choice remains in force.
+
+### Twenty-second local cut — reviewed human apply/write-back (approved 2026-09-08)
+
+Cut twenty-one is pushed as `09cdd11`. The user authorized commit/push and this next
+local cut. Integrate readable import application and write-back into the existing
+adapter/submission protocol, keeping mixed seasonal layouts in one batch. Preserve
+exact before/after cell images, notes/formulas, logical dates and stable ownership;
+consume only applied literal replacement instructions. Reuse source transactions,
+workbook reservation, durable submission and inspect-only recovery after uncertainty.
+
+Validation: Functions lint/build pass; 173/173 cases in twelve local regression
+files, 45/45 Firestore import emulator cases and 17/17 existing consumer emulator
+cases pass with zero failures/skips. The HTTP human flow, mixed-season write-back,
+consumed substitutions, lost acknowledgements, inspect-only uncertainty and changed
+calendar/image rejection are exercised with fake Sheets and fictional members.
+
+Cut twenty-two remains local and uncommitted. The cut does not create seasonal
+tabs or migrate legacy sync/generation or the activation worker. No live workbook/
+Firestore, deployment, IAM or FCM change occurred. Mobile code/contract is unchanged;
+mobile gates were not rerun. The unrelated main-checkout Xcode reorder is preserved.
+HU-083 remains open. Next: generation/new human tabs and activation integration,
+then legacy sync migration/retirement and the remaining real-data evidence gates.
 
 ## Workbook decision
 
