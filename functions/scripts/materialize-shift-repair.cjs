@@ -4,6 +4,7 @@
 const {Timestamp} = require("@google-cloud/firestore");
 const {planShiftRepair} = require("./repair-planned-shifts.cjs");
 const {resolveShiftRotationBootstrap} = require("../lib/shift-rotation-bootstrap.js");
+const {buildShiftPlanningAuthoritativeState} = require("../lib/shift-planning-state-persistence.js");
 const {MAX_BYTES} = require("./audit-shift-planning.cjs");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {encodeShiftPlanningFirestoreValue, decodeShiftPlanningFirestoreValue, decodeShiftPlanningFirestoreDocument,
@@ -26,7 +27,9 @@ const mutablePositionFields = new Set(["rotationOwnerUserId", "effectiveAssignee
 // Recompute the parent review instead of trusting a digest on a caller-supplied plan.
 const materializeShiftRepair = async (options) => {
   const captured = structuredClone(options);
-  const {materialization: packet, expectedMaterializationDigest, baselineRevision, expectedMaterializedPlanDigest, ...reviewOptions} = captured;
+  const {materialization: packet, expectedMaterializationDigest, baselineRevision, expectedMaterializedPlanDigest, authorityCapture, expectedAuthorityCaptureDigest, ...reviewOptions} = captured;
+  check((authorityCapture === undefined) === (expectedAuthorityCaptureDigest === undefined));
+  check(authorityCapture === undefined || baselineRevision !== undefined);
   check((baselineRevision === undefined) === (expectedMaterializedPlanDigest === undefined));
   check(packet && Buffer.byteLength(JSON.stringify(packet)) <= MAX_BYTES && digest(packet) === expectedMaterializationDigest);
   const review = await planShiftRepair(reviewOptions), {input, proposal} = reviewOptions;
@@ -112,7 +115,9 @@ const materializeShiftRepair = async (options) => {
     pendingGates: [...body.pendingGates.filter((gate) => gate !== "full_document_atomic_cas_and_provenance"),
       "live_authority_binding_and_atomic_cas_execution", "isolated_forward_inverse_commit_rehearsal"]};
   const materialized = {...result, planDigest: digest(result)};
-  return baselineRevision === undefined ? materialized : recoveryReview({materialized, input, proposal, baselineRevision, expectedMaterializedPlanDigest});
+  if (baselineRevision === undefined) return materialized;
+  const recovery = recoveryReview({materialized, input, proposal, baselineRevision, expectedMaterializedPlanDigest});
+  return authorityCapture === undefined ? recovery : attachAuthority({recovery, input, packet, authorityCapture, expectedAuthorityCaptureDigest});
 };
 
 // Payload restoration is a clone rehearsal. Service update times cannot be restored,
@@ -171,6 +176,62 @@ const recoveryReview = ({materialized, input, proposal, baselineRevision, expect
         migrationBaseline: reference, expectedCursor: rotations[type].rotationAfterHorizon, state: "requires_authoritative_capture"}))},
     pendingGates: [...body.pendingGates.filter((gate) => gate !== "migration_baseline_and_rollback"),
       "authoritative_rotation_baseline_attachment", "guarded_live_repair_recovery_provenance"]};
+  return {...result, planDigest: digest(result)};
+};
+const attachAuthority = ({recovery, input, packet, authorityCapture: capture, expectedAuthorityCaptureDigest}) => {
+  check(capture && Buffer.byteLength(JSON.stringify(capture)) <= MAX_BYTES && digest(capture) === expectedAuthorityCaptureDigest);
+  check(keys(capture, ["schemaVersion", "target", "inputDigest", "capturedAt", "documents"]) && capture.schemaVersion === 1 &&
+    same(capture.target, recovery.target) && capture.inputDigest === recovery.inputDigest && capture.capturedAt === input.capturedAt &&
+    Array.isArray(capture.documents) && capture.documents.length === 3);
+  const root = `${recovery.target.environment}/plus-collections`;
+  const paths = [`${root}/shiftPlanningState/current`, `${root}/shiftRotations/delivery`, `${root}/shiftRotations/market`];
+  const documents = new Map();
+  for (const entry of capture.documents) {
+    check(keys(entry, ["targetPath", "payload", "updateTime"]) && paths.includes(entry.targetPath) && !documents.has(entry.targetPath));
+    const data = decodeShiftPlanningFirestoreDocument(entry.payload), updateTime = decodeShiftPlanningFirestoreValue(entry.updateTime);
+    check(same(encode(data), entry.payload) && updateTime instanceof Timestamp && same(encode(updateTime), entry.updateTime) &&
+      updateTime.valueOf() <= Timestamp.fromDate(new Date(capture.capturedAt)).valueOf());
+    documents.set(entry.targetPath, {entry, data});
+  }
+  const state = buildShiftPlanningAuthoritativeState({environment: recovery.target.environment,
+    maintenance: documents.get(paths[0]).data, rotations: {delivery: documents.get(paths[1]).data, market: documents.get(paths[2]).data}});
+  check(state.maintenance.maintenanceStatus === "closed" && state.maintenance.intakeBarrier !== null &&
+    state.maintenance.intakeBarrier.verifiedAtMillis <= Date.parse(capture.capturedAt) &&
+    state.maintenance.activeRevision === packet.authority.bundleRevision && state.maintenance.activeDigest === packet.authority.bundleDigest &&
+    state.maintenance.writeEpoch === packet.authority.writeEpoch);
+  const evidence = recovery.recoveryEvidence, reference = evidence.baseline.reference;
+  const after = {};
+  for (const type of ["delivery", "market"]) {
+    const current = state.rotations[type], attachment = evidence.rotationLineageAttachments.find((item) => item.targetPath === `${root}/shiftRotations/${type}`);
+    check(current.releaseLease === null && current.stateRevision < Number.MAX_SAFE_INTEGER &&
+      same(current.cursor, input.lineage[type].rotationAfterHorizon));
+    const dates = input.expectedDates[type];
+    check(dates.every((date) => Number(date.slice(0, 4)) - Number(Number(date.slice(5, 7)) < 9) <= current.planningFrontierSeasonStartYear));
+    const cursor = attachment.expectedCursor, frozen = cursor.nextMemberIndex !== 0;
+    after[type] = {...current, stateRevision: current.stateRevision + 1, cursor, cohortFrozen: frozen,
+      frozenCohortUserIds: frozen ? cursor.cohortUserIds : [], migrationBaseline: reference};
+  }
+  buildShiftPlanningAuthoritativeState({environment: recovery.target.environment, maintenance: state.maintenance, rotations: after});
+  const forward = structuredClone(evidence.forward), inverse = structuredClone(evidence.inverse);
+  for (const path of paths) {
+    const {entry} = documents.get(path), isRotation = path !== paths[0];
+    forward.readGuards.push({targetPath: path, exists: true, updateTime: entry.updateTime, payloadDigest: digest(entry.payload)});
+    const finalPayload = isRotation ? encode(after[path.split("/").at(-1)]) : entry.payload;
+    inverse.readGuards.push({targetPath: path, exists: true, payloadDigest: digest(finalPayload)});
+    if (isRotation) {
+      forward.writes.push({targetPath: path, mutationKind: "update", payload: finalPayload});
+      inverse.writes.push({targetPath: path, mutationKind: "update", payload: entry.payload});
+    }
+  }
+  check(forward.writes.length <= 500);
+  forward.readGuards.sort((a, b) => a.targetPath.localeCompare(b.targetPath));
+  inverse.readGuards.sort((a, b) => a.targetPath.localeCompare(b.targetPath));
+  const {planDigest: parentRecoveryPlanDigest, ...body} = recovery;
+  const result = {...body, schemaVersion: 5, scope: "authority_bound_clone_rehearsal", parentRecoveryPlanDigest,
+    recoveryEvidence: {...evidence, forward, inverse, authorityCaptureDigest: expectedAuthorityCaptureDigest,
+      authorityDocuments: paths.map((path) => documents.get(path).entry),
+      rotationLineageAttachments: evidence.rotationLineageAttachments.map((item) => ({...item, state: "captured_and_materialized"}))},
+    pendingGates: body.pendingGates.filter((gate) => gate !== "authoritative_rotation_baseline_attachment")};
   return {...result, planDigest: digest(result)};
 };
 module.exports = {materializeShiftRepair};

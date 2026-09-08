@@ -216,6 +216,10 @@
     types, full final payloads, expected grid and original/resolved HU-082 bootstrap
     evidence. Shared lineage attachments await captured authoritative aggregates;
     no baseline or rotation state is persisted.
+  - [x] Sixteenth local cut binds complete maintenance/rotation captures and emits
+    both baseline/cursor attachments with state revisions and read-time CAS.
+    HU-082 parsers enforce closed maintenance, active lineage, null leases and
+    captured cursor/frontier consistency; live capture authenticity remains open.
 - [ ] Fail closed when historical rotation ownership is ambiguous.
 - [ ] Audit and materialize—or defer by exact manifest—each HU-082 typed bootstrap
   mapping: ordered UIDs, round/cursor, stable tie order, evidence, and delivery
@@ -232,6 +236,10 @@
     exact original/expected grid images and post-state read guards, including
     untouched neighbors and created-object cleanup. In-memory round trips pass;
     physical commit/restore, read-back CAS and live inverse provenance remain open.
+  - [x] Sixteenth local cut adds loopback/demo-only Firestore forward/inverse
+    execution with HU-082 admission/fences, verified receipt replay and full
+    before-image restoration. Synthetic emulator commits pass; real backup,
+    multi-store recovery and live inverse event authority remain open.
 - [ ] Add tests for audit, dry-run zero writes, apply, rerun, wrong target,
   partial failure, and rollback.
 

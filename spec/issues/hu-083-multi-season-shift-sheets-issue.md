@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — fourteenth cut pushed; fifteenth cut validated locally
+- State: IN PROGRESS — fifteenth cut pushed; sixteenth cut validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -640,6 +640,42 @@ Cut fifteen is local and uncommitted; #267 remains open. No live read/write, dep
 IAM or notification occurred. Apply readiness stays false. Next: authoritative
 rotation attachment and Firestore admission/forward-inverse commit rehearsal,
 followed by live evidence, human-layout conversion and the final safe/deferred gate.
+
+### Sixteenth local cut — authority binding and emulator commits (approved 2026-09-08)
+
+Cut fifteen is published as `98d32cd309af7222b955e43f35174ea320e9596a`.
+The user authorized that commit/push and the next cut. V5 binds full typed
+maintenance/rotation captures to the original snapshot, reuses HU-082 state
+parsers, and emits both common-baseline/cursor attachments with state-revision
+increments and exact inverse images. Closed maintenance, matching active
+lineage/write epoch, no lease, original cursor and frontier are checked.
+The executor constructs a client only for a matching demo project on a loopback
+Firestore emulator. It reuses HU-082 admission, notification fences and per-
+document CAS, verifies post-commit state and returns digest-bound read-back
+receipts. Inverse requires the forward receipt; same-direction receipt replay
+verifies state/times and writes nothing. Restoration deletes newly introduced
+fields rather than leaving merge residue. Public forward classification uses
+the observed commit time at the trigger's millisecond boundary while CAS and
+receipts preserve exact nanoseconds. Missing read-back never authorizes resend.
+
+Validation: Functions lint/build and Node syntax checks passed; audit/authority/
+state/admission units 69/69, focused final authority 5/5, Sheets/bootstrap/public
+contract regressions 68/68, and actual Firestore emulator commits 6/6, no skips.
+Emulator tests prove complete seven-write forward/inverse groups including a new
+shift and both aggregates, exact payload restoration/created-object cleanup,
+no-write receipt replay, stale/ABA update-time rejection, one winner between two
+concurrent attempts, and notification-fence rejection without partial writes.
+CLI tests cover five unchanged input files and exact/paired authority options.
+The admission regression independently covers 500/501 writes and oversize rejection.
+`git diff --check` passes. No mobile or deployed runtime contract changed; mobile
+gates were not run. The unrelated main-checkout Xcode 13/13 reorder is preserved.
+
+Cut sixteen is local and uncommitted; #267 remains open. The emulator was stopped.
+No live source read/write, IAM change, deployment or notification occurred. This
+is synthetic Firestore evidence and in-memory Sheets evidence, not a restored
+real backup, multi-store fence, deployed-trigger/Rules test or live repair inverse.
+Apply readiness stays false. Next address reviewed human-layout conversion and
+trusted evidence/remaining recovery controls for safe apply or exact HU-085 deferral.
 
 ## Workbook decision
 

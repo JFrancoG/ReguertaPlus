@@ -705,6 +705,32 @@ Cut fifteen is uncommitted. Next implement authoritative rotation attachment and
 admitted Firestore forward/inverse commit rehearsal; live repair-recovery event
 authority and all remaining writer/evidence/human-layout gates remain open.
 
+### Sixteenth local cut — authoritative attachment and emulator commits (approved 2026-09-08)
+
+Cut fifteen is published as `98d32cd309af7222b955e43f35174ea320e9596a`.
+The user authorized commit/push and the next cut. Bind full maintenance/rotation
+captures to the existing repair review, attach the common baseline and reviewed
+final cursors with CAS, and rehearse forward/inverse commits on a loopback-only
+Firestore emulator under a demo project. Reuse HU-082 authoritative-state parsers,
+transaction admission and writer fences. Require verified forward read-back for
+inverse CAS and verify receipt-based replay without extra writes. Live deployment,
+writer/trigger authority and real multi-store recovery remain separate gates.
+
+### Sixteenth-cut validation checkpoint — 2026-09-08
+
+Authority binding and loopback/demo-only execution are implemented locally. The
+complete synthetic Firestore forward/inverse and receipt replays pass 6/6; units
+69/69 (final focused authority 5/5), Sheets/bootstrap/public-contract regressions
+68/68, lint/build, syntax and whitespace checks pass without skipped tests.
+Emulator evidence includes a create plus both aggregate updates, exact restoration,
+created-object cleanup, stale/ABA CAS, competing attempts and notification fences.
+Source update times stay exact; event classification matches the trigger's
+millisecond boundary. The emulator shut down. No mobile/deployed contract changed
+and no live source mutation/deploy/IAM/FCM occurred; the Xcode reorder is preserved.
+See #267 and the Functions README for receipt and v5 contracts. Cut sixteen is
+uncommitted. Human-layout conversion, trusted backup/evidence, multi-store writer
+fences, live inverse provenance and the final safe/deferred gate remain pending.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its

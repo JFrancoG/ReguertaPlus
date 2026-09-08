@@ -206,6 +206,28 @@ retention, writer fences and commit/restore rehearsal remain required; activatio
 recovery authority must not be repurposed for repair inverses. No live readiness
 or persisted migration baseline is claimed by this offline format.
 
+### Authority-bound emulator rehearsal (HU-083 cut sixteen)
+
+The v5 review binds full typed maintenance and both rotation captures, including
+exact update times, to the original snapshot digest and target. Closed maintenance,
+matching active lineage/write epoch, no release lease, matching original cursors
+and a sufficient captured frontier are mandatory. HU-082 state parsers validate
+both aggregate updates: increment state revision, use the reviewed final cursor
+and coherent freeze state, attach the common baseline, preserve other fields.
+Maintenance remains read-only. Original aggregate payloads enter the clone inverse.
+
+The separate rehearsal executor accepts only a demo project matching the develop
+review and a loopback Firestore emulator matching its environment. It recomputes
+v5, uses HU-082 admission/fences and per-document update-time CAS, and verifies
+post-commit payloads. Typed read-back receipts bind target, direction, review digest,
+full payload digests and exact update times. Inverse requires the forward receipt;
+same-direction receipts permit verified no-write replay. Missing receipts after an
+uncertain commit do not authorize resubmission. Public forward classification uses
+the observed commit time at the trigger's millisecond boundary; CAS retains full
+nanosecond precision. Inverse event authority remains clone-only, not live recovery.
+Synthetic emulator commits and in-memory Sheets checks do not satisfy restored-backup,
+multi-store fencing, deployed-trigger, client-Rules or live-apply gates.
+
 ## Scope
 
 ### In scope

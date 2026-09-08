@@ -89,7 +89,9 @@
     "test:shift-planning:public-event-trigger:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-public-event-trigger --only firestore \"GCLOUD_PROJECT=demo-reguerta-hu083-public-event-trigger METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-public-event-trigger.test.cjs test/shift-planning-public-event-trigger.emulator.test.cjs\"",
     "test:shift-planning:audit": "npm run build && node --test test/audit-shift-planning.test.cjs",
     "audit:shift-planning": "node scripts/audit-shift-planning.cjs",
-    "repair:planned-shifts": "node scripts/repair-planned-shifts.cjs"
+    "repair:planned-shifts": "node scripts/repair-planned-shifts.cjs",
+    "test:shift-repair:authority": "npm run build && node --test test/shift-repair-authority.test.cjs",
+    "test:shift-repair:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-repair --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-repair-rehearsal.test.cjs\""
   },
   "engines": {
     "node": "22"

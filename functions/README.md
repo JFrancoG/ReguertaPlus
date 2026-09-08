@@ -615,6 +615,73 @@ admisión transaccional. Las pruebas interpretan instrucciones de payload y celd
 en memoria; no son un ensayo de commit en Firestore ni de restauración de un backup
 real. `readyForApply` permanece en `false` y la CLI sigue sin modo apply.
 
+El decimosexto corte añade la **vinculación v5 con mantenimiento y rotaciones**.
+Al comando v4 se añaden ambas opciones:
+
+```sh
+--authority-capture /ruta/autoridad.json --expected-authority-capture-digest '<digest de la captura>'
+```
+
+La captura tiene exactamente `{schemaVersion: 1, target, inputDigest, capturedAt,
+documents}`. Las cuatro primeras propiedades coinciden con el snapshot original;
+`documents` contiene exclusivamente las tres entradas `{targetPath, payload,
+updateTime}` de `shiftPlanningState/current`, `shiftRotations/delivery` y
+`shiftRotations/market`, bajo `develop/plus-collections`. Payload y tiempo usan el
+codec tipado HU-082; los tiempos completos no pueden ser posteriores a la captura.
+
+Se reutiliza el parser de estado autoritativo HU-082: mantenimiento cerrado con
+barrera no futura, misma revisión/digest activos y writeEpoch que el paquete,
+ambos leases nulos y cursores actuales iguales a los cursores finales declarados
+en el original. El horizonte debe caber en el frontier capturado. Cada agregado
+recibe el cursor revisado, freeze coherente, baseline común y `stateRevision + 1`;
+conserva el resto de sus campos. La inversa restaura ambos payloads originales.
+Mantenimiento es una condición de lectura, no una escritura. El conjunto v5
+completo está en `recoveryEvidence.forward/inverse`, incluye esas condiciones y
+queda limitado a 495 turnos más terminal, retención, baseline y dos agregados.
+`authorityDocuments` conserva la evidencia completa, y `parentRecoveryPlanDigest`
+enlaza v4. Esto acredita coherencia de archivos; no autentica una captura live.
+
+`rehearse-shift-repair.cjs` exporta `rehearseShiftRepair` para ejecutar **solo en un
+emulador loopback** (`127.0.0.1`, `localhost` o `[::1]`, puerto explícito). Exige que
+el host coincida con `FIRESTORE_EMULATOR_HOST` y que el proyecto `demo-*` sea el
+mismo del plan develop. Construye su propio cliente después de comprobar estos
+límites; no admite un cliente inyectado ni un proyecto live. Entradas: `options`
+(las del compilador v5), `expectedReviewDigest`, `direction: forward | inverse`,
+`emulator: {host, projectId}`, `indexConfigurationDigest` y `readBack` opcional.
+La CLI de revisión continúa sin modo apply.
+
+Cada intento recompone el plan, comprueba todos los payloads/updateTime/ausencias
+y utiliza la admisión y los fences de notificación de la transacción HU-082. Las
+actualizaciones usan CAS; la inversa elimina expresamente campos añadidos por el
+forward para que `update()` no deje procedencia residual. El read-back verifica
+el estado completo y emite un recibo con digest, target, dirección, plan y tiempos
+exactos por documento. Para forward comprueba también la clasificación controlada
+con el tiempo de commit, normalizado a milisegundos igual que el trigger; los
+nanosegundos completos permanecen en recibos y CAS. No ejecuta el trigger ni FCM.
+
+La inversa requiere el recibo forward; un recibo de la misma dirección sirve para
+replay verificado sin escrituras. Datos iguales con un updateTime posterior se
+rechazan. Un fallo después del commit y antes del recibo sigue siendo un resultado
+desconocido: no se reenvían escrituras automáticamente. La restauración de payloads
+no restaura los tiempos de servicio, por lo que otra aplicación después de la
+inversa necesita una captura/revisión nueva. Un recibo no es prueba firmada externa.
+
+Validación reproducible:
+
+```sh
+npm run test:shift-repair:authority
+npm run test:shift-repair:emulator
+```
+
+El segundo comando levanta solo Firestore con fixtures sintéticas en
+`demo-reguerta-hu083-repair`: verifica commits forward/inverse, replays sin nuevas
+escrituras, CAS obsoleto, cambio y restitución de datos (ABA), carreras entre dos
+intentos y fences activos. Sheets conserva su ensayo de celdas en memoria. Esto
+no restaura un backup real ni prueba atomicidad Firestore/Sheets, Rules de cliente,
+triggers desplegados o recuperación live. Los artefactos conservan
+`readyForApply: false`; los gates de evidencia, escritores y procedencia inversa
+live siguen abiertos.
+
 El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
 (`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y
 la identidad runtime quedan para HU-085; no se amplía el permiso del operador de
