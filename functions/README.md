@@ -1438,6 +1438,78 @@ Parámetros opcionales:
 - `env=develop` o `env=production`
 - `envs=develop,production` (lista separada por comas)
 
+
+## Propuesta offline de conversión de pestañas humanas (HU-083, corte 17)
+
+`plan:shift-sheets:conversion` prepara una alternativa revisable: conservar cada
+pestaña humana completa con un nombre de archivo explícito y añadir una pestaña
+canónica nueva con el título operativo anterior y las once columnas existentes.
+Es una propuesta de formato; no aprueba el diseño visual ni renombra pestañas live.
+No añade una API de escritura, un endpoint o un segundo importador.
+
+La entrada es el snapshot v1/v2 del auditor y una selección JSON con campos exactos:
+
+```json
+{
+  "schemaVersion": 1,
+  "target": {"projectId": "demo-example", "environment": "develop", "workbookId": "fixture-book"},
+  "inputDigest": "<digest del snapshot revisado>",
+  "strategy": "archive_and_create_canonical",
+  "tabs": [{
+    "sourceSheetId": 10,
+    "sourceTitle": "TORRE 2025-26",
+    "archiveTitle": "Archivo TORRE 2025-26",
+    "canonicalSheetId": 20
+  }]
+}
+```
+
+Los IDs y nombres del ejemplo son ficticios. La selección debe incluir todas y
+solo las particiones humanas del snapshot; cada ID nuevo debe estar libre y los
+nombres de archivo no pueden colisionar con ninguna pestaña. Se reutilizan los
+mapeos de decoraciones, identidades y fechas del importador existente. Se rechazan
+asignaciones en disputa, huecos de calendario, identidades ambiguas, fórmulas en
+celdas de importación y proyecciones inválidas, incluido `source = planner`.
+Estos datos requieren una resolución explícita; no se normalizan al convertir el
+formato. Los hallazgos de rotación/elegibilidad que permiten una lectura válida
+se conservan exactamente para la revisión de reparación posterior.
+
+```bash
+npm run plan:shift-sheets:conversion -- \
+  --mode dry-run --input /ruta/privada/snapshot.json \
+  --selection /ruta/privada/conversion.json \
+  --expected-input-digest '<digest del snapshot>' \
+  --expected-selection-digest '<digest de la selección>' \
+  --project demo-example --environment develop --workbook fixture-book \
+  > /ruta/privada/conversion-review.json
+```
+
+Los digests usan `createShiftPlanningDigest`, igual que el resto de revisiones.
+Ambos archivos se limitan a 4 MiB y permanecen intactos. El resultado incluye las
+imágenes originales completas y `canonicalInput`, que es un snapshot **hipotético**
+compatible con el auditor y el planificador de reparaciones, no una captura nueva.
+Conserva el `workbookVersion` capturado para vincular la propuesta, sin inventar una
+versión futura. `inverse.originalInput` permite recuperar la imagen offline bajo
+el digest esperado del estado canónico; no es una operación de rollback live.
+El artefacto contiene los datos privados de entrada y se guarda fuera de Git.
+
+Se conservan íntegramente las celdas, notas, formatos, fórmulas, merges y protecciones
+presentes en la captura original, cambiando solo el título de su copia archivada.
+Las pestañas canónicas existentes y las ajenas al mapeo permanecen iguales; los
+límites de ocho pestañas y 250000 celdas incluyen archivos y nuevas tablas.
+El auditor debe devolver exactamente los mismos hallazgos antes y después.
+La prueba de integración verifica que el exportador existente actualiza los IDs
+canónicos nuevos y conserva los archivos humanos.
+
+`readyForApply` permanece `false`. Captura completa y confiable, aprobación visual,
+efectos del renombrado sobre referencias de fórmulas/protecciones, fence exclusivo,
+CAS/revisión y read-back live, ensayo en un clon restaurado y autorización final
+siguen pendientes. Preservar fórmulas como datos en un JSON no prueba cómo Sheets
+las reescribirá al renombrar. Las imágenes no son cuerpos `batchUpdate`, ni prueban
+metadatos omitidos por el capturador; el apply humano sigue cerrado.
+
+Validación focalizada: `npm run test:shift-sheets:conversion`.
+
 ## 🧰 Migraciones de autorizacion
 
 Los scripts exigen siempre `--project`, son dry-run por defecto y solo escriben

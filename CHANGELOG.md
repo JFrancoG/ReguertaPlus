@@ -36,6 +36,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(shifts): plan human sheet conversion offline
+
 - 2026-09-08 | ✨ feat(shifts): rehearse guarded repair transactions
 
 - 2026-09-08 | ✨ feat(shifts): prepare repair baseline and inverse

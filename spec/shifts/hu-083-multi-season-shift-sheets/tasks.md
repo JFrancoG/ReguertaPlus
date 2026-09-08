@@ -84,6 +84,14 @@
 - [ ] Deliver the fourth/fifth local cuts through their separately requested Git gate.
 - [ ] Continue explicit layout conversion and endpoint/legacy-trigger integration,
   including inverse-event identity; complete baseline/audit/repair and rehearsal.
+  - [x] Seventeenth local cut prepares digest-bound archive/canonical images from
+    explicit human mappings, preserving full supplied originals, exact inverse
+    images and all applicable audit findings. Existing export/repair integration
+    and CLI rejection paths pass (9/9 plus 105/105 regressions).
+  - [ ] Approve the final visual layout and resolve full metadata/formula-reference
+    behavior before any live conversion. The offline proposal cannot certify
+    trusted capture, live version/CAS, writer fencing or restored-clone recovery.
+
 
 ## 0. Dependency and read-only inventory
 

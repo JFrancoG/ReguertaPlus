@@ -90,6 +90,8 @@
     "test:shift-planning:audit": "npm run build && node --test test/audit-shift-planning.test.cjs",
     "audit:shift-planning": "node scripts/audit-shift-planning.cjs",
     "repair:planned-shifts": "node scripts/repair-planned-shifts.cjs",
+    "plan:shift-sheets:conversion": "node scripts/plan-shift-sheets-conversion.cjs",
+    "test:shift-sheets:conversion": "npm run build && node --test test/shift-sheets-conversion.test.cjs",
     "test:shift-repair:authority": "npm run build && node --test test/shift-repair-authority.test.cjs",
     "test:shift-repair:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-repair --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-repair-rehearsal.test.cjs\""
   },

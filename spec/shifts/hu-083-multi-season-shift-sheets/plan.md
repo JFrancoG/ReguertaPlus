@@ -731,6 +731,38 @@ See #267 and the Functions README for receipt and v5 contracts. Cut sixteen is
 uncommitted. Human-layout conversion, trusted backup/evidence, multi-store writer
 fences, live inverse provenance and the final safe/deferred gate remain pending.
 
+### Seventeenth local cut — offline human-layout conversion (approved 2026-09-08)
+
+Cut sixteen is pushed as `b252e70db0655776c56d16abe9663a4fd6ddc9dc`.
+The user authorized commit/push and the next cut. Prepare a digest-bound,
+explicit archive-and-create proposal for all selected human tabs, retaining their
+complete supplied images and reusing the current canonical projection/import
+contracts. This local tooling approval does not decide the final visual layout
+or authorize live rename, conversion, deployment or IAM changes.
+
+The new dry-run CLI preserves original IDs/cells/metadata in archived images,
+requires explicit non-colliding archive names and new canonical IDs, and emits a
+hypothetical canonical audit input plus an exact original offline inverse image.
+Existing canonical/unrelated tabs remain untouched. Conversion rejects missing
+calendar rows, assignment disagreements, invalid provenance and ambiguous people;
+it preserves applicable rotation/eligibility findings for subsequent repair.
+It does not synthesize a future workbook revision or trusted capture.
+
+Validation: conversion **9/9**, auditor/repair/Sheets regressions **105/105**,
+Functions lint/build, Node syntax and whitespace checks pass, without skipped
+cases. The existing exporter updates canonical IDs while preserving archives;
+the repair reviewer consumes the canonical clone without losing lineage findings.
+CLI inputs remain unchanged and apply/unknown flags are rejected. The 250000-cell
+bound includes archives and generated tables. No live Sheets/Firestore mutation,
+IAM/deploy/FCM or mobile contract change occurred; the unrelated Xcode reorder
+remains 13 added/13 removed lines. Cut seventeen is local and uncommitted.
+
+Next: obtain the missing trusted evidence and consolidate the safe-apply or exact
+zero-write HU-085 handoff. Visual approval, complete workbook metadata and formula
+reference behavior, real restored-clone multi-store rehearsal, effective writer
+fences and live inverse authority remain open. This snapshot proposal does not
+satisfy those live gates or enable the human-layout apply endpoint.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its

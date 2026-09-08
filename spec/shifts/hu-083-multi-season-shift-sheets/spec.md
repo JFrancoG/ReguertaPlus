@@ -228,6 +228,26 @@ nanosecond precision. Inverse event authority remains clone-only, not live recov
 Synthetic emulator commits and in-memory Sheets checks do not satisfy restored-backup,
 multi-store fencing, deployed-trigger, client-Rules or live-apply gates.
 
+### Offline human-layout proposal (HU-083 cut seventeen)
+
+The conversion planner requires a digest-bound snapshot and explicit per-human-tab
+source ID/title, archive title and new canonical ID. Its only strategy proposes
+archiving each complete human sheet and creating a canonical sheet at the original
+operational title. Existing canonical and unrelated sheets remain unchanged.
+It reuses the existing import and projection contracts; it must reject assignment
+disputes, incomplete calendars, ambiguous identities and invalid projection data.
+Conversion cannot select new owners, repair provenance or hide lineage findings.
+
+Original full supplied images, a hypothetical canonical audit input, per-sheet
+identities/digests and an offline inverse image are retained. All source fields,
+revisions, membership, lineage and captured workbook version stay unchanged.
+Before/after auditor findings must agree. Tab/grid limits include retained archives.
+No visual decision, trusted capture, live formula-reference rewrite, protection
+migration, writer fence, CAS, restored-clone rehearsal or apply is certified.
+`readyForApply` remains false and human apply endpoints stay closed. This artifact
+feeds offline review only; a later live conversion needs fresh version/capture
+binding and separately reviewed execution/recovery manifests.
+
 ## Scope
 
 ### In scope
