@@ -854,6 +854,14 @@ no elige otra pestaña. Importación humana, generación y worker de activación
 seguir el mismo contrato visual antes del rollout. La decisión autoriza implementar
 localmente, no convertir el libro real, desplegar ni configurar producción.
 
+La importación legible usa fechas/nombres/teléfonos literales. Las fórmulas de
+anotación y notas normales no cambian asignaciones; solo una sustitución literal
+`lo hace Nombre` lo hace. La fecha visible de reparto debe coincidir con el override
+del calendario guardado en Madrid y resolver un turno/pestaña lógico único. Los
+cambios de calendario participan en el digest de fuente y comprobaciones
+transaccionales existentes. La preparación humana no habilita aplicar hasta
+integrar su escritura de vuelta legible y revisada.
+
 ## Estado de aprobación e implementación
 
 El mantenedor aceptó este ADR el 2026-08-24 para implementar HU-082 y validarla

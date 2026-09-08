@@ -27,6 +27,20 @@ oversized grids reject. Source notification/fence behavior remains in the existi
 handlers. Validation: 90/90 focused local cases, 22/22 trigger/emulator cases,
 Functions lint/build. Real Sheets are represented by a fake in these tests.
 
+## Cut-21 local update
+
+Reviewed human preparation now accepts Spanish market dates and inert annotations,
+including formulas in turn annotation columns. Reviewed decoration rows still
+require exact literal images. Only literal `lo hace Nombre`
+annotations propose replacements. The bounded Firestore delivery calendar joins
+source/version guards; a visible override resolves to its unique original shift
+and logical tab. Calendar changes during preparation or after review reject the
+source. Human apply/write-back and the old sync endpoint remain unintegrated.
+Validation: Functions lint/build, 104/104 focused cases and 42/42 Firestore import
+emulator cases pass without skips/failures. Sheets is a fake; members are fictional.
+Audit/repair regressions also pass 64/64. No live workbook or public data is
+changed. This cut remains local/uncommitted.
+
 ## Result
 
 The canonical adapter, private sync/import entry points, controlled-event audit,

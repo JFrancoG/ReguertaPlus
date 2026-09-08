@@ -47,6 +47,11 @@ Reparto updates A:C and F, preserving D:E; mercado updates only A:B for exactly
 three participants, preserving its date heading, C annotations and following block.
 Human imports, generation, new-tab creation and the activation worker still need
 the same end-to-end readable contract before rollout.
+Cut twenty-one makes reviewed preparation compatible with Spanish dates and
+annotation formulas/notes. Literal `lo hace Nombre` is the replacement instruction;
+other notes do not assign people. Visible delivery overrides are resolved only
+from the trusted Madrid calendar, whose documents participate in source guards.
+Human apply/write-back remains pending; preparation does not change public shifts.
 
 - Keep one stable workbook for develop/test and one stable workbook for
   production.

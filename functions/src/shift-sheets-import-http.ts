@@ -25,8 +25,8 @@ type Dependencies = {
 
 /**
  * Loads the reviewed mapping from deployment configuration, never HTTP input.
- * A human mapping permits preparation only; public apply keeps its conversion
- * gate. No layout or decoration row is inferred from a title or alias.
+ * A human mapping permits preparation only until its reviewed readable
+ * write-back is integrated. No layout or decoration is inferred from aliases.
  * @param {ShiftSheetsConfig} config Exact environment and routing authority.
  * @param {object} variables Invocation-time environment variables.
  * @return {ShiftSheetsImportTab[]} Explicit bounded tab mapping.

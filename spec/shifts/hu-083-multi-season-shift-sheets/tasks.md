@@ -154,7 +154,9 @@ they do not certify live conversion or retire the legacy writer paths.
   - [x] Canonical adapter does bounded merges. Legacy `updateWholeSheet` remains
     reachable from the old generation path; do not claim repository-wide removal.
 - [x] Import the union of allowed tabs and bound reconciliation to successfully
-  read partitions.
+  read partitions. Cut twenty-one makes reviewed human preparation compatible
+  with readable dates/annotations and trusted delivery-calendar overrides; human
+  apply/write-back and the legacy sync endpoint remain open.
 - [x] Route full export, incremental export, and overrides by explicit tab
   metadata. Cut twenty uses logical dates/explicit aliases and bounded human ranges;
   exported HTTP/event/override integration passes. Missing/oversized tabs reject;

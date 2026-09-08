@@ -825,6 +825,13 @@ Human import, generation and activation-worker integration must follow the same
 presentation contract before rollout. This decision authorizes local implementation,
 not live workbook conversion, shared deployment or production configuration.
 
+Readable import uses literal dates/names/phones. Annotation formulas and ordinary
+notes do not change assignments; only a literal `lo hace Name` replacement does.
+Visible delivery dates must match the stored Madrid delivery-calendar override and
+resolve to a unique logical shift/tab. Calendar document changes participate in
+the existing source digest and transaction checks. Human preparation alone does
+not authorize apply without its reviewed readable write-back path.
+
 ## Approval and implementation status
 
 The maintainer accepted this ADR on 2026-08-24 for HU-082 implementation and

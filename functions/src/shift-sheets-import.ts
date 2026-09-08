@@ -56,7 +56,7 @@ const text = (cell?: SheetsV4.Schema$CellData): string => {
   if (!value) return "";
   if (value.formulaValue !== undefined && value.formulaValue !== null) {
     return failShiftSheetsImport(
-      "Formula cells require a reviewed conversion.",
+      "Assignment and date cells must contain literal values.",
     );
   }
   const result = value.stringValue ?? value.numberValue ??
@@ -67,7 +67,18 @@ const text = (cell?: SheetsV4.Schema$CellData): string => {
   return String(result);
 };
 
-const dateFromCell = (cell: string): string => {
+const dateFromCell = (value: string): string => {
+  const cell = normalize(value);
+  const long = /^(\d{1,2}) (?:de )?([a-z]+) (?:de )?(\d{4})$/.exec(cell);
+  if (long) {
+    const month = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+      .indexOf(long[2]) + 1;
+    if (month) {
+      return `${long[3]}-${String(month).padStart(2, "0")}-` +
+        long[1].padStart(2, "0");
+    }
+  }
   const european = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cell);
   if (european) {
     return `${european[3]}-` +
@@ -79,6 +90,19 @@ const dateFromCell = (cell: string): string => {
   }
   return cell;
 };
+
+const isoWeekKey = (date: string): string => {
+  const day = new Date(`${date}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + 4 - (day.getUTCDay() || 7));
+  const year = day.getUTCFullYear();
+  const week = Math.ceil(((day.getTime() - Date.UTC(year, 0, 1)) /
+    86400000 + 1) / 7);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+};
+
+// Annotation formulas are preserved by writers and never resolve identities.
+const annotation = (cell?: SheetsV4.Schema$CellData): string =>
+  cell?.userEnteredValue?.formulaValue != null ? "" : text(cell);
 
 const memberResolver = (members: readonly ShiftSheetsImportMember[]) => {
   const byId = new Map(members.map((member) => [member.userId, member]));
@@ -111,6 +135,8 @@ const memberResolver = (members: readonly ShiftSheetsImportMember[]) => {
  * Reads all selected tabs or rejects the entire snapshot. It never clears,
  * deletes or applies a row. Legacy rows can propose effective assignments only;
  * ownership/status defaults come from the trusted exported Firestore baseline.
+ * Visible delivery dates must match the trusted calendar; annotations never
+ * resolve people through formulas or arbitrary notes.
  * @param {object} input Explicit layout mapping, source rows and member
  * authority.
  * @return {object} Version-bound assignments and absence diagnostics, no
@@ -122,6 +148,7 @@ export const readShiftSheetsImport = async (input: {
   tabs: readonly ShiftSheetsImportTab[];
   baseline: readonly ShiftSheetsProjectionRow[];
   members: readonly ShiftSheetsImportMember[];
+  deliveryCalendar?: readonly {weekKey: string; date: string}[];
   readWorkbookVersion(): Promise<string>;
 }) => {
   const {config, sheets} = input;
@@ -131,8 +158,24 @@ export const readShiftSheetsImport = async (input: {
     JSON.parse(JSON.stringify(input.baseline));
   const members: ShiftSheetsImportMember[] =
     JSON.parse(JSON.stringify(input.members));
+  const calendar = structuredClone(input.deliveryCalendar ?? []);
+  if (calendar.length > SHIFT_SHEETS_LIMITS.projectionRows ||
+    new Set(calendar.map((item) => item.weekKey)).size !== calendar.length) {
+    return failShiftSheetsImport("Calendar is oversized or duplicated.");
+  }
+  for (const entry of calendar) {
+    resolveShiftSheetsTab(config, "delivery", entry.date);
+    if (isoWeekKey(entry.date) !== entry.weekKey) {
+      return failShiftSheetsImport("Delivery calendar week does not match.");
+    }
+  }
   const resolver = memberResolver(members);
   const projections = buildShiftSheetsProjections(config, baseline);
+  const calendarByWeek = new Map(calendar.map((item) =>
+    [item.weekKey, item.date]));
+  const visibleDates = new Map(baseline.map((row) => [row.id,
+    row.type === "delivery" ?
+      calendarByWeek.get(isoWeekKey(row.date)) ?? row.date : row.date]));
   const byId = new Map(baseline.map((row) => [row.id, row]));
   if (!tabs.length || tabs.length > SHIFT_SHEETS_LIMITS.tabs ||
     new Set(tabs.map((tab) => tab.title)).size !== tabs.length) {
@@ -169,7 +212,16 @@ export const readShiftSheetsImport = async (input: {
   const seen = new Set<string>();
   const add = (tab: ShiftSheetsImportTab, dateCell: string, rowNumber: number,
     assignedUserIds: string[], canonical?: string[]) => {
-    const date = dateFromCell(dateCell);
+    const enteredDate = dateFromCell(dateCell);
+    // The visible season validates the date, but cannot choose its tab.
+    resolveShiftSheetsTab(config, tab.type, enteredDate);
+    const candidates = canonical ? [] : baseline.filter((row) =>
+      row.type === tab.type && visibleDates.get(row.id) === enteredDate &&
+      resolveShiftSheetsTab(config, row.type, row.date).title === tab.title);
+    if (!canonical && candidates.length !== 1) {
+      return failShiftSheetsImport("Human date has no unique trusted shift.");
+    }
+    const date = canonical ? enteredDate : candidates[0].date;
     const routed = resolveShiftSheetsTab(config, tab.type, date);
     if (routed.title !== tab.title) {
       return failShiftSheetsImport("Row date belongs to another seasonal tab.");
@@ -211,7 +263,7 @@ export const readShiftSheetsImport = async (input: {
   };
   const person = (name: string, phone: string, replacement: string) => {
     const listed = resolver.resolve(name, phone);
-    if (!replacement.trim()) return listed;
+    if (!/^lo hace(?:\s|$)/i.test(replacement.trim())) return listed;
     const match = /^lo hace\s+(.+)$/i.exec(replacement.trim());
     if (!match) return failShiftSheetsImport("Replacement text is ambiguous.");
     return resolver.resolve(match[1], "");
@@ -240,12 +292,9 @@ export const readShiftSheetsImport = async (input: {
       if (decorations.has(index + 1)) {
         flush(); return;
       }
-      const values = cells.slice(0, tab.layout === "canonical" ? 11 : 6)
-        .map(text);
-      if (values.every((value) => !value.trim())) {
-        flush(); return;
-      }
       if (tab.layout === "canonical") {
+        const values = cells.slice(0, 11).map(text);
+        if (values.every((value) => !value.trim())) return;
         if (index === 0) {
           if (!same(values, SHIFT_SHEETS_HEADERS)) {
             return failShiftSheetsImport("Canonical header is not exact.");
@@ -262,19 +311,26 @@ export const readShiftSheetsImport = async (input: {
           return failShiftSheetsImport("Assignment IDs are invalid.");
         }
         add(tab, values[2], index + 1, ids, values);
-      } else if (tab.layout === "delivery_human") {
-        add(tab, values[0], index + 1, [person(values[1] ?? "",
-          values[2] ?? "", values[4] ?? "")]);
-      } else if (/^(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|\d{5})$/
-        .test(values[0] ?? "")) {
-        if (values.slice(1).some((value) => value.trim())) {
-          return failShiftSheetsImport(
-            "Market date heading contains extra data.",
-          );
+        return;
+      }
+      const first = text(cells[0]);
+      if (!first.trim()) {
+        // Notes alone are not participants; orphaned identity/replacement cells
+        // still reject rather than silently dropping a possible assignment.
+        const identityColumns = tab.layout === "delivery_human" ? [1, 2] : [1];
+        const replacement = annotation(cells[tab.type === "delivery" ? 4 : 2]);
+        if (identityColumns.some((column) => text(cells[column]).trim()) ||
+          /^lo hace(?:\s|$)/i.test(replacement.trim())) {
+          return failShiftSheetsImport("Human identity has no date or name.");
         }
+        flush(); return;
+      }
+      if (tab.layout === "delivery_human") {
+        add(tab, first, index + 1, [person(text(cells[1]),
+          text(cells[2]), annotation(cells[4]))]);
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateFromCell(first))) {
         flush();
-        // Validate dates now, rather than silently skipping unknown headings.
-        const date = dateFromCell(values[0]);
+        const date = dateFromCell(first);
         resolveShiftSheetsTab(config, tab.type, date);
         market = {date, rowNumber: index + 1, ids: []};
       } else {
@@ -283,8 +339,7 @@ export const readShiftSheetsImport = async (input: {
             "Market participant has no date heading.",
           );
         }
-        market.ids.push(person(values[0] ?? "", values[1] ?? "",
-          values[2] ?? ""));
+        market.ids.push(person(first, text(cells[1]), annotation(cells[2])));
       }
     });
     flush();
@@ -304,6 +359,7 @@ export const readShiftSheetsImport = async (input: {
     baselineDigest: createShiftPlanningDigest(baseline),
     mappingDigest: createShiftPlanningDigest({config, tabs}),
     membershipDigest: createShiftPlanningDigest(members),
+    calendarDigest: createShiftPlanningDigest(calendar),
   };
   return {...observation,
     snapshotDigest: createShiftPlanningDigest(observation)};

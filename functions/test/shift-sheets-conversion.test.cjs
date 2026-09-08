@@ -109,15 +109,19 @@ test("stale evidence binds notes, workbook revision, membership and exact conver
 });
 
 test("conversion cannot absorb assignment disputes, missing dates, invalid provenance or ambiguous identities", async () => {
-  for (const mutate of [
-    (f) => { f.input.spreadsheet.sheets[0].data[0].rowData[2].values[1] = cell("Fixture d"); },
+  for (const [index, mutate] of [
+    (f) => {
+      const tab = f.input.tabs.find((tab) => tab.type === "delivery");
+      const sheet = f.input.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title);
+      sheet.data[0].rowData[2].values[1] = cell("Fixture d");
+    },
     (f) => { f.input.spreadsheet.sheets[0].data[0].rowData.splice(2); },
     (f) => { f.input.expectedDates.delivery.push("2026-09-17"); },
     (f) => { f.input.source[0].row.source = "planner"; },
     (f) => { f.input.members[1].names = ["Fixture a"]; },
     (f) => { f.input.spreadsheet.sheets[0].data[0].rowData[0].values[0] = cell("Changed title"); },
     (f) => { f.input.spreadsheet.sheets[0].data[0].rowData[2].values[0] = {userEnteredValue: {formulaValue: "=NOW()"}}; },
-  ]) { const f = await fixture(); mutate(f); await assert.rejects(plan(rebind(f))); }
+  ].entries()) { const f = await fixture(); mutate(f); await assert.rejects(plan(rebind(f)), `rejected mutation ${index}`); }
 });
 
 test("explicit selection rejects duplicate, missing, wrong, colliding and invalid archive or sheet identities", async () => {

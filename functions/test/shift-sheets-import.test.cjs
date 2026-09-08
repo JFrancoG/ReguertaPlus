@@ -130,7 +130,7 @@ test("human delivery rows use explicit decoration mapping and calendar dates", a
 });
 
 test("changed or unmapped headings and unresolved replacements reject the whole human read", async () => {
-  for (const replacement of ["lo hace Desconocido", "sustituye Persona D"]) {
+  for (const replacement of ["lo hace Desconocido", "lo hace"]) {
     const f = await setup();
     human(f, "delivery", 2026, [["03/09/2026", "Persona B", "900000001", "", replacement]]);
     await assert.rejects(f.read(), invalid);
@@ -245,4 +245,85 @@ test("human dates cannot overflow calendars or silently move into another season
     await assert.rejects(f.read());
     assert.equal(f.service.mutations.length, 0);
   }
+});
+
+
+test("readable market exports accept Spanish dates and retain inert annotations/formulas", async () => {
+  const next = {...marketRow, id: "shift_market_20261004", date: "2026-10-04"};
+  const f = await setup([marketRow, next]);
+  human(f, "market", 2026, [["6 DE SEPTIEMBRE DE 2026", "Nota de cabecera"],
+    ["Persona A", "900000000", "Llevar cajas"], ["Persona B", "900000001"], ["Persona C", "900000002"],
+    ["4 DE OCTUBRE DE 2026"], ["Persona A"], ["Persona B"], ["Persona C"]]);
+  const sheet = f.service.state.sheets[0];
+  setCell(sheet, 2, 2, {userEnteredValue: {formulaValue: '=CONCAT("lo hace Persona D")'}, effectiveValue: {stringValue: "lo hace Persona D"}});
+  setCell(sheet, 0, 2, {userEnteredValue: {formulaValue: "=1+2"}});
+  const original = clone(f.service.state);
+  const observation = await f.read();
+  assert.deepEqual(observation.assignments.map(({date, assignedUserIds}) => ({date, assignedUserIds})),
+    [{date: "2026-09-06", assignedUserIds: ["a", "b", "c"]}, {date: "2026-10-04", assignedUserIds: ["a", "b", "c"]}]);
+  assert.deepEqual(planShiftSheetsImport({observation, source: sources([marketRow, next])}).patches, []);
+  assert.deepEqual(f.service.state, original);
+  assert.equal(f.service.mutations.length, 0);
+});
+
+test("human annotation formulas cannot change assignments and direct names still yield cross-season patches", async () => {
+  const f = await setup();
+  human(f, "delivery", 2025, [["27/08/2026", "Persona A", "900000000", "nota", "Llevar cajas", "35"]]);
+  human(f, "delivery", 2026, [["03/09/2026", "Persona D", "900000003"], ["10/09/2026", "Persona C", "900000002"]]);
+  const sheet = f.service.state.sheets.find((sheet) => sheet.properties.title.endsWith("2026-27"));
+  for (const column of [3, 4, 5]) setCell(sheet, 0, column, {userEnteredValue: {formulaValue: '=CONCAT("lo hace Persona B")'}});
+  const original = clone(f.service.state);
+  const observation = await f.read();
+  assert.deepEqual(planShiftSheetsImport({observation, source: sources()}).patches, [
+    {id: baseline[0].id, assignedUserIds: ["a"], helperUserId: "d", status: "planned"},
+    {id: baseline[1].id, assignedUserIds: ["d"], helperUserId: "c", status: "planned"},
+  ]);
+  assert.deepEqual(f.service.state, original);
+});
+
+test("visible delivery overrides resolve only from the detached trusted calendar", async () => {
+  const f = await setup();
+  human(f, "delivery", 2025, [["28/08/2026", "Persona A", "900000000"]]);
+  await assert.rejects(f.read(), invalid, "same week alone is not authority");
+  f.input.deliveryCalendar = [{weekKey: "2026-W35", date: "2026-08-28"}];
+  const originalGet = f.service.get;
+  f.service.get = async (...args) => { f.input.deliveryCalendar[0].date = "2026-08-25"; return originalGet(...args); };
+  const observed = await f.read();
+  assert.equal(observed.assignments[0].date, "2026-08-27");
+  assert.equal(observed.assignments[0].id, baseline[0].id);
+  assert.deepEqual(planShiftSheetsImport({observation: observed, source: sources()}).patches, []);
+  await assert.rejects(f.read(), invalid);
+  f.input.deliveryCalendar = [{weekKey: "2026-W34", date: "2026-08-28"}];
+  await assert.rejects(f.read(), invalid);
+  f.input.deliveryCalendar = [{weekKey: "2026-W35", date: "2026-08-28"}, {weekKey: "2026-W35", date: "2026-08-25"}];
+  await assert.rejects(f.read(), invalid);
+  assert.equal(f.service.mutations.length, 0);
+});
+
+test("an effective date crossing August stays in the logical September tab", async () => {
+  const logical = row("2022-09-01", "a", null);
+  const f = await setup([logical]);
+  human(f, "delivery", 2022, [["30/08/2022", "Persona A", "900000000"]]);
+  f.input.deliveryCalendar = [{weekKey: "2022-W35", date: "2022-08-30"}];
+  const observation = await f.read();
+  assert.deepEqual(observation.assignments[0], {id: logical.id, type: "delivery", date: "2022-09-01",
+    assignedUserIds: ["a"], status: "planned", sheetName: "turnos-reparto 2022-23", rowNumber: 1});
+});
+
+test("human authority formulas, impossible Spanish dates and orphaned identities reject", async () => {
+  for (const column of [0, 1, 2]) {
+    const f = await setup();
+    human(f, "delivery", 2025, [["27/08/2026", "Persona A", "900000000"]]);
+    setCell(f.service.state.sheets[0], 0, column, {userEnteredValue: {formulaValue: "=1+2"}});
+    await assert.rejects(f.read(), invalid);
+  }
+  for (const first of ["31 DE SEPTIEMBRE DE 2026", "6 DE INVENTADO DE 2026", ""]) {
+    const f = await setup([marketRow]);
+    human(f, "market", 2026, [[first], ["Persona A"], ["Persona B"], ["Persona C"]]);
+    await assert.rejects(f.read());
+    assert.equal(f.service.mutations.length, 0);
+  }
+  const f = await setup();
+  human(f, "delivery", 2025, [["", "Persona A", "900000000"]]);
+  await assert.rejects(f.read(), invalid);
 });

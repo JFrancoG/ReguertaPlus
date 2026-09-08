@@ -187,6 +187,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-09-08 | 🐛 fix(sheets): prepare imports from readable tabs
+
 - 2026-09-08 | 🐛 fix(sheets): route readable seasonal exports
 
 - 2026-09-08 | 🐛 fix(sheets): isolate legacy environment config

@@ -787,7 +787,7 @@ HU-082.
 pestañas exactas, baseline Firestore y miembros de confianza. Lee todas las pestañas
 seleccionadas o rechaza el conjunto; verifica la versión Drive antes/después.
 Devuelve asignaciones observadas, discrepancias por filas ausentes y digests de
-baseline, mapping y miembros. No escribe ni genera órdenes de borrado.
+baseline, mapping, miembros y calendario. No escribe ni genera órdenes de borrado.
 
 Los formatos se seleccionan explícitamente por pestaña:
 
@@ -803,9 +803,18 @@ Los formatos se seleccionan explícitamente por pestaña:
   bloques. Un bloque incompleto, una identidad ambigua o sustitución desconocida
   rechaza la lectura; nunca vuelve silenciosamente al titular original.
 
-Las fechas admiten ISO, día/mes/año explícito o serial entero de Sheets, sin
-conversión por la zona horaria del libro. Fórmulas en las celdas interpretadas se
-rechazan. Los nombres/teléfonos son aliases del catálogo facilitado; un teléfono
+Las fechas admiten ISO, día/mes/año explícito, fecha larga española como
+`6 DE SEPTIEMBRE DE 2026` o serial entero de Sheets, sin conversión por la zona
+horaria del libro. Las fechas efectivas de reparto se cotejan con `deliveryCalendar`
+de Firestore, interpretado en Europe/Madrid, y conservan la fecha lógica/ID/pestaña
+originales. Coincidir en semana ISO sin ese override no basta. El calendario se
+incluye en el digest de fuente y se relee dentro de las transacciones existentes.
+
+Fecha, nombre y teléfono exigen valores literales; sus fórmulas se rechazan.
+Las fórmulas de anotación D/E/F en reparto y C en mercado no se evalúan ni asignan
+personas. Las notas se conservan; solo un literal `lo hace Nombre` en E/C propone
+sustitución, y una instrucción `lo hace` incompleta o con nombre desconocido rechaza.
+Las demás notas no proponen cambios. Los nombres/teléfonos son aliases del catálogo facilitado; un teléfono
 contradictorio no resuelve un nombre ambiguo. Los turnos históricos sin cambios
 pueden conservar miembros inactivos; una asignación nueva exige elegibilidad.
 
@@ -1438,6 +1447,28 @@ Parámetros opcionales:
 - `env=develop` o `env=production`
 - `envs=develop,production` (lista separada por comas)
 
+
+## Preparación desde hojas legibles (HU-083, corte 21)
+
+El importador revisado admite la salida legible de reparto/mercado: fechas largas,
+notas y fórmulas de anotación, así como cambios directos de nombre o sustituciones
+literales `lo hace Nombre`. Los campos de identidad siguen siendo estrictos y los
+bloques de mercado requieren tres participantes distintos. Los overrides proceden
+de una consulta acotada a `deliveryCalendar`; su fecha Madrid debe pertenecer a su
+semana y se relaciona con un único turno original, incluso entre agosto/septiembre.
+Una inserción, modificación o borrado de calendario durante preparación o después
+de revisión invalida la fuente y requiere preparar de nuevo.
+
+Validación local: lint/build, 104/104 casos focalizados y 42/42 del emulador de
+importación, más 64/64 de auditoría/reparación, sin fallos ni omisiones. Sheets es
+un fake y los socios son ficticios.
+Los títulos/meses revisados en `decorations` siguen exigiendo su imagen literal
+exacta; las fórmulas admitidas pertenecen a las anotaciones de los turnos.
+
+El corte prepara el plan; no habilita todavía `apply`/`writeBack` humano ni migra
+el endpoint antiguo `syncShiftsFromGoogleSheets`. Sigue pendiente conectar la
+escritura humana con el protocolo durable, además de generación/nuevas pestañas y
+worker de activación. No modifica libros reales, datos públicos ni envía FCM.
 
 ## Hojas legibles elegidas y rutas estacionales (HU-083, corte 20)
 

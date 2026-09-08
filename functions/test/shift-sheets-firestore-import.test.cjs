@@ -630,3 +630,56 @@ test("HTTP write-back reports uncertainty and never turns a retry into another b
   assert.equal(retry.status, 409); assert.equal(retry.body.kind, "reconciliationRequired");
   assert.equal(f.service.mutations.length, 1);
 });
+
+
+test("prepares the readable seasonal union with real names, notes, formulas and a trusted Madrid override", async () => {
+  const f = await setup();
+  const users = await firestore.collection(`${root}/users`).get();
+  const names = new Map(users.docs.map((doc, index) => [doc.id, `Persona ${index + 1}`]));
+  for (const doc of users.docs) await doc.ref.update({displayName: names.get(doc.id)});
+  const {buildDeliveryCalendarOverride} = require("../lib/delivery-calendar-command.js");
+  const {deliveryDateMillis} = buildDeliveryCalendarOverride({weekKey: "2026-W36", deliveryWeekday: "FRI", actorMemberId: "member-1", updatedAtMillis: now});
+  await firestore.doc(`${root}/deliveryCalendar/2026-W36`).set({weekKey: "2026-W36", deliveryDate: Timestamp.fromMillis(deliveryDateMillis)});
+  const formatter = new Intl.DateTimeFormat("es-ES", {timeZone: "Europe/Madrid", day: "numeric", month: "long", year: "numeric"});
+  const tabs = f.tabs.map((tab) => ({...tab, layout: `${tab.type}_human`}));
+  for (const tab of tabs) {
+    const sheet = f.service.state.sheets.find((sheet) => sheet.properties.title === tab.title);
+    const rows = f.rows.filter((row) => resolveShiftSheetsTab(config, row.type, row.date).title === tab.title);
+    const values = rows.flatMap((row) => row.type === "delivery" ?
+      [[row.id === f.target.id ? "4/9/2026" : row.date, names.get(row.id === f.target.id ? "member-3" : row.assignedUserIds[0]), "", "Nota", "Traer cajas"]] :
+      [[formatter.format(new Date(`${row.date}T00:00:00Z`)).toUpperCase(), "Nota de fecha"], ...row.assignedUserIds.map((id) => [names.get(id), "", "Nota"])]);
+    sheet.data[0].rowData = values.map((row) => ({values: row.map((stringValue) => ({userEnteredValue: {stringValue}}))}));
+    setCell(sheet, tab.type === "delivery" ? 0 : 1, tab.type === "delivery" ? 3 : 2, {userEnteredValue: {formulaValue: "=1+2"}});
+  }
+  const before = await f.readShift(f.target.id);
+  const originalSheets = structuredClone(f.service.state);
+  const api = createFirestoreShiftSheetsImport({retentionPolicy, firestore, config, tabs, sheets: f.service, clock: () => Timestamp.fromMillis(now), readWorkbookVersion: f.readWorkbookVersion});
+  const result = await api.prepare("readable-union");
+  assert.equal(result.kind, "prepared");
+  assert.deepEqual(result.plan.patches.find((patch) => patch.id === f.target.id).assignedUserIds, ["member-3"]);
+  assert.equal(result.plan.patches.find((patch) => patch.id === f.predecessorId).helperUserId, "member-3");
+  assert.deepEqual(await f.readShift(f.target.id), before);
+  assert.deepEqual(f.service.state, originalSheets);
+  await assert.rejects(api.apply("readable-union", result.plan.planDigest), invalid);
+  assert.equal((await f.operationRef("readable-union").get()).exists, false);
+  assert.equal(f.service.mutations.length, 0);
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
+});
+
+test("calendar edits during preparation or after review invalidate the import source", async () => {
+  const f = await setup();
+  const calendar = firestore.doc(`${root}/deliveryCalendar/2026-W36`);
+  const originalGet = f.service.get;
+  let injected = false;
+  f.service.get = async (...args) => {
+    if (!injected) { injected = true; await calendar.set({deliveryDate: Timestamp.fromDate(new Date("2026-09-04T00:00:00Z"))}); }
+    return originalGet(...args);
+  };
+  await assert.rejects(f.api.prepare("calendar-race"), invalid);
+  assert.equal((await f.commandRef("calendar-race").get()).exists, false);
+  const {plan} = await f.api.prepare("calendar-reviewed");
+  await calendar.delete();
+  await assert.rejects(f.api.apply("calendar-reviewed", plan.planDigest), invalid);
+  assert.equal((await f.operationRef("calendar-reviewed").get()).exists, false);
+  assert.equal(f.service.mutations.length, 0);
+});

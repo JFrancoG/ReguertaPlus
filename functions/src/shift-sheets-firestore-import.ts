@@ -199,7 +199,7 @@ export const createFirestoreShiftSheetsImport = (input: {
       "shiftPlanningState/sourcePolicy", "shiftRotations/delivery",
       "shiftRotations/market", "shiftPlanningState/sheetsSubmission"]
       .map((path) => firestore.doc(`${root}/${path}`));
-    const [states, shifts, users, pending] = await Promise.all([
+    const [states, shifts, users, pending, calendar] = await Promise.all([
       transaction.getAll(...stateReferences),
       transaction.get(firestore.collection(`${root}/shifts`)
         .orderBy("__name__").limit(SHIFT_SHEETS_LIMITS.projectionRows + 1)),
@@ -207,9 +207,12 @@ export const createFirestoreShiftSheetsImport = (input: {
         .orderBy("__name__").limit(SHIFT_SHEETS_LIMITS.projectionRows + 1)),
       transaction.get(firestore.collection(`${root}/shiftPlanningSyncCommands`)
         .where("state", "in", ["pending", "processing"]).limit(1)),
+      transaction.get(firestore.collection(`${root}/deliveryCalendar`)
+        .orderBy("__name__").limit(SHIFT_SHEETS_LIMITS.projectionRows + 1)),
     ]);
     if (!shifts.size || shifts.size + users.size >
-      SHIFT_SHEETS_LIMITS.projectionRows || !pending.empty) {
+      SHIFT_SHEETS_LIMITS.projectionRows || !pending.empty ||
+      calendar.size > SHIFT_SHEETS_LIMITS.projectionRows) {
       return failShiftSheetsImport(
         "Import source is oversized or sync is pending.",
       );
@@ -259,15 +262,32 @@ export const createFirestoreShiftSheetsImport = (input: {
         completed: doc.completion.state === "completed",
       }));
     const sourceDigest = encodedDigest(
-      [...states, ...shifts.docs, ...users.docs].map((snapshot) => ({
-        path: snapshot.ref.path, updateTime: snapshot.updateTime ?? null,
-        value: snapshot.data() ?? null,
-      })),
+      [...states, ...shifts.docs, ...users.docs, ...calendar.docs]
+        .map((snapshot) => ({
+          path: snapshot.ref.path, updateTime: snapshot.updateTime ?? null,
+          value: snapshot.data() ?? null,
+        })),
     );
     return {authority: {...authority,
       activeRevision: authority.activeRevision,
       activeDigest: authority.activeDigest}, source, sourceDigest, documents,
-    members: users.docs.map(parseMember)};
+    members: users.docs.map(parseMember),
+    deliveryCalendar: calendar.docs.map((snapshot) => {
+      const date = snapshot.get("deliveryDate");
+      if (!(date instanceof Timestamp) ||
+        (snapshot.get("weekKey") != null &&
+          snapshot.get("weekKey") !== snapshot.id)) {
+        return failShiftSheetsImport("Stored delivery calendar is invalid.");
+      }
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Madrid", year: "numeric", month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(date.toDate());
+      const part = (type: string) =>
+        parts.find((item) => item.type === type)?.value;
+      return {weekKey: snapshot.id,
+        date: `${part("year")}-${part("month")}-${part("day")}`};
+    })};
   };
   const resultFor = (
     result: DocumentSnapshot,
@@ -396,6 +416,7 @@ export const createFirestoreShiftSheetsImport = (input: {
       const observation = await readShiftSheetsImport({config, sheets, tabs,
         baseline: initial.source.map((item) => item.row),
         members: initial.members,
+        deliveryCalendar: initial.deliveryCalendar,
         readWorkbookVersion: input.readWorkbookVersion});
       const plan = planShiftSheetsImport({observation, source: initial.source});
 
@@ -600,7 +621,7 @@ export const createFirestoreShiftSheetsImport = (input: {
           !command.observation.canonicalRows.some((row) =>
             row.id === patch.id))) {
           return failShiftSheetsImport(
-            "Affected human tabs require conversion before apply.",
+            "Human apply requires the reviewed readable write-back.",
           );
         }
         const checkedAt = clock();

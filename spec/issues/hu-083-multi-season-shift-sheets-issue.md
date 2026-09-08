@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — nineteenth cut pushed; twentieth readable export routing validated locally
+- State: IN PROGRESS — twentieth cut pushed; twenty-first readable import preparation validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -792,6 +792,32 @@ not acquire the canonical worker's durable receipt/reconciliation protocol from
 these tests. Real baseline/backup, effective writer exclusion and the final safe
 apply or exact zero-write HU-085 deferral remain open. No further user choice is
 needed for this local cut; any later real-data decision must identify its scope.
+
+### Twenty-first local cut — readable import preparation (approved 2026-09-08)
+
+Cut twenty is pushed as `49df825df903e2a8d9eb2fa44f5bae0ff1c7eba1`.
+The user authorized commit/push and the next local cut. This cut makes reviewed
+import preparation understand the selected readable export: Spanish market dates,
+manual annotations/formulas, names and explicit literal `lo hace Nombre` changes.
+It also reads the bounded delivery-calendar query as trusted source and includes
+its documents/revisions in the existing source digest. Effective dates resolve to
+exact original shifts and logical seasonal tabs, never by ISO-week guessing alone.
+
+Validation: Functions lint/build pass; ten focused files pass 104/104 and the
+Firestore import emulator suite passes 42/42, all without skips/failures.
+The two affected audit/repair suites also pass 64/64. The conversion regression
+now edits a delivery assignee explicitly; market heading annotations are valid
+under the chosen readable contract. The
+emulator includes the mixed human seasonal union with fictional members and
+calendar races, plus existing canonical apply/write-back recovery regressions.
+The scope is preparation and its existing source guards;
+human apply/write-back remains gated until the readable writer is integrated with
+the durable submission protocol. Cut twenty-one remains local and uncommitted;
+HU-083 stays open. No live Sheets/Firestore, deployment, IAM or FCM change occurred.
+No mobile code/contract changed, so mobile gates were not rerun. The unrelated
+main-checkout Xcode reorder remains untouched.
+Next: integrate that human write-back, followed by generation/new tabs and the
+activation worker. The accepted readable-layout choice remains in force.
 
 ## Workbook decision
 
