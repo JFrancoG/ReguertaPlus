@@ -3,6 +3,7 @@
 // Offline compiler only. Encoded writes are review templates, never SDK calls.
 const {Timestamp} = require("@google-cloud/firestore");
 const {planShiftRepair} = require("./repair-planned-shifts.cjs");
+const {resolveShiftRotationBootstrap} = require("../lib/shift-rotation-bootstrap.js");
 const {MAX_BYTES} = require("./audit-shift-planning.cjs");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {encodeShiftPlanningFirestoreValue, decodeShiftPlanningFirestoreValue, decodeShiftPlanningFirestoreDocument,
@@ -25,7 +26,8 @@ const mutablePositionFields = new Set(["rotationOwnerUserId", "effectiveAssignee
 // Recompute the parent review instead of trusting a digest on a caller-supplied plan.
 const materializeShiftRepair = async (options) => {
   const captured = structuredClone(options);
-  const {materialization: packet, expectedMaterializationDigest, ...reviewOptions} = captured;
+  const {materialization: packet, expectedMaterializationDigest, baselineRevision, expectedMaterializedPlanDigest, ...reviewOptions} = captured;
+  check((baselineRevision === undefined) === (expectedMaterializedPlanDigest === undefined));
   check(packet && Buffer.byteLength(JSON.stringify(packet)) <= MAX_BYTES && digest(packet) === expectedMaterializationDigest);
   const review = await planShiftRepair(reviewOptions), {input, proposal} = reviewOptions;
   check(review.schemaVersion === 2 && review.target.environment === "develop");
@@ -109,6 +111,66 @@ const materializeShiftRepair = async (options) => {
     materializationEvidence: {packetDigest: expectedMaterializationDigest, atomicGroup: {readGuards, writes}, eventRehearsal},
     pendingGates: [...body.pendingGates.filter((gate) => gate !== "full_document_atomic_cas_and_provenance"),
       "live_authority_binding_and_atomic_cas_execution", "isolated_forward_inverse_commit_rehearsal"]};
+  const materialized = {...result, planDigest: digest(result)};
+  return baselineRevision === undefined ? materialized : recoveryReview({materialized, input, proposal, baselineRevision, expectedMaterializedPlanDigest});
+};
+
+// Payload restoration is a clone rehearsal. Service update times cannot be restored,
+// and live repair recovery still needs its own retained event authority and fence.
+const recoveryReview = ({materialized, input, proposal, baselineRevision, expectedMaterializedPlanDigest}) => {
+  check(typeof baselineRevision === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(baselineRevision) &&
+    materialized.planDigest === expectedMaterializedPlanDigest);
+  const group = materialized.materializationEvidence.atomicGroup;
+  const originals = new Map(materialized.firestoreEvidence.documents.map((entry) => [entry.targetPath, entry.payload]));
+  const finalShifts = new Map(originals);
+  for (const write of group.writes) if (write.targetPath.split("/")[2] === "shifts") finalShifts.set(write.targetPath, write.payload);
+  const inventory = (documents) => [...documents].sort(([a], [b]) => a.localeCompare(b))
+    .map(([targetPath, payload]) => ({targetPath, payloadDigest: digest(payload)}));
+  const rotations = Object.fromEntries(["delivery", "market"].map((type) => {
+    const lineage = proposal.lineage[type];
+    return [type, {beforeDate: lineage.beforeDate, bootstrapInput: lineage.bootstrap,
+      resolvedBootstrap: resolveShiftRotationBootstrap(lineage.bootstrap),
+      rows: [...lineage.rows].sort((a, b) => a.shiftId.localeCompare(b.shiftId)), rotationAfterHorizon: lineage.rotationAfterHorizon}];
+  }));
+  const root = `${materialized.target.environment}/plus-collections`;
+  const baselinePath = `${root}/shiftPlanningMigrationBaselines/${baselineRevision}`;
+  const operationWrite = group.writes.find((write) => write.targetPath.split("/")[2] === "shiftPlanningOperations");
+  const operation = decodeShiftPlanningFirestoreDocument(operationWrite.payload);
+  const baseline = {schemaVersion: 1, recordKind: "shiftPlanningMigrationBaseline", revision: baselineRevision,
+    target: materialized.target, preparedAt: operation.committedAt, repairOperationId: operation.operationId,
+    materializedPlanDigest: materialized.planDigest, originalInputDigest: materialized.inputDigest,
+    proposedSnapshotDigest: materialized.proposalDigest,
+    expectedPostRepair: {shifts: inventory(finalShifts), spreadsheetDigest: digest(proposal.spreadsheet),
+      expectedDates: {delivery: [...proposal.expectedDates.delivery].sort(), market: [...proposal.expectedDates.market].sort()}, rotations}};
+  const reference = {revision: baselineRevision, digest: digest(encode(baseline))};
+  const baselineWrite = {targetPath: baselinePath, mutationKind: "create", payload: encode({...baseline, baselineDigest: reference.digest})};
+  const forward = {readGuards: [...group.readGuards, {targetPath: baselinePath, exists: false}]
+    .sort((a, b) => a.targetPath.localeCompare(b.targetPath)), writes: [...group.writes, baselineWrite]};
+  check(forward.writes.length <= 500);
+  const postDocuments = new Map(originals);
+  for (const write of forward.writes) postDocuments.set(write.targetPath, write.payload);
+  const inverse = {scope: "isolated_clone_only", requiresVerifiedForwardReadBack: true,
+    updateTimeBinding: "per_document_forward_readback_required",
+    readGuards: inventory(postDocuments).map((entry) => ({...entry, exists: true})),
+    writes: forward.writes.map((write) => originals.has(write.targetPath) ?
+      {targetPath: write.targetPath, mutationKind: "update", payload: originals.get(write.targetPath)} :
+      {targetPath: write.targetPath, mutationKind: "delete"})};
+  const inverseCells = [...materialized.sheetsChanges].reverse().map(({before, after, ...cell}) => ({...cell, before: after, after: before}));
+  const sheets = {scope: "captured_grid_clone_rehearsal", workbookId: materialized.target.workbookId,
+    capturedVersion: input.workbookVersion, requiresVerifiedForwardReadBackVersion: true,
+    originalSnapshotDigest: digest(input.spreadsheet), expectedSnapshotDigest: digest(proposal.spreadsheet),
+    forwardCells: materialized.sheetsChanges, inverseCells,
+    // The full images preserve empty/missing cells and trailing-row representation;
+    // they are clone fixtures, never whole-workbook replacement API requests.
+    originalSnapshot: input.spreadsheet, expectedSnapshot: proposal.spreadsheet};
+  const {planDigest: parentMaterializedPlanDigest, ...body} = materialized;
+  const result = {...body, schemaVersion: 4, scope: "baseline_and_clone_inverse_review", parentMaterializedPlanDigest,
+    recoveryEvidence: {baseline: {targetPath: baselinePath, reference}, forward, inverse, sheets,
+      originalShiftStateDigest: digest(inventory(originals)), expectedShiftStateDigest: digest(inventory(finalShifts)),
+      rotationLineageAttachments: ["delivery", "market"].map((type) => ({targetPath: `${root}/shiftRotations/${type}`,
+        migrationBaseline: reference, expectedCursor: rotations[type].rotationAfterHorizon, state: "requires_authoritative_capture"}))},
+    pendingGates: [...body.pendingGates.filter((gate) => gate !== "migration_baseline_and_rollback"),
+      "authoritative_rotation_baseline_attachment", "guarded_live_repair_recovery_provenance"]};
   return {...result, planDigest: digest(result)};
 };
 module.exports = {materializeShiftRepair};

@@ -566,6 +566,55 @@ ensayo de commit/restauración y cerco entre Firestore y Sheets. Cambiar el inst
 la autoridad o cualquier payload exige generar y revisar otro digest. La CLI no
 crea clientes SDK, no escribe archivos de entrada ni admite `--mode apply`.
 
+El decimoquinto corte completa el **artefacto offline v4 de baseline e inversa**.
+Al comando v3 se añaden dos opciones, sin otro archivo de configuración:
+
+```sh
+--baseline-revision migration-r1 --expected-materialized-plan-digest '<planDigest v3 revisado>'
+```
+
+Se recalculan las cuatro entradas y el plan v3 antes de aceptar ese digest. La
+revisión debe ser un identificador exacto de hasta 128 caracteres; cambiarla cambia
+el baseline y el digest final. El resultado conserva las evidencias anteriores y
+`parentMaterializedPlanDigest`; `recoveryEvidence.forward` es el conjunto completo
+para el ensayo, incluido el nuevo baseline. El grupo v3 anidado conserva su alcance
+histórico y no debe confundirse con el conjunto completo v4.
+
+El baseline es una plantilla create-only en
+`develop/plus-collections/shiftPlanningMigrationBaselines/{revision}`. Su documento
+`schemaVersion: 1`, `recordKind: shiftPlanningMigrationBaseline` conserva el target,
+la revisión, `preparedAt`, operación de reparación, digests v3/original/propuesta y
+`expectedPostRepair`: digests de **todos** los documentos finales de turnos, imagen
+esperada del libro, calendario y ambas rotaciones. Cada rotación incluye entrada y
+resolución de bootstrap HU-082, posiciones y cursor final. Conserva mappings,
+orden estable y evidencia del helper cuando existen; no fabrica una aprobación
+administrativa a partir de un estado versionado. `baselineDigest` es el digest
+canónico del documento codificado sin ese mismo campo. La referencia común es
+`{revision, digest}`. El grupo completo reserva tres escrituras
+auxiliares (terminal, retención y baseline): como máximo 497 turnos modificados.
+
+`rotationLineageAttachments` identifica ambos agregados, su cursor esperado y la
+misma referencia, pero mantiene `state: requires_authoritative_capture`. Todavía
+no emite escrituras sobre `shiftRotations`: faltan sus capturas, revisiones, leases
+y autoridad. Un baseline previsto no acredita persistencia ni enlace live.
+
+`recoveryEvidence.inverse` restaura exactamente los payloads modificados y elimina
+solo los objetos creados por el forward, incluidos terminal/retención/baseline en
+el clon. Sus condiciones cubren todo el estado posterior esperado, también vecinos
+sin cambios. Exige vincular los `updateTime` al read-back verificado del forward:
+esos tiempos los genera Firestore, no se inventan ni pueden restaurarse a su valor
+original. El bloque Sheets conserva imágenes completas, digests y cambios de celda
+en ambos sentidos; exige la nueva versión verificada del libro. Las imágenes son
+fixtures de restauración, no peticiones de reemplazo completo a Google Sheets.
+
+La inversa está marcada **`isolated_clone_only`**: eliminar pruebas de procedencia
+no es una recuperación live segura. El contrato existente de HU-082 autoriza
+recuperaciones de activación, no estos eventos inversos de reparación. Siguen
+pendientes la autoridad de esos eventos, retención, cerco operativo y ejecución/
+admisión transaccional. Las pruebas interpretan instrucciones de payload y celdas
+en memoria; no son un ensayo de commit en Firestore ni de restauración de un backup
+real. `readyForApply` permanece en `false` y la CLI sigue sin modo apply.
+
 El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
 (`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y
 la identidad runtime quedan para HU-085; no se amplía el permiso del operador de

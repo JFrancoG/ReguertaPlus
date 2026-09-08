@@ -182,6 +182,30 @@ that exact mapping/digest. A safe apply includes both typed mappings in its immu
 post-repair baseline. A zero-write handoff includes the expected mappings and exact
 HU-085 materialization manifest without claiming they already exist live.
 
+### Offline migration-baseline and inverse artifact (HU-083 cut fifteen)
+
+The optional v4 dry-run binds an exact recomputed v3 materialization digest and
+an explicit baseline revision. Its create-only baseline path is
+`develop/plus-collections/shiftPlanningMigrationBaselines/{revision}`. The
+schema-v1 `shiftPlanningMigrationBaseline` document binds the target, preparation
+time, repair operation, input/proposal/materialization digests and expected
+post-repair state: every full shift-payload digest, captured workbook-image digest,
+explicit input calendar and both typed bootstrap inputs/resolutions, row positions
+and final cursors. `baselineDigest` hashes the typed document without that field;
+the common lineage reference is `{revision, digest}`. Preparation proves neither
+capture authenticity nor calendar/mapping approval beyond supplied evidence.
+
+The artifact includes full forward writes with baseline absence and a clone-only
+inverse restoring original payloads and deleting only forward-created objects.
+Original/expected grid images and reversed cell instructions preserve spreadsheet
+evidence. Inverse execution requires fresh verified forward read-back update times
+and workbook version; service-generated update times are not restorable payloads.
+The two `shiftRotations` attachment entries explicitly await authoritative captures
+and are not executable aggregate updates. Live repair-recovery event authority,
+retention, writer fences and commit/restore rehearsal remain required; activation-
+recovery authority must not be repurposed for repair inverses. No live readiness
+or persisted migration baseline is claimed by this offline format.
+
 ## Scope
 
 ### In scope

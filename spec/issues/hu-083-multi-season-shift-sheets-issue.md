@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — thirteenth cut pushed; fourteenth cut validated locally
+- State: IN PROGRESS — fourteenth cut pushed; fifteenth cut validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -608,6 +608,38 @@ Remaining-work estimate after this cut: approximately 3–5 coherent cuts, group
 baseline/inverse, atomic execution and recovery rehearsal, reviewed human-layout
 conversion, and trusted evidence plus final delivery (or exact HU-085 deferral).
 This is provisional, not a claim that the live acceptance gates are already met.
+
+### Fifteenth local cut — migration baseline and clone inverse (approved 2026-09-08)
+
+Cut fourteen is published as `aeb43dac456d6f14be5b05d1826f1ed07986617c`.
+The user authorized that commit/push and the next cut. The CLI now optionally
+binds an explicit baseline revision to the recomputed v3 materialization digest.
+The v4 artifact includes one create-only two-type migration-baseline template,
+final full shift-payload/grid digests, both HU-082 bootstrap inputs/resolutions,
+row positions and final cursors. Existing mappings, stable tie order and helper
+evidence survive; approval is never manufactured from versioned state.
+The complete forward includes baseline creation. Its clone-only inverse restores
+original payloads and cells, deletes only forward-created clone objects, and guards
+all expected post-state documents including unchanged neighbors. Full grid images
+preserve representation and manual content; these are not Sheets replacement API
+requests. Physical update times/version must come from verified forward read-back.
+Both rotation-lineage attachments explicitly await authoritative capture and emit
+no aggregate writes. Live repair recovery cannot borrow activation-only provenance.
+
+Validation: Functions lint/build and Node syntax checks passed; audit/repair/
+materialization/recovery 59/59, Sheets 44/44, bootstrap/publication/event/retention
+contracts 24/24, no skips. An independent test interpreter exercises exact payload/
+cell round trips, completed actual-helper/extra-field preservation, created-object
+cleanup and rejection by the emitted guards of partial/drifted/replayed states.
+Four-file CLI tests prove unchanged inputs and paired/exact-digest rejection.
+This is in-memory evidence, not a Firestore transaction or restored-backup rehearsal.
+`git diff --check` passed; no mobile/runtime contract changed, so mobile gates and
+emulators were not rerun. The unrelated main-checkout Xcode reorder remains intact.
+
+Cut fifteen is local and uncommitted; #267 remains open. No live read/write, deploy,
+IAM or notification occurred. Apply readiness stays false. Next: authoritative
+rotation attachment and Firestore admission/forward-inverse commit rehearsal,
+followed by live evidence, human-layout conversion and the final safe/deferred gate.
 
 ## Workbook decision
 

@@ -809,3 +809,147 @@ test("materialization requires bound captures and real public changes rather tha
   assert.equal(packet.writes.length, 0); await assert.rejects(materialize(input, input, capture, packet));
   await assert.rejects(materialize(input, input, capture, packet, {firestoreCapture: undefined, expectedCaptureDigest: undefined}));
 });
+
+const recoveryReview = async (input, proposal, capture, packet, overrides = {}) => {
+  const materialized = await materialize(input, proposal, capture, packet);
+  return materialize(input, proposal, capture, packet, {baselineRevision: "migration-r1", expectedMaterializedPlanDigest: materialized.planDigest, ...overrides});
+};
+const payloadEntries = (documents) => [...documents].sort(([a], [b]) => a.localeCompare(b));
+// Test interpreter checks payload instructions only; it is not an SDK transaction
+// and deliberately cannot attest Firestore update times or cross-store atomicity.
+const applyPayloadInstructions = (documents, group) => {
+  for (const guard of group.readGuards) {
+    assert.equal(documents.has(guard.targetPath), guard.exists);
+    if (guard.exists) assert.equal(snapshotDigest(documents.get(guard.targetPath)), guard.payloadDigest);
+  }
+  const result = new Map(documents);
+  for (const write of group.writes) {
+    if (write.mutationKind === "delete") result.delete(write.targetPath);
+    else result.set(write.targetPath, write.payload);
+  }
+  return result;
+};
+const applyCellInstructions = (snapshot, cells) => {
+  const result = clone(snapshot);
+  for (const change of cells) {
+    const sheet = result.sheets.find((sheet) => sheet.properties.sheetId === change.sheetId);
+    const cell = sheet.data[0].rowData[change.rowNumber - 1].values[change.columnNumber - 1];
+    assert.deepEqual(cell.userEnteredValue ?? null, change.before);
+    if (change.after === null) delete cell.userEnteredValue;
+    else cell.userEnteredValue = change.after;
+  }
+  return result;
+};
+
+test("recovery review seals one two-type baseline from final payloads and explicit HU-082 bootstrap evidence", async () => {
+  const proposal = await lineageFixture(), b = proposal.lineage.delivery.bootstrap;
+  b.versionedState = null; b.approvedMapping = approvedMapping("delivery"); b.legacyDeliveryHelper = legacyHelper("a");
+  const input = clone(proposal); input.source[3].row.source = "planner";
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture);
+  const result = await recoveryReview(input, proposal, capture, packet), evidence = result.recoveryEvidence;
+  assert.equal(result.schemaVersion, 4); assert.equal(result.readyForApply, false);
+  const write = evidence.forward.writes.find((write) => write.targetPath === evidence.baseline.targetPath);
+  const baseline = decodeDocument(write.payload), {baselineDigest, ...withoutDigest} = baseline;
+  assert.equal(baselineDigest, snapshotDigest(encoded(withoutDigest))); assert.equal(evidence.baseline.reference.digest, baselineDigest);
+  assert.equal(write.mutationKind, "create"); assert.equal(baseline.expectedPostRepair.shifts.length, 4);
+  const rotations = baseline.expectedPostRepair.rotations;
+  assert.deepEqual(Object.keys(rotations).sort(), ["delivery", "market"]);
+  assert.equal(rotations.delivery.resolvedBootstrap.source, "approvedMapping");
+  assert.deepEqual(rotations.delivery.bootstrapInput.approvedMapping.stableTieOrder, ["a", "b", "c", "d"]);
+  assert.deepEqual(rotations.delivery.bootstrapInput.legacyDeliveryHelper, legacyHelper("a"));
+  assert.equal(rotations.market.resolvedBootstrap.source, "versionedState");
+  assert.equal(rotations.market.bootstrapInput.approvedMapping, null, "Do not manufacture mapping approval from state evidence");
+  assert.equal(rotations.delivery.rotationAfterHorizon.nextMemberIndex, 3);
+  const marketWrite = evidence.forward.writes.find((write) => write.targetPath.includes("shifts/shift_market"));
+  assert.equal(decodeDocument(marketWrite.payload).documentRevision, 3);
+  assert.equal(baseline.expectedPostRepair.shifts.find((entry) => entry.targetPath === marketWrite.targetPath).payloadDigest, snapshotDigest(marketWrite.payload));
+  assert.notEqual(baseline.expectedPostRepair.shifts.find((entry) => entry.targetPath === marketWrite.targetPath).payloadDigest, snapshotDigest(capture.documents[3].payload));
+  assert.ok(evidence.rotationLineageAttachments.every((entry) => entry.migrationBaseline.digest === baselineDigest && entry.state === "requires_authoritative_capture"));
+  assert.ok(evidence.forward.writes.every((write) => !write.targetPath.includes("/shiftRotations/")));
+  assert.deepEqual(await recoveryReview(input, proposal, capture, packet), result);
+});
+
+test("forward and inverse payload/cell instructions restore originals and remove only created clone objects", async () => {
+  const proposal = await lineageFixture(); Object.assign(proposal.source[0], {completed: true, completionRevision: 1});
+  const notes = proposal.spreadsheet.sheets[0]; setCell(notes, 1, 11, {userEnteredValue: {stringValue: "manual note"}, note: "keep format"});
+  const input = clone(proposal); input.source[3].row.source = "planner"; edit(input, input.source[3].row.id, 8, "planner");
+  input.source.splice(1, 1); input.lineage.delivery.rows.splice(1, 1);
+  Object.assign(proposal.source[1], {documentRevision: 0, assignmentRevision: 0, completionRevision: 0});
+  const capture = canonicalCapture(input, proposal);
+  editCaptured(capture, 0, (doc) => { doc.extra = {private: "untouched", at: new Timestamp(10, 987654321), bytes: Buffer.from([3, 255])}; });
+  const packet = await packetFor(input, proposal, capture), originalInput = clone(input), originalCapture = clone(capture);
+  const result = await recoveryReview(input, proposal, capture, packet), evidence = result.recoveryEvidence;
+  const originals = new Map(capture.documents.map((entry) => [entry.targetPath, entry.payload]));
+  const forward = applyPayloadInstructions(originals, evidence.forward), inverse = applyPayloadInstructions(forward, evidence.inverse);
+  assert.deepEqual(payloadEntries(inverse), payloadEntries(originals));
+  const created = evidence.forward.writes.filter((write) => write.mutationKind === "create").map((write) => write.targetPath).sort();
+  assert.equal(created.length, 4); assert.deepEqual(evidence.inverse.writes.filter((write) => write.mutationKind === "delete").map((write) => write.targetPath).sort(), created);
+  assert.ok(!evidence.inverse.writes.some((write) => write.targetPath === capture.documents[0].targetPath));
+  const actual = decodeDocument(inverse.get(capture.documents[0].targetPath));
+  assert.equal(actual.completion.actualHelperUserId, "d"); assert.equal(actual.extra.at.nanoseconds, 987654321); assert.deepEqual(actual.extra.bytes, Buffer.from([3, 255]));
+  const changedSheet = applyCellInstructions(input.spreadsheet, evidence.sheets.forwardCells);
+  assert.deepEqual(changedSheet, proposal.spreadsheet);
+  assert.deepEqual(applyCellInstructions(changedSheet, evidence.sheets.inverseCells), input.spreadsheet);
+  assert.deepEqual(evidence.sheets.originalSnapshot, input.spreadsheet); assert.deepEqual(evidence.sheets.expectedSnapshot, proposal.spreadsheet);
+  assert.equal(evidence.sheets.originalSnapshotDigest, snapshotDigest(input.spreadsheet));
+  assert.equal(evidence.sheets.expectedSnapshotDigest, snapshotDigest(proposal.spreadsheet));
+  assert.deepEqual(input, originalInput); assert.deepEqual(capture, originalCapture);
+  assert.equal(evidence.inverse.scope, "isolated_clone_only"); assert.equal(evidence.inverse.requiresVerifiedForwardReadBack, true);
+  assert.equal(evidence.inverse.updateTimeBinding, "per_document_forward_readback_required");
+  assert.equal(evidence.sheets.requiresVerifiedForwardReadBackVersion, true);
+});
+
+test("inverse guards bind unchanged neighbors and forward-only objects; rerun or partial state cannot masquerade as restored", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture), result = await recoveryReview(input, proposal, capture, packet);
+  const evidence = result.recoveryEvidence, original = new Map(capture.documents.map((entry) => [entry.targetPath, entry.payload]));
+  const forward = applyPayloadInstructions(original, evidence.forward);
+  assert.throws(() => applyPayloadInstructions(forward, evidence.forward));
+  assert.throws(() => applyPayloadInstructions(original, evidence.inverse));
+  for (const path of [capture.documents[2].targetPath, evidence.baseline.targetPath]) {
+    const drift = new Map(forward); drift.set(path, encoded({unexpected: "edit"}));
+    assert.throws(() => applyPayloadInstructions(drift, evidence.inverse));
+  }
+  const partial = new Map(forward); partial.delete(evidence.baseline.targetPath);
+  assert.throws(() => applyPayloadInstructions(partial, evidence.inverse));
+  const restored = applyPayloadInstructions(forward, evidence.inverse);
+  assert.throws(() => applyPayloadInstructions(restored, evidence.inverse));
+  assert.deepEqual(payloadEntries(applyPayloadInstructions(restored, evidence.forward)), payloadEntries(forward));
+});
+
+test("baseline revision and reviewed materialization are mandatory pairs and bind every immutable artifact", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture);
+  const result = await recoveryReview(input, proposal, capture, packet), other = await recoveryReview(input, proposal, capture, packet, {baselineRevision: "migration-r2"});
+  assert.notEqual(result.planDigest, other.planDigest); assert.notEqual(result.recoveryEvidence.baseline.reference.digest, other.recoveryEvidence.baseline.reference.digest);
+  for (const overrides of [{baselineRevision: "../escape"}, {baselineRevision: ""}, {baselineRevision: null},
+    {expectedMaterializedPlanDigest: "stale"}, {baselineRevision: undefined}, {expectedMaterializedPlanDigest: undefined}]) {
+    await assert.rejects(recoveryReview(input, proposal, capture, packet, overrides));
+  }
+  const materializedDigest = result.parentMaterializedPlanDigest;
+  editCaptured(capture, 2, (doc) => { doc.updatedAt = new Timestamp(doc.updatedAt.seconds, 1); });
+  const changedPacket = await packetFor(input, proposal, capture);
+  await assert.rejects(recoveryReview(input, proposal, capture, changedPacket, {expectedMaterializedPlanDigest: materializedDigest}));
+});
+
+test("baseline and inverse CLI remain file-only and require the exact materialized digest", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "baseline-review-"));
+  try {
+    const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+    const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture), materialized = await materialize(input, proposal, capture, packet);
+    const values = {input, proposal, capture, packet};
+    for (const [name, value] of Object.entries(values)) writeFileSync(join(directory, name + ".json"), JSON.stringify(value));
+    const args = [require.resolve("../scripts/repair-planned-shifts.cjs"), "--mode", "dry-run", "--input", join(directory, "input.json"),
+      "--proposal", join(directory, "proposal.json"), "--project", target.projectId, "--environment", target.environment, "--workbook", target.workbookId,
+      "--expected-input-digest", snapshotDigest(input), "--expected-proposal-digest", snapshotDigest(proposal),
+      "--firestore-capture", join(directory, "capture.json"), "--expected-capture-digest", snapshotDigest(capture),
+      "--materialization", join(directory, "packet.json"), "--expected-materialization-digest", snapshotDigest(packet),
+      "--baseline-revision", "migration-r1", "--expected-materialized-plan-digest", materialized.planDigest];
+    const result = spawnSync(process.execPath, args, {encoding: "utf8", env: {PATH: process.env.PATH}});
+    assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).schemaVersion, 4);
+    for (const [name, value] of Object.entries(values)) assert.equal(readFileSync(join(directory, name + ".json"), "utf8"), JSON.stringify(value));
+    assert.equal(readdirSync(directory).length, 4);
+    const partial = spawnSync(process.execPath, args.slice(0, -2), {encoding: "utf8"}); assert.equal(partial.status, 1); assert.equal(partial.stdout, "");
+    args[args.length - 1] = "wrong"; const stale = spawnSync(process.execPath, args, {encoding: "utf8"}); assert.equal(stale.status, 1); assert.equal(stale.stdout, "");
+  } finally { rmSync(directory, {recursive: true, force: true}); }
+});

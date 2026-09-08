@@ -205,6 +205,10 @@ const main = async (args) => {
   if (args.includes("--materialization") || args.includes("--expected-materialization-digest")) {
     names.push("--materialization", "--expected-materialization-digest");
   }
+  if (args.includes("--baseline-revision") || args.includes("--expected-materialized-plan-digest")) {
+    requireValue(args.includes("--materialization"));
+    names.push("--baseline-revision", "--expected-materialized-plan-digest");
+  }
   requireValue(args.length === names.length * 2); const values = {};
   for (let i = 0; i < args.length; i += 2) {
     requireValue(names.includes(args[i]) && !Object.hasOwn(values, args[i]) && args[i + 1]); values[args[i]] = args[i + 1];
@@ -217,7 +221,9 @@ const main = async (args) => {
     ...(values["--firestore-capture"] ? {firestoreCapture: readSnapshot(values["--firestore-capture"]),
       expectedCaptureDigest: values["--expected-capture-digest"]} : {}),
     ...(values["--materialization"] ? {materialization: readSnapshot(values["--materialization"]),
-      expectedMaterializationDigest: values["--expected-materialization-digest"]} : {})});
+      expectedMaterializationDigest: values["--expected-materialization-digest"]} : {}),
+    ...(values["--baseline-revision"] ? {baselineRevision: values["--baseline-revision"],
+      expectedMaterializedPlanDigest: values["--expected-materialized-plan-digest"]} : {})});
   process.stdout.write(JSON.stringify(plan, null, 2) + "\n");
   process.stderr.write(`Repair review: ${plan.projectionChanges.length} projections, ${plan.lineageChanges.length} lineage changes, ${plan.sheetsChanges.length} cells; apply unavailable.\n`);
 };

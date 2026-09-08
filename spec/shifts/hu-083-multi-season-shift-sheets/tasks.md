@@ -212,6 +212,10 @@
 - [ ] Define the immutable post-repair two-type migration-baseline revision/digest;
   persist/read it back only on safe apply, or emit its expected digest plus exact
   HU-085 materialization manifest on zero-write deferral.
+  - [x] Fifteenth local cut defines a digest-bound baseline template covering both
+    types, full final payloads, expected grid and original/resolved HU-082 bootstrap
+    evidence. Shared lineage attachments await captured authoritative aggregates;
+    no baseline or rotation state is persisted.
 - [ ] Fail closed when historical rotation ownership is ambiguous.
 - [ ] Audit and materialize—or defer by exact manifest—each HU-082 typed bootstrap
   mapping: ordered UIDs, round/cursor, stable tie order, evidence, and delivery
@@ -224,6 +228,10 @@
   permissions, and revocation/read-back.
 - [ ] Make apply and rerun idempotent.
 - [ ] Implement bounded rollback/reconciliation support.
+  - [x] Fifteenth local cut emits clone-only inverse payload/cell instructions,
+    exact original/expected grid images and post-state read guards, including
+    untouched neighbors and created-object cleanup. In-memory round trips pass;
+    physical commit/restore, read-back CAS and live inverse provenance remain open.
 - [ ] Add tests for audit, dry-run zero writes, apply, rerun, wrong target,
   partial failure, and rollback.
 

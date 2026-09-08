@@ -679,6 +679,32 @@ baseline/inverse, atomic execution and recovery rehearsal, reviewed human-layout
 conversion, and trusted evidence plus final delivery (or exact HU-085 deferral).
 This is provisional, not a claim that the live acceptance gates are already met.
 
+### Fifteenth local cut — migration baseline and clone inverse (approved 2026-09-08)
+
+Cut fourteen is published as `aeb43dac456d6f14be5b05d1826f1ed07986617c`.
+The user authorized that commit/push and the next cut. Extend the recomputed
+materialization review with one immutable two-type baseline template and an exact
+inverse for isolated-clone rehearsal. Bind final full shift payloads, the expected
+workbook image and both HU-082 bootstrap resolutions without inventing approval or
+active-registry state. Preserve original payloads and grid evidence, delete only
+manifest-created clone objects, and require verified forward read-back before an
+inverse may be executed. No live writer or weaker repair-recovery provenance is
+introduced; existing recovery codecs apply specifically to activation recovery.
+
+### Fifteenth-cut validation checkpoint — 2026-09-08
+
+The baseline/clone-inverse review is implemented locally. Functions lint/build,
+Node syntax and whitespace checks pass; audit/repair/recovery 59/59, Sheets 44/44,
+bootstrap/publication/event/retention 24/24, no skips. Test interpreters restore
+payloads/cells and check partial/drifted states, completed evidence and created-
+object cleanup; this is not an SDK commit or restored-backup rehearsal. Exact CLI
+inputs remain unchanged. See the mirrored #267 checkpoint and Functions README
+for the artifact contract and evidence limits. No live/mobile contract changed;
+no deploy, IAM change or live mutation occurred. The Xcode reorder is preserved.
+Cut fifteen is uncommitted. Next implement authoritative rotation attachment and
+admitted Firestore forward/inverse commit rehearsal; live repair-recovery event
+authority and all remaining writer/evidence/human-layout gates remain open.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its

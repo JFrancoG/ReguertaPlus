@@ -36,6 +36,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(shifts): prepare repair baseline and inverse
+
 - 2026-09-08 | ✨ feat(shifts): materialize reviewed repair documents
 
 - 2026-09-08 | ✨ feat(shifts): bind repair plans to full captures
