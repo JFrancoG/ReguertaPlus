@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — sixteenth cut pushed; seventeenth cut validated locally
+- State: IN PROGRESS — seventeenth cut pushed; eighteenth acceptance review validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -708,6 +708,32 @@ zero-write HU-085 handoff. Visual approval, complete workbook metadata and formu
 reference behavior, real restored-clone multi-store rehearsal, effective writer
 fences and live inverse authority remain open. This snapshot proposal does not
 satisfy those live gates or enable the human-layout apply endpoint.
+
+### Eighteenth local cut — acceptance consolidation (approved 2026-09-08)
+
+Cut seventeen is pushed as `775be1adaae27d60e506677f6d1832739846c2ba`.
+The user authorized commit/push and the next cut. Reconcile the accumulated
+checklists against actual source and validate the combined backend scope instead
+of adding more generic repair/conversion layers.
+
+[Acceptance review](https://github.com/JFrancoG/ReguertaPlus/blob/codex/hu-083-multi-season-shift-sheets/spec/shifts/hu-083-multi-season-shift-sheets/acceptance-review.md) (local file pending the next commit) records the implemented canonical
+pipeline, the still-present legacy full/ordinary/override/import/generation routes,
+the undecided human-facing format and the missing real-data evidence. Legacy route
+migration is a local implementation gap, not merely a HU-085 deployment action.
+No acceptance criterion is closed using synthetic data as real-data proof.
+
+Validation at that commit: Functions lint/build pass; the 60-file local union has
+492 passes, 51 emulator-context skips and zero failures. Nine sequential existing
+emulator scripts pass 160 executions with zero skips/failures; some cases overlap
+with the unit union and do not cover every skipped HU-082 case. See the review for
+exact commands and per-group counts. Emulators shut down. No live data, deployment,
+IAM or notification action occurred; no mobile wire/code changed and mobile gates
+were not rerun. The unrelated main-checkout Xcode reorder is preserved.
+
+Cut eighteen changes documentation/checklist evidence only and remains local and
+uncommitted. HU-083 stays open. The next implementation depends on the requested
+human-layout choice and must finish the concrete legacy routes; trusted capture,
+real-data manifests and the safe-apply/exact-zero-write gate remain separate.
 
 ## Workbook decision
 

@@ -1439,6 +1439,20 @@ Parámetros opcionales:
 - `envs=develop,production` (lista separada por comas)
 
 
+## Estado conjunto de HU-083 (corte 18)
+
+La [revisión de aceptación](../spec/shifts/hu-083-multi-season-shift-sheets/acceptance-review.md)
+vincula las pruebas con el código y las rutas pendientes. El worker/importador
+canónico y el audit de eventos están integrados localmente; exportado completo,
+eventos ordinarios, overrides y sincronización legacy aún no están todos migrados.
+La conversión de diseño humano sigue siendo una propuesta. No interpretar las
+pruebas del adaptador como migración completa o como una autorización de despliegue.
+
+Validación conjunta: lint/build correctos; 492 pruebas locales pasan, 51 requieren
+su contexto de emulador y se omiten. Nueve scripts focalizados de emulador pasan
+160 ejecuciones sin omisiones, con solapamiento parcial respecto a las locales.
+La revisión contiene los comandos, límites y requisitos de evidencia real restantes.
+
 ## Propuesta offline de conversión de pestañas humanas (HU-083, corte 17)
 
 `plan:shift-sheets:conversion` prepara una alternativa revisable: conservar cada

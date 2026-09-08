@@ -1,5 +1,13 @@
 # Tasks - HU-083 (Multi-season shift Sheets and develop repair)
 
+## Current acceptance view — cut eighteen, 2026-09-08
+
+See [acceptance-review.md](acceptance-review.md) for source-backed status and the
+consolidated validation scope. Sections named after earlier cuts are historical
+checkpoints, not the current count of unfinished work. Checked implementation
+items below refer to the new canonical pipeline in local/emulator validation;
+they do not certify live conversion or retire the legacy writer paths.
+
 ## First local cut — 2026-09-08
 
 - [x] Implement strict environment config and proposed canonical table merge
@@ -81,7 +89,7 @@
 - [x] Validate lint/build and 137 cases: import 37, consumer 15, sync repository 7,
   Sheets 38, strict Rules 32, phase1 Rules 8; no skips or live data writes.
 - [x] Align README, English/Spanish ADR-0013 and the open issue checkpoint.
-- [ ] Deliver the fourth/fifth local cuts through their separately requested Git gate.
+- [x] Deliver the fourth/fifth local cuts: `8375483`, `60bf91f`.
 - [ ] Continue explicit layout conversion and endpoint/legacy-trigger integration,
   including inverse-event identity; complete baseline/audit/repair and rehearsal.
   - [x] Seventeenth local cut prepares digest-bound archive/canonical images from
@@ -123,45 +131,49 @@
   bounded live layout inventory: `turnos-reparto YYYY-YY`,
   `turnos-mercado YYYY-YY`; 2025 aliases `TORRE 2025-26` and `MERCADO 2025-26`.
   This freezes titles only, not a migration of the existing human layouts.
-- [ ] Define stable row identity, ownership, assignment, source, provenance, and
+- [x] Define stable row identity, ownership, assignment, source, provenance, and
   tab-partition metadata.
-- [ ] Add RED tests for tab creation, existing-tab merge, replay, concurrency,
+- [x] Add RED tests for tab creation, existing-tab merge, replay, concurrency,
   and carryover plus later-generation coexistence.
-- [ ] Add RED import tests for multiple tabs and partial/missing-tab failure.
-- [ ] Add RED tests proving manual edits cannot change rotation state/ownership.
-- [ ] Add RED tests for develop/production isolation and missing configuration.
+- [x] Add RED import tests for multiple tabs and partial/missing-tab failure.
+- [x] Add RED tests proving manual edits cannot change rotation state/ownership.
+- [x] Add RED tests for develop/production isolation and missing configuration.
 
 ## 2. Multi-season Sheets adapter
 
 - [ ] Extract environment configuration from `functions/src/index.ts`.
+  - [x] New pipeline uses `readShiftSheetsWorkerConfig` with explicit environment
+    IDs and no fallback. Legacy `getSheetConfig` still has global fallback.
 - [ ] Replace fixed single ranges with explicit workbook plus seasonal-tab
   routing.
-- [ ] Implement idempotent list/discover/create for tabs.
+- [x] Implement idempotent list/discover/create for tabs.
 - [ ] Replace whole-tab clear/rewrite with stable-identity merge/upsert.
-- [ ] Import the union of allowed tabs and bound reconciliation to successfully
+  - [x] Canonical adapter does bounded merges. Legacy `updateWholeSheet` remains
+    reachable from the old generation path; do not claim repository-wide removal.
+- [x] Import the union of allowed tabs and bound reconciliation to successfully
   read partitions.
 - [ ] Route full export, incremental export, and overrides by explicit tab
   metadata.
-- [ ] Consume digest-bound activation-sync commands by exact partition manifest
+- [x] Consume digest-bound activation-sync commands by exact partition manifest
   and stable idempotency key through explicit post-commit pull/invocation.
-- [ ] Claim pending commands transactionally and rediscover/retry them after lost
+- [x] Claim pending commands transactionally and rediscover/retry them after lost
   invocation; prove no sync depends on enable-after-create Eventarc delivery.
   - HU-082 now supplies the versioned command codecs, Firestore discovery/claim/
     fencing/pre-batch authorization/completion repository, SDK-free executor, and
     idempotent fake-consumer evidence. HU-083 must integrate the real multi-season
     Sheets adapter, record durable external attempt/read-back evidence, and handle
     ambiguous outcomes without weakening that boundary.
-- [ ] Serialize commands with a workbook/partition epoch and lease; check current
+- [x] Serialize commands with a workbook/partition epoch and lease; check current
   command/revision/digest before every batch, read back afterward, reject old-epoch
   retries, and block recovery until prior external work is proved terminal.
-- [ ] Validate backend-owned activation/repair/rollback-recovery/sync-correction
+- [x] Validate backend-owned activation/repair/rollback-recovery/sync-correction
   last-mutation provenance in candidate `onShiftWritten` through before/after
   change for creates/updates or exact before-image version/path for deletes, plus
   the allowlisted registry/digest; no-op backend events without suppressing later
   ordinary events that retain old metadata.
   - [x] Upstream HU-082 supplies the strict SDK-free classifier, repair/sync-
     correction registry codec, stable controlled-event digest, and fake-consumer
-    vectors. HU-083 still owns trigger wiring and real side-effect evidence.
+    vectors. Cut seven wires the exported trigger; live side-effect evidence remains open.
 - [ ] Retain terminal operation tombstones/event ledgers past the maximum retry
   horizon and fail closed/alert on unknown changed backend markers.
   - [x] Upstream HU-082 supplies schema-v1 retention policy, operation binding,
@@ -169,32 +181,33 @@
     cleanup semantics, and SDK-free producer fixtures. HU-083 still owns durable
     create-or-exact-replay persistence, configured policy, alert delivery, and
     real trigger/integration evidence.
-- [ ] Preserve manual fields according to the frozen contract.
+- [x] Preserve manual fields according to the frozen contract.
 - [ ] For every imported/manual delivery-lead mutation, CAS/digest predecessor/
   current/successor assignment, completion, and revision across tabs. Reject equal
   adjacent leads/stale completion; recompute only uncompleted planned helper and
   preserve completed actual helper history plus rotation ownership.
-- [ ] Add structured summaries and typed failures without sensitive data.
+- [x] Add structured summaries and typed failures without sensitive data.
 
 ## 3. Security and documentation
 
-- [ ] Update Firestore contract/Rules only where required by partition metadata.
-- [ ] Prove clients and Sheet imports cannot mutate rotation ownership/cursor.
-- [ ] Prove clients cannot forge any backend-operation provenance to suppress
+- [x] Update Firestore contract/Rules only where required by partition metadata.
+- [x] Prove clients and Sheet imports cannot mutate rotation ownership/cursor.
+- [x] Prove clients cannot forge any backend-operation provenance to suppress
   ordinary export/notification behavior, and prove unchanged retained provenance
   is never treated as a new backend mutation.
 - [ ] Keep all new Rules changes undeployed until HU-085 and provide their exact
   test evidence plus deployment/rollback surface in the handoff.
-- [ ] Update `functions/README.md` for stable workbooks, seasonal tabs,
+- [x] Update `functions/README.md` for stable workbooks, seasonal tabs,
   environment isolation, aliases, and develop repair.
-- [ ] Update relevant English and Spanish data-contract documentation.
+- [x] Update relevant English and Spanish data-contract documentation.
 - [x] Scan the first-cut changed docs/fixtures for secret-like material; no live
   workbook ID, participant name or phone was copied into the layout inventory.
 
 ## 4. Audit, repair, and rollback tooling
 
-- [ ] Implement read-only audit for gaps, duplicates, eligibility, rounds,
-  helpers, market groups, sources, and cross-store disagreement.
+- [x] Implement offline read-only audit for gaps, duplicates, eligibility, rounds,
+  helpers, market groups, sources, and cross-store disagreement. Trusted live capture
+  and historical membership/boundary evidence remain open.
   - [x] Tenth local cut adds bounded offline snapshot diagnostics for dates,
     identities, source/projection validity, current eligibility, helpers and
     cross-store comparison. Live capture/completeness and historical rotation/
@@ -203,7 +216,8 @@
     consistency using HU-082 resolution/consumption. Alternative conflicts and
     legacy helper gates are explicit; trusted capture, approved horizon and
     historical membership/boundary evidence still prevent repair readiness.
-- [ ] Implement deterministic dry-run repair plan and digest.
+- [x] Implement deterministic offline dry-run repair plan and digest (v1–v5);
+  this does not authorize apply or certify a real-data deferral manifest.
   - [x] Twelfth local cut emits a deterministic review diff from two explicit v2
     snapshots: normalized projections, lineage and exact managed cells. Full
     document write/CAS, baseline and rollback manifests remain pending; no apply
@@ -228,7 +242,7 @@
     both baseline/cursor attachments with state revisions and read-time CAS.
     HU-082 parsers enforce closed maintenance, active lineage, null leases and
     captured cursor/frontier consistency; live capture authenticity remains open.
-- [ ] Fail closed when historical rotation ownership is ambiguous.
+- [x] Fail closed when historical rotation ownership is ambiguous.
 - [ ] Audit and materialize—or defer by exact manifest—each HU-082 typed bootstrap
   mapping: ordered UIDs, round/cursor, stable tie order, evidence, and delivery
   predecessor-helper gate. Fail closed on any unapproved conflict.
@@ -255,12 +269,20 @@
 
 - [x] Run Functions `npm run lint` (first local cut, zero diagnostics).
 - [x] Run Functions `npm run build` (first local cut).
-- [ ] Run Sheets adapter, migration, backend security, and relevant Rules suites.
+- [x] Run Sheets adapter, migration, backend security, and relevant Rules suites.
+  Cut eighteen: 492 local passes / 51 emulator-only skips; nine focused emulator
+  scripts pass 160 executions / zero skips. See acceptance review for overlap and
+  exact coverage; this is not execution of every skipped HU-082 case.
 - [ ] Run HU-082 Android/iOS regression suites if shared fields change.
+  Not triggered in cut eighteen: no mobile source/wire change; live app read-back
+  remains required by the selected safe-apply/deferral acceptance path.
 - [x] Run `git diff --check` and validate local/document links in changed files
   (first local cut; no findings).
-- [ ] Prove the new request/adapter/notification pipeline locally and in
+- [ ] Prove the complete request/adapter/notification pipeline locally and in
   emulators without a shared-project deploy.
+  - [x] New private sync/import, controlled-event audit and repair rehearsal pass
+    focused emulators in cut eighteen. Ordinary/full/override legacy routing and
+    complete notification/alert integration remain distinct acceptance gaps.
 
 ## 6. Develop rehearsal
 

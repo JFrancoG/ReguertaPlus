@@ -287,6 +287,11 @@ binding and separately reviewed execution/recovery manifests.
 
 ## Acceptance criteria
 
+Current source-backed scope and cut-18 validation are recorded in
+[acceptance-review.md](acceptance-review.md). New-pipeline proofs do not certify
+legacy full/ordinary/override routing, the human-layout decision or either real-data
+completion branch. Criteria below stay open until their complete scope is met.
+
 - [ ] Develop uses one explicit stable workbook identifier and the configuration
   contract cannot fall back across environments.
 - [ ] Missing seasonal tabs are created idempotently from actual shift dates and

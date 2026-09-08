@@ -763,6 +763,32 @@ reference behavior, real restored-clone multi-store rehearsal, effective writer
 fences and live inverse authority remain open. This snapshot proposal does not
 satisfy those live gates or enable the human-layout apply endpoint.
 
+### Eighteenth local cut — acceptance consolidation (approved 2026-09-08)
+
+Cut seventeen is pushed as `775be1adaae27d60e506677f6d1832739846c2ba`.
+The user authorized commit/push and the next cut. Reconcile the accumulated
+checklists against actual source and validate the combined backend scope instead
+of adding more generic repair/conversion layers.
+
+[Acceptance review](acceptance-review.md) records the implemented canonical
+pipeline, the still-present legacy full/ordinary/override/import/generation routes,
+the undecided human-facing format and the missing real-data evidence. Legacy route
+migration is a local implementation gap, not merely a HU-085 deployment action.
+No acceptance criterion is closed using synthetic data as real-data proof.
+
+Validation at that commit: Functions lint/build pass; the 60-file local union has
+492 passes, 51 emulator-context skips and zero failures. Nine sequential existing
+emulator scripts pass 160 executions with zero skips/failures; some cases overlap
+with the unit union and do not cover every skipped HU-082 case. See the review for
+exact commands and per-group counts. Emulators shut down. No live data, deployment,
+IAM or notification action occurred; no mobile wire/code changed and mobile gates
+were not rerun. The unrelated main-checkout Xcode reorder is preserved.
+
+Cut eighteen changes documentation/checklist evidence only and remains local and
+uncommitted. HU-083 stays open. The next implementation depends on the requested
+human-layout choice and must finish the concrete legacy routes; trusted capture,
+real-data manifests and the safe-apply/exact-zero-write gate remain separate.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its
