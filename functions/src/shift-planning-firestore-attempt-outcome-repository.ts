@@ -49,7 +49,11 @@ const requireExactReplay = (
     actual.attemptId !== expected.attemptId ||
     actual.operationId !== expected.operationId ||
     actual.operationIntentDigest !== expected.operationIntentDigest ||
-    actual.outcomeDigest !== expected.outcomeDigest
+    actual.direction !== expected.direction ||
+    actual.manifestDigest !== expected.manifestDigest ||
+    actual.bundleRevision !== expected.bundleRevision ||
+    actual.bundleDigest !== expected.bundleDigest ||
+    actual.writeEpoch !== expected.writeEpoch
   ) {
     failOutcome("Attempt outcome key already owns another acknowledgement.");
   }
@@ -70,7 +74,7 @@ export const requireShiftPlanningAttemptOutcomeOperationBinding = (
         operation.bundleDigest !== expected.bundleDigest ||
         operation.writeEpoch !== expected.writeEpoch ||
         operation.forwardManifestDigest !==
-          expected.measurement.manifestDigest
+          expected.manifestDigest
       ) {
         failOutcome("Forward outcome does not match its operation terminal.");
       }
@@ -87,7 +91,7 @@ export const requireShiftPlanningAttemptOutcomeOperationBinding = (
           operation.bundleDigest !== expected.bundleDigest ||
           operation.activationWriteEpoch !== expected.writeEpoch ||
           operation.forwardManifestDigest !==
-            expected.measurement.manifestDigest
+            expected.manifestDigest
         ) {
           failOutcome(
             "Forward outcome does not match its recovered operation terminal.",
@@ -114,7 +118,7 @@ export const requireShiftPlanningAttemptOutcomeOperationBinding = (
       operation.bundleRevision !== expected.bundleRevision ||
       operation.bundleDigest !== expected.bundleDigest ||
       operation.recoveryWriteEpoch !== expected.writeEpoch ||
-      operation.inverseManifestDigest !== expected.measurement.manifestDigest
+      operation.inverseManifestDigest !== expected.manifestDigest
     ) {
       failOutcome("Inverse outcome does not match its operation terminal.");
     }
@@ -131,7 +135,8 @@ export const requireShiftPlanningAttemptOutcomeOperationBinding = (
 
 /**
  * Creates the backend-only immutable outcome repository. The caller invokes it
- * only after the measured transaction has returned successfully. Persistence
+ * after transaction success or validated operation-terminal read-back.
+ * Persistence
  * uses create-without-overwrite semantics in a separate transaction and then
  * performs an independent read-back; exact retries converge on the same record.
  * @param {Firestore} firestore Pinned Firestore client or emulator instance.

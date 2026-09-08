@@ -46,7 +46,7 @@ import {
 export const SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION = 2 as const;
 export const SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT = 500 as const;
 export const SHIFT_PLANNING_FIRESTORE_TRANSACTION_BYTE_LIMIT =
-  10 * 1024 * 1024;
+  8 * 1024 * 1024;
 
 export type ShiftPlanningProjectionOccupancy = {
   seasonStartYear: number;

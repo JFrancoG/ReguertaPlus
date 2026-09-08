@@ -1,5 +1,9 @@
 # Tasks - HU-082 (Continuous seasonal shift rotation)
 
+> Original delivery checklist; post-audit implementation and current validation are
+> tracked in [post-audit-corrections.md](post-audit-corrections.md). Private SDK
+> serializer/receipt-v1 entries below are historical and superseded by ADR-0014.
+
 ## 0. Approval and traceability
 
 - [x] Review and accept ADR-0013 core rotation/projection decision.

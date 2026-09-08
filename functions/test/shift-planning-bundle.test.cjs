@@ -367,7 +367,7 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
     assert.deepEqual(budget.byteEstimate, {
       status: "requiresPersistenceAdapter",
       estimatedBytes: null,
-      configuredByteLimit: 10 * 1024 * 1024,
+      configuredByteLimit: 8 * 1024 * 1024,
     });
   }
   const forward = result.budgets.forward;

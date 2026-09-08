@@ -1,5 +1,7 @@
 # ADR-0013: Modelar los turnos como rotaciones continuas con proyecciones estacionales
 
+Sustituido parcialmente el 2026-09-08 por [ADR-0014](0014-usar-transacciones-publicas-firestore-para-turnos.md) para admisión de transacciones y resultados de intento. Se conserva debajo la decisión original como historial.
+
 ## Estado
 
 Aceptada

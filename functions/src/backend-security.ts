@@ -341,7 +341,15 @@ export const isOperationallyLinkedAdmin = (
   }
 };
 
-export const canProcessPrivilegedFirestoreEvent = async (
+/**
+ * Resolves authorization without treating unavailable identity data as denial.
+ * Retry-enabled consumers must propagate a failed lookup so an authorized
+ * event is not permanently acknowledged before its identity can be checked.
+ * @param {FirestoreEventAuthContext} context Authenticated event identity.
+ * @param {LinkedActiveAdminResolver} resolveLinkedActiveAdmin Admin lookup.
+ * @return {Promise<boolean>} Authorization, or a rejected lookup promise.
+ */
+export const resolvePrivilegedFirestoreEventAuthorization = async (
   context: FirestoreEventAuthContext,
   resolveLinkedActiveAdmin: LinkedActiveAdminResolver,
 ): Promise<boolean> => {
@@ -358,8 +366,18 @@ export const canProcessPrivilegedFirestoreEvent = async (
   if (!uid) {
     return false;
   }
+  return resolveLinkedActiveAdmin(uid);
+};
+
+export const canProcessPrivilegedFirestoreEvent = async (
+  context: FirestoreEventAuthContext,
+  resolveLinkedActiveAdmin: LinkedActiveAdminResolver,
+): Promise<boolean> => {
   try {
-    return await resolveLinkedActiveAdmin(uid);
+    return await resolvePrivilegedFirestoreEventAuthorization(
+      context,
+      resolveLinkedActiveAdmin,
+    );
   } catch {
     return false;
   }

@@ -4,7 +4,8 @@ import Foundation
 enum ShiftPlanningInspectionCodec {
     static func observation(
         documentID: String,
-        data: [String: Any]
+        data: [String: Any],
+        expectedEnvironment: SessionEnvironment
     ) throws -> ShiftPlanningRequestObservation? {
         guard integer(data["schemaVersion"]) == 2 else { return nil }
         let requestID = try string(data, "requestId", resource: "shiftPlanningRequests.document")
@@ -17,9 +18,7 @@ enum ShiftPlanningInspectionCodec {
         guard let status = ShiftPlanningRequestStatus(rawValue: try string(data, "status")) else {
             throw RepositoryError.invalidData(resource: "shiftPlanningRequests.status")
         }
-        guard let environment = SessionEnvironment(rawValue: try string(data, "environment")) else {
-            throw RepositoryError.invalidData(resource: "shiftPlanningRequests.environment")
-        }
+        let environment = try observationEnvironment(data, expected: expectedEnvironment)
         let lifecycle = data["lifecycle"] as? [String: Any]
         if status == .requested, lifecycle != nil {
             throw RepositoryError.invalidData(resource: "shiftPlanningRequests.lifecycle")
@@ -56,6 +55,17 @@ enum ShiftPlanningInspectionCodec {
             failure: failure,
             candidateReference: candidateReference
         )
+    }
+
+    private static func observationEnvironment(
+        _ data: [String: Any],
+        expected: SessionEnvironment
+    ) throws -> SessionEnvironment {
+        guard let environment = SessionEnvironment(rawValue: try string(data, "environment")),
+              environment == expected else {
+            throw RepositoryError.invalidData(resource: "shiftPlanningRequests.environment")
+        }
+        return environment
     }
 
     static func candidate(

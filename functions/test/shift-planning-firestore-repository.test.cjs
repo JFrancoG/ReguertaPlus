@@ -170,7 +170,7 @@ const emptyBudget = (direction) => {
     byteEstimate: {
       status: "requiresPersistenceAdapter",
       estimatedBytes: null,
-      configuredByteLimit: 10 * 1024 * 1024,
+      configuredByteLimit: 8 * 1024 * 1024,
     },
   };
 };
@@ -330,7 +330,7 @@ const stableBundleFields = () => ({
   heldNotificationIntents: [],
   transactionRequirements: {
     writeLimit: 500,
-    byteLimit: 10 * 1024 * 1024,
+    byteLimit: 8 * 1024 * 1024,
     forwardManifestDigest:
       `shift-planning:v1:sha256:${"2".repeat(64)}`,
     inverseManifestDigest:

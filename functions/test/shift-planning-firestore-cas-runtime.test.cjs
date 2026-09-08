@@ -20,9 +20,9 @@ const {
   createShiftPlanningInverseRecoveryOutcome,
 } = require("../lib/shift-planning-firestore-cas-runtime.js");
 const {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+  SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
 } = require(
-  "../lib/shift-planning-firestore-transaction-serializer.js"
+  "../lib/shift-planning-firestore-transaction-manifest.js"
 );
 const {
   createShiftPlanningActivationOperationTerminal,
@@ -35,21 +35,14 @@ const databaseName = `projects/${projectId}/databases/(default)`;
 const indexConfigurationDigest = digest({indexes: "strict-v1"});
 
 const measurement = ({direction, manifestDigest, attemptNumber}) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  evidenceKind: "applicationAdmission",
   direction,
   manifestDigest,
-  databaseName,
-  writeSetDigest:
-    `shift-planning:firestore-write-set:v1:sha256:` +
-    `${String(attemptNumber).padStart(64, "a")}`,
-  commitRequestDigest:
-    `shift-planning:firestore-commit-request:v1:sha256:` +
-    `${String(attemptNumber).padStart(64, "b")}`,
+  logicalMutationDigest: digest({attemptNumber}),
   documentWriteCount: 2,
-  fieldTransformCount: 0,
-  maximumFieldTransformsPerDocument: 0,
-  requestByteCount: 512 + attemptNumber,
-  adapterRevision: SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+  estimatedRequestBytes: 512 + attemptNumber,
+  adapterRevision: SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
   indexConfigurationDigest,
 });
 
@@ -273,21 +266,6 @@ test(
     const database = new Firestore({projectId, databaseId: "(default)"});
     const stateReference = database.doc("casRuntime/forward-state");
     await stateReference.set({revision: 1});
-    const originalRequest = database.request;
-    let rejectFirstTransactionCommit = true;
-    database.request = async function(method, request, ...remaining) {
-      if (
-        method === "commit" &&
-        request.transaction &&
-        rejectFirstTransactionCommit
-      ) {
-        rejectFirstTransactionCommit = false;
-        const error = new Error("forced CAS retry");
-        error.code = 10;
-        throw error;
-      }
-      return originalRequest.call(this, method, request, ...remaining);
-    };
     const clockValues = [
       Timestamp.fromMillis(1_788_307_200_000),
       Timestamp.fromMillis(1_788_307_201_000),
@@ -301,8 +279,13 @@ test(
     );
     const runtime = createFirestoreShiftPlanningCasRuntime(database, {
       clock: () => clockValues.shift(),
-      measureForwardAttempt: async (input) => {
+      applyForwardAttempt: async (input) => {
         executorCalls += 1;
+        if (executorCalls === 1) {
+          const retry = new Error("retry callback from an aborted transaction");
+          retry.code = 10;
+          throw retry;
+        }
         const operation = activationOperation({
           operationId,
           attemptedAt: input.attemptedAt,
@@ -346,7 +329,7 @@ test(
     assert.equal(result.kind, "committed");
     assert.equal(result.outcomePersistenceKind, "committed");
     assert.equal(result.outcome.direction, "forward");
-    assert.match(result.outcome.attemptId, /2$/);
+    assert.equal(result.outcome.measurement.logicalMutationDigest, digest({attemptNumber: 2}));
     assert.equal((await stateReference.get()).get("revision"), 2);
     const outcomes = await operationReference.collection("attemptOutcomes").get();
     assert.equal(outcomes.size, 1);
@@ -407,7 +390,7 @@ test(
     ];
     const runtime = createFirestoreShiftPlanningCasRuntime(database, {
       clock: () => clockValues.shift(),
-      measureInverseAttempt: async (input) => {
+      applyInverseAttempt: async (input) => {
         const operation = recoveryOperation({
           activation: input.activationOperationDocument.data,
           recoveryOperationId: input.recoveryOperationId,
@@ -496,7 +479,7 @@ test(
 );
 
 test(
-  "fails closed when a committed activation has no retained outcome",
+  "recovers a committed activation receipt by read-back without another CAS",
   {skip: !process.env.FIRESTORE_EMULATOR_HOST},
   async () => {
     const database = new Firestore({projectId, databaseId: "(default)"});
@@ -510,29 +493,21 @@ test(
     }));
     const runtime = createFirestoreShiftPlanningCasRuntime(database);
 
-    await assert.rejects(
-      runtime.executeForwardActivation({
-        environment,
-        operationId,
-        workerId: "worker-must-not-run",
-        fencingEpoch: 1,
-        leaseDurationMillis: 60_000,
-        resolveAttempt: async () => {
-          throw new Error("missing outcome must block another CAS");
-        },
-      }),
-      errorCode("invalid_planning_attempt_outcome"),
-    );
-    assert.equal(
-      (await operationReference.collection("attemptOutcomes").get()).size,
-      0,
-    );
+    const result = await runtime.executeForwardActivation({
+      environment, operationId, workerId: "must-not-run", fencingEpoch: 1,
+      leaseDurationMillis: 60_000,
+      resolveAttempt: async () => { throw new Error("read-back must not repeat CAS"); },
+    });
+    assert.equal(result.kind, "terminalReplay");
+    assert.equal(result.outcome.acknowledgement, "operationReadBack");
+    assert.equal(result.outcome.measurement, null);
+    assert.equal((await operationReference.collection("attemptOutcomes").get()).size, 1);
     await database.terminate();
   },
 );
 
 test(
-  "fails closed when a committed recovery has no retained outcome",
+  "recovers an inverse receipt by read-back without another CAS",
   {skip: !process.env.FIRESTORE_EMULATOR_HOST},
   async () => {
     const database = new Firestore({projectId, databaseId: "(default)"});
@@ -552,21 +527,70 @@ test(
     }));
     const runtime = createFirestoreShiftPlanningCasRuntime(database);
 
-    await assert.rejects(
-      runtime.executeInverseRecovery({
-        environment,
-        activationOperationId: operationId,
-        recoveryOperationId,
-        resolveAttempt: async () => {
-          throw new Error("missing inverse outcome must block another CAS");
-        },
-      }),
-      errorCode("invalid_planning_attempt_outcome"),
-    );
-    assert.equal(
-      (await operationReference.collection("attemptOutcomes").get()).size,
-      0,
-    );
+    const result = await runtime.executeInverseRecovery({
+      environment, activationOperationId: operationId, recoveryOperationId,
+      resolveAttempt: async () => { throw new Error("read-back must not repeat CAS"); },
+    });
+    assert.equal(result.kind, "terminalReplay");
+    assert.equal(result.outcome.acknowledgement, "operationReadBack");
+    assert.equal(result.outcome.measurement, null);
+    assert.equal((await operationReference.collection("attemptOutcomes").get()).size, 1);
     await database.terminate();
+  },
+);
+
+test(
+  "a lost post-commit receipt is recovered without advancing business state twice",
+  {skip: !process.env.FIRESTORE_EMULATOR_HOST},
+  async () => {
+    const database = new Firestore({projectId, databaseId: "(default)"});
+    try {
+      const operationId = "request-lost-receipt-after-commit";
+      const stateReference = database.doc("casRuntime/lost-receipt-state");
+      const operationReference = database.doc(
+        `${environment}/plus-collections/shiftPlanningOperations/${operationId}`,
+      );
+      await stateReference.set({revision: 1});
+      let applications = 0;
+      const unavailable = new Error("receipt persistence unavailable after commit");
+      const firstRuntime = createFirestoreShiftPlanningCasRuntime(database, {
+        outcomePersistence: {
+          retainCommittedOutcomeAndReadBack: async () => { throw unavailable; },
+        },
+        applyForwardAttempt: async (input) => {
+          applications += 1;
+          const operation = activationOperation({operationId, attemptedAt: input.attemptedAt});
+          input.transaction.update(stateReference, {revision: 2});
+          input.transaction.create(operationReference, operation);
+          return {
+            materialization: {operation},
+            measurement: measurement({direction: "forward", manifestDigest: operation.forwardManifestDigest, attemptNumber: 1}),
+          };
+        },
+      });
+      const request = {
+        environment, operationId, workerId: "original-worker", fencingEpoch: 1,
+        leaseDurationMillis: 60_000,
+        resolveAttempt: async ({transaction}) => {
+          await transaction.get(stateReference);
+          return {};
+        },
+      };
+      await assert.rejects(firstRuntime.executeForwardActivation(request), (error) => error === unavailable);
+      assert.equal((await stateReference.get()).get("revision"), 2);
+      assert.equal((await operationReference.collection("attemptOutcomes").get()).size, 0);
+      const secondRuntime = createFirestoreShiftPlanningCasRuntime(database);
+      const recovered = await secondRuntime.executeForwardActivation({
+        ...request,
+        resolveAttempt: async () => { throw new Error("must use terminal read-back"); },
+      });
+      assert.equal(recovered.outcome.acknowledgement, "operationReadBack");
+      assert.equal(recovered.outcome.measurement, null);
+      assert.equal((await stateReference.get()).get("revision"), 2);
+      assert.equal(applications, 1);
+      assert.equal((await operationReference.collection("attemptOutcomes").get()).size, 1);
+    } finally {
+      await database.terminate();
+    }
   },
 );

@@ -221,6 +221,8 @@ extension ShiftsFeatureViewModel {
         }
         guard isCurrentSession(context), pendingShiftPlanningRequest?.id == request.id else { return }
         pendingShiftPlanningRequest = nil
+        selectedShiftPlanningRequestID = request.id
+        startShiftPlanningObservation()
     }
 }
 

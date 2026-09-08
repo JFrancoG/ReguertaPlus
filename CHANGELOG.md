@@ -156,6 +156,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-09-08 | 🐛 fix(shifts): resolve HU-082 audit findings
 - 2026-08-29 | 🐛 fix(shifts): require owned preview staging
 - 2026-08-29 | 🐛 fix(shifts): bind recovery replay identity
 - 2026-08-29 | 🐛 fix(shifts): deny client shift activation

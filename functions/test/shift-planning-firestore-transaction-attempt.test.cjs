@@ -1,581 +1,102 @@
 "use strict";
-
 const assert = require("node:assert/strict");
-const {createHash} = require("node:crypto");
 const {test} = require("node:test");
+const {Firestore, Timestamp, FieldValue} = require("@google-cloud/firestore");
+const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {
-  Firestore,
-  Timestamp,
-  Transaction,
-  v1,
-} = require("@google-cloud/firestore");
-
-const {
-  measureAndSealShiftPlanningFirestoreTransactionAttempt,
-} = require(
-  "../lib/shift-planning-firestore-transaction-attempt.js"
-);
-const {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
-} = require(
-  "../lib/shift-planning-firestore-transaction-serializer.js"
-);
-
-const PROJECT_ID = "demo-reguerta-hu082-transaction-attempt";
-const MANIFEST_DIGEST = `shift-planning:v1:sha256:${"a".repeat(64)}`;
-const INDEX_DIGEST = `shift-planning:v1:sha256:${"b".repeat(64)}`;
-const COMMIT_DIGEST_PREFIX =
-  "shift-planning:firestore-commit-request:v1:sha256:";
-const FENCE_CHECKED_AT = Timestamp.fromMillis(1_788_393_900_000);
-const VALIDATION_DIGEST = `shift-planning:v1:sha256:${"f".repeat(64)}`;
-
-const requireEmulator = () => {
-  assert.ok(
-    process.env.FIRESTORE_EMULATOR_HOST,
-    "FIRESTORE_EMULATOR_HOST is required for this suite",
-  );
-};
-
-const firestore = () => {
-  requireEmulator();
-  return new Firestore({
-    projectId: PROJECT_ID,
-    databaseId: "(default)",
-  });
-};
-
-const measurementInput = ({database, transaction, mutations}) => ({
-  firestore: database,
-  transaction,
-  mutations,
-  writerFenceCheckedAt: FENCE_CHECKED_AT,
-  direction: "forward",
-  manifestDigest: MANIFEST_DIGEST,
+  applyShiftPlanningFirestoreTransactionAttempt: apply,
+} = require("../lib/shift-planning-firestore-transaction-attempt.js");
+const {SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION} = require("../lib/shift-planning-firestore-transaction-manifest.js");
+const emulator = (name, run) => test(name, {skip: !process.env.FIRESTORE_EMULATOR_HOST}, async () => {
+  const database = new Firestore({projectId: "demo-reguerta-hu082-transaction-attempt"});
+  try { await run(database); } finally { await database.terminate(); }
+});
+const input = (database, transaction, mutations) => ({
+  firestore: database, transaction, mutations, writerFenceCheckedAt: Timestamp.now(),
+  direction: "forward", manifestDigest: digest({plan: "atomic"}),
   expectedDocumentWriteCount: mutations.length,
-  authority: {
-    adapterRevision: SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
-    indexConfigurationDigest: INDEX_DIGEST,
-  },
+  authority: {adapterRevision: SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION, indexConfigurationDigest: digest({indexes: "test"})},
 });
 
-const resourceFence = ({shiftId, acquiredAtMillis, extra = {}}) => ({
-  schemaVersion: 1,
-  operationKind: "notificationDispatchResourceFence",
-  scope: "shift",
-  resourceId: shiftId,
-  intentId: "intent-1",
-  eventId: "event-1",
-  attemptId: "attempt-1",
-  workerId: "worker-1",
-  leaseEpoch: 1,
-  acquiredAt: Timestamp.fromMillis(acquiredAtMillis),
-  expiresAt: Timestamp.fromMillis(acquiredAtMillis + 30_000),
-  validationDigest: VALIDATION_DIGEST,
-  ...extra,
-});
-
-const captureTransactionCommits = (database) => {
-  const requests = [];
-  const originalRequest = database.request;
-  database.request = async function(method, request, ...remaining) {
-    if (method === "commit" && request.transaction) {
-      requests.push(request);
-    }
-    return originalRequest.call(this, method, request, ...remaining);
-  };
-  return requests;
-};
-
-let commitCodec;
-const encodedCommitRequest = (request) => {
-  if (!commitCodec) {
-    const client = new v1.FirestoreClient({
-      projectId: "shift-planning-attempt-test-codec",
-      fallback: true,
-    });
-    commitCodec = client._protos.lookupType(
-      "google.firestore.v1.CommitRequest",
-    );
-  }
-  return Buffer.from(
-    commitCodec.encode(commitCodec.fromObject(request)).finish(),
-  );
-};
-
-const commitDigest = (request) => {
-  const bytes = encodedCommitRequest(request);
-  return {
-    byteCount: bytes.byteLength,
-    digest: `${COMMIT_DIGEST_PREFIX}${
-      createHash("sha256").update(bytes).digest("hex")
-    }`,
-  };
-};
-
-test("measures and commits the exact SDK-owned transaction batch", async () => {
-  const database = firestore();
-  const stateReference = database.doc("attemptState/current");
-  const bypassReference = database.doc("publicShifts/bypass");
-  const shiftReference = database.doc("publicShifts/shift-a");
-  await stateReference.set({revision: 1});
-  const committedRequests = captureTransactionCommits(database);
-
-  const measurement = await database.runTransaction(async (transaction) => {
-    const state = await transaction.get(stateReference);
-    const mutations = [
-      {
-        kind: "create",
-        documentPath: shiftReference.path,
-        data: {ownerUserId: "member-1"},
-      },
-      {
-        kind: "update",
-        documentPath: stateReference.path,
-        data: {revision: state.get("revision") + 1},
-      },
-    ];
-    const result = await measureAndSealShiftPlanningFirestoreTransactionAttempt(
-      measurementInput({database, transaction, mutations}),
-    );
-    const measuredBatch = transaction._writeBatch;
-    const replacementBatch = database.batch();
-    replacementBatch.create(bypassReference, {ownerUserId: "bypass"});
-
-    assert.throws(
-      () => {
-        transaction._writeBatch = replacementBatch;
-      },
-      (error) => error.code === "invalid_planning_transaction",
-    );
-    assert.throws(
-      () => {
-        transaction.commit = async () => replacementBatch.commit();
-      },
-      (error) => error.code === "invalid_planning_transaction",
-    );
-    assert.throws(
-      () => {
-        transaction._firestore = {};
-      },
-      (error) => error.code === "invalid_planning_transaction",
-    );
-    assert.equal(transaction._writeBatch, measuredBatch);
-
-    assert.throws(
-      () => transaction._writeBatch._ops.push({docPath: "escape", op: () => ({})}),
-      TypeError,
-    );
-    assert.throws(
-      () => {
-        transaction._writeBatch._ops = [];
-      },
-      (error) => error.code === "invalid_planning_transaction",
-    );
-    assert.throws(
-      () => {
-        transaction._writeBatch._ops[0].op = () => ({delete: "escape"});
-      },
-      TypeError,
-    );
+emulator("public transaction applies create/update/delete atomically with detached values", async (database) => {
+  const state = database.doc("attemptState/current");
+  const removed = database.doc("attemptState/removed");
+  const created = database.doc("attemptState/created");
+  await state.set({revision: 1, obsolete: true});
+  await removed.set({value: "before"});
+  const evidence = await database.runTransaction(async (transaction) => {
+    const [current, before] = await transaction.getAll(state, removed);
+    const data = {nested: {value: "original"}, bytes: Buffer.from([1, 2])};
+    const result = await apply(input(database, transaction, [
+      {kind: "create", documentPath: created.path, data},
+      {kind: "update", documentPath: state.path, data: {revision: current.get("revision") + 1, obsolete: FieldValue.delete()}, precondition: {lastUpdateTime: current.updateTime}},
+      {kind: "delete", documentPath: removed.path, precondition: {lastUpdateTime: before.updateTime}},
+    ]));
+    data.nested.value = "changed";
+    data.bytes.fill(9);
     return result;
   });
-
-  assert.equal(committedRequests.length, 1);
-  const transported = commitDigest(committedRequests[0]);
-  assert.equal(measurement.commitRequestDigest, transported.digest);
-  assert.equal(measurement.requestByteCount, transported.byteCount);
-  assert.deepEqual(
-    committedRequests[0].writes.map((write) => write.update?.name ?? write.delete),
-    [stateReference.formattedName, shiftReference.formattedName],
-  );
-  assert.equal("transactionToken" in measurement, false);
-  assert.equal((await stateReference.get()).get("revision"), 2);
-  assert.deepEqual((await shiftReference.get()).data(), {
-    ownerUserId: "member-1",
-  });
-  assert.equal((await bypassReference.get()).exists, false);
-  await database.terminate();
+  assert.deepEqual((await state.get()).data(), {revision: 2});
+  assert.equal((await removed.get()).exists, false);
+  assert.deepEqual((await created.get()).data(), {nested: {value: "original"}, bytes: Buffer.from([1, 2])});
+  assert.equal(evidence.documentWriteCount, 3);
+  assert.equal(evidence.evidenceKind, "applicationAdmission");
 });
 
-test("resets and remeasures the actual batch for every SDK retry", async () => {
-  const database = firestore();
-  const stateReference = database.doc("retryState/current");
-  const shiftReference = database.doc("retryShifts/shift-a");
-  await stateReference.set({revision: 1});
-  const attemptedRequests = [];
-  const originalRequest = database.request;
-  let rejectFirstCommit = true;
-  database.request = async function(method, request, ...remaining) {
-    if (method === "commit" && request.transaction) {
-      attemptedRequests.push(request);
-      if (rejectFirstCommit) {
-        rejectFirstCommit = false;
-        const error = new Error("forced emulator commit retry");
-        error.code = 10;
-        throw error;
-      }
-    }
-    return originalRequest.call(this, method, request, ...remaining);
-  };
-  const measurements = [];
+emulator("server rejection leaves every logical write unapplied", async (database) => {
+  const existing = database.doc("atomicReject/existing");
+  const state = database.doc("atomicReject/state");
+  await existing.set({value: "existing"});
+  await state.set({revision: 1});
+  await assert.rejects(database.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(state);
+    return apply(input(database, transaction, [
+      {kind: "create", documentPath: existing.path, data: {value: "forbidden"}},
+      {kind: "update", documentPath: state.path, data: {revision: 2}, precondition: {lastUpdateTime: snapshot.updateTime}},
+    ]));
+  }));
+  assert.deepEqual((await existing.get()).data(), {value: "existing"});
+  assert.deepEqual((await state.get()).data(), {revision: 1});
+});
+
+emulator("each retry re-reads authority and constructs a new admitted manifest", async (database) => {
+  const state = database.doc("attemptRetry/state");
+  await state.set({revision: 1});
   let attempts = 0;
-
-  await database.runTransaction(async (transaction) => {
+  const result = await database.runTransaction(async (transaction) => {
     attempts += 1;
-    const state = await transaction.get(stateReference);
-    const mutations = [
-      {
-        kind: "update",
-        documentPath: stateReference.path,
-        data: {revision: state.get("revision") + 1},
-      },
-      {
-        kind: "create",
-        documentPath: shiftReference.path,
-        data: {ownerUserId: "member-2"},
-      },
-    ];
-    measurements.push(
-      await measureAndSealShiftPlanningFirestoreTransactionAttempt(
-        measurementInput({database, transaction, mutations}),
-      ),
-    );
-  }, {maxAttempts: 3});
-
+    const snapshot = await transaction.get(state);
+    if (attempts === 1) {
+      const error = new Error("ABORTED callback retry"); error.code = 10; throw error;
+    }
+    return apply(input(database, transaction, [{
+      kind: "update", documentPath: state.path, data: {revision: snapshot.get("revision") + 1},
+      precondition: {lastUpdateTime: snapshot.updateTime},
+    }]));
+  });
   assert.equal(attempts, 2);
-  assert.equal(measurements.length, 2);
-  assert.equal(
-    measurements[0].writeSetDigest,
-    measurements[1].writeSetDigest,
-  );
-  assert.notEqual(
-    measurements[0].commitRequestDigest,
-    measurements[1].commitRequestDigest,
-  );
-  assert.equal(attemptedRequests.length, 2);
-  assert.equal(
-    measurements[0].commitRequestDigest,
-    commitDigest(attemptedRequests[0]).digest,
-  );
-  assert.equal(
-    measurements[1].commitRequestDigest,
-    commitDigest(attemptedRequests[1]).digest,
-  );
-  assert.equal((await stateReference.get()).get("revision"), 2);
-  assert.equal((await shiftReference.get()).exists, true);
-  await database.terminate();
+  assert.equal((await state.get()).get("revision"), 2);
+  assert.equal(result.documentWriteCount, 1);
 });
 
-test("write-budget overflow commits no public or state write", async () => {
-  const database = firestore();
-  const stateReference = database.doc("oversizeState/write-budget");
-  const shiftReference = database.doc(
-    "develop/plus-collections/shifts/shift-oversize-write",
-  );
-  await stateReference.set({revision: 1});
-  const committedRequests = captureTransactionCommits(database);
-
-  await assert.rejects(
-    database.runTransaction(async (transaction) => {
-      const state = await transaction.get(stateReference);
-      const mutations = [{
-        kind: "update",
-        documentPath: stateReference.path,
-        data: {revision: state.get("revision") + 1},
-      }, {
-        kind: "create",
-        documentPath: shiftReference.path,
-        data: {ownerUserId: "member-oversize"},
-      }];
-      return measureAndSealShiftPlanningFirestoreTransactionAttempt({
-        ...measurementInput({database, transaction, mutations}),
-        writeLimit: 1,
-      });
-    }, {maxAttempts: 1}),
-    (error) => error.code === "planning_bundle_oversize",
-  );
-
-  assert.equal(committedRequests.length, 0);
-  assert.equal((await stateReference.get()).get("revision"), 1);
-  assert.equal((await shiftReference.get()).exists, false);
-  await database.terminate();
-});
-
-test("byte-budget overflow commits no public or state write", async () => {
-  const database = firestore();
-  const stateReference = database.doc("oversizeState/byte-budget");
-  const shiftReference = database.doc(
-    "develop/plus-collections/shifts/shift-oversize-bytes",
-  );
-  await stateReference.set({revision: 1});
-  const committedRequests = captureTransactionCommits(database);
-
-  await assert.rejects(
-    database.runTransaction(async (transaction) => {
-      const state = await transaction.get(stateReference);
-      const mutations = [{
-        kind: "update",
-        documentPath: stateReference.path,
-        data: {revision: state.get("revision") + 1},
-      }, {
-        kind: "create",
-        documentPath: shiftReference.path,
-        data: {
-          ownerUserId: "member-oversize",
-          notes: "x".repeat(1_024),
-        },
-      }];
-      return measureAndSealShiftPlanningFirestoreTransactionAttempt({
-        ...measurementInput({database, transaction, mutations}),
-        byteLimit: 128,
-      });
-    }, {maxAttempts: 1}),
-    (error) => error.code === "planning_bundle_oversize",
-  );
-
-  assert.equal(committedRequests.length, 0);
-  assert.equal((await stateReference.get()).get("revision"), 1);
-  assert.equal((await shiftReference.get()).exists, false);
-  await database.terminate();
-});
-
-test("active public-shift fence rejects the complete measured attempt", async () => {
-  const database = firestore();
-  const shiftId = "shift-fenced-active";
-  const stateReference = database.doc("fencedState/active");
-  const shiftReference = database.doc(
-    `develop/plus-collections/shifts/${shiftId}`,
-  );
-  const fenceReference = database.doc(
-    `develop/plus-collections/shiftPlanningNotificationFences/shift:${shiftId}`,
-  );
-  await stateReference.set({revision: 1});
-  await fenceReference.set(resourceFence({
-    shiftId,
-    acquiredAtMillis: FENCE_CHECKED_AT.toMillis(),
+emulator("notification writer fence blocks the entire public shift transaction", async (database) => {
+  const root = "develop/plus-collections";
+  const shiftId = "blocked-shift";
+  const now = Timestamp.now();
+  await database.doc(`${root}/shiftPlanningNotificationFences/shift:${shiftId}`).set({
+    schemaVersion: 1, operationKind: "notificationDispatchResourceFence", scope: "shift", resourceId: shiftId,
+    intentId: "intent-1", eventId: "event-1", attemptId: "attempt-1", workerId: "worker-1", leaseEpoch: 1,
+    acquiredAt: now, expiresAt: Timestamp.fromMillis(now.toMillis() + 60_000), validationDigest: digest({valid: true}),
+  });
+  const state = database.doc("fencedAttempt/state");
+  await state.set({revision: 1});
+  await assert.rejects(database.runTransaction(async (transaction) => {
+    await transaction.get(state);
+    return apply(input(database, transaction, [
+      {kind: "create", documentPath: `${root}/shifts/${shiftId}`, data: {owner: "one"}},
+      {kind: "update", documentPath: state.path, data: {revision: 2}},
+    ]));
   }));
-  const committedRequests = captureTransactionCommits(database);
-
-  await assert.rejects(
-    database.runTransaction(async (transaction) => {
-      const state = await transaction.get(stateReference);
-      const mutations = [{
-        kind: "update",
-        documentPath: stateReference.path,
-        data: {revision: state.get("revision") + 1},
-      }, {
-        kind: "create",
-        documentPath: shiftReference.path,
-        data: {ownerUserId: "member-4"},
-      }];
-      return measureAndSealShiftPlanningFirestoreTransactionAttempt(
-        measurementInput({database, transaction, mutations}),
-      );
-    }, {maxAttempts: 1}),
-    (error) => error.code === "planning_release_lease_conflict",
-  );
-
-  assert.equal(committedRequests.length, 0);
-  assert.equal((await stateReference.get()).get("revision"), 1);
-  assert.equal((await shiftReference.get()).exists, false);
-  await database.terminate();
-});
-
-test("expired exact public-shift fence permits one measured attempt", async () => {
-  const database = firestore();
-  const shiftId = "shift-fenced-expired";
-  const stateReference = database.doc("fencedState/expired");
-  const shiftReference = database.doc(
-    `develop/plus-collections/shifts/${shiftId}`,
-  );
-  const fenceReference = database.doc(
-    `develop/plus-collections/shiftPlanningNotificationFences/shift:${shiftId}`,
-  );
-  await stateReference.set({revision: 1});
-  await fenceReference.set(resourceFence({
-    shiftId,
-    acquiredAtMillis: FENCE_CHECKED_AT.toMillis() - 30_000,
-  }));
-
-  await database.runTransaction(async (transaction) => {
-    const state = await transaction.get(stateReference);
-    const mutations = [{
-      kind: "update",
-      documentPath: stateReference.path,
-      data: {revision: state.get("revision") + 1},
-    }, {
-      kind: "create",
-      documentPath: shiftReference.path,
-      data: {ownerUserId: "member-5"},
-    }];
-    return measureAndSealShiftPlanningFirestoreTransactionAttempt(
-      measurementInput({database, transaction, mutations}),
-    );
-  }, {maxAttempts: 1});
-
-  assert.equal((await stateReference.get()).get("revision"), 2);
-  assert.equal((await shiftReference.get()).exists, true);
-  await database.terminate();
-});
-
-test("malformed public-shift fence fails closed before transport", async () => {
-  const database = firestore();
-  const shiftId = "shift-fenced-malformed";
-  const stateReference = database.doc("fencedState/malformed");
-  const shiftReference = database.doc(
-    `develop/plus-collections/shifts/${shiftId}`,
-  );
-  const fenceReference = database.doc(
-    `develop/plus-collections/shiftPlanningNotificationFences/shift:${shiftId}`,
-  );
-  await stateReference.set({revision: 1});
-  await fenceReference.set(resourceFence({
-    shiftId,
-    acquiredAtMillis: FENCE_CHECKED_AT.toMillis() - 30_000,
-    extra: {unexpected: true},
-  }));
-  const committedRequests = captureTransactionCommits(database);
-
-  await assert.rejects(
-    database.runTransaction(async (transaction) => {
-      const state = await transaction.get(stateReference);
-      const mutations = [{
-        kind: "update",
-        documentPath: stateReference.path,
-        data: {revision: state.get("revision") + 1},
-      }, {
-        kind: "create",
-        documentPath: shiftReference.path,
-        data: {ownerUserId: "member-6"},
-      }];
-      return measureAndSealShiftPlanningFirestoreTransactionAttempt(
-        measurementInput({database, transaction, mutations}),
-      );
-    }, {maxAttempts: 1}),
-    (error) => error.code === "invalid_planning_transaction",
-  );
-
-  assert.equal(committedRequests.length, 0);
-  assert.equal((await stateReference.get()).get("revision"), 1);
-  assert.equal((await shiftReference.get()).exists, false);
-  await database.terminate();
-});
-
-test("rejects shadowed SDK batch methods before transport", async () => {
-  const database = firestore();
-  const stateReference = database.doc("shadowState/current");
-  await stateReference.set({revision: 1});
-  const committedRequests = captureTransactionCommits(database);
-
-  for (const method of ["_commit", "_reset"]) {
-    const targetReference = database.doc(`shadowShifts/${method.slice(1)}`);
-    await assert.rejects(
-      database.runTransaction(async (transaction) => {
-        await transaction.get(stateReference);
-        transaction._writeBatch[method] = async () => {
-          throw new Error("shadowed method must never execute");
-        };
-        const mutations = [{
-          kind: "create",
-          documentPath: targetReference.path,
-          data: {ownerUserId: "shadow"},
-        }];
-        return measureAndSealShiftPlanningFirestoreTransactionAttempt(
-          measurementInput({database, transaction, mutations}),
-        );
-      }, {maxAttempts: 1}),
-      (error) => error.code === "planning_transaction_adapter_drift",
-    );
-    assert.equal((await targetReference.get()).exists, false);
-  }
-
-  const commitTarget = database.doc("shadowShifts/transaction-commit");
-  await assert.rejects(
-    database.runTransaction(async (transaction) => {
-      await transaction.get(stateReference);
-      transaction.commit = async () => {
-        throw new Error("shadowed commit must never execute");
-      };
-      const mutations = [{
-        kind: "create",
-        documentPath: commitTarget.path,
-        data: {ownerUserId: "shadow"},
-      }];
-      return measureAndSealShiftPlanningFirestoreTransactionAttempt(
-        measurementInput({database, transaction, mutations}),
-      );
-    }, {maxAttempts: 1}),
-    (error) => error.code === "planning_transaction_adapter_drift",
-  );
-  assert.equal((await commitTarget.get()).exists, false);
-
-  const prototypeTarget = database.doc("shadowShifts/prototype-commit");
-  const originalPrototypeCommit = Transaction.prototype.commit;
-  Transaction.prototype.commit = async () => {
-    throw new Error("drifted prototype must never execute");
-  };
-  try {
-    await assert.rejects(
-      database.runTransaction(async (transaction) => {
-        await transaction.get(stateReference);
-        const mutations = [{
-          kind: "create",
-          documentPath: prototypeTarget.path,
-          data: {ownerUserId: "shadow"},
-        }];
-        return measureAndSealShiftPlanningFirestoreTransactionAttempt(
-          measurementInput({database, transaction, mutations}),
-        );
-      }, {maxAttempts: 1}),
-      (error) => error.code === "planning_transaction_adapter_drift",
-    );
-  } finally {
-    Transaction.prototype.commit = originalPrototypeCommit;
-  }
-  assert.equal((await prototypeTarget.get()).exists, false);
-
-  assert.equal(committedRequests.length, 0);
-  await database.terminate();
-});
-
-test("rejects missing reads and writes outside the attempt adapter", async () => {
-  const database = firestore();
-  const stateReference = database.doc("invalidState/current");
-  const outsideReference = database.doc("invalidShifts/outside");
-  const targetReference = database.doc("invalidShifts/target");
-  await stateReference.set({revision: 1});
-
-  await assert.rejects(
-    database.runTransaction(async (transaction) => {
-      const mutations = [{
-        kind: "create",
-        documentPath: targetReference.path,
-        data: {ownerUserId: "member-3"},
-      }];
-      return measureAndSealShiftPlanningFirestoreTransactionAttempt(
-        measurementInput({database, transaction, mutations}),
-      );
-    }, {maxAttempts: 1}),
-    (error) => error.code === "invalid_planning_transaction",
-  );
-
-  await assert.rejects(
-    database.runTransaction(async (transaction) => {
-      await transaction.get(stateReference);
-      transaction.create(outsideReference, {ownerUserId: "outside"});
-      const mutations = [{
-        kind: "create",
-        documentPath: targetReference.path,
-        data: {ownerUserId: "member-3"},
-      }];
-      return measureAndSealShiftPlanningFirestoreTransactionAttempt(
-        measurementInput({database, transaction, mutations}),
-      );
-    }, {maxAttempts: 1}),
-    (error) => error.code === "invalid_planning_transaction",
-  );
-
-  assert.equal((await outsideReference.get()).exists, false);
-  assert.equal((await targetReference.get()).exists, false);
-  await database.terminate();
+  assert.equal((await database.doc(`${root}/shifts/${shiftId}`).get()).exists, false);
+  assert.equal((await state.get()).get("revision"), 1);
 });

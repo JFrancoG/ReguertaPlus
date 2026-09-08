@@ -5,7 +5,7 @@ import {
 
 export const SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION = 1 as const;
 export const SHIFT_PLANNING_WRITER_INVENTORY_REVISION =
-  "hu082-affected-writers-v1" as const;
+  "hu082-affected-writers-v2" as const;
 
 export type ShiftPlanningWriterControl =
   | "rules-deny"
@@ -152,6 +152,18 @@ const affectedWriters = [
     sourceReferences: [
       "functions/src/index.ts#onShiftPlanningRequestCreated",
       "functions/src/index.ts#persistPlannedShifts",
+    ],
+  },
+  {
+    writerId: "trigger-on-versioned-shift-planning-request-created",
+    control: "disable-delivery-after-drain",
+    requiredState: "disabled",
+    shutdownOrder: "after-causal-drain",
+    targets: ["firestore.shiftPlanningRequests", "firestore.shifts"],
+    sourceReferences: [
+      "functions/src/index.ts#onVersionedShiftPlanningRequestCreated",
+      "functions/src/shift-planning-request-trigger.ts",
+      "functions/src/shift-planning-firestore-runtime.ts#executeRequest",
     ],
   },
   {

@@ -1,5 +1,7 @@
 # ADR-0013: Model Shifts as Continuous Rotations with Seasonal Projections
 
+Partially superseded on 2026-09-08 by [ADR-0014](0014-use-public-firestore-transactions-for-shift-planning.md) for transaction admission and attempt outcomes. The original decision below is retained as history.
+
 ## Status
 
 Accepted

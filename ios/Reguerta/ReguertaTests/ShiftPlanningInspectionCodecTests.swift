@@ -9,7 +9,8 @@ struct ShiftPlanningInspectionCodecTests {
     @Test func legacyRequestIsNotExposedAsV2Observation() throws {
         let observation = try ShiftPlanningInspectionCodec.observation(
             documentID: "legacy-request",
-            data: ["type": "delivery", "status": "completed"]
+            data: ["type": "delivery", "status": "completed"],
+            expectedEnvironment: .develop
         )
 
         #expect(observation == nil)
@@ -19,7 +20,8 @@ struct ShiftPlanningInspectionCodecTests {
         let observation = try #require(
             try ShiftPlanningInspectionCodec.observation(
                 documentID: "stage-request",
-                data: completedStageRequest()
+                data: completedStageRequest(),
+                expectedEnvironment: .develop
             )
         )
 
@@ -36,7 +38,8 @@ struct ShiftPlanningInspectionCodecTests {
         let reference = try #require(
             try ShiftPlanningInspectionCodec.observation(
                 documentID: "stage-request",
-                data: completedStageRequest()
+                data: completedStageRequest(),
+                expectedEnvironment: .develop
             )?.candidateReference
         )
 
@@ -46,6 +49,23 @@ struct ShiftPlanningInspectionCodecTests {
                 data: candidateHeader(positionDocumentCount: 2),
                 positionDocuments: [("delivery-1", candidatePosition(id: "delivery-1"))],
                 reference: reference
+            )
+        }
+    }
+
+    @Test(arguments: [(SessionEnvironment.develop, "production"), (.production, "develop")])
+    func candidateReferenceCannotEscapeTheObservedEnvironment(
+        expectedEnvironment: SessionEnvironment,
+        storedEnvironment: String
+    ) {
+        var payload = completedStageRequest()
+        payload["environment"] = storedEnvironment
+
+        #expect(throws: RepositoryError.invalidData(resource: "shiftPlanningRequests.environment")) {
+            try ShiftPlanningInspectionCodec.observation(
+                documentID: "stage-request",
+                data: payload,
+                expectedEnvironment: expectedEnvironment
             )
         }
     }

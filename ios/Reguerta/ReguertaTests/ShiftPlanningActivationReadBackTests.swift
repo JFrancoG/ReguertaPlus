@@ -77,8 +77,10 @@ private actor ActivationObservationRepository: ShiftPlanningRequestRepository {
         request
     }
 
-    func observeLatestV2Request(
-        environment _: SessionEnvironment
+    func observeV2Request(
+        environment _: SessionEnvironment,
+        requestedByUserID _: String,
+        requestID _: String?
     ) async -> AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error> {
         let pair = AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error>.makeStream()
         continuation = pair.continuation

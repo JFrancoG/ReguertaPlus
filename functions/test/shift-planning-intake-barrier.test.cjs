@@ -214,6 +214,7 @@ test("keeps the complete affected-writer inventory versioned", () => {
       "https-export-shifts-to-google-sheets",
       "https-transition-shift-swap",
       "trigger-on-shift-planning-request-created",
+      "trigger-on-versioned-shift-planning-request-created",
       "trigger-on-shift-written",
       "trigger-on-delivery-calendar-override-written",
       "trigger-on-notification-event-created",
@@ -237,7 +238,7 @@ test("keeps the complete affected-writer inventory versioned", () => {
   assert.equal(
     SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
     "shift-planning:v1:sha256:" +
-      "1f284658e5d076f795b1e5cd40944dc3d93ed7c7abfd3fca82f41aef11fc2c62",
+      "dd6dcc606974aa48eaa69d408219e5481989781ffab9be09689c02a3d7e65a66",
   );
   assert.deepEqual(
     SHIFT_PLANNING_AFFECTED_WRITERS.find(
@@ -383,6 +384,27 @@ test("rejects missing, duplicate, extra, active, or undrained writers", () => {
         command(),
         530,
       ),
+      barrierFailure,
+    );
+  }
+});
+
+test("maintenance requires disabled v2 delivery with no pending or in-flight retries", () => {
+  const writerId = "trigger-on-versioned-shift-planning-request-created";
+  const writer = SHIFT_PLANNING_INTAKE_BARRIER_WRITERS.find((entry) => entry.writerId === writerId);
+  assert.equal(writer.shutdownOrder, "after-causal-drain");
+  assert.equal(writer.control, "disable-delivery-after-drain");
+  const accepted = verifyShiftPlanningIntakeBarrierEvidence(envelope(), command(), 530);
+  assert.equal(accepted.barrier.revision, "intake-barrier-7");
+
+  for (const mutate of [
+    (value) => { value.writerControls = value.writerControls.filter((entry) => entry.writerId !== writerId); },
+    (value) => { value.writerControls.find((entry) => entry.writerId === writerId).pendingWorkCount = 1; },
+    (value) => { value.writerControls.find((entry) => entry.writerId === writerId).inFlightWorkCount = 1; },
+    (value) => { value.writerControls.find((entry) => entry.writerId === writerId).state = "enabled"; },
+  ]) {
+    assert.throws(
+      () => verifyShiftPlanningIntakeBarrierEvidence(mutateAndRehash(mutate), command(), 530),
       barrierFailure,
     );
   }

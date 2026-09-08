@@ -8,11 +8,11 @@ import {
 import {ShiftPlanningError} from "./shift-planning-contract.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {
-  ShiftPlanningFirestoreCommitMeasurement,
+  ShiftPlanningFirestoreAdmission,
   ShiftPlanningFirestoreMutation,
-} from "./shift-planning-firestore-transaction-serializer.js";
+} from "./shift-planning-firestore-transaction-manifest.js";
 import {
-  measureAndSealShiftPlanningFirestoreTransactionAttempt,
+  applyShiftPlanningFirestoreTransactionAttempt,
 } from "./shift-planning-firestore-transaction-attempt.js";
 import {
   ShiftPlanningPersistedBundle,
@@ -85,7 +85,7 @@ export type ShiftPlanningInverseRecoveryMaterialization = {
   mutations: readonly ShiftPlanningFirestoreMutation[];
 };
 
-export type MeasureAndSealShiftPlanningInverseRecoveryAttemptInput =
+export type ApplyShiftPlanningInverseRecoveryAttemptInput =
   MaterializeShiftPlanningInverseRecoveryInput & {
     firestore: Firestore;
     transaction: Transaction;
@@ -93,7 +93,7 @@ export type MeasureAndSealShiftPlanningInverseRecoveryAttemptInput =
 
 export type ShiftPlanningInverseRecoveryAttempt = {
   materialization: ShiftPlanningInverseRecoveryMaterialization;
-  measurement: ShiftPlanningFirestoreCommitMeasurement;
+  measurement: ShiftPlanningFirestoreAdmission;
 };
 
 type UnknownRecord = Record<string, unknown>;
@@ -1226,20 +1226,20 @@ export const materializeShiftPlanningInverseRecovery = (
 };
 
 /**
- * Materializes and seals one complete inverse recovery in the SDK-owned batch
+ * Materializes and applies one complete inverse recovery through public APIs
  * of the current transaction attempt.
- * @param {MeasureAndSealShiftPlanningInverseRecoveryAttemptInput} input Real
+ * @param {ApplyShiftPlanningInverseRecoveryAttemptInput} input Real
  * transaction and the complete recovery read-set resolved in that callback.
  * @return {Promise<ShiftPlanningInverseRecoveryAttempt>} Exact inverse batch
- * and in-memory CommitRequest measurement.
+ * and in-memory application admission evidence.
  */
-export const measureAndSealShiftPlanningInverseRecoveryAttempt = async (
-  input: MeasureAndSealShiftPlanningInverseRecoveryAttemptInput,
+export const applyShiftPlanningInverseRecoveryAttempt = async (
+  input: ApplyShiftPlanningInverseRecoveryAttemptInput,
 ): Promise<ShiftPlanningInverseRecoveryAttempt> => {
   const materialization = materializeShiftPlanningInverseRecovery(input);
   const artifact = input.bundle.artifact;
   const measurement =
-    await measureAndSealShiftPlanningFirestoreTransactionAttempt({
+    await applyShiftPlanningFirestoreTransactionAttempt({
       firestore: input.firestore,
       transaction: input.transaction,
       mutations: materialization.mutations,

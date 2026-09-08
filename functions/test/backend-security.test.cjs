@@ -16,6 +16,7 @@ const {
   parseVerifiedIdentity,
   resolveMemberBusinessFields,
   resolveLinkedMember,
+  resolvePrivilegedFirestoreEventAuthorization,
   resolveReviewerEnvironment,
   verifyBearerIdentity,
 } = require("../lib/backend-security.js");
@@ -284,6 +285,21 @@ test("privileged Firestore events fail closed for every other actor", async () =
     resolver,
   ), false);
   assert.equal(resolverCalls, 1);
+});
+
+test("retryable authorization separates unavailable identity from a real denial", async () => {
+  const context = {authType: "unknown", authId: "admin-uid"};
+  const failure = new Error("identity service unavailable");
+  const unavailable = async () => { throw failure; };
+  await assert.rejects(
+    resolvePrivilegedFirestoreEventAuthorization(context, unavailable),
+    (error) => error === failure,
+  );
+  assert.equal(await canProcessPrivilegedFirestoreEvent(context, unavailable), false);
+  assert.equal(await resolvePrivilegedFirestoreEventAuthorization(
+    context,
+    async () => false,
+  ), false);
 });
 
 test("client admin requires verified Auth and reciprocal canonical identity", () => {

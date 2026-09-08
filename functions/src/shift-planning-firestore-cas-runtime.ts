@@ -22,12 +22,12 @@ import {
 import {
   MaterializeShiftPlanningForwardActivationInput,
   ShiftPlanningForwardActivationAttempt,
-  measureAndSealShiftPlanningForwardActivationAttempt,
+  applyShiftPlanningForwardActivationAttempt,
 } from "./shift-planning-forward-materializer.js";
 import {
   MaterializeShiftPlanningInverseRecoveryInput,
   ShiftPlanningInverseRecoveryAttempt,
-  measureAndSealShiftPlanningInverseRecoveryAttempt,
+  applyShiftPlanningInverseRecoveryAttempt,
   parseShiftPlanningRecoveryOperationTerminal,
 } from "./shift-planning-inverse-materializer.js";
 import {
@@ -134,10 +134,10 @@ export type ShiftPlanningFirestoreCasRuntime = {
 type ShiftPlanningFirestoreCasRuntimeDependencies = {
   outcomePersistence?: ShiftPlanningAttemptOutcomePersistence;
   clock?: () => Timestamp;
-  measureForwardAttempt?:
-    typeof measureAndSealShiftPlanningForwardActivationAttempt;
-  measureInverseAttempt?:
-    typeof measureAndSealShiftPlanningInverseRecoveryAttempt;
+  applyForwardAttempt?:
+    typeof applyShiftPlanningForwardActivationAttempt;
+  applyInverseAttempt?:
+    typeof applyShiftPlanningInverseRecoveryAttempt;
 };
 
 const failRuntime = (message: string): never => {
@@ -279,7 +279,8 @@ export const createShiftPlanningInverseRecoveryOutcome = (
 /**
  * Creates the backend-only CAS executor. Every Firestore retry invokes the
  * supplied resolver again inside that callback, then the real materializer
- * measures and seals the same SDK-owned batch. Only the final attempt returned
+ * applies the same admitted logical manifest through public methods. Only the
+ * final attempt returned
  * by `runTransaction` can produce an outcome, which is retained and read back
  * in the separate non-circular protocol.
  * @param {Firestore} firestore Pinned Firestore client or emulator instance.
@@ -297,10 +298,10 @@ export const createFirestoreShiftPlanningCasRuntime = (
   const clock = dependencies.clock ?? (() => Timestamp.now());
   const outcomePersistence = dependencies.outcomePersistence ??
     createFirestoreShiftPlanningAttemptOutcomePersistence(firestore);
-  const measureForwardAttempt = dependencies.measureForwardAttempt ??
-    measureAndSealShiftPlanningForwardActivationAttempt;
-  const measureInverseAttempt = dependencies.measureInverseAttempt ??
-    measureAndSealShiftPlanningInverseRecoveryAttempt;
+  const applyForwardAttempt = dependencies.applyForwardAttempt ??
+    applyShiftPlanningForwardActivationAttempt;
+  const applyInverseAttempt = dependencies.applyInverseAttempt ??
+    applyShiftPlanningInverseRecoveryAttempt;
   const now = (name: string): Timestamp => requireTimestamp(clock(), name);
   const operationReference = (
     environment: ShiftPlanningEnvironment,
@@ -364,6 +365,41 @@ export const createFirestoreShiftPlanningCasRuntime = (
     return retained.outcome;
   };
 
+  const retainReadBackOutcome = async (
+    operation: ReturnType<
+      typeof parseShiftPlanningActivationOperationTerminal
+    > |
+      ReturnType<typeof parseShiftPlanningRecoveryOperationTerminal>,
+    direction: "forward" | "inverse",
+  ): Promise<ShiftPlanningCommittedAttemptOutcome> => {
+    const inverse = operation.operationKind === "activationRecovery";
+    if (direction === "inverse" && !inverse) {
+      return failOutcome("Inverse receipt requires a recovery terminal.");
+    }
+    const receipt = createShiftPlanningCommittedAttemptOutcome({
+      acknowledgement: "operationReadBack",
+      environment: operation.environment,
+      operationId: operation.operationId,
+      operationIntentDigest: direction === "inverse" && inverse ?
+        operation.recoveryIntentDigest : inverse ?
+          operation.activationOperationIntentDigest :
+          operation.operationIntentDigest,
+      direction,
+      manifestDigest: direction === "inverse" && inverse ?
+        operation.inverseManifestDigest : operation.forwardManifestDigest,
+      bundleRevision: operation.bundleRevision,
+      bundleDigest: operation.bundleDigest,
+      writeEpoch: direction === "inverse" && inverse ?
+        operation.recoveryWriteEpoch :
+        inverse ? operation.activationWriteEpoch : operation.writeEpoch,
+      recordedAt: now("terminal read-back clock"),
+      measurement: null,
+    });
+    const retained = await outcomePersistence
+      .retainCommittedOutcomeAndReadBack(receipt);
+    return retained.outcome;
+  };
+
   return {
     async executeForwardActivation(
       input: ExecuteShiftPlanningForwardActivationInput,
@@ -391,9 +427,26 @@ export const createFirestoreShiftPlanningCasRuntime = (
         };
       }
       if (existing.operation !== null) {
-        return failOutcome(
-          "Committed activation is missing its forward attempt outcome.",
-        );
+        let operation;
+        try {
+          operation = parseShiftPlanningActivationOperationTerminal(
+            existing.operation,
+          );
+        } catch {
+          operation = parseShiftPlanningRecoveryOperationTerminal(
+            existing.operation,
+          );
+        }
+        if (operation.environment !== environment ||
+            operation.operationId !== operationId) {
+          return failOutcome("Activation terminal identity has drifted.");
+        }
+        return {
+          kind: "terminalReplay",
+          attempt: null,
+          outcomePersistenceKind: "replayed",
+          outcome: await retainReadBackOutcome(operation, "forward"),
+        };
       }
       const attempt = await firestore.runTransaction(async (transaction) => {
         try {
@@ -403,7 +456,7 @@ export const createFirestoreShiftPlanningCasRuntime = (
             transaction,
             attemptedAt,
           });
-          const measured = await measureForwardAttempt({
+          const measured = await applyForwardAttempt({
             ...resolution,
             firestore,
             transaction,
@@ -506,9 +559,15 @@ export const createFirestoreShiftPlanningCasRuntime = (
           recovery.environment === environment &&
           recovery.operationId === activationOperationId
         ) {
-          return failOutcome(
-            "Committed recovery is missing its inverse attempt outcome.",
-          );
+          if (recovery.recoveryOperationId !== recoveryOperationId) {
+            return failOutcome("Recovery receipt belongs to another operation");
+          }
+          return {
+            kind: "terminalReplay",
+            attempt: null,
+            outcomePersistenceKind: "replayed",
+            outcome: await retainReadBackOutcome(recovery, "inverse"),
+          };
         }
         return failOutcome("Recovery operation identity has drifted.");
       }
@@ -526,7 +585,7 @@ export const createFirestoreShiftPlanningCasRuntime = (
             transaction,
             attemptedAt: recoveredAt,
           });
-          const measured = await measureInverseAttempt({
+          const measured = await applyInverseAttempt({
             ...resolution,
             firestore,
             transaction,

@@ -3,8 +3,10 @@
 ## Status and boundary
 
 This versioned handoff freezes the local contract that HU-083 / #267 must consume.
-It does not mark HU-082 as merged, authorize an HU-083 implementation branch, deploy
-Functions or Rules, execute a live planning request, or activate Firestore/Sheets.
+The original HU-082 delivery was merged in PR #275 (`78f018e`). The approved
+post-audit corrections are tracked in [the correction plan](post-audit-corrections.md)
+and must be delivered before HU-083 starts. This handoff authorizes no HU-083
+implementation branch, deployment, live request or activation of Firestore/Sheets.
 The consultation workbook publication is communication evidence only and is not a
 sync-consumer or activation result.
 
@@ -30,6 +32,26 @@ The immutable sync command already binds type, bundle revision/digest, write epo
 workbook/partition identity, expected partition state/epoch/lease, target season,
 affected projection seasons, and active lineage. HU-083 may add durable external
 attempt evidence around its adapter, but may not mutate or reinterpret those fields.
+
+## Post-audit upstream corrections
+
+- ADR-0014 replaces private SDK serialization with public Firestore transactions,
+  application admission schema v2 (`public-transaction-v2`) and outcome schema v2.
+  A committed operation can recover its missing receipt by authoritative read-back
+  without repeating publication. HU-083 must consume the existing sync contract;
+  it must not restore the removed SDK-private serializer.
+- `onVersionedShiftPlanningRequestCreated` retries v2 worker/infrastructure failures
+  and busy leases. The legacy trigger excludes v2 and remains non-retrying. The
+  deployment allowlist and causal drain must include both deliveries; the old
+  trigger update and the new trigger must be assessed together before enabling v2.
+- Mobile discovery uses the current administrator's v2 requests, with the selected
+  request pinned while pending and cancelable listener recovery. HU-085 must deploy
+  the composite index in `firestore.indexes.json` and verify READY before enabling
+  the clients. `firebase.strict.json` owns this local index configuration.
+- Notification transport starts no further SDK call after its deadline. A call
+  already submitted remains possibly delivered. Incident entry does not permit
+  retries of old intents under a newer epoch; shared dispatch-history reads preserve
+  explicit terminal cancellation/reconciliation policy.
 
 ## Required HU-083 execution contract
 

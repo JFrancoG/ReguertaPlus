@@ -439,7 +439,7 @@ const encodedValueCanonical = (
   value: ShiftPlanningEncodedFirestoreValue,
 ): ShiftPlanningCanonicalJsonValue => value as ShiftPlanningCanonicalJsonValue;
 
-const encodeFirestoreValue = (
+export const encodeShiftPlanningFirestoreValue = (
   value: unknown,
   path: string,
   ancestors: Set<object>,
@@ -483,7 +483,9 @@ const encodeFirestoreValue = (
       return {
         kind: "array",
         values: array.map((item, index) =>
-          encodeFirestoreValue(item, `${path}[${index}]`, ancestors)),
+          encodeShiftPlanningFirestoreValue(
+            item, `${path}[${index}]`, ancestors,
+          )),
       };
     }
     const record = requireRecord(value, path);
@@ -499,7 +501,7 @@ const encodeFirestoreValue = (
         }
         return {
           name,
-          value: encodeFirestoreValue(
+          value: encodeShiftPlanningFirestoreValue(
             descriptor.value,
             `${path}.${name}`,
             ancestors,
@@ -634,7 +636,7 @@ const parseEncodedValue = (
   return failPublication(`${path}.kind is unsupported.`);
 };
 
-const decodeEncodedValue = (
+export const decodeShiftPlanningFirestoreValue = (
   value: ShiftPlanningEncodedFirestoreValue,
 ): unknown => {
   if (value.kind === "null") return null;
@@ -652,13 +654,15 @@ const decodeEncodedValue = (
   if (value.kind === "geoPoint") {
     return new GeoPoint(value.latitude, value.longitude);
   }
-  if (value.kind === "array") return value.values.map(decodeEncodedValue);
+  if (value.kind === "array") {
+    return value.values.map(decodeShiftPlanningFirestoreValue);
+  }
   const result: Record<string, unknown> = {};
   value.fields.forEach((field) => {
     Object.defineProperty(result, field.name, {
       configurable: true,
       enumerable: true,
-      value: decodeEncodedValue(field.value),
+      value: decodeShiftPlanningFirestoreValue(field.value),
       writable: true,
     });
   });
@@ -1028,7 +1032,7 @@ const publicMaterialization = (
       "Public shift targetPath does not match its payload.",
     );
   }
-  const encoded = encodeFirestoreValue(
+  const encoded = encodeShiftPlanningFirestoreValue(
     publicPayloadRecord(parsed),
     "public shift payload",
     new Set(),
@@ -1591,7 +1595,7 @@ export const createShiftPlanningBeforeImageEnvelope = (
     "beforeImage operationId",
   );
   const ordinal = requirePositiveInteger(input.ordinal, "beforeImage ordinal");
-  const encoded = encodeFirestoreValue(
+  const encoded = encodeShiftPlanningFirestoreValue(
     input.document,
     "beforeImage document",
     new Set(),
@@ -1763,5 +1767,5 @@ export const decodeShiftPlanningFirestoreDocument = (
   if (encoded.kind !== "map") {
     return failPublication("Encoded Firestore document must be a map.");
   }
-  return decodeEncodedValue(encoded) as Record<string, unknown>;
+  return decodeShiftPlanningFirestoreValue(encoded) as Record<string, unknown>;
 };

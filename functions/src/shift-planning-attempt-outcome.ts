@@ -5,416 +5,223 @@ import {
   ShiftPlanningDigest,
 } from "./shift-planning-digest.js";
 import {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
-  SHIFT_PLANNING_FIRESTORE_TRANSACTION_SERIALIZER_SCHEMA_VERSION,
-  ShiftPlanningFirestoreCommitMeasurement,
+  SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
+  ShiftPlanningFirestoreAdmission,
   ShiftPlanningFirestoreTransactionDirection,
-} from "./shift-planning-firestore-transaction-serializer.js";
+} from "./shift-planning-firestore-transaction-manifest.js";
 import {ShiftPlanningEnvironment} from "./shift-planning-wire.js";
 
-export const SHIFT_PLANNING_ATTEMPT_OUTCOME_SCHEMA_VERSION = 1 as const;
+export const SHIFT_PLANNING_ATTEMPT_OUTCOME_SCHEMA_VERSION = 2 as const;
 
 export type ShiftPlanningCommittedAttemptOutcome = {
   schemaVersion: typeof SHIFT_PLANNING_ATTEMPT_OUTCOME_SCHEMA_VERSION;
   operationKind: "planningTransactionAttemptOutcome";
   state: "committed";
-  acknowledgement: "transactionReturned";
+  acknowledgement: "transactionReturned" | "operationReadBack";
   environment: ShiftPlanningEnvironment;
   operationId: string;
   operationIntentDigest: ShiftPlanningDigest;
   attemptId: string;
   outcomePath: string;
   direction: ShiftPlanningFirestoreTransactionDirection;
+  manifestDigest: ShiftPlanningDigest;
   bundleRevision: string;
   bundleDigest: ShiftPlanningDigest;
   writeEpoch: number;
   recordedAt: Timestamp;
-  measurement: ShiftPlanningFirestoreCommitMeasurement;
-  measurementDigest: ShiftPlanningDigest;
+  measurement: ShiftPlanningFirestoreAdmission | null;
+  measurementDigest: ShiftPlanningDigest | null;
   outcomeDigest: ShiftPlanningDigest;
 };
 
-export type CreateShiftPlanningCommittedAttemptOutcomeInput = Omit<
-  ShiftPlanningCommittedAttemptOutcome,
-  | "schemaVersion"
-  | "operationKind"
-  | "state"
-  | "acknowledgement"
-  | "attemptId"
-  | "outcomePath"
-  | "direction"
-  | "measurementDigest"
-  | "outcomeDigest"
->;
+export type CreateShiftPlanningCommittedAttemptOutcomeInput = {
+  acknowledgement?: "transactionReturned" | "operationReadBack";
+  environment: ShiftPlanningEnvironment;
+  operationId: string;
+  operationIntentDigest: string;
+  bundleRevision: string;
+  bundleDigest: string;
+  writeEpoch: number;
+  recordedAt: Timestamp;
+  measurement: ShiftPlanningFirestoreAdmission | null;
+  direction?: ShiftPlanningFirestoreTransactionDirection;
+  manifestDigest?: string;
+};
 
 type UnknownRecord = Record<string, unknown>;
-
-const outcomeFields = [
-  "schemaVersion",
-  "operationKind",
-  "state",
-  "acknowledgement",
-  "environment",
-  "operationId",
-  "operationIntentDigest",
-  "attemptId",
-  "outcomePath",
-  "direction",
-  "bundleRevision",
-  "bundleDigest",
-  "writeEpoch",
-  "recordedAt",
-  "measurement",
-  "measurementDigest",
-  "outcomeDigest",
-] as const;
-
-const measurementFields = [
-  "schemaVersion",
-  "direction",
-  "manifestDigest",
-  "databaseName",
-  "writeSetDigest",
-  "commitRequestDigest",
-  "documentWriteCount",
-  "fieldTransformCount",
-  "maximumFieldTransformsPerDocument",
-  "requestByteCount",
-  "adapterRevision",
-  "indexConfigurationDigest",
-] as const;
-
-const databaseNamePattern = new RegExp(
-  "^projects/[a-z][a-z0-9-]{3,62}/databases/" +
-  "(?:\\(default\\)|[a-z][a-z0-9_-]{2,62})$",
-);
-
 const failOutcome = (message: string): never => {
   throw new ShiftPlanningError("invalid_planning_attempt_outcome", message);
 };
-
-const requireRecord = (value: unknown, name: string): UnknownRecord => {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
-    Object.getPrototypeOf(value) !== Object.prototype ||
-    Object.getOwnPropertySymbols(value).length > 0
-  ) {
-    return failOutcome(`${name} must be a plain object.`);
+const record = (value: unknown): UnknownRecord => {
+  if (typeof value !== "object" || value === null ||
+      Object.getPrototypeOf(value) !== Object.prototype) {
+    return failOutcome("Outcome must contain plain data objects.");
   }
   return value as UnknownRecord;
 };
-
-const requireExactFields = (
-  value: UnknownRecord,
-  fields: readonly string[],
-  name: string,
-): void => {
-  const actual = Object.keys(value);
-  if (
-    actual.length !== fields.length ||
-    actual.some((field) => !fields.includes(field))
-  ) {
-    failOutcome(`${name} fields are not exact.`);
+const exactFields = (value: UnknownRecord, names: string[]): void => {
+  if (Object.keys(value).length !== names.length ||
+      names.some((name) =>
+        !Object.prototype.hasOwnProperty.call(value, name))) {
+    failOutcome("Outcome fields are not exact.");
   }
 };
-
-const requireIdentifier = (value: unknown, name: string): string => {
-  if (
-    typeof value !== "string" ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)
-  ) {
-    return failOutcome(`${name} is not a valid identifier.`);
+const identifier = (value: unknown): string => {
+  if (typeof value !== "string" ||
+      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) {
+    return failOutcome("Outcome identifier is invalid.");
   }
   return value;
 };
-
-const requireDigest = (value: unknown, name: string): ShiftPlanningDigest => {
-  if (
-    typeof value !== "string" ||
-    !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(value)
-  ) {
-    return failOutcome(`${name} is not a planning digest.`);
+const digest = (value: unknown): ShiftPlanningDigest => {
+  if (typeof value !== "string" ||
+      !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(value)) {
+    return failOutcome("Outcome digest is invalid.");
   }
   return value as ShiftPlanningDigest;
 };
-
-const requirePrefixedDigest = (
-  value: unknown,
-  prefix: string,
-  name: string,
-): string => {
-  if (
-    typeof value !== "string" ||
-    !new RegExp(`^${prefix}[a-f0-9]{64}$`).test(value)
-  ) {
-    return failOutcome(`${name} is not a supported digest.`);
-  }
-  return value;
-};
-
-const requireNonNegativeInteger = (value: unknown, name: string): number => {
-  if (!Number.isSafeInteger(value) || (value as number) < 0) {
-    return failOutcome(`${name} must be a non-negative safe integer.`);
+const integer = (value: unknown, minimum = 0): number => {
+  if (!Number.isSafeInteger(value) || (value as number) < minimum) {
+    return failOutcome("Outcome count is invalid.");
   }
   return value as number;
 };
-
-const requirePositiveInteger = (value: unknown, name: string): number => {
-  const parsed = requireNonNegativeInteger(value, name);
-  if (parsed === 0) return failOutcome(`${name} must be positive.`);
-  return parsed;
-};
-
-const requireTimestamp = (value: unknown, name: string): Timestamp => {
-  if (!(value instanceof Timestamp)) {
-    return failOutcome(`${name} must be a Firestore Timestamp.`);
-  }
-  return value;
-};
-
-const requireEnvironment = (value: unknown): ShiftPlanningEnvironment => {
-  if (value !== "develop" && value !== "production") {
-    return failOutcome("Attempt outcome environment is invalid.");
-  }
-  return value;
-};
-
-const requireDirection = (
+const direction = (
   value: unknown,
 ): ShiftPlanningFirestoreTransactionDirection => {
   if (value !== "forward" && value !== "inverse") {
-    return failOutcome("Attempt outcome direction is invalid.");
+    return failOutcome("Outcome direction is invalid.");
   }
   return value;
 };
-
-const parseMeasurement = (
-  value: unknown,
-): ShiftPlanningFirestoreCommitMeasurement => {
-  const measurement = requireRecord(value, "attempt measurement");
-  requireExactFields(
-    measurement,
-    measurementFields,
-    "attempt measurement",
-  );
-  const direction = requireDirection(measurement.direction);
-  const databaseName = measurement.databaseName;
-  if (
-    measurement.schemaVersion !==
-      SHIFT_PLANNING_FIRESTORE_TRANSACTION_SERIALIZER_SCHEMA_VERSION ||
-    measurement.adapterRevision !==
-      SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION ||
-    typeof databaseName !== "string" ||
-    !databaseNamePattern.test(databaseName)
-  ) {
-    return failOutcome("Attempt measurement authority is invalid.");
-  }
-  const fieldTransformCount = requireNonNegativeInteger(
-    measurement.fieldTransformCount,
-    "field transform count",
-  );
-  const maximumFieldTransformsPerDocument = requireNonNegativeInteger(
-    measurement.maximumFieldTransformsPerDocument,
-    "maximum transforms per document",
-  );
-  if (
-    (fieldTransformCount === 0 && maximumFieldTransformsPerDocument !== 0) ||
-    maximumFieldTransformsPerDocument > fieldTransformCount
-  ) {
-    return failOutcome("Attempt transform counts are inconsistent.");
+const parseAdmission = (value: unknown): ShiftPlanningFirestoreAdmission => {
+  const admission = record(value);
+  exactFields(admission, [
+    "schemaVersion", "evidenceKind", "direction", "manifestDigest",
+    "logicalMutationDigest", "documentWriteCount", "estimatedRequestBytes",
+    "adapterRevision", "indexConfigurationDigest",
+  ]);
+  if (admission.schemaVersion !== 2 ||
+      admission.evidenceKind !== "applicationAdmission" ||
+      admission.adapterRevision !==
+        SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION) {
+    return failOutcome("Outcome admission policy is unsupported.");
   }
   return {
-    schemaVersion:
-      SHIFT_PLANNING_FIRESTORE_TRANSACTION_SERIALIZER_SCHEMA_VERSION,
-    direction,
-    manifestDigest: requireDigest(
-      measurement.manifestDigest,
-      "measurement manifest digest",
-    ),
-    databaseName,
-    writeSetDigest: requirePrefixedDigest(
-      measurement.writeSetDigest,
-      "shift-planning:firestore-write-set:v1:sha256:",
-      "write-set digest",
-    ),
-    commitRequestDigest: requirePrefixedDigest(
-      measurement.commitRequestDigest,
-      "shift-planning:firestore-commit-request:v1:sha256:",
-      "commit-request digest",
-    ),
-    documentWriteCount: requirePositiveInteger(
-      measurement.documentWriteCount,
-      "document write count",
-    ),
-    fieldTransformCount,
-    maximumFieldTransformsPerDocument,
-    requestByteCount: requirePositiveInteger(
-      measurement.requestByteCount,
-      "request byte count",
-    ),
-    adapterRevision: SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
-    indexConfigurationDigest: requireDigest(
-      measurement.indexConfigurationDigest,
-      "index configuration digest",
-    ),
+    schemaVersion: 2,
+    evidenceKind: "applicationAdmission",
+    direction: direction(admission.direction),
+    manifestDigest: digest(admission.manifestDigest),
+    logicalMutationDigest: digest(admission.logicalMutationDigest),
+    documentWriteCount: integer(admission.documentWriteCount, 1),
+    estimatedRequestBytes: integer(admission.estimatedRequestBytes, 1),
+    adapterRevision: SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
+    indexConfigurationDigest: digest(admission.indexConfigurationDigest),
   };
 };
-
-const measurementDigest = (
-  measurement: ShiftPlanningFirestoreCommitMeasurement,
-): ShiftPlanningDigest => createShiftPlanningDigest(measurement);
-
-const attemptId = (
-  measurement: ShiftPlanningFirestoreCommitMeasurement,
-): string => {
-  const commitHex = measurement.commitRequestDigest.split(":").at(-1);
-  if (commitHex === undefined || !/^[a-f0-9]{64}$/.test(commitHex)) {
-    return failOutcome("Commit-request digest cannot derive an attempt ID.");
-  }
-  return `${measurement.direction}-${commitHex}`;
-};
-
-const timestampCore = (value: Timestamp): {
-  seconds: number;
-  nanoseconds: number;
-} => ({seconds: value.seconds, nanoseconds: value.nanoseconds});
-
-const outcomeDigestCore = (
+const outcomeDigest = (
   value: Omit<ShiftPlanningCommittedAttemptOutcome, "outcomeDigest">,
-): object => ({
+): ShiftPlanningDigest => createShiftPlanningDigest({
   ...value,
-  recordedAt: timestampCore(value.recordedAt),
+  recordedAt: {
+    seconds: value.recordedAt.seconds,
+    nanoseconds: value.recordedAt.nanoseconds,
+  },
 });
 
 /**
- * Creates the immutable acknowledgement written only after the measured
- * Firestore transaction returns successfully. The measurement digest is not
- * part of the measured request, so this record is deliberately a second,
- * non-circular persistence step.
- * @param {CreateShiftPlanningCommittedAttemptOutcomeInput} input Committed
- * operation lineage, post-commit clock sample, and in-memory measurement.
- * @return {ShiftPlanningCommittedAttemptOutcome} Canonical outcome record.
+ * Records either a returned transaction with application admission evidence or
+ * a validated terminal read-back after an ambiguous acknowledgement. Read-back
+ * never invents admission evidence or claims the original transaction returned.
+ * One directional operation identity owns one immutable receipt, irrespective
+ * of callback retries or which acknowledgement path first retained it.
+ * @param {CreateShiftPlanningCommittedAttemptOutcomeInput} input Commit
+ * evidence.
+ * @return {ShiftPlanningCommittedAttemptOutcome} Versioned acknowledgement.
  */
 export const createShiftPlanningCommittedAttemptOutcome = (
   input: CreateShiftPlanningCommittedAttemptOutcomeInput,
 ): ShiftPlanningCommittedAttemptOutcome => {
-  const environment = requireEnvironment(input.environment);
-  const operationId = requireIdentifier(input.operationId, "operationId");
-  const measurement = parseMeasurement(input.measurement);
-  const direction = measurement.direction;
-  const resolvedAttemptId = attemptId(measurement);
-  const withoutDigest: Omit<
-    ShiftPlanningCommittedAttemptOutcome,
-    "outcomeDigest"
-  > = {
+  const acknowledgement = input.acknowledgement ?? "transactionReturned";
+  const measurement = input.measurement === null ?
+    null : parseAdmission(input.measurement);
+  if ((acknowledgement !== "transactionReturned" &&
+      acknowledgement !== "operationReadBack") ||
+      (acknowledgement === "transactionReturned") !== (measurement !== null)) {
+    return failOutcome("Acknowledgement does not match its evidence.");
+  }
+  if (input.environment !== "develop" && input.environment !== "production") {
+    return failOutcome("Outcome environment is invalid.");
+  }
+  if (!(input.recordedAt instanceof Timestamp)) {
+    return failOutcome("Outcome timestamp is invalid.");
+  }
+  const operationId = identifier(input.operationId);
+  const operationIntentDigest = digest(input.operationIntentDigest);
+  const resolvedDirection = direction(
+    measurement?.direction ?? input.direction,
+  );
+  const manifestDigest = digest(
+    measurement?.manifestDigest ?? input.manifestDigest,
+  );
+  const intentHash = operationIntentDigest.split(":").at(-1);
+  const attemptId = `${resolvedDirection}-${intentHash}`;
+  const core: Omit<ShiftPlanningCommittedAttemptOutcome, "outcomeDigest"> = {
     schemaVersion: SHIFT_PLANNING_ATTEMPT_OUTCOME_SCHEMA_VERSION,
     operationKind: "planningTransactionAttemptOutcome",
     state: "committed",
-    acknowledgement: "transactionReturned",
-    environment,
+    acknowledgement,
+    environment: input.environment,
     operationId,
-    operationIntentDigest: requireDigest(
-      input.operationIntentDigest,
-      "operation intent digest",
-    ),
-    attemptId: resolvedAttemptId,
-    outcomePath: `${environment}/plus-collections/` +
-      `shiftPlanningOperations/${operationId}/` +
-      `attemptOutcomes/${resolvedAttemptId}`,
-    direction,
-    bundleRevision: requireIdentifier(
-      input.bundleRevision,
-      "bundle revision",
-    ),
-    bundleDigest: requireDigest(input.bundleDigest, "bundle digest"),
-    writeEpoch: requireNonNegativeInteger(input.writeEpoch, "write epoch"),
-    recordedAt: requireTimestamp(input.recordedAt, "recordedAt"),
+    operationIntentDigest,
+    attemptId,
+    outcomePath: `${input.environment}/plus-collections/` +
+      `shiftPlanningOperations/${operationId}/attemptOutcomes/${attemptId}`,
+    direction: resolvedDirection,
+    manifestDigest,
+    bundleRevision: identifier(input.bundleRevision),
+    bundleDigest: digest(input.bundleDigest),
+    writeEpoch: integer(input.writeEpoch),
+    recordedAt: input.recordedAt,
     measurement,
-    measurementDigest: measurementDigest(measurement),
+    measurementDigest: measurement === null ?
+      null : createShiftPlanningDigest(measurement),
   };
-  return {
-    ...withoutDigest,
-    outcomeDigest: createShiftPlanningDigest(
-      outcomeDigestCore(withoutDigest),
-    ),
-  };
+  return {...core, outcomeDigest: outcomeDigest(core)};
 };
 
 /**
- * Parses an untrusted attempt outcome and re-derives its stable key, path, and
- * both digests. Exact field validation prevents a later writer from attaching
- * unbound acknowledgement metadata to committed evidence.
- * @param {unknown} value Persisted attempt outcome document.
- * @return {ShiftPlanningCommittedAttemptOutcome} Canonical outcome record.
+ * Reconstructs the receipt from its supported evidence and checks every field.
+ * @param {unknown} value Persisted v2 acknowledgement.
+ * @return {ShiftPlanningCommittedAttemptOutcome} Validated immutable receipt.
  */
 export const parseShiftPlanningCommittedAttemptOutcome = (
   value: unknown,
 ): ShiftPlanningCommittedAttemptOutcome => {
-  const outcome = requireRecord(value, "attempt outcome");
-  requireExactFields(outcome, outcomeFields, "attempt outcome");
-  if (
-    outcome.schemaVersion !== SHIFT_PLANNING_ATTEMPT_OUTCOME_SCHEMA_VERSION ||
-    outcome.operationKind !== "planningTransactionAttemptOutcome" ||
-    outcome.state !== "committed" ||
-    outcome.acknowledgement !== "transactionReturned"
-  ) {
-    return failOutcome("Attempt outcome discriminators are invalid.");
+  const actual = record(value);
+  const rebuilt = createShiftPlanningCommittedAttemptOutcome({
+    acknowledgement: actual.acknowledgement as
+      ShiftPlanningCommittedAttemptOutcome["acknowledgement"],
+    environment: actual.environment as ShiftPlanningEnvironment,
+    operationId: actual.operationId as string,
+    operationIntentDigest: actual.operationIntentDigest as string,
+    bundleRevision: actual.bundleRevision as string,
+    bundleDigest: actual.bundleDigest as string,
+    writeEpoch: actual.writeEpoch as number,
+    recordedAt: actual.recordedAt as Timestamp,
+    measurement: actual.measurement as ShiftPlanningFirestoreAdmission | null,
+    direction: actual.direction as ShiftPlanningFirestoreTransactionDirection,
+    manifestDigest: actual.manifestDigest as string,
+  });
+  exactFields(actual, Object.keys(rebuilt));
+  const core = {...actual, recordedAt: {
+    seconds: rebuilt.recordedAt.seconds,
+    nanoseconds: rebuilt.recordedAt.nanoseconds,
+  }};
+  const canonical = {...rebuilt, recordedAt: core.recordedAt};
+  if (createShiftPlanningDigest(core) !==
+      createShiftPlanningDigest(canonical)) {
+    return failOutcome("Outcome identity, evidence, or digest has drifted.");
   }
-  const environment = requireEnvironment(outcome.environment);
-  const operationId = requireIdentifier(outcome.operationId, "operationId");
-  const measurement = parseMeasurement(outcome.measurement);
-  const direction = requireDirection(outcome.direction);
-  const resolvedAttemptId = attemptId(measurement);
-  const expectedPath = `${environment}/plus-collections/` +
-    `shiftPlanningOperations/${operationId}/` +
-    `attemptOutcomes/${resolvedAttemptId}`;
-  if (
-    direction !== measurement.direction ||
-    outcome.attemptId !== resolvedAttemptId ||
-    outcome.outcomePath !== expectedPath ||
-    outcome.measurementDigest !== measurementDigest(measurement)
-  ) {
-    return failOutcome("Attempt outcome measurement binding has drifted.");
-  }
-  const withoutDigest: Omit<
-    ShiftPlanningCommittedAttemptOutcome,
-    "outcomeDigest"
-  > = {
-    schemaVersion: SHIFT_PLANNING_ATTEMPT_OUTCOME_SCHEMA_VERSION,
-    operationKind: "planningTransactionAttemptOutcome",
-    state: "committed",
-    acknowledgement: "transactionReturned",
-    environment,
-    operationId,
-    operationIntentDigest: requireDigest(
-      outcome.operationIntentDigest,
-      "operation intent digest",
-    ),
-    attemptId: resolvedAttemptId,
-    outcomePath: expectedPath,
-    direction,
-    bundleRevision: requireIdentifier(
-      outcome.bundleRevision,
-      "bundle revision",
-    ),
-    bundleDigest: requireDigest(outcome.bundleDigest, "bundle digest"),
-    writeEpoch: requireNonNegativeInteger(outcome.writeEpoch, "write epoch"),
-    recordedAt: requireTimestamp(outcome.recordedAt, "recordedAt"),
-    measurement,
-    measurementDigest: requireDigest(
-      outcome.measurementDigest,
-      "measurement digest",
-    ),
-  };
-  const outcomeDigest = requireDigest(outcome.outcomeDigest, "outcome digest");
-  if (
-    outcomeDigest !== createShiftPlanningDigest(
-      outcomeDigestCore(withoutDigest),
-    )
-  ) {
-    return failOutcome("Attempt outcome digest does not match.");
-  }
-  return {...withoutDigest, outcomeDigest};
+  return rebuilt;
 };

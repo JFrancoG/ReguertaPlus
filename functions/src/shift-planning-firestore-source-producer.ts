@@ -29,8 +29,8 @@ import {
   parseShiftPlanningLiveSourceDocument,
 } from "./shift-planning-firestore-source-resolver.js";
 import {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
-} from "./shift-planning-firestore-transaction-serializer.js";
+  SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
+} from "./shift-planning-firestore-transaction-manifest.js";
 import {
   SHIFT_PLANNING_MAX_DEVICES_PER_USER,
   ShiftPlanningMemberDeviceRevisionSource,
@@ -339,7 +339,7 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
   ], "planning source transaction measurement authority");
   if (
     authority.adapterRevision !==
-      SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION ||
+      SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION ||
     typeof authority.indexConfigurationDigest !== "string" ||
     !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(
       authority.indexConfigurationDigest,

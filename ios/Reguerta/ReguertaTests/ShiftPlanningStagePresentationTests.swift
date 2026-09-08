@@ -48,12 +48,13 @@ struct ShiftPlanningStagePresentationTests {
         viewModel.handleSessionModeChange(viewModel.sessionViewModel.mode)
         await planningRepository.waitUntilObserved()
         await planningRepository.emit(completedPreviewObservation(requestedByUserID: "admin_2"))
-        await waitForCondition { viewModel.shiftPlanningObservation?.id == "preview-request" }
+        await waitForCondition { viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData }
 
         viewModel.requestShiftPlanningStage()
         await viewModel.confirmShiftPlanningRequest()
 
         #expect(await planningRepository.submittedRequests().isEmpty)
+        #expect(viewModel.shiftPlanningObservation == nil)
     }
 
     private func completedPreviewObservation(
@@ -100,8 +101,10 @@ private actor RecordingStagePlanningRepository: ShiftPlanningRequestRepository {
         requests
     }
 
-    func observeLatestV2Request(
-        environment _: SessionEnvironment
+    func observeV2Request(
+        environment _: SessionEnvironment,
+        requestedByUserID _: String,
+        requestID _: String?
     ) async -> AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error> {
         let pair = AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error>.makeStream()
         continuation = pair.continuation

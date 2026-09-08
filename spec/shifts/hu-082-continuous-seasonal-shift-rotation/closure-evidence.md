@@ -2,6 +2,11 @@
 
 ## Status
 
+> Historical evidence for PR #275, merged as `78f018e`. The subsequent audit
+> reopened #266 for corrections. Current scope and validation are tracked in
+> [post-audit-corrections.md](post-audit-corrections.md); the results below must
+> not be attributed to the correction worktree.
+
 HU-082 implementation is complete on
 `codex/hu-082-continuous-seasonal-shift-rotation`. Commit `216dc5f` records the
 closure evidence and PR #275 is the authorized delivery vehicle for issue #266.

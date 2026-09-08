@@ -33,15 +33,20 @@ const transportFailureCodes = new Set([
   "all_targets_rejected",
   "transport_ambiguous_error",
   "transport_response_mismatch",
+  "transport_window_closed",
 ]);
 
 const boundedTransportSettlement = async (
   operation: () => Promise<ShiftPlanningNotificationTransportResult>,
   timeoutMillis: number,
+  controller: AbortController,
 ): Promise<TransportSettlement> => {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<TransportSettlement>((resolve) => {
-    timeoutHandle = setTimeout(() => resolve({kind: "timeout"}), timeoutMillis);
+    timeoutHandle = setTimeout(() => {
+      controller.abort();
+      resolve({kind: "timeout"});
+    }, timeoutMillis);
   });
   const transport: Promise<TransportSettlement> = Promise.resolve()
     .then(operation)
@@ -52,6 +57,7 @@ const boundedTransportSettlement = async (
   try {
     return await Promise.race([transport, timeout]);
   } finally {
+    controller.abort();
     if (timeoutHandle !== null) clearTimeout(timeoutHandle);
   }
 };
@@ -167,12 +173,21 @@ export const createShiftPlanningNotificationDispatchExecutor = (dependencies: {
         });
         return executionCompletion(completion);
       }
+      const controller = new AbortController();
+      const timeoutMillis = Math.min(
+        transportTimeoutMillis, remainingLeaseMillis,
+      );
       const settlement = await boundedTransportSettlement(
         () => dependencies.transport.submit({
+          submissionWindow: {
+            signal: controller.signal,
+            expiresAtMillis: observedNowMillis + timeoutMillis,
+          },
           push: authorization.push,
           targets: authorization.targets,
         }),
-        Math.min(transportTimeoutMillis, remainingLeaseMillis),
+        timeoutMillis,
+        controller,
       );
       let result: ShiftPlanningNotificationTransportResult;
       if (settlement.kind === "timeout") {
