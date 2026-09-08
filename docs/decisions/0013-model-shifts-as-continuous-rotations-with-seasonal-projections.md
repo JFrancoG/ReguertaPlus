@@ -387,6 +387,23 @@ permission to delete them while another dependency still needs them. No TTL or
 cleanup executor is enabled by this cut. Trigger, alert and policy composition
 remain pending; no live behavior is changed.
 
+The seventh HU-083 cut composes the candidate Functions exports. `onShiftWritten`
+excludes changed/removed/malformed markers and marked deletes before ordinary row
+effects. A separate authenticated `onShiftPlanningPublicWritten` retries only the
+durable audit; the ordinary trigger keeps its existing non-retrying behavior.
+This mirrors versioned-request routing and avoids replaying non-idempotent Sheets
+or notification effects. Valid retained markers remain ordinary.
+
+The audit trigger requires the full digest-bound policy JSON in
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_DEVELOP` or
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_PRODUCTION`, without defaults or
+cross-environment fallback. It preserves CloudEvent identity/time and propagates
+transient authority/persistence failures. Persisted rejections emit allowlisted
+structured diagnostics; a log is not proof of operator alert delivery. HU-085 must
+verify both trigger revisions, approved policy, producer retention bindings and the
+real alert channel under writer exclusion before controlled writes resume. This
+cut enables no deployment, live policy, alert send or cleanup executor.
+
 The companion local retention producer now freezes schema v1 without wiring the
 trigger. A digest-bound policy carries the approved maximum end-to-end delivery/
 retry horizon plus a positive safety margin. A controlled terminal gets one

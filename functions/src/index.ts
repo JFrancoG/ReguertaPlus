@@ -111,6 +111,15 @@ import {
   createVersionedShiftPlanningRequestTrigger,
 } from "./shift-planning-request-trigger.js";
 
+import {
+  createShiftPlanningPublicEventTrigger,
+  readShiftPlanningPublicEventPolicy,
+  requiresShiftPlanningPublicEventAudit,
+} from "./shift-planning-public-event-trigger.js";
+import {
+  createFirestoreShiftPlanningPublicEventAudit,
+} from "./shift-planning-firestore-public-event-audit.js";
+
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
@@ -4410,6 +4419,22 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
   }
 );
 
+export const onShiftPlanningPublicWritten =
+  createShiftPlanningPublicEventTrigger({
+    authorize: (environment, authType, authId) =>
+      resolvePrivilegedFirestoreEventAuthorization(
+        {authType, authId},
+        (uid) => resolveVerifiedLinkedAdminActor(environment, uid),
+      ),
+    audit: (input) => createFirestoreShiftPlanningPublicEventAudit(
+      firestore,
+      readShiftPlanningPublicEventPolicy(
+        parseAppEnvironment(input.targetPath.split("/")[0]), process.env,
+      ),
+    ).audit(input),
+    logger,
+  });
+
 export const onShiftWritten = onDocumentWrittenWithAuthContext(
   "{env}/plus-collections/shifts/{shiftId}",
   async (event) => {
@@ -4422,6 +4447,11 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
     )) {
       return;
     }
+    if (requiresShiftPlanningPublicEventAudit({
+      targetPath: `${env}/plus-collections/shifts/${event.params.shiftId}`,
+      before: event.data?.before.exists ? event.data.before.data() : null,
+      after: event.data?.after.exists ? event.data.after.data() : null,
+    })) return;
     const afterSnapshot = event.data?.after;
     if (!afterSnapshot?.exists) {
       return;

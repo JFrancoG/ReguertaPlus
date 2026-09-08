@@ -400,6 +400,25 @@ registro no permite eliminarlos mientras otra dependencia los necesite. Este cor
 no habilita TTL ni ejecutor de cleanup. La composición de trigger, alerta y política
 sigue pendiente; no cambia el comportamiento live.
 
+El séptimo corte de HU-083 compone los exports candidatos de Functions.
+`onShiftWritten` excluye marcadores cambiados/eliminados/inválidos y deletes con
+marcador antes de sus efectos ordinarios. Un `onShiftPlanningPublicWritten`
+autenticado independiente reintenta solo la auditoría durable; el trigger ordinario
+conserva su comportamiento sin reintentos. Sigue el patrón de solicitudes
+versionadas y evita repetir efectos no idempotentes de Sheets/notificación.
+Los marcadores válidos retenidos siguen siendo ordinarios.
+
+El trigger de auditoría exige el JSON completo de política ligado por digest en
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_DEVELOP` o
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_PRODUCTION`, sin valores por defecto
+ni fallback entre entornos. Conserva identidad/tiempo del CloudEvent y propaga
+fallos transitorios de autoridad/persistencia. Los rechazos persistidos emiten
+diagnósticos estructurados limitados; un log no prueba entrega de alerta al operador.
+HU-085 debe verificar ambas revisiones de trigger, política aprobada, bindings de
+retención de los productores y canal real de alertas bajo exclusión de escritores
+antes de reanudar escrituras controladas. Este corte no habilita despliegue,
+política live, envío de alertas ni ejecutor de cleanup.
+
 El productor local complementario de retencion congela ahora el schema v1 sin
 conectar el trigger. Una politica ligada por digest contiene el horizonte maximo
 end-to-end aprobado de entrega/reintento y un margen de seguridad positivo. Cada

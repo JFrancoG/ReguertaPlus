@@ -290,8 +290,28 @@ v1 siguen decodificándose estrictamente y sus UPDATE sin archivo se rechazan.
 Se necesitan bindings de retención explícitos para ambas operaciones lógicas.
 El terminal físico compartido y sus before-images deben conservarse hasta que todas
 sus dependencias permitan eliminarlos; no hay TTL ni ejecutor de cleanup habilitado.
-La conexión a `onShiftWritten`, la política operativa y el envío de alertas siguen
-pendientes.
+El séptimo corte conecta en el código candidato `onShiftWritten` al filtro de
+eventos controlados, antes de decodificar/exportar una fila. El nuevo
+`onShiftPlanningPublicWritten`, autenticado y con `retry: true`, persiste la
+auditoría de esos eventos. Se mantiene el trigger ordinario sin reintentos
+automáticos para no duplicar sus efectos Sheets/notificación.
+
+El trigger de auditoría exige el JSON completo del codec de política (incluido
+`policyDigest`) en `SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_DEVELOP` o
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_PRODUCTION`, según la ruta del evento.
+No hay valor por defecto ni fallback entre entornos. La política se valida al
+procesar un evento controlado; su ausencia/fallo o un fallo transitorio de autoridad
+rechaza la invocación para reintento. Los eventos ordinarios no necesitan esa
+configuración. Los rechazos persistidos emiten un diagnóstico estructurado con
+correlación opaca, código y `alertRequired`; el log no demuestra entrega de alerta.
+
+Antes de habilitar escrituras controladas, HU-085 debe desplegar/verificar ambos
+triggers bajo exclusión de escritores, fijar la política aprobada, garantizar los
+bindings de retención de cada productor y verificar el canal real de alertas.
+Este corte no despliega ni configura recursos live. Prueba reproducible local:
+`npm run test:shift-planning:public-event-trigger:emulator` ejecuta los handlers
+exportados con snapshots SDK/autoridad Firestore en un proyecto demo, sin Sheets
+ni FCM reales.
 
 Las revisiones de libro del bundle son observaciones por partición y pueden
 diferir; no son tokens CAS de Sheets. El ejecutor entrega al consumidor un callback

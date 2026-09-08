@@ -303,6 +303,50 @@ authority must remain available; no generic cleanup executor is enabled. Trigger
 alert/policy composition, human-layout conversion, endpoints, audit/repair and
 rehearsal remain pending. No shared deployment, live data mutation or message send.
 
+### Seventh local cut — public-event trigger composition (approved 2026-09-08)
+
+Sixth cut is committed and pushed as `8c4c48a`; its unchanged implementation
+reuses lint/build, 50/50 emulator and 279 passing planning-unit evidence.
+Connect controlled-event routing to the actual exported Functions: exclude changed,
+removed or malformed markers and marked deletes before ordinary `onShiftWritten`
+effects, and use a dedicated authenticated retry-enabled public-event audit trigger.
+This follows the existing versioned-request trigger pattern and keeps ordinary
+Sheets/notification effects outside automatic retries. Retained valid markers and
+unmarked ordinary rows continue through the existing ordinary writer fences.
+
+Read exact environment-scoped retention-policy JSON with no default/fallback.
+Preserve CloudEvent ID/time, propagate transient authority/persistence failures,
+and emit allowlisted structured rejection diagnostics only after ledger persistence.
+Logs are an alert integration signal, not proof of operator alert delivery. Test the
+exported retry handler, authorization, replay, rejection, missing policy and routing
+with real Firestore emulator authority. No shared deployment, alert send, live
+policy activation, human-layout conversion or audit/repair apply is included.
+
+### Seventh-cut validation checkpoint — 2026-09-08
+
+Candidate exports now separate controlled-event auditing from ordinary row effects.
+The ordinary trigger applies the shared raw-snapshot gate before legacy decoding;
+`onShiftPlanningPublicWritten` authenticates and retries only durable audit work.
+Runtime retention policy is explicitly scoped by environment, with no fallback.
+Rejections log allowlisted diagnostics after persistence; this is not a configured
+operator alert channel or proof of alert delivery.
+
+Validation passes: Functions lint/build; trigger suite **12/12 with no skips**
+(8 focused tests plus 4 emulator tests invoking the actual `index.ts` exports with
+SDK snapshots); planning regression **287 pass / 51 emulator-only skips**; backend
+security **31/31**. Evidence covers recovery UPDATE/DELETE and delayed activation
+replay, missing policy, transient transaction/authorization failure, durable
+rejection, forged confirmed-row exclusion before Sheets access, and ordinary
+retained-marker routing. No Android/iOS code or Rules changed; their gates were
+not rerun. Sixth-cut audit/core emulator evidence is unchanged and reused.
+
+Seventh-cut code remains local and uncommitted; remote HEAD is sixth-cut `8c4c48a`.
+Before controlled writes, HU-085 must install/verify both trigger revisions under
+writer exclusion, approve runtime policy, compose retention for all producers and
+verify actual alerts. Human layout/conversion, worker/endpoints, audit/repair and
+rehearsal remain open HU-083 work. No shared deployment, live configuration/data
+write, Sheets/FCM call or operator message was performed.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its
