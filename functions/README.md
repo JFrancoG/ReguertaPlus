@@ -461,6 +461,56 @@ baseline y rollback. No hay clientes live ni modo apply. Repetir las mismas entr
 produce el mismo plan; esto no demuestra idempotencia de una futura escritura.
 `npm run test:shift-planning:audit` valida conjuntamente auditoría y plan en seco.
 
+El decimotercer corte permite vincular ese plan a una captura completa de los
+documentos de turnos. Añadir **ambas** opciones al comando anterior:
+
+```sh
+--firestore-capture /ruta/captura.json --expected-capture-digest '<digest de la captura>'
+```
+
+El digest es `createShiftPlanningDigest(captura)` con el codec canónico existente,
+no un hash del texto JSON. La captura (máximo 4 MiB) tiene exactamente estos campos:
+
+| Campo | Contrato |
+| --- | --- |
+| `schemaVersion` | `1` |
+| `target` | Mismo proyecto, entorno y libro del snapshot original |
+| `inputDigest` | Digest del snapshot normalizado original completo |
+| `capturedAt` | Misma fecha de captura del original |
+| `documents` | Una entrada `{targetPath, updateTime, payload}` por cada fila original, incluidos vecinos sin cambios |
+| `absentPaths` | Exactamente las rutas de las altas propuestas; sin duplicados ni rutas adicionales |
+
+`payload` utiliza `encodeShiftPlanningFirestoreValue` y debe representar un mapa;
+`updateTime`, un valor `{kind: "timestamp", seconds, nanoseconds}` del mismo codec.
+No usar la serialización JSON directa de objetos SDK como sustituto. El decodificador
+rechaza tipos no soportados y la recodificación debe reproducir el valor canónico.
+Se conservan timestamps con nanosegundos, bytes, GeoPoints, anidamientos, campos
+adicionales y la provenance original. No se convierte la captura en el esquema
+estricto de una publicación nueva: por ejemplo, `source: "planner"` se conserva
+como valor original que el plan pretende corregir.
+
+Las rutas deben ser exactamente `{environment}/plus-collections/shifts/{id}` para
+las filas del original. Se comprueba que cada documento reproduce su proyección,
+revisiones, estado/revisión de completado y posiciones de ronda; también la relación
+propietario/asignado de las posiciones de mercado. El formato de estos campos sigue
+el payload HU-082 (incluidos los campos de rotación nulos del tipo opuesto). No se
+inventan valores predeterminados para documentos legacy que no lo representan.
+El helper real y su timestamp de completado permanecen en el cuerpo íntegro aunque
+no aparezcan en la proyección. Un `updateTime` posterior a `capturedAt` se rechaza.
+
+Con estas opciones, el resultado es un **plan v2** con `firestoreEvidence`: digest de
+captura, documentos completos ordenados con `updateTime`, digest de payload y digest
+de proyección, más las ausencias exactas. Cambiar incluso un campo adicional o un
+nanosegundo de un vecino altera el digest del plan. Sin las opciones se conserva el
+plan v1 sin vinculación; opciones incompletas, captura nula o discrepancias se rechazan.
+
+Este vínculo solo acredita coherencia entre los archivos suministrados. No prueba
+quién capturó los datos, completitud de una consulta live, ausencias reales ni la
+actualidad de perfiles, rotaciones y fences. Los before-images son privados; no se
+vuelcan en stderr. Sigue faltando construir y ensayar la transacción de documentos
+finales, terminal, retención y provenance, el baseline y su recuperación. Los dos
+formatos mantienen `readyForApply: false`; no hay captura live ni ejecutor de escritura.
+
 El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
 (`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y
 la identidad runtime quedan para HU-085; no se amplía el permiso del operador de

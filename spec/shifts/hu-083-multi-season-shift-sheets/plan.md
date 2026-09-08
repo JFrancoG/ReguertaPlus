@@ -584,6 +584,55 @@ restore rehearsal, writer/trigger model, full-document atomic CAS/provenance,
 migration baseline and rollback. Human conversion and the guarded live/zero-write
 rehearsal remain pending. The artifact always declares `readyForApply: false`.
 
+### Thirteenth local cut — full Firestore capture binding (approved 2026-09-08)
+
+Twelfth cut is committed/pushed as `612d4b6`; its unchanged 37 audit/repair and 44
+Sheets tests plus lint/build are reused. Bind the offline dry-run to a separately
+supplied full-document capture and its exact digest. Reuse HU-082's typed Firestore
+value codec so timestamps/nanoseconds, bytes, GeoPoints, nested/extra fields and
+original provenance are preserved rather than silently projected away.
+
+Require exact target/input digest/capture time, one captured document and updateTime
+for every original source row including unchanged neighbors, and explicit absence
+for every proposed create. Reject duplicate/missing/foreign paths, invalid typed
+payloads, projection/revision/completion/round mismatches and future update times.
+Retain full before-images plus exact absence/read guards in a versioned private plan.
+Keep the existing unbound plan available as v1, never silently promote it to bound.
+
+This closes source-to-projection binding only. A capture supplied by the operator is
+not proof of live query completeness or authenticated backup. No full forward write,
+terminal/retention/provenance transaction, inverse execution, baseline, live capture,
+network client or deployment is added. `readyForApply` remains false. Test lossy or
+mismatched captures, full extra-field preservation, changed unchanged-neighbor guards,
+create absence and both CLI forms; no source files or live stores are mutated.
+
+### Thirteenth-cut validation checkpoint — 2026-09-08
+
+The dry-run CLI now optionally requires a full typed Firestore capture and its exact
+digest. Bound plans are v2 and retain all original shift payloads/updateTimes, including
+unchanged neighbors, per-payload/projection digests and exact proposed-create absences.
+HU-082 encoding/decoding preserves nanoseconds, bytes, GeoPoints, nested/extra fields
+and original provenance. Projection, revision, completion and round/market-position
+bindings are checked without pretending invalid historical source values are already
+valid publication payloads. Missing/duplicate/foreign documents, future update times,
+lossy/unsupported values, partial options or null captures reject the plan. Unbound v1
+remains explicit and unchanged.
+
+Validation: Functions lint/build and Node syntax check passed; combined audit/repair
+44/44; Sheets 44/44; publication contract/codec 8/8; `git diff --check` passed. Tests
+include actual three-file CLI execution with unchanged files, rejection of incomplete
+capture options, full extra-field preservation, exact absence, completed actual-helper
+evidence and digest changes for an unchanged neighbor or one updateTime nanosecond.
+No runtime/mobile contracts changed; prior emulator validation was not rerun for this
+offline capture-binding extension.
+
+Remote HEAD is twelfth-cut `612d4b6`; thirteenth-cut implementation is local and
+uncommitted. Issue #267 remains open; unrelated Xcode edits in the main checkout are
+preserved. No live capture/write, deploy, IAM or notification occurred. This binds
+supplied shift evidence only: authenticated capture/query completeness, other source
+registries, final document/CAS/terminal/retention/provenance assembly, migration
+baseline, rollback and guarded rehearsal remain pending. `readyForApply` stays false.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its

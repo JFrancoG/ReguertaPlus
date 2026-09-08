@@ -36,6 +36,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(shifts): bind repair plans to full captures
 - 2026-09-08 | ✨ feat(shifts): plan reviewed offline repairs
 - 2026-09-08 | ✨ feat(shifts): audit rotation lineage and rounds
 - 2026-09-08 | ✨ feat(shifts): add offline snapshot audit

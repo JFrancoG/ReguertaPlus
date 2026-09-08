@@ -516,3 +516,126 @@ test("repair preserves unselected tabs and rejects mutations outside reviewed pa
   setCell(proposal.spreadsheet.sheets.at(-1), 1, 0, {userEnteredValue: {stringValue: "shift_delivery_20260827"}});
   await assert.rejects(repair(input, proposal));
 });
+
+const {Timestamp, GeoPoint} = require("@google-cloud/firestore");
+const {encodeShiftPlanningFirestoreValue: encodeFirestore, decodeShiftPlanningFirestoreDocument: decodeDocument} = require("../lib/shift-planning-publication-contract.js");
+const encoded = (value) => encodeFirestore(value, "fixture", new Set());
+const capturedDocuments = (input, proposal = input) => ({schemaVersion: 1, target: clone(target), inputDigest: snapshotDigest(input), capturedAt: input.capturedAt,
+  absentPaths: proposal.source.filter((entry) => !input.source.some((old) => old.row.id === entry.row.id)).map((entry) => `${target.environment}/plus-collections/shifts/${entry.row.id}`),
+  documents: input.source.map((entry) => {
+    const row = entry.row, positions = input.lineage[row.type].rows.find((item) => item.shiftId === row.id).positions;
+    const date = new Timestamp(Date.parse(row.date + "T00:00:00Z") / 1000, 123456789);
+    return {targetPath: `${target.environment}/plus-collections/shifts/${row.id}`,
+      updateTime: encoded(new Timestamp(Date.parse(input.capturedAt) / 1000 - 1, 987654321)),
+      payload: encoded({type: row.type, date, assignedUserIds: row.assignedUserIds, helperUserId: row.helperUserId,
+        status: row.status, source: row.source, origin: row.origin, documentRevision: entry.documentRevision, assignmentRevision: entry.assignmentRevision,
+        rotationOwnerUserId: row.type === "delivery" ? row.rotationOwnerUserIds[0] : null,
+        rotationOwnerUserIds: row.type === "market" ? row.rotationOwnerUserIds : null,
+        roundNumber: row.type === "delivery" ? positions[0].roundNumber : null,
+        positionInRound: row.type === "delivery" ? positions[0].positionInRound : null,
+        rotationPositions: row.type === "market" ? positions.map((position, index) => ({...position, rotationOwnerUserId: row.rotationOwnerUserIds[index], effectiveAssigneeUserId: row.assignedUserIds[index]})) : null,
+        completion: entry.completed ? {state: "completed", revision: entry.completionRevision, actualHelperUserId: row.type === "delivery" ? "d" : null,
+          helperSourceAssignmentRevision: row.type === "delivery" ? entry.assignmentRevision : null, completedAt: date} :
+          {state: "uncompleted", revision: 0, actualHelperUserId: null, helperSourceAssignmentRevision: null, completedAt: null},
+        lastBackendMutation: {originalEvidence: "retained verbatim"}, createdAt: date, updatedAt: date,
+        extra: {note: "private extra field", binary: Buffer.from([0, 255]), location: new GeoPoint(40.4, -3.7), nested: [null, true, {at: date}]}})};
+  })});
+const boundRepair = (input, proposal, capture, overrides = {}) => repair(input, proposal,
+  {firestoreCapture: capture, expectedCaptureDigest: snapshotDigest(capture), ...overrides});
+const editCaptured = (capture, index, mutate) => {
+  const doc = decodeDocument(capture.documents[index].payload); mutate(doc); capture.documents[index].payload = encoded(doc);
+};
+
+test("bound repair preserves full typed before-images including unchanged neighbors and extra fields", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+  const capture = capturedDocuments(input), copy = clone(capture), plan = await boundRepair(input, proposal, capture);
+  assert.equal(plan.schemaVersion, 2); assert.equal(plan.readyForApply, false); assert.equal(plan.firestoreEvidence.documents.length, 4);
+  assert.deepEqual(capture, copy); assert.deepEqual(plan.firestoreEvidence.absentPaths, []);
+  for (const item of plan.firestoreEvidence.documents) {
+    const original = capture.documents.find((doc) => doc.targetPath === item.targetPath);
+    assert.deepEqual(item.payload, original.payload); assert.deepEqual(item.updateTime, original.updateTime);
+    const decoded = decodeDocument(item.payload);
+    assert.equal(decoded.date.nanoseconds, 123456789); assert.deepEqual(decoded.extra.binary, Buffer.from([0, 255]));
+    assert.equal(decoded.extra.location.latitude, 40.4); assert.equal(decoded.extra.nested[2].at.nanoseconds, 123456789);
+    assert.equal(decoded.extra.note, "private extra field"); assert.deepEqual(decoded.lastBackendMutation, {originalEvidence: "retained verbatim"});
+  }
+  assert.deepEqual(await boundRepair(input, proposal, capture), plan);
+  assert.equal((await repair(input, proposal)).schemaVersion, 1);
+});
+
+test("any unchanged neighbor payload or nanosecond updateTime changes the bound plan digest", async () => {
+  const input = await lineageFixture(), capture = capturedDocuments(input), plan = await boundRepair(input, input, capture);
+  editCaptured(capture, 2, (doc) => { doc.extra.note = "different private field"; });
+  assert.notEqual((await boundRepair(input, input, capture)).planDigest, plan.planDigest);
+  const changed = await boundRepair(input, input, capture); capture.documents[2].updateTime.nanoseconds -= 1;
+  assert.notEqual((await boundRepair(input, input, capture)).planDigest, changed.planDigest);
+  await assert.rejects(boundRepair(input, input, capture, {expectedCaptureDigest: plan.firestoreEvidence.captureDigest}));
+});
+
+test("capture requires every original document and exact create absences without extra or foreign paths", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal);
+  input.source.splice(1, 1); input.lineage.delivery.rows.splice(1, 1);
+  Object.assign(proposal.source[1], {documentRevision: 0, assignmentRevision: 0, completionRevision: 0});
+  const capture = capturedDocuments(input, proposal), plan = await boundRepair(input, proposal, capture);
+  assert.deepEqual(plan.firestoreEvidence.absentPaths, [`develop/plus-collections/shifts/${proposal.source[1].row.id}`]);
+  for (const mutate of [(c) => c.documents.pop(), (c) => c.documents.push(clone(c.documents[0])), (c) => { c.absentPaths = []; },
+    (c) => c.absentPaths.push(c.absentPaths[0]), (c) => { c.documents[0].targetPath = c.documents[0].targetPath.replace("develop/", "production/"); }]) {
+    const bad = clone(capture); mutate(bad); await assert.rejects(boundRepair(input, proposal, bad));
+  }
+});
+
+test("capture rejects mismatched projections, revisions, completion and row positions", async () => {
+  const input = await lineageFixture(), capture = capturedDocuments(input);
+  for (const mutate of [(doc) => { doc.assignedUserIds = ["d"]; }, (doc) => { doc.documentRevision += 1; },
+    (doc) => { doc.completion.revision = 1; }, (doc) => { doc.completion.completedAt = doc.date; },
+    (doc) => { doc.roundNumber = 8; }, (doc) => { doc.rotationOwnerUserIds = ["a"]; },
+    (doc) => { doc.date = Timestamp.fromMillis(0); }, (doc) => { delete doc.origin; }]) {
+    const bad = clone(capture); editCaptured(bad, 0, mutate); await assert.rejects(boundRepair(input, input, bad));
+  }
+  const badMarket = clone(capture); editCaptured(badMarket, 3, (doc) => { doc.rotationPositions[0].effectiveAssigneeUserId = "d"; });
+  await assert.rejects(boundRepair(input, input, badMarket));
+});
+
+test("capture keeps completed actual-helper evidence and rejects lossy timestamp or unsupported values", async () => {
+  const input = await lineageFixture(); Object.assign(input.source[0], {completed: true, completionRevision: 1});
+  const capture = capturedDocuments(input), plan = await boundRepair(input, input, capture);
+  const item = plan.firestoreEvidence.documents.find((item) => item.targetPath.endsWith(input.source[0].row.id));
+  assert.equal(decodeDocument(item.payload).completion.actualHelperUserId, "d");
+  for (const mutate of [(c) => { c.documents[0].updateTime = {kind: "number", value: 0}; },
+    (c) => { c.documents[0].updateTime.nanoseconds = 1000000000; },
+    (c) => { c.documents[0].payload = {kind: "reference", path: "private/path"}; },
+    (c) => { c.documents[0].updateTime.seconds += 2; }]) {
+    const bad = clone(capture); mutate(bad); await assert.rejects(boundRepair(input, input, bad));
+  }
+});
+
+test("capture binding rejects context mismatch or partial options and never silently downgrades null", async () => {
+  const input = await lineageFixture(), capture = capturedDocuments(input);
+  for (const mutate of [(c) => { c.inputDigest = "wrong"; }, (c) => { c.capturedAt = "2026-09-09T00:00:00.000Z"; },
+    (c) => { c.target.workbookId = "wrong"; }, (c) => { c.schemaVersion = 2; }, (c) => { c.extra = true; }]) {
+    const bad = clone(capture); mutate(bad); await assert.rejects(boundRepair(input, input, bad));
+  }
+  await assert.rejects(repair(input, input, {firestoreCapture: capture}));
+  await assert.rejects(repair(input, input, {expectedCaptureDigest: snapshotDigest(capture)}));
+  await assert.rejects(repair(input, input, {firestoreCapture: null, expectedCaptureDigest: snapshotDigest(null)}));
+});
+
+test("bound CLI reads three immutable files and rejects an unpaired capture flag", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "capture-review-"));
+  try {
+    const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+    const capture = capturedDocuments(input), inputPath = join(directory, "input.json"), proposalPath = join(directory, "proposal.json"), capturePath = join(directory, "capture.json");
+    const serialized = JSON.stringify(input), desired = JSON.stringify(proposal), captured = JSON.stringify(capture);
+    writeFileSync(inputPath, serialized); writeFileSync(proposalPath, desired); writeFileSync(capturePath, captured);
+    const args = [require.resolve("../scripts/repair-planned-shifts.cjs"), "--mode", "dry-run", "--input", inputPath, "--proposal", proposalPath,
+      "--project", target.projectId, "--environment", target.environment, "--workbook", target.workbookId,
+      "--expected-input-digest", snapshotDigest(input), "--expected-proposal-digest", snapshotDigest(proposal),
+      "--firestore-capture", capturePath, "--expected-capture-digest", snapshotDigest(capture)];
+    const result = spawnSync(process.execPath, args, {encoding: "utf8", env: {PATH: process.env.PATH}});
+    assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).schemaVersion, 2);
+    assert.equal(readFileSync(inputPath, "utf8"), serialized); assert.equal(readFileSync(capturePath, "utf8"), captured);
+    assert.equal(readFileSync(proposalPath, "utf8"), desired); assert.equal(readdirSync(directory).length, 3);
+    assert.doesNotMatch(result.stderr, /private extra field|retained verbatim/);
+    const bad = spawnSync(process.execPath, args.slice(0, -2), {encoding: "utf8"}); assert.equal(bad.status, 1); assert.equal(bad.stdout, "");
+  } finally { rmSync(directory, {recursive: true, force: true}); }
+});

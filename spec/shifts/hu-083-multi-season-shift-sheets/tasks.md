@@ -200,6 +200,10 @@
     snapshots: normalized projections, lineage and exact managed cells. Full
     document write/CAS, baseline and rollback manifests remain pending; no apply
     readiness or live validation is claimed.
+  - [x] Thirteenth local cut binds review plans to all original shift documents,
+    nanosecond update times and exact create absences through the HU-082 typed
+    value codec. Full payloads/extra fields survive; capture authenticity, live
+    completeness and final write/terminal/retention/rollback assembly remain open.
 - [ ] Define the immutable post-repair two-type migration-baseline revision/digest;
   persist/read it back only on safe apply, or emit its expected digest plus exact
   HU-085 materialization manifest on zero-write deferral.

@@ -6,6 +6,9 @@ const {readFileSync, statSync} = require("node:fs");
 const {auditShiftPlanning, MAX_BYTES} = require("./audit-shift-planning.cjs");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {SHIFT_SHEETS_HEADERS: headers, shiftSheetsGridRows} = require("../lib/shift-sheets.js");
+const {Timestamp} = require("@google-cloud/firestore");
+const {encodeShiftPlanningFirestoreValue, decodeShiftPlanningFirestoreValue, decodeShiftPlanningFirestoreDocument} =
+  require("../lib/shift-planning-publication-contract.js");
 const same = (a, b) => digest(a) === digest(b);
 const requireValue = (condition) => { if (!condition) throw new Error("repair_plan_rejected"); };
 const identity = (value) => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
@@ -62,8 +65,74 @@ const cellChanges = (before, after, selectedTitles, sourceIds) => {
   return changes;
 };
 
-const planShiftRepair = async ({input, proposal, target, expectedInputDigest, expectedProposalDigest}) => {
+const exactKeys = (value, keys) => value !== null && typeof value === "object" && !Array.isArray(value) &&
+  same(Object.keys(value).sort(), [...keys].sort());
+const encode = (value) => encodeShiftPlanningFirestoreValue(value, "repair capture", new Set());
+const timestamp = (encoded) => {
+  requireValue(encoded?.kind === "timestamp");
+  const value = decodeShiftPlanningFirestoreValue(encoded);
+  requireValue(value instanceof Timestamp && same(encode(value), encoded)); return value;
+};
+
+// This binds supplied evidence; it does not attest how the evidence was captured.
+const bindFirestoreCapture = (capture, expectedDigest, before, after) => {
+  requireValue(Buffer.byteLength(JSON.stringify(capture)) <= MAX_BYTES && digest(capture) === expectedDigest);
+  requireValue(exactKeys(capture, ["schemaVersion", "target", "inputDigest", "capturedAt", "documents", "absentPaths"]) &&
+    capture.schemaVersion === 1 && same(capture.target, before.target) && capture.inputDigest === digest(before) &&
+    capture.capturedAt === before.capturedAt && Array.isArray(capture.documents) && Array.isArray(capture.absentPaths));
+  const root = `${before.target.environment}/plus-collections/shifts/`;
+  const originals = new Map(before.source.map((entry) => [root + entry.row.id, entry]));
+  const creates = after.source.filter((entry) => !originals.has(root + entry.row.id)).map((entry) => root + entry.row.id).sort();
+  requireValue(capture.documents.length === originals.size && same([...capture.absentPaths].sort(), creates));
+  const capturedAt = Timestamp.fromDate(new Date(capture.capturedAt)), seen = new Set(), documents = [];
+  for (const entry of capture.documents) {
+    requireValue(exactKeys(entry, ["targetPath", "updateTime", "payload"]) && originals.has(entry.targetPath) && !seen.has(entry.targetPath));
+    seen.add(entry.targetPath);
+    const updateTime = timestamp(entry.updateTime);
+    requireValue(updateTime.seconds < capturedAt.seconds ||
+      (updateTime.seconds === capturedAt.seconds && updateTime.nanoseconds <= capturedAt.nanoseconds));
+    const doc = decodeShiftPlanningFirestoreDocument(entry.payload);
+    requireValue(same(encode(doc), entry.payload));
+    const source = originals.get(entry.targetPath), id = source.row.id;
+    requireValue(doc.date instanceof Timestamp && ["type", "assignedUserIds", "helperUserId", "status", "source", "origin",
+      "documentRevision", "assignmentRevision", "completion"].every((field) => Object.hasOwn(doc, field)));
+    requireValue(doc.type === "delivery" ? doc.rotationOwnerUserIds === null && doc.rotationPositions === null :
+      doc.rotationOwnerUserId === null && doc.roundNumber === null && doc.positionInRound === null);
+    const owners = doc.type === "delivery" ? [doc.rotationOwnerUserId] : doc.rotationOwnerUserIds;
+    const projection = {id, type: doc.type, date: doc.date.toDate().toISOString().slice(0, 10),
+      rotationOwnerUserIds: owners, assignedUserIds: doc.assignedUserIds, helperUserId: doc.helperUserId,
+      status: doc.status, source: doc.source, origin: doc.origin};
+    requireValue(same(projection, source.row) && doc.documentRevision === source.documentRevision &&
+      doc.assignmentRevision === source.assignmentRevision && exactKeys(doc.completion,
+        ["state", "revision", "actualHelperUserId", "helperSourceAssignmentRevision", "completedAt"]));
+    requireValue(doc.completion.revision === source.completionRevision &&
+      doc.completion.state === (source.completed ? "completed" : "uncompleted"));
+    if (source.completed) {
+      requireValue(doc.completion.completedAt instanceof Timestamp && source.completionRevision > 0);
+      if (doc.type === "delivery") requireValue(identity(doc.completion.actualHelperUserId) &&
+        Number.isSafeInteger(doc.completion.helperSourceAssignmentRevision) && doc.completion.helperSourceAssignmentRevision > 0 &&
+        doc.completion.helperSourceAssignmentRevision <= source.assignmentRevision);
+      else requireValue(doc.completion.actualHelperUserId === null && doc.completion.helperSourceAssignmentRevision === null);
+    } else requireValue(source.completionRevision === 0 && doc.completion.actualHelperUserId === null &&
+      doc.completion.helperSourceAssignmentRevision === null && doc.completion.completedAt === null);
+    const lineage = before.lineage[doc.type].rows.filter((row) => row.shiftId === id);
+    const positions = doc.type === "delivery" ? [{roundNumber: doc.roundNumber, positionInRound: doc.positionInRound}] :
+      doc.rotationPositions?.map((position) => ({roundNumber: position.roundNumber, positionInRound: position.positionInRound}));
+    requireValue(lineage.length === 1 && same(positions, lineage[0].positions));
+    if (doc.type === "market") requireValue(same(doc.rotationPositions.map((position) => position.rotationOwnerUserId), owners) &&
+      same(doc.rotationPositions.map((position) => position.effectiveAssigneeUserId), doc.assignedUserIds));
+    documents.push({targetPath: entry.targetPath, updateTime: entry.updateTime, payload: entry.payload,
+      payloadDigest: digest(entry.payload), projectionDigest: digest(source)});
+  }
+  documents.sort((a, b) => a.targetPath.localeCompare(b.targetPath));
+  return {captureDigest: expectedDigest, documents, absentPaths: creates};
+};
+
+const planShiftRepair = async ({input, proposal, target, expectedInputDigest, expectedProposalDigest, firestoreCapture, expectedCaptureDigest}) => {
   const before = structuredClone(input), after = structuredClone(proposal);
+  requireValue((firestoreCapture === undefined) === (expectedCaptureDigest === undefined));
+  requireValue(firestoreCapture === undefined || (firestoreCapture !== null && typeof firestoreCapture === "object" && !Array.isArray(firestoreCapture)));
+  const capture = firestoreCapture === undefined ? null : structuredClone(firestoreCapture);
   requireValue(before.schemaVersion === 2 && after.schemaVersion === 2);
   const originalAudit = await auditShiftPlanning(before, target), proposedAudit = await auditShiftPlanning(after, target);
   requireValue(originalAudit.inputDigest === expectedInputDigest && proposedAudit.inputDigest === expectedProposalDigest);
@@ -115,7 +184,9 @@ const planShiftRepair = async ({input, proposal, target, expectedInputDigest, ex
   }
   const sheetsChanges = cellChanges(before.spreadsheet, after.spreadsheet,
     new Set(after.tabs.map((tab) => tab.title)), new Set(newRows.keys()));
-  const body = {schemaVersion: 1, mode: "dry-run", scope: "normalized_projection_review", readyForApply: false,
+  const firestoreEvidence = capture === null ? null : bindFirestoreCapture(capture, expectedCaptureDigest, before, after);
+  const body = {schemaVersion: firestoreEvidence ? 2 : 1, mode: "dry-run", scope: "normalized_projection_review", readyForApply: false,
+    ...(firestoreEvidence ? {firestoreEvidence} : {}),
     target: before.target, inputDigest: originalAudit.inputDigest, proposalDigest: proposedAudit.inputDigest,
     originalAuditDigest: originalAudit.reportDigest, proposedAuditDigest: proposedAudit.reportDigest,
     projectionChanges, lineageChanges, sheetsChanges,
@@ -128,6 +199,9 @@ const readSnapshot = (path) => {
 };
 const main = async (args) => {
   const names = ["--mode", "--input", "--proposal", "--project", "--environment", "--workbook", "--expected-input-digest", "--expected-proposal-digest"];
+  if (args.includes("--firestore-capture") || args.includes("--expected-capture-digest")) {
+    names.push("--firestore-capture", "--expected-capture-digest");
+  }
   requireValue(args.length === names.length * 2); const values = {};
   for (let i = 0; i < args.length; i += 2) {
     requireValue(names.includes(args[i]) && !Object.hasOwn(values, args[i]) && args[i + 1]); values[args[i]] = args[i + 1];
@@ -135,7 +209,9 @@ const main = async (args) => {
   requireValue(values["--mode"] === "dry-run");
   const plan = await planShiftRepair({input: readSnapshot(values["--input"]), proposal: readSnapshot(values["--proposal"]),
     target: {projectId: values["--project"], environment: values["--environment"], workbookId: values["--workbook"]},
-    expectedInputDigest: values["--expected-input-digest"], expectedProposalDigest: values["--expected-proposal-digest"]});
+    expectedInputDigest: values["--expected-input-digest"], expectedProposalDigest: values["--expected-proposal-digest"],
+    ...(values["--firestore-capture"] ? {firestoreCapture: readSnapshot(values["--firestore-capture"]),
+      expectedCaptureDigest: values["--expected-capture-digest"]} : {})});
   process.stdout.write(JSON.stringify(plan, null, 2) + "\n");
   process.stderr.write(`Repair review: ${plan.projectionChanges.length} projections, ${plan.lineageChanges.length} lineage changes, ${plan.sheetsChanges.length} cells; apply unavailable.\n`);
 };
