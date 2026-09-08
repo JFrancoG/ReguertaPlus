@@ -72,6 +72,13 @@ import and whole-tab clear code is removed. Ordinary export honors the generated
 helper header and append structure. Historical-layout adoption, full integration
 validation and real-data acceptance remain open; deployment/external caller review
 remains with HU-085.
+Cut twenty-six adopts historical readable tabs through the same exact reviewed
+mapping used by import. Its detached decorations are bound into new schema-v2
+receipts/digests; recovery retains prior mapped/unmapped/canonical behavior.
+Historical delivery F remains a week/annotation column, not an implicit helper
+migration. Title/month rows and inter-block spacing are retained. The real book
+still requires its own reviewed mapping and evidence; synthetic tests do not
+establish either. Complete integration review is next.
 
 - Keep one stable workbook for develop/test and one stable workbook for
   production.

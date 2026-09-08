@@ -6,13 +6,10 @@ import {ShiftPlanningDigestError} from "./shift-planning-digest.js";
 import {ShiftPlanningOperationalLogger} from
   "./shift-planning-operational-log.js";
 import {
-  ShiftSheetsConfig, ShiftSheetsEnvironment, ShiftSheetsError,
-  resolveShiftSheetsTab,
+  ShiftSheetsEnvironment, ShiftSheetsError,
 } from "./shift-sheets-config.js";
-import {ShiftSheetsImportTab} from "./shift-sheets-import.js";
 import {createFirestoreShiftSheetsImport} from
   "./shift-sheets-firestore-import.js";
-import {SHIFT_SHEETS_LIMITS} from "./shift-sheets.js";
 
 type Command = {environment: ShiftSheetsEnvironment; operationId: string} &
   ({mode: "prepare"} |
@@ -23,57 +20,7 @@ type Dependencies = {
   logger: Pick<ShiftPlanningOperationalLogger, "error">;
 };
 
-/**
- * Loads the reviewed mapping from deployment configuration, never HTTP input.
- * Human and technical mappings use the same separate prepare/apply/write-back
- * flow. No layout or decoration is inferred from aliases.
- * @param {ShiftSheetsConfig} config Exact environment and routing authority.
- * @param {object} variables Invocation-time environment variables.
- * @return {ShiftSheetsImportTab[]} Explicit bounded tab mapping.
- */
-export const readShiftSheetsImportMapping = (
-  config: ShiftSheetsConfig,
-  variables: Readonly<Record<string, string | undefined>>,
-): readonly ShiftSheetsImportTab[] => {
-  try {
-    const raw = variables[
-      `SHIFT_SHEETS_IMPORT_TABS_${config.environment.toUpperCase()}`
-    ];
-    if (!raw || raw.length > 65536) throw new Error("Missing mapping.");
-    const tabs = JSON.parse(raw) as ShiftSheetsImportTab[];
-    if (!Array.isArray(tabs) || !tabs.length ||
-      tabs.length > SHIFT_SHEETS_LIMITS.tabs ||
-      new Set(tabs.map((tab) => tab.title)).size !== tabs.length) {
-      throw new Error("Invalid tab set.");
-    }
-    for (const tab of tabs) {
-      if (Object.keys(tab).sort().join(",") !==
-          "decorations,layout,seasonStartYear,title,type" ||
-        !Number.isSafeInteger(tab.seasonStartYear) ||
-        resolveShiftSheetsTab(config, tab.type,
-          `${tab.seasonStartYear}-09-01`).title !== tab.title ||
-        !["canonical", `${tab.type}_human`].includes(tab.layout) ||
-        !Array.isArray(tab.decorations) ||
-        tab.decorations.length > SHIFT_SHEETS_LIMITS.tabRows ||
-        (tab.layout === "canonical" && tab.decorations.length) ||
-        new Set(tab.decorations.map((row) => row.rowNumber)).size !==
-        tab.decorations.length || tab.decorations.some((row) =>
-        Object.keys(row).sort().join(",") !== "cells,rowNumber" ||
-          !Number.isSafeInteger(row.rowNumber) || row.rowNumber < 1 ||
-          row.rowNumber > SHIFT_SHEETS_LIMITS.tabRows ||
-          !Array.isArray(row.cells) ||
-          row.cells.length > SHIFT_SHEETS_LIMITS.tabColumns ||
-          row.cells.some((cell: unknown) =>
-            typeof cell !== "string" || cell.length > 1024))) {
-        throw new Error("Invalid layout.");
-      }
-    }
-    return tabs;
-  } catch {
-    throw new ShiftSheetsError("invalid_sheets_import",
-      "An exact reviewed import mapping is required.");
-  }
-};
+export {readShiftSheetsImportMapping} from "./shift-sheets-import-mapping.js";
 
 const parseCommand = (value: unknown): Command => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {

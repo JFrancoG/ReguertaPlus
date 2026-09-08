@@ -1,5 +1,14 @@
 # [HU-083] Multi-season shift Sheets and develop repair
 
+## Cut 26 checkpoint — 2026-09-08
+
+Cut 25 pushed: `f1afc6d`. Cut 26 is local: reviewed historical mappings now drive
+generation/export and persist in readable recovery receipts; titles, spacing and
+historical F survive. Lint/build pass, local regression 200 passes (11 skips covered
+by emulator), consumer 24/24, exported handlers 27/27, fences 12/12. No live writes.
+Real-book mapping/evidence remain unverified. Next: cuts 27–29 (integration review,
+real evidence and repair/deferral, acceptance). Details: `spec/shifts/hu-083-multi-season-shift-sheets/plan.md`.
+
 ## Tracking
 
 - GitHub issue: #267

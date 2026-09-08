@@ -121,10 +121,12 @@ import {
 
 import {
   readShiftSheetsWorkerConfig,
+  ShiftSheetsConfig,
   resolveShiftSheetsHumanRange,
 } from "./shift-sheets-config.js";
 import {createShiftSheetsAdapter} from "./shift-sheets.js";
-import {SHIFT_SHEETS_HUMAN_HEADERS} from "./shift-sheets-human-layout.js";
+import {SHIFT_SHEETS_HUMAN_HEADERS, shiftSheetsDateFromCell} from
+  "./shift-sheets-human-layout.js";
 import {
   createFirestoreShiftPlanningSheetsConsumer,
   createShiftSheetsWorkbookVersionReader,
@@ -2252,34 +2254,6 @@ const phoneLookupKeys = (value: string): string[] => {
   ]));
 };
 
-const MONTH_INDEX_BY_NAME: Record<string, number> = {
-  enero: 0,
-  febrero: 1,
-  marzo: 2,
-  abril: 3,
-  mayo: 4,
-  junio: 5,
-  julio: 6,
-  agosto: 7,
-  septiembre: 8,
-  setiembre: 8,
-  octubre: 9,
-  noviembre: 10,
-  diciembre: 11,
-  january: 0,
-  february: 1,
-  march: 2,
-  april: 3,
-  may: 4,
-  june: 5,
-  july: 6,
-  august: 7,
-  september: 8,
-  october: 9,
-  november: 10,
-  december: 11,
-};
-
 const isShiftType = (value: string): value is ShiftType =>
   value === "delivery" || value === "market";
 
@@ -2315,39 +2289,13 @@ const timestampToSheetDate = (timestamp: Timestamp): string => {
 };
 
 const parseDateInput = (value: unknown): Timestamp | null => {
-  const text = parseString(value);
-  if (!text) {
-    return null;
-  }
-
-  const dayMonthYear = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (dayMonthYear) {
-    const [, day, month, year] = dayMonthYear;
-    const millis = Date.UTC(Number(year), Number(month) - 1, Number(day));
-    return Timestamp.fromMillis(millis);
-  }
-
-  const normalizedText = text
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-  const normalizedHumanDate = normalizedText.replace(/\s+de\s+/g, " ");
-  const dayMonthNameYear = normalizedText.match(
-    /^(\d{1,2})\s+([a-záéíóúñ]+)\s+(\d{4})$/i
-  );
-  const humanDateMatch = dayMonthNameYear || normalizedHumanDate.match(
-    /^(\d{1,2})\s+([a-záéíóúñ]+)\s+(\d{4})$/i
-  );
-  if (humanDateMatch) {
-    const [, day, monthName, year] = humanDateMatch;
-    const monthIndex = MONTH_INDEX_BY_NAME[monthName];
-    if (monthIndex !== undefined) {
-      const millis = Date.UTC(Number(year), monthIndex, Number(day));
-      return Timestamp.fromMillis(millis);
-    }
-  }
-
-  return null;
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const date = shiftSheetsDateFromCell(String(value));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const millis = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(millis) ||
+    new Date(millis).toISOString().slice(0, 10) !== date) return null;
+  return Timestamp.fromMillis(millis);
 };
 
 const parseSheetName = (range: string): string =>
@@ -2616,13 +2564,14 @@ const toMarketHumanSupportRows = (
 
 const upsertShiftRowInSheet = async (
   sheets: Awaited<ReturnType<typeof getSheetsClient>>,
-  spreadsheetId: string,
+  config: ShiftSheetsConfig,
   range: string,
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
   deliveryOverrides: DeliveryCalendarOverrideMap,
   writerFence: ShiftPlanningExternalWriterFence | null,
 ): Promise<"updated" | "appended"> => {
+  const spreadsheetId = config.workbookId;
   const width = shift.type === "delivery" ? 1 : 3;
   if (shift.assignedUserIds.length !== width ||
     new Set(shift.assignedUserIds).size !== width ||
@@ -2646,13 +2595,32 @@ const upsertShiftRowInSheet = async (
     throw new Error("Human export needs one existing bounded seasonal table.");
   }
   const valuesResponse = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range,
+    spreadsheetId, range, valueRenderOption: "FORMULA",
   });
   const rows = valuesResponse.data.values || [];
   const normalizedRows = rows.map((row) => row.map((cell) => `${cell}`));
   if (normalizedRows[0]?.[0] === "shiftId") {
     throw new Error("A technical table is not a reviewed human layout.");
+  }
+  const reviewed = process.env[`SHIFT_SHEETS_IMPORT_TABS_${
+    config.environment.toUpperCase()}`] === undefined ? undefined :
+    readShiftSheetsImportMapping(config, process.env).find((tab) =>
+      tab.title === sheetTitleFromRange(range));
+  if (reviewed && reviewed.layout !== `${shift.type}_human`) {
+    throw new Error("Ordinary export needs a reviewed human layout.");
+  }
+  const decorations = new Set<number>();
+  const trimmed = (cells: readonly string[]) => {
+    const copy = [...cells];
+    while (copy[copy.length - 1] === "") copy.pop();
+    return JSON.stringify(copy);
+  };
+  for (const decoration of reviewed?.decorations ?? []) {
+    if (trimmed(normalizedRows[decoration.rowNumber - 1] ?? []) !==
+      trimmed(decoration.cells) || parseDateInput(decoration.cells[0])) {
+      throw new Error("Reviewed export decoration changed.");
+    }
+    decorations.add(decoration.rowNumber - 1);
   }
   const generatedDelivery = shift.type === "delivery" &&
     SHIFT_SHEETS_HUMAN_HEADERS.delivery.every((header, index) =>
@@ -2670,6 +2638,14 @@ const upsertShiftRowInSheet = async (
     return values;
   };
   const effectiveDate = resolveEffectiveDeliveryDate(shift, deliveryOverrides);
+  if (normalizedRows.some((row) => {
+    const first = row[0] ?? "";
+    return first.startsWith("=") ||
+      (/^\d{4}-\d{2}-\d{2}$/.test(shiftSheetsDateFromCell(first)) &&
+        !parseDateInput(first));
+  })) {
+    throw new Error("Human export needs literal, valid calendar dates.");
+  }
   const matchingRows = normalizedRows.filter((row) => {
     const date = parseDateInput(row[0]);
     return date && (shift.type === "delivery" ?
@@ -2698,20 +2674,27 @@ const upsertShiftRowInSheet = async (
       ) {
         const rowNumber = rowOffset + 1;
         const values = deliveryValues(row);
+        if ([...row.slice(0, 3), ...(generatedDelivery ? [row[5]] : [])]
+          .some((cell) => cell?.startsWith("="))) {
+          throw new Error("Human export cannot replace managed formulas.");
+        }
         await runSheetMutation(() => sheets.spreadsheets.values.batchUpdate({
           spreadsheetId,
           requestBody: {valueInputOption: "RAW", data: [
             {range: `${parseSheetName(range)}!A${rowNumber}:C${rowNumber}`,
               values: [values.slice(0, 3)]},
-            {range: `${parseSheetName(range)}!F${rowNumber}`,
-              values: [[values[5]]]},
+            ...(generatedDelivery ? [{
+              range: `${parseSheetName(range)}!F${rowNumber}`,
+              values: [[values[5]]],
+            }] : []),
           ]},
         }));
         return "updated";
       }
     }
 
-    if (normalizedRows.length + (generatedDelivery ? 1 : 2) > 2000) {
+    if (normalizedRows.length +
+      (generatedDelivery || reviewed ? 1 : 2) > 2000) {
       throw new Error("Human delivery table exceeds the bounded export range.");
     }
     await runSheetMutation(() => sheets.spreadsheets.values.append({
@@ -2721,7 +2704,7 @@ const upsertShiftRowInSheet = async (
       insertDataOption: "INSERT_ROWS",
       requestBody: {
         values: [
-          ...(generatedDelivery ? [] :
+          ...(generatedDelivery || reviewed ? [] :
             [[formatHumanMonthHeading(effectiveDate)]]),
           deliveryValues(),
         ],
@@ -2748,8 +2731,11 @@ const upsertShiftRowInSheet = async (
         normalizeLookupKey(member.displayName)));
       const following = normalizedRows[rowOffset + 4]?.[0];
       if (participantRows.length !== 3 || participantRows.some((person) =>
-        !person[0] || !knownNames.has(normalizeLookupKey(person[0]))) ||
-        (following?.trim() && !parseDateInput(following))) {
+        !person[0] || !knownNames.has(normalizeLookupKey(person[0])) ||
+        person.slice(0, 2).some((cell) => cell.startsWith("="))) ||
+        [1, 2, 3].some((offset) => decorations.has(rowOffset + offset)) ||
+        (following?.trim() && !parseDateInput(following) &&
+          !decorations.has(rowOffset + 4))) {
         throw new Error("Market block needs three reviewed participants.");
       }
       const leadRow = toMarketHumanLeadRow(
@@ -3034,7 +3020,7 @@ const exportAllShiftsToGoogleSheets = async (
   for (const shift of shifts) {
     await upsertShiftRowInSheet(
       sheets,
-      sheetConfig.workbookId,
+      sheetConfig,
       resolveShiftSheetsHumanRange(
         sheetConfig, shift.type, timestampToSheetDate(shift.date),
       ),
@@ -3412,6 +3398,13 @@ export const executeShiftPlanningSheetsSync =
       const clients = getPlanningSheetsClients();
       return createFirestoreShiftPlanningSheetsConsumer({
         firestore, config, repository: sheetsSyncRepository,
+        readGenerationTabs: () => {
+          if (process.env[`SHIFT_SHEETS_IMPORT_TABS_${
+            environment.toUpperCase()}`] === undefined) return undefined;
+          const tabs = readShiftSheetsImportMapping(config, process.env)
+            .filter((tab) => tab.layout !== "canonical");
+          return tabs.length ? tabs : undefined;
+        },
         sheets: createShiftSheetsAdapter({config,
           sheets: clients.sheets}),
         readWorkbookVersion: createShiftSheetsWorkbookVersionReader({
@@ -3519,7 +3512,7 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
 
     const result = await upsertShiftRowInSheet(
       sheets,
-      sheetConfig.workbookId,
+      sheetConfig,
       targetRange,
       after,
       membersById,
@@ -3619,7 +3612,7 @@ onDocumentWrittenWithAuthContext(
         });
         await upsertShiftRowInSheet(
           sheets,
-          sheetConfig.workbookId,
+          sheetConfig,
           resolveShiftSheetsHumanRange(
             sheetConfig, shift.type, timestampToSheetDate(shift.date),
           ),

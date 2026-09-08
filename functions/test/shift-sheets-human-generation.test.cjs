@@ -188,3 +188,86 @@ test("concurrent readable tab creation has one winner and never retries the reje
   assert.equal((await f.adapter.inspect({operationId: loser, rows, generationRows: display(rows)})).kind, "ambiguous");
   assert.equal(f.sheets.mutations.length, 2);
 });
+
+const historicalTab = (title, type, seasonStartYear, rows, decorations) => ({
+  sheet: {properties: {title, sheetId: seasonStartYear * 2 + Number(type === "market"),
+    gridProperties: {rowCount: 1000, columnCount: 26}}, data: [{rowData: rows.map((row) => ({
+      values: row.map((value) => ({userEnteredValue: typeof value === "object" ? value :
+        typeof value === "number" ? {numberValue: value} : {stringValue: value}})),
+    }))}]},
+  mapping: {title, type, seasonStartYear, layout: `${type}_human`,
+    decorations: decorations.map((index) => ({rowNumber: index + 1, cells: rows[index]}))},
+});
+
+test("reviewed historical aliases, month headings and market spacing survive generation and import across two seasons", async () => {
+  const historicConfig = createShiftSheetsConfig({environment: "develop", workbooks: {develop: "book-development"},
+    aliases: [{type: "delivery", seasonStartYear: 2025, title: "TORRE 2025-26"},
+      {type: "market", seasonStartYear: 2025, title: "MERCADO 2025-26"}]});
+  const serial = (date) => (Date.parse(date) - Date.UTC(1899, 11, 30)) / 86400000;
+  const deliveryRows = [row("shift_delivery_20260826", "2026-08-26"), row("shift_delivery_20260902", "2026-09-02")];
+  const marketRows = [row("shift_market_20260822", "2026-08-22", "market"), row("shift_market_20260905", "2026-09-05", "market")];
+  const participants = members.map((m) => [m.names[0], m.phones[0], {formulaValue: "=1+2"}]);
+  const tabs = [
+    historicalTab("TORRE 2025-26", "delivery", 2025, [["REPARTO 2025-26"], ["AGOSTO"],
+      [serial("2026-08-26"), "Ana", "600000000", {formulaValue: "=3"}, "Anotación", {formulaValue: "=35"}]], [0, 1]),
+    historicalTab("turnos-reparto 2026-27", "delivery", 2026, [["REPARTO 2026-27"], [], ["SEPTIEMBRE"],
+      ["2 de septiembre de 2026", "Ana", "600000000", "nota", "", "36"]], [0, 2]),
+    historicalTab("MERCADO 2025-26", "market", 2025, [["MERCADO"], ["22/8/2026"], ...participants, [], ["FIN"]], [0, 6]),
+    historicalTab("turnos-mercado 2026-27", "market", 2026, [["MERCADO"], [], [], ["2026-09-05"], ...participants,
+      [], [], ["SIGUIENTE MES"]], [0, 9]),
+  ];
+  const service = sheetsService(); service.state.sheets = tabs.map((tab) => tab.sheet);
+  const before = clone(service.state.sheets);
+  const generationTabs = tabs.map((tab) => tab.mapping);
+  const rows = [...deliveryRows, ...marketRows, row("shift_delivery_20260909", "2026-09-09"),
+    row("shift_market_20261003", "2026-10-03", "market")];
+  const adapter = createShiftSheetsAdapter({config: historicConfig, sheets: service});
+  const operation = {operationId: "historical-generation", rows, generationRows: display(rows), generationTabs};
+  assert.equal((await adapter.reconcile({...operation, authorizeMutation: async () => {}})).kind, "verified");
+  assert.equal(service.mutations.length, 1);
+  for (const [index, sheet] of before.entries()) {
+    assert.deepEqual(service.state.sheets[index].data[0].rowData.slice(0, sheet.data[0].rowData.length), sheet.data[0].rowData);
+  }
+  assert.equal(content(service.state.sheets[1], 4, 5).stringValue, "37", "new historical delivery F is the week, not a helper");
+  assert.equal(content(service.state.sheets[3], 10, 0).stringValue, "03/10/2026");
+  const imported = await readShiftSheetsImport({config: historicConfig, sheets: service, tabs: generationTabs,
+    baseline: rows, members, readWorkbookVersion: async () => "12"});
+  assert.equal(imported.assignments.length, rows.length); assert.deepEqual(imported.missingIds, []);
+  assert.equal((await adapter.inspect(operation)).kind, "verified");
+  assert.equal(service.mutations.length, 1);
+});
+
+test("historical adoption rejects unreviewed, stale, hidden-date and incomplete blocks before authorization", async () => {
+  for (const scenario of ["absent-map", "stale-title", "hidden-date", "missing-person", "extra-person", "missing-tab", "wrong-routing"]) {
+    const f = fixture();
+    const tab = historicalTab("turnos-mercado 2026-27", "market", 2026,
+      [["MERCADO"], ["05/09/2026"], ["Ana", "600000000"], ["Bea", "600000001"], ["Celia", "600000002"]], [0]);
+    f.sheets.state.sheets = [tab.sheet];
+    if (scenario === "stale-title") tab.mapping.decorations[0].cells = ["OTRO TÍTULO"];
+    if (scenario === "hidden-date") tab.mapping.decorations.push({rowNumber: 2, cells: ["05/09/2026"]});
+    if (scenario === "missing-person") tab.sheet.data[0].rowData.splice(3, 1);
+    if (scenario === "extra-person") tab.sheet.data[0].rowData.push({values: [{userEnteredValue: {stringValue: "Cuarta persona"}}]});
+    if (scenario === "missing-tab") f.sheets.state.sheets = [];
+    if (scenario === "wrong-routing") tab.mapping.title = "MERCADO 2026-27";
+    const rows = [row("shift_market_20260905", "2026-09-05", "market")];
+    await assert.rejects(f.run(scenario, rows, display(rows), scenario === "absent-map" ? {} : {generationTabs: [tab.mapping]}),
+      (error) => typeof error.code === "string", scenario);
+    assert.equal(f.authorizations, 0, scenario); assert.equal(f.sheets.mutations.length, 0, scenario);
+  }
+});
+
+test("historical layout is detached, digest-bound and inspect-only after lost acknowledgement", async () => {
+  const f = fixture(); const tab = historicalTab("turnos-reparto 2026-27", "delivery", 2026,
+    [["REPARTO"], ["02/09/2026", "Ana", "600000000", "nota", "", "36"]], [0]);
+  f.sheets.state.sheets = [tab.sheet];
+  const generationTabs = [tab.mapping], saved = clone(generationTabs);
+  const rows = [row("shift_delivery_20260902", "2026-09-02"), row("shift_delivery_20260909", "2026-09-09")];
+  f.sheets.loseAcknowledgement = true;
+  const result = await f.run("history-uncertain", rows, display(rows), {generationTabs,
+    authorizeMutation: async () => {generationTabs[0].decorations[0].cells[0] = "mutated caller";}});
+  assert.equal(result.kind, "verified");
+  assert.equal((await f.adapter.inspect({operationId: "history-uncertain", rows, generationRows: display(rows), generationTabs: saved})).kind, "verified");
+  const changed = clone(saved); changed[0].decorations.push({rowNumber: 4, cells: ["new title"]});
+  await assert.rejects(f.run("history-uncertain", rows, display(rows), {generationTabs: changed}), {code: "sheets_marker_conflict"});
+  assert.equal(f.sheets.mutations.length, 1);
+});

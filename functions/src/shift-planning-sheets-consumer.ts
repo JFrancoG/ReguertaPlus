@@ -1,3 +1,4 @@
+import type {ShiftSheetsImportTab} from "./shift-sheets-import.js";
 import {Firestore, Timestamp} from "@google-cloud/firestore";
 import type {drive_v3 as DriveV3} from "googleapis";
 import {buildShiftPlanningCandidatePositionSet} from
@@ -248,6 +249,7 @@ export const createFirestoreShiftPlanningSheetsConsumer = (input: {
   repository: ShiftPlanningSyncCommandRepository;
   sheets: ReturnType<typeof createShiftSheetsAdapter>;
   readWorkbookVersion(): Promise<string>;
+  readGenerationTabs?(): readonly ShiftSheetsImportTab[] | undefined;
 }): ShiftPlanningSheetsSyncConsumer => {
   const tokenFor = (command: ShiftPlanningProcessingSyncCommand) =>
     createShiftPlanningSyncCommandToken({
@@ -277,6 +279,7 @@ export const createFirestoreShiftPlanningSheetsConsumer = (input: {
       observed = await input.sheets.inspect({
         operationId: command.idempotencyKey, rows,
         generationRows: receipt.readable?.rows,
+        generationTabs: receipt.readable?.generationTabs,
       });
       version = await input.readWorkbookVersion();
       if (before !== version || observed.kind !== "verified" ||
@@ -306,9 +309,14 @@ export const createFirestoreShiftPlanningSheetsConsumer = (input: {
       const {rows, readable} = await loadShiftPlanningSheetsSource({
         ...input, command, readable: true,
       });
+      const generationTabs = input.readGenerationTabs?.();
+      if (readable && generationTabs) {
+        readable.generationTabs = structuredClone(generationTabs);
+      }
       await input.sheets.reconcile({
         operationId: command.idempotencyKey, rows,
         generationRows: readable?.rows,
+        generationTabs: readable?.generationTabs,
         async authorizeMutation(batch) {
           if (batch.workbookId !== command.workbookId ||
             await input.readWorkbookVersion() !== beforeWorkbookRevision) {

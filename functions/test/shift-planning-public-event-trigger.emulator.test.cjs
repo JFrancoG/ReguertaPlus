@@ -179,7 +179,7 @@ const humanSheets = (tabs) => {
   const values = {
     get: async (request) => {
       reads.push(request); const {title} = locate(request.range);
-      return {data: {values: state[title].map((row) => row.map((value) => value?.startsWith("=") ? "computed" : value))}};
+      return {data: {values: state[title].map((row) => row.map((value) => request.valueRenderOption !== "FORMULA" && String(value).startsWith("=") ? "computed" : value))}};
     },
     update: async (request) => { writes.push(request); update({range: request.range, values: request.requestBody.values}); return {data: {}}; },
     batchUpdate: async (request) => { writes.push(request); request.requestBody.data.forEach(update); return {data: {}}; },
@@ -191,9 +191,10 @@ const humanSheets = (tabs) => {
   }}};
 };
 const ordinaryHumanFixture = async (t, {type = "delivery", date = "2026-08-27", ids = ["a"], title = "TORRE 2025-26", rows = []} = {}) => {
-  const keys = ["SHEETS_SPREADSHEET_ID_DEVELOP", "SHIFT_SHEETS_ALIASES_DEVELOP"];
+  const keys = ["SHEETS_SPREADSHEET_ID_DEVELOP", "SHIFT_SHEETS_ALIASES_DEVELOP", "SHIFT_SHEETS_IMPORT_TABS_DEVELOP"];
   const original = keys.map((key) => process.env[key]);
   t.after(() => keys.forEach((key, index) => { if (original[index] === undefined) delete process.env[key]; else process.env[key] = original[index]; }));
+  delete process.env.SHIFT_SHEETS_IMPORT_TABS_DEVELOP;
   process.env.SHEETS_SPREADSHEET_ID_DEVELOP = "human-fixture-book";
   process.env.SHIFT_SHEETS_ALIASES_DEVELOP = JSON.stringify([{type,
     seasonStartYear: Number(date.slice(0, 4)) - Number(Number(date.slice(5, 7)) < 9), title}]);
@@ -402,4 +403,52 @@ emulatorTest("generated delivery export rejects a missing helper name and clears
   await exported.onShiftWritten.run({...f.event, data: {...f.event.data, after: await ref.get()}});
   assert.equal(f.sheets.state[f.title][1][5], "");
   assert.equal(f.sheets.state[f.title][1][3], "nota");
+});
+
+
+for (const visible of ["2026-08-27", "27-08-2026", "27 de agosto de 2026", "27 august 2026", (Date.parse("2026-08-27") - Date.UTC(1899, 11, 30)) / 86400000]) {
+  emulatorTest(`ordinary historical delivery recognizes ${visible} and preserves week formulas`, async (t) => {
+    const f = await ordinaryHumanFixture(t, {ids: ["b"], rows: [["REPARTO"],
+      [visible, "Persona A", "old phone", "=1+1", "nota", "=35"]]});
+    await exported.onShiftWritten.run(f.event);
+    assert.equal(f.sheets.reads[0].valueRenderOption, "FORMULA");
+    assert.equal(f.sheets.state[f.title].length, 2);
+    assert.deepEqual(f.sheets.state[f.title][1].slice(1), ["Persona B", "90000000b", "=1+1", "nota", "=35"]);
+  });
+}
+
+emulatorTest("ordinary market accepts reviewed inter-block headings and rejects changed review before writes", async (t) => {
+  const rows = [["MERCADOS"], ["20/9/2026"], ["Persona A", "old", "=2+2"],
+    ["Persona B", "old"], ["Persona C", "old"], ["OCTUBRE"], [], ["18/10/2026"]];
+  const f = await ordinaryHumanFixture(t, {type: "market", date: "2026-09-20", ids: ["b", "c", "a"],
+    title: "turnos-mercado 2026-27", rows});
+  const mapping = [{title: f.title, type: "market", seasonStartYear: 2026, layout: "market_human",
+    decorations: [{rowNumber: 1, cells: ["MERCADOS"]}, {rowNumber: 6, cells: ["OCTUBRE"]}]}];
+  process.env.SHIFT_SHEETS_IMPORT_TABS_DEVELOP = JSON.stringify(mapping);
+  f.sheets.state[f.title][5][0] = "TÍTULO CAMBIADO";
+  await assert.rejects(exported.onShiftWritten.run(f.event));
+  assert.equal(f.sheets.writes.length, 0);
+  f.sheets.state[f.title][5][0] = "OCTUBRE";
+  await exported.onShiftWritten.run(f.event);
+  assert.equal(f.sheets.writes.length, 1);
+  assert.deepEqual(f.sheets.state[f.title].slice(5), rows.slice(5));
+  assert.equal(f.sheets.state[f.title][2][2], "=2+2");
+});
+
+emulatorTest("ordinary generation-layout export rejects managed formulas instead of replacing computed identities", async (t) => {
+  const f = await ordinaryHumanFixture(t, {rows: [["Fecha", "Persona", "Teléfono", "Notas", "Cambio", "Ayuda"],
+    ["27/8/2026", "Persona A", "=123", "nota", "", ""]]});
+  await assert.rejects(exported.onShiftWritten.run(f.event));
+  assert.equal(f.sheets.writes.length, 0);
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
+});
+
+
+emulatorTest("ordinary export does not append around formula dates or invalid calendar dates", async (t) => {
+  const f = await ordinaryHumanFixture(t, {rows: []});
+  for (const date of ["=DATE(2026,8,27)", "31/2/2026"]) {
+    f.sheets.state[f.title] = [[date, "Persona A", "phone"]];
+    await assert.rejects(exported.onShiftWritten.run(f.event));
+  }
+  assert.equal(f.sheets.writes.length, 0);
 });

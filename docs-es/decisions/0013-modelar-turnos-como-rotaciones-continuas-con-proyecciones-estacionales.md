@@ -896,7 +896,13 @@ solicitudes sin versión todavía pendientes. No las promueve a v2 sin una nueva
 solicitud revisada. Se eliminan el importador parcial, generador y borrado de pestaña.
 Los codecs móviles actuales usan v2; el inventario y drenaje de clientes externos/
 desplegados siguen en HU-085. El exportado ordinario respeta la nueva columna de
-ayuda y conserva el formato histórico de semana hasta su adopción revisada.
+ayuda y conserva el formato histórico de semana.
+
+La adopción histórica revisada reutiliza el mapa exacto de decoraciones del
+importador en generación y lo guarda en el recibo/digest legible existente.
+Conserva F histórica como semana/anotación; solo las cabeceras nuevas usan F para
+ayuda. Mercado conserva huecos entre bloques, con tres participantes contiguos
+por fecha. Esta compatibilidad local no acredita ni autoriza reescribir el libro real.
 
 ## Estado de aprobación e implementación
 

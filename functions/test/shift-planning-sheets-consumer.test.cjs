@@ -28,7 +28,7 @@ beforeEach(async () => {
 });
 after(() => firestore.terminate());
 
-const setup = async ({predecessor = false} = {}) => {
+const setup = async ({predecessor = false, readGenerationTabs} = {}) => {
   const snapshot = fairnessSnapshot();
   snapshot.sync.partitions.delivery.workbookRevision = "10";
   snapshot.sync.partitions.market.workbookRevision = "10";
@@ -62,7 +62,7 @@ const setup = async ({predecessor = false} = {}) => {
     },
   }});
   const sheets = createShiftSheetsAdapter({config, sheets: service});
-  const consumer = createFirestoreShiftPlanningSheetsConsumer({firestore, config, repository, sheets, readWorkbookVersion});
+  const consumer = createFirestoreShiftPlanningSheetsConsumer({firestore, config, repository, sheets, readWorkbookVersion, readGenerationTabs});
   const commands = value.liveResult.syncCommands;
   const commandId = (type = "delivery") => commands.find((command) => command.type === type).commandId;
   const reference = (type) => firestore.doc(`${root}/shiftPlanningSyncCommands/${commandId(type)}`);
@@ -443,6 +443,8 @@ test("readable receipt codec rejects incomplete, cross-scope and oversized recov
     (value) => {value.readable.rows[0].assignees[0].name = "x".repeat(1025);},
     (value) => {value.readable.rows[0].visibleDate = "2026-02-30";},
     (value) => {value.readable.rows[0].assignees = [null];},
+    (value) => {value.readable.generationTabs = [];},
+    (value) => {value.readable.generationTabs = [{layout: "delivery_human"}];},
   ]) {
     const value = {...receipt, readable: {...receipt.readable, rows: structuredClone(receipt.readable.rows),
       sourceVersions: receipt.readable.sourceVersions.map((source) => ({...source}))}};
@@ -463,4 +465,41 @@ test("missing named members and invalid calendar authority reject before Sheets 
     assert.equal(f.service.mutations.length, 0); assert.equal(await f.receipt(), undefined);
     assert.equal((await fetch(`http://${host}/emulator/v1/projects/${projectId}/databases/(default)/documents`, {method: "DELETE"})).ok, true);
   }
+});
+
+
+test("historical worker persists reviewed layouts and recovery ignores changed deployment mapping", async () => {
+  let generationTabs;
+  let mappingReads = 0;
+  const f = await setup({readGenerationTabs: () => {
+    mappingReads++;
+    if (!generationTabs) throw new Error("Deployment mapping unavailable");
+    return generationTabs;
+  }});
+  const {resolveShiftSheetsTab} = require("../lib/shift-sheets-config.js");
+  const tabs = new Map(f.activation.publicDocuments.filter((item) => item.document.type === "delivery").map(({document}) => {
+    const tab = resolveShiftSheetsTab(config, "delivery", document.date.toDate().toISOString().slice(0, 10));
+    return [tab.title, tab];
+  }));
+  generationTabs = [...tabs.values()].map((tab) => ({...tab, layout: "delivery_human",
+    decorations: [{rowNumber: 1, cells: ["REPARTOS REVISADOS"]}]}));
+  f.service.state.sheets = generationTabs.map((tab, index) => ({properties: {title: tab.title, sheetId: index + 1,
+    gridProperties: {rowCount: 1000, columnCount: 26}}, data: [{rowData: [
+      {values: [{userEnteredValue: {stringValue: "REPARTOS REVISADOS"}, note: "Título humano"}]},
+    ]}]}));
+  const reviewed = structuredClone(generationTabs);
+  f.service.onMutation = async () => {f.changeVersion(); f.service.failRead = true;};
+  assert.equal((await f.execute()).kind, "reconciliationRequired");
+  const receipt = await f.receipt();
+  assert.deepEqual(receipt.readable.generationTabs, reviewed);
+  assert.equal(receipt.schemaVersion, 2);
+  for (const sheet of f.service.state.sheets) {
+    assert.equal(content(sheet, 0, 0).stringValue, "REPARTOS REVISADOS");
+    assert.match(content(sheet, 1, 5).stringValue, /^\d{1,2}$/);
+  }
+  generationTabs = undefined;
+  f.service.failRead = false; now += 200000;
+  assert.equal((await f.execute()).kind, "completed");
+  assert.equal(mappingReads, 1); assert.equal(f.service.mutations.length, 1);
+  assert.deepEqual((await f.receipt()).readable.generationTabs, reviewed);
 });

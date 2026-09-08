@@ -961,6 +961,42 @@ Implemented locally: 197 local passes (11 emulator-only skips), exported handler
 executed by that separate fence suite. The old writers and exclusive helpers are
 removed; external/deployed client compatibility remains an HU-085 rollout gate.
 
+### Twenty-sixth local cut — reviewed historical layouts (approved 2026-09-08)
+
+Cut 25 is committed/pushed as `f1afc6d`. Generation now adopts the existing
+`SHIFT_SHEETS_IMPORT_TABS_<ENV>` human mappings, including exact display titles,
+month headings and variable spacing between four-row market blocks. Aliases alone
+remain insufficient. Missing/emptied reviewed tabs, changed decorations, date rows
+hidden as decorations, incomplete/extra participants and changed assignments reject
+before authorization. Existing titles, notes, formulas and formatting survive;
+no rows are cleared, moved or converted. Historical delivery F stays a week/annotation
+column (preserved on existing rows, ISO week on append); only the exact new header
+owns helper F. Historical tabs do not gain a visible helper column implicitly.
+
+The mapping parser is shared with the private import entry point. The worker binds
+its detached mapping into the projection digest and existing schema-v2 receipt;
+inspect-only recovery uses that receipt without reloading deployment mapping.
+Existing schema-v1 canonical and schema-v2 unmapped receipts remain compatible.
+Ordinary exports share literal date decoding (serial, ISO, European and long dates),
+preserve historical F, recognize reviewed inter-block headings, and reject managed
+formulas/invalid dates before writes. Mapped historical delivery appends no new
+month heading that would invalidate its reviewed decoration map.
+
+Validation: Functions lint/build pass; focused regression has 200 passes and
+11 emulator-only skips, all covered by the separate writer-fence emulator 12/12.
+Consumer emulator passes 24/24 and exported HTTP/event/override handlers 27/27.
+Sheets is a public-API fake and all people are fictional; no real workbook,
+Firestore data, deployment, IAM or FCM was changed. Mobile code and its public
+contract are unchanged, so mobile validation was not rerun.
+
+Cut 26 remains local/uncommitted. Synthetic four-tab/two-season generation/import
+coverage proves the supported structure, not a reviewed mapping of the real book.
+Market participants must still be three contiguous rows after their date; spacing
+between blocks is variable. No arbitrary layout inference or new repair workflow
+was added. Remaining outcomes: (27) complete integration review, (28) real evidence
+and exact repair or zero-write deferral, (29) acceptance/delivery. The existing
+allowance of 1–2 corrective cuts applies only to demonstrated findings.
+
 ## 2. Expected implementation impact
 
 ### Functions

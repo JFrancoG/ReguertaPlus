@@ -30,15 +30,17 @@ export const shiftSheetsDateFromCell = (value: string): string => {
     .toLowerCase();
   const long = /^(\d{1,2}) (?:de )?([a-z]+) (?:de )?(\d{4})$/.exec(cell);
   if (long) {
-    const month = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
-      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-      .indexOf(long[2]) + 1;
+    const month = ["enero january", "febrero february", "marzo march",
+      "abril april", "mayo may", "junio june", "julio july", "agosto august",
+      "septiembre setiembre september", "octubre october", "noviembre november",
+      "diciembre december"].findIndex((names) =>
+      names.split(" ").includes(long[2])) + 1;
     if (month) {
       return `${long[3]}-${String(month).padStart(2, "0")}-` +
         long[1].padStart(2, "0");
     }
   }
-  const european = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cell);
+  const european = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(cell);
   if (european) {
     return `${european[3]}-` +
       `${european[2].padStart(2, "0")}-${european[1].padStart(2, "0")}`;

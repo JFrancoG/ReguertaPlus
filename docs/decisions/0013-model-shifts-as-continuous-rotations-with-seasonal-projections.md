@@ -863,7 +863,12 @@ pending unversioned requests. It never promotes them to v2 without a fresh revie
 request. The old partial importer, generator and whole-tab clear are removed.
 Current mobile codecs use v2; deployed/external client inventory and drain remain
 HU-085 rollout requirements. Ordinary export honors the new readable helper column
-while preserving the historical week-number layout until reviewed adoption.
+while preserving the historical week-number layout. Reviewed adoption now reuses
+exact import decoration mappings in generation and persists them in the existing
+readable receipt/digest. It retains historical F rather than reinterpreting it as
+a helper column; only new labeled tabs own helper F. Variable inter-block market
+spacing is preserved; each date still requires three contiguous participants.
+This is local compatibility, not approval or evidence for a real workbook rewrite.
 
 ## Approval and implementation status
 

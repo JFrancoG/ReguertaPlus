@@ -1437,6 +1437,37 @@ Parámetros opcionales:
 - `envs=develop,production` (lista separada por comas)
 
 
+## Compatibilidad histórica revisada (HU-083, corte 26)
+
+La generación y el worker reutilizan `SHIFT_SHEETS_IMPORT_TABS_<ENV>` para adoptar
+pestañas `delivery_human`/`market_human`. Sus títulos y meses se declaran con las
+filas literales exactas de `decorations`; los alias solo resuelven el destino.
+Sin ese mapa, el generador sigue aceptando únicamente las cabeceras legibles nuevas.
+No configurar este parámetro con datos sintéticos para operar un libro real.
+
+El mapa se guarda en el recibo privado schema-v2 y participa en el digest. Una
+recuperación usa el mapa enviado, aunque la configuración posterior cambie o falte.
+Los recibos anteriores sin mapa y los canónicos schema-v1 siguen recuperándose.
+Una pestaña histórica revisada desaparecida/vacía, una decoración alterada o un
+bloque ambiguo rechaza la generación antes de autorizar el lote. Mercado conserva
+los huecos entre bloques; cada fecha sigue requiriendo tres participantes contiguos.
+Cambios de asignación deben pasar por el importador revisado antes de generar.
+
+Reparto histórico conserva la F existente (semana/anotación, incluidas fórmulas)
+y añade el número de semana solo en filas nuevas. No añade una columna de ayuda.
+La cabecera nueva exacta mantiene F como nombre de ayuda. Notas, fórmulas de
+anotación, títulos y formato permanecen; no hay conversión, borrado ni reordenación.
+Los exportados ordinarios usan fechas literales/seriales/ISO y el mismo parser;
+leen fórmulas como fórmulas, conservan F histórica y rechazan fórmulas en identidad
+o fechas inválidas. Con mapa revisado no añaden nuevos títulos de mes y aceptan
+separadores de mercado declarados; conservan sus fences y notificaciones previos.
+
+Validación local: lint/build, 200 casos de regresión, 24 del consumidor, 27 de los
+handlers exportados y 12 de fences en emulador. Los 11 casos omitidos fuera del
+emulador se ejecutan en esos 12. Sheets es un fake: el mapa real, inventario completo,
+backup, exclusión de escritores y reparación/aplazamiento siguen pendientes.
+Este corte no modifica datos reales ni cambia los contratos móviles.
+
 ## Retirada de escritores antiguos (HU-083, corte 25)
 
 Los repositorios actuales de Android e iOS escriben solicitudes de planificación

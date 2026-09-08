@@ -91,7 +91,26 @@ Current mobile codecs use v2; deployed/external callers still require HU-085 rev
 Ordinary exports preserve helper names and omit month decorations in newly generated
 delivery tabs, retaining historical week semantics elsewhere. Validation: lint/build,
 197 local passes (11 emulator-only skips), exported handlers 19/19 and writer fences
-12/12 in the emulator, no failures. Cut 25 is local; no live/platform/deploy changes.
+12/12 in the emulator, no failures. Cut 25 is pushed as `f1afc6d`; no live/platform/deploy changes.
+
+## Cut-26 local update
+
+Reviewed historical mapping is reused for generation, ordinary export boundaries
+and durable worker recovery. Exact titles/month headings and variable spacing
+between market blocks are preserved. Historical delivery F remains untouched on
+existing rows; appends use the ISO week, while the new labeled layout keeps helper
+names. Shared literal-date decoding avoids duplicate append for serial/ISO dates;
+managed formulas and invalid dates reject before writes. A synthetic four-tab,
+two-season generation/import round-trip and persisted-mapping recovery are covered.
+Validation: Functions lint/build pass; focused regression has 200 passes and
+11 emulator-only skips, all covered by the separate writer-fence emulator 12/12.
+Consumer emulator passes 24/24 and exported HTTP/event/override handlers 27/27.
+Sheets is a public-API fake and all people are fictional; no real workbook,
+Firestore data, deployment, IAM or FCM was changed. Mobile code and its public
+contract are unchanged, so mobile validation was not rerun.
+
+This cut remains uncommitted. Actual reviewed decorations, complete protection/
+merge inventory and the real repair/deferral artifacts remain unverified.
 
 ## Result
 
@@ -99,7 +118,7 @@ The canonical adapter, private sync/import entry points, controlled-event audit,
 repair tooling and the three seasonal human writer routes have local/emulator
 evidence, including reviewed human apply/write-back and readable generation/new-tab
 creation and the activation worker's trusted display/calendar composition. HU-083
-remains open: historical layouts need adoption and full integration validation; real-data
+remains open: historical adoption is locally implemented; full integration review and real-data
 safe-apply or exact zero-write deferral is also incomplete. The archive/technical
 conversion proposal is not selected for the user workflow.
 
@@ -185,7 +204,7 @@ base, so their gates were not rerun. Actual app read-back remains a live gate.
 1. Keep the selected readable/editable date-name layout; do not deploy the
    unselected archive/technical-table workflow. This choice does not authorize
    live conversion.
-2. Adopt historical layouts and run complete integration validation. Reviewed
+2. Run complete integration validation after local historical adoption (cut 26). Reviewed
    import (cut 22), generation (cut 23), worker (cut 24) and legacy retirement
    (cut 25) are local. Preserve ordinary notifications and existing fences.
 3. Obtain trusted Firestore/Sheets evidence through the separately bounded auditor
@@ -200,8 +219,12 @@ base, so their gates were not rerun. Actual app read-back remains a live gate.
 
 ## Revised remaining forecast after cut 25
 
-Four outcomes remain: historical layouts, complete integration validation,
-real evidence/repair-or-deferral, and acceptance/delivery. Estimated 4–6 more cuts,
+At the cut-25 checkpoint four outcomes remained: historical layouts, complete
+integration validation, real evidence/repair-or-deferral, and acceptance/delivery.
+That checkpoint estimated 4–6 more cuts,
 conditional on source access. The former 3–5 forecast omitted integration and
 split work too narrowly; it is withdrawn. Any new scope must be reported against
 these outcomes rather than silently adding another series of technical cuts.
+
+After cut 26, three planned outcomes remain (cuts 27–29), plus at most 1–2
+corrective cuts for demonstrated defects. Access/approval waiting is not a cut.

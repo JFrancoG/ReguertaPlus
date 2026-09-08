@@ -11,9 +11,13 @@ import {
 import {ShiftSheetsHumanGenerationRow, shiftSheetsISOWeekKey} from
   "./shift-sheets-human-layout.js";
 
+import type {ShiftSheetsImportTab} from "./shift-sheets-import.js";
+import {parseShiftSheetsImportTabs} from "./shift-sheets-import-mapping.js";
+
 export type ShiftPlanningReadableSubmission = {
   environment: "develop" | "production";
   rows: readonly ShiftSheetsHumanGenerationRow[];
+  generationTabs?: readonly ShiftSheetsImportTab[];
   sourceVersions: readonly {path: string; updateTime: Timestamp | null}[];
 };
 
@@ -66,7 +70,9 @@ const parseReadableSubmission = (
   const text = (value: unknown, required = true) =>
     typeof value === "string" && value.length <= 1024 &&
     (!required || Boolean(value.trim()));
-  if (!exact(record, ["environment", "rows", "sourceVersions"]) ||
+  if (!exact(record, ["environment", "rows", "sourceVersions",
+    ...(Object.prototype.hasOwnProperty.call(record, "generationTabs") ?
+      ["generationTabs"] : [])]) ||
     !["develop", "production"].includes(record.environment) ||
     !Array.isArray(record.rows) || !record.rows.length ||
     record.rows.length > 500 || !Array.isArray(record.sourceVersions) ||
@@ -124,7 +130,19 @@ const parseReadableSubmission = (
           source.path.startsWith(`${root}/deliveryCalendar/`))))) {
     return failSheetsSubmission("Readable source versions are incomplete.");
   }
+  let generationTabs;
+  if (Object.prototype.hasOwnProperty.call(record, "generationTabs")) {
+    try {
+      generationTabs = parseShiftSheetsImportTabs(record.generationTabs);
+      if (generationTabs.some((tab) => tab.layout !== `${tab.type}_human`)) {
+        throw new Error("Readable receipt has a technical layout.");
+      }
+    } catch {
+      return failSheetsSubmission("Readable layout mapping is invalid.");
+    }
+  }
   return {environment: record.environment, rows: structuredClone(record.rows),
+    ...(generationTabs ? {generationTabs} : {}),
     sourceVersions: record.sourceVersions.map((source) => ({...source}))};
 };
 

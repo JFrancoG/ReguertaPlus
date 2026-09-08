@@ -38,6 +38,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(sheets): adopt reviewed historical layouts
+
 - 2026-09-08 | ✨ feat(sheets): connect readable sync worker
 
 - 2026-09-08 | ✨ feat(sheets): generate readable seasonal tabs
