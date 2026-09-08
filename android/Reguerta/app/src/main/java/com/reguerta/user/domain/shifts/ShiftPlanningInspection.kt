@@ -66,7 +66,12 @@ data class ShiftPlanningCandidate(
 )
 
 interface ShiftPlanningInspectionRepository {
-    fun observeLatestRequest(): Flow<ShiftPlanningRequestObservation?>
+    /** Observes the selected request, or discovers the latest v2 request owned by this administrator. */
+    fun observeRequest(
+        requestedByUserId: String,
+        requestId: String? = null,
+        environment: String? = null,
+    ): Flow<ShiftPlanningRequestObservation?>
 
     suspend fun getStagedCandidate(reference: ShiftPlanningCandidateReference): ShiftPlanningCandidate
 }

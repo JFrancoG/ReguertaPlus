@@ -531,7 +531,7 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
    documentos/asignaciones y `positionSetDigest`. No contiene medicion
    transaccional porque aun no existen los IDs de peticion/operacion de
    activacion/recovery, las
-   before-images ni el token opaco del intento real. Cada hija
+   before-images del intento real. Cada hija
    contiene payload canonico, `positionDigest`, `candidateDigest` y linaje de
    candidato/bundle. El replay exacto rechaza hijas ausentes, extra, aliasadas o
    alteradas y nunca las reescribe.
@@ -544,7 +544,8 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
    intervalo del lease, candidato, bundle y posiciones antes de escribir en
    publico. Un rechazo determinista pre-commit solo terminaliza el claim que aun
    posee. Una activacion committed se reproduce desde terminal y outcome forward
-   retenido. Recovery inverse consume ese terminal inmutable y retiene un outcome
+   retenido, o reconstruye su recibo desde la relectura del terminal. Recovery
+   inverse consume ese terminal y retiene un outcome
    direccional separado, sin reabrir la request ni crear una segunda autoridad de
    lifecycle. El bundle preview inmutable sigue siendo la autoridad de planificacion
    y las posiciones una proyeccion consultable, no otra autoridad.
@@ -552,10 +553,11 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
 El planner sigue sin side effects. El repositorio local/emulador prueba la
 persistencia privada de recibo, bundle, lifecycle, cabecera de candidato y
 posiciones de inspeccion. El runtime gobernado ya recarga todos los inputs live de
-fairness y ejecuta el CAS medido de publicacion en emuladores Firestore; despliegue
+fairness y ejecuta el CAS atomico de publicacion en emuladores Firestore; despliegue
 y activacion de produccion siguen pendientes de forma explicita.
 Bundle, recibo y candidato usan schema v2 interno de artefacto y revisiones
-`bundle-v2-*`. Las mediciones transaccionales usan su propio schema v1 interno.
+`bundle-v2-*`. La evidencia de admision y los recibos de operacion confirmada usan cada uno
+schema v2 segun ADR-0014.
 La peticion conserva `schemaVersion = 2` y el resumen terminal publico wire
 conserva `schemaVersion = 1`.
 
@@ -565,36 +567,35 @@ tampoco son targets de before-image durante stage; su lifecycle terminal pertene
 al intento que las crea/reclama. Stage rechaza cualquier `transactionEvidence`
 suministrado en vez de persistir una medicion futura sintetica.
 
-El adaptador fijado `firestore-grpc-v1-fs8.7.0-r1` serializa el `WriteBatch` real
-y ordenado canonicamente de un intento completamente resuelto solo cuando ya
-dispone de su token transaccional real. Su frontera de intento exige que hayan
-terminado las lecturas autoritativas y que el batch interno, vacio, pertenezca al
-mismo `Transaction` del SDK fijado; despues lo puebla, mide y sella canonicamente.
-Firestore confirma ese mismo objeto inspeccionado al terminar el callback. La
-medicion sustituye los closures del SDK por copias separadas de los protos `Write`
-medidos y hace que el almacenamiento de operaciones pertenezca al adaptador. El
-guard usa una copia separada del token y reserializa la peticion completa justo
-antes del transporte; otro token o una secuencia de bytes distinta falla en
-cerrado. El reset del SDK borra esa autoridad, por lo que cada callback reintentado
-debe resolver y medir de nuevo. Cada medicion
-inmutable en memoria liga `direction`,
-`manifestDigest`, nombre de base de datos, `writeSetDigest`,
-`commitRequestDigest`, `documentWriteCount`, `fieldTransformCount`,
-`maximumFieldTransformsPerDocument`, `requestByteCount`, `adapterRevision` e
-`indexConfigurationDigest`; el token opaco nunca se devuelve ni persiste. El
-digest de la peticion tambien permanece en memoria porque persistirlo dentro de
-esa misma peticion medida lo haria autorreferencial. El resultado inmutable del
-intento necesita por tanto otro protocolo de persistencia no circular. El gate
-conservador HU-082 es de 500 escrituras documentales previstas mas
-transformaciones, maximo 500 transformaciones sobre un documento y 10 MiB por
-`CommitRequest` protobuf exacto. El presupuesto puro sigue siendo estructural
-hasta que activacion o recovery resuelva todos los IDs, payloads, precondiciones y
-before-images. La autoridad de medicion permanece en el snapshot de fairness y el
-envelope exacto de estado esperado, por lo que el drift de autoridad/read-set
-invalida el candidato. El digest de indices liga la configuracion auditada, pero
-los bytes protobuf no incluyen el coste backend de entradas de indice; el ensayo
-separado y gobernado sobre clon aislado sigue siendo obligatorio antes de activar
-produccion.
+La politica de admision `public-transaction-v2`, implementada en
+`functions/src/shift-planning-firestore-transaction-manifest.ts`, captura un
+manifest logico canonico en JSON etiquetado inmutable antes del trabajo asincrono.
+Reutiliza el codec de valores de publicacion, separa los datos mutables del
+caller y admite valores concretos y el sentinel de borrado top-level usado por
+recovery inverse. Las transformaciones dinamicas quedan fuera de este contrato.
+Tras completar las lecturas autoritativas y de fences de notificacion, el intento
+aplica el manifest mediante las APIs publicas `Transaction.create`, `update` y
+`delete`. Cada retry Firestore reconstruye read-set y manifest. No se usan
+internals del SDK, encoder protobuf, token transaccional, sustitucion del batch ni
+intercepcion de commit.
+
+La evidencia de admision schema v2 contiene `evidenceKind = applicationAdmission`,
+`direction`, `manifestDigest`, `logicalMutationDigest`, `documentWriteCount`,
+`estimatedRequestBytes`, `adapterRevision` e `indexConfigurationDigest`.
+La aplicacion limita la admision a 500 escrituras documentales, 8 MiB estimados
+por peticion y 768 KiB estimados por documento. La estimacion suma 1 KiB por
+peticion, 1 KiB por documento y el doble de los bytes UTF-8 del JSON etiquetado de
+cada documento. Son umbrales conservadores de aplicacion, no contabilidad exacta
+de wire o indices ni garantia de aceptacion. El servidor posee el commit atomico
+y sus limites reales; un rechazo deja toda la transaccion sin aplicar.
+
+El presupuesto puro del bundle sigue siendo estructural hasta resolver IDs,
+payloads, precondiciones y before-images. La revision de admision y el digest de
+configuracion de indices permanecen ligados a fairness y estado esperado: el
+drift de politica invalida el candidato. El digest identifica configuracion
+auditada, sin medir entradas de indice. Antes de activar produccion sigue siendo
+necesario el ensayo separado y gobernado sobre clon aislado. Vease
+[ADR-0014](../decisions/0014-usar-transacciones-publicas-firestore-para-turnos.md).
 
 Otros invariantes del bundle puro ligados por digest son:
 
@@ -750,7 +751,7 @@ avanza ambas rotaciones y estado activo, completa la request y crea dos comandos
 de sync, intenciones retenidas, before-images y terminal de activacion. Cada
 update usa su `lastUpdateTime` leido en la transaccion; el conjunto completo debe
 igualar presupuesto forward y manifest de creates inverse antes de que el
-adaptador fijado lo mida y selle. La evidencia de emulador es solo local: carga
+adaptador de APIs publicas lo admita y aplique. La evidencia de emulador es solo local: carga
 runtime y activacion productiva siguen pendientes.
 
 El materializador inverse recalcula los digests de bundle/manifest y valida el
@@ -768,33 +769,36 @@ forward/inverse, epochs de activacion/recovery, rutas borradas, bindings de
 before-images, lineage restaurado y `recoveryIntentDigest` no autorreferencial.
 Las before-images y request completada de activacion permanecen; la escritura de
 request es un touch protegido del terminal historico, no una afirmacion de que el
-recovery no ocurrio. El presupuesto inverse exacto se mide/sella con el adaptador
-fijado y queda probado localmente en emulador Firestore. El resolver local
+recovery no ocurrio. El manifest inverse pasa la misma politica de admision de aplicacion y
+se confirma atomicamente mediante APIs publicas, probado en emulador Firestore. El resolver local
 transaccional ya relee en cada retry forward la fuente live, paquete staged,
 estado/rotaciones autoritativos y targets de before-image; el resolver inverse
 relee todos los targets de recovery.
 
-Cuando una transaccion forward o inverse medida devuelve exito, el protocolo
-local de outcome crea
-`shiftPlanningOperations/{operationId}/attemptOutcomes/{attemptId}`. El
-`attemptId` estable es `{direction}-{commitRequestDigestHex}`. El schema v1 exige
-`operationKind = planningTransactionAttemptOutcome`, `state = committed` y
-`acknowledgement = transactionReturned`; liga entorno, intent de operacion,
-revision/digest del bundle, write epoch, direccion, `recordedAt` posterior al
-retorno, medicion exacta completa, `measurementDigest` y `outcomeDigest`. No
-guarda el token opaco de la transaccion ni afirma un acknowledgement de
-transporte de nivel inferior.
+El protocolo de recibos crea
+`shiftPlanningOperations/{operationId}/attemptOutcomes/{attemptId}` despues del
+exito de una transaccion forward/inverse o de releer un terminal confirmado.
+El `attemptId` estable es `{direction}-{operationIntentDigestHex}`: los retries
+no inventan otra operacion de negocio. El schema v2 exige
+`operationKind = planningTransactionAttemptOutcome` y `state = committed`, y liga
+entorno, intent de operacion, revision/digest de bundle, write epoch, direccion,
+`manifestDigest`, `recordedAt` y `outcomeDigest`.
 
-El repositorio backend crea el outcome sin sobrescribir mediante una transaccion
-separada. Un outcome nuevo debe concordar con el terminal actual de activacion o
-recovery, incluidos intent, bundle, epoch y manifest especifico de la direccion.
-Los replays exactos convergen en el documento inmutable y una relectura
-independiente revalida ruta, clave, campos y digests. Un outcome forward exacto
-ya retenido sigue siendo evidencia historica valida despues de que el terminal
-padre pase a recovery. El runtime CAS local invoca el resolver dentro de cada
-retry Firestore y retiene solo el outcome del intento devuelto por
-`runTransaction`. Reproduce un outcome direccional exacto sin otro CAS y falla
-cerrado si un terminal confirmado ha perdido esa evidencia.
+`acknowledgement = transactionReturned` registra un retorno correcto de
+`runTransaction` y adjunta admision v2 en `measurement` y su `measurementDigest`.
+`acknowledgement = operationReadBack` registra la relectura de un terminal
+confirmado cuyo recibo se perdio o nunca se retuvo; `measurement` y
+`measurementDigest` son null. La relectura no reconstruye bytes wire exactos ni
+inventa evidencia de que la llamada original retornase.
+
+El repositorio crea sin sobrescribir y realiza una relectura independiente.
+Los acknowledgements de retorno y relectura de la misma operacion direccional
+convergen en el primer recibo retenido; un conflicto de intent, manifest, bundle
+o epoch falla cerrado. Un recibo forward retenido conserva su valor historico
+cuando el terminal padre pasa a recovery. Un terminal confirmado sin recibo se
+reconcilia mediante relectura validada y creacion del recibo, sin volver a ejecutar
+activacion ni recovery. Solo un terminal ausente, corrupto o conflictivo bloquea
+esa reconciliacion.
 
 `shiftPlanningState/fairness` es la envolvente live backend-only. El schema v1
 contiene `environment`, `sourceRevision`, `inputs` y `sourceDigest`. `inputs`
@@ -802,7 +806,7 @@ incluye exactamente el snapshot normalizado de fairness, fronteras/ocupacion de
 reparto y mercado y el limite conservador de escrituras. El snapshot anidado
 conserva las versiones de membership/roster, rotaciones,
 configuracion/politica/calendario, overrides, credit ledger, particiones de
-workbook, autoridad de medicion y baseline de migracion. La envolvente se
+workbook, politica de admision y baseline de migracion. La envolvente se
 redigesta antes de planificar: cualquier drift live valido debe producir otro
 bundle y fallar el binding staged sin escribir. El productor gobernado que
 refresca esta envolvente desde las fuentes reales ya esta implementado
@@ -960,7 +964,7 @@ leer estado ni escribir. El repositorio de estado lee atomicamente
 mantenimiento y ambas rotaciones, deriva un digest CAS canonico e implementa
 entrada y aborto idempotentes y desconectados del runtime.
 El runtime v2 local/emulador resuelve ademas la activacion ligada al bundle dentro
-de cada transaccion Firestore reintentada y envia un unico conjunto medido de
+de cada transaccion Firestore reintentada y envia un unico conjunto logico admitido de
 mutaciones: proyeccion plana completa de turnos, ambas transiciones de rotacion/
 cursor y lease de liberacion, estado activo, terminal exacto de la peticion, dos
 comandos de Sheets, intenciones retenidas, before-images y tombstone de
@@ -995,9 +999,9 @@ estan sujetos a Rules. Un guard transaccional compartido serializa ya el upsert
 administrativo autenticado de socios y la aplicacion de intercambios reciprocos
 contra esos documentos exactos; una fence activa devuelve el conflicto HTTP
 estable `shift_notification_dispatch_in_progress` y una fence malformada falla
-cerrado. El adaptador de intento medido v2 para activacion forward y recovery
+cerrado. El adaptador de APIs publicas para activacion forward y recovery
 inverse tambien deriva cada turno publico exacto de su set canonico de mutaciones
-y lee sus fences antes de poblar o sellar el batch propiedad del SDK; una fence
+y lee sus fences antes de aplicar el manifest mediante APIs publicas; una fence
 activa o malformada rechaza toda la transaccion. El importador/planner legacy de
 Sheets aun necesita el mismo guard antes de cualquier wiring o despliegue de
 produccion.

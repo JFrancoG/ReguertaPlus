@@ -211,10 +211,10 @@ documento semanal, y crea a la vez un recibo privado en
 `deliveryCalendarMutationReceipts/{operationId}`. Un replay identico converge;
 una autoridad, override, actor o payload diferente falla sin mutacion.
 
-Este endpoint queda preparado para la migracion movil, pero Android/iOS aun
-escriben directamente y las Rules todavia conservan esa compatibilidad. No debe
-negarse la ruta legacy hasta que ambos clientes usen el comando y se prueben las
-colas offline antiguas.
+Android/iOS ya usan este comando para mutar el calendario; iOS envía `null`
+explícito en ambas claves de linaje cuando no existe bundle activo. Las Rules
+locales niegan escrituras directas. Desplegar ese cierre y comprobar las colas
+offline antiguas sigue perteneciendo a la barrera de activación de HU-085.
 
 El resto de endpoints HTTP candidatos de sincronizacion, exportacion,
 timestamps y validacion requieren admin activo.
@@ -230,24 +230,23 @@ read-set autoritativo de mantenimiento y ambas rotaciones. Los artefactos intern
 usan schema v2 y revisiones `bundle-v2-*`; la petición conserva
 `schemaVersion = 2` y el resumen terminal público wire conserva
 `schemaVersion = 1`. Stage materializa ya una proyección privada de inspección
-ligada por digest, y `activate` permanece limitado a un preflight estrictamente
-de solo lectura sobre candidato, bundle inmutable y posiciones.
-Ya existe un serializador local del `CommitRequest` protobuf exacto para un
-write-set completamente resuelto y un token transaccional real. El adaptador de
-intento exige que terminen primero las lecturas, puebla el batch interno vacio del
-`Transaction`, lo mide y sella, y deja que el SDK confirme ese mismo objeto. Cada
-retry vuelve a resolver y medir; el guard reserializa justo antes del transporte.
-El materializador forward local ya puede entregar al adaptador el dominio exacto,
-pero ese seam aun no se conecta al lifecycle/runtime. Todavía no hay materializador
-inverse, barrera externa fiable, migración de writers, CAS productivo de
-activación/publicación/recovery, trigger v2 conectado al orquestador, consumidores
-de sync/notificaciones/recovery, integración móvil, despliegue ni activación live;
-todas esas fronteras siguen fail-closed. La publicación humana de consulta se
-describe por separado a continuación. El trigger
-legacy `onShiftPlanningRequestCreated` de `src/index.ts` sigue siendo la
-implementación runtime activa y aún no consume este contrato v2. Como barrera
-de compatibilidad, captura la autoridad de planificación abierta inmediatamente
-antes de escribir su hoja y la revalida en cada mutación Firestore posterior,
+ligada por digest; `activate` valida candidato, bundle inmutable y posiciones
+antes del CAS de publicación gobernado.
+La corrección posterior a la auditoría usa transacciones públicas de Firestore
+para activación y recovery, con un manifiesto lógico inmutable y admisión
+conservadora de tamaño. El runtime v2, los consumidores locales y ambas apps ya
+están implementados; la I/O real de Sheets, su integración de eventos y el despliegue
+siguen sujetos a HU-083 y HU-085. El detalle vigente está en ADR-0014 y en
+`spec/shifts/hu-082-continuous-seasonal-shift-rotation/post-audit-corrections.md`.
+
+`onVersionedShiftPlanningRequestCreated` procesa exclusivamente schema v2 con
+`retry: true`: propaga fallos transitorios y leases ocupados para reentrega; los
+terminales idempotentes no repiten efectos. Las denegaciones reales y peticiones
+malformadas terminan sin retry. `onShiftPlanningRequestCreated` conserva el flujo
+legacy sin retry y excluye v2. La autorización v2 propaga indisponibilidad de sus
+lecturas, sin convertirla en permiso ni confirmar prematuramente el evento.
+El trigger legacy conserva la barrera de compatibilidad: captura la autoridad
+abierta inmediatamente antes de escribir su hoja y la revalida en cada mutación Firestore posterior,
 incluida la notificación. Una deriva detiene los efectos restantes, pero no puede
 revertir una escritura de Sheets ya confirmada; HU-083 sustituye ese flujo no
 atómico.
@@ -288,7 +287,7 @@ lectura posterior verificó contenido, formato y privacidad; los turnos público
 Firestore siguieron vacíos y ninguna app quedó activada. Los identificadores y la
 evidencia técnica exacta se conservan fuera del repositorio.
 
-Ruta de petición prevista:
+Ruta de petición:
 
 `{env}/plus-collections/shiftPlanningRequests/{requestId}`
 
@@ -298,7 +297,7 @@ y el enlace de admin activo, lee `shiftPlanningState/current` y devuelve solo
 `schemaVersion`, `environment`, `expectedWriteEpoch` y
 `expectedActiveRevision`. Estado ausente, invalido o en mantenimiento falla
 cerrado; el endpoint no expone digest, revision interna, roster ni datos de socios.
-Android/iOS aun no consumen este contexto en el corte actual.
+Android/iOS resuelven este contexto antes de crear su petición v2.
 
 El documento de entrada tiene exactamente estos campos:
 
@@ -347,13 +346,11 @@ aceptan campos extra ni temporadas implicitas deducidas del reloj.
   y el mismo estado del preview. Por ello, entrar en mantenimiento invalida un
   preview abierto y obliga a crear otro preview ya cerrado antes de stage. Stage
   no acepta ni conserva evidencia transaccional: el candidato es inmutable y
-  anterior a los IDs, before-images y token del intento real.
-- `activate` solo dispone por ahora de un preflight de lectura. Carga y valida el
-  candidato staged, su bundle preview inmutable y todas las posiciones frente a
-  IDs, linajes, conteos y digests exactos; no reclama ni completa la peticion y
-  no escribe estado. El bundle sigue siendo la autoridad y las posiciones son
-  solo su proyeccion de inspeccion. El planner/runtime futuro debe recalcular y
-  revalidar el snapshot live y el digest del bundle antes de cualquier CAS.
+  anterior a los IDs y before-images del intento real.
+- `activate` valida el candidato staged, su bundle inmutable y sus posiciones,
+  recompone las fuentes live y exige el mismo digest antes del CAS. El repositorio
+  reclama la petición y publica todo el bundle atómicamente. Las posiciones
+  siguen siendo sólo la proyección de inspección; el bundle es la autoridad.
 
 El claim transaccional enlaza cada peticion con una operacion y un lease de
 procesamiento. El mismo worker puede reanudarla; otro recibe `busy` mientras el
@@ -482,37 +479,24 @@ actual sigue siendo obligatoria.
 Este contrato no prueba una barrera real. Los bindings que desplieguen y relean
 Rules, deshabiliten/drenen Functions/Eventarc, auditen IAM y cerquen
 Drive/Workspace siguen pendientes y pertenecen al rollout autorizado posterior;
-el adaptador no se conecta todavia desde `index.ts`. Las Rules Phase 1
-configuradas en el repositorio siguen permitiendo rutas legacy y las strict
-locales aun admiten escrituras admin directas de turnos/calendario, por lo que
-ninguna de ellas cuenta por si sola como evidencia de cierre HU-082.
+el adaptador no se conecta todavía desde `index.ts`. Las Rules locales Phase 1
+y strict niegan escrituras directas a turnos/calendario, pero su presencia en Git
+no demuestra el despliegue ni el drenaje real de los procesos afectados.
 
-El gate canonico y conservador de HU-082 limita cada direccion a 500 escrituras
-documentales mas transformaciones declaradas y 10 MiB de peticion serializada.
-El planner puro calcula presupuestos forward/inverse, pero deja los bytes como
-`requiresPersistenceAdapter`. Stage valida ese presupuesto conservador, pero no
-fabrica una futura peticion exacta. La cabecera candidata queda fuera de los
-write-sets forward/inverse y de las before-images, igual que las futuras peticiones
-y operaciones de activacion. El serializador `firestore-grpc-v1-fs8.7.0-r1`
-puede construir un batch canonico de referencia y mide el `WriteBatch` real
-suministrado por un intento ya resuelto; liga `manifestDigest`, `writeSetDigest`,
-`commitRequestDigest`, conteos, bytes, revision del adaptador y autoridad de
-indices. El adaptador de intento exige lecturas terminadas, el batch interno vacio
-y la misma instancia fijada de Firestore; aplica ahi las mutaciones canonicas y
-espera el token real. Tras medir, sella el batch contra nuevas mutaciones y
-reemplaza sus operaciones por copias separadas de los protos `Write` medidos. El
-guard conserva solo una copia del token, reserializa la peticion justo antes del
-transporte y rechaza cualquier drift; el reset obliga a medir de nuevo. Ni el token
-ni el digest se persisten dentro de la propia peticion medida, porque ese digest
-seria autorreferencial.
+El gate de HU-082 admite como máximo 500 escrituras, 8 MiB estimados por petición
+y 768 KiB estimados por documento. `shift-planning-firestore-transaction-manifest.ts`
+separa los valores mediante el codec existente y genera un manifiesto inmutable.
+La estimación reserva 1 KiB por petición y suma 1 KiB más el doble del JSON
+etiquetado por documento. No mide el protobuf, tokens ni entradas de índice.
+Firestore conserva la autoridad sobre sus límites reales y el commit atómico.
 
-La autoridad de medicion (`adapterRevision` e `indexConfigurationDigest`) sigue
-formando parte del snapshot de fairness y del estado esperado; cambiarla invalida
-el candidato para una activacion posterior. El digest de indices liga la autoridad,
-pero el protobuf no calcula el coste de entradas de indice que aplica el backend:
-el ensayo posterior en un clon aislado sigue siendo obligatorio. El repositorio ya
-prueba que preview, bundle, cabecera candidata y posiciones de inspeccion estan
-persistidos y ligados por digest.
+El adaptador `public-transaction-v2` aplica el manifiesto con los métodos públicos
+`Transaction.create/update/delete`, después de las lecturas y fences del intento.
+Cada retry resuelve de nuevo las fuentes. La admisión schema v2 liga
+`logicalMutationDigest`, `documentWriteCount`, `estimatedRequestBytes`, dirección,
+manifest y autoridad de índices. Cambiar esa autoridad invalida el candidato.
+Stage no fabrica evidencia de una transacción futura. HU-085 todavía debe ensayar
+el volumen real forward/inverse contra los índices aprobados en un clon aislado.
 
 El contrato puro `shift-planning-publication-contract.ts` fija ahora el codec v1
 que precede a la materializacion. Convierte cada posicion staged en un documento
@@ -546,8 +530,8 @@ helper predecesor cuando existe, ambas rotaciones con sus leases, el estado
 activo, request terminal, comandos de Sheets, intenciones retenidas, tombstone y
 before-images. Cada update usa el `lastUpdateTime` leido en el mismo intento y el
 conjunto completo debe coincidir con presupuesto forward y manifest inverse.
-Despues entrega esas mutaciones al adaptador real, que mide y sella el batch del
-`Transaction`; un vector de emulador confirma el commit atomico del mismo objeto.
+Después entrega esas mutaciones al adaptador de APIs públicas; un vector de
+emulador confirma la publicación atómica de todo el manifiesto.
 Los creditos no nulos siguen cerrados hasta HU-084.
 
 `shift-planning-inverse-materializer.ts` parte exclusivamente del bundle y
@@ -561,37 +545,23 @@ superiores, limpia ambos leases y reemplaza el tombstone por un terminal de
 recovery ligado por digest. Para no dejar campos posteriores, la restauracion
 reescribe mapas top-level completos y usa `FieldValue.delete()` en los campos
 top-level que ya no deben existir. Before-images y request historica completada
-se conservan. Un vector de emulador confirma el mismo batch inverse medido y
-sellado por el adaptador real.
+se conservan. Un vector de emulador confirma la restauración atómica mediante
+el mismo adaptador de APIs públicas.
 
-`shift-planning-attempt-outcome.ts` fija el acuse backend-only que se construye
-solo despues de que la transaccion medida devuelve exito. Su ID estable combina
-direccion y digest exacto del `CommitRequest`; el documento liga intent, bundle,
-epoch, manifest, medicion completa, timestamp posterior al retorno y digests
-derivados, sin persistir el token opaco ni introducir su digest dentro de la
-peticion medida.
+`shift-planning-attempt-outcome.ts` distingue en schema v2 dos evidencias:
+`transactionReturned` conserva la admisión del intento que devuelve éxito;
+`operationReadBack` registra la revalidación del terminal confirmado cuando falta
+el recibo. Su ID estable liga dirección y `operationIntentDigest`. El repositorio
+retiene el primer recibo sin sobrescritura y hace converger ambas vías.
 
-`shift-planning-firestore-attempt-outcome-repository.ts` crea ese documento sin
-sobrescritura bajo `shiftPlanningOperations/{operationId}/attemptOutcomes`,
-valida el terminal forward o inverse que lo autoriza, hace converger el replay
-exacto y ejecuta una relectura independiente. Un replay historico exacto sigue
-siendo valido aunque el terminal de activacion haya pasado despues a recovery;
-un intento nuevo siempre debe concordar con el terminal actual.
-
-`shift-planning-firestore-cas-runtime.ts` ejecuta los CAS forward e inverse. El
-resolver inyectado se llama dentro de cada callback que Firestore reintenta; el
-materializador real recibe exclusivamente ese read-set y solo el intento que
-`runTransaction` devuelve puede crear el outcome posterior. Antes de ejecutar,
-el runtime recupera un outcome exacto ya retenido sin repetir el CAS. Si existe
-un terminal de activacion o recovery confirmado pero falta su outcome
-direccional, falla cerrado para no duplicar una publicacion o restauracion cuyo
-ack se perdio. Solo un error de planificacion tipado lanzado dentro del callback,
-antes de que este pueda retornar al commit, se clasifica como rechazo determinista
-pre-commit. El runtime lo persiste como `failed` mediante CAS contra el request y
-su operacion; un terminal `completed` concurrente gana y se relee como activacion
-confirmada. Errores de transporte, agotamiento de retries, retencion/read-back del
-outcome o cualquier ambiguedad posterior al callback permanecen reintentables y
-nunca se convierten en un falso terminal fallido.
+`shift-planning-firestore-cas-runtime.ts` relee un recibo existente antes del CAS.
+Si falta, revalida el terminal direccional, bundle, epoch e intent y registra una
+relectura sin volver a publicar/restaurar ni inventar la admisión perdida. Si aún
+no existe terminal, recompone las fuentes dentro de cada retry transaccional.
+Solo un rechazo tipado demostrado antes de retornar del callback puede persistir
+`failed`; un transporte ambiguo o una retención fallida siguen siendo reintentables.
+Un terminal `completed` concurrente prevalece y se relee. La evidencia histórica
+no autoriza una operación nueva con linaje distinto.
 
 `shift-planning-firestore-source-resolver.ts` fija
 `shiftPlanningState/fairness` como la envolvente live backend-only. Su revision y
@@ -615,9 +585,8 @@ retry CAS; expiry, extras, digest, epoch, revision, lineage o terminal drift
 fallan antes de mutar. El replay terminal conserva la misma allowlist de entrada.
 
 El productor gobernado mantiene `shiftPlanningState/fairness` desde las fuentes
-reales y `index.ts` clasifica primero la version para conservar el trigger legacy,
-rechazar versiones desconocidas y enrutar localmente v2 a preview, stage o CAS de
-activacion. Recovery se exporta localmente con `onRequest` solo para el invoker
+reales. Los dos triggers separan el flujo legacy de la ejecución v2 reintentable
+de preview, stage o CAS de activación. Recovery se exporta localmente con `onRequest` solo para el invoker
 futuro exacto `reguerta-shifts-operator@reguerta-9f27f.iam.gserviceaccount.com`.
 La frontera acepta solo POST, cuerpo exacto y cero query params; correlaciona
 respuestas y auditoria sanitizada sin registrar el cuerpo, digest de autorizacion,
@@ -644,8 +613,8 @@ payload, bundle, epoch e intent de activacion y que su ruta figure en el termina
 inverse. Un marcador retenido sin cambios en una edicion o borrado posterior se
 clasifica como operacion ordinaria. Un marcador cambiado sin registro valido
 falla cerrado. El `eventDigest` estable permite que el futuro ledger audite el
-replay sin convertirlo en exportacion o notificacion por fila. Este corte no
-conecta ni modifica el trigger legacy de `index.ts`.
+replay sin convertirlo en exportación o notificación por fila. HU-083 debe
+conectar este filtro al trigger `onShiftWritten`.
 
 `shift-planning-public-event-retention.ts` fija el contrato productor que debe
 envolver ese clasificador. Una politica versionada y ligada por digest define el
@@ -660,7 +629,7 @@ elegibles un milisegundo despues. Las rutas quedan congeladas bajo
 `shiftPlanningPublicEventLedgers/operation-{operationId}` y
 `shiftPlanningPublicEventLedgers/event-{digestHex}`. HU-083 debe persistir esas
 intenciones con create-or-exact-replay, conectar la alerta y demostrar el trigger
-real; este corte sigue sin modificar `index.ts` ni escribir Firestore.
+real; el contrato puro de retención sigue sin escribir Firestore.
 
 ### Fronteras, manifests y side effects diferidos
 
@@ -693,9 +662,9 @@ real; este corte sigue sin modificar `index.ts` ni escribir Firestore.
   `shiftPlanningState/current` cubre el documento de mantenimiento completo.
 
 El planner y los manifests siguen siendo contrato/resultado puro. Los
-repositorios solo ejecutan transacciones privadas sobre peticiones, operaciones,
-bundles, candidatos/posiciones y el estado de mantenimiento; no ejecutan CAS
-de publicación, comandos de Sheets, recovery ni notificaciones.
+repositorios implementan también los CAS de publicación/recovery y el lifecycle
+de comandos e intenciones. Sus contratos locales no acreditan una activación
+compartida ni la I/O real de Sheets, pendiente de HU-083.
 
 La partición prevista de acceso es:
 
@@ -724,15 +693,37 @@ nuevo plano de control, incluidas peticiones y candidatos. El candidato local
 `firestore.strict.rules` permite solo las aperturas admin exactas anteriores.
 Ninguno de estos cambios de Rules se ha desplegado en este corte.
 
-El adaptador futuro publicará los turnos generados con `source = "app"` para
+El adaptador local publica los turnos generados con `source = "app"` para
 mantener compatibilidad, más `origin = "planner"`, `planningRequestId`,
 `bundleRevision`, `bundleDigest` y `writeEpoch`. También persistirá propiedad de
 rotación separada de la asignación efectiva: `rotationOwnerUserId`, ronda y
 posición para reparto; `rotationOwnerUserIds` y posiciones por propietario para
 mercado. Una reasignación futura podrá cambiar `assignedUserIds` sin reescribir
-la propiedad histórica. Estos son campos previstos del adaptador de
-publicación/activación, no escrituras que los planners puros o el runtime activo
-ya estén realizando.
+la propiedad histórica. Estos campos pertenecen al adaptador de publicación/activación. Los planners
+puros siguen sin efectos; el despliegue y la activación compartida están pendientes.
+
+### Requisitos de despliegue de la corrección HU-082
+
+HU-085 debe revisar conjuntamente el alta de `onVersionedShiftPlanningRequestCreated`
+y la actualización del trigger legacy que excluye v2: una versión antigua de ese
+trigger todavía podría procesar el mismo evento. Ambos deliveries y sus reintentos
+forman parte del inventario y drenaje de la barrera; no basta con cerrar uno.
+
+Ambas apps descubren únicamente la petición v2 más reciente de su administrador,
+fijan su documento mientras está pendiente y vuelven a descubrir tras el terminal.
+Los listeners de fuente/candidato se recuperan con backoff cancelable de hasta 30 s.
+El índice compuesto `shiftPlanningRequests` sobre `requestedByUserId`,
+`schemaVersion` y `requestedAt DESC` está en `firestore.indexes.json`, referenciado
+por `firebase.strict.json`. HU-085 debe desplegarlo y verificar estado READY antes
+de habilitar estos clientes. Estas correcciones no han desplegado nada.
+
+El transporte de notificaciones verifica plazo y cancelación antes de **cada**
+llamada SDK. Un timeout impide iniciar otra llamada, pero no revoca una ya enviada;
+esa incertidumbre permanece en el resultado. Reconciliación, entrada en incidente y
+terminalización comparten una sola lectura transaccional de historial completo en
+`shift-planning-firestore-notification-recovery-evidence.ts`, conservando sus
+políticas puras. Un incidente con epoch nuevo no autoriza reenviar intenciones
+antiguas: debe cerrarse con cancelación probada o corrección/reconciliación explícita.
 
 ### Contrato de hoja esperado
 

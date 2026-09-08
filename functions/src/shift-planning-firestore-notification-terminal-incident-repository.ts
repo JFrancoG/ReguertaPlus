@@ -1,3 +1,5 @@
+import {readShiftPlanningNotificationRecoveryEvidence} from
+  "./shift-planning-firestore-notification-recovery-evidence.js";
 import {
   DocumentSnapshot,
   Firestore,
@@ -11,11 +13,6 @@ import {
 } from "./shift-planning-digest.js";
 import {parsePersistedBundle} from "./shift-planning-firestore-repository.js";
 import {
-  ShiftPlanningNotificationDispatchAttempt,
-  parseShiftPlanningNotificationDispatchAttempt,
-  parseShiftPlanningNotificationDispatchState,
-} from "./shift-planning-notification-dispatch.js";
-import {
   parsePersistedShiftPlanningNotificationSafeResumeRecord,
 } from "./shift-planning-firestore-notification-safe-resume-repository.js";
 import {
@@ -27,7 +24,6 @@ import {
 import {parseShiftPlanningHeldNotificationIntent} from
   "./shift-planning-notification-release.js";
 import {
-  ShiftPlanningNotificationDispatchEvidence,
   ShiftPlanningNotificationSafeResume,
   ShiftPlanningNotificationTerminalIncident,
   ShiftPlanningNotificationTerminalIncidentCancellation,
@@ -732,91 +728,13 @@ export const createFirestoreShiftPlanningNotificationTerminalRepository = (
       const canonicalIntents = bundle.artifact.heldNotificationIntents.map(
         parseShiftPlanningHeldNotificationIntent,
       );
-      const queriedIntents = await transaction.get(firestore.collection(
-        `${root}/shiftPlanningNotificationIntents`,
-      ).where("bundleRevision", "==", command.bundleRevision));
-      if (
-        canonicalIntents.length !== command.attemptBindings.length ||
-        queriedIntents.size !== canonicalIntents.length
-      ) {
-        return failLeaseConflict(
-          "Persisted intent set differs from the terminal bundle.",
-        );
-      }
-      const intentById = new Map(queriedIntents.docs.map((snapshot) => [
-        snapshot.id,
-        parseShiftPlanningHeldNotificationIntent(snapshot.data()),
-      ]));
-      for (let index = 0; index < canonicalIntents.length; index += 1) {
-        const canonical = canonicalIntents[index];
-        const binding = command.attemptBindings[index];
-        const persisted = intentById.get(canonical.intentId);
-        if (
-          binding.intentId !== canonical.intentId ||
-          persisted === undefined ||
-          !sameValue(persisted, canonical)
-        ) {
-          return failLeaseConflict(
-            "Persisted terminal intent differs from its canonical bundle.",
-          );
-        }
-      }
-
-      const intentReferences = canonicalIntents.map((intent) => firestore.doc(
-        `${root}/shiftPlanningNotificationIntents/${intent.intentId}`,
-      ));
-      const dispatchStateSnapshots = await transaction.getAll(
-        ...intentReferences.map((reference) =>
-          reference.collection("dispatchState").doc("current")),
-      );
-      const attemptReferences = command.attemptBindings.flatMap(
-        (binding, index) => binding.attemptIds.map((attemptId) =>
-          intentReferences[index]
-            .collection("dispatchAttempts")
-            .doc(attemptId)),
-      );
-      const attemptSnapshots = attemptReferences.length === 0 ? [] :
-        await transaction.getAll(...attemptReferences);
-      let attemptOffset = 0;
-      const dispatchEvidence: ShiftPlanningNotificationDispatchEvidence[] =
-        command.attemptBindings.map((binding, index) => {
-          const dispatchState = parseShiftPlanningNotificationDispatchState(
-            requireSnapshot(
-              dispatchStateSnapshots[index],
-              "notification dispatch state",
-            ).data(),
-          );
-          if (
-            dispatchState.intentId !== binding.intentId ||
-            dispatchState.eventId !== binding.intentId ||
-            dispatchState.activeLease !== null ||
-            dispatchState.attemptCount !== binding.attemptIds.length ||
-            dispatchState.lastLeaseEpoch !== binding.attemptIds.length
-          ) {
-            return failLeaseConflict(
-              "Terminal dispatch state is not exactly inactive.",
-            );
-          }
-          const attempts: ShiftPlanningNotificationDispatchAttempt[] = [];
-          for (const attemptId of binding.attemptIds) {
-            const snapshot = requireSnapshot(
-              attemptSnapshots[attemptOffset],
-              "terminal dispatch attempt",
-            );
-            attemptOffset += 1;
-            const attempt = parseShiftPlanningNotificationDispatchAttempt(
-              snapshot.data(),
-            );
-            if (snapshot.id !== attemptId) {
-              return failRepository(
-                "Terminal attempt path and command differ.",
-              );
-            }
-            attempts.push(attempt);
-          }
-          return {intentId: binding.intentId, dispatchState, attempts};
+      const dispatchEvidence =
+        await readShiftPlanningNotificationRecoveryEvidence({
+          firestore, transaction, root,
+          bundleRevision: command.bundleRevision,
+          canonicalIntents,
+          attemptBindings: command.attemptBindings,
         });
-
       const fenceEntries = safeResume.affectedShiftIds.map((shiftId) => ({
         reference: firestore.doc(
           `${root}/shiftPlanningNotificationIncidentFences/` +

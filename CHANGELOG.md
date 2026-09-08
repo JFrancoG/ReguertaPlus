@@ -156,6 +156,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-09-08 | 🐛 fix(shifts): resolve HU-082 audit findings
 - 2026-08-29 | 🐛 fix(shifts): require owned preview staging
 - 2026-08-29 | 🐛 fix(shifts): bind recovery replay identity
 - 2026-08-29 | 🐛 fix(shifts): deny client shift activation
@@ -308,6 +309,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-09-08 | 📦 build(android): update Coil to 3.6.2
 - 2026-08-30 | 🔧 chore(shifts): integrate main into HU-082
 - 2026-08-29 | 📦 build(android): update Navigation and Coil
 - 2026-08-26 | 📦 build(android): update AGP to 9.3.2

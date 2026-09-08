@@ -36,6 +36,7 @@ import {
   resolveReviewerEnvironment,
   resolveMemberBusinessFields,
   resolveLinkedMember,
+  resolvePrivilegedFirestoreEventAuthorization,
   requirePostMethod,
   verifyBearerIdentity,
   VerifiedIdentity,
@@ -106,6 +107,9 @@ import {
 import {
   logShiftPlanningOperationalEvent,
 } from "./shift-planning-operational-log.js";
+import {
+  createVersionedShiftPlanningRequestTrigger,
+} from "./shift-planning-request-trigger.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
@@ -318,8 +322,12 @@ const resolveVerifiedLinkedAdminActor = async (
       linkValue,
       memberSnapshot.data(),
     );
-  } catch {
-    return false;
+  } catch (error) {
+    if (
+      typeof error === "object" && error !== null &&
+      "code" in error && error.code === "auth/user-not-found"
+    ) return false;
+    throw error;
   }
 };
 
@@ -4307,6 +4315,16 @@ const processShiftPlanningRequest = async (
   };
 };
 
+export const onVersionedShiftPlanningRequestCreated =
+  createVersionedShiftPlanningRequestTrigger(
+    shiftPlanningRuntime,
+    (environment, authType, authId) =>
+      resolvePrivilegedFirestoreEventAuthorization(
+        {authType, authId},
+        (uid) => resolveVerifiedLinkedAdminActor(environment, uid),
+      ),
+  );
+
 export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
   "{env}/plus-collections/shiftPlanningRequests/{requestId}",
   async (event) => {
@@ -4335,29 +4353,6 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
       return;
     }
     if (route === "v2") {
-      try {
-        const result = await shiftPlanningRuntime.executeRequest({
-          environment: parseAppEnvironment(env),
-          requestId: event.params.requestId,
-          request: snapshot.data(),
-          workerId: "shift-planning-trigger-v2",
-        });
-        logShiftPlanningOperationalEvent(logger, {
-          kind: "requestRouted",
-          environment: parseAppEnvironment(env),
-          requestId: event.params.requestId,
-          routeKind: result.kind,
-          resultKind: result.result.kind,
-        });
-      } catch (error) {
-        logShiftPlanningOperationalEvent(logger, {
-          kind: "requestFailed",
-          environment: parseAppEnvironment(env),
-          requestId: event.params.requestId,
-          error,
-        });
-        throw error;
-      }
       return;
     }
 

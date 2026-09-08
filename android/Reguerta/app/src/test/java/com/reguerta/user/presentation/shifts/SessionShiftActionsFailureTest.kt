@@ -39,7 +39,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -110,6 +111,197 @@ class SessionShiftActionsFailureTest {
         runCurrent()
 
         assertEquals(0, shiftRepository.readCount)
+        assertEquals(null, state.value.shiftPlanningObservation)
+    }
+
+    @Test
+    fun `another administrator cannot replace the selected request or its preview binding`() = runTest {
+        val inspection = ControlledPlanningInspectionRepository()
+        val planning = RecordingPlanningRepository()
+        val state = MutableStateFlow(authorizedState())
+        val actions = actions(
+            state = state,
+            planningRepository = planning,
+            inspectionRepository = inspection,
+            scope = backgroundScope,
+        )
+        runCurrent()
+        actions.submitShiftPlanningRequest(2026, 2027)
+        runCurrent()
+        val request = planning.requests.single()
+        val own = completedPreviewObservation().copy(id = request.id, bundleId = request.bundleId)
+        inspection.emit(own.copy(status = ShiftPlanningRequestStatus.PROCESSING, completedSummary = null))
+        runCurrent()
+        repeat(30) { index ->
+            inspection.emit(completedPreviewObservation().copy(
+                id = "other-$index",
+                requestedByUserId = "admin-b",
+                requestedAtMillis = 100L + index,
+            ))
+        }
+        runCurrent()
+        assertEquals(request.id, state.value.shiftPlanningObservation?.id)
+        assertEquals(ShiftPlanningRequestStatus.PROCESSING, state.value.shiftPlanningObservation?.status)
+        assertTrue(inspection.subscriptions.contains("admin" to request.id))
+
+        inspection.emit(own)
+        runCurrent()
+        actions.stageLatestShiftPlanningPreview()
+        runCurrent()
+
+        val staged = planning.requests.last().intent as ShiftPlanningRequestIntent.Stage
+        assertEquals(request.id, staged.preview.sourceRequestId)
+        assertEquals(own.completedSummary?.bundleDigest, staged.preview.bundleDigest)
+    }
+
+    @Test
+    fun `new own activation remains discoverable after the selected stage completes`() = runTest {
+        val inspection = ControlledPlanningInspectionRepository()
+        val planning = RecordingPlanningRepository()
+        val shifts = CountingShiftRepository()
+        val state = MutableStateFlow(authorizedState())
+        val actions = actions(
+            state = state,
+            planningRepository = planning,
+            inspectionRepository = inspection,
+            shiftRepository = shifts,
+            scope = backgroundScope,
+        )
+        runCurrent()
+        actions.submitShiftPlanningRequest(2026, 2027)
+        runCurrent()
+        inspection.emit(completedPreviewObservation().copy(id = planning.requests.single().id))
+        runCurrent()
+        actions.stageLatestShiftPlanningPreview()
+        runCurrent()
+        inspection.emit(completedPreviewObservation().copy(
+            id = planning.requests.last().id,
+            mode = ShiftPlanningMode.STAGE,
+            requestedAtMillis = 2L,
+        ))
+        runCurrent()
+        inspection.emit(completedActivationObservation().copy(requestedAtMillis = 3L))
+        runCurrent()
+
+        assertEquals("activate-request", state.value.shiftPlanningObservation?.id)
+        assertEquals(1, shifts.readCount)
+    }
+
+    @Test
+    fun `failed planning source reconnects without changing the authorized session`() = runTest {
+        val inspection = ControlledPlanningInspectionRepository().apply { sourceFailuresRemaining = 1 }
+        val state = MutableStateFlow(authorizedState())
+        val session = state.value.mode
+        actions(
+            state = state,
+            inspectionRepository = inspection,
+            automaticLoadRetryDelayMillis = 1_000L,
+            scope = backgroundScope,
+        )
+        runCurrent()
+        inspection.emit(completedPreviewObservation())
+        advanceTimeBy(1_000L)
+        runCurrent()
+
+        assertEquals(completedPreviewObservation(), state.value.shiftPlanningObservation)
+        assertEquals(2, inspection.subscriptions.size)
+        assertEquals(session, state.value.mode)
+        assertEquals(0L, state.value.sessionEpoch)
+    }
+
+    @Test
+    fun `candidate load failure retries the same selected request and restores stage detail`() = runTest {
+        val reference = ShiftPlanningCandidateReference("candidate-1", PLANNING_DIGEST, "revision-1", PLANNING_DIGEST, "develop")
+        val candidate = ShiftPlanningCandidate("candidate-1", "revision-1", PLANNING_DIGEST, PLANNING_DIGEST, 0, 0, emptyList())
+        val inspection = ControlledPlanningInspectionRepository().apply {
+            candidateFailuresRemaining = 1
+            this.candidate = candidate
+        }
+        val planning = RecordingPlanningRepository()
+        val state = MutableStateFlow(authorizedState())
+        val actions = actions(
+            state = state,
+            planningRepository = planning,
+            inspectionRepository = inspection,
+            automaticLoadRetryDelayMillis = 1_000L,
+            scope = backgroundScope,
+        )
+        runCurrent()
+        actions.submitShiftPlanningRequest(2026, 2027)
+        runCurrent()
+        val requestId = planning.requests.single().id
+        inspection.emit(completedPreviewObservation().copy(
+            id = requestId,
+            mode = ShiftPlanningMode.STAGE,
+            candidateReference = reference,
+        ))
+        runCurrent()
+        assertEquals(null, state.value.shiftPlanningCandidate)
+        assertFalse(state.value.isLoadingShiftPlanningCandidate)
+        val beforeRetry = inspection.subscriptions.size
+        advanceTimeBy(1_000L)
+        runCurrent()
+
+        assertEquals("admin" to requestId, inspection.subscriptions[beforeRetry])
+        assertEquals(candidate, state.value.shiftPlanningCandidate)
+        assertFalse(state.value.isLoadingShiftPlanningCandidate)
+        assertTrue(inspection.candidateReads >= 2)
+    }
+
+    @Test
+    fun `session change cancels a pending planning source retry`() = runTest {
+        val inspection = ControlledPlanningInspectionRepository().apply { sourceFailuresRemaining = 1 }
+        val state = MutableStateFlow(authorizedState())
+        actions(
+            state = state,
+            inspectionRepository = inspection,
+            automaticLoadRetryDelayMillis = 1_000L,
+            scope = backgroundScope,
+        )
+        runCurrent()
+        state.value = state.value.toSignedOutSessionState(showSessionExpiredDialog = false)
+        runCurrent()
+        advanceTimeBy(10_000L)
+        runCurrent()
+
+        assertEquals(1, inspection.subscriptions.size)
+        assertEquals(null, state.value.shiftPlanningObservation)
+        assertTrue(state.value.mode is SessionMode.SignedOut)
+    }
+
+    @Test
+    fun `new administrator and environment never inherit the previous request selection`() = runTest {
+        val inspection = ControlledPlanningInspectionRepository()
+        val planning = RecordingPlanningRepository()
+        val state = MutableStateFlow(authorizedState().copy(sessionEnvironment = "develop"))
+        val actions = actions(
+            state = state,
+            planningRepository = planning,
+            inspectionRepository = inspection,
+            scope = backgroundScope,
+        )
+        runCurrent()
+        actions.submitShiftPlanningRequest(2026, 2027)
+        runCurrent()
+        assertEquals("admin" to planning.requests.single().id, inspection.subscriptions.last())
+
+        val previousMode = state.value.mode as SessionMode.Authorized
+        val nextMember = previousMode.member.copy(id = "admin-b", authUid = "auth-admin-b")
+        state.value = state.value.copy(
+            sessionEpoch = 1L,
+            sessionEnvironment = "production",
+            mode = previousMode.copy(
+                principal = previousMode.principal.copy(uid = "auth-admin-b"),
+                member = nextMember,
+                authenticatedMember = nextMember,
+            ),
+        )
+        runCurrent()
+        inspection.emit(completedPreviewObservation().copy(id = planning.requests.single().id))
+        runCurrent()
+
+        assertEquals("admin-b" to null, inspection.subscriptions.last())
+        assertEquals("production", inspection.environments.last())
         assertEquals(null, state.value.shiftPlanningObservation)
     }
 
@@ -373,7 +565,7 @@ class SessionShiftActionsFailureTest {
     }
 
     @Test
-    fun `admin cannot stage another admins preview`() = runTest {
+    fun `another admins preview is neither shown nor stageable`() = runTest {
         val planning = RecordingPlanningRepository()
         val inspection = ControlledPlanningInspectionRepository()
         val state = MutableStateFlow(authorizedState())
@@ -386,7 +578,7 @@ class SessionShiftActionsFailureTest {
         runCurrent()
         inspection.emit(completedPreviewObservation().copy(requestedByUserId = "other-admin"))
         runCurrent()
-        assertEquals("preview-request", state.value.shiftPlanningObservation?.id)
+        assertEquals(null, state.value.shiftPlanningObservation)
 
         actions.stageLatestShiftPlanningPreview()
         runCurrent()
@@ -835,15 +1027,41 @@ private object ConfirmingPlanningRepository : ShiftPlanningRequestRepository {
 }
 
 private class ControlledPlanningInspectionRepository : ShiftPlanningInspectionRepository {
-    private val observations = MutableSharedFlow<ShiftPlanningRequestObservation?>(extraBufferCapacity = 1)
+    private val observations = MutableStateFlow<List<ShiftPlanningRequestObservation>>(emptyList())
+    val subscriptions = mutableListOf<Pair<String, String?>>()
+    val environments = mutableListOf<String?>()
+    var sourceFailuresRemaining = 0
+    var candidateFailuresRemaining = 0
+    var candidateReads = 0
+    var candidate: ShiftPlanningCandidate? = null
 
-    override fun observeLatestRequest() = observations
+    override fun observeRequest(requestedByUserId: String, requestId: String?, environment: String?) = flow {
+        subscriptions += requestedByUserId to requestId
+        environments += environment
+        if (sourceFailuresRemaining > 0) {
+            sourceFailuresRemaining -= 1
+            throw IOException("temporary source failure")
+        }
+        observations.collect { all ->
+            emit(all.filter { it.requestedByUserId == requestedByUserId }
+                .filter { requestId == null || it.id == requestId }
+                .maxByOrNull { it.requestedAtMillis })
+        }
+    }
 
-    override suspend fun getStagedCandidate(reference: ShiftPlanningCandidateReference): ShiftPlanningCandidate =
-        error("No candidate expected")
+    override suspend fun getStagedCandidate(reference: ShiftPlanningCandidateReference): ShiftPlanningCandidate {
+        candidateReads += 1
+        if (candidateFailuresRemaining > 0) {
+            candidateFailuresRemaining -= 1
+            throw IOException("temporary candidate failure")
+        }
+        return requireNotNull(candidate)
+    }
 
     fun emit(observation: ShiftPlanningRequestObservation?) {
-        check(observations.tryEmit(observation))
+        observations.value = observation?.let { next ->
+            observations.value.filterNot { it.id == next.id } + next
+        }.orEmpty()
     }
 }
 

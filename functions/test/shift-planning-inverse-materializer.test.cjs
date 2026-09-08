@@ -14,7 +14,7 @@ const {
 const {
   buildShiftPlanningExactReplacementData,
   materializeShiftPlanningInverseRecovery,
-  measureAndSealShiftPlanningInverseRecoveryAttempt,
+  applyShiftPlanningInverseRecoveryAttempt,
 } = require("../lib/shift-planning-inverse-materializer.js");
 const {
   attachShiftPlanningBackendMutationMarker,
@@ -24,9 +24,9 @@ const {
   createShiftPlanningPublicShiftMaterialization,
 } = require("../lib/shift-planning-publication-contract.js");
 const {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+  SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
 } = require(
-  "../lib/shift-planning-firestore-transaction-serializer.js"
+  "../lib/shift-planning-firestore-transaction-manifest.js"
 );
 const {
   buildShiftPlanningAuthoritativeState,
@@ -109,7 +109,7 @@ const fixture = () => {
   const expectedState = {
     authoritativeState,
     transactionMeasurementAuthority: {
-      adapterRevision: SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+      adapterRevision: SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
       indexConfigurationDigest:
         `shift-planning:v1:sha256:${"1".repeat(64)}`,
     },
@@ -341,7 +341,7 @@ const fixture = () => {
     syncCommands,
     heldNotificationIntents,
     transactionRequirements: {
-      byteLimit: 10 * 1024 * 1024,
+      byteLimit: 8 * 1024 * 1024,
       forwardManifestDigest,
       inverseManifestDigest: createShiftPlanningDigest(inverseManifest),
     },
@@ -616,7 +616,7 @@ test("rejects active CAS and before-image drift", () => {
 });
 
 test(
-  "seals and commits the exact inverse batch in the real adapter",
+  "applies and commits the atomic inverse manifest through public APIs",
   {skip: !process.env.FIRESTORE_EMULATOR_HOST},
   async () => {
     const database = new Firestore({
@@ -647,7 +647,7 @@ test(
           updateTime: snapshot.updateTime,
         },
       ]));
-      return measureAndSealShiftPlanningInverseRecoveryAttempt({
+      return applyShiftPlanningInverseRecoveryAttempt({
         ...base,
         firestore: database,
         transaction,

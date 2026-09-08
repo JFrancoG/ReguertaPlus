@@ -111,6 +111,35 @@ struct DeliveryCalendarCommandBoundaryTests {
         #expect(loader.requests.count == 2)
     }
 
+    @Test(arguments: ["upsert", "delete"])
+    func inactivePlanningAuthorityIsAcceptedByTheBackendCommandContract(action: String) async throws {
+        let loader = DeliveryCalendarHTTPDataLoader(
+            responses: [
+                .success(try contextData(environment: .develop, weekKey: "2026-W36", active: false)),
+                .success(
+                    try transitionData(
+                        environment: .develop,
+                        operationID: "inactive-authority",
+                        action: action,
+                        weekKey: "2026-W36",
+                        override: action == "upsert" ? responseOverride(updatedBy: "admin", updatedAtMillis: 42) : nil,
+                        active: false
+                    )
+                )
+            ],
+            requiresInactivePlanningAuthority: true
+        )
+        let repository = makeRepository(loader: loader, operationID: "inactive-authority")
+
+        if action == "upsert" {
+            let result = try await repository.upsertOverride(localOverride(), environment: .develop)
+            #expect(result.updatedAtMillis == 42)
+        } else {
+            try await repository.deleteOverride(weekKey: "2026-W36", environment: .develop)
+        }
+        #expect(loader.requests.count == 2)
+    }
+
     private func makeRepository(
         loader: DeliveryCalendarHTTPDataLoader,
         operationID: String
@@ -135,14 +164,28 @@ private final class DeliveryCalendarHTTPDataLoader: HTTPDataLoading {
     }
 
     private var responses: [Response]
+    private let requiresInactivePlanningAuthority: Bool
     private(set) var requests: [URLRequest] = []
 
-    init(responses: [Response]) {
+    init(responses: [Response], requiresInactivePlanningAuthority: Bool = false) {
         self.responses = responses
+        self.requiresInactivePlanningAuthority = requiresInactivePlanningAuthority
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requests.append(request)
+        if requiresInactivePlanningAuthority, request.url?.lastPathComponent == "transitionDeliveryCalendarOverride" {
+            let authority = try #require(try requestBody(request)["expectedPlanningAuthority"] as? [String: Any])
+            // Backend parseAuthority requires all five keys, including explicit nulls before activation.
+            let requiredFields: Set<String> = [
+                "schemaVersion", "stateRevision", "writeEpoch", "activeRevision", "activeDigest"
+            ]
+            guard Set(authority.keys) == requiredFields,
+                  authority["activeRevision"] is NSNull,
+                  authority["activeDigest"] is NSNull else {
+                throw URLError(.badServerResponse)
+            }
+        }
         guard !responses.isEmpty else { throw URLError(.badServerResponse) }
         let response = responses.removeFirst()
         let data: Data
@@ -168,13 +211,13 @@ private func requestBody(_ request: URLRequest) throws -> [String: Any] {
     return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 }
 
-private func contextData(environment: SessionEnvironment, weekKey: String) throws -> Data {
+private func contextData(environment: SessionEnvironment, weekKey: String, active: Bool = true) throws -> Data {
     try JSONSerialization.data(withJSONObject: [
         "ok": true,
         "schemaVersion": 1,
         "environment": environment.rawValue,
         "weekKey": weekKey,
-        "planningAuthority": planningAuthority(),
+        "planningAuthority": planningAuthority(active: active),
         "overrideDigest": NSNull()
     ])
 }
@@ -184,7 +227,8 @@ private func transitionData(
     operationID: String,
     action: String,
     weekKey: String,
-    override: [String: Any]?
+    override: [String: Any]?,
+    active: Bool = true
 ) throws -> Data {
     try JSONSerialization.data(withJSONObject: [
         "ok": true,
@@ -194,7 +238,7 @@ private func transitionData(
         "action": action,
         "weekKey": weekKey,
         "commandDigest": calendarDigest,
-        "planningAuthority": planningAuthority(),
+        "planningAuthority": planningAuthority(active: active),
         "priorOverrideDigest": NSNull(),
         "overrideDigest": override == nil ? NSNull() : calendarDigest as Any,
         "override": override ?? NSNull() as Any,
@@ -226,13 +270,13 @@ private func responseOverride(updatedBy: String, updatedAtMillis: Int64) -> [Str
     ]
 }
 
-private func planningAuthority() -> [String: Any] {
+private func planningAuthority(active: Bool = true) -> [String: Any] {
     [
         "schemaVersion": 1,
         "stateRevision": 7,
         "writeEpoch": 3,
-        "activeRevision": "revision-001",
-        "activeDigest": "shift-planning:v1:sha256:" + String(repeating: "a", count: 64)
+        "activeRevision": active ? "revision-001" as Any : NSNull(),
+        "activeDigest": active ? "shift-planning:v1:sha256:" + String(repeating: "a", count: 64) as Any : NSNull()
     ]
 }
 

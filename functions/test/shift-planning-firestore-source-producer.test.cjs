@@ -48,9 +48,9 @@ const {
   shiftPlanningRecoveryAuthorizationPath,
 } = require("../lib/shift-planning-operator-recovery.js");
 const {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+  SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
 } = require(
-  "../lib/shift-planning-firestore-transaction-serializer.js"
+  "../lib/shift-planning-firestore-transaction-manifest.js"
 );
 const {
   buildShiftPlanningAuthoritativeState,
@@ -119,7 +119,7 @@ const sourcePolicy = () => ({
   sync: {
     leaseDurationMillis: 120_000,
     transactionMeasurementAuthority: {
-      adapterRevision: SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+      adapterRevision: SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
       indexConfigurationDigest: digest({indexes: "strict-source-v1"}),
     },
     partitions: {
@@ -380,6 +380,53 @@ const clear = async (database) => {
 };
 
 const emulatorTest = process.env.FIRESTORE_EMULATOR_HOST ? test : test.skip;
+
+emulatorTest("retry-enabled trigger resumes a claimed request after transient failure", async () => {
+  const {createVersionedShiftPlanningRequestTrigger} =
+    require("../lib/shift-planning-request-trigger.js");
+  const database = new Firestore({projectId});
+  await clear(database);
+  await seed(database);
+  await refreshShiftPlanningLiveSource({firestore: database, environment});
+  const request = planningRequest({
+    requestId: "retry-trigger-preview", bundleId: "retry-trigger-bundle",
+    mode: "preview", binding: null,
+  });
+  const reference = database.doc(`${root}/shiftPlanningRequests/${request.requestId}`);
+  await reference.create(request);
+  const runtime = createFirestoreShiftPlanningRuntime(database);
+  const repository = createFirestoreShiftPlanningRepository(database);
+  let invocations = 0;
+  const trigger = createVersionedShiftPlanningRequestTrigger({
+    async executeRequest(input) {
+      invocations += 1;
+      if (invocations === 1) {
+        await repository.claimRequest({
+          environment, requestId: request.requestId,
+          operationId: `request-${request.requestId}`,
+          workerId: input.workerId, leaseDurationMillis: 1,
+        });
+        throw new Error("source unavailable after durable claim");
+      }
+      return runtime.executeRequest(input);
+    },
+  }, async () => true);
+  const event = {
+    id: "retry-trigger-event", authType: "system",
+    params: {env: environment, requestId: request.requestId},
+    data: {data: () => request},
+  };
+  await assert.rejects(trigger.run(event), /source unavailable/);
+  assert.equal((await reference.get()).data().status, "processing");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await trigger.run(event);
+  const completed = (await reference.get()).data();
+  assert.equal(completed.status, "completed");
+  await trigger.run(event);
+  assert.deepEqual((await reference.get()).data(), completed);
+  assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
+  await database.terminate();
+});
 
 emulatorTest("produces, replays, and versions real planning sources", async () => {
   const database = new Firestore({projectId});

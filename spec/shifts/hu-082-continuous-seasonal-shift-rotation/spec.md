@@ -236,30 +236,37 @@ does not populate Firestore public shifts or activate either mobile app.
   neither active cursor and freezes neither cohort. Authorized admins can inspect
   both staged subplans.
 - The staged candidate is immutable and remains outside forward/inverse write
-  sets and recovery before-images. Stage rejects transaction measurements:
-  activation/recovery IDs, exact payloads and preconditions, before-images, and
-  the opaque transaction token are attempt-owned values that do not exist yet.
-  A pinned serializer measures the actual `WriteBatch` owned by each fully
-  resolved attempt before public writes and binds the ordered write set plus the
-  complete protobuf `CommitRequest`. The local attempt adapter now requires all
-  authoritative reads to finish first, owns the empty internal batch of that
-  exact SDK `Transaction`, populates it canonically, awaits its real opaque token,
-  and measures it once per callback attempt. Successful measurement seals later
-  public mutations and replaces the SDK closures with detached copies of the
-  measured `Write` protos. Its commit guard supplies a detached token copy,
-  rejects any different token, reserializes and compares the complete request
-  immediately before transport, and requires remeasurement after SDK reset. The
-  measurement remains in memory while that request commits: its digest cannot be
-  embedded in the same request whose bytes define that digest. After the measured
-  transaction returns successfully, a separate backend-only protocol persists an
-  immutable `transactionReturned` outcome under the committed operation. Its
-  stable key combines direction and exact commit-request digest; it binds the
-  complete measurement, intent, bundle, epoch, manifest, post-return timestamp,
-  and derived digests. Create-without-overwrite, exact replay convergence,
-  terminal-operation validation, and independent read-back fail closed without
-  claiming a transport acknowledgement token. Index authority remains
-  digest-bound, while backend index-entry accounting still requires the
-  isolated-clone rehearsal.
+  sets and recovery before-images. Stage retains structural budgets and rejects
+  synthetic future transaction evidence because activation/recovery IDs,
+  payloads, preconditions, and before-images do not yet exist.
+- ADR-0014 replaces private SDK serialization/sealing with public transaction
+  APIs. `shift-planning-firestore-transaction-manifest.ts` captures canonical
+  tagged JSON, reusing the publication codec and detaching caller-owned data
+  before asynchronous work. Every callback retry rebuilds authoritative inputs,
+  validates notification writer fences, and applies its complete admitted
+  manifest through `Transaction.create`, `update`, and `delete`. No SDK private
+  batch, protobuf encoder, opaque token, or commit interception is inspected or
+  modified. Concrete values and top-level recovery deletion are supported;
+  dynamic field transforms are outside the planning write contract.
+- Admission schema v2 (`adapterRevision = public-transaction-v2`,
+  `evidenceKind = applicationAdmission`) binds `direction`, `manifestDigest`,
+  `logicalMutationDigest`, document-write count, `estimatedRequestBytes`, and
+  audited index-configuration digest. Application limits are 500 document writes,
+  8 MiB estimated request bytes, and 768 KiB estimated per document. The estimate
+  adds 1 KiB per request and per document to twice the UTF-8 size of each tagged
+  document mutation. It is not exact wire/index accounting or a promise of
+  server acceptance. Firestore remains the authority for atomicity and its real
+  limits; the isolated-clone rehearsal remains required before production.
+- Receipt schema v2 uses a stable `{direction}-{operationIntentDigestHex}` key
+  under `shiftPlanningOperations/{operationId}/attemptOutcomes/{attemptId}` and
+  binds operation intent, bundle, epoch, direction, `manifestDigest`, timestamp,
+  and receipt digest. `transactionReturned` records a successful transaction
+  return with admission v2 in `measurement`; `operationReadBack` records a
+  validated committed terminal after an ambiguous/lost receipt, with
+  `measurement = null` and `measurementDigest = null`. These paths converge on
+  the first immutable receipt for the same directional operation, followed by
+  independent read-back. Missing receipts are repaired from valid terminals
+  without repeating the business CAS or inventing wire/return evidence.
 - Publication codec v1 freezes the exact materializer-facing flat shift shape.
   It retains the fields installed Android/iOS clients require and uses
   `source = app`, while adding planner/bundle lineage, immutable rotation
@@ -283,7 +290,7 @@ does not populate Firestore public shifts or activate either mobile app.
   state, terminal request, sync commands, held intents, operation tombstone, and
   contiguous before-images. Updates use the transaction-read `lastUpdateTime`;
   the exact write set must match the forward budget and inverse create manifest.
-  The real pinned attempt adapter measures and seals that same SDK-owned batch;
+  The public-API attempt adapter admits and applies that complete manifest;
   an emulator vector proves its atomic commit. The local CAS runtime invokes its
   resolver anew inside every Firestore retry, runs the real materializer on that
   callback's read-set, and retains only the outcome returned by the successful
@@ -298,12 +305,13 @@ does not populate Firestore public shifts or activate either mobile app.
   guarded exact-replacement update rewrites retained top-level maps and deletes
   after-only fields. The activation tombstone becomes a digest-bound recovery
   tombstone, while immutable before-images and the historical completed request
-  remain. The pinned attempt adapter measures/seals the exact inverse batch and
+  remain. The public-API attempt adapter admits/applies the inverse manifest and
   an emulator vector proves atomic delete/restore/epoch behavior. The same CAS
   runtime executes recovery only while the activation terminal remains current,
   then persists its inverse outcome after the transaction returns. Exact
   terminal/outcome replays short-circuit without another CAS; a committed
-  terminal missing its directional outcome fails closed. The local concrete
+  terminal missing its receipt is reconciled through validated terminal read-back
+  without repeating recovery. The local concrete
   resolver now rebuilds the forward read-set from a digest-bound live source,
   staged package, and authoritative documents, while recovery reloads every
   terminal/before-image/current target. The governed live-source producer now
@@ -365,9 +373,10 @@ does not populate Firestore public shifts or activate either mobile app.
   a separate collection and requires the entire public create/update/delete
   delivery-plus-market manifest, both rotation/cursor transitions, active
   metadata, Sheets-sync commands, and held intents to fit one Firestore
-  transaction. The exact attempt serializer enforces 500 combined document
-  writes and transforms, at most 500 transforms per document, and 10 MiB of
-  protobuf request bytes. If the combined manifest exceeds any limit, activation fails
+  transaction. The application admission policy allows at most 500 document
+  writes, 8 MiB estimated request bytes, and 768 KiB estimated per document.
+  The server enforces actual Firestore limits. If admission rejects the combined
+  manifest, activation fails
   closed until supported clients migrate to an active-revision read contract;
   per-type or visible multi-batch promotion is forbidden.
 - Each mode has one exact bundle request that transitions through `requested`,
@@ -379,7 +388,7 @@ does not populate Firestore public shifts or activate either mobile app.
   monotonically fenced takeover. Every CAS retry revalidates the exact worker,
   fencing epoch, lease interval, and immutable request digest. Recovery never
   reopens that request or creates a competing lifecycle authority: it consumes
-  the immutable activation terminal and retains/replays its own directional
+  the activation terminal and retains/replays its own directional
   attempt outcome.
 - Activation may persist `failed` only for a typed deterministic planning error
   thrown inside the Firestore transaction callback before it returns for commit.
@@ -482,8 +491,10 @@ does not populate Firestore public shifts or activate either mobile app.
   named attempt documents. It advances the shared maintenance epoch and both
   rotation revisions, clears both leases together, and creates one immutable
   replay record; any drift writes nothing. A local pure terminal-incident
-  contract handles the abandoned non-terminal residual separately. One
-  non-exported Firestore CAS persists degraded entry and another now owns exact
+  contract handles the abandoned non-terminal residual separately. The batch,
+  degraded-entry, and terminalization repositories share one historical-dispatch
+  evidence reader; their existing pure transition policies remain separate.
+  One non-exported Firestore CAS persists degraded entry and another owns exact
   terminalization and cleanup.
 - A safe-resume residual is an explicit degraded mode with an owner, TTL, and
   escalation. It mutation-fences affected shifts while unrelated traffic runs.
@@ -491,9 +502,11 @@ does not populate Firestore public shifts or activate either mobile app.
   set, complete dispatch counters/attempt histories, and no active dispatch
   lease. Its positive TTL is capped at 24 hours, both release leases transfer to
   the incident owner, and the affected-shift set is derived from the intents.
-  At TTL expiry the operator must finish release or terminalize the incident by
-  cancelling/superseding every intent proved never submitted under any dispatch
-  epoch. Exact zero counters prove a pending intent was never claimed; claimed or
+  Incident entry advances the maintenance write epoch. Existing intents retain
+  their activation epoch, so this entry is not a route to resume their dispatch.
+  Finishing release is possible only before incident entry. At TTL expiry the
+  operator must terminalize the incident, cancelling/superseding every intent
+  proved never submitted under any dispatch epoch. Exact zero counters prove a pending intent was never claimed; claimed or
   failed attempts qualify only when no attempt crossed authenticated submission.
   A submitting attempt and any `unknown`, accepted, or delivered evidence remain
   immutable possible-delivery history and enter reconciliation/correction, even
@@ -721,7 +734,7 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 - [x] Activate accepts only the exact staged two-type bundle revision/digest and
   atomically makes both types active or neither before any held notification is
   released.
-- [x] The initial flat-collection promotion fits one measured Firestore
+- [x] The initial flat-collection promotion fits one admitted atomic Firestore
   transaction for the combined delivery-plus-market manifest, and supported
   clients see either the prior or activated bundle, never one updated type or a
   partial projection; oversize manifests fail closed pending client migration.

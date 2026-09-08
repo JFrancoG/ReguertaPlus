@@ -2,7 +2,9 @@ package com.reguerta.user.data.shiftplanning
 
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
@@ -33,33 +35,47 @@ class FirestoreShiftPlanningRequestRepository internal constructor(
     private val requestsCollectionPath: String
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFT_PLANNING_REQUESTS)
 
-    private val candidatesCollectionPath: String
-        get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFT_PLANNING_CANDIDATES)
-
-    override fun observeLatestRequest(): Flow<ShiftPlanningRequestObservation?> = callbackFlow {
-        val registration = firestore.collection(requestsCollectionPath)
-            .orderBy("requestedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(25)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error.toShiftPlanningRepositoryException("shiftPlanningRequests.read"))
-                    return@addSnapshotListener
-                }
+    override fun observeRequest(
+        requestedByUserId: String,
+        requestId: String?,
+        environment: String?,
+    ): Flow<ShiftPlanningRequestObservation?> = callbackFlow {
+        if (!PLANNING_IDENTIFIER.matches(requestedByUserId) ||
+            requestId?.let { !PLANNING_IDENTIFIER.matches(it) } == true
+        ) {
+            invalidShiftPlanningRequest()
+        }
+        val path = environment?.let(::planningEnvironmentPath) ?: firestorePath
+        val collection = firestore.collection(path.collectionPath(ReguertaFirestoreCollection.SHIFT_PLANNING_REQUESTS))
+        val receive: (DocumentSnapshot?, Exception?) -> Unit = { document, error ->
+            if (error != null) {
+                close(error.toShiftPlanningRepositoryException("shiftPlanningRequests.read"))
+            } else {
                 try {
-                    val observation = snapshot?.documents
-                        ?.asSequence()
-                        ?.mapNotNull { document ->
-                            decodeShiftPlanningObservation(
-                                documentId = document.id,
-                                data = document.data ?: emptyMap(),
-                            )
-                        }
-                        ?.firstOrNull()
-                    trySend(observation).getOrThrow()
+                    val observation = document?.takeIf { it.exists() }?.let {
+                        decodeShiftPlanningObservation(it.id, it.data ?: emptyMap())
+                    }
+                    if (observation != null &&
+                        (observation.requestedByUserId != requestedByUserId ||
+                            document.getString("environment") != collection.path.substringBefore('/'))
+                    ) {
+                        invalidShiftPlanningRequest()
+                    }
+                    trySend(observation)
                 } catch (failure: Exception) {
                     close(failure.toShiftPlanningRepositoryException("shiftPlanningRequests.read"))
                 }
             }
+        }
+        val registration = if (requestId != null) {
+            collection.document(requestId).addSnapshotListener { snapshot, error -> receive(snapshot, error) }
+        } else {
+            collection.whereEqualTo("requestedByUserId", requestedByUserId)
+                .whereEqualTo("schemaVersion", 2)
+                .orderBy("requestedAt", Query.Direction.DESCENDING)
+                .limit(1)
+                .addSnapshotListener { snapshot, error -> receive(snapshot?.documents?.firstOrNull(), error) }
+        }
         awaitClose { registration.remove() }
     }
 
@@ -67,7 +83,9 @@ class FirestoreShiftPlanningRequestRepository internal constructor(
         reference: ShiftPlanningCandidateReference,
     ): ShiftPlanningCandidate = withContext(Dispatchers.IO) {
         try {
-            val document = firestore.collection(candidatesCollectionPath).document(reference.candidateId)
+            val path = planningEnvironmentPath(reference.environment)
+            val document = firestore.collection(path.collectionPath(ReguertaFirestoreCollection.SHIFT_PLANNING_CANDIDATES))
+                .document(reference.candidateId)
             val header = Tasks.await(document.get())
             val positions = Tasks.await(document.collection("positions").get())
             decodeShiftPlanningCandidate(
@@ -111,6 +129,10 @@ class FirestoreShiftPlanningRequestRepository internal constructor(
             }
         }
 }
+
+private fun planningEnvironmentPath(environment: String): ReguertaFirestorePath = ReguertaFirestorePath(
+    ReguertaFirestoreEnvironment.entries.firstOrNull { it.wireValue == environment } ?: invalidShiftPlanningRequest(),
+)
 
 internal data class ResolvedShiftPlanningRequest(
     val request: ShiftPlanningRequest,

@@ -311,6 +311,18 @@ nonisolated private struct DeliveryCalendarPlanningAuthority: Codable, Equatable
     }
 }
 
+extension DeliveryCalendarPlanningAuthority {
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(stateRevision, forKey: .stateRevision)
+        try container.encode(writeEpoch, forKey: .writeEpoch)
+        // The backend requires these keys even before the first active bundle exists.
+        try container.encode(activeRevision, forKey: .activeRevision)
+        try container.encode(activeDigest, forKey: .activeDigest)
+    }
+}
+
 nonisolated private struct DeliveryCalendarMutationContextRequest: Encodable {
     let schemaVersion: Int
     let environment: SessionEnvironment

@@ -16,11 +16,11 @@ import {
 import {ShiftPlanningError} from "./shift-planning-contract.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {
-  ShiftPlanningFirestoreCommitMeasurement,
+  ShiftPlanningFirestoreAdmission,
   ShiftPlanningFirestoreMutation,
-} from "./shift-planning-firestore-transaction-serializer.js";
+} from "./shift-planning-firestore-transaction-manifest.js";
 import {
-  measureAndSealShiftPlanningFirestoreTransactionAttempt,
+  applyShiftPlanningFirestoreTransactionAttempt,
 } from "./shift-planning-firestore-transaction-attempt.js";
 import {
   ShiftPlanningActivationPreflight,
@@ -84,7 +84,7 @@ export type ShiftPlanningForwardActivationMaterialization = {
   mutations: readonly ShiftPlanningFirestoreMutation[];
 };
 
-export type MeasureAndSealShiftPlanningForwardActivationAttemptInput =
+export type ApplyShiftPlanningForwardActivationAttemptInput =
   MaterializeShiftPlanningForwardActivationInput & {
     firestore: Firestore;
     transaction: Transaction;
@@ -92,7 +92,7 @@ export type MeasureAndSealShiftPlanningForwardActivationAttemptInput =
 
 export type ShiftPlanningForwardActivationAttempt = {
   materialization: ShiftPlanningForwardActivationMaterialization;
-  measurement: ShiftPlanningFirestoreCommitMeasurement;
+  measurement: ShiftPlanningFirestoreAdmission;
 };
 
 const failForward = (message: string): never => {
@@ -506,7 +506,7 @@ const resolvedRecoveryCreatePaths = (
  * Builds every mutation for one forward activation after a trusted resolver has
  * recomputed the complete live fairness snapshot in the same Firestore
  * transaction. The result remains local until the real attempt adapter seals
- * and the SDK commits that exact batch.
+ * and the server commits the transaction atomically.
  * @param {MaterializeShiftPlanningForwardActivationInput} input Staged/live
  * lineage, transaction-read documents, and trusted callback clock.
  * @return {ShiftPlanningForwardActivationMaterialization} Exact ordered writes.
@@ -794,23 +794,23 @@ export const materializeShiftPlanningForwardActivation = (
 };
 
 /**
- * Materializes and seals one complete forward activation in the SDK-owned batch
+ * Materializes and applies one complete forward activation through public APIs
  * of the current transaction attempt. Callers must resolve `preflight`, the
  * complete live bundle, request, and before-images from reads awaited in this
  * same callback. Firestore retries must call this function again with their new
  * transaction and freshly recomputed read-set.
- * @param {MeasureAndSealShiftPlanningForwardActivationAttemptInput} input Real
+ * @param {ApplyShiftPlanningForwardActivationAttemptInput} input Real
  * transaction plus all live activation inputs.
  * @return {Promise<ShiftPlanningForwardActivationAttempt>} Exact mutation and
- * measured CommitRequest evidence retained only in memory.
+ * application admission evidence retained only in memory.
  */
-export const measureAndSealShiftPlanningForwardActivationAttempt = async (
-  input: MeasureAndSealShiftPlanningForwardActivationAttemptInput,
+export const applyShiftPlanningForwardActivationAttempt = async (
+  input: ApplyShiftPlanningForwardActivationAttemptInput,
 ): Promise<ShiftPlanningForwardActivationAttempt> => {
   const materialization = materializeShiftPlanningForwardActivation(input);
   const artifact = input.preflight.bundle.artifact;
   const measurement =
-    await measureAndSealShiftPlanningFirestoreTransactionAttempt({
+    await applyShiftPlanningFirestoreTransactionAttempt({
       firestore: input.firestore,
       transaction: input.transaction,
       mutations: materialization.mutations,

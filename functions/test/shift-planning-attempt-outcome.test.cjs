@@ -26,9 +26,9 @@ const {
   parseShiftPlanningRecoveryOperationTerminal,
 } = require("../lib/shift-planning-inverse-materializer.js");
 const {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+  SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
 } = require(
-  "../lib/shift-planning-firestore-transaction-serializer.js"
+  "../lib/shift-planning-firestore-transaction-manifest.js"
 );
 
 const digest = (value) => createShiftPlanningDigest(value);
@@ -106,20 +106,14 @@ const recoveryOperation = {
 };
 
 const measurement = (overrides = {}) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  evidenceKind: "applicationAdmission",
   direction: "forward",
   manifestDigest: forwardManifestDigest,
-  databaseName:
-    "projects/demo-reguerta-hu082-attempt-outcome/databases/(default)",
-  writeSetDigest:
-    `shift-planning:firestore-write-set:v1:sha256:${"a".repeat(64)}`,
-  commitRequestDigest:
-    `shift-planning:firestore-commit-request:v1:sha256:${"b".repeat(64)}`,
+  logicalMutationDigest: digest({mutations: "forward"}),
   documentWriteCount: 41,
-  fieldTransformCount: 0,
-  maximumFieldTransformsPerDocument: 0,
-  requestByteCount: 12_345,
-  adapterRevision: SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+  estimatedRequestBytes: 12_345,
+  adapterRevision: SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
   indexConfigurationDigest: digest({indexes: "strict-v1"}),
   ...overrides,
 });
@@ -148,7 +142,7 @@ test("builds an immutable non-circular committed outcome", () => {
   assert.equal(value.direction, "forward");
   assert.equal(
     value.attemptId,
-    `forward-${"b".repeat(64)}`,
+    `forward-${operationIntentDigest.split(":").at(-1)}`,
   );
   assert.equal(
     value.outcomePath,
@@ -164,15 +158,12 @@ test("binds inverse direction and exact measurement authority", () => {
     measurement: measurement({
       direction: "inverse",
       manifestDigest: digest({manifest: "inverse"}),
-      commitRequestDigest:
-        `shift-planning:firestore-commit-request:v1:sha256:` +
-        `${"c".repeat(64)}`,
     }),
     writeEpoch: 9,
   });
 
   assert.equal(value.direction, "inverse");
-  assert.equal(value.attemptId, `inverse-${"c".repeat(64)}`);
+  assert.equal(value.attemptId, `inverse-${operationIntentDigest.split(":").at(-1)}`);
   assert.equal(value.writeEpoch, 9);
   assert.deepEqual(
     parseShiftPlanningRecoveryOperationTerminal(recoveryOperation),
@@ -198,8 +189,7 @@ test("rejects forged keys, digests, counts, and timestamps", () => {
   assert.throws(
     () => outcome({
       measurement: measurement({
-        fieldTransformCount: 0,
-        maximumFieldTransformsPerDocument: 1,
+        documentWriteCount: -1,
       }),
     }),
     errorCode("invalid_planning_attempt_outcome"),
@@ -247,6 +237,15 @@ test(
     assert.equal(replayed.kind, "replayed");
     assert.deepEqual(replayed.outcome, expected);
 
+    const readBackRace = outcome({
+      acknowledgement: "operationReadBack", measurement: null,
+      direction: "forward", manifestDigest: forwardManifestDigest,
+      recordedAt: Timestamp.fromMillis(1_788_393_700_000),
+    });
+    const converged = await persistence.retainCommittedOutcomeAndReadBack(readBackRace);
+    assert.equal(converged.kind, "replayed");
+    assert.deepEqual(converged.outcome, expected);
+
     const conflict = outcome({writeEpoch: 9});
     await assert.rejects(
       persistence.retainCommittedOutcomeAndReadBack(conflict),
@@ -260,9 +259,6 @@ test(
     const unbound = outcome({
       operationIntentDigest: digest({operation: "forged"}),
       measurement: measurement({
-        commitRequestDigest:
-          `shift-planning:firestore-commit-request:v1:sha256:` +
-          `${"d".repeat(64)}`,
       }),
     });
     await assert.rejects(
@@ -283,9 +279,6 @@ test(
       measurement: measurement({
         direction: "inverse",
         manifestDigest: inverseManifestDigest,
-        commitRequestDigest:
-          `shift-planning:firestore-commit-request:v1:sha256:` +
-          `${"e".repeat(64)}`,
       }),
     });
     const inverseCommitted =
@@ -295,3 +288,19 @@ test(
     await firestore.terminate();
   },
 );
+
+test("read-back receipt never invents transaction-returned admission evidence", () => {
+  const value = outcome({
+    acknowledgement: "operationReadBack",
+    measurement: null,
+    direction: "forward",
+    manifestDigest: forwardManifestDigest,
+  });
+  assert.equal(value.acknowledgement, "operationReadBack");
+  assert.equal(value.measurement, null);
+  assert.equal(value.measurementDigest, null);
+  assert.equal(value.attemptId, outcome().attemptId);
+  assert.deepEqual(parseShiftPlanningCommittedAttemptOutcome(value), value);
+  assert.throws(() => outcome({measurement: null}), errorCode("invalid_planning_attempt_outcome"));
+  assert.throws(() => outcome({acknowledgement: "operationReadBack"}), errorCode("invalid_planning_attempt_outcome"));
+});

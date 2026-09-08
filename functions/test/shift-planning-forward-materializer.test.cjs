@@ -22,7 +22,7 @@ const {
 } = require("../lib/shift-planning-persistence.js");
 const {
   materializeShiftPlanningForwardActivation,
-  measureAndSealShiftPlanningForwardActivationAttempt,
+  applyShiftPlanningForwardActivationAttempt,
 } = require("../lib/shift-planning-forward-materializer.js");
 const {
   attachShiftPlanningBackendMutationMarker,
@@ -31,9 +31,9 @@ const {
   createShiftPlanningPublicShiftMaterialization,
 } = require("../lib/shift-planning-publication-contract.js");
 const {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+  SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
 } = require(
-  "../lib/shift-planning-firestore-transaction-serializer.js"
+  "../lib/shift-planning-firestore-transaction-manifest.js"
 );
 const {
   buildShiftPlanningAuthoritativeState,
@@ -127,7 +127,7 @@ const fairnessSnapshot = () => ({
     leaseDurationMillis: 120_000,
     transactionMeasurementAuthority: {
       adapterRevision:
-        SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+        SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
       indexConfigurationDigest:
         `shift-planning:v1:sha256:${"1".repeat(64)}`,
     },
@@ -487,7 +487,7 @@ const executeForwardTransaction = (database, base) =>
     );
     const requestSnapshot = snapshots[0];
     const beforeImageSnapshots = snapshots.slice(1);
-    return measureAndSealShiftPlanningForwardActivationAttempt({
+    return applyShiftPlanningForwardActivationAttempt({
       ...base,
       firestore: database,
       transaction,
@@ -729,7 +729,7 @@ test(
 );
 
 test(
-  "seals and commits the exact forward batch in the real adapter",
+  "applies and commits the atomic forward manifest through public APIs",
   {skip: !process.env.FIRESTORE_EMULATOR_HOST},
   async () => {
     const database = new Firestore({

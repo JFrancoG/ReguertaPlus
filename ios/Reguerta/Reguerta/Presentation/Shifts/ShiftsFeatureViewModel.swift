@@ -16,6 +16,7 @@ final class ShiftsFeatureViewModel {
     @ObservationIgnored let shiftsRetrySleeper: @MainActor (Duration) async throws -> Void
     @ObservationIgnored var shiftsRefreshTask: Task<Void, Never>?
     @ObservationIgnored var shiftPlanningObservationTask: Task<Void, Never>?
+    @ObservationIgnored var selectedShiftPlanningRequestID: String?
     @ObservationIgnored var shiftSwapMutationTask: Task<Bool, Never>?
     @ObservationIgnored var activeShiftSwapMutationAuthorizationReceipt: ShiftSwapMutationAuthorizationReceipt?
     @ObservationIgnored var activeShiftSwapMutationIntent: ShiftSwapMutationIntent?

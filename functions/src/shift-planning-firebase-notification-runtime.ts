@@ -46,6 +46,7 @@ export const createFirebaseShiftPlanningNotificationRuntime = (
     );
   const transport = createFirebaseShiftPlanningNotificationTransport(
     dependencies.messaging,
+    dependencies.nowMillis,
   );
   const dispatchExecutor = createShiftPlanningNotificationDispatchExecutor({
     repository: dispatchRepository,

@@ -264,30 +264,32 @@ documented in the English and Spanish Firestore references before code lands.
   explicit combined-delivery/market failure that requires active-revision client
   migration if exceeded.
 - Include the atomic epoch/active-revision transition in the forward activation and
-  inverse recovery transaction manifests and their measured budgets.
+  inverse recovery transaction manifests and their structural and application-admission budgets.
 - Keep the immutable bundle and staged candidate outside both the activation
   write-set and inverse recovery; retain them as replay/inspection evidence rather
   than updating, restoring, deleting, or capturing them as before-images.
-- Serialize only a fully resolved attempt: after all reads, require and populate
-  the empty internal batch of the exact pinned SDK `Transaction`, detach its
-  measured `Write` protos, seal it, and let the SDK commit that same object.
-  Guard commit with a detached token copy, reserialize immediately before
-  transport, reject byte drift, and require a new measurement after reset. Bind
-  the write-set and complete `CommitRequest` digests/bytes and recheck the
-  conservative cardinality/10-MiB gates before public writes. Stage retains only
-  structural budgets and measurement authority; it never persists synthetic
-  future evidence. After a measured transaction returns successfully, persist a
-  separate immutable `transactionReturned` outcome rather than embedding the
-  request digest inside its own request. Key it by direction plus exact
-  commit-request digest; bind it to the operation terminal, intent, bundle,
-  epoch, manifest, and complete measurement. Create it without overwrite,
-  converge exact retries, and independently read it back. Do not persist the
-  opaque token or claim a lower-level transport acknowledgement.
+- Use the public transaction APIs under ADR-0014. Capture a detached immutable
+  logical mutation manifest after resolving the complete read-set; validate
+  notification writer fences before calling `Transaction.create/update/delete`.
+  Rebuild the read-set and manifest inside every retry. Do not inspect or alter
+  private SDK batches, protobufs, tokens, or commit/reset methods.
+- Apply admission v2 (`public-transaction-v2`) with 500 document writes, 8 MiB
+  estimated request bytes, and 768 KiB estimated per document. Estimate 1 KiB per
+  request and document plus twice each tagged mutation's UTF-8 bytes; bind the
+  logical mutation digest, count, estimate, direction, manifest, and audited
+  index-configuration digest. Server atomicity and real limit enforcement remain
+  authoritative; no exact wire or index-accounting guarantee is claimed.
+- Persist operation receipt v2 after transaction return or validated committed
+  terminal read-back. Use direction plus operation-intent digest as the stable
+  key. `transactionReturned` retains application admission evidence;
+  `operationReadBack` retains no synthetic measurement. Both paths converge on
+  the first immutable receipt for the same bound operation and independently
+  read it back. A missing receipt never causes another business CAS.
 - Materialize the complete forward activation only after a live recomputation
   reproduces the staged artifact. Bind all public creates/guarded predecessor
   update, rotations/leases, active state, request terminal, sync commands, held
   intents, tombstone, and before-images to the exact budget/inverse manifest,
-  then measure and seal that same SDK-owned batch. The local governed resolver
+  then admit and apply that logical manifest through public APIs. The local governed resolver
   now rebuilds bounded membership/device/config/calendar/policy inputs and the
   complete staged/authoritative/before-image read-set inside every retry. Keep
   the local `index.ts` discriminator fail-closed: unversioned requests retain
@@ -297,15 +299,15 @@ documented in the English and Spanish Firestore references before code lands.
   revalidated persisted before-images. Require every created target to retain
   the activation marker/payload, require the active bundle/epoch CAS and both
   sealed release leases, then delete creates and restore guarded targets in one
-  measured inverse batch. Restore the prior business lineage while advancing a
+  atomic inverse transaction. Restore the prior business lineage while advancing a
   fresh recovery epoch and aggregate revisions; use explicit delete sentinels
   for top-level fields that exist only after activation. Replace the activation
   terminal with a digest-bound recovery terminal, retain before-images and the
   completed historical request. Execute both directions through one local CAS
   runtime that calls the resolver inside every retry, uses only the final
   returned attempt for post-commit evidence, replays an already retained exact
-  outcome without another CAS, and fails closed when a committed terminal has
-  lost that evidence. The inverse resolver now reloads the terminal, bundle,
+  outcome without another CAS, and reconstructs a missing receipt from a
+  validated committed terminal without inventing admission evidence. The inverse resolver now reloads the terminal, bundle,
   request, before-images, and all current delete/restore targets inside every
   retry. Export that composed recovery port only through the HTTP declaration
   pinned to the exact future IAM operator, with strict request/response audit
@@ -357,13 +359,19 @@ documented in the English and Spanish Firestore references before code lands.
   and terminal outcome; derive aggregate state without overwriting an old `unknown`.
   Bound network timeout, treat ambiguous expiry as possibly delivered, and define
   authenticated submission start—not later OS presentation—as the guarantee boundary.
+- Reuse one historical-dispatch evidence reader across batch reconciliation,
+  degraded entry, and terminalization; keep their existing pure transition
+  policies and avoid introducing another recovery protocol.
 - Model safe resume as timeboxed degraded mode: scope the affected-shift mutation
   fence, owner, TTL, escalation, and terminal incident cancellation/supersession
   of demonstrably unsubmitted intents. Preserve `unknown` as possibly delivered
   reconciliation/correction history so normal corrections are not blocked indefinitely.
   Freeze this first as a pure contract: enter only after the paired batch deadline
   with complete inactive dispatch evidence, cap the incident TTL at 24 hours, and
-  transfer both exact leases to one incident owner. At expiry require exact
+  transfer both exact leases to one incident owner. Entry advances maintenance
+  write epoch and therefore cannot resume sends for old activation-epoch intents;
+  finishing release is possible only before entering the incident. At expiry
+  require exact
   cancellation of every zero-attempt, claimed-before-submission, or wholly failed-
   before-submission intent. Preserve submitting/unknown/accepted evidence as
   correction-required possible delivery, including an `unknown` followed by a
@@ -444,8 +452,8 @@ documented in the English and Spanish Firestore references before code lands.
   blocks superseding stage/activate, terminal reconciliation clears it, and
   migration-baseline lineage cannot be mixed or orphaned.
 - Degraded-mode tests: affected mutations remain fenced before TTL, unrelated
-  traffic runs, expiry terminalizes every demonstrably unsubmitted intent or
-  finishes release, `unknown` remains possible-delivery history, and submitted/
+  traffic runs, expiry terminalizes every demonstrably unsubmitted intent,
+  `unknown` remains possible-delivery history, and submitted/
   delivered event history is never rewritten.
 - Recipient tests: departure/deactivation, reassignment, UID/token change, and
   partial release between validation/claim/dispatch/retry; CAS rejects stale event
@@ -468,8 +476,8 @@ documented in the English and Spanish Firestore references before code lands.
   repair, recovery, and sync-correction events follow the required audited-no-op
   vectors, recovery deletes validate, later ordinary edits/deletes remain normal,
   and exact sync commands are idempotent. Real sync-consumer evidence belongs to
-  HU-083; exact CommitRequest serialization remains owned by HU-082 and the
-  isolated/live rollout gate by HU-085.
+  HU-083; logical-manifest admission and public transaction composition remain
+  owned by HU-082, and the isolated/live rollout gate by HU-085.
 - Retention tests: rollback cleanup preserves registry tombstones/event ledgers,
   post-cleanup replay still no-ops, and an unknown changed backend marker fails
   closed without an export/notification.

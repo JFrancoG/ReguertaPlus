@@ -4,6 +4,10 @@ import {
 } from "./shift-planning-notification-dispatch.js";
 
 export type ShiftPlanningNotificationTransportRequest = {
+  submissionWindow: {
+    signal: AbortSignal;
+    expiresAtMillis: number;
+  };
   push: ShiftPlanningGenericPush;
   targets: {
     firebaseInstallationIds: readonly string[];
@@ -61,18 +65,32 @@ const ambiguousOrAccepted = (
  * A thrown Admin SDK call is conservatively ambiguous because authenticated
  * submission has already begun and its acknowledgement may be unavailable.
  * @param {Messaging} messaging Injected modular Firebase Messaging client.
+ * @param {Function} nowMillis Clock checked before each new SDK submission.
  * @return {ShiftPlanningNotificationTransport} Generic bounded-call adapter.
  */
 export const createFirebaseShiftPlanningNotificationTransport = (
   messaging: Pick<Messaging, "sendEachForMulticast">,
+  nowMillis: () => number = Date.now,
 ): ShiftPlanningNotificationTransport => ({
   async submit(request): Promise<ShiftPlanningNotificationTransportResult> {
     let acceptedTargetCount = 0;
+    const mayStartSubmission = () => {
+      const now = nowMillis();
+      return !request.submissionWindow.signal.aborted &&
+        Number.isSafeInteger(now) &&
+        Number.isSafeInteger(request.submissionWindow.expiresAtMillis) &&
+        now < request.submissionWindow.expiresAtMillis;
+    };
     try {
       for (const tokenChunk of chunks(
         request.targets.fcmTokens,
         MAX_MULTICAST_TARGETS,
       )) {
+        if (!mayStartSubmission()) {
+          return ambiguousOrAccepted(
+            acceptedTargetCount, "transport_window_closed",
+          );
+        }
         const response = await messaging.sendEachForMulticast({
           ...baseMessage(request.push),
           tokens: tokenChunk,
@@ -89,6 +107,11 @@ export const createFirebaseShiftPlanningNotificationTransport = (
         request.targets.firebaseInstallationIds,
         MAX_MULTICAST_TARGETS,
       )) {
+        if (!mayStartSubmission()) {
+          return ambiguousOrAccepted(
+            acceptedTargetCount, "transport_window_closed",
+          );
+        }
         const response = await messaging.sendEachForMulticast({
           ...baseMessage(request.push),
           fids: fidChunk,

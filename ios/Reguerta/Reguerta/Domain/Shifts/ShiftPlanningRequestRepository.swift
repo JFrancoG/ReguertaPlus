@@ -3,8 +3,11 @@ import Foundation
 protocol ShiftPlanningRequestRepository: Sendable {
     func submit(request: ShiftPlanningRequest, environment: SessionEnvironment) async throws -> ShiftPlanningRequest
 
-    func observeLatestV2Request(
-        environment: SessionEnvironment
+    /// Follows one selected request, or discovers the administrator's latest v2 request when no ID is selected.
+    func observeV2Request(
+        environment: SessionEnvironment,
+        requestedByUserID: String,
+        requestID: String?
     ) async -> AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error>
 
     func stagedCandidate(
@@ -13,8 +16,10 @@ protocol ShiftPlanningRequestRepository: Sendable {
 }
 
 extension ShiftPlanningRequestRepository {
-    func observeLatestV2Request(
-        environment _: SessionEnvironment
+    func observeV2Request(
+        environment _: SessionEnvironment,
+        requestedByUserID _: String,
+        requestID _: String?
     ) async -> AsyncThrowingStream<ShiftPlanningRequestObservation?, any Error> {
         AsyncThrowingStream { continuation in
             continuation.finish()

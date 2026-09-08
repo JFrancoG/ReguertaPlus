@@ -1,6 +1,8 @@
 package com.reguerta.user.presentation.shifts
 
 import com.reguerta.user.R
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
@@ -35,6 +37,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -71,6 +74,7 @@ internal class SessionShiftActions(
     private var activeSwapCreate: ShiftOperation? = null
     private var activeSwapUpdate: ShiftOperation? = null
     private var pendingPlanningRequest: PendingPlanningRequest? = null
+    private val selectedPlanningRequest = MutableStateFlow<SelectedPlanningRequest?>(null)
     private val acknowledgedSwapTransitions = mutableMapOf<String, PendingAcknowledgedSwapTransition>()
     private val refreshedActivationRequestIds = mutableSetOf<String>()
     private val reportedPlanningFailureRequestIds = mutableSetOf<String>()
@@ -82,73 +86,114 @@ internal class SessionShiftActions(
     private fun observeShiftPlanningRequests() {
         val repository = shiftPlanningInspectionRepository ?: return
         scope.launch {
-            uiState
-                .map(::adminPlanningContext)
-                .distinctUntilChanged()
-                .collectLatest { context ->
-                    if (context == null) {
-                        uiState.update {
-                            it.copy(
-                                shiftPlanningObservation = null,
-                                shiftPlanningCandidate = null,
-                                isLoadingShiftPlanningCandidate = false,
-                                isRefreshingShiftsAfterActivation = false,
-                            )
-                        }
+            combine(
+                uiState.map(::adminPlanningContext).distinctUntilChanged(),
+                selectedPlanningRequest,
+            ) { context, selected ->
+                context?.let {
+                    PlanningObservationTarget(it, selected?.takeIf { selection -> selection.context == it }?.requestId)
+                }
+            }.distinctUntilChanged().collectLatest { target ->
+                if (target == null) {
+                    selectedPlanningRequest.value = null
+                    uiState.update {
+                        it.copy(
+                            shiftPlanningObservation = null,
+                            shiftPlanningCandidate = null,
+                            isLoadingShiftPlanningCandidate = false,
+                            isRefreshingShiftsAfterActivation = false,
+                        )
+                    }
+                    return@collectLatest
+                }
+                observePlanningTarget(repository, target)
+            }
+        }
+    }
+
+    private suspend fun observePlanningTarget(
+        repository: ShiftPlanningInspectionRepository,
+        target: PlanningObservationTarget,
+    ) {
+        val context = target.context
+        var retryDelayMillis = automaticLoadRetryDelayMillis
+        var reportedFailure = false
+        while (isCurrentAdmin(context)) {
+            try {
+                repository.observeRequest(context.memberId, target.requestId, context.environment).collectLatest { observation ->
+                    if (observation != null &&
+                        (observation.requestedByUserId != context.memberId ||
+                            target.requestId?.let { it != observation.id } == true)
+                    ) {
                         return@collectLatest
                     }
-                    try {
-                        repository.observeLatestRequest().collectLatest { observation ->
-                            if (!updateIfCurrentAdmin(context) {
-                                    it.copy(
-                                        shiftPlanningObservation = observation,
-                                        shiftPlanningCandidate = null,
-                                        isLoadingShiftPlanningCandidate = observation?.candidateReference != null,
-                                    )
-                                }
-                            ) {
-                                return@collectLatest
-                            }
-                            val reference = observation?.candidateReference
-                            if (reference != null) {
-                                val candidate = repository.getStagedCandidate(reference)
-                                updateIfCurrentAdmin(context) {
-                                    if (it.shiftPlanningObservation?.id == observation.id) {
-                                        it.copy(
-                                            shiftPlanningCandidate = candidate,
-                                            isLoadingShiftPlanningCandidate = false,
-                                        )
-                                    } else {
-                                        it
-                                    }
-                                }
-                            }
-                            if (
-                                observation?.status == ShiftPlanningRequestStatus.FAILED &&
-                                reportedPlanningFailureRequestIds.add(observation.id) &&
-                                isCurrentAdmin(context)
-                            ) {
-                                emitMessage(R.string.feedback_shift_planning_failed)
-                            }
-                            if (
-                                observation?.mode == ShiftPlanningMode.ACTIVATE &&
-                                observation.status == ShiftPlanningRequestStatus.COMPLETED &&
-                                refreshedActivationRequestIds.add(observation.id)
-                            ) {
-                                refreshShiftsAfterActivation(context, observation.id)
+                    if (!updateIfCurrentAdmin(context) {
+                            it.copy(
+                                shiftPlanningObservation = observation,
+                                shiftPlanningCandidate = null,
+                                isLoadingShiftPlanningCandidate = observation?.candidateReference != null,
+                            )
+                        }
+                    ) {
+                        return@collectLatest
+                    }
+                    val reference = observation?.candidateReference
+                    if (reference != null) {
+                        val candidate = repository.getStagedCandidate(reference)
+                        updateIfCurrentAdmin(context) {
+                            if (it.shiftPlanningObservation?.id == observation.id) {
+                                it.copy(shiftPlanningCandidate = candidate, isLoadingShiftPlanningCandidate = false)
+                            } else {
+                                it
                             }
                         }
-                    } catch (cancellation: CancellationException) {
-                        throw cancellation
-                    } catch (_: Exception) {
-                        if (updateIfCurrentAdmin(context) {
-                                it.copy(isLoadingShiftPlanningCandidate = false)
-                            }
-                        ) {
-                            emitMessage(R.string.feedback_unable_load_data)
+                    }
+                    if (!isCurrentAdmin(context)) return@collectLatest
+                    reportedFailure = false
+                    retryDelayMillis = automaticLoadRetryDelayMillis
+                    if (observation?.status == ShiftPlanningRequestStatus.FAILED &&
+                        reportedPlanningFailureRequestIds.add(observation.id)
+                    ) {
+                        emitMessage(R.string.feedback_shift_planning_failed)
+                    }
+                    if (observation?.mode == ShiftPlanningMode.ACTIVATE &&
+                        observation.status == ShiftPlanningRequestStatus.COMPLETED &&
+                        refreshedActivationRequestIds.add(observation.id)
+                    ) {
+                        refreshShiftsAfterActivation(context, observation.id)
+                    }
+                    if (observation != null) {
+                        val isPending = observation.status == ShiftPlanningRequestStatus.REQUESTED ||
+                            observation.status == ShiftPlanningRequestStatus.PROCESSING
+                        if (target.requestId == null && isPending) {
+                            selectedPlanningRequest.value = SelectedPlanningRequest(context, observation.id)
+                        } else if (target.requestId != null && !isPending) {
+                            // The selected operation is finished; discover the next own operation, including activation.
+                            selectedPlanningRequest.compareAndSet(
+                                SelectedPlanningRequest(context, target.requestId),
+                                null,
+                            )
                         }
                     }
                 }
+                return
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Exception) {
+                if (!updateIfCurrentAdmin(context) { it.copy(isLoadingShiftPlanningCandidate = false) }) return
+                if (!reportedFailure) {
+                    emitMessage(R.string.feedback_unable_load_data)
+                    reportedFailure = true
+                }
+                val waitMillis = retryDelayMillis ?: return
+                if (failure is RepositoryException &&
+                    failure.kind != RepositoryErrorKind.UNAVAILABLE && failure.kind != RepositoryErrorKind.UNKNOWN
+                ) {
+                    return
+                }
+                delay(waitMillis)
+                retryDelayMillis = (waitMillis * 2).coerceAtMost(30_000L)
+            }
         }
     }
 
@@ -481,7 +526,8 @@ internal class SessionShiftActions(
             if (activePlanningMutation != operation) return@launch
             activePlanningMutation = null
             if (pendingPlanningRequest == pending) pendingPlanningRequest = null
-            if (updateIfCurrent(context) { it.copy(isSubmittingShiftPlanningRequest = false) }) {
+            if (updateIfCurrentAdmin(context) { it.copy(isSubmittingShiftPlanningRequest = false) }) {
+                selectedPlanningRequest.value = SelectedPlanningRequest(context, pending.request.id)
                 onSuccess()
             }
         }
@@ -799,6 +845,10 @@ private data class ShiftSessionContext(
         )
     }
 }
+
+private data class SelectedPlanningRequest(val context: ShiftSessionContext, val requestId: String)
+
+private data class PlanningObservationTarget(val context: ShiftSessionContext, val requestId: String?)
 
 private data class ShiftOperation(
     val context: ShiftSessionContext,

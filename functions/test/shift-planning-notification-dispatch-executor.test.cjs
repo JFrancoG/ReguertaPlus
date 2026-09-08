@@ -57,6 +57,10 @@ const failedResponse = (count) => ({
 });
 
 const transportRequest = () => ({
+  submissionWindow: {
+    signal: new AbortController().signal,
+    expiresAtMillis: Date.now() + 30_000,
+  },
   push: genericShiftPlanningPush("event-1"),
   targets: {
     firebaseInstallationIds: ["fid-1"],
@@ -195,7 +199,7 @@ const harness = (options = {}) => {
       return {kind: "committed", attempt};
     },
   };
-  const transport = {
+  const transport = options.transport ?? {
     async submit(request) {
       calls.transport += 1;
       return options.submit(request);
@@ -265,6 +269,52 @@ test("executor turns timeout and thrown transport into unknown", async () => {
     outcome: "unknown",
     failureCode: "transport_ambiguous_error",
   }]);
+});
+
+test("timeout stops subsequent SDK sends when the first mixed-target call completes late", async () => {
+  const messages = [];
+  let finishFirst;
+  const transport = createFirebaseShiftPlanningNotificationTransport({
+    sendEachForMulticast(message) {
+      messages.push(message);
+      if (messages.length === 1) {
+        return new Promise((resolve) => { finishFirst = resolve; });
+      }
+      return Promise.resolve(successfulResponse(1));
+    },
+  }, () => initialMillis + 1_000);
+  const {calls, executor} = harness({transport, timeoutMillis: 5});
+  const result = await execute(executor);
+  assert.equal(result.attempt.terminal.outcome, "unknown");
+  assert.equal(messages.length, 1);
+  finishFirst(successfulResponse(1));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(messages.length, 1, "No FID call may start after timeout");
+  assert.equal(calls.complete.length, 1);
+});
+
+test("transport checks the deadline before the first and every subsequent SDK call", async () => {
+  let nowMillis = 1_000;
+  const messages = [];
+  const transport = createFirebaseShiftPlanningNotificationTransport({
+    async sendEachForMulticast(message) {
+      messages.push(message);
+      nowMillis = 2_000;
+      return successfulResponse(1);
+    },
+  }, () => nowMillis);
+  const request = {
+    ...transportRequest(),
+    submissionWindow: {
+      signal: new AbortController().signal,
+      expiresAtMillis: 2_000,
+    },
+  };
+  await transport.submit(request);
+  assert.equal(messages.length, 1, "The expired window excludes the FID call");
+  const expired = await transport.submit(request);
+  assert.equal(messages.length, 1, "An expired window starts no SDK call");
+  assert.equal(expired.outcome, "unknown");
 });
 
 test("executor rejects malformed acknowledgement as unknown", async () => {

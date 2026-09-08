@@ -30,9 +30,9 @@ const {
   parseShiftPlanningLiveSourceDocument,
 } = require("../lib/shift-planning-firestore-source-resolver.js");
 const {
-  SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+  SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
 } = require(
-  "../lib/shift-planning-firestore-transaction-serializer.js"
+  "../lib/shift-planning-firestore-transaction-manifest.js"
 );
 const {
   buildShiftPlanningAuthoritativeState,
@@ -140,7 +140,7 @@ const fairnessSnapshot = (sourceRotations = rotations()) => ({
   sync: {
     leaseDurationMillis: 120_000,
     transactionMeasurementAuthority: {
-      adapterRevision: SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
+      adapterRevision: SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
       indexConfigurationDigest: digest({indexes: "strict-source-v1"}),
     },
     partitions: {
