@@ -36,6 +36,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(sheets): expose private command worker
+
 - 2026-09-08 | ✨ feat(shifts): route controlled events to retryable audit
 
 - 2026-09-08 | ✨ feat(shifts): audit recovery updates with retained authority

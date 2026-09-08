@@ -147,3 +147,32 @@ export const resolveShiftSheetsTab = (
 
 export const quoteShiftSheetsTitle = (title: string): string =>
   `'${title.replace(/'/g, "''")}'`;
+
+/**
+ * Resolves invocation-time configuration with explicitly reviewed aliases,
+ * including an explicit empty list. Legacy global ranges are never a fallback.
+ * @param {ShiftSheetsEnvironment} environment Requested environment.
+ * @param {object} variables Runtime environment variables.
+ * @return {ShiftSheetsConfig} Detached environment/workbook/tab authority.
+ */
+export const readShiftSheetsWorkerConfig = (
+  environment: ShiftSheetsEnvironment,
+  variables: Readonly<Record<string, string | undefined>>,
+): ShiftSheetsConfig => {
+  try {
+    const raw = variables[`SHIFT_SHEETS_ALIASES_${environment.toUpperCase()}`];
+    if (!raw || raw.length > 8192) return failConfig("Aliases are required.");
+    const aliases = JSON.parse(raw);
+    if (!Array.isArray(aliases) || aliases.length > 8 || aliases.some((item) =>
+      typeof item !== "object" || item === null ||
+      Object.keys(item).sort().join(",") !== "seasonStartYear,title,type")) {
+      return failConfig("Aliases must be an exact reviewed mapping.");
+    }
+    return createShiftSheetsConfig({environment, aliases, workbooks: {
+      develop: variables.SHEETS_SPREADSHEET_ID_DEVELOP,
+      production: variables.SHEETS_SPREADSHEET_ID_PRODUCTION,
+    }});
+  } catch {
+    return failConfig("Explicit worker configuration is invalid.");
+  }
+};

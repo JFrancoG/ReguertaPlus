@@ -95,7 +95,8 @@ export const executeShiftPlanningSyncCommand = async (input: {
 /**
  * Polls a bounded runnable set and executes it in stable command-ID order.
  * Every invocation rediscovers pending or expired work, so a missed scheduler,
- * task, or deploy-time event cannot strand a command.
+ * task, or deploy-time event cannot strand a command. Busy or uncertain work
+ * stops this drain before another command can compete for workbook authority.
  * @param {object} input Bounded poll plus deterministic attempt-ID factory.
  * @return {ShiftPlanningSyncExecutionResult[]} Results for discovered commands.
  */
@@ -121,6 +122,10 @@ export const drainShiftPlanningSyncCommands = async (input: {
       workerId: input.workerId,
       attemptId: input.createAttemptId(commandId, index),
     }));
+    const result = results[results.length - 1];
+    if (result.kind === "busy" || result.kind === "reconciliationRequired") {
+      break;
+    }
   }
   return results;
 };

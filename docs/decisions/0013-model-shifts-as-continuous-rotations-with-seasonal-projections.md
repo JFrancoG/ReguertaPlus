@@ -404,6 +404,21 @@ verify both trigger revisions, approved policy, producer retention bindings and 
 real alert channel under writer exclusion before controlled writes resume. This
 cut enables no deployment, live policy, alert send or cleanup executor.
 
+The eighth HU-083 cut adds a private, explicitly invoked Sheets HTTP worker over
+the existing repository, executor and receipt-aware consumer. It accepts an exact
+command ID or a poll of at most two runnable commands, with an explicit environment.
+It accepts no caller-supplied rows, workbook or credentials. A drain stops on busy
+or reconciliation-required work; retries use persisted command/submission evidence.
+Terminal replay performs no external I/O and uncertain submissions stay read-only.
+
+Runtime composition requires environment-specific workbook IDs and explicitly
+reviewed alias JSON, including an empty list. Aliases do not authorize human-layout
+conversion. The private declaration creates no scheduler or caller IAM grant;
+HU-085 must approve the worker identity, invocation grants, Sheets/Drive metadata
+access and external writer exclusion. Recovery's invoker grant is unchanged. The
+worker consumes existing activation commands and does not weaken recovery's
+rejection of already-consumed commands. No live endpoint is invoked or deployed.
+
 The companion local retention producer now freezes schema v1 without wiring the
 trigger. A digest-bound policy carries the approved maximum end-to-end delivery/
 retry horizon plus a positive safety margin. A controlled terminal gets one

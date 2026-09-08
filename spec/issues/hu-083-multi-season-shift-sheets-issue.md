@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — sixth cut pushed; seventh cut validated locally
+- State: IN PROGRESS — seventh cut pushed; eighth cut validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -284,6 +284,54 @@ writer exclusion, approve runtime policy, compose retention for all producers an
 verify actual alerts. Human layout/conversion, worker/endpoints, audit/repair and
 rehearsal remain open HU-083 work. No shared deployment, live configuration/data
 write, Sheets/FCM call or operator message was performed.
+
+
+### Eighth local cut — invoked Sheets worker (approved 2026-09-08)
+
+Seventh cut is committed and pushed as `49b0c28`; its unchanged implementation
+reuses lint/build, 12 trigger cases, 287 planning passes (51 emulator-only skips)
+and 31 security cases. Compose a private HTTP entry point over the existing sync
+repository, executor, Sheets consumer and Drive version reader. Accept only an
+exact environment plus one command ID, or a bounded poll of at most two commands.
+No rows, workbook override, credentials or authority are supplied by the caller.
+
+Keep configuration environment-scoped and explicit, including reviewed aliases.
+Stop a drain on busy/reconciliation-required work. Completed retries avoid external
+I/O; submitted/unknown work remains inspect-only through the existing receipt.
+Return compact outcomes and sanitized failures. Default invoker is private; HU-085
+must assign the reviewed worker identity/IAM and operational writer exclusion.
+The recovery operator's existing sole endpoint grant is not expanded here.
+
+Validate HTTP rejection before dependency access, real emulator command execution,
+both partitions, terminal replay and ambiguous submission without re-send. No
+live invocation, deployment, config/IAM changes, human-tab conversion, scheduler,
+notification release or automatic recovery is included in this local cut.
+
+
+### Eighth-cut validation checkpoint — 2026-09-08
+
+`executeShiftPlanningSheetsSync` is composed in the candidate exports as a private
+POST endpoint over existing sync execution. It accepts one exact command ID or a
+poll capped at two commands; caller rows/workbook/credentials are rejected. Runtime
+workbook IDs and reviewed aliases are environment-scoped with no global fallback.
+Busy/uncertain work stops a drain; HTTP repeats retain the existing terminal-replay
+and inspect-only semantics. Responses and logs omit raw rows/backend diagnostics.
+
+Validation: Functions lint/build pass; **17/17** consumer emulator cases (including
+HTTP execution of both partitions, exact terminal replay and uncertain submission
+without re-send); **38/38** Sheets cases; **12/12** trigger cases; planning regression
+**294 pass / 51 emulator-only skips** (including 7 focused worker/config tests);
+backend security **31/31**. The consumer emulator uses real Firestore and the
+concrete Sheets adapter with a fake Google API boundary, not a live workbook.
+No mobile code, Rules or persistence paths changed, so mobile/Rules gates were not
+rerun. README and ADR-0013 EN/ES document invocation, responses and rollout limits.
+
+Eighth-cut changes remain local and uncommitted. Remote HEAD is seventh-cut
+`49b0c28`. No deployment, endpoint invocation against live services, configuration,
+IAM, Sheets/Firestore live write or notification send occurred. HU-085 still owns
+worker IAM/identity, approved runtime configuration and external writer exclusion.
+Human layout/conversion, import endpoint, audit/repair tooling, retention/alert
+composition and rehearsal remain pending; consumed-command recovery stays closed.
 
 
 ## Workbook decision

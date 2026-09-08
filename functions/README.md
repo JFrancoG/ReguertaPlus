@@ -313,6 +313,34 @@ Este corte no despliega ni configura recursos live. Prueba reproducible local:
 exportados con snapshots SDK/autoridad Firestore en un proyecto demo, sin Sheets
 ni FCM reales.
 
+El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
+(`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y
+la identidad runtime quedan para HU-085; no se amplía el permiso del operador de
+recovery. Acepta solo POST sin query con `schemaVersion: 1`, `environment` y:
+
+- `mode: "execute"` y el `commandId` persistido exacto.
+- `mode: "drain"` y `limit: 1` o `2`; redescubre trabajo pendiente/caducado.
+
+No acepta filas, workbook alternativo ni credenciales del solicitante. La composición
+usa `SHEETS_SPREADSHEET_ID_DEVELOP`/`SHEETS_SPREADSHEET_ID_PRODUCTION` y exige el JSON
+revisado `SHIFT_SHEETS_ALIASES_DEVELOP`/`SHIFT_SHEETS_ALIASES_PRODUCTION` del entorno,
+incluso `[]` si no hay aliases. Cada alias contiene solo `type`, `seasonStartYear`
+y `title`. No hay fallback a configuración global; un alias no autoriza convertir
+el layout humano. El cliente usa scopes de Sheets y `drive.metadata.readonly` para
+leer la versión del libro.
+
+El worker devuelve 200 al completar/repetir terminales (o al no hallar trabajo),
+202 con `retryAtMillis` si está ocupado y 409 si requiere reconciliación o rechaza
+la autoridad/configuración; 503 indica fallo transitorio sin diagnóstico privado.
+Los resultados solo incluyen tipo e ID/reintento, nunca filas. Un drain se detiene
+al encontrar trabajo ocupado o incierto. Un error/timeout no demuestra que una
+escritura anterior del mismo drain no ocurriera: una nueva invocación consulta los
+comandos y recibos persistidos; nunca interpreta la ausencia de respuesta como
+permiso para reenviar. Las llamadas ya enviadas mantienen recuperación solo de
+lectura. Sigue siendo necesaria la exclusión operativa de escritores externos.
+La ruta todavía consume comandos de activación; no habilita recuperación de
+comandos consumidos ni reemplaza las barreras de recovery existentes.
+
 Las revisiones de libro del bundle son observaciones por partición y pueden
 diferir; no son tokens CAS de Sheets. El ejecutor entrega al consumidor un callback
 para revalidar autoridad antes de cada lote. El consumidor carga las filas exactas

@@ -419,6 +419,22 @@ retención de los productores y canal real de alertas bajo exclusión de escrito
 antes de reanudar escrituras controladas. Este corte no habilita despliegue,
 política live, envío de alertas ni ejecutor de cleanup.
 
+El octavo corte de HU-083 añade un worker HTTP privado de invocación explícita
+sobre el repositorio, ejecutor y consumidor con recibos existentes. Acepta un ID
+de comando exacto o una búsqueda de hasta dos comandos ejecutables, con entorno
+explícito. No acepta filas, libro ni credenciales del solicitante. El drain se
+para ante trabajo ocupado o pendiente de reconciliación; los reintentos usan la
+evidencia persistida de comando/envío. Repetir un terminal no hace I/O externo y
+los envíos inciertos mantienen recuperación de solo lectura.
+
+La composición exige IDs de libro por entorno y JSON de aliases revisado
+explícitamente, incluida la lista vacía. Un alias no autoriza conversión del layout
+humano. La declaración privada no crea scheduler ni permiso IAM de invocación;
+HU-085 debe aprobar identidad del worker, grants, acceso Sheets/metadatos Drive y
+exclusión de escritores externos. El grant del operador de recovery no cambia.
+El worker consume comandos de activación y no debilita el rechazo de recovery a
+comandos ya consumidos. No se invoca ni despliega ningún endpoint live.
+
 El productor local complementario de retencion congela ahora el schema v1 sin
 conectar el trigger. Una politica ligada por digest contiene el horizonte maximo
 end-to-end aprobado de entrega/reintento y un margen de seguridad positivo. Cada

@@ -120,6 +120,17 @@ import {
   createFirestoreShiftPlanningPublicEventAudit,
 } from "./shift-planning-firestore-public-event-audit.js";
 
+import {readShiftSheetsWorkerConfig} from "./shift-sheets-config.js";
+import {createShiftSheetsAdapter} from "./shift-sheets.js";
+import {
+  createFirestoreShiftPlanningSheetsConsumer,
+  createShiftSheetsWorkbookVersionReader,
+} from "./shift-planning-sheets-consumer.js";
+import {createFirestoreShiftPlanningSyncCommandRepository} from
+  "./shift-planning-firestore-sync-command-repository.js";
+import {createShiftPlanningSheetsWorkerHttpFunction} from
+  "./shift-planning-sheets-worker.js";
+
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
@@ -4418,6 +4429,31 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
     }
   }
 );
+
+const sheetsSyncRepository =
+  createFirestoreShiftPlanningSyncCommandRepository(firestore);
+
+export const executeShiftPlanningSheetsSync =
+  createShiftPlanningSheetsWorkerHttpFunction({
+    repository: sheetsSyncRepository,
+    consumerFor: (environment) => {
+      const config = readShiftSheetsWorkerConfig(environment, process.env);
+      const auth = new google.auth.GoogleAuth({scopes: [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.metadata.readonly",
+      ]});
+      return createFirestoreShiftPlanningSheetsConsumer({
+        firestore, config, repository: sheetsSyncRepository,
+        sheets: createShiftSheetsAdapter({config,
+          sheets: google.sheets({version: "v4", auth}).spreadsheets}),
+        readWorkbookVersion: createShiftSheetsWorkbookVersionReader({
+          workbookId: config.workbookId,
+          files: google.drive({version: "v3", auth}).files,
+        }),
+      });
+    },
+    logger,
+  });
 
 export const onShiftPlanningPublicWritten =
   createShiftPlanningPublicEventTrigger({

@@ -291,3 +291,48 @@ test("activation refuses a reserved import and accepts its later verified workbo
   assert.equal(f.service.mutations.length, 1);
   assert.equal((await pointer.get()).get("command.type"), "delivery");
 });
+
+
+const {createShiftPlanningSheetsWorkerHttpHandler} = require("../lib/shift-planning-sheets-worker.js");
+const invokeWorker = async (f, body) => {
+  const result = {};
+  const response = {setHeader() { return response; }, status(value) { result.status = value; return response; },
+    json(value) { result.body = value; return response; }};
+  const handler = createShiftPlanningSheetsWorkerHttpHandler({repository: f.repository,
+    consumerFor: (environment) => { assert.equal(environment, "develop"); return f.consumer; },
+    logger: {error() {}}});
+  await handler({method: "POST", query: {}, body: {schemaVersion: 1, environment: "develop", ...body}}, response);
+  return result;
+};
+
+test("invoked HTTP worker drains real commands and terminal retries do no Sheets or Drive I/O", async () => {
+  const f = await setup({predecessor: true});
+  const drained = await invokeWorker(f, {mode: "drain", limit: 2});
+  assert.equal(drained.status, 200);
+  assert.deepEqual(drained.body.results.map((item) => item.kind), ["completed", "completed"]);
+  assert.equal(f.service.mutations.length, 2);
+  const reads = f.metadataReads;
+  const replay = await invokeWorker(f, {mode: "execute", commandId: f.commandId()});
+  assert.equal(replay.status, 200);
+  assert.deepEqual(replay.body.results, [{kind: "terminalReplay", commandId: f.commandId()}]);
+  assert.equal(f.service.mutations.length, 2); assert.equal(f.metadataReads, reads);
+  assert.deepEqual((await invokeWorker(f, {mode: "drain", limit: 2})).body.results, []);
+});
+
+test("HTTP poll stops at an uncertain real submission and later invocations never resend", async () => {
+  const f = await setup();
+  f.service.rejectBeforeApply = true;
+  const first = await invokeWorker(f, {mode: "drain", limit: 2});
+  assert.equal(first.status, 409);
+  assert.deepEqual(first.body.results.map((item) => item.kind), ["reconciliationRequired"]);
+  assert.equal(f.service.mutations.length, 1);
+  const firstId = first.body.results[0].commandId;
+  const persisted = (await firestore.doc(`${root}/shiftPlanningSyncCommands/${firstId}`).get()).data();
+  now = persisted.claim.expiresAt.toMillis() + 1;
+  f.service.rejectBeforeApply = false;
+  const second = await invokeWorker(f, {mode: "execute", commandId: firstId});
+  assert.equal(second.status, 409);
+  assert.equal(f.service.mutations.length, 1);
+  const other = f.value.liveResult.syncCommands.find((command) => command.commandId !== firstId);
+  assert.equal((await firestore.doc(`${root}/shiftPlanningSyncCommands/${other.commandId}`).get()).get("state"), "pending");
+});
