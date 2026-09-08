@@ -392,6 +392,34 @@ guarded completion. A stale worker loses its monotonically advanced partition
 fence. External I/O exceptions retain the lease; HU-083 supplies the real Sheets
 adapter plus durable ambiguity/read-back reconciliation.
 
+The HU-083 local command consumer now creates one immutable submission receipt at
+`shiftPlanningSyncCommands/{commandId}/externalSubmissions/sheets` before the
+physical batch. `shiftPlanningState/sheetsSubmission` points to the current
+workbook submission and serializes delivery and market. Both remain backend-only.
+The receipt binds the original processing claim, projection/request digests,
+pre-submission Drive version, and submission time; exact read-back evidence is the
+only allowed addition. An unresolved receipt blocks both partitions indefinitely
+until positive reconciliation; it never becomes permission to resend on timeout.
+A crash between persisting intent and invoking Sheets has the same unknown status.
+
+Schema-v1 terminal `completedAt` now means confirmation time and may follow the
+original claim expiry. The repository permits this only with a receipt written
+inside that claim interval, persisted matching read-back, and unchanged active
+lineage/partition ownership. It neither renews the claim nor invents a timestamp.
+Claims with no submission still obey the original expiry/takeover rules. Existing
+inverse recovery rejects any command changed from its pending activation state;
+it cannot delete an in-flight command. Resolving or quarantining an unprovable
+submission remains a separate operational action, not a new retry lane.
+
+The consumer loads only the bundle's exact activated rows and validates their
+payloads against the activation terminal. A predecessor helper update includes
+its actual season in the command, even when it predates the target season. Drive
+`files.version` is a positive int64 observation read around Sheets verification,
+not a CAS token. A prior verified receipt explains cross-partition advancement;
+unexplained drift prevents submission. Collaborator exclusion remains required.
+This local cut adds no deployed trigger or scheduler, legacy-layout conversion,
+import path, live repair, or new authority to write a real workbook.
+
 Sheets commands are serialized by a monotonic epoch and lease per workbook/
 partition. A worker validates command plus active revision/digest before each batch
 and records read-back afterward. Recovery first supersedes and drains the activation

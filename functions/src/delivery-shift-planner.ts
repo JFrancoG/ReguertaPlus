@@ -340,15 +340,18 @@ export const planDeliveryShifts = (
     }
   }
 
-  const affectedProjectionSeasonStartYears = Array.from(new Set(
-    shifts.map((shift) => shift.projectionSeasonStartYear),
-  ));
   const predecessorHelperUpdate = predecessor &&
     predecessor.completion.state === "uncompleted" &&
     predecessor.completion.plannedHelperUserId !== firstOwnerUserId ? {
       shiftId: predecessor.shiftId,
       helperUserId: firstOwnerUserId,
     } : null;
+  const affectedProjectionSeasonStartYears = Array.from(new Set([
+    ...shifts.map((shift) => shift.projectionSeasonStartYear),
+    ...(predecessorHelperUpdate && predecessor ? [
+      projectionSeasonStartYear(predecessor.scheduledDate),
+    ] : []),
+  ])).sort((left, right) => left - right);
   const predecessorGuard = predecessor ? {
     shiftId: predecessor.shiftId,
     expectedScheduledDate: predecessor.scheduledDate,

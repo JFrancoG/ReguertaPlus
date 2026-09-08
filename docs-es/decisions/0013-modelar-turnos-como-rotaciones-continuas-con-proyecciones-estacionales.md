@@ -405,6 +405,35 @@ completion protegida por read-back. Un worker obsoleto pierde el fence monótono
 partición. Las excepciones de I/O conservan el lease; HU-083 aporta el adaptador
 real de Sheets y la reconciliación durable de ambigüedad/read-back.
 
+El consumidor local de comandos de HU-083 crea ahora un recibo inmutable en
+`shiftPlanningSyncCommands/{commandId}/externalSubmissions/sheets` antes del lote
+físico. `shiftPlanningState/sheetsSubmission` señala el envío actual del libro y
+serializa reparto y mercado. Ambas rutas siguen siendo exclusivas del backend.
+El recibo vincula el claim original, digests de proyección/petición, versión Drive
+previa y hora de envío; la única adición permitida es la evidencia exacta de
+read-back. Un recibo sin resolver bloquea ambas particiones hasta reconciliación
+positiva; ningún timeout permite reenviar. Un fallo entre persistir la intención
+y llamar a Sheets conserva ese mismo estado desconocido.
+
+En el terminal schema-v1, `completedAt` representa ahora la confirmación y puede
+ser posterior al vencimiento del claim original. El repositorio sólo lo permite
+con recibo escrito dentro de aquel intervalo, read-back coincidente persistido y
+linaje/propiedad de partición todavía vigentes. No renueva el claim ni inventa una
+fecha. Sin recibo se conservan las reglas anteriores de vencimiento/takeover.
+La recuperación inversa existente rechaza comandos modificados respecto al estado
+pending de activación; no puede borrar uno en vuelo. Resolver o aislar un envío
+indemostrable sigue siendo una acción operativa separada, no otra vía de reintento.
+
+El consumidor carga únicamente las filas exactas del bundle activado y comprueba
+sus payloads contra el terminal de activación. La actualización del helper
+predecesor incluye su temporada real en el comando aunque anteceda a la objetivo.
+`files.version` de Drive es una observación int64 positiva, leída alrededor de la
+verificación de Sheets; no es un token CAS. Un recibo previo verificado explica el
+avance entre particiones; una divergencia inexplicada impide enviar. Sigue siendo
+necesaria la exclusión de colaboradores. Este corte local no añade trigger ni
+scheduler desplegado, conversión legacy, importación, reparación real ni nueva
+autoridad para escribir en un libro real.
+
 Los comandos Sheets se serializan con epoch monotónico y lease por libro/partición.
 El worker valida comando y revisión/digest activos antes de cada batch y registra
 read-back. Recovery sustituye y drena primero worker/llamada externa de activación;

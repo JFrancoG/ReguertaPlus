@@ -36,14 +36,57 @@ emulator, sync-command repository **7/7** in emulator, strict Firestore Rules
 executed by the focused emulator runs. No mobile wire field changed, so no new
 Android/iOS gate was run for this backend-only cut.
 
-Pending next cut: durable Sheets attempts and read-back, followed by legacy-layout
-conversion, import/export and public-event worker/trigger integration. Keep HU-083 open.
+The second cut below completes durable Sheets command execution locally. Import,
+legacy-layout conversion and public-event integration remain separate cuts. Keep
+HU-083 open until the complete story gates and evidence are satisfied.
 
 Separate code correctness from live rollout. First replace the fixed-range
 adapter with a tested multi-season projection and build read-only audit tooling.
 Then rehearse backup, dry-run, apply, reconciliation, and rollback in develop.
 Production access, configuration, deployment, stage/activation, and recovery
 are a separate story, HU-085, with a separate explicit authorization gate.
+
+### Second local cut — durable command consumer
+
+Connect the existing command executor to the Sheets adapter through an immutable
+submission receipt created before I/O. Use one current-workbook pointer in the
+existing private planning-state collection to serialize both partitions. A receipt
+without verified read-back is unresolved regardless of lease age: subsequent
+invocations may inspect, never resubmit. Complete under the original claim only
+after persisted exact evidence and current lineage/partition checks.
+
+Read the real Drive file `version` around Sheets read-back; it is an observation,
+not a CAS token. Only an exact preceding verified workbook receipt explains a
+revision advance from the other partition. Unknown drift remains blocked. Prove
+normal execution, lost invocation/acknowledgement, stale ownership, concurrency
+and read-only recovery with the real Firestore repository and the real adapter
+against an API fixture. Keep import/UI-layout conversion and public-event trigger
+wiring as subsequent integration work; no shared-project deploy in this cut.
+
+### Second-cut validation checkpoint — 2026-09-08
+
+The second local cut connects the existing executor/drain to the real Sheets
+adapter through a durable pre-submission receipt and one current-workbook pointer.
+Unknown calls are inspect-only across lease expiry and block both partitions;
+late confirmation keeps the original worker/attempt/epoch and requires persisted
+exact read-back plus current lineage. The consumer validates activated rows against
+the bundle and operation terminal, including a corrected prior-season predecessor
+helper manifest. Drive versions are real metadata observations, not CAS tokens.
+
+Validation for this cut: Functions lint/build pass; **14/14** consumer integration
+cases, **7/7** sync repository, **7/7** forward materializer, **5/5** inverse
+materializer, **32/32** strict Rules and **8/8** phase1 Rules run together in
+Firestore emulation (**73 passed, no skips**). Sheets adapter/config **19/19**;
+planning units **279 passed / 51 emulator-only skips**. The focused emulator run
+covers selected cases from that unit lane, not all 51 skipped cases. Sheets/Drive
+use stateful public-API fixtures, not live Google services. No mobile field changed;
+Android/iOS validation was not repeated.
+
+Still pending: legacy layout conversion and governed import/export, inverse UPDATE
+and retention identity for public events, trigger/scheduler composition, complete
+baseline and audit/repair tooling, plus the guarded live/zero-write rehearsal.
+No new `index.ts` wiring, deploy, live data write or Git delivery in this cut.
+HU-083 remains open.
 
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,

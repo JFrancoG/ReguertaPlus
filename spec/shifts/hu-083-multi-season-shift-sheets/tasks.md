@@ -16,6 +16,22 @@
 - [ ] Complete worker/trigger integration, live baseline/audit tooling and the
   remaining story gates below. This checkpoint is not HU-083 completion.
 
+## Second local cut — 2026-09-08
+
+- [x] Compose exact activated-source loading, the existing executor/drain,
+  Firestore sync repository, Sheets adapter, and real Drive version reader.
+- [x] Persist one submission receipt before I/O and serialize both partitions
+  through the existing private planning-state collection.
+- [x] Keep unknown outcomes inspect-only after lease expiry; accept late
+  confirmation only with matching persisted proof and current ownership.
+- [x] Include the actual prior season when updating a predecessor helper.
+- [x] Prove concurrency, lost responses, completion outages, source/version drift,
+  forged evidence rejection, recovery exclusion and nested-receipt client denial.
+- [x] Validate lint/build, 73 focused emulator cases (including 14 consumer cases),
+  19 Sheets cases and 279 planning unit passes / 51 emulator-only skips.
+- [x] Update English/Spanish ADR-0013 and operational docs. This checkpoint does
+  not close import/event integration, audit/repair, live rehearsal or HU-083.
+
 ## 0. Dependency and read-only inventory
 
 - [x] Accept the frozen HU-082 integration boundary in

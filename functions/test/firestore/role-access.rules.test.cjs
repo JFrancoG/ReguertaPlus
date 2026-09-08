@@ -1499,6 +1499,8 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
       "private-document",
     );
     const nestedPaths = [
+      `${docPath(env, "shiftPlanningSyncCommands", "command")}/` +
+        "externalSubmissions/sheets",
       `${intentPath}/releases/canonical`,
       `${intentPath}/dispatchState/current`,
       `${intentPath}/dispatchAttempts/attempt-1`,

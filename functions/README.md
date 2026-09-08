@@ -251,24 +251,78 @@ incluida la notificación. Una deriva detiene los efectos restantes, pero no pue
 revertir una escritura de Sheets ya confirmada; HU-083 sustituye ese flujo no
 atómico.
 
-### HU-083: seasonal Sheets adapter and durable event audit
+### HU-083: adaptador y consumidor local de Sheets por temporadas
 
-`shift-sheets-config.ts` pins a workbook to one environment with explicit aliases.
-`shift-sheets.ts` merges stable rows into seasonal tabs in one authorized batch,
-preserves unrelated rows/manual columns, rejects unmanaged edits and unsafe layouts,
-and verifies cells plus the operation marker. SDK retries are disabled; `inspect`
-is read-only after an ambiguous result. Existing human layouts require reviewed
-mapping before conversion. Workbook revision observations may differ by partition.
+`shift-sheets-config.ts` exige el ID del libro del entorno solicitado, sin
+fallback global ni préstamo del otro entorno. El formateador propuesto usa
+`turnos-reparto YYYY-YY` y `turnos-mercado YYYY-YY`, con temporada de septiembre a
+agosto y aliases explícitos. Estos nombres y la cabecera técnica nueva se prueban
+con fixtures: aún no sustituyen el inventario de las pestañas humanas existentes.
+Un alias cambia el destino; no convierte una cabecera legacy al formato nuevo.
 
-`shift-planning-firestore-public-event-audit.ts` persists exact/replayed event
-classification with the HU-082 codecs. Unknown changed markers fail closed. Inverse
-UPDATE and retention identity need further integration before trigger wiring.
+`shift-sheets.ts` prepara cambios por identidad estable, conserva filas ajenas y
+columnas adicionales, y rechaza cambios manuales en celdas gestionadas pendientes
+de importación gobernada. Nunca limpia una pestaña. Crea pestañas y escribe las
+celdas y el marcador de operación en un solo `spreadsheets.batchUpdate`, con
+reintentos del SDK desactivados y autorización inmediatamente antes del envío.
+La lectura posterior confirma celdas y marcador. `inspect` sólo lee: un resultado
+ambiguo exige reconciliación por el consumidor y no autoriza reenviar.
 
-Local validation: Sheets 19/19, public-event audit 21/21 emulator, sync repository
-7/7 emulator, strict/phase1 Rules 32/32 and 8/8, backend security 31/31, planning
-units 278 passed / 51 emulator-only skips; lint/build pass. Durable Sheets attempts
-and command-consumer integration remain pending. No new index.ts wiring or deploy.
-See [HU-083 plan](../spec/shifts/hu-083-multi-season-shift-sheets/plan.md).
+Hay un marcador reemplazable por pestaña, sin historial creciente en Sheets. La
+historia durable, el rechazo de comandos sustituidos y el intento persistido antes
+de enviar pertenecen a `shift-planning-sheets-consumer.ts` y al repositorio de
+comandos. La atomicidad de un lote no ofrece
+CAS frente a colaboradores: requiere exclusión de escritores externos, como
+explica la [referencia de Google Sheets](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate).
+Los límites del adaptador están centralizados en `SHIFT_SHEETS_LIMITS`; excederlos
+rechaza el lote completo, no lo fragmenta ni descarta filas.
+
+`shift-planning-firestore-public-event-audit.ts` añade persistencia transaccional
+a los codecs de HU-082, con política de retención explícita y tiempo estable del
+CloudEvent. Propaga fallos transitorios y devuelve la señal `alertRequired`; esa
+señal todavía no prueba envío de una alerta. No elimina terminales ni crea una
+política de retención por defecto. Recovery de UPDATE sigue rechazado hasta cerrar
+su binding exacto; no se conecta este adaptador a `onShiftWritten` mientras quede
+ese caso pendiente.
+
+Las revisiones de libro del bundle son observaciones por partición y pueden
+diferir; no son tokens CAS de Sheets. El ejecutor entrega al consumidor un callback
+para revalidar autoridad antes de cada lote. El consumidor carga las filas exactas
+del bundle activado y comprueba sus marcadores contra el terminal; incluye el
+helper predecesor y su temporada cuando cambia.
+
+Antes de `batchUpdate`, el repositorio crea
+`shiftPlanningSyncCommands/{commandId}/externalSubmissions/sheets` y actualiza
+`shiftPlanningState/sheetsSubmission` en la misma transacción. Este último documento
+serializa reparto y mercado para el libro estable del entorno. El recibo conserva
+el claim original, digests de proyección/petición, versión previa y hora de envío;
+sólo admite añadir evidencia de lectura verificada. Un resultado desconocido,
+incluso un fallo justo antes de invocar Sheets, no permite otro envío ni liberar
+el libro por vencimiento. Los reintentos llaman únicamente a `inspect`.
+
+La lectura de `files.version` exige acceso de metadatos Drive, comprueba ID/tipo
+del libro y conserva el int64 como texto. Lee la versión alrededor del read-back:
+un cambio durante la lectura impide completar. La versión observada es la de
+[Drive](https://developers.google.com/workspace/drive/api/reference/rest/v3/files),
+no una revisión artificial ni una garantía CAS. El recibo verificado anterior
+explica el avance del libro causado por la otra partición.
+
+Una confirmación puede llegar después del lease original. La completion exige
+entonces evidencia ya persistida y los mismos linaje/propiedad; conserva worker,
+intento y epoch originales. Un claim sin recibo no obtiene esa excepción. No hay
+TTL, borrado del recibo ni reenvío automático para resolver incertidumbre.
+La exclusión efectiva de escritores externos sigue pendiente de HU-085.
+
+Validación enfocada: `npm run test:shift-sheets` y
+`npm run test:shift-planning:public-event-audit:emulator`, además de
+`npm run test:shift-planning:sheets-consumer:emulator`. Esta última usa el
+repositorio real contra Firestore emulado y el adaptador real contra una API Sheets
+simulada; no demuestra comportamiento de red ni permisos de Google reales. El estado completo y
+los siguientes cortes están en el
+[plan de HU-083](../spec/shifts/hu-083-multi-season-shift-sheets/plan.md).
+No hay conexión nueva en `index.ts`, importación gobernada nueva, reparación de
+datos reales ni despliegue. Android e iOS siguen leyendo el contrato Firestore de
+HU-082.
 
 ### Baseline comunicable sin activación de producción
 
@@ -620,7 +674,7 @@ epoch de fencing superior, revalida linaje activo y particion inmediatamente ant
 del batch externo, y solo completa/libera el lease con read-back de revision y
 digest. `shift-planning-sync-command-executor.ts` mantiene la I/O fuera del
 repositorio y demuestra con un consumidor falso que una confirmacion perdida se
-redescubre sin duplicar el efecto idempotente. HU-083 implementara la I/O real y
+redescubre sin duplicar el efecto idempotente. El consumidor local HU-083 añade la I/O real y
 la evidencia durable de resultados ambiguos; no se exporta aqui ningun trigger.
 
 `shift-planning-public-event-contract.ts` fija el filtro puro que el futuro

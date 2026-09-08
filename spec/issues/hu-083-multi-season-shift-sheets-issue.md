@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — first local cut validated; bounded layout inventoried
+- State: IN PROGRESS — second local cut validated; durable Sheets consumer
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -38,6 +38,31 @@ bounded connector layout inspection is recorded in
 `spec/shifts/hu-083-multi-season-shift-sheets/inventory.md`; it is not a backup or
 a reviewed repair/zero-write snapshot.
 
+### Second local cut — 2026-09-08
+
+The second local cut connects the existing executor/drain to the real Sheets
+adapter through a durable pre-submission receipt and one current-workbook pointer.
+Unknown calls are inspect-only across lease expiry and block both partitions;
+late confirmation keeps the original worker/attempt/epoch and requires persisted
+exact read-back plus current lineage. The consumer validates activated rows against
+the bundle and operation terminal, including a corrected prior-season predecessor
+helper manifest. Drive versions are real metadata observations, not CAS tokens.
+
+Validation for this cut: Functions lint/build pass; **14/14** consumer integration
+cases, **7/7** sync repository, **7/7** forward materializer, **5/5** inverse
+materializer, **32/32** strict Rules and **8/8** phase1 Rules run together in
+Firestore emulation (**73 passed, no skips**). Sheets adapter/config **19/19**;
+planning units **279 passed / 51 emulator-only skips**. The focused emulator run
+covers selected cases from that unit lane, not all 51 skipped cases. Sheets/Drive
+use stateful public-API fixtures, not live Google services. No mobile field changed;
+Android/iOS validation was not repeated.
+
+Still pending: legacy layout conversion and governed import/export, inverse UPDATE
+and retention identity for public events, trigger/scheduler composition, complete
+baseline and audit/repair tooling, plus the guarded live/zero-write rehearsal.
+No new `index.ts` wiring, deploy, live data write or Git delivery in this cut.
+HU-083 remains open.
+
 ## Workbook decision
 
 - Rename the stable workbook if desired; its shared link/ID remains valid.
@@ -61,8 +86,8 @@ a reviewed repair/zero-write snapshot.
 HU-082 now provides the versioned sync-command codecs, bounded Firestore polling,
 fenced claim/takeover, immediate pre-batch active-lineage/partition authorization,
 read-back completion, SDK-free executor, and idempotent fake-consumer proof. HU-083
-must integrate the real multi-season Sheets adapter, durable external-attempt and
-read-back evidence, and ambiguous-outcome reconciliation; its overall dependency
+adds the local real multi-season Sheets adapter, durable external-attempt and
+read-back evidence, and ambiguous-outcome reconciliation in the second cut; its overall dependency
 on HU-082 is satisfied by its integrated implementation and audit corrections.
 
 The exact upstream boundary is frozen in
