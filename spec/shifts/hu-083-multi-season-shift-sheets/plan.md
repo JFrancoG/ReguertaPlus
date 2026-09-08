@@ -633,6 +633,52 @@ supplied shift evidence only: authenticated capture/query completeness, other so
 registries, final document/CAS/terminal/retention/provenance assembly, migration
 baseline, rollback and guarded rehearsal remain pending. `readyForApply` stays false.
 
+### Fourteenth local cut — reviewed public document materialization
+
+The user authorized commit/push of cut thirteen and implementation of the next
+cut. Cut thirteen is published as `35e9e482f601cce81ed40c40f0bd9e6a9ed74f7e`.
+This cut compiles explicit final typed payloads against the recomputed capture-
+bound repair review. Reuse HU-082 publication, repair-terminal and retention
+builders; include every source read guard, exact creates and terminal writes,
+and rehearse each resulting event through the existing classifier. Preserve
+completed evidence and untouched fields, and reject unsupported extra-field loss.
+Keep apply unavailable: live authority/capture, transactional CAS execution,
+baseline, inverse and multi-store recovery remain subsequent delivery gates.
+
+### Fourteenth-cut validation checkpoint — 2026-09-08
+
+The user authorized commit/push of cut thirteen and the next implementation cut.
+Cut thirteen is published as `35e9e482f601cce81ed40c40f0bd9e6a9ed74f7e`.
+Cut fourteen adds an optional v3 offline review from explicit final typed payloads,
+bound to the recomputed v2 plan and an exact packet digest. It validates full
+public documents, includes lineage-only changes, preserves immutable fields and
+completed before-images, and enforces document/assignment revision increments.
+Unsupported extra-field loss and malformed prior provenance reject materialization.
+HU-082 builders supply the repair marker, terminal and retention. Every original
+shift contributes an updateTime/full-digest read guard; creates, terminal and
+retention require absence. Each proposed event must pass the existing retained
+classifier as controlledNoOp. These are unpersisted templates, not a transaction.
+
+Validation: Functions lint/build and Node syntax checks passed; combined audit/
+repair/materialization 54/54, Sheets 44/44, publication/event/retention contracts
+18/18, no skips. Tests cover creates, assignment/helper and lineage-only changes,
+completed neighbors, stale digests, field loss, revision exhaustion, malformed
+policy/provenance, missing/duplicate writes and real four-file CLI execution with
+unchanged inputs and no apply mode. No shared runtime or mobile contract changed;
+no new emulator/mobile run was needed for this offline compiler. `git diff --check`
+passed. The unrelated 13/13 Xcode reorder in the main checkout is preserved.
+
+Cut fourteen is local and uncommitted; issue #267 remains open. No live capture,
+Firestore/Sheets write, IAM change, deployment or notification occurred. Apply
+readiness remains false: live source/authority completeness, atomic CAS admission/
+execution, migration baseline, inverse, restored-clone rehearsal and writer/trigger
+fencing are pending. Local classification is not proof of deployed trigger behavior.
+
+Remaining-work estimate after this cut: approximately 3–5 coherent cuts, grouping
+baseline/inverse, atomic execution and recovery rehearsal, reviewed human-layout
+conversion, and trusted evidence plus final delivery (or exact HU-085 deferral).
+This is provisional, not a claim that the live acceptance gates are already met.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its

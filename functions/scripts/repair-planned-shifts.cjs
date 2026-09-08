@@ -202,20 +202,26 @@ const main = async (args) => {
   if (args.includes("--firestore-capture") || args.includes("--expected-capture-digest")) {
     names.push("--firestore-capture", "--expected-capture-digest");
   }
+  if (args.includes("--materialization") || args.includes("--expected-materialization-digest")) {
+    names.push("--materialization", "--expected-materialization-digest");
+  }
   requireValue(args.length === names.length * 2); const values = {};
   for (let i = 0; i < args.length; i += 2) {
     requireValue(names.includes(args[i]) && !Object.hasOwn(values, args[i]) && args[i + 1]); values[args[i]] = args[i + 1];
   }
   requireValue(values["--mode"] === "dry-run");
-  const plan = await planShiftRepair({input: readSnapshot(values["--input"]), proposal: readSnapshot(values["--proposal"]),
+  const planner = values["--materialization"] ? require("./materialize-shift-repair.cjs").materializeShiftRepair : planShiftRepair;
+  const plan = await planner({input: readSnapshot(values["--input"]), proposal: readSnapshot(values["--proposal"]),
     target: {projectId: values["--project"], environment: values["--environment"], workbookId: values["--workbook"]},
     expectedInputDigest: values["--expected-input-digest"], expectedProposalDigest: values["--expected-proposal-digest"],
     ...(values["--firestore-capture"] ? {firestoreCapture: readSnapshot(values["--firestore-capture"]),
-      expectedCaptureDigest: values["--expected-capture-digest"]} : {})});
+      expectedCaptureDigest: values["--expected-capture-digest"]} : {}),
+    ...(values["--materialization"] ? {materialization: readSnapshot(values["--materialization"]),
+      expectedMaterializationDigest: values["--expected-materialization-digest"]} : {})});
   process.stdout.write(JSON.stringify(plan, null, 2) + "\n");
   process.stderr.write(`Repair review: ${plan.projectionChanges.length} projections, ${plan.lineageChanges.length} lineage changes, ${plan.sheetsChanges.length} cells; apply unavailable.\n`);
 };
+module.exports = {planShiftRepair};
 if (require.main === module) main(process.argv.slice(2)).catch(() => {
   process.stderr.write("Repair review rejected: invalid arguments, evidence or proposal.\n"); process.exitCode = 1;
 });
-module.exports = {planShiftRepair};

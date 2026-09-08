@@ -204,6 +204,11 @@
     nanosecond update times and exact create absences through the HU-082 typed
     value codec. Full payloads/extra fields survive; capture authenticity, live
     completeness and final write/terminal/retention/rollback assembly remain open.
+  - [x] Fourteenth local cut compiles explicit final public payloads into a v3
+    review, including lineage-only changes, revision rules, exact source guards,
+    repair terminal/retention and local controlled-event rehearsal using HU-082.
+    Extra-field loss and malformed prior provenance reject materialization.
+    Live authority, atomic execution/admission, baseline and inverse remain open.
 - [ ] Define the immutable post-repair two-type migration-baseline revision/digest;
   persist/read it back only on safe apply, or emit its expected digest plus exact
   HU-085 materialization manifest on zero-write deferral.

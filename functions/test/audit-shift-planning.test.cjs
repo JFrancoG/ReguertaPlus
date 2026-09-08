@@ -639,3 +639,173 @@ test("bound CLI reads three immutable files and rejects an unpaired capture flag
     const bad = spawnSync(process.execPath, args.slice(0, -2), {encoding: "utf8"}); assert.equal(bad.status, 1); assert.equal(bad.stdout, "");
   } finally { rmSync(directory, {recursive: true, force: true}); }
 });
+
+const {materializeShiftRepair} = require("../scripts/materialize-shift-repair.cjs");
+const {createShiftPlanningPublicEventRetentionPolicy, produceShiftPlanningPublicEventAudit} = require("../lib/shift-planning-public-event-retention.js");
+const preparedAt = Timestamp.fromDate(new Date("2026-09-08T12:01:00.000Z"));
+const repairAuthority = {bundleRevision: "reviewed-r1", bundleDigest: snapshotDigest({fixture: "bundle"}), writeEpoch: 7};
+const retentionPolicy = createShiftPlanningPublicEventRetentionPolicy({policyRevision: "review-policy-r1", maximumDeliveryRetryHorizonMillis: 86400000, safetyMarginMillis: 3600000});
+const canonicalCapture = (input, proposal = input) => {
+  const capture = capturedDocuments(input, proposal);
+  capture.documents.forEach((entry, index) => editCaptured(capture, index, (doc) => {
+    delete doc.extra; delete doc.lastBackendMutation; doc.date = new Timestamp(doc.date.seconds, 0);
+    Object.assign(doc, {planningSchemaVersion: 1, planningRequestId: "original-request", ...repairAuthority,
+      projectionSeasonStartYear: doc.date.toDate().getUTCMonth() >= 8 ? 2026 : 2025, planningReason: doc.type === "delivery" ? "target" : null,
+      createdAt: new Timestamp(Date.parse("2026-08-01T00:00:00Z") / 1000, 123456789), updatedAt: Timestamp.fromDate(new Date("2026-08-02T00:00:00Z"))});
+    if (doc.completion.state === "completed") doc.updatedAt = doc.completion.completedAt;
+    if (doc.rotationPositions) doc.rotationPositions.forEach((position) => { position.planningReason = "target"; });
+  }));
+  return capture;
+};
+const packetFor = async (input, proposal, capture) => {
+  const review = await boundRepair(input, proposal, capture), writes = [];
+  for (const next of proposal.source) {
+    const row = next.row, original = input.source.find((entry) => entry.row.id === row.id);
+    const positionsFor = (snapshot) => snapshot.lineage[row.type].rows.find((entry) => entry.shiftId === row.id)?.positions ?? null;
+    if (original && snapshotDigest(original) === snapshotDigest(next) && snapshotDigest(positionsFor(input)) === snapshotDigest(positionsFor(proposal))) continue;
+    const previous = capture.documents.find((entry) => entry.targetPath.endsWith(row.id));
+    const payload = previous ? decodeDocument(previous.payload) : {planningSchemaVersion: 1, planningRequestId: "create-request",
+      createdAt: preparedAt, completion: {state: "uncompleted", revision: 0, actualHelperUserId: null, helperSourceAssignmentRevision: null, completedAt: null},
+      planningReason: row.type === "delivery" ? "target" : null, projectionSeasonStartYear: Number(row.date.slice(5, 7)) >= 9 ? 2026 : 2025};
+    const assignmentRevision = previous ? payload.assignmentRevision + Number(snapshotDigest(payload.assignedUserIds) !== snapshotDigest(row.assignedUserIds) || payload.helperUserId !== row.helperUserId) : 1;
+    const documentRevision = previous ? payload.documentRevision + 1 : 1;
+    Object.assign(payload, {type: row.type, date: payload.date ?? Timestamp.fromDate(new Date(row.date + "T00:00:00Z")),
+      assignedUserIds: row.assignedUserIds, helperUserId: row.helperUserId, status: row.status, source: row.source, origin: row.origin,
+      assignmentRevision, documentRevision, updatedAt: preparedAt, ...repairAuthority,
+      rotationOwnerUserId: row.type === "delivery" ? row.rotationOwnerUserIds[0] : null, rotationOwnerUserIds: row.type === "market" ? row.rotationOwnerUserIds : null,
+      roundNumber: row.type === "delivery" ? positionsFor(proposal)[0].roundNumber : null, positionInRound: row.type === "delivery" ? positionsFor(proposal)[0].positionInRound : null,
+      rotationPositions: row.type === "market" ? positionsFor(proposal).map((position, index) => ({...position,
+        rotationOwnerUserId: row.rotationOwnerUserIds[index], effectiveAssigneeUserId: row.assignedUserIds[index], planningReason: "target"})) : null});
+    delete payload.lastBackendMutation;
+    writes.push({targetPath: `develop/plus-collections/shifts/${row.id}`, payload: encoded(payload)});
+  }
+  return {schemaVersion: 1, target: clone(target), repairPlanDigest: review.planDigest, operationId: "repair-r1",
+    preparedAt: encoded(preparedAt), authority: clone(repairAuthority), retentionPolicy, writes};
+};
+const materialize = (input, proposal, capture, packet, overrides = {}) => materializeShiftRepair({input, proposal, target,
+  expectedInputDigest: snapshotDigest(input), expectedProposalDigest: snapshotDigest(proposal), firestoreCapture: capture,
+  expectedCaptureDigest: snapshotDigest(capture), materialization: packet, expectedMaterializationDigest: snapshotDigest(packet), ...overrides});
+const editWrite = (packet, index, mutate) => { const doc = decodeDocument(packet.writes[index].payload); mutate(doc); packet.writes[index].payload = encoded(doc); };
+
+test("materialization binds exact public writes, full guards and create-only terminal/retention with controlled event routing", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture), originalPacket = clone(packet);
+  const result = await materialize(input, proposal, capture, packet), group = result.materializationEvidence.atomicGroup;
+  assert.equal(result.schemaVersion, 3); assert.equal(result.readyForApply, false); assert.equal(group.writes.length, 3); assert.equal(group.readGuards.length, 6);
+  assert.deepEqual(packet, originalPacket); assert.deepEqual(await materialize(input, proposal, capture, packet), result);
+  const write = group.writes[0], doc = decodeDocument(write.payload), terminal = decodeDocument(group.writes[1].payload), retention = decodeDocument(group.writes[2].payload);
+  assert.equal(doc.source, "app"); assert.equal(doc.documentRevision, 3); assert.equal(doc.assignmentRevision, 1);
+  assert.equal(doc.createdAt.nanoseconds, 123456789); assert.equal(doc.planningRequestId, "original-request"); assert.equal(doc.lastBackendMutation.kind, "repair");
+  assert.equal(terminal.publicMutations[0].payloadDigest, doc.lastBackendMutation.payloadDigest);
+  assert.equal(retention.operationIntentDigest, terminal.operationIntentDigest); assert.equal(retention.retainUntil.toMillis(), preparedAt.toMillis() + 90000000);
+  assert.equal(group.readGuards.find((guard) => guard.targetPath.endsWith(input.source[2].row.id)).updateTime.nanoseconds, 987654321);
+  assert.ok(group.readGuards.filter((guard) => !guard.exists).every((guard) => /shiftPlanningOperations|shiftPlanningPublicEventLedgers/.test(guard.targetPath)));
+  const event = {eventId: "independent-event", eventTime: preparedAt, targetPath: write.targetPath, before: decodeDocument(capture.documents[0].payload),
+    after: doc, operation: terminal, retention, policy: retentionPolicy};
+  assert.equal(produceShiftPlanningPublicEventAudit(event).kind, "controlledNoOp");
+  assert.equal(produceShiftPlanningPublicEventAudit({...event, operation: null}).kind, "failClosed");
+  const changed = {...doc, helperUserId: "d"};
+  assert.equal(produceShiftPlanningPublicEventAudit({...event, after: changed}).kind, "failClosed");
+  assert.equal(produceShiftPlanningPublicEventAudit({...event, before: doc, after: changed}).kind, "ordinary");
+});
+
+test("materialization includes lineage-only repairs and increments assignment revision only for assignment/helper changes", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.lineage.market.rows[0].positions[0].roundNumber = 8;
+  input.source[1].row.assignedUserIds = ["d"]; input.source[0].row.helperUserId = "d";
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture), result = await materialize(input, proposal, capture, packet);
+  const writes = result.materializationEvidence.atomicGroup.writes.slice(0, -2); assert.equal(writes.length, 3);
+  const market = decodeDocument(writes.find((write) => write.targetPath.includes("shift_market")).payload);
+  assert.equal(market.rotationPositions[0].roundNumber, 1); assert.equal(market.assignmentRevision, 1);
+  for (const write of writes.filter((write) => write.targetPath.includes("shift_delivery"))) assert.equal(decodeDocument(write.payload).assignmentRevision, 2);
+});
+
+test("materialization creates missing rows with revision one and exact absence guards", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.source.splice(1, 1); input.lineage.delivery.rows.splice(1, 1);
+  Object.assign(proposal.source[1], {documentRevision: 0, assignmentRevision: 0, completionRevision: 0});
+  const capture = canonicalCapture(input, proposal), packet = await packetFor(input, proposal, capture), result = await materialize(input, proposal, capture, packet);
+  const group = result.materializationEvidence.atomicGroup, write = group.writes[0], doc = decodeDocument(write.payload);
+  assert.equal(write.mutationKind, "create"); assert.equal(doc.documentRevision, 1); assert.equal(doc.assignmentRevision, 1); assert.ok(doc.createdAt.isEqual(preparedAt));
+  assert.deepEqual(group.readGuards.find((guard) => guard.targetPath === write.targetPath), {targetPath: write.targetPath, exists: false});
+});
+
+test("materialization rejects wrong scope, stale bindings and missing, duplicate or extra writes", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture);
+  for (const mutate of [(p) => { p.repairPlanDigest = "stale"; }, (p) => { p.target.workbookId = "wrong"; }, (p) => { p.writes = []; },
+    (p) => p.writes.push(clone(p.writes[0])), (p) => { p.writes[0].targetPath = p.writes[0].targetPath.replace("develop/", "production/"); },
+    (p) => { p.authority.writeEpoch += 1; }, (p) => { p.preparedAt = encoded(Timestamp.fromMillis(0)); }, (p) => { p.extra = true; }]) {
+    const bad = clone(packet); mutate(bad); await assert.rejects(materialize(input, proposal, capture, bad));
+  }
+  await assert.rejects(materialize(input, proposal, capture, packet, {expectedMaterializationDigest: "stale"}));
+  editCaptured(capture, 2, (doc) => { doc.updatedAt = Timestamp.fromMillis(0); }); await assert.rejects(materialize(input, proposal, capture, packet));
+});
+
+test("materialization rejects altered dates, metadata, completion, revisions and unreviewed projection changes", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture);
+  for (const mutate of [(doc) => { doc.date = new Timestamp(doc.date.seconds, 1); }, (doc) => { doc.planningRequestId = "different"; },
+    (doc) => { doc.planningReason = "boundaryRoundRemainder"; }, (doc) => { doc.createdAt = preparedAt; }, (doc) => { doc.documentRevision = 2; },
+    (doc) => { doc.assignmentRevision = 2; }, (doc) => { doc.helperUserId = "d"; }, (doc) => { doc.roundNumber = 8; },
+    (doc) => { doc.completion.state = "completed"; }, (doc) => { doc.extra = "unexpected"; }, (doc) => { doc.updatedAt = doc.createdAt; }]) {
+    const bad = clone(packet); editWrite(bad, 0, mutate); await assert.rejects(materialize(input, proposal, capture, bad));
+  }
+});
+
+test("materialization refuses loss of legacy extras and malformed prior provenance while retaining before-images", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+  for (const field of ["extra", "lastBackendMutation"]) {
+    const capture = canonicalCapture(input); editCaptured(capture, 0, (doc) => { doc[field] = {evidence: "preserve me"}; });
+    const packet = await packetFor(input, proposal, capture); editWrite(packet, 0, (doc) => { delete doc[field]; });
+    assert.equal((await boundRepair(input, proposal, capture)).firestoreEvidence.documents.length, 4);
+    await assert.rejects(materialize(input, proposal, capture, packet));
+  }
+});
+
+test("completed source stays guarded unchanged and cannot be hidden in the write packet", async () => {
+  const proposal = await lineageFixture(); Object.assign(proposal.source[0], {completed: true, completionRevision: 1});
+  const input = clone(proposal); input.source[3].row.source = "planner";
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture), result = await materialize(input, proposal, capture, packet);
+  const completedPath = capture.documents[0].targetPath;
+  assert.ok(!result.materializationEvidence.atomicGroup.writes.some((write) => write.targetPath === completedPath));
+  assert.deepEqual(result.firestoreEvidence.documents.find((doc) => doc.targetPath === completedPath).payload, capture.documents[0].payload);
+  packet.writes.push({targetPath: completedPath, payload: capture.documents[0].payload}); await assert.rejects(materialize(input, proposal, capture, packet));
+});
+
+test("materialization CLI emits an immutable review and rejects unpaired options and apply", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "materialization-review-"));
+  try {
+    const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+    const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture), values = {input, proposal, capture, packet};
+    for (const [name, value] of Object.entries(values)) writeFileSync(join(directory, name + ".json"), JSON.stringify(value));
+    const args = [require.resolve("../scripts/repair-planned-shifts.cjs"), "--mode", "dry-run", "--input", join(directory, "input.json"),
+      "--proposal", join(directory, "proposal.json"), "--project", target.projectId, "--environment", target.environment, "--workbook", target.workbookId,
+      "--expected-input-digest", snapshotDigest(input), "--expected-proposal-digest", snapshotDigest(proposal),
+      "--firestore-capture", join(directory, "capture.json"), "--expected-capture-digest", snapshotDigest(capture),
+      "--materialization", join(directory, "packet.json"), "--expected-materialization-digest", snapshotDigest(packet)];
+    const result = spawnSync(process.execPath, args, {encoding: "utf8", env: {PATH: process.env.PATH}});
+    assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).schemaVersion, 3);
+    for (const [name, value] of Object.entries(values)) assert.equal(readFileSync(join(directory, name + ".json"), "utf8"), JSON.stringify(value));
+    assert.equal(readdirSync(directory).length, 4);
+    const partial = spawnSync(process.execPath, args.slice(0, -2), {encoding: "utf8"}); assert.equal(partial.status, 1); assert.equal(partial.stdout, "");
+    args[2] = "apply"; const apply = spawnSync(process.execPath, args, {encoding: "utf8"}); assert.equal(apply.status, 1); assert.equal(apply.stdout, "");
+  } finally { rmSync(directory, {recursive: true, force: true}); }
+});
+
+test("materialization preserves market planning reasons and rejects exhausted counters or invalid retention", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal); input.lineage.market.rows[0].positions[0].roundNumber = 8;
+  const capture = canonicalCapture(input), packet = await packetFor(input, proposal, capture);
+  await materialize(input, proposal, capture, packet);
+  const reason = clone(packet); editWrite(reason, 0, (doc) => { doc.rotationPositions[0].planningReason = "finalGroupPadding"; });
+  await assert.rejects(materialize(input, proposal, capture, reason));
+  const policy = clone(packet); policy.retentionPolicy.maximumDeliveryRetryHorizonMillis += 1;
+  await assert.rejects(materialize(input, proposal, capture, policy));
+  input.source[3].documentRevision = Number.MAX_SAFE_INTEGER; proposal.source[3].documentRevision = Number.MAX_SAFE_INTEGER;
+  const exhaustedCapture = canonicalCapture(input), exhaustedPacket = await packetFor(input, proposal, exhaustedCapture);
+  await assert.rejects(materialize(input, proposal, exhaustedCapture, exhaustedPacket));
+});
+
+test("materialization requires bound captures and real public changes rather than fabricating empty repair terminals", async () => {
+  const input = await lineageFixture(), capture = canonicalCapture(input), packet = await packetFor(input, input, capture);
+  assert.equal(packet.writes.length, 0); await assert.rejects(materialize(input, input, capture, packet));
+  await assert.rejects(materialize(input, input, capture, packet, {firestoreCapture: undefined, expectedCaptureDigest: undefined}));
+});

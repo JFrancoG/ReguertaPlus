@@ -511,6 +511,61 @@ vuelcan en stderr. Sigue faltando construir y ensayar la transacción de documen
 finales, terminal, retención y provenance, el baseline y su recuperación. Los dos
 formatos mantienen `readyForApply: false`; no hay captura live ni ejecutor de escritura.
 
+El decimocuarto corte añade la **materialización offline v3**. Manteniendo las
+opciones de captura, añadir ambas opciones:
+
+```sh
+--materialization /ruta/documentos-finales.json --expected-materialization-digest '<digest del paquete>'
+```
+
+El paquete (máximo 4 MiB, digest canónico) tiene exactamente estos campos:
+
+| Campo | Contrato |
+| --- | --- |
+| `schemaVersion` | `1` |
+| `target` | Mismo proyecto/libro; solo `develop` en esta reparación |
+| `repairPlanDigest` | Digest del plan v2, que se vuelve a calcular desde los tres archivos originales |
+| `operationId` | Identidad explícita del futuro terminal de reparación |
+| `preparedAt` | Timestamp tipado no anterior a la captura; instante propuesto para los documentos/terminal |
+| `authority` | `{bundleRevision, bundleDigest, writeEpoch}` explícitos; aún sin acreditación contra autoridad live |
+| `retentionPolicy` | Política HU-082 completa y vinculada por su propio digest |
+| `writes` | Exactamente un `{targetPath, payload}` por alta o cambio público revisado; `payload` es el mapa tipado final sin `lastBackendMutation` |
+
+Los documentos finales deben satisfacer el parser público HU-082 y reproducir las
+proyecciones y posiciones de la propuesta. Incluye cambios solo de ronda aunque no
+cambie ninguna celda. Cada actualización aumenta `documentRevision` en uno y solo
+incrementa `assignmentRevision` cuando cambia el asignado o helper. Las altas parten
+de ambas revisiones en uno y `createdAt = updatedAt = preparedAt`. Los documentos
+existentes conservan fecha exacta, creación, completado, identidad de petición,
+motivos de planificación y cualquier campo ajeno a la corrección. Los metadatos
+que falten en documentos antiguos deben aportarse explícitamente en el paquete.
+No se redondean fechas legacy para superar el requisito de medianoche UTC.
+
+El parser público exige campos exactos: una fila modificada con campos adicionales,
+o una procedencia previa malformada que el clasificador no reconoce, se rechaza.
+No se descartan esos datos para fabricar una publicación válida. Los documentos
+sin cambios, incluidos completados y vecinos, conservan sus before-images íntegros.
+Los cambios exclusivos de Sheets o del cursor no crean terminales públicos vacíos;
+en esos casos se usa el plan v2 y se resuelve su vía de ejecución por separado.
+
+`materializationEvidence.atomicGroup` contiene las escrituras públicas marcadas,
+terminal `repair` y retención mediante los builders HU-082, más condiciones de
+lectura para **todos** los turnos capturados (updateTime y digest completo) y de
+inexistencia para altas, terminal y retención. No se divide el conjunto: se rechazan
+más de 498 turnos modificados, reservando dos escrituras para terminal y retención.
+Esto no valida todavía el tamaño físico ni ejecuta/admite una transacción Firestore.
+`eventRehearsal` registra el resultado del clasificador/retención existente para cada
+evento previsto: exige `controlledNoOp` y `legacySideEffectsAllowed = false`.
+Es un ensayo del contrato local, no de los triggers desplegados ni de FCM.
+
+`parentPlanDigest` enlaza el plan v2 y `planDigest` vincula también este conjunto.
+Los documentos con estado `committed` son **plantillas sin persistir**; su presencia
+no acredita un commit real. El resultado mantiene `readyForApply: false`. Faltan la
+vinculación live de autoridad/ausencias, admisión y ejecución CAS, baseline, inversa,
+ensayo de commit/restauración y cerco entre Firestore y Sheets. Cambiar el instante,
+la autoridad o cualquier payload exige generar y revisar otro digest. La CLI no
+crea clientes SDK, no escribe archivos de entrada ni admite `--mode apply`.
+
 El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
 (`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y
 la identidad runtime quedan para HU-085; no se amplía el permiso del operador de

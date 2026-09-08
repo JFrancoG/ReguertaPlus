@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — twelfth cut pushed; thirteenth cut validated locally
+- State: IN PROGRESS — thirteenth cut pushed; fourteenth cut validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -574,6 +574,40 @@ preserved. No live capture/write, deploy, IAM or notification occurred. This bin
 supplied shift evidence only: authenticated capture/query completeness, other source
 registries, final document/CAS/terminal/retention/provenance assembly, migration
 baseline, rollback and guarded rehearsal remain pending. `readyForApply` stays false.
+
+### Fourteenth local cut — final document review (approved 2026-09-08)
+
+The user authorized commit/push of cut thirteen and the next implementation cut.
+Cut thirteen is published as `35e9e482f601cce81ed40c40f0bd9e6a9ed74f7e`.
+Cut fourteen adds an optional v3 offline review from explicit final typed payloads,
+bound to the recomputed v2 plan and an exact packet digest. It validates full
+public documents, includes lineage-only changes, preserves immutable fields and
+completed before-images, and enforces document/assignment revision increments.
+Unsupported extra-field loss and malformed prior provenance reject materialization.
+HU-082 builders supply the repair marker, terminal and retention. Every original
+shift contributes an updateTime/full-digest read guard; creates, terminal and
+retention require absence. Each proposed event must pass the existing retained
+classifier as controlledNoOp. These are unpersisted templates, not a transaction.
+
+Validation: Functions lint/build and Node syntax checks passed; combined audit/
+repair/materialization 54/54, Sheets 44/44, publication/event/retention contracts
+18/18, no skips. Tests cover creates, assignment/helper and lineage-only changes,
+completed neighbors, stale digests, field loss, revision exhaustion, malformed
+policy/provenance, missing/duplicate writes and real four-file CLI execution with
+unchanged inputs and no apply mode. No shared runtime or mobile contract changed;
+no new emulator/mobile run was needed for this offline compiler. `git diff --check`
+passed. The unrelated 13/13 Xcode reorder in the main checkout is preserved.
+
+Cut fourteen is local and uncommitted; issue #267 remains open. No live capture,
+Firestore/Sheets write, IAM change, deployment or notification occurred. Apply
+readiness remains false: live source/authority completeness, atomic CAS admission/
+execution, migration baseline, inverse, restored-clone rehearsal and writer/trigger
+fencing are pending. Local classification is not proof of deployed trigger behavior.
+
+Remaining-work estimate after this cut: approximately 3–5 coherent cuts, grouping
+baseline/inverse, atomic execution and recovery rehearsal, reviewed human-layout
+conversion, and trusted evidence plus final delivery (or exact HU-085 deferral).
+This is provisional, not a claim that the live acceptance gates are already met.
 
 ## Workbook decision
 
