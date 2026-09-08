@@ -191,6 +191,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-09-08 | 🐛 fix(sheets): retire legacy shift writers
+
 - 2026-09-08 | 🐛 fix(sheets): apply reviewed human imports
 
 - 2026-09-08 | 🐛 fix(sheets): prepare imports from readable tabs

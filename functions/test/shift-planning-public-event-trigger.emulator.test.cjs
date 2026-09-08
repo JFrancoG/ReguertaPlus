@@ -323,3 +323,83 @@ emulatorTest("readable exports cannot append human rows into a technical table",
   await assert.rejects(exported.onShiftWritten.run(f.event));
   assert.equal(f.sheets.writes.length, 0);
 });
+
+emulatorTest("legacy planning retires a pending request once without generating shifts, Sheets or notifications", async (t) => {
+  t.mock.method(require("googleapis").google, "sheets", () => {throw new Error("Legacy planner must never open Sheets");});
+  const ref = firestore.doc(`${root}/shiftPlanningRequests/legacy-retired`);
+  await ref.set({type: "delivery", status: "requested", requestedByUserId: "a",
+    requestedAt: require("@google-cloud/firestore").Timestamp.now()});
+  const event = {params: {env: "develop", requestId: ref.id}, authType: "system", data: await ref.get()};
+  await exported.onShiftPlanningRequestCreated.run(event);
+  const failed = await ref.get();
+  assert.equal(failed.get("status"), "failed"); assert.equal(failed.get("errorCode"), "legacy_planning_retired");
+  assert.equal(failed.get("processingStartedAt"), undefined);
+  await exported.onShiftPlanningRequestCreated.run(event);
+  assert.ok((await ref.get()).updateTime.isEqual(failed.updateTime), "replay does not rewrite the terminal result");
+  assert.equal((await firestore.collection(`${root}/shifts`).get()).size, 0);
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
+});
+
+emulatorTest("legacy retirement ignores v2, unsupported, unauthorized and replaced snapshots", async () => {
+  const {Timestamp} = require("@google-cloud/firestore");
+  const ref = firestore.doc(`${root}/shiftPlanningRequests/legacy-stale`);
+  const legacy = {type: "market", status: "requested", requestedByUserId: "a", requestedAt: Timestamp.now()};
+  const eventFor = (data) => ({params: {env: "develop", requestId: ref.id}, authType: "system", data});
+  await ref.set(legacy); const original = await ref.get();
+  await exported.onShiftPlanningRequestCreated.run({...eventFor(original), authType: "unauthenticated"});
+  assert.ok((await ref.get()).updateTime.isEqual(original.updateTime));
+  for (const next of [{...legacy, schemaVersion: 2}, {...legacy, schemaVersion: 42}, {...legacy, status: "completed"}]) {
+    await ref.set(next); const before = await ref.get();
+    await exported.onShiftPlanningRequestCreated.run(eventFor(before));
+    await exported.onShiftPlanningRequestCreated.run(eventFor(original));
+    assert.ok((await ref.get()).updateTime.isEqual(before.updateTime));
+  }
+});
+
+emulatorTest("legacy sync returns an authenticated migration error and performs no import", async (t) => {
+  t.mock.method(require("googleapis").google, "sheets", () => {throw new Error("Retired sync must never open Sheets");});
+  const response = () => ({statusCode: null, body: null, status(code) {this.statusCode = code; return this;}, json(body) {this.body = body; return this;}});
+  const request = {method: "POST", body: {environment: "develop"}, query: {}, headers: {authorization: "Bearer fixture-token"}};
+  t.mock.method(require("firebase-admin/auth").getAuth(), "verifyIdToken", async () => ({uid: "fixture-admin", email_verified: true}));
+  await firestore.doc(`${root}/authLinks/fixture-admin`).set({memberId: "a"});
+  await firestore.doc(`${root}/users/a`).set({authUid: "fixture-admin", displayName: "Admin", isActive: true, roles: ["member", "admin"]});
+  const retired = response(); await exported.syncShiftsFromGoogleSheets(request, retired);
+  assert.equal(retired.statusCode, 410, JSON.stringify(retired.body));
+  assert.match(JSON.stringify(retired.body), /legacy_shift_sync_retired/);
+  const method = response(); await exported.syncShiftsFromGoogleSheets({...request, method: "GET"}, method);
+  assert.equal(method.statusCode, 405);
+  await firestore.doc(`${root}/users/a`).update({roles: ["member"]});
+  const denied = response(); await exported.syncShiftsFromGoogleSheets(request, denied);
+  assert.equal(denied.statusCode, 403);
+  assert.equal((await firestore.collection(`${root}/shifts`).get()).size, 0);
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
+});
+
+emulatorTest("ordinary export preserves the new helper column and appends no month decoration", async (t) => {
+  const headers = ["Fecha", "Persona", "Teléfono", "Notas", "Cambio", "Ayuda"];
+  const f = await ordinaryHumanFixture(t, {rows: [headers, ["27/8/2026", "Persona A", "old", "=1+1", "nota", "Persona C"]]});
+  const ref = firestore.doc(`${root}/shifts/${f.shiftId}`);
+  await ref.update({helperUserId: "b"});
+  await exported.onShiftWritten.run({...f.event, data: {...f.event.data, after: await ref.get()}});
+  assert.deepEqual(f.sheets.state[f.title][1], ["27/8/2026", "Persona A", "90000000a", "=1+1", "nota", "Persona B"]);
+  // The missing-row path must remain parseable by the same generated layout.
+  f.sheets.state[f.title] = [headers];
+  await ref.update({syncMeta: {sheetName: "untrusted-wrong-season"}});
+  await exported.onShiftWritten.run({...f.event, data: {...f.event.data, after: await ref.get()}});
+  assert.equal(f.sheets.state[f.title].length, 2);
+  assert.equal(f.sheets.state[f.title][1][0], "27/8/2026");
+  assert.equal(f.sheets.state[f.title][1][5], "Persona B");
+});
+
+emulatorTest("generated delivery export rejects a missing helper name and clears a removed helper", async (t) => {
+  const f = await ordinaryHumanFixture(t, {rows: [["Fecha", "Persona", "Teléfono", "Notas", "Cambio", "Ayuda"],
+    ["27/8/2026", "Persona A", "old", "nota", "", "Persona C"]]});
+  const ref = firestore.doc(`${root}/shifts/${f.shiftId}`);
+  await ref.update({helperUserId: "missing"});
+  await assert.rejects(exported.onShiftWritten.run({...f.event, data: {...f.event.data, after: await ref.get()}}));
+  assert.equal(f.sheets.writes.length, 0);
+  await ref.update({helperUserId: null});
+  await exported.onShiftWritten.run({...f.event, data: {...f.event.data, after: await ref.get()}});
+  assert.equal(f.sheets.state[f.title][1][5], "");
+  assert.equal(f.sheets.state[f.title][1][3], "nota");
+});

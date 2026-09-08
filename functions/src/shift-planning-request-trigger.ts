@@ -20,7 +20,7 @@ import {
  * Retries only versioned, idempotent requests. A busy lease rejects delivery
  * so Eventarc redelivers after the prior worker finishes or its lease expires.
  * Malformed input and terminal business failures do not retry. Legacy requests
- * are owned by their separate, non-retrying trigger.
+ * receive a retirement result from their separate, non-retrying trigger.
  * @param {ShiftPlanningFirestoreRuntime} runtime Versioned request authority.
  * @param {Function} authorize Current privileged-event authorization.
  * @return {object} Retry-enabled Firestore function.

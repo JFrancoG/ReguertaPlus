@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — twenty-third cut pushed; twenty-fourth readable worker validated locally
+- State: IN PROGRESS — twenty-fourth cut pushed; twenty-fifth legacy retirement validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -867,6 +867,26 @@ and repository 7/7, zero failures/skips. Sheets is fake and members fictional.
 Cut 24 remains local. Historical-layout adoption, legacy generation/sync and live
 develop acceptance remain open. No new endpoint, mobile contract, live mutation,
 deploy, IAM or FCM change. Existing external writer-exclusion requirements remain.
+
+### Twenty-fifth local cut — legacy writer retirement (approved 2026-09-08)
+
+Cut 24 is pushed as `2a50d99`. Legacy sync now returns authenticated HTTP 410;
+pending unversioned requests fail transactionally without Sheets/public/notification
+writes. Old partial import, generation and whole-tab clear code are removed.
+Current mobile codecs use v2; deployed/external callers still require HU-085 review.
+Ordinary exports preserve helper names and omit month decorations in newly generated
+delivery tabs, retaining historical week semantics elsewhere. Validation: lint/build,
+197 local passes (11 emulator-only skips), exported handlers 19/19 and writer fences
+12/12 in the emulator, no failures. Cut 25 is local; no live/platform/deploy changes.
+
+## Remaining forecast after cut 25
+
+The previous 3–5-cut forecast omitted integration and over-fragmented the work.
+Four outcomes remain: historical-layout adoption, complete integration validation,
+real evidence/repair-or-deferral, and acceptance/delivery. Estimate: 4–6 further
+cuts, conditional on source access; report scope growth immediately. The dated
+five-outcome reset (including cut 25) is in the repository plan. IAM/deployment
+remain HU-085; operational access/approval is not measured in cuts.
 
 ## Workbook decision
 

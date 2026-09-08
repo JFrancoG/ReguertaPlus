@@ -932,6 +932,35 @@ Implemented locally. Validation passes: lint/build, 186/186 local cases, consume
 emulator 23/23, import 45/45 and repository 7/7; zero failures/skips. Historical
 layout adoption and legacy generation/sync remain separate integration work.
 
+### Remaining delivery forecast — reset after cut 24
+
+The earlier 3–5-cut forecast was not supported by the full acceptance inventory.
+Track five outcomes, with a 5–7-cut estimate including cut 25, conditional on real
+source access: (25) retire unsafe legacy write paths and align ordinary exports;
+(26) adopt historical readable layouts; (27) run the complete integration/review
+and close demonstrated defects; (28) capture/review real source evidence and exact
+repair or zero-write deferral manifests; (29) final acceptance and delivery handoff.
+Allow 1–2 corrective cuts only for demonstrated findings; report any scope increase
+against this list immediately. Operational access/approval is not measured in cuts.
+
+### Twenty-fifth local cut — legacy writer retirement (approved 2026-09-08)
+
+Cut 24 is pushed as `2a50d99`. Current Android/iOS request codecs write schema-v2;
+no mobile source calls the legacy sync HTTP endpoint. Keep both old entry points
+as compatibility responses: authenticated legacy sync returns a migration error,
+and pending legacy requests become failed transactionally without touching Sheets,
+shifts or notifications. Remove their unreachable parser/planner/clear writers.
+New v2 requests retain their existing processor. Deployment and confirmation of
+external/deployed callers remain HU-085 work. Also align ordinary export with the
+new readable header: helper names in F and no month-heading append in that layout;
+legacy layouts retain their original week-number semantics. Validate real exported
+handlers and both compatibility boundaries in the emulator.
+
+Implemented locally: 197 local passes (11 emulator-only skips), exported handlers
+19/19 and writer fences 12/12 in the emulator; lint/build pass. The 11 skips were
+executed by that separate fence suite. The old writers and exclusive helpers are
+removed; external/deployed client compatibility remains an HU-085 rollout gate.
+
 ## 2. Expected implementation impact
 
 ### Functions

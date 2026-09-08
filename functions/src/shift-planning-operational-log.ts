@@ -18,6 +18,7 @@ type ShiftPlanningOperationalFailureCode =
   | ShiftPlanningFailureCode
   | ShiftPlanningDigestFailureCode
   | "internal_planning_failure"
+  | "legacy_planning_retired"
   | "invalid_legacy_request"
   | "unsupported_schema_version";
 
@@ -38,7 +39,8 @@ type ShiftPlanningOperationalLogEvent =
     kind: "requestRejected";
     environment: ShiftPlanningEnvironment;
     requestId: string;
-    failureCode: "invalid_legacy_request" | "unsupported_schema_version";
+    failureCode: "invalid_legacy_request" | "unsupported_schema_version" |
+      "legacy_planning_retired";
   }
   | {
     kind: "requestFailed";

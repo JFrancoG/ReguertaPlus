@@ -327,7 +327,7 @@ en un replay exacto y conserva la ultima envolvente valida si una fuente esta
 mal formada o supera su limite. El resolver forward concreto ya exige reconstruir
 y comparar por digest ese read-set dentro de cada retry de activacion, por lo que
 una envolvente cacheada obsoleta no puede autorizar escrituras. El trigger local
-de `index.ts` mantiene los documentos sin version en el handler legacy sin cambios
+de `index.ts` da a los documentos sin versión un fallo transaccional de retirada (HU-083, corte 25)
 y enruta preview/stage/activate schema v2 por el runtime gobernado. Una version
 declarada desconocida falla cerrado y nunca cae al escritor legacy. Recovery se
 exporta localmente solo mediante un adaptador HTTP de cuerpo exacto fijado al email
@@ -889,6 +889,14 @@ guardados y conserva la validación del linaje público activo; los recibos can�
 schema-v1 mantienen su inspección original. Se amplía la reserva existente del
 libro, sin cambiar HTTP ni permisos. Sigue siendo necesaria la exclusión de
 escritores externos tras reservar.
+
+HU-083 retira localmente los dos escritores antiguos no atómicos. El endpoint de
+sync autenticado devuelve un error de migración; el trigger antiguo solo falla
+solicitudes sin versión todavía pendientes. No las promueve a v2 sin una nueva
+solicitud revisada. Se eliminan el importador parcial, generador y borrado de pestaña.
+Los codecs móviles actuales usan v2; el inventario y drenaje de clientes externos/
+desplegados siguen en HU-085. El exportado ordinario respeta la nueva columna de
+ayuda y conserva el formato histórico de semana hasta su adopción revisada.
 
 ## Estado de aprobación e implementación
 

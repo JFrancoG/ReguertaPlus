@@ -65,7 +65,13 @@ Cut twenty-four connects the existing activation worker to that readable adapter
 Private schema-v2 receipts retain exact names/phones/calendar dates and source
 versions. The reservation transaction rejects changed versions; recovery uses
 persisted labels and retains active public-lineage checks. Canonical schema-v1
-receipts remain readable. Historical-layout adoption and legacy paths remain open.
+receipts remain readable.
+Cut twenty-five retires the legacy sync and generator with explicit compatibility
+errors while preserving authenticated ingress and v2 dispatch. Their partial
+import and whole-tab clear code is removed. Ordinary export honors the generated
+helper header and append structure. Historical-layout adoption, full integration
+validation and real-data acceptance remain open; deployment/external caller review
+remains with HU-085.
 
 - Keep one stable workbook for develop/test and one stable workbook for
   production.

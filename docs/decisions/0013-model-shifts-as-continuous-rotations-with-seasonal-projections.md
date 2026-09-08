@@ -314,7 +314,7 @@ and preserves the last valid envelope when a source is malformed or exceeds its
 bound. The concrete forward resolver now requires that producer read-set to be
 rebuilt and digest-compared inside every activation retry, so a stale cached
 envelope cannot authorize writes. The local `index.ts` trigger now routes
-unversioned documents through the unchanged legacy handler and schema-v2
+unversioned documents to a transactional retirement result (HU-083 cut 25) and schema-v2
 preview/stage/activate requests through the governed runtime. Unknown declared
 versions fail closed instead of falling back. Recovery is exported locally only
 through an exact-body HTTP adapter pinned to the future dedicated operator
@@ -856,6 +856,14 @@ absent calendar entries. Recovery uses persisted display data while retaining
 active public-lineage checks; schema-v1 canonical receipts keep their original
 inspection path. This extends the existing workbook reservation, not the HTTP
 surface or permissions. External writer exclusion remains necessary after reserve.
+
+HU-083 retires the two non-atomic legacy writers locally. The authenticated sync
+endpoint returns a migration error; the legacy request trigger only fails still
+pending unversioned requests. It never promotes them to v2 without a fresh reviewed
+request. The old partial importer, generator and whole-tab clear are removed.
+Current mobile codecs use v2; deployed/external client inventory and drain remain
+HU-085 rollout requirements. Ordinary export honors the new readable helper column
+while preserving the historical week-number layout until reviewed adoption.
 
 ## Approval and implementation status
 

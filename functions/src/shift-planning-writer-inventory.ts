@@ -51,6 +51,9 @@ export type ShiftPlanningAffectedWriter = {
  * Complete repository and authority inventory that must be closed before a
  * maintenance epoch starts. Internal helpers belong to their exported ingress
  * or delivery and therefore are deliberately not represented as extra fences.
+ * HU-083 retires legacy code locally, but this conservative HU-082 inventory
+ * retains its original references/identity until deployed drain is proven.
+ * Removing local helpers is not evidence that an external writer disappeared.
  */
 const affectedWriters = [
   {

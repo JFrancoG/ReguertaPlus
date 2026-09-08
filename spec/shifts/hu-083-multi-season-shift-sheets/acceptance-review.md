@@ -82,14 +82,24 @@ Cut 24 remains local. Historical-layout adoption, legacy generation/sync and liv
 develop acceptance remain open. No new endpoint, mobile contract, live mutation,
 deploy, IAM or FCM change. Existing external writer-exclusion requirements remain.
 
+## Cut-25 local update
+
+Cut 24 is pushed as `2a50d99`. Legacy sync now returns authenticated HTTP 410;
+pending unversioned requests fail transactionally without Sheets/public/notification
+writes. Old partial import, generation and whole-tab clear code are removed.
+Current mobile codecs use v2; deployed/external callers still require HU-085 review.
+Ordinary exports preserve helper names and omit month decorations in newly generated
+delivery tabs, retaining historical week semantics elsewhere. Validation: lint/build,
+197 local passes (11 emulator-only skips), exported handlers 19/19 and writer fences
+12/12 in the emulator, no failures. Cut 25 is local; no live/platform/deploy changes.
+
 ## Result
 
 The canonical adapter, private sync/import entry points, controlled-event audit,
 repair tooling and the three seasonal human writer routes have local/emulator
 evidence, including reviewed human apply/write-back and readable generation/new-tab
 creation and the activation worker's trusted display/calendar composition. HU-083
-remains open: historical layouts need adoption, and legacy generation/sync remain
-separate; real-data
+remains open: historical layouts need adoption and full integration validation; real-data
 safe-apply or exact zero-write deferral is also incomplete. The archive/technical
 conversion proposal is not selected for the user workflow.
 
@@ -102,15 +112,15 @@ schemas. Obtain the missing real inputs for the operational evidence gates.
 | --- | --- | --- |
 | Explicit environment/workbook and seasonal aliases | [Config](../../../functions/src/shift-sheets-config.ts), config tests; new worker/import reject missing or cross-environment authority | Cut 19 routes legacy callers through the shared strict resolver; deployed configuration remains unverified |
 | Stable identity, create/merge, carryover and manual-field preservation | [Canonical adapter](../../../functions/src/shift-sheets.ts), [behavior tests](../../../functions/test/shift-sheets.test.cjs) | Readable generation is local in cut 23; other historical headers require adoption; no live conversion is certified |
-| Seasonal union and guarded effective assignments | [Import reader](../../../functions/src/shift-sheets-import.ts), [planner](../../../functions/src/shift-sheets-import-plan.ts), [Firestore adapter](../../../functions/src/shift-sheets-firestore-import.ts) | Human apply/write-back is locally integrated in cut 22; legacy sync remains separate |
+| Seasonal union and guarded effective assignments | [Import reader](../../../functions/src/shift-sheets-import.ts), [planner](../../../functions/src/shift-sheets-import-plan.ts), [Firestore adapter](../../../functions/src/shift-sheets-firestore-import.ts) | Human apply/write-back is locally integrated in cut 22; legacy sync retires locally in cut 25 |
 | Explicit pull, claims, exact manifest and bounded retry | [Worker](../../../functions/src/shift-planning-sheets-worker.ts), [consumer](../../../functions/src/shift-planning-sheets-consumer.ts), exported `executeShiftPlanningSheetsSync` | No live invoker/scheduler configuration or deployment |
 | Durable Sheets attempt, replay and unknown-outcome reconciliation | Consumer/import emulator cases, shared workbook reservation, exact cells/marker/version checks | Protocol evidence is not an external-writer fence or physical cross-store CAS |
 | Controlled event suppression and recovery identity | [Trigger](../../../functions/src/shift-planning-public-event-trigger.ts), actual exported-trigger emulator cases, durable audit 32/32 | Both candidate trigger revisions and explicit policy need HU-085 rollout; ordinary effects keep their existing route |
 | Retention and rejection | Typed retention policy, durable controlled/rejected ledgers, strict/phase1 access tests | Operator logs do not prove alert delivery; real policy/retention lifecycle remains an operational gate |
-| Full export, ordinary incremental export and overrides | Cut-20 human routing and exported-handler integration tests | Readable updates, tab creation and worker integration are local; historical layout adoption and legacy generation/sync remain open |
+| Full export, ordinary incremental export and overrides | Cut-20 human routing and exported-handler integration tests | Readable updates, tab creation and worker integration are local; historical layout adoption and real acceptance remain open |
 | Ownership, completed history and predecessor/current/successor CAS | New import emulator coverage; strict ownership/provenance Rules and retained-marker routing | Does not certify all legacy mutation routes or current deployed behavior |
 | Audit, repair documents, baseline and inverse | [Auditor](../../../functions/scripts/audit-shift-planning.cjs), [repair review](../../../functions/scripts/repair-planned-shifts.cjs), [materializer](../../../functions/scripts/materialize-shift-repair.cjs), loopback/demo [rehearsal](../../../functions/scripts/rehearse-shift-repair.cjs) | Supplied snapshots and synthetic commits do not prove capture completeness, historical membership or live inverse authority |
-| Human-facing layout | Readable/editable date-name sheets selected; cut-20 writer preserves annotation columns | Archive/technical-table proposal is not selected. Reviewed human apply/write-back and the readable worker are integrated; historical layout adoption and legacy generation/sync remain open |
+| Human-facing layout | Readable/editable date-name sheets selected; cut-20 writer preserves annotation columns | Archive/technical-table proposal is not selected. Reviewed human apply/write-back and the readable worker are integrated; historical layout adoption and real acceptance remain open |
 | Real develop repair or zero-write HU-085 deferral | [Bounded layout inventory](inventory.md) and the supplied-snapshot tooling | No trusted dual-store baseline, exact real-data manifests, unchanged-source proof or completed deferral acceptance |
 
 ## Candidate legacy routes still present
@@ -121,12 +131,12 @@ inventory of deployed Functions. The implementation source is
 
 | Entry point / helper | Current behavior | Work required before claiming complete migration |
 | --- | --- | --- |
-| `getSheetConfig` → `readLegacyShiftSheetsConfig` (cut 19) | Explicit environment book and both ranges; missing values disable routing, with no global/default fallback | Require scoped configuration at rollout; seasonal writer migration remains open |
+| Legacy fixed-range config | Cut 25 removes runtime consumers; stored variables and isolated reader remain | Review deployed/external consumers before removing configuration |
 | `exportShiftsToGoogleSheets` → `exportAllShiftsToGoogleSheets` | Cut 20 iterates shifts through seasonal human ranges from their logical dates | Existing-tab route tested across delivery seasons and market; complete read-back/recovery remains an operational requirement |
-| `syncShiftsFromGoogleSheets` → `syncShiftsFromGoogleSheetsInternal` | Reads `sheetRangeDefinitions` through the older parser | Migrate callers or explicitly replace/retire the endpoint under reviewed compatibility |
+| `syncShiftsFromGoogleSheets` | Cut 25 preserves admin authentication and returns HTTP 410; old importer is removed | HU-085 checks deployed/external callers; reviewed import remains private |
 | Ordinary branch of `onShiftWritten` | Cut 20 resolves the seasonal alias, updates readable fields and retains ordinary notification effects | Existing-tab integration tested, including ignored wrong `syncMeta.sheetName`; live side effects remain unverified |
 | `onDeliveryCalendarOverrideWritten` | Cut 20 keeps the logical seasonal tab while changing the visible date within the same ISO week | Exported override integration tested; real workbook read-back remains open |
-| Legacy `onShiftPlanningRequestCreated` path | Old generation retains `updateWholeSheet` (`values.clear` then update); newer requests have their separate pipeline | Prove dispatch/compatibility before changing or retiring the old generation path; canonical adapter tests do not remove this code |
+| Legacy `onShiftPlanningRequestCreated` path | Cut 25 only fails pending unversioned requests transactionally; generator/clear helpers are removed | Current apps use v2; HU-085 must inventory/drain deployed external legacy clients |
 
 The new pipeline is composed in `index.ts` as `executeShiftSheetsImport`,
 `executeShiftPlanningSheetsSync` and `onShiftPlanningPublicWritten`. Their presence
@@ -175,9 +185,9 @@ base, so their gates were not rerun. Actual app read-back remains a live gate.
 1. Keep the selected readable/editable date-name layout; do not deploy the
    unselected archive/technical-table workflow. This choice does not authorize
    live conversion.
-2. Integrate or retire the legacy generation/sync paths and adopt historical
-   layouts, preserving ordinary notifications and existing fences. Reviewed human
-   apply/write-back (cut 22), generation (cut 23) and worker (cut 24) are local.
+2. Adopt historical layouts and run complete integration validation. Reviewed
+   import (cut 22), generation (cut 23), worker (cut 24) and legacy retirement
+   (cut 25) are local. Preserve ordinary notifications and existing fences.
 3. Obtain trusted Firestore/Sheets evidence through the separately bounded auditor
    defined in [spec.md](spec.md). Inventory alone is not backup authority. Verify
    approved calendars, ownership/bootstrap and historical/helper boundaries.
@@ -187,3 +197,11 @@ base, so their gates were not rerun. Actual app read-back remains a live gate.
    the expected baseline. Do not label the present synthetic fixture as that proof.
 5. Reconcile remaining acceptance criteria, then request the separately authorized
    delivery/closure steps. HU-084 and HU-085 stay separate stories.
+
+## Revised remaining forecast after cut 25
+
+Four outcomes remain: historical layouts, complete integration validation,
+real evidence/repair-or-deferral, and acceptance/delivery. Estimated 4–6 more cuts,
+conditional on source access. The former 3–5 forecast omitted integration and
+split work too narrowly; it is withdrawn. Any new scope must be reported against
+these outcomes rather than silently adding another series of technical cuts.

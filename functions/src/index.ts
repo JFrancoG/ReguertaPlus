@@ -57,7 +57,6 @@ import {
 } from "./shift-swap-security.js";
 import {buildNotificationInboxDocument} from "./notification-inbox.js";
 import {buildMemberDirectoryDocument} from "./member-directory.js";
-import {isEligibleForShiftRotation} from "./shift-eligibility.js";
 import {
   classifyShiftPlanningCreatedRequest,
   createFirestoreShiftPlanningRuntime,
@@ -121,12 +120,11 @@ import {
 } from "./shift-planning-firestore-public-event-audit.js";
 
 import {
-  readLegacyShiftSheetsConfig,
   readShiftSheetsWorkerConfig,
   resolveShiftSheetsHumanRange,
-  ShiftSheetsLegacyConfig,
 } from "./shift-sheets-config.js";
 import {createShiftSheetsAdapter} from "./shift-sheets.js";
+import {SHIFT_SHEETS_HUMAN_HEADERS} from "./shift-sheets-human-layout.js";
 import {
   createFirestoreShiftPlanningSheetsConsumer,
   createShiftSheetsWorkbookVersionReader,
@@ -2176,36 +2174,11 @@ export const __testOnly = {
 type ShiftType = "delivery" | "market";
 type ShiftStatus = "planned" | "swap_pending" | "confirmed";
 
-type SheetRangeDefinition = {
-  range: string;
-  defaultType: ShiftType;
-  layout: "delivery_human" | "market_human";
-};
-
 type MemberSheetRef = {
   id: string;
   displayName: string;
   normalizedEmail: string;
   phone: string | null;
-};
-
-type MarketParticipantRow = {
-  listedName: string;
-  phone: string | null;
-  replacementName: string | null;
-};
-
-type NormalizedShiftSheetRow = {
-  shiftId: string;
-  type: ShiftType;
-  date: Timestamp;
-  assignedUserIds: string[];
-  helperUserId: string | null;
-  status: ShiftStatus;
-  source: "google_sheets";
-  rowNumber: number;
-  rowKey: string;
-  sheetName: string;
 };
 
 type FirestoreShiftRecord = {
@@ -2235,33 +2208,7 @@ type ShiftPlanningRequestRecord = {
   status: ShiftPlanningRequestStatus;
 };
 
-type PlanningMemberRef = MemberSheetRef & {
-  isActive: boolean;
-  roles: string[];
-  isCommonPurchaseManager: boolean;
-  createdAtMillis: number;
-  updatedAtMillis: number;
-};
-
 const SHIFT_NOTIFICATION_TYPE = "shift_updated";
-
-const getSheetConfig = (env: string): ShiftSheetsLegacyConfig | null =>
-  readLegacyShiftSheetsConfig(parseAppEnvironment(env), process.env);
-
-const sheetRangeDefinitions = (
-  configValue: ShiftSheetsLegacyConfig,
-): SheetRangeDefinition[] => [
-  {
-    range: configValue.deliveryRange,
-    defaultType: "delivery",
-    layout: "delivery_human",
-  },
-  {
-    range: configValue.marketRange,
-    defaultType: "market",
-    layout: "market_human",
-  },
-];
 
 const getSheetsClient = async () => {
   const auth = new google.auth.GoogleAuth({
@@ -2366,17 +2313,6 @@ const timestampToSheetDate = (timestamp: Timestamp): string => {
   const paddedDay = String(day).padStart(2, "0");
   return `${year}-${paddedMonth}-${paddedDay}`;
 };
-
-const buildShiftId = (
-  type: ShiftType,
-  timestamp: Timestamp,
-): string =>
-  `shift_${type}_${timestampToSheetDate(timestamp).replace(/-/g, "")}`;
-
-const buildShiftRowKey = (
-  type: ShiftType,
-  timestamp: Timestamp,
-): string => `${type}:${timestampToSheetDate(timestamp)}`;
 
 const parseDateInput = (value: unknown): Timestamp | null => {
   const text = parseString(value);
@@ -2493,351 +2429,6 @@ const buildMemberLookup = async (
   });
 
   return lookup;
-};
-
-const resolveMemberId = (
-  lookup: Map<string, MemberSheetRef>,
-  value: string,
-): string | null => lookup.get(normalizeLookupKey(value))?.id || null;
-
-const resolveMemberIdByPhone = (
-  lookup: Map<string, MemberSheetRef>,
-  value: string,
-): string | null => {
-  const phoneKeys = phoneLookupKeys(value);
-  for (const phoneKey of phoneKeys) {
-    const resolved = lookup.get(phoneKey)?.id || null;
-    if (resolved) {
-      return resolved;
-    }
-  }
-  return null;
-};
-
-const resolveMemberIdFromCandidate = (
-  lookup: Map<string, MemberSheetRef>,
-  name: string | null,
-  phone: string | null = null,
-): string | null => {
-  if (name) {
-    const byName = resolveMemberId(lookup, name);
-    if (byName) {
-      return byName;
-    }
-  }
-  if (phone) {
-    return resolveMemberIdByPhone(lookup, phone);
-  }
-  return null;
-};
-
-const parseReplacementName = (value: unknown): string | null => {
-  const text = parseString(value);
-  if (!text) {
-    return null;
-  }
-
-  const match = text.match(/lo hace\s+(.+)$/i);
-  return match?.[1]?.trim() || null;
-};
-
-const toDeliveryShiftSheetRow = (
-  row: string[],
-  rowNumber: number,
-  definition: SheetRangeDefinition,
-  lookup: Map<string, MemberSheetRef>,
-): NormalizedShiftSheetRow | null => {
-  const date = parseDateInput(row[0]);
-  if (!date) {
-    return null;
-  }
-
-  const listedName = parseString(row[1]);
-  if (!listedName) {
-    return null;
-  }
-  const listedPhone = parseString(row[2]);
-  const replacementName = parseReplacementName(row[4]);
-  const assignedUserId = replacementName ?
-    resolveMemberIdFromCandidate(lookup, replacementName) ||
-      resolveMemberIdFromCandidate(lookup, listedName, listedPhone) :
-    resolveMemberIdFromCandidate(lookup, listedName, listedPhone);
-  if (!assignedUserId) {
-    logger.warn(
-      "Skipping delivery shift row because member could not be resolved",
-      {
-        rowNumber,
-        listedName,
-        listedPhone,
-        replacementName,
-        sheetName: parseSheetName(definition.range),
-      }
-    );
-    return null;
-  }
-
-  return {
-    shiftId: buildShiftId(definition.defaultType, date),
-    type: definition.defaultType,
-    date,
-    assignedUserIds: [assignedUserId],
-    helperUserId: null,
-    status: "planned",
-    source: "google_sheets",
-    rowNumber,
-    rowKey: buildShiftRowKey(definition.defaultType, date),
-    sheetName: parseSheetName(definition.range),
-  };
-};
-
-const buildMarketShiftSheetRow = (
-  date: Timestamp,
-  participants: MarketParticipantRow[],
-  rowNumber: number,
-  definition: SheetRangeDefinition,
-  lookup: Map<string, MemberSheetRef>,
-): NormalizedShiftSheetRow | null => {
-  const assignedUserIds = Array.from(new Set(
-    participants
-      .map((participant) =>
-        participant.replacementName ?
-          resolveMemberIdFromCandidate(lookup, participant.replacementName) ||
-            resolveMemberIdFromCandidate(
-              lookup,
-              participant.listedName,
-              participant.phone,
-            ) :
-          resolveMemberIdFromCandidate(
-            lookup,
-            participant.listedName,
-            participant.phone,
-          )
-      )
-      .filter((value): value is string => Boolean(value))
-  ));
-  if (assignedUserIds.length === 0) {
-    logger.warn(
-      "Skipping market shift block because no participants were resolved",
-      {
-        rowNumber,
-        participants,
-        sheetName: parseSheetName(definition.range),
-      }
-    );
-    return null;
-  }
-
-  return {
-    shiftId: buildShiftId(definition.defaultType, date),
-    type: definition.defaultType,
-    date,
-    assignedUserIds,
-    helperUserId: null,
-    status: "planned",
-    source: "google_sheets",
-    rowNumber,
-    rowKey: buildShiftRowKey(definition.defaultType, date),
-    sheetName: parseSheetName(definition.range),
-  };
-};
-
-const fetchSheetRows = async (
-  sheets: Awaited<ReturnType<typeof getSheetsClient>>,
-  spreadsheetId: string,
-  definition: SheetRangeDefinition,
-  lookup: Map<string, MemberSheetRef>,
-): Promise<NormalizedShiftSheetRow[]> => {
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: definition.range,
-  });
-  const rows = (response.data.values || []).map((row) =>
-    row.map((cell) => `${cell}`)
-  );
-  if (rows.length === 0) {
-    return [];
-  }
-
-  if (definition.layout === "delivery_human") {
-    return rows
-      .map((row, index) =>
-        toDeliveryShiftSheetRow(
-          row,
-          index + 1,
-          definition,
-          lookup,
-        )
-      )
-      .filter((row): row is NormalizedShiftSheetRow => Boolean(row));
-  }
-
-  const marketRows: NormalizedShiftSheetRow[] = [];
-  let currentDate: Timestamp | null = null;
-  let currentDateRowNumber = 0;
-  let participants: MarketParticipantRow[] = [];
-
-  const flushCurrentBlock = () => {
-    if (!currentDate) {
-      return;
-    }
-    const shiftRow = buildMarketShiftSheetRow(
-      currentDate,
-      participants,
-      currentDateRowNumber,
-      definition,
-      lookup,
-    );
-    if (shiftRow) {
-      marketRows.push(shiftRow);
-    }
-    currentDate = null;
-    currentDateRowNumber = 0;
-    participants = [];
-  };
-
-  rows.forEach((row, index) => {
-    const rowNumber = index + 1;
-    const firstCell = parseString(row[0]);
-    const secondCell = parseString(row[1]);
-    const maybeDate = parseDateInput(firstCell);
-
-    if (maybeDate && !secondCell) {
-      flushCurrentBlock();
-      currentDate = maybeDate;
-      currentDateRowNumber = rowNumber;
-      return;
-    }
-
-    if (!currentDate) {
-      return;
-    }
-
-    if (!firstCell) {
-      flushCurrentBlock();
-      return;
-    }
-
-    const replacementName = parseReplacementName(row[2]);
-    participants.push({
-      listedName: firstCell,
-      phone: secondCell,
-      replacementName,
-    });
-  });
-
-  flushCurrentBlock();
-  return marketRows;
-};
-
-const withDerivedDeliveryHelpers = (
-  rows: NormalizedShiftSheetRow[],
-): NormalizedShiftSheetRow[] => {
-  const deliveryRows = rows
-    .filter((row) => row.type === "delivery")
-    .sort((left, right) => left.date.toMillis() - right.date.toMillis());
-  const helperByRowKey = new Map<string, string | null>();
-
-  deliveryRows.forEach((row, index) => {
-    const nextShift = deliveryRows[index + 1];
-    helperByRowKey.set(
-      row.rowKey,
-      nextShift?.assignedUserIds?.[0] || null,
-    );
-  });
-
-  return rows.map((row) =>
-    row.type === "delivery" ? {
-      ...row,
-      helperUserId: helperByRowKey.get(row.rowKey) || null,
-    } : row
-  );
-};
-
-const syncShiftRowsIntoFirestore = async (
-  env: AppEnvironment,
-  rows: NormalizedShiftSheetRow[],
-  planningAuthority: ShiftPlanningWriterAuthority | null,
-): Promise<number> => {
-  const root = `${env}/plus-collections`;
-  const collection = firestore.collection(`${root}/shifts`);
-  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
-  const importedAt = FieldValue.serverTimestamp();
-  const importedIds = new Set(rows.map((row) => row.shiftId));
-  let writes = 0;
-
-  const authorizePlanningWrite = async (transaction: Transaction) => {
-    await assertShiftPlanningWriterAuthorityInTransaction({
-      transaction,
-      stateReference: planningStateReference,
-      capturedValue: planningAuthority,
-      changedCode: "shift_import_planning_authority_changed",
-      changedMessage: "Shift import planning authority changed",
-    });
-  };
-
-  for (const row of rows) {
-    const result = await runShiftPlanningNotificationGuardedShiftWrite({
-      firestore,
-      root,
-      shiftId: row.shiftId,
-      clock: () => Timestamp.now(),
-      authorize: authorizePlanningWrite,
-      mutate: ({transaction, reference, snapshot}) => {
-        const existingCreatedAt = snapshot.get("createdAt");
-        transaction.set(reference, {
-          type: row.type,
-          date: row.date,
-          assignedUserIds: row.assignedUserIds,
-          helperUserId: row.helperUserId,
-          status: row.status,
-          source: row.source,
-          createdAt: existingCreatedAt instanceof Timestamp ?
-            existingCreatedAt :
-            FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          syncMeta: {
-            origin: "google_sheets",
-            rowKey: row.rowKey,
-            rowNumber: row.rowNumber,
-            sheetName: row.sheetName,
-            importedAt,
-          },
-        }, {merge: true});
-      },
-    });
-    requireShiftPlanningNotificationGuardedWrite(result);
-    writes += 1;
-  }
-
-  const staleSnapshot = await collection
-    .where("source", "==", "google_sheets")
-    .get();
-  const staleDocs = staleSnapshot.docs.filter(
-    (doc) => !importedIds.has(doc.id),
-  );
-  for (const staleDoc of staleDocs) {
-    const result = await runShiftPlanningNotificationGuardedShiftWrite({
-      firestore,
-      root,
-      shiftId: staleDoc.id,
-      clock: () => Timestamp.now(),
-      authorize: authorizePlanningWrite,
-      mutate: ({transaction, reference, snapshot}) => {
-        if (
-          !snapshot.exists ||
-          snapshot.get("source") !== "google_sheets" ||
-          importedIds.has(snapshot.id)
-        ) {
-          return false;
-        }
-        transaction.delete(reference);
-        return true;
-      },
-    });
-    requireShiftPlanningNotificationGuardedWrite(result);
-  }
-
-  return writes;
 };
 
 const toShiftRecord = (
@@ -3063,6 +2654,21 @@ const upsertShiftRowInSheet = async (
   if (normalizedRows[0]?.[0] === "shiftId") {
     throw new Error("A technical table is not a reviewed human layout.");
   }
+  const generatedDelivery = shift.type === "delivery" &&
+    SHIFT_SHEETS_HUMAN_HEADERS.delivery.every((header, index) =>
+      normalizedRows[0]?.[index] === header);
+  const helperName = shift.helperUserId ?
+    membersById.get(shift.helperUserId)?.displayName : "";
+  if (generatedDelivery && shift.helperUserId && !helperName?.trim()) {
+    throw new Error("Readable delivery export needs its named helper.");
+  }
+  const deliveryValues = (existing: string[] = []) => {
+    const values = toDeliveryHumanRow(
+      shift, membersById, effectiveDate, existing,
+    );
+    if (generatedDelivery) values[5] = helperName ?? "";
+    return values;
+  };
   const effectiveDate = resolveEffectiveDeliveryDate(shift, deliveryOverrides);
   const matchingRows = normalizedRows.filter((row) => {
     const date = parseDateInput(row[0]);
@@ -3091,9 +2697,7 @@ const upsertShiftRowInSheet = async (
         timestampToIsoWeekKey(rowDate) === targetWeekKey
       ) {
         const rowNumber = rowOffset + 1;
-        const values = toDeliveryHumanRow(
-          shift, membersById, effectiveDate, row,
-        );
+        const values = deliveryValues(row);
         await runSheetMutation(() => sheets.spreadsheets.values.batchUpdate({
           spreadsheetId,
           requestBody: {valueInputOption: "RAW", data: [
@@ -3107,7 +2711,7 @@ const upsertShiftRowInSheet = async (
       }
     }
 
-    if (normalizedRows.length + 2 > 2000) {
+    if (normalizedRows.length + (generatedDelivery ? 1 : 2) > 2000) {
       throw new Error("Human delivery table exceeds the bounded export range.");
     }
     await runSheetMutation(() => sheets.spreadsheets.values.append({
@@ -3117,8 +2721,9 @@ const upsertShiftRowInSheet = async (
       insertDataOption: "INSERT_ROWS",
       requestBody: {
         values: [
-          [formatHumanMonthHeading(effectiveDate)],
-          toDeliveryHumanRow(shift, membersById, effectiveDate),
+          ...(generatedDelivery ? [] :
+            [[formatHumanMonthHeading(effectiveDate)]]),
+          deliveryValues(),
         ],
       },
     }));
@@ -3236,512 +2841,6 @@ const parseLegacyShiftPlanningRequest = (
     requestedAt,
     status,
   };
-};
-
-const targetSeasonStartYearFromNow = (): number => {
-  const now = new Date();
-  const utcYear = now.getUTCFullYear();
-  const utcMonth = now.getUTCMonth() + 1;
-  return utcMonth >= 9 ? utcYear + 1 : utcYear;
-};
-
-const buildSeasonLabel = (seasonStartYear: number): string =>
-  `${seasonStartYear}-${`${(seasonStartYear + 1) % 100}`.padStart(2, "0")}`;
-
-const buildDeliverySheetName = (seasonLabel: string): string =>
-  `turnos-reparto ${seasonLabel}`;
-
-const buildMarketSheetName = (seasonLabel: string): string =>
-  `turnos-mercado ${seasonLabel}`;
-
-const shiftTypeLabelEs = (type: ShiftPlanningRequestType): string =>
-  type === "delivery" ? "reparto" : "mercado";
-
-const normalizeWeekdayWireValue = (value: string | null): string =>
-  (value || "WED").trim().toUpperCase();
-
-const weekdayWireValueToUtcDay = (value: string | null): number => {
-  switch (normalizeWeekdayWireValue(value)) {
-  case "MON":
-    return 1;
-  case "TUE":
-    return 2;
-  case "WED":
-    return 3;
-  case "THU":
-    return 4;
-  case "FRI":
-    return 5;
-  case "SAT":
-    return 6;
-  case "SUN":
-    return 0;
-  default:
-    return 3;
-  }
-};
-
-const addUtcDays = (date: Date, days: number): Date => {
-  const result = new Date(date.getTime());
-  result.setUTCDate(result.getUTCDate() + days);
-  return result;
-};
-
-const timestampFromUtcDate = (date: Date): Timestamp =>
-  Timestamp.fromDate(new Date(Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-  )));
-
-const getDefaultDeliveryDayWireValue = async (
-  env: string,
-): Promise<string> => {
-  for (const ref of globalConfigDocRefs(env)) {
-    const snapshot = await ref.get();
-    if (!snapshot.exists) {
-      continue;
-    }
-    const topLevel = parseString(snapshot.get("deliveryDayOfWeek"));
-    if (topLevel) {
-      return normalizeWeekdayWireValue(topLevel);
-    }
-    const deliveryCalendar = parseBody(snapshot.get("deliveryCalendar"));
-    const nested = parseString(deliveryCalendar.deliveryDayOfWeek);
-    if (nested) {
-      return normalizeWeekdayWireValue(nested);
-    }
-  }
-  return "WED";
-};
-
-const listEligiblePlanningMembers = async (
-  env: string,
-): Promise<PlanningMemberRef[]> => {
-  const snapshot = await plusUsersCollection(env)
-    .where("isActive", "==", true)
-    .get();
-
-  return snapshot.docs
-    .map((doc) => {
-      const createdAt = doc.get("createdAt");
-      const updatedAt = doc.get("updatedAt");
-      return {
-        id: doc.id,
-        displayName: parseString(doc.get("displayName")) || doc.id,
-        normalizedEmail:
-          parseString(doc.get("normalizedEmail")) ||
-          parseString(doc.get("emailNormalized")) ||
-          "",
-        phone: parseString(doc.get("phone")),
-        isActive: doc.get("isActive") === true,
-        roles: parseRoles(doc.get("roles")),
-        isCommonPurchaseManager:
-          doc.get("isCommonPurchaseManager") === true,
-        createdAtMillis: createdAt instanceof Timestamp ?
-          createdAt.toMillis() :
-          0,
-        updatedAtMillis: updatedAt instanceof Timestamp ?
-          updatedAt.toMillis() :
-          0,
-      };
-    })
-    .filter(isEligibleForShiftRotation);
-};
-
-const shuffleArray = <T>(values: T[]): T[] => {
-  const copy = [...values];
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
-  }
-  return copy;
-};
-
-const buildPlanningRoster = (
-  activeMembers: PlanningMemberRef[],
-  existingRotationUserIds: string[],
-): PlanningMemberRef[] => {
-  const activeById = new Map(
-    activeMembers.map((member) => [member.id, member]),
-  );
-  const knownMembers = existingRotationUserIds
-    .map((userId) => activeById.get(userId))
-    .filter((member): member is PlanningMemberRef => Boolean(member));
-  const knownIds = new Set(knownMembers.map((member) => member.id));
-  const appendedMembers = activeMembers
-    .filter((member) => !knownIds.has(member.id))
-    .sort((left, right) =>
-      left.displayName.localeCompare(right.displayName, "es", {
-        sensitivity: "base",
-      })
-    );
-
-  if (knownMembers.length === 0) {
-    return shuffleArray(activeMembers);
-  }
-
-  const shuffledKnown = shuffleArray(knownMembers);
-  const roster = [...shuffledKnown, ...appendedMembers];
-  return roster;
-};
-
-const existingRotationUserIdsForType = (
-  shifts: FirestoreShiftRecord[],
-  type: ShiftPlanningRequestType,
-): string[] => {
-  const orderedIds = shifts
-    .filter((shift) => shift.type === type)
-    .sort((left, right) => left.date.toMillis() - right.date.toMillis())
-    .flatMap((shift) => shift.assignedUserIds);
-  return Array.from(new Set(orderedIds));
-};
-
-const buildDeliverySeasonDates = (
-  seasonStartYear: number,
-  deliveryWeekdayWireValue: string,
-): Timestamp[] => {
-  const start = new Date(Date.UTC(seasonStartYear, 8, 1));
-  const end = new Date(Date.UTC(seasonStartYear + 1, 5, 30));
-  const targetDay = weekdayWireValueToUtcDay(deliveryWeekdayWireValue);
-  const offset = (targetDay - start.getUTCDay() + 7) % 7;
-  const firstDate = addUtcDays(start, offset);
-  const results: Timestamp[] = [];
-
-  for (
-    let current = firstDate;
-    current.getTime() <= end.getTime();
-    current = addUtcDays(current, 7)
-  ) {
-    results.push(timestampFromUtcDate(current));
-  }
-
-  return results;
-};
-
-const thirdSaturdayOfMonth = (
-  year: number,
-  monthIndex: number,
-): Timestamp => {
-  const firstDay = new Date(Date.UTC(year, monthIndex, 1));
-  const firstSaturdayOffset = (6 - firstDay.getUTCDay() + 7) % 7;
-  const thirdSaturday = addUtcDays(firstDay, firstSaturdayOffset + 14);
-  return timestampFromUtcDate(thirdSaturday);
-};
-
-const buildMarketSeasonDates = (
-  seasonStartYear: number,
-): Timestamp[] => {
-  const months = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5];
-  return months.map((monthIndex) => {
-    const year = monthIndex >= 8 ? seasonStartYear : seasonStartYear + 1;
-    return thirdSaturdayOfMonth(year, monthIndex);
-  });
-};
-
-const ensureMinimumGroupSize = (
-  groups: string[][],
-  minimum: number,
-): string[][] => {
-  const normalized = groups.map((group) => [...group]);
-  while (
-    normalized.length > 1 &&
-    normalized[normalized.length - 1].length > 0 &&
-    normalized[normalized.length - 1].length < minimum
-  ) {
-    const leftovers = normalized.pop() || [];
-    leftovers.forEach((userId) => {
-      const index = Math.floor(Math.random() * normalized.length);
-      normalized[index].push(userId);
-    });
-  }
-  return normalized;
-};
-
-const buildMarketGroups = (
-  activeMembers: PlanningMemberRef[],
-  monthsCount: number,
-): string[][] => {
-  if (activeMembers.length === 0) {
-    return [];
-  }
-
-  const roster = buildPlanningRoster(activeMembers, []);
-  let groups: string[][] = [];
-  for (let index = 0; index < roster.length; index += 3) {
-    groups.push(roster.slice(index, index + 3).map((member) => member.id));
-  }
-  groups = ensureMinimumGroupSize(groups, 3);
-
-  if (groups.length > monthsCount) {
-    const kept = groups.slice(0, monthsCount);
-    const overflowMembers = groups.slice(monthsCount).flat();
-    overflowMembers.forEach((userId) => {
-      const index = Math.floor(Math.random() * kept.length);
-      kept[index].push(userId);
-    });
-    groups = kept;
-  }
-
-  let cursor = 0;
-  while (groups.length < monthsCount) {
-    const group: string[] = [];
-    while (group.length < 3) {
-      group.push(roster[cursor % roster.length].id);
-      cursor += 1;
-    }
-    groups.push(group);
-  }
-
-  return groups;
-};
-
-const buildDeliveryPlannedShifts = (
-  seasonStartYear: number,
-  activeMembers: PlanningMemberRef[],
-  existingShifts: FirestoreShiftRecord[],
-  deliveryWeekdayWireValue: string,
-): FirestoreShiftRecord[] => {
-  const dates = buildDeliverySeasonDates(
-    seasonStartYear,
-    deliveryWeekdayWireValue,
-  );
-  if (dates.length === 0 || activeMembers.length === 0) {
-    return [];
-  }
-
-  const existingRotationUserIds = existingRotationUserIdsForType(
-    existingShifts,
-    "delivery",
-  );
-  const rounds: PlanningMemberRef[] = [];
-  while (rounds.length < dates.length) {
-    rounds.push(...buildPlanningRoster(activeMembers, existingRotationUserIds));
-  }
-
-  return dates.map((date, index) => ({
-    id: buildShiftId("delivery", date),
-    type: "delivery" as const,
-    date,
-    assignedUserIds: [rounds[index].id],
-    helperUserId: rounds[index + 1]?.id || null,
-    status: "planned" as const,
-    source: "planner",
-    syncSheetName: buildDeliverySheetName(buildSeasonLabel(seasonStartYear)),
-  }));
-};
-
-const buildMarketPlannedShifts = (
-  seasonStartYear: number,
-  activeMembers: PlanningMemberRef[],
-): FirestoreShiftRecord[] => {
-  const dates = buildMarketSeasonDates(seasonStartYear);
-  const groups = buildMarketGroups(activeMembers, dates.length);
-  return dates.map((date, index) => ({
-    id: buildShiftId("market", date),
-    type: "market" as const,
-    date,
-    assignedUserIds: groups[index] || [],
-    helperUserId: null,
-    status: "planned" as const,
-    source: "planner",
-    syncSheetName: buildMarketSheetName(buildSeasonLabel(seasonStartYear)),
-  }));
-};
-
-const ensureSheetExists = async (
-  sheets: Awaited<ReturnType<typeof getSheetsClient>>,
-  spreadsheetId: string,
-  sheetName: string,
-): Promise<void> => {
-  const spreadsheet = await sheets.spreadsheets.get({
-    spreadsheetId,
-    fields: "sheets.properties.title",
-  });
-  const exists = spreadsheet.data.sheets?.some(
-    (sheet) => sheet.properties?.title === sheetName,
-  );
-  if (exists) {
-    return;
-  }
-
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      requests: [
-        {
-          addSheet: {
-            properties: {
-              title: sheetName,
-            },
-          },
-        },
-      ],
-    },
-  });
-};
-
-const updateWholeSheet = async (
-  sheets: Awaited<ReturnType<typeof getSheetsClient>>,
-  spreadsheetId: string,
-  sheetName: string,
-  values: string[][],
-): Promise<void> => {
-  await ensureSheetExists(sheets, spreadsheetId, sheetName);
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId,
-    range: `${sheetName}!A:Z`,
-  });
-  if (values.length === 0) {
-    return;
-  }
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `${sheetName}!A1`,
-    valueInputOption: "RAW",
-    requestBody: {
-      values,
-    },
-  });
-};
-
-const buildDeliverySheetValues = (
-  shifts: FirestoreShiftRecord[],
-  seasonLabel: string,
-  membersById: Map<string, MemberSheetRef>,
-  deliveryOverrides: DeliveryCalendarOverrideMap,
-): string[][] => {
-  const rows: string[][] = [[`TURNOS REPARTO ${seasonLabel}`], []];
-  let currentMonthHeading = "";
-  shifts.forEach((shift) => {
-    const effectiveDate = resolveEffectiveDeliveryDate(
-      shift,
-      deliveryOverrides,
-    );
-    const monthHeading = formatHumanMonthHeading(effectiveDate);
-    if (monthHeading !== currentMonthHeading) {
-      rows.push([monthHeading]);
-      currentMonthHeading = monthHeading;
-    }
-    rows.push(toDeliveryHumanRow(shift, membersById, effectiveDate));
-  });
-  return rows;
-};
-
-const buildMarketSheetValues = (
-  shifts: FirestoreShiftRecord[],
-  seasonLabel: string,
-  membersById: Map<string, MemberSheetRef>,
-): string[][] => {
-  const rows: string[][] = [[`TURNOS MERCADO ${seasonLabel}`], []];
-  shifts.forEach((shift) => {
-    rows.push([formatHumanLongDate(shift.date)]);
-    rows.push(toMarketHumanLeadRow(shift, membersById));
-    rows.push(...toMarketHumanSupportRows(shift, membersById));
-  });
-  return rows;
-};
-
-const persistPlannedShifts = async (
-  env: AppEnvironment,
-  requestId: string,
-  shifts: FirestoreShiftRecord[],
-  planningAuthority: ShiftPlanningWriterAuthority | null,
-): Promise<number> => {
-  const root = `${env}/plus-collections`;
-  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
-  let writes = 0;
-
-  const authorizePlanningWrite = async (transaction: Transaction) => {
-    await assertShiftPlanningWriterAuthorityInTransaction({
-      transaction,
-      stateReference: planningStateReference,
-      capturedValue: planningAuthority,
-      changedCode: "shift_planner_planning_authority_changed",
-      changedMessage: "Shift planner authority changed",
-    });
-  };
-
-  for (const shift of shifts) {
-    const result = await runShiftPlanningNotificationGuardedShiftWrite({
-      firestore,
-      root,
-      shiftId: shift.id,
-      clock: () => Timestamp.now(),
-      authorize: authorizePlanningWrite,
-      mutate: ({transaction, reference, snapshot}) => {
-        const existingCreatedAt = snapshot.get("createdAt");
-        transaction.set(reference, {
-          type: shift.type,
-          date: shift.date,
-          assignedUserIds: shift.assignedUserIds,
-          helperUserId: shift.helperUserId,
-          status: shift.status,
-          source: shift.source,
-          createdAt: existingCreatedAt instanceof Timestamp ?
-            existingCreatedAt :
-            FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          planningMeta: {
-            requestId,
-            seasonLabel:
-              shift.syncSheetName?.replace(
-                /^turnos-(reparto|mercado)\s+/i,
-                "",
-              ) || null,
-          },
-          syncMeta: {
-            origin: "planner",
-            sheetName: shift.syncSheetName,
-          },
-        }, {merge: true});
-      },
-    });
-    requireShiftPlanningNotificationGuardedWrite(result);
-    writes += 1;
-  }
-
-  return writes;
-};
-
-const createShiftPlanningNotification = async (
-  env: AppEnvironment,
-  type: ShiftPlanningRequestType,
-  seasonLabel: string,
-  requestedByUserId: string,
-  userIds: string[],
-  planningAuthority: ShiftPlanningWriterAuthority | null,
-): Promise<void> => {
-  const uniqueUserIds = Array.from(new Set(userIds));
-  if (uniqueUserIds.length === 0) {
-    return;
-  }
-  const root = `${env}/plus-collections`;
-  const eventReference = firestore.collection(
-    `${root}/notificationEvents`,
-  ).doc();
-  await firestore.runTransaction(async (transaction) => {
-    await assertShiftPlanningWriterAuthorityInTransaction({
-      transaction,
-      stateReference: shiftPlanningMaintenanceStateReference(env),
-      capturedValue: planningAuthority,
-      changedCode: "shift_planner_planning_authority_changed",
-      changedMessage: "Shift planner authority changed",
-    });
-    transaction.create(eventReference, {
-      title: `Nuevos turnos de ${shiftTypeLabelEs(type)}`,
-      body:
-        `Ya tienes disponibles los turnos de ${shiftTypeLabelEs(type)} ` +
-        `para la temporada ${seasonLabel}.`,
-      type: "shift_planning_generated",
-      target: "users",
-      targetPayload: {
-        userIds: uniqueUserIds,
-      },
-      createdBy: requestedByUserId,
-      sentAt: FieldValue.serverTimestamp(),
-    });
-  });
 };
 
 const shiftExportStateMatches = (
@@ -3959,52 +3058,6 @@ const exportAllShiftsToGoogleSheets = async (
   };
 };
 
-const syncShiftsFromGoogleSheetsInternal = async (
-  env: AppEnvironment,
-): Promise<{
-  importedCount: number;
-  deliveryCount: number;
-  marketCount: number;
-}> => {
-  const sheetConfig = getSheetConfig(env);
-  if (!sheetConfig) {
-    throw new Error(
-      `Missing sheets configuration for env=${env}. ` +
-      "Expected explicit SHEETS_* variables for this environment."
-    );
-  }
-
-  const sheets = await getSheetsClient();
-  const lookup = await buildMemberLookup(env);
-  const definitions = sheetRangeDefinitions(sheetConfig);
-  const rowsByRange = await Promise.all(
-    definitions.map((definition) =>
-      fetchSheetRows(
-        sheets,
-        sheetConfig.spreadsheetId,
-        definition,
-        lookup,
-      )
-    )
-  );
-  const rows = withDerivedDeliveryHelpers(rowsByRange.flat());
-  const planningAuthority =
-    await captureShiftPlanningWriterAuthorityFromReference(
-      shiftPlanningMaintenanceStateReference(env),
-    );
-  const importedCount = await syncShiftRowsIntoFirestore(
-    env,
-    rows,
-    planningAuthority,
-  );
-
-  return {
-    importedCount,
-    deliveryCount: rows.filter((row) => row.type === "delivery").length,
-    marketCount: rows.filter((row) => row.type === "market").length,
-  };
-};
-
 export const sendPendingOrderReminderSunday20 = onSchedule(
   {
     schedule: "0 20 * * 0",
@@ -4135,13 +3188,11 @@ export const syncShiftsFromGoogleSheets = onRequest(async (req, res) => {
     const env = parseRequestEnvironment(req);
     const identity = await verifyRequestIdentity(req);
     await requireAdminInEnvironment(env, identity);
-    const summary = await syncShiftsFromGoogleSheetsInternal(env);
-    logger.info("✅ Shifts synced from Google Sheets", {env, ...summary});
-    res.status(200).json({
-      ok: true,
-      env,
-      ...summary,
-    });
+    throw new HttpRequestError(
+      410,
+      "legacy_shift_sync_retired",
+      "Use the reviewed executeShiftSheetsImport prepare/apply/writeBack flow.",
+    );
   } catch (error) {
     sendHttpError(res, error);
   }
@@ -4243,95 +3294,6 @@ export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
   }
 });
 
-const processShiftPlanningRequest = async (
-  env: AppEnvironment,
-  request: ShiftPlanningRequestRecord,
-): Promise<{
-  seasonLabel: string;
-  sheetName: string;
-  generatedCount: number;
-}> => {
-  const seasonStartYear = targetSeasonStartYearFromNow();
-  const seasonLabel = buildSeasonLabel(seasonStartYear);
-  const existingShifts = await readAllShifts(env);
-  const activeMembers = await listEligiblePlanningMembers(env);
-
-  if (activeMembers.length === 0) {
-    throw new Error("No active members available for planning.");
-  }
-
-  const plannedShifts = request.type === "delivery" ?
-    buildDeliveryPlannedShifts(
-      seasonStartYear,
-      activeMembers,
-      existingShifts,
-      await getDefaultDeliveryDayWireValue(env),
-    ) :
-    buildMarketPlannedShifts(seasonStartYear, activeMembers);
-
-  if (plannedShifts.length === 0) {
-    throw new Error(
-      "No shifts were generated for the requested planning type.",
-    );
-  }
-
-  const sheetConfig = getSheetConfig(env);
-  if (!sheetConfig) {
-    throw new Error("Missing sheets configuration for shift planning.");
-  }
-
-  const [sheets, membersById, deliveryOverrides] = await Promise.all([
-    getSheetsClient(),
-    loadMembersById(env),
-    readDeliveryCalendarOverrideMap(env),
-  ]);
-
-  const sheetName = request.type === "delivery" ?
-    buildDeliverySheetName(seasonLabel) :
-    buildMarketSheetName(seasonLabel);
-  const sheetValues = request.type === "delivery" ?
-    buildDeliverySheetValues(
-      plannedShifts,
-      seasonLabel,
-      membersById,
-      deliveryOverrides,
-    ) :
-    buildMarketSheetValues(plannedShifts, seasonLabel, membersById);
-
-  const planningAuthority =
-    await captureShiftPlanningWriterAuthorityFromReference(
-      shiftPlanningMaintenanceStateReference(env),
-    );
-
-  await updateWholeSheet(
-    sheets,
-    sheetConfig.spreadsheetId,
-    sheetName,
-    sheetValues,
-  );
-
-  await persistPlannedShifts(
-    env,
-    request.id,
-    plannedShifts,
-    planningAuthority,
-  );
-  await createShiftPlanningNotification(
-    env,
-    request.type,
-    seasonLabel,
-    request.requestedByUserId,
-    plannedShifts.flatMap((shift) => shift.assignedUserIds),
-    planningAuthority,
-  );
-
-  return {
-    seasonLabel,
-    sheetName,
-    generatedCount: plannedShifts.length,
-  };
-};
-
 export const onVersionedShiftPlanningRequestCreated =
   createVersionedShiftPlanningRequestTrigger(
     shiftPlanningRuntime,
@@ -4384,46 +3346,29 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
       return;
     }
 
-    await snapshot.ref.set({
-      status: "processing",
-      processingStartedAt: FieldValue.serverTimestamp(),
-    }, {merge: true});
-
-    try {
-      const summary = await processShiftPlanningRequest(
-        parseAppEnvironment(env),
-        request,
-      );
-      await snapshot.ref.set({
-        status: "completed",
-        completedAt: FieldValue.serverTimestamp(),
-        seasonLabel: summary.seasonLabel,
-        sheetName: summary.sheetName,
-        generatedCount: summary.generatedCount,
-      }, {merge: true});
-      logShiftPlanningOperationalEvent(logger, {
-        kind: "legacyCompleted",
-        environment: parseAppEnvironment(env),
-        requestId: request.id,
-        planningType: request.type,
-        seasonLabel: summary.seasonLabel,
-        generatedCount: summary.generatedCount,
-      });
-    } catch (error) {
-      await snapshot.ref.set({
+    // Re-read inside the transaction: delayed events cannot overwrite a v2
+    // request or a terminal result that replaced the original snapshot.
+    const retired = await firestore.runTransaction(async (transaction) => {
+      const current = await transaction.get(snapshot.ref);
+      if (classifyShiftPlanningCreatedRequest(current.data()) !== "legacy") {
+        return false;
+      }
+      const pending = parseLegacyShiftPlanningRequest(current);
+      if (!pending || pending.status !== "requested") return false;
+      transaction.update(snapshot.ref, {
         status: "failed",
         failedAt: FieldValue.serverTimestamp(),
-        errorMessage:
-          error instanceof Error ? error.message : "Unknown planning error",
-      }, {merge: true});
-      logShiftPlanningOperationalEvent(logger, {
-        kind: "legacyFailed",
-        environment: parseAppEnvironment(env),
-        requestId: request.id,
-        planningType: request.type,
-        error,
+        errorCode: "legacy_planning_retired",
+        errorMessage: "Esta solicitud antigua ya no se procesa. " +
+          "Crea una nueva previsualización desde la aplicación actualizada.",
       });
-    }
+      return true;
+    });
+    if (!retired) return;
+    logShiftPlanningOperationalEvent(logger, {
+      kind: "requestRejected", environment: parseAppEnvironment(env),
+      requestId: request.id, failureCode: "legacy_planning_retired",
+    });
   }
 );
 

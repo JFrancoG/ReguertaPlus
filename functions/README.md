@@ -113,26 +113,13 @@ pero respaldada por una hoja compartida de Google Sheets.
 
 ### Flujo inbound
 
-El endpoint HTTP:
-
-`https://europe-west1-reguerta-9f27f.cloudfunctions.net/syncShiftsFromGoogleSheets`
-
-lee los rangos configurados de Google Sheets y actualiza:
-
-`{env}/plus-collections/shifts/{shiftId}`
-
-Reglas MVP:
-- si la hoja trae `shiftId`, se reutiliza como id estable
-- si no, se genera un id determinista a partir de `type + date`
-- el documento se marca con `source: "google_sheets"`
-- se guarda trazabilidad mínima en `shifts.syncMeta`
-- tras leer la hoja, la operación captura la autoridad de planificación abierta;
-  cada alta, actualización o borrado revalida esa misma revisión/época dentro de
-  su transacción y se detiene si cambia
-
-El importador sigue siendo no atómico entre filas: una deriva posterior detiene
-las mutaciones restantes, pero no revierte las ya confirmadas. HU-083 sustituye
-este flujo por el consumidor multi-temporada gobernado.
+La revisión local HU-083 retira la importación no atómica de HU-020.
+`syncShiftsFromGoogleSheets` conserva método POST y autorización de administrador,
+pero devuelve `410 legacy_shift_sync_retired` sin leer Sheets ni escribir turnos.
+La alternativa es el endpoint **privado** `executeShiftSheetsImport` con llamadas
+separadas `prepare → apply → writeBack`, mapeo revisado por entorno y digest
+esperado. No se delega automáticamente una invocación antigua a una aplicación
+sin revisión. El cambio de código no implica que esté desplegado.
 
 ### Flujo outbound
 
@@ -175,14 +162,14 @@ Contrato comun:
 - `Content-Type: application/json`
 - `env` o `environment`: `develop` o `production`
 
-Ejemplo de invocacion administrativa:
+Ejemplo de consulta administrativa del contexto de planificación:
 
 ```bash
 curl -X POST \
   -H "Authorization: Bearer $FIREBASE_ID_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"env":"develop"}' \
-  "https://europe-west1-reguerta-9f27f.cloudfunctions.net/syncShiftsFromGoogleSheets"
+  -d '{"schemaVersion":1,"environment":"develop"}' \
+  "https://europe-west1-reguerta-9f27f.cloudfunctions.net/resolveShiftPlanningRequestContext"
 ```
 
 Endpoints de aplicacion:
@@ -1449,6 +1436,38 @@ Parámetros opcionales:
 - `env=develop` o `env=production`
 - `envs=develop,production` (lista separada por comas)
 
+
+## Retirada de escritores antiguos (HU-083, corte 25)
+
+Los repositorios actuales de Android e iOS escriben solicitudes de planificación
+schema-v2 y no invocan el endpoint de sincronización antiguo. La función
+`onShiftPlanningRequestCreated` conserva la frontera de autorización pero marca
+una solicitud antigua pendiente como `failed / legacy_planning_retired` con un
+mensaje para crear una nueva previsualización. Relee el documento en transacción;
+no sobrescribe solicitudes v2, versiones desconocidas ni resultados terminales.
+Repetir el evento no reescribe el fallo. Las solicitudes v2 siguen perteneciendo
+a `onVersionedShiftPlanningRequestCreated` y a su pipeline existente.
+
+Se eliminan el importador por rangos fijos con escrituras/borrados parciales, el
+planificador antiguo, sus helpers exclusivos y `updateWholeSheet` (`values.clear`).
+Permanecen los dos entry points como respuestas de compatibilidad, las variables
+almacenadas y el lector aislado de configuración heredada. Antes del despliegue,
+HU-085 debe comprobar consumidores externos/versiones antiguas y drenar trabajo en
+curso; esta revisión local no certifica qué código está desplegado. El inventario conservador
+`hu082-affected-writers-v2` conserva sus identidades y referencias históricas;
+no se elimina un cerco por haber retirado su implementación solo localmente.
+
+La exportación ordinaria distingue la cabecera exacta creada por el adaptador:
+en reparto F contiene el **nombre de ayuda**, y añadir una fecha no introduce una
+cabecera de mes. En las hojas históricas conserva la semántica previa de número
+de semana. D:E y las notificaciones ordinarias se mantienen; un helper sin nombre
+impide escribir en el formato nuevo. También se permite vaciar una ayuda eliminada.
+
+Validación: lint/build; 197 casos locales correctos y 11 dependientes de emulador
+omitidos en esa invocación. La suite del cerco pasa 12/12 en emulador (los 11
+omitidos y un caso local repetido), junto con 19/19 de handlers exportados
+(5 nuevos), sin fallos/omisiones.
+No se modifican apps ni se ejecutan despliegues, mutaciones reales, IAM o FCM.
 
 ## Worker de activación legible (HU-083, corte 24)
 
