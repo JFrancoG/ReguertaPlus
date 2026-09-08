@@ -88,6 +88,49 @@ baseline and audit/repair tooling, plus the guarded live/zero-write rehearsal.
 No new `index.ts` wiring, deploy, live data write or Git delivery in this cut.
 HU-083 remains open.
 
+### Third local cut — import read and reconciliation preflight
+
+Commits `49ea875` and `a3f30af` were pushed to the HU-083 branch on 2026-09-08.
+The next authorized local cut reads an explicit union of seasonal tabs and builds
+an assignment-only review plan against a trusted Firestore baseline. Reuse the
+existing bounded Sheets snapshot and canonical projection codec; legacy delivery
+rows and market blocks require explicit layout/decorative-row mappings, never
+heuristic skipping. Resolve names/phones without ambiguous fallback, require three
+market participants, preserve ownership/completed history, and bind changed
+delivery neighbors and source revisions into the plan digest. Missing tabs,
+unresolved people, duplicate dates, partial reads and drift fail the entire read;
+absence yields an audit discrepancy, never a deletion.
+
+This cut delivers executable read/preflight APIs and tests. It does not convert
+live human tabs or apply assignments: transactional apply with source re-read,
+notification/writer fencing and changed-backend-event provenance remains the next
+integration boundary. Existing export continues to reject legacy headers until an
+explicit conversion is reviewed. No shared-project deploy or live mutation.
+
+### Third local cut — 2026-09-08
+
+The first two cuts are committed and pushed as `49ea875` and `a3f30af`.
+The third cut is local and uncommitted: reusable bounded Sheets reads, canonical
+export/import round-trip, explicit human delivery/market parsing, and a zero-write
+assignment reconciliation plan. Missing/partial tabs, ambiguous identities,
+incomplete market groups, formulas, changed authority cells and version drift
+reject the read; absent source rows produce diagnostics, never deletion commands.
+The plan includes current/previous/next delivery revisions, preserves completed
+predecessor history, and rejects equal adjacent leads or an unproven edge.
+
+Validation: lint/build pass; Sheets/import **38/38** (19 prior and 19 new cases),
+consumer regression **14/14** in Firestore emulation. Google APIs are simulated.
+The third cut changes no Rules or mobile contract; Android/iOS checks were not
+repeated. No live data access or mutation was needed for this cut.
+
+The source baseline, complete chronological neighborhood and member eligibility
+remain trusted caller inputs. Snapshot/plan digests are consistency checks, not
+credentials or proof of live CAS. The next cut must load/re-read that authority in
+a governed transaction, revalidate membership and writer/notification fences, and
+emit exact public-event provenance before applying any assignment. Live layout
+conversion, governed export/import endpoint wiring, inverse-event identity,
+audit/repair and rehearsal remain open. HU-083 is not complete.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its

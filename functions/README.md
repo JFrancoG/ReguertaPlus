@@ -324,6 +324,47 @@ No hay conexión nueva en `index.ts`, importación gobernada nueva, reparación 
 datos reales ni despliegue. Android e iOS siguen leyendo el contrato Firestore de
 HU-082.
 
+### HU-083: lectura de importación y plan previo
+
+`readShiftSheetsImport` reutiliza la lectura acotada del exportador. Recibe las
+pestañas exactas, baseline Firestore y miembros de confianza. Lee todas las pestañas
+seleccionadas o rechaza el conjunto; verifica la versión Drive antes/después.
+Devuelve asignaciones observadas, discrepancias por filas ausentes y digests de
+baseline, mapping y miembros. No escribe ni genera órdenes de borrado.
+
+Los formatos se seleccionan explícitamente por pestaña:
+
+- `canonical`: cabecera técnica exacta; sólo admite cambios en asignados/estado.
+  Identidad, fecha, temporada, propietario, helper, source/origin y rowDigest deben
+  coincidir con el baseline. El digest de fila sigue representando la exportación
+  anterior; no se recalcula en la hoja para encubrir una edición manual.
+- `delivery_human`: A fecha, B nombre, C teléfono, E sustitución opcional
+  `lo hace Nombre`. D/F no se importan. Los títulos/meses deben figurar en
+  `decorations` con número de fila y contenido exacto; no hay descarte heurístico.
+- `market_human`: cabecera de fecha seguida de tres participantes, con nombre,
+  teléfono opcional y sustitución en A/B/C. Se permite distinta separación entre
+  bloques. Un bloque incompleto, una identidad ambigua o sustitución desconocida
+  rechaza la lectura; nunca vuelve silenciosamente al titular original.
+
+Las fechas admiten ISO, día/mes/año explícito o serial entero de Sheets, sin
+conversión por la zona horaria del libro. Fórmulas en las celdas interpretadas se
+rechazan. Los nombres/teléfonos son aliases del catálogo facilitado; un teléfono
+contradictorio no resuelve un nombre ambiguo. Los turnos históricos sin cambios
+pueden conservar miembros inactivos; una asignación nueva exige elegibilidad.
+
+`planShiftSheetsImport` produce parches limitados a asignados, estado y helper
+previsto, más guards de revisión de los vecinos afectados. Conserva el helper del
+predecesor completado y rechaza cambios de historial, swaps pendientes, responsables
+adyacentes iguales y extremos sin vecinos demostrados. Los guards son valores para
+revisión: aún no son un CAS ejecutado. Aplicar exige cargar y releer autoridad real,
+cronología completa, elegibilidad y fences de escritores/notificaciones dentro del
+flujo transaccional, y generar la procedencia de evento correspondiente.
+
+Pruebas: `npm run test:shift-sheets` (38 casos) y
+`npm run test:shift-planning:sheets-consumer:emulator` (14 casos). Las APIs Google
+son simuladas. No se conecta este preflight al importador legacy de `index.ts`,
+no se convierten pestañas humanas y no se modifica ningún dato real.
+
 ### Baseline comunicable sin activación de producción
 
 La vía urgente documentada en

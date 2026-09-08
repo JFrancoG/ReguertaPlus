@@ -420,6 +420,17 @@ unexplained drift prevents submission. Collaborator exclusion remains required.
 This local cut adds no deployed trigger or scheduler, legacy-layout conversion,
 import path, live repair, or new authority to write a real workbook.
 
+The third HU-083 local cut adds read-only import/preflight, reusing the bounded
+export snapshot and canonical projection codec. Human layouts require an explicit
+per-tab mapping and exact decoration rows. Missing/partial tabs, ambiguous people,
+non-three-person markets or changes to ownership/provenance reject the import.
+Missing rows are discrepancies, never deletion authority. Assignment plans bind
+source revisions and the affected delivery neighborhood; completed predecessor
+history stays frozen and an unproven edge rejects the edit. These are review
+artifacts over trusted caller inputs, not completed CAS or live authority. Actual
+apply still requires trusted source loading, transactional neighborhood/membership
+revalidation, writer/notification fencing and exact changed-event provenance.
+
 Sheets commands are serialized by a monotonic epoch and lease per workbook/
 partition. A worker validates command plus active revision/digest before each batch
 and records read-back afterward. Recovery first supersedes and drains the activation

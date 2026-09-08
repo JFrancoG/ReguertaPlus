@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — second local cut validated; durable Sheets consumer
+- State: IN PROGRESS — third local cut validated; import preflight
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -62,6 +62,30 @@ and retention identity for public events, trigger/scheduler composition, complet
 baseline and audit/repair tooling, plus the guarded live/zero-write rehearsal.
 No new `index.ts` wiring, deploy, live data write or Git delivery in this cut.
 HU-083 remains open.
+
+### Third local cut — 2026-09-08
+
+The first two cuts are committed and pushed as `49ea875` and `a3f30af`.
+The third cut is local and uncommitted: reusable bounded Sheets reads, canonical
+export/import round-trip, explicit human delivery/market parsing, and a zero-write
+assignment reconciliation plan. Missing/partial tabs, ambiguous identities,
+incomplete market groups, formulas, changed authority cells and version drift
+reject the read; absent source rows produce diagnostics, never deletion commands.
+The plan includes current/previous/next delivery revisions, preserves completed
+predecessor history, and rejects equal adjacent leads or an unproven edge.
+
+Validation: lint/build pass; Sheets/import **38/38** (19 prior and 19 new cases),
+consumer regression **14/14** in Firestore emulation. Google APIs are simulated.
+The third cut changes no Rules or mobile contract; Android/iOS checks were not
+repeated. No live data access or mutation was needed for this cut.
+
+The source baseline, complete chronological neighborhood and member eligibility
+remain trusted caller inputs. Snapshot/plan digests are consistency checks, not
+credentials or proof of live CAS. The next cut must load/re-read that authority in
+a governed transaction, revalidate membership and writer/notification fences, and
+emit exact public-event provenance before applying any assignment. Live layout
+conversion, governed export/import endpoint wiring, inverse-event identity,
+audit/repair and rehearsal remain open. HU-083 is not complete.
 
 ## Workbook decision
 

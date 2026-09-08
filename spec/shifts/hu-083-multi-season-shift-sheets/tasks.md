@@ -32,6 +32,19 @@
 - [x] Update English/Spanish ADR-0013 and operational docs. This checkpoint does
   not close import/event integration, audit/repair, live rehearsal or HU-083.
 
+## Third local cut — 2026-09-08
+
+- [x] Commit and push the first two cuts: `49ea875`, `a3f30af`.
+- [x] Reuse bounded snapshot/projection codecs for canonical export/import.
+- [x] Read the explicit seasonal union with exact human decoration mappings;
+  reject missing/partial tabs, unresolved replacements and incomplete market groups.
+- [x] Produce a zero-write assignment plan with source-revision guards and digest;
+  preserve ownership/completed history and reject unsafe delivery neighborhoods.
+- [x] Validate lint/build, 38 Sheets/import cases and 14 consumer emulator cases.
+- [ ] Apply through a real source transaction, including membership, complete
+  neighborhood, writer/notification fences and exact backend-event provenance.
+  The preflight alone is not governed import completion or live repair evidence.
+
 ## 0. Dependency and read-only inventory
 
 - [x] Accept the frozen HU-082 integration boundary in

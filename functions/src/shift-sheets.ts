@@ -105,7 +105,7 @@ const cellText = (cell?: Cell): string => {
   return value.formulaValue ?? "";
 };
 
-const projectionsFor = (
+export const buildShiftSheetsProjections = (
   config: ShiftSheetsConfig,
   rows: readonly ShiftSheetsProjectionRow[],
 ): readonly Projection[] => {
@@ -165,7 +165,7 @@ const projectionDigestFor = (
   headers: SHIFT_SHEETS_HEADERS, projections,
 });
 
-const gridRows = (sheet: Sheet): Cell[][] => {
+export const shiftSheetsGridRows = (sheet: Sheet): Cell[][] => {
   const rows: Cell[][] = [];
   for (const grid of sheet.data ?? []) {
     const rowStart = grid.startRow ?? 0;
@@ -266,7 +266,7 @@ export const planShiftSheetsMerge = (
       "sheets_workbook_mismatch", "Snapshot belongs to another workbook.",
     );
   }
-  const projections = projectionsFor(config, inputRows);
+  const projections = buildShiftSheetsProjections(config, inputRows);
   const requests: Request[] = [];
   const sheets: {title: string; sheetId: number}[] = [];
   const usedIds = new Set((spreadsheet.sheets ?? [])
@@ -277,7 +277,7 @@ export const planShiftSheetsMerge = (
   for (const sheet of spreadsheet.sheets ?? []) {
     const title = sheet.properties?.title ?? "";
     if (!titles.has(title)) continue;
-    const rows = gridRows(sheet);
+    const rows = shiftSheetsGridRows(sheet);
     for (const [id, index] of existingRows(rows)) {
       const type = cellText(rows[index]?.[1]);
       const date = cellText(rows[index]?.[2]);
@@ -325,7 +325,7 @@ export const planShiftSheetsMerge = (
     validateSheetSize(sheet);
     const sheetId = sheet.properties?.sheetId as number;
     sheets.push({title, sheetId});
-    const rows = gridRows(sheet);
+    const rows = shiftSheetsGridRows(sheet);
     const hasContent = rows.some((row) => row.some((cell) => cellText(cell)));
     if (hasContent && SHIFT_SHEETS_HEADERS.some((header, column) =>
       cellText(rows[0]?.[column]) !== header ||
@@ -441,6 +441,68 @@ const columnName = (count: number): string => count <= 26 ?
     String.fromCharCode(65 + (count - 1) % 26);
 
 /**
+ * Reads complete bounded grids for explicit titles, retaining other tab IDs.
+ * Missing titles remain absent for create planners; import must reject them.
+ * @param {object} input Pinned workbook and explicit selected titles.
+ * @return {Spreadsheet} Metadata plus complete grids for existing selected
+ * tabs.
+ */
+export const readShiftSheetsSnapshot = async (input: {
+  config: ShiftSheetsConfig;
+  sheets: Pick<SheetsV4.Resource$Spreadsheets, "get">;
+  titles: readonly string[];
+}): Promise<Spreadsheet> => {
+  const {config, sheets} = input;
+  const titles = new Set(input.titles);
+  if (!titles.size || titles.size > SHIFT_SHEETS_LIMITS.tabs) {
+    return fail("sheets_limit", "Selected tab count is outside the limit.");
+  }
+  const metadata = (await sheets.get({
+    spreadsheetId: config.workbookId,
+    fields: "spreadsheetId,sheets(properties,protectedRanges,merges," +
+        "developerMetadata)",
+  }, REQUEST_OPTIONS)).data;
+  if (metadata.spreadsheetId !== config.workbookId) {
+    return fail("sheets_workbook_mismatch", "Wrong workbook response.");
+  }
+  const selected = (metadata.sheets ?? []).filter((sheet) =>
+    titles.has(sheet.properties?.title ?? ""));
+  const cells = selected.reduce((sum, sheet) =>
+    sum + validateSheetSize(sheet), 0);
+  if (cells > SHIFT_SHEETS_LIMITS.readCells) {
+    return fail("sheets_limit", "Read would exceed the bounded grid limit.");
+  }
+  if (!selected.length) return metadata;
+  const response = (await sheets.get({
+    spreadsheetId: config.workbookId,
+    ranges: selected.map((sheet) =>
+      `${quoteShiftSheetsTitle(sheet.properties?.title ?? "")}!A1:` +
+        `${columnName(sheet.properties?.gridProperties?.columnCount ?? 0)}` +
+        `${sheet.properties?.gridProperties?.rowCount}`),
+    fields: "spreadsheetId,sheets(properties,protectedRanges,merges," +
+        "developerMetadata,data(startRow,startColumn,rowData(values(" +
+        "userEnteredValue))))",
+  }, REQUEST_OPTIONS)).data;
+  const incomplete = selected.some((sheet) => {
+    const matches = (response.sheets ?? []).filter((read) =>
+      read.properties?.sheetId === sheet.properties?.sheetId &&
+        read.properties?.title === sheet.properties?.title);
+    return matches.length !== 1 ||
+        matches[0].properties?.gridProperties?.rowCount !==
+          sheet.properties?.gridProperties?.rowCount ||
+        matches[0].properties?.gridProperties?.columnCount !==
+          sheet.properties?.gridProperties?.columnCount;
+  });
+  if (response.spreadsheetId !== config.workbookId || incomplete) {
+    return fail("sheets_read_incomplete", "An affected tab was not read.");
+  }
+  // Keep IDs of unaffected tabs so a new addSheet cannot reuse one.
+  return {...metadata, sheets: (metadata.sheets ?? []).map((sheet) =>
+    response.sheets?.find((read) =>
+      read.properties?.sheetId === sheet.properties?.sheetId) ?? sheet)};
+};
+
+/**
  * Uses the public Sheets API for one atomic batch, with SDK retries disabled.
  * authorizeMutation must establish exclusive writer/operation authority; this
  * adapter offers no Sheets CAS and cannot fence human edits between read/write.
@@ -455,58 +517,15 @@ export const createShiftSheetsAdapter = (input: {
   sheets: Pick<SheetsV4.Resource$Spreadsheets, "get" | "batchUpdate">;
 }) => {
   const {config, sheets} = input;
-  const snapshot = async (projections: readonly Projection[]) => {
-    const titles = new Set(projections.map((row) => row.title));
-    const metadata = (await sheets.get({
-      spreadsheetId: config.workbookId,
-      fields: "spreadsheetId,sheets(properties,protectedRanges,merges," +
-        "developerMetadata)",
-    }, REQUEST_OPTIONS)).data;
-    if (metadata.spreadsheetId !== config.workbookId) {
-      return fail("sheets_workbook_mismatch", "Wrong workbook response.");
-    }
-    const selected = (metadata.sheets ?? []).filter((sheet) =>
-      titles.has(sheet.properties?.title ?? ""));
-    const cells = selected.reduce((sum, sheet) =>
-      sum + validateSheetSize(sheet), 0);
-    if (cells > SHIFT_SHEETS_LIMITS.readCells) {
-      return fail("sheets_limit", "Read would exceed the bounded grid limit.");
-    }
-    if (!selected.length) return metadata;
-    const response = (await sheets.get({
-      spreadsheetId: config.workbookId,
-      ranges: selected.map((sheet) =>
-        `${quoteShiftSheetsTitle(sheet.properties?.title ?? "")}!A1:` +
-        `${columnName(sheet.properties?.gridProperties?.columnCount ?? 0)}` +
-        `${sheet.properties?.gridProperties?.rowCount}`),
-      fields: "spreadsheetId,sheets(properties,protectedRanges,merges," +
-        "developerMetadata,data(startRow,startColumn,rowData(values(" +
-        "userEnteredValue))))",
-    }, REQUEST_OPTIONS)).data;
-    const incomplete = selected.some((sheet) => {
-      const matches = (response.sheets ?? []).filter((read) =>
-        read.properties?.sheetId === sheet.properties?.sheetId &&
-        read.properties?.title === sheet.properties?.title);
-      return matches.length !== 1 ||
-        matches[0].properties?.gridProperties?.rowCount !==
-          sheet.properties?.gridProperties?.rowCount ||
-        matches[0].properties?.gridProperties?.columnCount !==
-          sheet.properties?.gridProperties?.columnCount;
-    });
-    if (response.spreadsheetId !== config.workbookId || incomplete) {
-      return fail("sheets_read_incomplete", "An affected tab was not read.");
-    }
-    // Keep IDs of unaffected tabs so a new addSheet cannot reuse one.
-    return {...metadata, sheets: (metadata.sheets ?? []).map((sheet) =>
-      response.sheets?.find((read) =>
-        read.properties?.sheetId === sheet.properties?.sheetId) ?? sheet)};
-  };
+  const snapshot = (projections: readonly Projection[]) =>
+    readShiftSheetsSnapshot({config, sheets,
+      titles: projections.map((row) => row.title)});
 
   const detached = (operation: OperationInput) => {
     if (!identifier(operation.operationId)) {
       return fail("invalid_sheets_operation", "Operation ID is invalid.");
     }
-    const projections = projectionsFor(config, operation.rows);
+    const projections = buildShiftSheetsProjections(config, operation.rows);
     return {operationId: operation.operationId, projections,
       projectionDigest: projectionDigestFor(config, projections)};
   };
@@ -530,7 +549,7 @@ export const createShiftSheetsAdapter = (input: {
         if (!sheet || markerFor(sheet)?.metadataValue !== markerValue(
           operation.operationId, operation.projectionDigest,
         )) throw new Error("Operation marker is not current.");
-        const rows = gridRows(sheet);
+        const rows = shiftSheetsGridRows(sheet);
         if (SHIFT_SHEETS_HEADERS.some((header, column) =>
           cellText(rows[0]?.[column]) !== header ||
           rows[0]?.[column]?.userEnteredValue?.formulaValue !== undefined)) {

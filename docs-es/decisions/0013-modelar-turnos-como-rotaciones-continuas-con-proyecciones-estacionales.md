@@ -434,6 +434,18 @@ necesaria la exclusión de colaboradores. Este corte local no añade trigger ni
 scheduler desplegado, conversión legacy, importación, reparación real ni nueva
 autoridad para escribir en un libro real.
 
+El tercer corte local de HU-083 añade lectura/preflight de importación y reutiliza
+el snapshot acotado de exportación y su codec canónico. Los formatos humanos exigen
+mapping por pestaña y filas decorativas exactas. Pestañas ausentes/parciales, personas
+ambiguas, mercados distintos de tres integrantes o cambios de propiedad/procedencia
+rechazan la importación. Una fila ausente es una discrepancia, nunca autoridad para
+borrar. El plan vincula revisiones y vecinos del reparto afectado, conserva el
+historial del predecesor completado y rechaza extremos sin vecinos demostrados.
+Son artefactos de revisión sobre entradas de confianza, no CAS ejecutado ni autoridad
+real. Aplicar sigue requiriendo cargar la fuente confiable, revalidar vecinos y
+miembros transaccionalmente, comprobar fences de escritores/notificaciones y emitir
+la procedencia exacta del evento modificado.
+
 Los comandos Sheets se serializan con epoch monotónico y lease por libro/partición.
 El worker valida comando y revisión/digest activos antes de cada batch y registra
 read-back. Recovery sustituye y drena primero worker/llamada externa de activación;
