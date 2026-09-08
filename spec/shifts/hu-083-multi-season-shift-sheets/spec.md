@@ -5,9 +5,9 @@
 - issue_id: #267
 - priority: P1
 - platform: backend
-- status: draft
+- status: in-progress (first local cut validated; bounded layout inventoried)
 - depends_on: HU-082 / #266
-- architecture: ADR-0013 (proposed)
+- architecture: ADR-0013 (accepted), as amended by ADR-0014
 
 ## Context and problem
 

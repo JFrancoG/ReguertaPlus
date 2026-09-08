@@ -9,6 +9,7 @@ import {ShiftPlanningEnvironment} from "./shift-planning-wire.js";
 export type ShiftPlanningSheetsSyncConsumer = {
   apply(
     command: ShiftPlanningProcessingSyncCommand,
+    authorizeMutation: () => Promise<void>,
   ): Promise<ShiftPlanningSyncReadBackEvidence>;
 };
 
@@ -51,7 +52,9 @@ export const executeShiftPlanningSyncCommand = async (input: {
     return {kind: "terminalReplay", command: claim.command};
   }
   const authorized = await input.repository.authorizeBatch(claim.token);
-  const evidence = await input.consumer.apply(authorized);
+  const evidence = await input.consumer.apply(authorized, async () => {
+    await input.repository.authorizeBatch(claim.token);
+  });
   const completion = await input.repository.complete({
     token: claim.token,
     evidence,

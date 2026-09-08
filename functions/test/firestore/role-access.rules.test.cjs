@@ -1478,6 +1478,7 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
     "shiftPlanningNotificationFences",
     "shiftPlanningNotificationIncidentFences",
     "shiftPlanningOperations",
+    "shiftPlanningPublicEventLedgers",
     "deliveryCalendarMutationReceipts",
   ];
   for (const env of envs) {

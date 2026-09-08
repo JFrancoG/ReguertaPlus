@@ -38,6 +38,7 @@ const privateShiftPlanningCollections = [
   "shiftPlanningNotificationFences",
   "shiftPlanningNotificationIncidentFences",
   "shiftPlanningOperations",
+  "shiftPlanningPublicEventLedgers",
   "deliveryCalendarMutationReceipts",
 ];
 

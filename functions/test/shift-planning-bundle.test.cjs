@@ -1154,6 +1154,41 @@ test("allows preview but blocks stage and activate on a release lease", () => {
   }
 });
 
+test("preserves the workbook revision observed by each partition", () => {
+  const snapshot = fairnessSnapshot();
+  snapshot.sync.partitions.delivery.workbookRevision = "workbook-4";
+  snapshot.sync.partitions.delivery.stateRevision = 5;
+  snapshot.sync.partitions.delivery.epoch = 12;
+  const result = planShiftPlanningBundle(bundleInput({
+    fairnessSnapshot: snapshot,
+  }));
+
+  assert.deepEqual(
+    result.syncCommands.map((command) => [
+      command.type,
+      command.workbookRevision,
+      command.expectedPartitionStateRevision,
+      command.expectedPartitionEpoch,
+    ]),
+    [["delivery", "workbook-4", 5, 12], ["market", "workbook-3", 5, 14]],
+  );
+});
+
+test("rejects different workbooks and overlapping partition identities", () => {
+  for (const partitionOverride of [
+    {workbookId: "another-workbook"},
+    {partitionKey: "delivery"},
+  ]) {
+    const snapshot = fairnessSnapshot();
+    Object.assign(snapshot.sync.partitions.market, partitionOverride);
+
+    assert.throws(
+      () => planShiftPlanningBundle(bundleInput({fairnessSnapshot: snapshot})),
+      errorCode("invalid_planning_state"),
+    );
+  }
+});
+
 test("allows preview but blocks publication while a workbook partition is leased", () => {
   const snapshot = fairnessSnapshot();
   snapshot.sync.partitions.delivery.lease = {

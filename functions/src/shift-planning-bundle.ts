@@ -158,6 +158,8 @@ export type ShiftPlanningWorkbookPartitionLease = {
 
 export type ShiftPlanningWorkbookPartition = {
   workbookId: string;
+  // Last workbook revision observed by this partition. Other partitions may
+  // observe a different revision; this value is not a Sheets CAS guarantee.
   workbookRevision: string;
   partitionKey: string;
   stateRevision: number;
@@ -830,8 +832,6 @@ const parseBundleFairnessSnapshot = (
   if (
     workbookPartitions.delivery.workbookId !==
       workbookPartitions.market.workbookId ||
-    workbookPartitions.delivery.workbookRevision !==
-      workbookPartitions.market.workbookRevision ||
     workbookPartitions.delivery.partitionKey ===
       workbookPartitions.market.partitionKey
   ) {

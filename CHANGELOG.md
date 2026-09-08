@@ -36,6 +36,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(sheets): add seasonal adapter and event audit
+
 - 2026-08-29 | ✨ feat(shifts): sanitize planning logs
 - 2026-08-29 | ✨ feat(shifts): stage completed previews
 - 2026-08-29 | ✨ feat(shifts): submit combined planning previews

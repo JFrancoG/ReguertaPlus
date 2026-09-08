@@ -2,6 +2,43 @@
 
 ## 1. Delivery strategy
 
+### Execution checkpoint — 2026-09-08
+
+HU-082 is integrated through PRs #275 and #276; issue #266 is closed.
+Implementation starts from `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
+on `codex/hu-083-multi-season-shift-sheets` in an isolated worktree. The
+unrelated Xcode project ordering in the main checkout is preserved.
+
+The first local cut implements the seasonal Sheets adapter and durable public
+event audit under tests. It uses an explicit canonical row format and configured
+aliases; neither fixture tab names nor fixture headers count as live inventory.
+Legacy human-formatted tabs must fail closed until their mapping is reviewed.
+
+Before wiring the worker/trigger, resolve these integration findings with
+focused regressions: authorize every external batch, persist an attempt before
+submission and reconcile unknown outcomes without resending, define the meaning
+of workbook revision consistently across both partitions, and recognize inverse
+UPDATE events as well as DELETE events. Keep operation terminals until their
+physical identity and replay dependencies are resolved; do not enable generic
+TTL cleanup. These are integration requirements, not new orchestration layers.
+
+The initial authorized connector layout inspection is recorded in
+[inventory.md](inventory.md). Phase 0 complete inventory/baseline and phase 3
+backups remain pending; backups require the separate bounded evidence auditor.
+Local adapter tests are not proof of live repair, a reviewed zero-write manifest,
+or production readiness.
+
+The first cut is implemented and independently reviewed. Functions lint/build
+pass. Validation: Sheets **19/19**, public-event audit **21/21** in Firestore
+emulator, sync-command repository **7/7** in emulator, strict Firestore Rules
+**32/32**, phase1 Rules **8/8**, backend security **31/31**, and planning units
+**278 passed / 51 emulator-only skips**. The 51 skipped cases are not claimed as
+executed by the focused emulator runs. No mobile wire field changed, so no new
+Android/iOS gate was run for this backend-only cut.
+
+Pending next cut: durable Sheets attempts and read-back, followed by legacy-layout
+conversion, import/export and public-event worker/trigger integration. Keep HU-083 open.
+
 Separate code correctness from live rollout. First replace the fixed-range
 adapter with a tested multi-season projection and build read-only audit tooling.
 Then rehearse backup, dry-run, apply, reconciliation, and rollback in develop.

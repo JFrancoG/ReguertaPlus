@@ -863,6 +863,31 @@ export const parseShiftPlanningPublicEventLedger = (
 };
 
 /**
+ * Creates a retained rejection when an adapter cannot establish safe authority.
+ * It uses the same stable event identity as classifier-generated rejections.
+ * @param {object} input Stable event envelope and explicit retention policy.
+ * @return {object} Alertable outcome that forbids legacy side effects.
+ */
+export const createShiftPlanningRejectedPublicEventAudit = (input: {
+  eventId: string;
+  eventTime: Timestamp;
+  targetPath: string;
+  mutationKind: "create" | "update" | "delete";
+  policy: ShiftPlanningPublicEventRetentionPolicy;
+}): Extract<ShiftPlanningPublicEventProducerOutcome, {kind: "failClosed"}> => {
+  const ledger = rejectedLedger(input);
+  return {
+    kind: "failClosed",
+    targetPath: ledger.targetPath,
+    failureCode: "invalid_planning_publication_contract",
+    eventDigest: ledger.eventDigest,
+    ledger,
+    alertRequired: true,
+    legacySideEffectsAllowed: false,
+  };
+};
+
+/**
  * Produces the side-effect routing intent for a candidate public-write
  * consumer. Invalid changed markers become retained, alertable failures and
  * never ordinary legacy events.
@@ -916,22 +941,13 @@ export const produceShiftPlanningPublicEventAudit = (input: {
     ) {
       throw error;
     }
-    const ledger = rejectedLedger({
+    return createShiftPlanningRejectedPublicEventAudit({
       eventId: input.eventId,
       eventTime: input.eventTime,
       targetPath: input.targetPath,
       mutationKind: mutationKindForEvent(input),
       policy: parseShiftPlanningPublicEventRetentionPolicy(input.policy),
     });
-    return {
-      kind: "failClosed",
-      targetPath: ledger.targetPath,
-      failureCode: "invalid_planning_publication_contract",
-      eventDigest: ledger.eventDigest,
-      ledger,
-      alertRequired: true,
-      legacySideEffectsAllowed: false,
-    };
   }
 };
 

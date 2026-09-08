@@ -413,7 +413,14 @@ const controlledEventDigest = (input: {
   ),
 });
 
-const controlledDecision = (input: {
+/**
+ * Reconstructs a controlled event identity from its exact marker bindings.
+ * Durable consumers must validate the payload and persisted ledger separately;
+ * this helper alone does not establish operation authority.
+ * @param {object} input Parsed marker and operation bindings.
+ * @return {object} Stable controlled-event decision.
+ */
+export const createShiftPlanningControlledPublicEventDecision = (input: {
   operationKind:
     | "activation"
     | "recovery"
@@ -424,7 +431,9 @@ const controlledDecision = (input: {
   targetPath: string;
   beforeMarker: ShiftPlanningBackendMutationMarker | null;
   afterMarker: ShiftPlanningBackendMutationMarker | null;
-}): ShiftPlanningPublicWriteEventDecision => ({
+}): Extract<
+  ShiftPlanningPublicWriteEventDecision, {kind: "controlledNoOp"}
+> => ({
   kind: "controlledNoOp",
   operationKind: input.operationKind,
   mutationKind: input.mutationKind,
@@ -509,7 +518,7 @@ const classifyChangedAfterMarker = (input: {
       targetPath: input.targetPath,
       mutationKind,
     });
-    return controlledDecision({
+    return createShiftPlanningControlledPublicEventDecision({
       operationKind: "activation",
       mutationKind,
       operationId: operation.operationId,
@@ -541,7 +550,7 @@ const classifyChangedAfterMarker = (input: {
       targetPath: input.targetPath,
       mutationKind,
     });
-    return controlledDecision({
+    return createShiftPlanningControlledPublicEventDecision({
       operationKind: operation.kind,
       mutationKind,
       operationId: operation.operationId,
@@ -594,7 +603,7 @@ const classifyDelete = (input: {
   ) {
     return failEvent("Recovery delete does not match its exact before-image.");
   }
-  return controlledDecision({
+  return createShiftPlanningControlledPublicEventDecision({
     operationKind: "recovery",
     mutationKind: "delete",
     operationId: operation.recoveryOperationId,

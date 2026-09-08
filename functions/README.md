@@ -251,6 +251,25 @@ incluida la notificación. Una deriva detiene los efectos restantes, pero no pue
 revertir una escritura de Sheets ya confirmada; HU-083 sustituye ese flujo no
 atómico.
 
+### HU-083: seasonal Sheets adapter and durable event audit
+
+`shift-sheets-config.ts` pins a workbook to one environment with explicit aliases.
+`shift-sheets.ts` merges stable rows into seasonal tabs in one authorized batch,
+preserves unrelated rows/manual columns, rejects unmanaged edits and unsafe layouts,
+and verifies cells plus the operation marker. SDK retries are disabled; `inspect`
+is read-only after an ambiguous result. Existing human layouts require reviewed
+mapping before conversion. Workbook revision observations may differ by partition.
+
+`shift-planning-firestore-public-event-audit.ts` persists exact/replayed event
+classification with the HU-082 codecs. Unknown changed markers fail closed. Inverse
+UPDATE and retention identity need further integration before trigger wiring.
+
+Local validation: Sheets 19/19, public-event audit 21/21 emulator, sync repository
+7/7 emulator, strict/phase1 Rules 32/32 and 8/8, backend security 31/31, planning
+units 278 passed / 51 emulator-only skips; lint/build pass. Durable Sheets attempts
+and command-consumer integration remain pending. No new index.ts wiring or deploy.
+See [HU-083 plan](../spec/shifts/hu-083-multi-season-shift-sheets/plan.md).
+
 ### Baseline comunicable sin activación de producción
 
 La vía urgente documentada en

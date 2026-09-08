@@ -4,10 +4,11 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: DRAFT / blocked by HU-082
+- State: IN PROGRESS — first local cut validated; bounded layout inventoried
 - Planning branch: `codex/hu-082-shift-operations-planning`
-- Implementation branch: not created
-- Depends on: HU-082 / #266
+- Implementation branch: `codex/hu-083-multi-season-shift-sheets`
+- Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
+- Depends on: HU-082 / #266 (integrated through PRs #275 and #276)
 - Extends: HU-020 / #19 (adapter/tooling here; conditional develop apply and all
   production acceptance are explicitly assigned below)
 
@@ -24,6 +25,18 @@ Both environment paths share the same Firebase project-wide Functions revisions
 and Firestore Rules. New code is therefore proven locally/in emulators. Any live
 develop repair is a direct, bounded, digest-bound script operation compatible
 with the current deployed contract; HU-083 deploys no shared Function or Rule.
+
+## Local implementation checkpoint
+
+The first local cut adds the new-format Sheets adapter, durable public-event
+audit, pre-batch authorization hook and partition-revision correction. Lint/build
+pass; Sheets 19/19, audit emulator 21/21, sync emulator 7/7, strict/phase1 Rules
+32/32 and 8/8, backend security 31/31, planning units 278 pass / 51 emulator-only
+skips. It is not wired into `index.ts`; worker/import/export/trigger integration,
+complete baseline, audit/repair tooling and live rehearsal remain open. The
+bounded connector layout inspection is recorded in
+`spec/shifts/hu-083-multi-season-shift-sheets/inventory.md`; it is not a backup or
+a reviewed repair/zero-write snapshot.
 
 ## Workbook decision
 
@@ -50,14 +63,15 @@ fenced claim/takeover, immediate pre-batch active-lineage/partition authorizatio
 read-back completion, SDK-free executor, and idempotent fake-consumer proof. HU-083
 must integrate the real multi-season Sheets adapter, durable external-attempt and
 read-back evidence, and ambiguous-outcome reconciliation; its overall dependency
-on the unfinished HU-082 story remains open.
+on HU-082 is satisfied by its integrated implementation and audit corrections.
 
 The exact upstream boundary is frozen in
 `spec/shifts/hu-082-continuous-seasonal-shift-rotation/hu-083-handoff.md`. HU-083
 must consume those schema-v1 command, repository, public-event and retention
 surfaces directly, add the real Sheets/trigger persistence evidence, and preserve
 the explicit HU-084/HU-085 exclusions. Recording the handoff does not satisfy the
-still-open HU-082 integration/merge dependency and authorizes no live operation.
+live inventory, integration evidence, or rehearsal gates and authorizes no live
+operation.
 
 ## Upstream checkpoint — HU-082 public event classifier (2026-08-27)
 
@@ -78,7 +92,7 @@ not replace the upstream codecs with a looser local schema.
 
 ## Delivery gate
 
-- [ ] HU-082 and ADR-0013 integrated.
+- [x] HU-082 and ADR-0013 integrated; ADR-0014 governs public transactions.
 - [ ] Multi-season adapter and migration tests green.
 - [ ] Local/emulator request, adapter, and notification contract green.
 - [ ] Compatible direct-script develop audit, dry-run, repair, read-back, and

@@ -1,25 +1,51 @@
 # Tasks - HU-083 (Multi-season shift Sheets and develop repair)
 
+## First local cut — 2026-09-08
+
+- [x] Implement strict environment config and proposed canonical table merge
+  with one authorized atomic Sheets batch and read-only ambiguous recovery.
+- [x] Validate retries, concurrent tab creation, carryover preservation, changed
+  manual cells, formula/protection conflicts and explicit limits: 19/19 tests.
+- [x] Persist public-event audits with existing schema-v1 codecs; preserve prior
+  decisions and reject missing/corrupt authority: 21/21 emulator tests.
+- [x] Protect event ledgers in strict and phase1 Rules: 32/32 and 8/8 tests.
+- [x] Add the executor pre-batch hook and allow differing revision observations
+  in same-workbook partitions: sync repository 7/7 emulator tests; bundle
+  regressions included in 278 passing planning unit cases (51 other cases skip
+  without their emulator fixtures). Backend security: 31/31.
+- [ ] Complete worker/trigger integration, live baseline/audit tooling and the
+  remaining story gates below. This checkpoint is not HU-083 completion.
+
 ## 0. Dependency and read-only inventory
 
 - [x] Accept the frozen HU-082 integration boundary in
   `../hu-082-continuous-seasonal-shift-rotation/hu-083-handoff.md`; retain the
   implementation/merge dependency and every live-operation gate below.
-- [ ] Verify HU-082 / #266 and ADR-0013 are integrated.
-- [ ] Freeze base commit and create the dedicated HU-083 implementation branch.
-- [ ] Resolve the exact develop Firebase project and environment path.
-- [ ] Record that `{develop}` and `{production}` share project-wide Functions
+- [x] Verify HU-082 / #266 and ADR-0013 are integrated (PRs #275/#276;
+  ADR-0014 supersedes transaction admission/outcome internals).
+- [x] Freeze base commit `515b9f8` and create the dedicated implementation
+  branch `codex/hu-083-multi-season-shift-sheets` in an isolated worktree.
+- [x] Resolve the configured develop Firebase project and environment path
+  (`reguerta-9f27f`, `develop/plus-collections`; not a live source inventory).
+- [x] Record that `{develop}` and `{production}` share project-wide Functions
   revisions and Firestore Rules; forbid a develop-only shared deploy.
 - [ ] Inventory the develop workbook ID, tab names/aliases, headers, formulas, protected
   ranges, row counts, and sharing principals without writing.
-- [ ] Capture applicable Functions parameter names/presence without logging
-  values.
+  - Partial authorized connector inspection: [inventory.md](inventory.md).
+    Four tabs and their A1:K180 layout are observed; complete protections,
+    effective authority and the source/backup baseline remain pending.
+- [x] Capture local Functions parameter names/presence without logging values:
+  `SHEETS_SPREADSHEET_ID_DEVELOP`, `SHEETS_DELIVERY_RANGE_DEVELOP`, and
+  `SHEETS_MARKET_RANGE_DEVELOP` exist and are nonempty in the original checkout.
+  No local production parameter was found; deployed parameters remain unverified.
 - [ ] Export/hash a read-only Firestore and Sheets baseline.
 
 ## 1. RED Sheets contract
 
-- [ ] Freeze canonical seasonal tab names and explicit legacy aliases from the
-  inventory.
+- [x] Freeze canonical seasonal tab names and explicit legacy aliases from the
+  bounded live layout inventory: `turnos-reparto YYYY-YY`,
+  `turnos-mercado YYYY-YY`; 2025 aliases `TORRE 2025-26` and `MERCADO 2025-26`.
+  This freezes titles only, not a migration of the existing human layouts.
 - [ ] Define stable row identity, ownership, assignment, source, provenance, and
   tab-partition metadata.
 - [ ] Add RED tests for tab creation, existing-tab merge, replay, concurrency,
@@ -85,7 +111,8 @@
 - [ ] Update `functions/README.md` for stable workbooks, seasonal tabs,
   environment isolation, aliases, and develop repair.
 - [ ] Update relevant English and Spanish data-contract documentation.
-- [ ] Add a secret/identifier hygiene check for committed docs and fixtures.
+- [x] Scan the first-cut changed docs/fixtures for secret-like material; no live
+  workbook ID, participant name or phone was copied into the layout inventory.
 
 ## 4. Audit, repair, and rollback tooling
 
@@ -112,11 +139,12 @@
 
 ## 5. Automated validation
 
-- [ ] Run Functions `npm run lint`.
-- [ ] Run Functions `npm run build`.
+- [x] Run Functions `npm run lint` (first local cut, zero diagnostics).
+- [x] Run Functions `npm run build` (first local cut).
 - [ ] Run Sheets adapter, migration, backend security, and relevant Rules suites.
 - [ ] Run HU-082 Android/iOS regression suites if shared fields change.
-- [ ] Run `git diff --check` and validate every local/document link.
+- [x] Run `git diff --check` and validate local/document links in changed files
+  (first local cut; no findings).
 - [ ] Prove the new request/adapter/notification pipeline locally and in
   emulators without a shared-project deploy.
 

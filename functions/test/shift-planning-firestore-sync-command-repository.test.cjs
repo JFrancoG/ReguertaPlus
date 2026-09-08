@@ -367,3 +367,58 @@ test("explicit polling retries idempotently after a lost completion", async () =
   assert.equal(replay.kind, "terminalReplay");
   assert.equal(consumerCalls, 2);
 });
+
+test("consumer rechecks active lineage before each external batch", async () => {
+  await seed();
+  const writes = [];
+  await assert.rejects(executeShiftPlanningSyncCommand({
+    repository,
+    environment,
+    commandId: `${bundleRevision}-delivery`,
+    workerId: "sync-worker-1",
+    attemptId: "sync-attempt-1",
+    consumer: {
+      async apply(_command, authorizeMutation) {
+        await authorizeMutation();
+        writes.push("first-season");
+        await firestore.doc(statePath).update({writeEpoch: 9});
+        await authorizeMutation();
+        writes.push("next-season");
+        return {
+          workbookRevision: "workbook-revision-8",
+          partitionDigest: digest({rows: writes}),
+        };
+      },
+    },
+  }), (error) => error.code === "invalid_planning_sync_command");
+  assert.deepEqual(writes, ["first-season"]);
+  assert.equal((await firestore.doc(commandPath()).get()).get("state"),
+    "processing");
+  assert.equal((await readPartition()).lease.state, "claimed");
+});
+
+test("consumer cannot submit its first batch after its lease expires", async () => {
+  await seed();
+  const writes = [];
+  await assert.rejects(executeShiftPlanningSyncCommand({
+    repository,
+    environment,
+    commandId: `${bundleRevision}-delivery`,
+    workerId: "sync-worker-1",
+    attemptId: "sync-attempt-1",
+    consumer: {
+      async apply(command, authorizeMutation) {
+        nowMillis = command.claim.expiresAt.toMillis();
+        await authorizeMutation();
+        writes.push("late-batch");
+        return {
+          workbookRevision: "workbook-revision-8",
+          partitionDigest: digest({rows: writes}),
+        };
+      },
+    },
+  }), (error) => error.code === "invalid_planning_sync_command");
+  assert.deepEqual(writes, []);
+  assert.equal((await firestore.doc(commandPath()).get()).get("state"),
+    "processing");
+});
