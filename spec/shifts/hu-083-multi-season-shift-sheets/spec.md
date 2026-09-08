@@ -106,6 +106,11 @@ unless an operational limit is demonstrated later.
 - Workbook identifiers and any allowlist/namespace are environment-scoped
   Functions parameters; real values are never committed.
 - Develop and production may not silently fall back to one another.
+  Both canonical and remaining legacy candidate routes use the shared configuration
+  module. Legacy routes require an explicit workbook and both human ranges for the
+  requested environment; missing scoped values disable the route instead of using
+  global/default values. Existing parameter storage is not deleted or changed.
+  HU-085 must verify the scoped configuration before activating this revision.
 - HU-083 configures and mutates only the bounded develop target after its own
   explicit apply approval.
 - The new Functions adapter and any Rules changes are validated locally and in

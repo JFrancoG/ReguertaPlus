@@ -133,3 +133,28 @@ emulatorTest("ordinary retained-marker events bypass audit configuration and kee
   await exported.onShiftPlanningPublicWritten.run(event);
   assert.equal((await ledgers()).size, 0);
 });
+
+emulatorTest("ordinary export never opens Sheets through global or opposite-environment fallback", async (t) => {
+  const vars = {
+    SHEETS_SPREADSHEET_ID: "global-book", SHEETS_DELIVERY_RANGE: "Global!A:F", SHEETS_MARKET_RANGE: "Global!A:C",
+    SHEETS_SPREADSHEET_ID_DEVELOP: "dev-book", SHEETS_DELIVERY_RANGE_DEVELOP: "Delivery!A:F", SHEETS_MARKET_RANGE_DEVELOP: "Market!A:C",
+    SHEETS_SPREADSHEET_ID_PRODUCTION: "prod-book", SHEETS_DELIVERY_RANGE_PRODUCTION: "Production!A:F", SHEETS_MARKET_RANGE_PRODUCTION: "Production!A:C",
+  };
+  const original = Object.fromEntries(Object.keys(vars).map((key) => [key, process.env[key]]));
+  const sheets = t.mock.method(require("googleapis").google, "sheets", () => { throw new Error("No Sheets access without scoped configuration"); });
+  try {
+    const value = recoveryEventFixture(), after = {...value.input.after, status: "confirmed"};
+    delete after.lastBackendMutation;
+    const event = await sdkEvent({...value.input, before: null, after});
+    for (const missing of ["SHEETS_SPREADSHEET_ID_DEVELOP", "SHEETS_DELIVERY_RANGE_DEVELOP", "SHEETS_MARKET_RANGE_DEVELOP"]) {
+      Object.assign(process.env, vars); delete process.env[missing];
+      await exported.onShiftWritten.run(event);
+    }
+    assert.equal(sheets.mock.callCount(), 0);
+    assert.equal((await ledgers()).size, 0);
+  } finally {
+    for (const [key, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+});

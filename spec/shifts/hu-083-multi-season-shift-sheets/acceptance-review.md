@@ -4,6 +4,16 @@ Reviewed on 2026-09-08 at `775be1adaae27d60e506677f6d1832739846c2ba`
 (cuts 1–17 pushed). Cut 18 reconciles implementation evidence and reruns the
 backend checks. It changes no runtime, schema, permissions or deployment.
 
+## Cut-19 local update
+
+The configuration gap below is now fixed locally: all remaining legacy callers
+resolve through `readLegacyShiftSheetsConfig`, requiring the three scoped variables
+and rejecting shared workbooks. No global or invented-range fallback remains.
+The candidate change does not remove stored parameters, migrate seasonal writers,
+choose the visible layout or certify deployed configuration. Validation for this
+change: 85/85 focused local cases and 13/13 trigger cases with the Firestore emulator.
+The cut-18 validation table below remains the evidence for its reviewed commit.
+
 ## Result
 
 The canonical adapter, private sync/import entry points, controlled-event audit
@@ -22,7 +32,7 @@ inputs rather than manufacture another synthetic readiness artifact.
 
 | Requirement | Current evidence | Remaining boundary |
 | --- | --- | --- |
-| Explicit environment/workbook and seasonal aliases | [Config](../../../functions/src/shift-sheets-config.ts), config tests; new worker/import reject missing or cross-environment authority | Legacy `getSheetConfig` still uses global fallback; repository-wide replacement is open |
+| Explicit environment/workbook and seasonal aliases | [Config](../../../functions/src/shift-sheets-config.ts), config tests; new worker/import reject missing or cross-environment authority | Cut 19 routes legacy callers through the shared strict resolver; deployed configuration remains unverified |
 | Stable identity, create/merge, carryover and manual-field preservation | [Canonical adapter](../../../functions/src/shift-sheets.ts), [behavior tests](../../../functions/test/shift-sheets.test.cjs) | Actual human tabs reject technical headers; no live conversion is certified |
 | Seasonal union and guarded effective assignments | [Import reader](../../../functions/src/shift-sheets-import.ts), [planner](../../../functions/src/shift-sheets-import-plan.ts), [Firestore adapter](../../../functions/src/shift-sheets-firestore-import.ts) | Legacy sync remains separate; human apply remains closed |
 | Explicit pull, claims, exact manifest and bounded retry | [Worker](../../../functions/src/shift-planning-sheets-worker.ts), [consumer](../../../functions/src/shift-planning-sheets-consumer.ts), exported `executeShiftPlanningSheetsSync` | No live invoker/scheduler configuration or deployment |
@@ -43,7 +53,7 @@ inventory of deployed Functions. The implementation source is
 
 | Entry point / helper | Current behavior | Work required before claiming complete migration |
 | --- | --- | --- |
-| `getSheetConfig` / `getEnvScopedConfigValue` | Environment lookup can fall back to global values; default fixed ranges remain | Bind every migrated caller to the explicit environment contract; preserve separately governed compatibility while callers remain |
+| `getSheetConfig` → `readLegacyShiftSheetsConfig` (cut 19) | Explicit environment book and both ranges; missing values disable routing, with no global/default fallback | Require scoped configuration at rollout; seasonal writer migration remains open |
 | `exportShiftsToGoogleSheets` → `exportAllShiftsToGoogleSheets` | Iterates all shifts through fixed delivery/market ranges and `upsertShiftRowInSheet` | Route by reviewed seasonal identity and the agreed layout, with coherent authority/read-back |
 | `syncShiftsFromGoogleSheets` → `syncShiftsFromGoogleSheetsInternal` | Reads `sheetRangeDefinitions` through the older parser | Migrate callers or explicitly replace/retire the endpoint under reviewed compatibility |
 | Ordinary branch of `onShiftWritten` | Marked backend events are separated; ordinary confirmed app rows still use human-range `A:C`/`A:F` upsert and notifications | Prove the chosen seasonal writer path preserves ordinary-event and notification behavior |

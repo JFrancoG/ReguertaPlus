@@ -45,3 +45,44 @@ test("explicit aliases are detached and cannot collide with another partition", 
     ]}), {code: "invalid_sheets_config"});
   }
 });
+
+const {readLegacyShiftSheetsConfig: legacy} = require("../lib/shift-sheets-config.js");
+const legacyVariables = () => ({
+  SHEETS_SPREADSHEET_ID_DEVELOP: "dev-book", SHEETS_SPREADSHEET_ID_PRODUCTION: "prod-book",
+  SHEETS_DELIVERY_RANGE_DEVELOP: "'TORRE 2025-26'!A:F", SHEETS_MARKET_RANGE_DEVELOP: "'MERCADO 2025-26'!A:C",
+  SHEETS_DELIVERY_RANGE_PRODUCTION: "'Entrega'!A:F", SHEETS_MARKET_RANGE_PRODUCTION: "'Mercado'!A:C",
+  SHEETS_SPREADSHEET_ID: "global-book", SHEETS_DELIVERY_RANGE: "Global!A:Z", SHEETS_MARKET_RANGE: "Global!A:Z",
+});
+
+test("legacy readers select only the explicit environment and keep the configured human ranges", () => {
+  const vars = legacyVariables();
+  assert.deepEqual(legacy("develop", vars), {spreadsheetId: "dev-book", deliveryRange: "'TORRE 2025-26'!A:F", marketRange: "'MERCADO 2025-26'!A:C"});
+  const result = legacy("production", vars);
+  assert.deepEqual(result, {spreadsheetId: "prod-book", deliveryRange: "'Entrega'!A:F", marketRange: "'Mercado'!A:C"});
+  vars.SHEETS_SPREADSHEET_ID_PRODUCTION = "changed";
+  assert.equal(result.spreadsheetId, "prod-book");
+  assert.equal(legacy("production", vars).spreadsheetId, "changed", "Read configuration at invocation time");
+});
+
+test("missing scoped workbook or either range disables legacy routing despite complete globals and opposite environment", () => {
+  for (const environment of ["develop", "production"]) {
+    for (const field of ["SPREADSHEET_ID", "DELIVERY_RANGE", "MARKET_RANGE"]) {
+      for (const absent of [undefined, "", "   "]) {
+        const vars = legacyVariables(); vars[`SHEETS_${field}_${environment.toUpperCase()}`] = absent;
+        assert.equal(legacy(environment, vars), null);
+      }
+    }
+  }
+  assert.equal(legacy("develop", {SHEETS_SPREADSHEET_ID: "global-book"}), null);
+});
+
+test("legacy configuration rejects shared workbooks, malformed identities, unknown environments and invalid ranges", () => {
+  for (const change of [
+    {SHEETS_SPREADSHEET_ID_PRODUCTION: "dev-book"},
+    {SHEETS_SPREADSHEET_ID_PRODUCTION: " dev-book "},
+    {SHEETS_SPREADSHEET_ID_DEVELOP: "book/invalid"},
+    {SHEETS_DELIVERY_RANGE_DEVELOP: "A".repeat(1025)},
+    {SHEETS_MARKET_RANGE_DEVELOP: "Tab!A:C\nOther!A:C"},
+  ]) assert.throws(() => legacy("develop", {...legacyVariables(), ...change}), {code: "invalid_sheets_config"});
+  assert.throws(() => legacy("staging", legacyVariables()), {code: "invalid_sheets_config"});
+});

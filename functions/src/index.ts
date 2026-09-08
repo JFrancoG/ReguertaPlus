@@ -120,7 +120,11 @@ import {
   createFirestoreShiftPlanningPublicEventAudit,
 } from "./shift-planning-firestore-public-event-audit.js";
 
-import {readShiftSheetsWorkerConfig} from "./shift-sheets-config.js";
+import {
+  readLegacyShiftSheetsConfig,
+  readShiftSheetsWorkerConfig,
+  ShiftSheetsLegacyConfig,
+} from "./shift-sheets-config.js";
 import {createShiftSheetsAdapter} from "./shift-sheets.js";
 import {
   createFirestoreShiftPlanningSheetsConsumer,
@@ -2171,12 +2175,6 @@ export const __testOnly = {
 type ShiftType = "delivery" | "market";
 type ShiftStatus = "planned" | "swap_pending" | "confirmed";
 
-type SheetShiftConfig = {
-  spreadsheetId: string;
-  deliveryRange: string;
-  marketRange: string;
-};
-
 type SheetRangeDefinition = {
   range: string;
   defaultType: ShiftType;
@@ -2246,61 +2244,11 @@ type PlanningMemberRef = MemberSheetRef & {
 
 const SHIFT_NOTIFICATION_TYPE = "shift_updated";
 
-const getConfigValue = (
-  source: Record<string, unknown>,
-  key: string,
-): string | null => parseString(source[key]);
-
-const getEnvScopedConfigValue = (
-  source: Record<string, unknown>,
-  key: string,
-  env: string,
-): string | null =>
-  getConfigValue(source, `${key}_${env.toLowerCase()}`) ||
-  getConfigValue(source, key);
-
-const getSheetConfig = (env: string): SheetShiftConfig | null => {
-  const sheetsConfig = {
-    ...getRuntimeConfigNamespace("sheets"),
-    spreadsheet_id: process.env.SHEETS_SPREADSHEET_ID,
-    spreadsheet_id_develop: process.env.SHEETS_SPREADSHEET_ID_DEVELOP,
-    spreadsheet_id_production: process.env.SHEETS_SPREADSHEET_ID_PRODUCTION,
-    delivery_range: process.env.SHEETS_DELIVERY_RANGE,
-    delivery_range_develop: process.env.SHEETS_DELIVERY_RANGE_DEVELOP,
-    delivery_range_production: process.env.SHEETS_DELIVERY_RANGE_PRODUCTION,
-    market_range: process.env.SHEETS_MARKET_RANGE,
-    market_range_develop: process.env.SHEETS_MARKET_RANGE_DEVELOP,
-    market_range_production: process.env.SHEETS_MARKET_RANGE_PRODUCTION,
-  };
-  const spreadsheetId = getEnvScopedConfigValue(
-    sheetsConfig,
-    "spreadsheet_id",
-    env,
-  );
-  const deliveryRange = getEnvScopedConfigValue(
-    sheetsConfig,
-    "delivery_range",
-    env,
-  ) || "Delivery!A:Z";
-  const marketRange = getEnvScopedConfigValue(
-    sheetsConfig,
-    "market_range",
-    env,
-  ) || "Market!A:Z";
-
-  if (!spreadsheetId) {
-    return null;
-  }
-
-  return {
-    spreadsheetId,
-    deliveryRange,
-    marketRange,
-  };
-};
+const getSheetConfig = (env: string): ShiftSheetsLegacyConfig | null =>
+  readLegacyShiftSheetsConfig(parseAppEnvironment(env), process.env);
 
 const sheetRangeDefinitions = (
-  configValue: SheetShiftConfig,
+  configValue: ShiftSheetsLegacyConfig,
 ): SheetRangeDefinition[] => [
   {
     range: configValue.deliveryRange,
@@ -3914,7 +3862,7 @@ const exportAllShiftsToGoogleSheets = async (
   if (!sheetConfig) {
     throw new Error(
       `Missing sheets configuration for env=${env}. ` +
-      "Expected sheets.spreadsheet_id and ranges."
+      "Expected explicit SHEETS_* variables for this environment."
     );
   }
 
@@ -3978,7 +3926,7 @@ const syncShiftsFromGoogleSheetsInternal = async (
   if (!sheetConfig) {
     throw new Error(
       `Missing sheets configuration for env=${env}. ` +
-      "Expected sheets.spreadsheet_id and ranges."
+      "Expected explicit SHEETS_* variables for this environment."
     );
   }
 
@@ -4652,7 +4600,7 @@ onDocumentWrittenWithAuthContext(
       if (!sheetConfig) {
         throw new Error(
           `Missing sheets configuration for env=${env}. ` +
-          "Expected sheets.spreadsheet_id and ranges."
+          "Expected explicit SHEETS_* variables for this environment."
         );
       }
 

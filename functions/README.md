@@ -1439,6 +1439,33 @@ Parámetros opcionales:
 - `envs=develop,production` (lista separada por comas)
 
 
+## Aislamiento de configuración de las rutas antiguas (HU-083, corte 19)
+
+Las rutas antiguas de exportado completo, importación, generación, evento ordinario
+y override usan ahora `readLegacyShiftSheetsConfig` del módulo compartido de
+configuración. Exigen estas tres variables para el entorno solicitado:
+
+- `SHEETS_SPREADSHEET_ID_DEVELOP` / `SHEETS_SPREADSHEET_ID_PRODUCTION`
+- `SHEETS_DELIVERY_RANGE_DEVELOP` / `SHEETS_DELIVERY_RANGE_PRODUCTION`
+- `SHEETS_MARKET_RANGE_DEVELOP` / `SHEETS_MARKET_RANGE_PRODUCTION`
+
+Si falta el libro o cualquiera de los rangos, el resolver devuelve ausencia de
+configuración: cada llamador mantiene su rechazo o salida sin exportar. No se
+recurre al libro global, al otro entorno ni a `Delivery!A:Z`/`Market!A:Z` inventados.
+Se rechazan IDs de libro inválidos o compartidos entre entornos y rangos con
+caracteres de control o más de 1024 caracteres. Los rangos explícitos conservan
+su formato humano actual. La configuración se lee en cada invocación.
+
+Es un cambio de código candidato: no borra parámetros almacenados ni cambia su
+valor. Los despliegues que dependan de variables globales o rangos predeterminados
+necesitarán las tres variables explícitas antes de activar esta revisión en HU-085.
+No demuestra que esa configuración esté presente en producción. La migración de
+las rutas estacionales y la elección del formato visible siguen pendientes.
+
+Validación: 85/85 casos de configuración/adaptador/import/worker/seguridad y 13/13
+del trigger con emulador, incluido el `onShiftWritten` exportado que no abre Sheets
+cuando falta una variable develop aunque existan globals y configuración production.
+
 ## Estado conjunto de HU-083 (corte 18)
 
 La [revisión de aceptación](../spec/shifts/hu-083-multi-season-shift-sheets/acceptance-review.md)

@@ -141,9 +141,11 @@ they do not certify live conversion or retire the legacy writer paths.
 
 ## 2. Multi-season Sheets adapter
 
-- [ ] Extract environment configuration from `functions/src/index.ts`.
-  - [x] New pipeline uses `readShiftSheetsWorkerConfig` with explicit environment
-    IDs and no fallback. Legacy `getSheetConfig` still has global fallback.
+- [x] Extract environment configuration from `functions/src/index.ts`.
+  - [x] New pipeline uses `readShiftSheetsWorkerConfig`. Cut nineteen routes all
+    remaining legacy callers through `readLegacyShiftSheetsConfig`, with scoped
+    workbook/ranges, no global/default fallback and shared-book rejection.
+    Stored/deployed parameters and seasonal routing remain separately governed.
 - [ ] Replace fixed single ranges with explicit workbook plus seasonal-tab
   routing.
 - [x] Implement idempotent list/discover/create for tabs.

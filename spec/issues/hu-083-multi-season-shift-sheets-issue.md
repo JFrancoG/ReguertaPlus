@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — seventeenth cut pushed; eighteenth acceptance review validated locally
+- State: IN PROGRESS — eighteenth cut pushed; nineteenth config isolation validated locally
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -734,6 +734,34 @@ Cut eighteen changes documentation/checklist evidence only and remains local and
 uncommitted. HU-083 stays open. The next implementation depends on the requested
 human-layout choice and must finish the concrete legacy routes; trusted capture,
 real-data manifests and the safe-apply/exact-zero-write gate remain separate.
+
+### Nineteenth local cut — shared legacy configuration isolation (approved 2026-09-08)
+
+Cut eighteen is pushed as `19a8ab4309181e90d0e1729bb2ebf1f5fdc4846b`.
+The user authorized commit/push and the next cut, asking to surface the choices
+needed along the way. The human-facing layout choice is pending. This cut fixes
+the environment boundary common to either layout without choosing or converting it.
+
+All remaining legacy configuration callers now use the shared module's
+`readLegacyShiftSheetsConfig`: an explicit workbook and both ranges for the target
+environment are required. Missing values disable the route; global/opposite books
+and invented range defaults are never used. Invalid/shared workbook IDs and
+unbounded/control-character ranges reject. Existing human ranges are preserved.
+This removes the duplicated fallback code; it adds no new orchestration layer.
+No stored or deployed parameter is removed. HU-085 must supply/verify the scoped
+variables before activating this candidate if a deployment relied on globals.
+
+Validation: Functions lint/build pass; configuration, adapter, import, worker and
+backend-security tests pass 85/85, and the exported-trigger emulator suite passes
+13/13 with no skips. The actual ordinary `onShiftWritten` does not open Sheets
+when any develop variable is missing despite complete global/production settings.
+The emulator shuts down. No live data, deployment, parameter, IAM or FCM change
+occurred; mobile code/contract is unchanged and mobile gates were not rerun.
+The main-checkout Xcode reorder remains untouched. Cut nineteen is uncommitted.
+
+Next required user choice: retain readable editable date/name sheets (recommended)
+or use the technical tables with archived human sheets. Seasonal writer migration
+will follow that decision; real-data evidence and final apply/deferral remain open.
 
 ## Workbook decision
 

@@ -176,3 +176,41 @@ export const readShiftSheetsWorkerConfig = (
     return failConfig("Explicit worker configuration is invalid.");
   }
 };
+
+export type ShiftSheetsLegacyConfig = {
+  readonly spreadsheetId: string;
+  readonly deliveryRange: string;
+  readonly marketRange: string;
+};
+
+/**
+ * Keeps the remaining human-range callers isolated by environment while their
+ * seasonal routing is migrated. Missing scoped values disable the old route;
+ * Global configuration and invented range defaults cannot select a workbook.
+ * @param {ShiftSheetsEnvironment} environment Requested environment.
+ * @param {object} variables Invocation-time environment variables.
+ * @return {ShiftSheetsLegacyConfig|null} Explicit configuration, or no route.
+ */
+export const readLegacyShiftSheetsConfig = (
+  environment: ShiftSheetsEnvironment,
+  variables: Readonly<Record<string, string | undefined>>,
+): ShiftSheetsLegacyConfig | null => {
+  if (environment !== "develop" && environment !== "production") {
+    return failConfig("Unknown Sheets environment.");
+  }
+  const suffix = environment.toUpperCase();
+  const workbooks = {
+    develop: variables.SHEETS_SPREADSHEET_ID_DEVELOP?.trim(),
+    production: variables.SHEETS_SPREADSHEET_ID_PRODUCTION?.trim(),
+  };
+  const deliveryRange = variables[`SHEETS_DELIVERY_RANGE_${suffix}`]?.trim();
+  const marketRange = variables[`SHEETS_MARKET_RANGE_${suffix}`]?.trim();
+  if (!workbooks[environment] || !deliveryRange || !marketRange) return null;
+  const config = createShiftSheetsConfig({environment, workbooks});
+  if ([deliveryRange, marketRange].some((range) => range.length > 1024 ||
+    [...range].some((character) => character.charCodeAt(0) < 32))) {
+    return failConfig("Explicit legacy range is invalid.");
+  }
+  return Object.freeze({spreadsheetId: config.workbookId,
+    deliveryRange, marketRange});
+};
