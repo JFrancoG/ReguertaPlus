@@ -14,19 +14,30 @@ choose the visible layout or certify deployed configuration. Validation for this
 change: 85/85 focused local cases and 13/13 trigger cases with the Firestore emulator.
 The cut-18 validation table below remains the evidence for its reviewed commit.
 
+## Cut-20 local update
+
+The maintainer selected readable, editable date/name sheets. Full export, ordinary
+confirmed-row export and delivery-calendar overrides now use the shared seasonal
+resolver with explicit aliases and the logical shift date; `syncMeta.sheetName`
+and fixed ranges cannot redirect these paths. The human writer validates a bounded
+existing tab and named assignees. Delivery updates leave D:E untouched; market writes
+three name/phone pairs, preserving C, its date heading and following date block.
+Duplicate dates, incomplete/extra market participants, missing destinations and
+oversized grids reject. Source notification/fence behavior remains in the existing
+handlers. Validation: 90/90 focused local cases, 22/22 trigger/emulator cases,
+Functions lint/build. Real Sheets are represented by a fake in these tests.
+
 ## Result
 
-The canonical adapter, private sync/import entry points, controlled-event audit
-and offline repair/conversion tooling have local and emulator evidence. HU-083
-is still open: ordinary/full/override export and legacy import/generation have
-not all migrated to the canonical pipeline, the human-facing layout is undecided,
-and neither the real-data safe-apply nor the exact zero-write deferral is complete.
-Passing adapter tests cannot certify those remaining paths.
+The canonical adapter, private sync/import entry points, controlled-event audit,
+repair tooling and the three seasonal human writer routes have local/emulator
+evidence. HU-083 remains open: reviewed human import/write-back, generation/new-tab
+creation and the activation worker need the selected readable contract; real-data
+safe-apply or exact zero-write deferral is also incomplete. The archive/technical
+conversion proposal is not selected for the user workflow.
 
-Do not add further generic review schemas or rehearsal layers to resolve these
-remaining requirements. The next implementation must address the existing writer
-routes after the layout decision; the evidence work must obtain the missing real
-inputs rather than manufacture another synthetic readiness artifact.
+Continue the existing pipeline integration rather than adding generic review
+schemas. Obtain the missing real inputs for the operational evidence gates.
 
 ## Implementation and acceptance map
 
@@ -39,10 +50,10 @@ inputs rather than manufacture another synthetic readiness artifact.
 | Durable Sheets attempt, replay and unknown-outcome reconciliation | Consumer/import emulator cases, shared workbook reservation, exact cells/marker/version checks | Protocol evidence is not an external-writer fence or physical cross-store CAS |
 | Controlled event suppression and recovery identity | [Trigger](../../../functions/src/shift-planning-public-event-trigger.ts), actual exported-trigger emulator cases, durable audit 32/32 | Both candidate trigger revisions and explicit policy need HU-085 rollout; ordinary effects keep their existing route |
 | Retention and rejection | Typed retention policy, durable controlled/rejected ledgers, strict/phase1 access tests | Operator logs do not prove alert delivery; real policy/retention lifecycle remains an operational gate |
-| Full export, ordinary incremental export and overrides | Existing candidate paths listed below | Local migration is incomplete; cannot be marked done as merely pending deployment |
+| Full export, ordinary incremental export and overrides | Cut-20 human routing and exported-handler integration tests | Readable existing-tab updates are local; missing human-tab creation and complete worker/import integration remain open |
 | Ownership, completed history and predecessor/current/successor CAS | New import emulator coverage; strict ownership/provenance Rules and retained-marker routing | Does not certify all legacy mutation routes or current deployed behavior |
 | Audit, repair documents, baseline and inverse | [Auditor](../../../functions/scripts/audit-shift-planning.cjs), [repair review](../../../functions/scripts/repair-planned-shifts.cjs), [materializer](../../../functions/scripts/materialize-shift-repair.cjs), loopback/demo [rehearsal](../../../functions/scripts/rehearse-shift-repair.cjs) | Supplied snapshots and synthetic commits do not prove capture completeness, historical membership or live inverse authority |
-| Human-layout conversion | [Offline proposal](../../../functions/scripts/plan-shift-sheets-conversion.cjs), full original images, canonical clone and integration tests | Archive-and-create is a proposal, not approval of the human-facing format; formula-reference behavior and real clone restoration remain open |
+| Human-facing layout | Readable/editable date-name sheets selected; cut-20 writer preserves annotation columns | Archive/technical-table proposal is not selected. Complete human import, generation and worker integration remain open |
 | Real develop repair or zero-write HU-085 deferral | [Bounded layout inventory](inventory.md) and the supplied-snapshot tooling | No trusted dual-store baseline, exact real-data manifests, unchanged-source proof or completed deferral acceptance |
 
 ## Candidate legacy routes still present
@@ -54,10 +65,10 @@ inventory of deployed Functions. The implementation source is
 | Entry point / helper | Current behavior | Work required before claiming complete migration |
 | --- | --- | --- |
 | `getSheetConfig` → `readLegacyShiftSheetsConfig` (cut 19) | Explicit environment book and both ranges; missing values disable routing, with no global/default fallback | Require scoped configuration at rollout; seasonal writer migration remains open |
-| `exportShiftsToGoogleSheets` → `exportAllShiftsToGoogleSheets` | Iterates all shifts through fixed delivery/market ranges and `upsertShiftRowInSheet` | Route by reviewed seasonal identity and the agreed layout, with coherent authority/read-back |
+| `exportShiftsToGoogleSheets` → `exportAllShiftsToGoogleSheets` | Cut 20 iterates shifts through seasonal human ranges from their logical dates | Existing-tab route tested across delivery seasons and market; complete read-back/recovery remains an operational requirement |
 | `syncShiftsFromGoogleSheets` → `syncShiftsFromGoogleSheetsInternal` | Reads `sheetRangeDefinitions` through the older parser | Migrate callers or explicitly replace/retire the endpoint under reviewed compatibility |
-| Ordinary branch of `onShiftWritten` | Marked backend events are separated; ordinary confirmed app rows still use human-range `A:C`/`A:F` upsert and notifications | Prove the chosen seasonal writer path preserves ordinary-event and notification behavior |
-| `onDeliveryCalendarOverrideWritten` | Sends matching shifts through `sheetConfig.deliveryRange` | Route overrides through the same reviewed layout and seasonal authority |
+| Ordinary branch of `onShiftWritten` | Cut 20 resolves the seasonal alias, updates readable fields and retains ordinary notification effects | Existing-tab integration tested, including ignored wrong `syncMeta.sheetName`; live side effects remain unverified |
+| `onDeliveryCalendarOverrideWritten` | Cut 20 keeps the logical seasonal tab while changing the visible date within the same ISO week | Exported override integration tested; real workbook read-back remains open |
 | Legacy `onShiftPlanningRequestCreated` path | Old generation retains `updateWholeSheet` (`values.clear` then update); newer requests have their separate pipeline | Prove dispatch/compatibility before changing or retiring the old generation path; canonical adapter tests do not remove this code |
 
 The new pipeline is composed in `index.ts` as `executeShiftSheetsImport`,
@@ -104,11 +115,11 @@ base, so their gates were not rerun. Actual app read-back remains a live gate.
 
 ## Remaining execution order
 
-1. Decide the human-facing layout. The cut-17 archive/technical-table option is
-   reviewable but unapproved; preserving the editable human format has different
-   implementation requirements. Neither choice authorizes live conversion.
-2. Finish the concrete legacy-route integration above with focused behavior tests,
-   preserving ordinary notification semantics and existing governance fences.
+1. Keep the selected readable/editable date-name layout; do not deploy the
+   unselected archive/technical-table workflow. This choice does not authorize
+   live conversion.
+2. Integrate reviewed human import/write-back, generation/new-tab creation and
+   the activation worker, preserving ordinary notifications and existing fences.
 3. Obtain trusted Firestore/Sheets evidence through the separately bounded auditor
    defined in [spec.md](spec.md). Inventory alone is not backup authority. Verify
    approved calendars, ownership/bootstrap and historical/helper boundaries.

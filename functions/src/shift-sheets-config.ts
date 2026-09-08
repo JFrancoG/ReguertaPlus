@@ -214,3 +214,21 @@ export const readLegacyShiftSheetsConfig = (
   return Object.freeze({spreadsheetId: config.workbookId,
     deliveryRange, marketRange});
 };
+
+/**
+ * Routes readable tables by the shift's logical date, not an editable label or
+ * an effective calendar override. Only the existing human columns are selected.
+ * @param {ShiftSheetsConfig} config Explicit workbook and seasonal aliases.
+ * @param {ShiftSheetsType} type Shift partition.
+ * @param {string} date Logical ISO calendar date.
+ * @return {string} Quoted A1 range from the first row of the human table.
+ */
+export const resolveShiftSheetsHumanRange = (
+  config: ShiftSheetsConfig,
+  type: ShiftSheetsType,
+  date: string,
+): string => {
+  const tab = resolveShiftSheetsTab(config, type, date);
+  return `${quoteShiftSheetsTitle(tab.title)}!A1:` +
+    `${type === "delivery" ? "F" : "C"}2000`;
+};

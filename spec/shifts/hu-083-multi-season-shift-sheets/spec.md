@@ -37,6 +37,17 @@ assignments.
 
 ## Workbook and naming decision
 
+On 2026-09-08 the maintainer selected readable, editable date/name sheets.
+The cut-17 archive-and-create-technical-tables alternative is not the selected
+user workflow. Existing human titles, notes and formulas must survive migration;
+internal UID/digest representations are not a replacement for the editable view.
+Cut twenty routes full export, ordinary confirmed changes and calendar overrides
+to human seasonal ranges using the logical shift date and explicit aliases.
+Reparto updates A:C and F, preserving D:E; mercado updates only A:B for exactly
+three participants, preserving its date heading, C annotations and following block.
+Human imports, generation, new-tab creation and the activation worker still need
+the same end-to-end readable contract before rollout.
+
 - Keep one stable workbook for develop/test and one stable workbook for
   production.
 - Use one tab per shift type and season. The tab is selected by the actual shift

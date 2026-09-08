@@ -813,6 +813,18 @@ conversion remains gated. Unknown external submissions permit read-only
 reconciliation, never resend. This adds no deployment, caller IAM grant or scheduler;
 HU-085 still owns runtime identity and external-writer exclusion.
 
+### HU-083 readable Sheets decision — 2026-09-08
+
+The maintainer selected readable, editable sheets with dates and member names.
+The offline archive-and-create-technical-tables proposal is not the chosen user
+workflow. Existing human annotations/formulas stay in place; internal stable IDs,
+ownership and digests remain backend authority, not editable technical columns.
+Seasonal export/ordinary-change/calendar-override routing uses the logical shift
+date and reviewed aliases. Effective date overrides do not select another tab.
+Human import, generation and activation-worker integration must follow the same
+presentation contract before rollout. This decision authorizes local implementation,
+not live workbook conversion, shared deployment or production configuration.
+
 ## Approval and implementation status
 
 The maintainer accepted this ADR on 2026-08-24 for HU-082 implementation and

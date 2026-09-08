@@ -842,6 +842,18 @@ incierto solo permite reconciliación por lectura, nunca reenvío. No añade des
 permisos IAM del invocador ni scheduler; HU-085 conserva la identidad runtime y la
 exclusión de escritores externos.
 
+### Decisión de hojas legibles de HU-083 — 2026-09-08
+
+El mantenedor eligió hojas legibles y editables con fechas y nombres de socios.
+La propuesta offline de archivar y crear tablas técnicas no es el flujo elegido.
+Se conservan anotaciones y fórmulas humanas; IDs estables, propiedad y digests
+siguen siendo autoridad del backend, no columnas técnicas editables.
+El exportado, los cambios ordinarios y los ajustes de calendario eligen pestaña
+por la fecha lógica del turno y los alias revisados. Un cambio de fecha efectiva
+no elige otra pestaña. Importación humana, generación y worker de activación deben
+seguir el mismo contrato visual antes del rollout. La decisión autoriza implementar
+localmente, no convertir el libro real, desplegar ni configurar producción.
+
 ## Estado de aprobación e implementación
 
 El mantenedor aceptó este ADR el 2026-08-24 para implementar HU-082 y validarla

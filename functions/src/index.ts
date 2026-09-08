@@ -123,6 +123,7 @@ import {
 import {
   readLegacyShiftSheetsConfig,
   readShiftSheetsWorkerConfig,
+  resolveShiftSheetsHumanRange,
   ShiftSheetsLegacyConfig,
 } from "./shift-sheets-config.js";
 import {createShiftSheetsAdapter} from "./shift-sheets.js";
@@ -2414,7 +2415,10 @@ const parseDateInput = (value: unknown): Timestamp | null => {
 };
 
 const parseSheetName = (range: string): string =>
-  range.includes("!") ? range.split("!")[0] : "Sheet1";
+  range.includes("!") ? range.slice(0, range.lastIndexOf("!")) : "Sheet1";
+
+const sheetTitleFromRange = (range: string): string =>
+  parseSheetName(range).replace(/^'|'$/g, "").replace(/''/g, "'");
 
 const buildMemberLookup = async (
   env: string,
@@ -2440,7 +2444,7 @@ const buildMemberLookup = async (
       parseString(doc.get("normalizedEmail")) ||
       parseString(doc.get("emailNormalized")) ||
       "";
-    const displayName = parseString(doc.get("displayName")) || doc.id;
+    const displayName = parseString(doc.get("displayName")) || "";
     const memberRef: MemberSheetRef = {
       id: doc.id,
       displayName,
@@ -2981,7 +2985,7 @@ const toDeliveryHumanRow = (
   return [
     formatHumanShortDate(effectiveDate),
     responsible?.displayName || existingRow[1] || "",
-    responsible?.phone || existingRow[2] || "",
+    responsible?.phone || "",
     existingRow[3] || "",
     existingRow[4] || "",
     `${isoWeekNumber(effectiveDate)}`,
@@ -2999,7 +3003,7 @@ const toMarketHumanLeadRow = (
 
   return [
     leadMember?.displayName || existingRow[0] || "",
-    existingRow[1] || "",
+    leadMember?.phone || "",
     existingRow[2] || "",
   ];
 };
@@ -3009,14 +3013,12 @@ const toMarketHumanSupportRows = (
   membersById: Map<string, MemberSheetRef>,
   existingRows: string[][] = [],
 ): string[][] =>
-  Array.from({length: 4}).map((_, index) => {
-    const member = shift.assignedUserIds[index + 1] ?
-      membersById.get(shift.assignedUserIds[index + 1]) :
-      null;
+  shift.assignedUserIds.slice(1).map((userId, index) => {
+    const member = membersById.get(userId);
     const existingRow = existingRows[index] || [];
     return [
       member?.displayName || existingRow[0] || "",
-      member?.phone || existingRow[1] || "",
+      member?.phone || "",
       existingRow[2] || "",
     ];
   });
@@ -3030,13 +3032,49 @@ const upsertShiftRowInSheet = async (
   deliveryOverrides: DeliveryCalendarOverrideMap,
   writerFence: ShiftPlanningExternalWriterFence | null,
 ): Promise<"updated" | "appended"> => {
+  const width = shift.type === "delivery" ? 1 : 3;
+  if (shift.assignedUserIds.length !== width ||
+    new Set(shift.assignedUserIds).size !== width ||
+    shift.assignedUserIds.some((id) => {
+      const name = membersById.get(id)?.displayName;
+      return !name || [...membersById.values()].filter((member) =>
+        normalizeLookupKey(member.displayName) === normalizeLookupKey(name))
+        .length !== 1;
+    })) {
+    throw new Error("Human export needs complete, distinct named assignees.");
+  }
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId, fields: "spreadsheetId,sheets.properties",
+  });
+  const matching = metadata.data.sheets?.filter((sheet) =>
+    sheet.properties?.title === sheetTitleFromRange(range)) ?? [];
+  const grid = matching[0]?.properties?.gridProperties;
+  if (metadata.data.spreadsheetId !== spreadsheetId || matching.length !== 1 ||
+    !Number.isSafeInteger(grid?.rowCount) || (grid?.rowCount ?? 0) < 1 ||
+    (grid?.rowCount ?? Infinity) > 2000) {
+    throw new Error("Human export needs one existing bounded seasonal table.");
+  }
   const valuesResponse = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range,
   });
   const rows = valuesResponse.data.values || [];
   const normalizedRows = rows.map((row) => row.map((cell) => `${cell}`));
+  if (normalizedRows[0]?.[0] === "shiftId") {
+    throw new Error("A technical table is not a reviewed human layout.");
+  }
   const effectiveDate = resolveEffectiveDeliveryDate(shift, deliveryOverrides);
+  const matchingRows = normalizedRows.filter((row) => {
+    const date = parseDateInput(row[0]);
+    return date && (shift.type === "delivery" ?
+      timestampToIsoWeekKey(date) === timestampToIsoWeekKey(shift.date) :
+      timestampToSheetDate(date) === timestampToSheetDate(shift.date));
+  });
+  if (matchingRows.length > 1 ||
+    (shift.type === "delivery" && timestampToIsoWeekKey(effectiveDate) !==
+      timestampToIsoWeekKey(shift.date))) {
+    throw new Error("Human export has ambiguous dates or an invalid override.");
+  }
   const runSheetMutation = <Result>(
     mutation: () => Promise<Result>,
   ): Promise<Result> => writerFence ?
@@ -3053,20 +3091,25 @@ const upsertShiftRowInSheet = async (
         timestampToIsoWeekKey(rowDate) === targetWeekKey
       ) {
         const rowNumber = rowOffset + 1;
-        await runSheetMutation(() => sheets.spreadsheets.values.update({
+        const values = toDeliveryHumanRow(
+          shift, membersById, effectiveDate, row,
+        );
+        await runSheetMutation(() => sheets.spreadsheets.values.batchUpdate({
           spreadsheetId,
-          range: `${parseSheetName(range)}!A${rowNumber}:F${rowNumber}`,
-          valueInputOption: "RAW",
-          requestBody: {
-            values: [
-              toDeliveryHumanRow(shift, membersById, effectiveDate, row),
-            ],
-          },
+          requestBody: {valueInputOption: "RAW", data: [
+            {range: `${parseSheetName(range)}!A${rowNumber}:C${rowNumber}`,
+              values: [values.slice(0, 3)]},
+            {range: `${parseSheetName(range)}!F${rowNumber}`,
+              values: [[values[5]]]},
+          ]},
         }));
         return "updated";
       }
     }
 
+    if (normalizedRows.length + 2 > 2000) {
+      throw new Error("Human delivery table exceeds the bounded export range.");
+    }
     await runSheetMutation(() => sheets.spreadsheets.values.append({
       spreadsheetId,
       range: `${parseSheetName(range)}!A:F`,
@@ -3093,8 +3136,17 @@ const upsertShiftRowInSheet = async (
       const existingLeadRow = normalizedRows[rowOffset + 1] || [];
       const existingSupportRows = normalizedRows.slice(
         rowOffset + 2,
-        rowOffset + 6,
+        rowOffset + 4,
       );
+      const participantRows = [existingLeadRow, ...existingSupportRows];
+      const knownNames = new Set([...membersById.values()].map((member) =>
+        normalizeLookupKey(member.displayName)));
+      const following = normalizedRows[rowOffset + 4]?.[0];
+      if (participantRows.length !== 3 || participantRows.some((person) =>
+        !person[0] || !knownNames.has(normalizeLookupKey(person[0]))) ||
+        (following?.trim() && !parseDateInput(following))) {
+        throw new Error("Market block needs three reviewed participants.");
+      }
       const leadRow = toMarketHumanLeadRow(
         shift,
         membersById,
@@ -3108,22 +3160,20 @@ const upsertShiftRowInSheet = async (
 
       await runSheetMutation(() => sheets.spreadsheets.values.update({
         spreadsheetId,
-        range:
-            `${parseSheetName(range)}!A${dateRowNumber}:` +
-            `C${dateRowNumber + 5}`,
+        range: `${parseSheetName(range)}!A${dateRowNumber + 1}:` +
+          `B${dateRowNumber + 3}`,
         valueInputOption: "RAW",
         requestBody: {
-          values: [
-            [formatHumanLongDate(shift.date)],
-            leadRow,
-            ...supportRows,
-          ],
+          values: [leadRow, ...supportRows].map((person) => person.slice(0, 2)),
         },
       }));
       return "updated";
     }
   }
 
+  if (normalizedRows.length + 4 > 2000) {
+    throw new Error("Human market table exceeds the bounded export range.");
+  }
   await runSheetMutation(() => sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${parseSheetName(range)}!A:C`,
@@ -3744,7 +3794,7 @@ const persistShiftExportEffects = async (
       transaction.set(reference, {
         syncMeta: {
           origin: "app",
-          sheetName: parseSheetName(targetRange),
+          sheetName: sheetTitleFromRange(targetRange),
           exportedAt: FieldValue.serverTimestamp(),
           exportMode,
         },
@@ -3858,13 +3908,7 @@ const exportAllShiftsToGoogleSheets = async (
   deliveryCount: number;
   marketCount: number;
 }> => {
-  const sheetConfig = getSheetConfig(env);
-  if (!sheetConfig) {
-    throw new Error(
-      `Missing sheets configuration for env=${env}. ` +
-      "Expected explicit SHEETS_* variables for this environment."
-    );
-  }
+  const sheetConfig = readShiftSheetsWorkerConfig(env, process.env);
 
   const [sheets, membersById, shifts, deliveryOverrides] = await Promise.all([
     getSheetsClient(),
@@ -3891,10 +3935,10 @@ const exportAllShiftsToGoogleSheets = async (
   for (const shift of shifts) {
     await upsertShiftRowInSheet(
       sheets,
-      sheetConfig.spreadsheetId,
-      shift.type === "market" ?
-        sheetConfig.marketRange :
-        sheetConfig.deliveryRange,
+      sheetConfig.workbookId,
+      resolveShiftSheetsHumanRange(
+        sheetConfig, shift.type, timestampToSheetDate(shift.date),
+      ),
       shift,
       membersById,
       deliveryOverrides,
@@ -4498,22 +4542,12 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       return;
     }
 
-    const sheetConfig = getSheetConfig(env);
-    if (!sheetConfig) {
-      logger.warn("Skipping shift export because sheets config is missing", {
-        env,
-        shiftId: after.id,
-      });
-      return;
-    }
-
-    const targetRange = after.syncSheetName ?
-      `${after.syncSheetName}!${after.type === "market" ? "A:C" : "A:F"}` :
-      (
-        after.type === "market" ?
-          sheetConfig.marketRange :
-          sheetConfig.deliveryRange
-      );
+    const sheetConfig = readShiftSheetsWorkerConfig(
+      parseAppEnvironment(env), process.env,
+    );
+    const targetRange = resolveShiftSheetsHumanRange(
+      sheetConfig, after.type, timestampToSheetDate(after.date),
+    );
 
     const [sheets, membersById, deliveryOverrides] = await Promise.all([
       getSheetsClient(),
@@ -4540,7 +4574,7 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
 
     const result = await upsertShiftRowInSheet(
       sheets,
-      sheetConfig.spreadsheetId,
+      sheetConfig.workbookId,
       targetRange,
       after,
       membersById,
@@ -4596,13 +4630,7 @@ onDocumentWrittenWithAuthContext(
 
     try {
       const environment = parseAppEnvironment(env);
-      const sheetConfig = getSheetConfig(environment);
-      if (!sheetConfig) {
-        throw new Error(
-          `Missing sheets configuration for env=${env}. ` +
-          "Expected explicit SHEETS_* variables for this environment."
-        );
-      }
+      const sheetConfig = readShiftSheetsWorkerConfig(environment, process.env);
 
       const [
         sheets,
@@ -4646,8 +4674,10 @@ onDocumentWrittenWithAuthContext(
         });
         await upsertShiftRowInSheet(
           sheets,
-          sheetConfig.spreadsheetId,
-          sheetConfig.deliveryRange,
+          sheetConfig.workbookId,
+          resolveShiftSheetsHumanRange(
+            sheetConfig, shift.type, timestampToSheetDate(shift.date),
+          ),
           shift,
           membersById,
           deliveryOverrides,

@@ -817,6 +817,36 @@ Next required user choice: retain readable editable date/name sheets (recommende
 or use the technical tables with archived human sheets. Seasonal writer migration
 will follow that decision; real-data evidence and final apply/deferral remain open.
 
+### Twentieth local cut — readable seasonal exports (approved 2026-09-08)
+
+Cut nineteen is pushed as `3df3766`. The user explicitly chose readable, editable
+sheets with dates and names, and authorized commit/push plus this next cut. The
+technical-table/archive alternative is not the selected working format.
+
+Full export, ordinary `onShiftWritten`, and delivery-calendar override export now
+resolve the existing seasonal human tab from the logical date and explicit aliases.
+They require the scoped workbook and alias configuration; fixed legacy ranges and
+`syncMeta.sheetName` no longer select these destinations. Delivery updates only
+A:C and F; market updates A:B for exactly three participants. Manual annotations,
+formulas, market date headings and the following block are preserved. Invalid
+identities/names, ambiguous dates/blocks, technical headers, missing tabs, wrong
+books and oversized grids reject rather than silently invent or overwrite layout.
+No new orchestration layer is added; the existing writer fences remain in place.
+
+Validation: Functions lint/build pass; nine focused local files pass 90/90 and the
+actual-handler Firestore emulator suite passes 22/22, with zero skips/failures.
+The latter invokes full HTTP export, ordinary events and calendar overrides using
+fake Sheets and fictional members. No live Sheets/Firestore, deployment, IAM or FCM
+change occurred. Mobile code/contract is unchanged; mobile gates were not rerun.
+Cut twenty remains local and uncommitted; HU-083 stays open.
+
+Next: connect reviewed human import/write-back, generation/new seasonal tabs and
+the activation worker to the chosen readable format. Current legacy export does
+not acquire the canonical worker's durable receipt/reconciliation protocol from
+these tests. Real baseline/backup, effective writer exclusion and the final safe
+apply or exact zero-write HU-085 deferral remain open. No further user choice is
+needed for this local cut; any later real-data decision must identify its scope.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its

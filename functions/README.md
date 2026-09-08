@@ -1439,6 +1439,37 @@ Parámetros opcionales:
 - `envs=develop,production` (lista separada por comas)
 
 
+## Hojas legibles elegidas y rutas estacionales (HU-083, corte 20)
+
+El formato elegido es **legible y editable con fechas y nombres**. La alternativa
+del corte 17 de archivar y crear tablas técnicas no se elige para trabajar.
+El exportado completo, `onShiftWritten` ordinario y `onDeliveryCalendarOverrideWritten`
+usan el mismo resolver de pestaña por fecha lógica del turno y alias explícitos.
+Requieren `SHEETS_SPREADSHEET_ID_<ENV>` y `SHIFT_SHEETS_ALIASES_<ENV>` (incluido `[]`
+explícito si no hay alias); estas rutas ya no usan los rangos fijos del corte 19
+ni aceptan `syncMeta.sheetName` como destino. El importador/generador legacy
+restante conserva temporalmente su configuración de rangos aislada por entorno.
+
+La lectura humana se limita a A1:F2000 en reparto y A1:C2000 en mercado. Se verifica
+el libro/pestaña y una cuadrícula de hasta 2000 filas antes de leer valores.
+Falta de pestaña, identidades incompletas o nombres ambiguos, fechas duplicadas,
+bloques ambiguos y cabeceras técnicas rechazan la operación. La creación de pestañas humanas sigue pendiente.
+Reparto actualiza A:C y F en un lote, preservando D:E incluso si contienen fórmulas.
+Mercado actualiza A:B de exactamente tres participantes, sin reescribir la cabecera
+de fecha, la columna C ni el siguiente bloque. No se rellenan filas de participantes
+ficticios. Los nombres proceden de los socios, no de IDs visibles; el teléfono
+vacío no hereda el del anterior asignado. Un override conserva la semana ISO y la
+pestaña lógica, aunque cambie la fecha visible. Los títulos con comillas o `!` se
+citan correctamente y `syncMeta` guarda el título sin escapes A1.
+
+Validación: 90/90 pruebas focalizadas y 22/22 del trigger/emulador. Las pruebas
+invocan el HTTP de exportado completo, el evento ordinario y el override reales;
+Sheets es un fake y no se envía FCM real. Se mantienen los fences y efectos de
+notificación existentes; no se atribuye a estos escritores legacy el protocolo de
+recibos/reconciliación del worker canónico. Siguen pendientes la importación y
+write-back humanos revisados, generación/nuevas pestañas y la adaptación del worker
+al formato elegido, además de evidencia real, exclusión de escritores y rollout.
+
 ## Aislamiento de configuración de las rutas antiguas (HU-083, corte 19)
 
 Las rutas antiguas de exportado completo, importación, generación, evento ordinario

@@ -86,3 +86,14 @@ test("legacy configuration rejects shared workbooks, malformed identities, unkno
   ]) assert.throws(() => legacy("develop", {...legacyVariables(), ...change}), {code: "invalid_sheets_config"});
   assert.throws(() => legacy("staging", legacyVariables()), {code: "invalid_sheets_config"});
 });
+
+const {resolveShiftSheetsHumanRange: humanRange} = require("../lib/shift-sheets-config.js");
+test("human ranges follow logical seasons and quote reviewed aliases without technical columns", () => {
+  const settings = config({environment: "develop", workbooks: {develop: "dev-book"}, aliases: [
+    {type: "delivery", seasonStartYear: 2025, title: "Torre's! 2025-26"},
+  ]});
+  assert.equal(humanRange(settings, "delivery", "2026-08-31"), "'Torre''s! 2025-26'!A1:F2000");
+  assert.equal(humanRange(settings, "delivery", "2026-09-01"), "'turnos-reparto 2026-27'!A1:F2000");
+  assert.equal(humanRange(settings, "market", "2026-09-20"), "'turnos-mercado 2026-27'!A1:C2000");
+  assert.throws(() => humanRange(settings, "delivery", "2026-02-30"));
+});

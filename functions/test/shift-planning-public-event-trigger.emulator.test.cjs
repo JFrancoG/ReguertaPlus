@@ -134,8 +134,9 @@ emulatorTest("ordinary retained-marker events bypass audit configuration and kee
   assert.equal((await ledgers()).size, 0);
 });
 
-emulatorTest("ordinary export never opens Sheets through global or opposite-environment fallback", async (t) => {
+emulatorTest("ordinary seasonal export rejects missing scoped authority before opening Sheets", async (t) => {
   const vars = {
+    SHIFT_SHEETS_ALIASES_DEVELOP: "[]",
     SHEETS_SPREADSHEET_ID: "global-book", SHEETS_DELIVERY_RANGE: "Global!A:F", SHEETS_MARKET_RANGE: "Global!A:C",
     SHEETS_SPREADSHEET_ID_DEVELOP: "dev-book", SHEETS_DELIVERY_RANGE_DEVELOP: "Delivery!A:F", SHEETS_MARKET_RANGE_DEVELOP: "Market!A:C",
     SHEETS_SPREADSHEET_ID_PRODUCTION: "prod-book", SHEETS_DELIVERY_RANGE_PRODUCTION: "Production!A:F", SHEETS_MARKET_RANGE_PRODUCTION: "Production!A:C",
@@ -146,9 +147,9 @@ emulatorTest("ordinary export never opens Sheets through global or opposite-envi
     const value = recoveryEventFixture(), after = {...value.input.after, status: "confirmed"};
     delete after.lastBackendMutation;
     const event = await sdkEvent({...value.input, before: null, after});
-    for (const missing of ["SHEETS_SPREADSHEET_ID_DEVELOP", "SHEETS_DELIVERY_RANGE_DEVELOP", "SHEETS_MARKET_RANGE_DEVELOP"]) {
+    for (const missing of ["SHEETS_SPREADSHEET_ID_DEVELOP", "SHIFT_SHEETS_ALIASES_DEVELOP"]) {
       Object.assign(process.env, vars); delete process.env[missing];
-      await exported.onShiftWritten.run(event);
+      await assert.rejects(exported.onShiftWritten.run(event));
     }
     assert.equal(sheets.mock.callCount(), 0);
     assert.equal((await ledgers()).size, 0);
@@ -157,4 +158,168 @@ emulatorTest("ordinary export never opens Sheets through global or opposite-envi
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
   }
+});
+
+const humanSheets = (tabs) => {
+  const state = structuredClone(tabs), writes = [], reads = [];
+  const locate = (range) => {
+    const separator = range.lastIndexOf("!"), quoted = range.slice(0, separator);
+    const title = quoted.slice(1, -1).replace(/''/g, "'");
+    assert.ok(Object.hasOwn(state, title), "No implicit destination creation or fallback");
+    return {title, cells: range.slice(separator + 1)};
+  };
+  const update = ({range, values}) => {
+    const {title, cells} = locate(range), match = /^([A-F])(\d+)(?::([A-F])(\d+))?$/.exec(cells);
+    assert.ok(match); const row = Number(match[2]) - 1, col = match[1].charCodeAt(0) - 65;
+    for (const [r, data] of values.entries()) {
+      state[title][row + r] ??= [];
+      for (const [c, value] of data.entries()) state[title][row + r][col + c] = value;
+    }
+  };
+  const values = {
+    get: async (request) => {
+      reads.push(request); const {title} = locate(request.range);
+      return {data: {values: state[title].map((row) => row.map((value) => value?.startsWith("=") ? "computed" : value))}};
+    },
+    update: async (request) => { writes.push(request); update({range: request.range, values: request.requestBody.values}); return {data: {}}; },
+    batchUpdate: async (request) => { writes.push(request); request.requestBody.data.forEach(update); return {data: {}}; },
+    append: async (request) => { writes.push(request); state[locate(request.range).title].push(...structuredClone(request.requestBody.values)); return {data: {}}; },
+  };
+  return {state, writes, reads, api: {spreadsheets: {values,
+    get: async ({spreadsheetId}) => ({data: {spreadsheetId, sheets: Object.keys(state).map((title) =>
+      ({properties: {title, gridProperties: {rowCount: Math.max(100, state[title].length), columnCount: 26}}}))}}),
+  }}};
+};
+const ordinaryHumanFixture = async (t, {type = "delivery", date = "2026-08-27", ids = ["a"], title = "TORRE 2025-26", rows = []} = {}) => {
+  const keys = ["SHEETS_SPREADSHEET_ID_DEVELOP", "SHIFT_SHEETS_ALIASES_DEVELOP"];
+  const original = keys.map((key) => process.env[key]);
+  t.after(() => keys.forEach((key, index) => { if (original[index] === undefined) delete process.env[key]; else process.env[key] = original[index]; }));
+  process.env.SHEETS_SPREADSHEET_ID_DEVELOP = "human-fixture-book";
+  process.env.SHIFT_SHEETS_ALIASES_DEVELOP = JSON.stringify([{type,
+    seasonStartYear: Number(date.slice(0, 4)) - Number(Number(date.slice(5, 7)) < 9), title}]);
+  for (const id of ["a", "b", "c", "d"]) await firestore.doc(`${root}/users/${id}`).set({displayName: `Persona ${id.toUpperCase()}`, phone: `90000000${id}`});
+  const sheets = humanSheets({[title]: rows});
+  t.mock.method(require("googleapis").google, "sheets", () => sheets.api);
+  const shiftId = `shift_${type}_${date.replaceAll("-", "")}`;
+  const event = await sdkEvent({targetPath: `${root}/shifts/${shiftId}`, before: null, after: {
+    type, date: require("@google-cloud/firestore").Timestamp.fromDate(new Date(`${date}T00:00:00Z`)),
+    assignedUserIds: ids, helperUserId: null, status: "confirmed", source: "app",
+    syncMeta: {sheetName: "untrusted-wrong-season"},
+  }, eventId: `ordinary-${shiftId}`, eventTime: require("@google-cloud/firestore").Timestamp.now()});
+  return {event, sheets, shiftId, title};
+};
+
+emulatorTest("ordinary delivery uses the reviewed seasonal alias and leaves manual formulas and names readable", async (t) => {
+  const f = await ordinaryHumanFixture(t, {title: "Torre's! 2025-26", ids: ["b"], rows: [
+    ["AGOSTO"], ["27/8/2026", "Persona A", "old phone", "=1+1", "lo hace Persona B", "35"],
+  ]});
+  await exported.onShiftWritten.run(f.event);
+  assert.equal(f.sheets.reads[0].range, "'Torre''s! 2025-26'!A1:F2000");
+  assert.deepEqual(f.sheets.state[f.title][1], ["27/8/2026", "Persona B", "90000000b", "=1+1", "lo hace Persona B", "35"]);
+  assert.equal(f.sheets.writes.length, 1);
+  assert.equal((await firestore.doc(`${root}/shifts/${f.shiftId}`).get()).get("syncMeta.sheetName"), f.title);
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 1);
+});
+
+emulatorTest("market updates only three participant name/phone pairs and preserves the next date and manual cells", async (t) => {
+  const rows = [["20/9/2026", "heading note"], ["Persona A", "old", "=2+2"], ["Persona B", "old", "note B"],
+    ["Persona C", "old", "note C"], ["18/10/2026"], ["Persona D", "phone", "next date note"]];
+  const f = await ordinaryHumanFixture(t, {type: "market", date: "2026-09-20", ids: ["b", "c", "a"], title: "turnos-mercado 2026-27", rows});
+  await exported.onShiftWritten.run(f.event);
+  assert.deepEqual(f.sheets.state[f.title], [rows[0], ["Persona B", "90000000b", "=2+2"], ["Persona C", "90000000c", "note B"],
+    ["Persona A", "90000000a", "note C"], rows[4], rows[5]]);
+  assert.equal(f.sheets.writes[0].range, "'turnos-mercado 2026-27'!A2:B4");
+});
+
+emulatorTest("market append adds one date and exactly three named people without technical columns", async (t) => {
+  const f = await ordinaryHumanFixture(t, {type: "market", date: "2026-09-20", ids: ["a", "b", "c"], title: "turnos-mercado 2026-27"});
+  await exported.onShiftWritten.run(f.event);
+  const rows = f.sheets.state[f.title];
+  assert.equal(rows.length, 4);
+  assert.deepEqual(rows.slice(1).map((row) => row[0]), ["Persona A", "Persona B", "Persona C"]);
+  assert.ok(rows.every((row) => row.length <= 3));
+});
+
+emulatorTest("ambiguous dates and oversized or incomplete market groups stop before writes or notification effects", async (t) => {
+  const f = await ordinaryHumanFixture(t, {type: "market", date: "2026-09-20", ids: ["a", "b", "c"], title: "turnos-mercado 2026-27"});
+  for (const rows of [
+    [["20/9/2026"], ["Persona A"], ["Persona B"], ["Persona C"], ["20/9/2026"]],
+    [["20/9/2026"], ["Persona A"], ["Persona B"], ["18/10/2026"]],
+    [["20/9/2026"], ["Persona A"], ["Persona B"], ["Persona C"], ["Persona D"]],
+  ]) {
+    f.sheets.state[f.title] = rows;
+    await assert.rejects(exported.onShiftWritten.run(f.event));
+  }
+  assert.equal(f.sheets.writes.length, 0);
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
+});
+
+emulatorTest("full HTTP export sends delivery carryover and market to their own readable seasonal tabs", async (t) => {
+  const f = await ordinaryHumanFixture(t);
+  const {Timestamp} = require("@google-cloud/firestore");
+  f.sheets.state["turnos-reparto 2026-27"] = [];
+  f.sheets.state["turnos-mercado 2026-27"] = [];
+  await firestore.doc(`${root}/shifts/shift_delivery_20260903`).set({type: "delivery", date: Timestamp.fromDate(new Date("2026-09-03T00:00:00Z")), assignedUserIds: ["b"], helperUserId: null, status: "planned", source: "app"});
+  await firestore.doc(`${root}/shifts/shift_market_20260920`).set({type: "market", date: Timestamp.fromDate(new Date("2026-09-20T00:00:00Z")), assignedUserIds: ["a", "b", "c"], helperUserId: null, status: "planned", source: "app"});
+  await firestore.doc(`${root}/authLinks/fixture-admin`).set({memberId: "a"});
+  await firestore.doc(`${root}/users/a`).set({authUid: "fixture-admin", isActive: true, roles: ["member", "admin"]}, {merge: true});
+  t.mock.method(require("firebase-admin/auth").getAuth(), "verifyIdToken", async () => ({uid: "fixture-admin", email_verified: true}));
+  const response = {statusCode: null, body: null, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; }};
+  await exported.exportShiftsToGoogleSheets({method: "POST", body: {environment: "develop"}, query: {}, headers: {authorization: "Bearer fixture-token"}}, response);
+  assert.equal(response.statusCode, 200, JSON.stringify(response.body));
+  assert.deepEqual(response.body, {ok: true, env: "develop", exportedCount: 3, deliveryCount: 2, marketCount: 1});
+  assert.deepEqual(f.sheets.reads.map((request) => request.range).sort(), ["'TORRE 2025-26'!A1:F2000", "'turnos-mercado 2026-27'!A1:C2000", "'turnos-reparto 2026-27'!A1:F2000"]);
+  assert.equal(f.sheets.state["TORRE 2025-26"][1][1], "Persona A");
+  assert.equal(f.sheets.state["turnos-reparto 2026-27"][1][1], "Persona B");
+  assert.equal(f.sheets.state["turnos-mercado 2026-27"].length, 4);
+});
+
+emulatorTest("calendar override keeps the logical seasonal tab and updates the visible date without touching notes", async (t) => {
+  const f = await ordinaryHumanFixture(t, {rows: [["27/8/2026", "Persona A", "phone", "=1+1", "manual", "35"]]});
+  const {Timestamp} = require("@google-cloud/firestore"), ref = firestore.doc(`${root}/deliveryCalendar/2026-W35`);
+  const before = await ref.get();
+  await ref.set({deliveryDate: Timestamp.fromDate(new Date("2026-08-28T00:00:00Z")), updatedBy: "a"});
+  const after = await ref.get();
+  await exported.onDeliveryCalendarOverrideWritten.run({params: {env: "develop", weekKey: "2026-W35"}, authType: "system", data: {before, after}});
+  assert.equal(f.sheets.reads[0].range, "'TORRE 2025-26'!A1:F2000");
+  assert.deepEqual(f.sheets.state[f.title][0], ["28/8/2026", "Persona A", "90000000a", "=1+1", "manual", "35"]);
+  assert.equal(f.sheets.writes.length, 1);
+});
+
+emulatorTest("human writers reject unknown destinations, oversized grids and unresolved assignees before writing", async (t) => {
+  const f = await ordinaryHumanFixture(t);
+  let metadata;
+  const get = t.mock.method(f.sheets.api.spreadsheets, "get", async () => ({data: metadata}));
+  for (const data of [
+    {spreadsheetId: "human-fixture-book", sheets: []},
+    {spreadsheetId: "wrong-book", sheets: [{properties: {title: f.title, gridProperties: {rowCount: 100}}}]},
+    {spreadsheetId: "human-fixture-book", sheets: [{properties: {title: f.title, gridProperties: {rowCount: 2001}}}]},
+  ]) { metadata = data; await assert.rejects(exported.onShiftWritten.run(f.event)); }
+  assert.equal(f.sheets.reads.length, 0);
+  const before = get.mock.callCount();
+  for (const ids of [[], ["a", "b"], ["unknown"]]) {
+    const ref = firestore.doc(`${root}/shifts/${f.shiftId}`);
+    await ref.update({assignedUserIds: ids});
+    await assert.rejects(exported.onShiftWritten.run({...f.event, data: {...f.event.data, after: await ref.get()}}));
+  }
+  assert.equal(get.mock.callCount(), before);
+  assert.equal(f.sheets.writes.length, 0);
+  assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
+});
+
+emulatorTest("readable exports never substitute a UID for a missing name or render ambiguous member names", async (t) => {
+  const f = await ordinaryHumanFixture(t);
+  await firestore.doc(`${root}/users/a`).update({displayName: ""});
+  await assert.rejects(exported.onShiftWritten.run(f.event));
+  await firestore.doc(`${root}/users/a`).update({displayName: "Persona A"});
+  await firestore.doc(`${root}/users/b`).update({displayName: "Persona A"});
+  await assert.rejects(exported.onShiftWritten.run(f.event));
+  assert.equal(f.sheets.reads.length, 0);
+  assert.equal(f.sheets.writes.length, 0);
+});
+
+emulatorTest("readable exports cannot append human rows into a technical table", async (t) => {
+  const f = await ordinaryHumanFixture(t, {rows: [["shiftId", "type", "date", "seasonStartYear", "rotationOwnerUserIds", "assignedUserIds"]]});
+  await assert.rejects(exported.onShiftWritten.run(f.event));
+  assert.equal(f.sheets.writes.length, 0);
 });

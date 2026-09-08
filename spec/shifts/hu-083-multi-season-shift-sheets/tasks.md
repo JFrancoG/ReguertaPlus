@@ -96,8 +96,9 @@ they do not certify live conversion or retire the legacy writer paths.
     explicit human mappings, preserving full supplied originals, exact inverse
     images and all applicable audit findings. Existing export/repair integration
     and CLI rejection paths pass (9/9 plus 105/105 regressions).
-  - [ ] Approve the final visual layout and resolve full metadata/formula-reference
-    behavior before any live conversion. The offline proposal cannot certify
+  - [ ] Resolve full metadata/formula-reference behavior before live integration.
+    The maintainer selected readable, editable date/name sheets in cut twenty;
+    archive-and-create technical tables is not the chosen workflow. The offline proposal cannot certify
     trusted capture, live version/CAS, writer fencing or restored-clone recovery.
 
 
@@ -154,8 +155,10 @@ they do not certify live conversion or retire the legacy writer paths.
     reachable from the old generation path; do not claim repository-wide removal.
 - [x] Import the union of allowed tabs and bound reconciliation to successfully
   read partitions.
-- [ ] Route full export, incremental export, and overrides by explicit tab
-  metadata.
+- [x] Route full export, incremental export, and overrides by explicit tab
+  metadata. Cut twenty uses logical dates/explicit aliases and bounded human ranges;
+  exported HTTP/event/override integration passes. Missing/oversized tabs reject;
+  human creation/import/activation-worker integration remains open.
 - [x] Consume digest-bound activation-sync commands by exact partition manifest
   and stable idempotency key through explicit post-commit pull/invocation.
 - [x] Claim pending commands transactionally and rediscover/retry them after lost
