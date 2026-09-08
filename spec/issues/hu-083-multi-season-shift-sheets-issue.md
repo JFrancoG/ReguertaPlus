@@ -4,7 +4,7 @@
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — third local cut validated; import preflight
+- State: IN PROGRESS — fourth local cut validated; transactional import
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -66,7 +66,7 @@ HU-083 remains open.
 ### Third local cut — 2026-09-08
 
 The first two cuts are committed and pushed as `49ea875` and `a3f30af`.
-The third cut is local and uncommitted: reusable bounded Sheets reads, canonical
+The third cut, now committed and pushed as `48fb799`, adds bounded Sheets reads, canonical
 export/import round-trip, explicit human delivery/market parsing, and a zero-write
 assignment reconciliation plan. Missing/partial tabs, ambiguous identities,
 incomplete market groups, formulas, changed authority cells and version drift
@@ -86,6 +86,38 @@ a governed transaction, revalidate membership and writer/notification fences, an
 emit exact public-event provenance before applying any assignment. Live layout
 conversion, governed export/import endpoint wiring, inverse-event identity,
 audit/repair and rehearsal remain open. HU-083 is not complete.
+
+### Fourth local cut — 2026-09-08
+
+The third cut is committed and pushed as `48fb799`. The fourth cut is implemented
+and validated locally, still uncommitted. `createFirestoreShiftSheetsImport`
+loads trusted bounded shift/member queries and active state, persists an immutable
+review plan after a second source check, then re-reads the full source and
+notification/writer fences in the transaction that applies all patches. Changed
+membership, completion, document versions, inserted neighbors and active leases
+reject the entire plan. Canonical member roles and `phoneNumber` (with the member
+writer's explicit legacy aliases) are checked against human-layout input.
+
+At most 100 patches commit with the existing `syncCorrection` terminal, explicit
+policy-bound operation retention and an immutable replay result (103 writes
+maximum). Completed history and rotation ownership remain intact. The real durable
+event auditor recognizes the import and exact event replay; later ordinary edits
+remain ordinary. Exact apply replay does no Google I/O or new public mutation.
+Canonical HU-082 public documents and current patched-row lineage are required;
+the complete baseline has a combined 500 shift/member document limit.
+
+Validation: Functions lint/build pass, import Firestore emulator **19/19**,
+Sheets/import units **38/38**, strict Firestore Rules **32/32** and phase1 Rules
+**8/8**, with no skips in these runs. Google APIs are simulated. No mobile contract
+changed, so Android/iOS checks were not repeated. No live data access, source
+mutation, Functions/Rules deployment or FCM occurred.
+
+The result records exact projections with `writeBackState = pending`. Next is
+Sheets write-back integrated with the existing durable submission receipts and
+serialization, with acknowledgement separate from the immutable result. That
+integration, endpoints/legacy trigger wiring, inverse-event identity, baseline,
+audit/repair and guarded rehearsal remain open. Drive version observations cannot
+replace external-writer exclusion. This checkpoint does not complete HU-083.
 
 ## Workbook decision
 

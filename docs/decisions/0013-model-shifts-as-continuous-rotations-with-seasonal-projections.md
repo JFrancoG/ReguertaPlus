@@ -431,6 +431,18 @@ artifacts over trusted caller inputs, not completed CAS or live authority. Actua
 apply still requires trusted source loading, transactional neighborhood/membership
 revalidation, writer/notification fencing and exact changed-event provenance.
 
+The fourth HU-083 local cut owns that trusted preparation/apply boundary. It
+re-reads complete bounded shift/member queries (500 documents combined), active
+writer authority and rotation/Sheets/notification fences before atomically applying
+at most 100 patches. The same transaction creates the existing `syncCorrection`
+terminal, its explicit policy-bound operation retention and an immutable exact
+replay result (at most 103 writes). Rotation ownership and completed history stay
+unchanged; patched rows require the current active lineage. The private result
+retains exact projections pending Sheets write-back. Google write-back and its
+serialization/acknowledgement, public endpoints, legacy trigger integration and
+live rollout remain pending. Drive version observation does not replace external
+writer exclusion or establish a cross-service CAS.
+
 Sheets commands are serialized by a monotonic epoch and lease per workbook/
 partition. A worker validates command plus active revision/digest before each batch
 and records read-back afterward. Recovery first supersedes and drains the activation

@@ -41,9 +41,26 @@
 - [x] Produce a zero-write assignment plan with source-revision guards and digest;
   preserve ownership/completed history and reject unsafe delivery neighborhoods.
 - [x] Validate lint/build, 38 Sheets/import cases and 14 consumer emulator cases.
-- [ ] Apply through a real source transaction, including membership, complete
+- [x] Apply through a real source transaction, including membership, complete
   neighborhood, writer/notification fences and exact backend-event provenance.
-  The preflight alone is not governed import completion or live repair evidence.
+  The fourth local cut below proves this transaction, not live repair completion.
+
+## Fourth local cut — 2026-09-08
+
+- [x] Commit and push the third cut: `48fb799`.
+- [x] Prepare immutable private plans from trusted complete bounded Firestore
+  shift/member queries and revalidate after the external Sheets read.
+- [x] Apply the reviewed digest atomically with source, membership, full
+  neighborhood, rotation/Sheets and notification writer checks.
+- [x] Preserve ownership/completed history and reject stale active lineage;
+  create the existing sync-correction terminal and operation retention together.
+- [x] Persist exact replay results with pending write-back projections; prove
+  durable event classification and replay without Google I/O or duplicate writes.
+- [x] Validate lint/build, 19 import emulator cases, 38 Sheets cases and 40
+  strict/phase1 Rules cases, all without skips; align English/Spanish ADR-0013.
+- [ ] Integrate pending write-back with existing durable Sheets submission
+  receipts/serialization and separate acknowledgement; keep real endpoint/trigger
+  wiring and story-level repair/rollout gates open.
 
 ## 0. Dependency and read-only inventory
 

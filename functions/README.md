@@ -365,6 +365,41 @@ Pruebas: `npm run test:shift-sheets` (38 casos) y
 son simuladas. No se conecta este preflight al importador legacy de `index.ts`,
 no se convierten pestañas humanas y no se modifica ningún dato real.
 
+### Importación transaccional local desde Sheets (HU-083, cuarto corte)
+
+`createFirestoreShiftSheetsImport` compone `prepare(operationId)` y
+`apply(operationId, expectedPlanDigest)` sobre el cliente público de Firestore.
+La preparación carga todos los turnos y socios (máximo combinado de 500), exige
+estado activo abierto, rotaciones sin lease y sincronización Sheets libre, y
+revalida la misma fuente después de leer Google. El catálogo usa `displayName`,
+roles canónicos y `phoneNumber` con los alias legacy explícitos del escritor de
+socios. No deduce identidades por nombre de pila. Los documentos públicos deben
+cumplir el contrato canónico HU-082; este repositorio no migra documentos legacy.
+
+El plan inmutable vive en
+`{env}/plus-collections/shiftPlanningOperations/sheets-import-{id}/sheetsImport/prepared`.
+Aplicar exige su digest revisado y relee autoridad, documentos, vecinos, socios y
+fences de notificación en la transacción que escribe. Un alta/baja, revisión o
+bloqueo posterior invalida el lote entero. Los parches deben pertenecer a la
+revisión/digest/epoch activos. Se conservan propiedad de rotación, cursores e
+historial completado; solo se modifican asignados, estado y helper previsto.
+
+El límite es 100 parches y hasta 103 escrituras atómicas: turnos, terminal existente
+`syncCorrection`, retención de operación y resultado. La composición exige la
+política explícita de retención HU-082, vinculada al plan; no introduce TTL. El
+resultado inmutable en `sheetsImport/result` conserva las proyecciones exactas con
+`writeBackState = pending`. Su replay no vuelve a consultar Google ni modifica
+turnos. La auditoría existente reconoce el cambio como evento controlado; el
+trigger real todavía requiere integración.
+
+`npm run test:shift-sheets:import:emulator` prueba la transacción y auditoría con
+Firestore emulado y APIs Google simuladas. Las Rules strict/phase1 deniegan estos
+artefactos privados a los clientes. El write-back, su serialización con los recibos
+Sheets existentes y su confirmación separada del resultado inmutable quedan para
+el siguiente corte. La versión de Drive es una observación, no un CAS entre
+servicios: el uso real sigue requiriendo el cerco de escritores externos. Este
+módulo no expone endpoint, no modifica `index.ts`, no escribe Google y no envía FCM.
+
 ### Baseline comunicable sin activación de producción
 
 La vía urgente documentada en

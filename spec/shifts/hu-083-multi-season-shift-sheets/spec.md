@@ -5,7 +5,7 @@
 - issue_id: #267
 - priority: P1
 - platform: backend
-- status: in-progress (third local cut validated; import preflight)
+- status: in-progress (fourth local cut validated; transactional import)
 - depends_on: HU-082 / #266
 - architecture: ADR-0013 (accepted), as amended by ADR-0014
 

@@ -110,7 +110,7 @@ explicit conversion is reviewed. No shared-project deploy or live mutation.
 ### Third local cut — 2026-09-08
 
 The first two cuts are committed and pushed as `49ea875` and `a3f30af`.
-The third cut is local and uncommitted: reusable bounded Sheets reads, canonical
+The third cut, now committed and pushed as `48fb799`, adds bounded Sheets reads, canonical
 export/import round-trip, explicit human delivery/market parsing, and a zero-write
 assignment reconciliation plan. Missing/partial tabs, ambiguous identities,
 incomplete market groups, formulas, changed authority cells and version drift
@@ -130,6 +130,58 @@ a governed transaction, revalidate membership and writer/notification fences, an
 emit exact public-event provenance before applying any assignment. Live layout
 conversion, governed export/import endpoint wiring, inverse-event identity,
 audit/repair and rehearsal remain open. HU-083 is not complete.
+
+### Fourth local cut — transactional Firestore import
+
+The third cut is committed and pushed as `48fb799`. Build a concrete preparation
+and apply repository using the existing public Firestore transaction API. Preparation
+loads complete bounded shift/member queries plus open active maintenance and clear
+rotation/Sheets fences, reads the workbook, then persists an immutable backend-only
+plan only if those sources are still exact. Apply accepts only its operation ID and
+reviewed digest, re-reads the complete authority/query set in the same transaction,
+checks notification fences, and commits all assignment/helper changes together with
+one existing `syncCorrection` operation terminal, its explicit policy-bound
+retention record and exact replay result. Public
+ownership/completion fields remain unchanged. Mixed active lineages fail closed.
+
+The result retains exact projections requiring subsequent Sheets write-back. This
+cut does not wire public endpoints or the legacy trigger, send notifications, or
+perform that external write-back; those remain integration work before rollout.
+No shared-project deploy or live source mutation. Tests use Firestore emulation and
+Google API fixtures, including concurrent apply, stale membership/completion,
+inserted neighbors, writer fences and controlled-event classification.
+
+### Fourth local cut — 2026-09-08
+
+The third cut is committed and pushed as `48fb799`. The fourth cut is implemented
+and validated locally, still uncommitted. `createFirestoreShiftSheetsImport`
+loads trusted bounded shift/member queries and active state, persists an immutable
+review plan after a second source check, then re-reads the full source and
+notification/writer fences in the transaction that applies all patches. Changed
+membership, completion, document versions, inserted neighbors and active leases
+reject the entire plan. Canonical member roles and `phoneNumber` (with the member
+writer's explicit legacy aliases) are checked against human-layout input.
+
+At most 100 patches commit with the existing `syncCorrection` terminal, explicit
+policy-bound operation retention and an immutable replay result (103 writes
+maximum). Completed history and rotation ownership remain intact. The real durable
+event auditor recognizes the import and exact event replay; later ordinary edits
+remain ordinary. Exact apply replay does no Google I/O or new public mutation.
+Canonical HU-082 public documents and current patched-row lineage are required;
+the complete baseline has a combined 500 shift/member document limit.
+
+Validation: Functions lint/build pass, import Firestore emulator **19/19**,
+Sheets/import units **38/38**, strict Firestore Rules **32/32** and phase1 Rules
+**8/8**, with no skips in these runs. Google APIs are simulated. No mobile contract
+changed, so Android/iOS checks were not repeated. No live data access, source
+mutation, Functions/Rules deployment or FCM occurred.
+
+The result records exact projections with `writeBackState = pending`. Next is
+Sheets write-back integrated with the existing durable submission receipts and
+serialization, with acknowledgement separate from the immutable result. That
+integration, endpoints/legacy trigger wiring, inverse-event identity, baseline,
+audit/repair and guarded rehearsal remain open. Drive version observations cannot
+replace external-writer exclusion. This checkpoint does not complete HU-083.
 
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,

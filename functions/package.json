@@ -84,7 +84,8 @@
     "shell": "npm run build && firebase functions:shell --config ../firebase.functions.json --project demo-reguerta-functions",
     "start": "npm run shell",
     "logs": "firebase functions:log --project reguerta-9f27f",
-    "test:shift-planning:sheets-consumer:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-sheets-consumer --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-sheets-consumer.test.cjs\""
+    "test:shift-planning:sheets-consumer:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-sheets-consumer --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-sheets-consumer.test.cjs\"",
+    "test:shift-sheets:import:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-import --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-sheets-firestore-import.test.cjs\""
   },
   "engines": {
     "node": "22"

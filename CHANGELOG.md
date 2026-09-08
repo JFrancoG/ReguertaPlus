@@ -36,6 +36,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-08 | ✨ feat(sheets): apply reviewed imports atomically
+
 - 2026-09-08 | ✨ feat(sheets): add guarded import preflight
 
 - 2026-09-08 | ✨ feat(sheets): persist and reconcile command submissions

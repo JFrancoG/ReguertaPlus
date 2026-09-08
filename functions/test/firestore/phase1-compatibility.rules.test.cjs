@@ -203,7 +203,9 @@ test("phase 1 closes every private shift-planning partition", async () => {
     for (const collection of privateShiftPlanningCollections) {
       const path = `${env}/plus-collections/${collection}/private-document`;
       const nestedPath = collection === "shiftPlanningSyncCommands" ?
-        `${path}/externalSubmissions/sheets` : `${path}/nested/value`;
+        `${path}/externalSubmissions/sheets` :
+        collection === "shiftPlanningOperations" ?
+          `${path}/sheetsImport/prepared` : `${path}/nested/value`;
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().doc(path).set({schemaVersion: 1});
         await context.firestore().doc(nestedPath).set({schemaVersion: 1});

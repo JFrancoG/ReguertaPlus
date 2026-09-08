@@ -446,6 +446,19 @@ real. Aplicar sigue requiriendo cargar la fuente confiable, revalidar vecinos y
 miembros transaccionalmente, comprobar fences de escritores/notificaciones y emitir
 la procedencia exacta del evento modificado.
 
+El cuarto corte local de HU-083 asume esa preparación/aplicación de confianza.
+Relee consultas completas acotadas de turnos/socios (500 documentos combinados),
+autoridad activa y fences de rotación/Sheets/notificaciones antes de aplicar como
+máximo 100 parches de forma atómica. La misma transacción crea el terminal existente
+`syncCorrection`, su retención de operación vinculada a una política explícita y
+un resultado inmutable para replay exacto (hasta 103 escrituras). Conserva propiedad
+de rotación e historial completado; los parches exigen la procedencia activa actual.
+El resultado privado guarda las proyecciones pendientes de write-back a Sheets.
+Siguen pendientes ese write-back y su serialización/confirmación, endpoints públicos,
+integración del trigger legacy y puesta en servicio real. Observar la versión de
+Drive no sustituye la exclusión de escritores externos ni establece CAS entre
+servicios.
+
 Los comandos Sheets se serializan con epoch monotónico y lease por libro/partición.
 El worker valida comando y revisión/digest activos antes de cada batch y registra
 read-back. Recovery sustituye y drena primero worker/llamada externa de activación;

@@ -1499,6 +1499,10 @@ test("planner state, rotations and outboxes remain backend-only", async () => {
       "private-document",
     );
     const nestedPaths = [
+      `${docPath(env, "shiftPlanningOperations", "sheets-import-test")}/` +
+        "sheetsImport/prepared",
+      `${docPath(env, "shiftPlanningOperations", "sheets-import-test")}/` +
+        "sheetsImport/result",
       `${docPath(env, "shiftPlanningSyncCommands", "command")}/` +
         "externalSubmissions/sheets",
       `${intentPath}/releases/canonical`,
