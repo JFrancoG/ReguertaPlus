@@ -356,3 +356,163 @@ test("truly new rotation requires an approved mapping at round one and cursor ze
   b.approvedMapping.nextMemberIndex = 1;
   assert.ok(codes(await auditShiftPlanning(input, target)).includes("invalid_rotation_bootstrap"));
 });
+
+const {planShiftRepair} = require("../scripts/repair-planned-shifts.cjs");
+const {createShiftPlanningDigest: snapshotDigest} = require("../lib/shift-planning-digest.js");
+const {buildShiftSheetsProjections} = require("../lib/shift-sheets.js");
+const repair = async (input, proposal, overrides = {}) => {
+  const original = clone(input), desired = clone(proposal);
+  return planShiftRepair({input: original, proposal: desired, target,
+    expectedInputDigest: snapshotDigest(original), expectedProposalDigest: snapshotDigest(desired), ...overrides});
+};
+const syncProposalCells = (proposal) => {
+  const config = createShiftSheetsConfig({environment: target.environment, workbooks: {develop: target.workbookId}, aliases: proposal.aliases});
+  for (const projected of buildShiftSheetsProjections(config, proposal.source.map((entry) => entry.row))) {
+    const sheet = proposal.spreadsheet.sheets.find((sheet) => sheet.properties.title === projected.title);
+    let row = sheet.data[0].rowData.findIndex((entry) => entry.values[0]?.userEnteredValue?.stringValue === projected.id);
+    if (row < 0) row = sheet.data[0].rowData.length;
+    projected.values.forEach((stringValue, column) => setCell(sheet, row, column, {userEnteredValue: {stringValue}}));
+  }
+};
+
+test("repair dry-run produces exact source/cell before-after and stable digests without mutation", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal);
+  input.source[0].row.source = "planner"; edit(input, input.source[0].row.id, 8, "planner");
+  const original = clone(input), desired = clone(proposal), plan = await planShiftRepair({input, proposal, target,
+    expectedInputDigest: snapshotDigest(input), expectedProposalDigest: snapshotDigest(proposal)});
+  assert.deepEqual(plan.projectionChanges, [{id: input.source[0].row.id, before: input.source[0], after: proposal.source[0]}]);
+  assert.equal(plan.sheetsChanges.length, 1); assert.equal(plan.sheetsChanges[0].columnNumber, 9);
+  assert.deepEqual(plan.sheetsChanges[0].before, {stringValue: "planner"}); assert.deepEqual(plan.sheetsChanges[0].after, {stringValue: "app"});
+  assert.deepEqual(plan.lineageChanges, []); assert.equal(plan.readyForApply, false);
+  assert.deepEqual(await repair(input, proposal), plan); assert.deepEqual(input, original); assert.deepEqual(proposal, desired);
+  const rerun = await repair(proposal, proposal);
+  assert.deepEqual([rerun.projectionChanges, rerun.lineageChanges, rerun.sheetsChanges], [[], [], []]);
+  assert.notEqual(rerun.planDigest, plan.planDigest);
+});
+
+test("repair binds explicit owner/round/cursor corrections without rewriting bootstrap", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal);
+  input.source[1].row.rotationOwnerUserIds = ["a"];
+  input.lineage.delivery.rows[1].positions[0].roundNumber = 8;
+  input.lineage.delivery.rotationAfterHorizon.nextMemberIndex = 1;
+  const plan = await repair(input, proposal);
+  assert.equal(plan.projectionChanges.length, 1); assert.equal(plan.lineageChanges.length, 1);
+  assert.deepEqual(plan.lineageChanges[0].before.rotationAfterHorizon, input.lineage.delivery.rotationAfterHorizon);
+  assert.deepEqual(plan.lineageChanges[0].after.rotationAfterHorizon, proposal.lineage.delivery.rotationAfterHorizon);
+});
+
+test("repair allows a guarded interior lead/helper correction and rejects edge changes", async () => {
+  const input = await lineageFixture(), proposal = clone(input);
+  proposal.source[1].row.assignedUserIds = ["d"]; proposal.source[0].row.helperUserId = "d"; syncProposalCells(proposal);
+  const plan = await repair(input, proposal); assert.equal(plan.projectionChanges.length, 2);
+  assert.equal(plan.projectionChanges[0].before.documentRevision, 2);
+  const edge = clone(input); edge.source[0].row.assignedUserIds = ["d"]; syncProposalCells(edge);
+  await assert.rejects(repair(input, edge));
+  const helper = clone(input); helper.source[2].row.helperUserId = "d"; syncProposalCells(helper);
+  await assert.rejects(repair(input, helper));
+});
+
+test("missing row can be proposed as a create with zero revisions and exact cells", async () => {
+  const proposal = await lineageFixture(), input = clone(proposal);
+  input.source.splice(1, 1); input.lineage.delivery.rows.splice(1, 1);
+  const sheet = input.spreadsheet.sheets.find((sheet) => sheet.properties.title === input.tabs[1].title);
+  // Blank the missing row without moving its successor.
+  sheet.data[0].rowData[1].values = [];
+  Object.assign(proposal.source[1], {documentRevision: 0, assignmentRevision: 0, completionRevision: 0});
+  const plan = await repair(input, proposal);
+  assert.equal(plan.projectionChanges.length, 1); assert.equal(plan.projectionChanges[0].before, null);
+  assert.equal(plan.sheetsChanges.length, 11);
+  proposal.source[1].documentRevision = 2; await assert.rejects(repair(input, proposal));
+});
+
+test("repair rejects digest drift, wrong target, proposal findings and authority substitutions", async () => {
+  const input = await lineageFixture(), proposal = clone(input);
+  for (const overrides of [{expectedInputDigest: "wrong"}, {expectedProposalDigest: "wrong"}, {target: {...target, environment: "production"}}]) {
+    await assert.rejects(repair(input, proposal, overrides));
+  }
+  for (const mutate of [
+    (p) => { p.source[0].row.source = "planner"; },
+    (p) => { p.workbookVersion = "18"; },
+    (p) => { p.capturedAt = "2026-09-09T12:00:00.000Z"; },
+    (p) => { p.lineage.delivery.bootstrap.versionedState.revision = "replacement"; },
+    (p) => { p.members[0].phones = ["replacement"]; },
+    (p) => { p.source[0].documentRevision += 1; },
+  ]) { const changed = clone(proposal); mutate(changed); await assert.rejects(repair(input, changed)); }
+  input.lineage.market.bootstrap.approvedMapping = approvedMapping("market", 9, 0);
+  await assert.rejects(repair(input, proposal));
+});
+
+test("repair freezes completed rows/positions and never deletes or chooses duplicate identities", async () => {
+  let input = await lineageFixture(); input.source[0].completed = true; input.source[0].completionRevision = 1;
+  let proposal = clone(input); proposal.source[0].row.helperUserId = "d"; syncProposalCells(proposal);
+  await assert.rejects(repair(input, proposal));
+  proposal = clone(input); input.lineage.delivery.rows[0].positions[0].roundNumber = 8;
+  await assert.rejects(repair(input, proposal));
+  input = await lineageFixture(); proposal = clone(input); proposal.source.shift();
+  await assert.rejects(repair(input, proposal));
+  proposal = clone(input); input.source.push(clone(input.source[0])); await assert.rejects(repair(input, proposal));
+});
+
+test("repair refuses manual-column, header, format, protection, merge and metadata edits", async () => {
+  for (const mutate of [
+    (p) => setCell(p.spreadsheet.sheets[0], 1, 12, {userEnteredValue: {stringValue: "manual note"}}),
+    (p) => setCell(p.spreadsheet.sheets[0], 0, 12, {userEnteredValue: {stringValue: "header"}}),
+    (p) => { p.spreadsheet.sheets[0].properties.title += " changed"; },
+    (p) => { p.spreadsheet.sheets[0].developerMetadata = []; },
+    (p) => setCell(p.spreadsheet.sheets[0], 1, 8, {note: "format changed"}),
+  ]) {
+    const input = await lineageFixture(), proposal = clone(input); mutate(proposal); await assert.rejects(repair(input, proposal));
+  }
+  for (const field of ["protectedRanges", "merges"]) {
+    const proposal = await lineageFixture(), input = clone(proposal), range = {startRowIndex: 1, endRowIndex: 2, startColumnIndex: 8, endColumnIndex: 9};
+    for (const snapshot of [input, proposal]) snapshot.spreadsheet.sheets.find((sheet) => sheet.properties.title === snapshot.tabs[0].title)[field] = field === "merges" ? [range] : [{range}];
+    input.source[0].row.source = "planner"; edit(input, input.source[0].row.id, 8, "planner");
+    await assert.rejects(repair(input, proposal));
+  }
+});
+
+test("repair CLI emits a private review artifact and rejects apply without touching files", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "repair-review-")), oldPath = join(directory, "input.json"), newPath = join(directory, "proposal.json");
+  try {
+    const proposal = await lineageFixture(), input = clone(proposal); input.source[0].row.source = "planner";
+    const original = JSON.stringify(input), desired = JSON.stringify(proposal); writeFileSync(oldPath, original); writeFileSync(newPath, desired);
+    const args = [require.resolve("../scripts/repair-planned-shifts.cjs"), "--mode", "dry-run", "--input", oldPath, "--proposal", newPath,
+      "--project", target.projectId, "--environment", target.environment, "--workbook", target.workbookId,
+      "--expected-input-digest", snapshotDigest(input), "--expected-proposal-digest", snapshotDigest(proposal)];
+    const run = () => spawnSync(process.execPath, args, {encoding: "utf8", env: {PATH: process.env.PATH}});
+    let result = run(); assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).readyForApply, false);
+    assert.doesNotMatch(result.stderr, /Persona|90000000/); assert.equal(readFileSync(oldPath, "utf8"), original);
+    assert.equal(readFileSync(newPath, "utf8"), desired); assert.equal(readdirSync(directory).length, 2);
+    args[2] = "apply"; result = run(); assert.equal(result.status, 1); assert.equal(result.stdout, "");
+  } finally { rmSync(directory, {recursive: true, force: true}); }
+});
+
+
+test("repair rejects human conversion and never overwrites formulas or unidentified cell content", async () => {
+  const human = await lineageFixture(); const tab = human.tabs[0]; tab.layout = "delivery_human";
+  human.spreadsheet.sheets.find((sheet) => sheet.properties.title === tab.title).data = [{rowData: [{values:
+    ["27/08/2026", "Persona a", "90000000a"].map((stringValue) => ({userEnteredValue: {stringValue}}))}]}];
+  assert.deepEqual((await auditShiftPlanning(human, target)).findings, []);
+  await assert.rejects(repair(human, human));
+  const proposal = await lineageFixture(), input = clone(proposal);
+  input.source[0].row.source = "planner";
+  const sheet = input.spreadsheet.sheets.find((sheet) => sheet.properties.title === input.tabs[0].title);
+  setCell(sheet, 1, 8, {userEnteredValue: {formulaValue: '=PRIVATE("value")'}});
+  await assert.rejects(repair(input, proposal));
+  sheet.data[0].rowData[1].values = [];
+  setCell(sheet, 1, 5, {userEnteredValue: {stringValue: "unidentified old content"}});
+  input.source.shift(); input.lineage.delivery.rows.shift();
+  Object.assign(proposal.source[0], {documentRevision: 0, assignmentRevision: 0, completionRevision: 0});
+  await assert.rejects(repair(input, proposal));
+});
+
+
+test("repair preserves unselected tabs and rejects mutations outside reviewed partitions", async () => {
+  const input = await lineageFixture();
+  input.spreadsheet.sheets.push({properties: {sheetId: 9999, title: "Notes", gridProperties: {rowCount: 2, columnCount: 2}},
+    data: [{rowData: [{values: [{userEnteredValue: {stringValue: "private note"}}]}]}]});
+  const proposal = clone(input);
+  assert.deepEqual((await repair(input, proposal)).sheetsChanges, []);
+  setCell(proposal.spreadsheet.sheets.at(-1), 1, 0, {userEnteredValue: {stringValue: "shift_delivery_20260827"}});
+  await assert.rejects(repair(input, proposal));
+});

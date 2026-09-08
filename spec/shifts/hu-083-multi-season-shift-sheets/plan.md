@@ -533,6 +533,57 @@ historical membership and boundary helpers; repair readiness remains false. Dry-
 repair/baseline/rollback tooling, human conversion and the guarded rehearsal remain
 pending before story closure.
 
+### Twelfth local cut — reviewed offline repair diff (approved 2026-09-08)
+
+Eleventh cut is committed/pushed as `6c25c3e`; unchanged validation is reused.
+Add the planned repair CLI in dry-run-only form. Require two explicit v2 snapshots
+(original and proposed), exact target and both audit input digests. Reuse the auditor;
+proposal must have zero scoped findings and both lineages consistent. Preserve
+horizon, roster, routing and bootstrap authority rather than invent corrections.
+
+Emit deterministic normalized projection before/after changes with captured revision
+guards, exact managed-cell before/after deltas and a plan digest. Reject deletes,
+ambiguous IDs, changed completion/revisions, completed-row mutations, unguarded
+neighbor edits and source corrections other than canonical app/planner. Limit Sheets
+to existing canonical tabs: preserve metadata, headers, manual columns, formulas and
+protected/merged cells; no human conversion or automatic tab creation in this cut.
+The full original snapshot digest guards every supplied neighbor and unchanged row.
+
+This is a private review artifact, not an executable Firestore/Sheets write manifest,
+migration baseline or backup. It includes UID-based values for review; stderr stays
+sanitized. There is no live client, apply/rollback mode or persistence. Always report
+readyForApply false and the remaining capture/calendar, writer/trigger, atomic CAS,
+backup/restore, baseline and rollback gates. Prove exact source/helper/owner and cell
+diffs, no-op rerun, deterministic digests, zero file mutation and all rejection gates.
+
+### Twelfth-cut validation checkpoint — 2026-09-08
+
+`repair-planned-shifts.cjs` now emits a deterministic, private dry-run review artifact
+from two explicit v2 snapshots and their exact audit input digests. It reuses the
+auditor, requires a consistent proposed state, preserves target/capture/horizon/roster/
+routing/bootstrap and emits normalized projection, lineage and managed-cell before/
+after deltas. It rejects ambiguous/deleted identities, completed history mutations,
+revision changes, unguarded delivery boundaries, human conversion and changes to
+manual/protected/merged/formula cells, metadata or unselected tabs. No correction is
+inferred and no executable write/CAS or rollback manifest is claimed.
+
+Validation: Functions lint/build and Node syntax check passed; combined audit/repair
+suite 37/37; Sheets 44/44; `git diff --check` passed. Tests cover exact values/guards,
+source and owner/cursor correction, interior helper/lead changes, zero-revision create
+proposals, digest/context drift, history preservation, rejected cell/metadata edits,
+unknown old cell content, unselected tabs, repeat/no-op planning, direct input
+immutability and a real CLI run with unchanged files and rejected apply. The prior
+planning/emulator evidence is unchanged and was reused for the eleventh-cut commit;
+this new offline script does not change runtime Functions or mobile code.
+
+Remote HEAD is eleventh-cut `6c25c3e`; twelfth-cut implementation remains local and
+uncommitted. Issue #267 stays open. Main-checkout Xcode reorder remains untouched.
+No live capture, data write, deployment, IAM or notification occurred. Remaining
+repair gates are trusted evidence/approved calendar, history/boundaries, backup and
+restore rehearsal, writer/trigger model, full-document atomic CAS/provenance,
+migration baseline and rollback. Human conversion and the guarded live/zero-write
+rehearsal remain pending. The artifact always declares `readyForApply: false`.
+
 The repository currently has one Firebase project for both environment paths.
 Because Functions revisions and Firestore Rules are shared project-wide,
 HU-083 validates the new behavior only in local tests/emulators. Its

@@ -196,6 +196,10 @@
     legacy helper gates are explicit; trusted capture, approved horizon and
     historical membership/boundary evidence still prevent repair readiness.
 - [ ] Implement deterministic dry-run repair plan and digest.
+  - [x] Twelfth local cut emits a deterministic review diff from two explicit v2
+    snapshots: normalized projections, lineage and exact managed cells. Full
+    document write/CAS, baseline and rollback manifests remain pending; no apply
+    readiness or live validation is claimed.
 - [ ] Define the immutable post-repair two-type migration-baseline revision/digest;
   persist/read it back only on safe apply, or emit its expected digest plus exact
   HU-085 materialization manifest on zero-write deferral.

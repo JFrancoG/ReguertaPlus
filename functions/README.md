@@ -407,6 +407,60 @@ reflejan en hallazgos; v1 sigue marcando linaje/bootstrap como no evaluados. Las
 versiones mantienen `readyForRepair: false`; coherencia interna no equivale a permiso
 para preparar/aplicar una reparación live. La CLI y sus códigos de salida no cambian.
 
+### Revisión de reparación en seco (HU-083, duodécimo corte)
+
+`repair-planned-shifts.cjs` compara un snapshot v2 original con una propuesta v2
+explícita. Ambos usan el formato del auditor anterior. Primero ejecutar el auditor
+sobre cada archivo y revisar sus resultados; sus respectivos `inputDigest` son los
+valores que exige este comando (después de `npm run build`):
+
+```sh
+npm run --silent repair:planned-shifts -- --mode dry-run --input /ruta/original.json --proposal /ruta/propuesta.json --project demo-reguerta-audit --environment develop --workbook audit-book --expected-input-digest '<inputDigest original>' --expected-proposal-digest '<inputDigest propuesta>'
+```
+
+Cada archivo está acotado a 4 MiB. La propuesta expresa valores deseados sobre la
+misma captura: conserva `capturedAt`, `workbookVersion`, horizonte, miembros, aliases,
+mapeo de pestañas y bootstrap anterior al horizonte. No se presenta como una nueva
+captura ni autoriza sustituir evidencia ambigua. Debe pasar la auditoría sin hallazgos
+en el alcance comprobado y con ambos linajes consistentes. El original puede tener
+filas/posiciones/cursor incorrectos o ausentes, pero exige bootstrap resoluble y sin
+fuentes alternativas contradictorias. Un caso ambiguo requiere evidencia revisada
+antes de volver a preparar el plan; el script no fabrica un mapeo.
+
+El resultado JSON contiene:
+
+- `projectionChanges`: proyecciones normalizadas completas antes/después, con las
+  revisiones observadas y el estado de completado. `before: null` representa un alta
+  propuesta con revisiones cero, no un documento ya persistido. Para filas existentes
+  se conservan los contadores; el ejecutor futuro deberá definir su incremento CAS.
+- `lineageChanges`: posiciones y cursor final antes/después, manteniendo el bootstrap.
+- `sheetsChanges`: ID de pestaña, fila/columna base 1 y valor literal antes/después de
+  cada celda gestionada. No cambia metadatos, cabeceras, columnas manuales, fórmulas,
+  celdas protegidas/fusionadas ni pestañas fuera del mapeo. Las altas solo ocupan filas
+  sin contenido previo en las columnas gestionadas. No convierte formatos humanos ni
+  crea pestañas.
+- Digests de ambos snapshots, de sus auditorías y del plan completo. El digest original
+  vincula también los vecinos y filas sin cambios; no equivale a una precondición
+  Firestore `updateTime` ni a un CAS de Sheets.
+
+No admite borrados ni IDs ambiguos, cambios de completado/revisiones, mutaciones de
+filas completadas o de sus posiciones históricas. Un cambio de líder requiere ambos
+vecinos en original y propuesta; cambiar un ayudante requiere su sucesor. La auditoría
+comprueba la continuidad resultante. Una corrección de fuente/origen debe terminar
+en `source: "app"`, `origin: "planner"`. El historial completado se conserva incluso
+si contiene un dato que no se puede reparar con este corte.
+
+El plan es un artefacto privado de revisión: contiene UIDs y valores de celdas, por
+lo que no debe copiarse en logs o comentarios públicos. Stdout emite el JSON y stderr
+solo cantidades/errores genéricos. Salida `0` significa plan generado; `1`, rechazo.
+Siempre incluye `readyForApply: false`: no es un manifiesto ejecutable de documentos
+Firestore completos, un lote Sheets listo para enviar, un baseline de migración ni
+un backup/inverso de rollback. Faltan captura/calendario acreditados, historia y
+extremos, backups/restore, exclusión de escritores y triggers, CAS/provenance atómicos,
+baseline y rollback. No hay clientes live ni modo apply. Repetir las mismas entradas
+produce el mismo plan; esto no demuestra idempotencia de una futura escritura.
+`npm run test:shift-planning:audit` valida conjuntamente auditoría y plan en seco.
+
 El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
 (`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y
 la identidad runtime quedan para HU-085; no se amplía el permiso del operador de
