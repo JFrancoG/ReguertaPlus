@@ -298,3 +298,19 @@ and two hints under the prior catalog; an exact finding comparison shows no new
 finding. Physical-phone installation was rejected and is not counted as a pass.
 The iOS checkout edits are preserved. No Functions logic changed during this
 follow-up; the cut-27 backend gate is not presented as newly rerun evidence.
+
+## Cut-28 actual source capture — 2026-09-11
+
+The explicitly approved evidence-access operation is complete. A stable develop
+snapshot contains 62 shifts, 48 users, four calendar records and four complete
+bounded workbook grids. Backup digest/read-back and local restoration of all 114
+documents pass; the five absent state documents remain absent in the emulator.
+Temporary IAM and workbook grants are removed, the account is disabled, and the
+issued token is rejected before expiry. No live source write occurred.
+
+The [source capture review](source-capture-review.md) now replaces the access gap
+as the current checkpoint. Actual develop source is legacy 2025–26; 54 future
+Sheets rows are absent from Firestore and all 62 existing payloads reject the
+canonical parser. Two name aliases need reconciliation. This is not a completed
+repair rehearsal, exact deferral, deployed integration or mobile acceptance.
+Cut 28 continues with a reviewed migration/bootstrap proposal; cut 29 has not begun.

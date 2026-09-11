@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-09-11 | 📝 docs(shifts): record develop source capture
+
 - 2026-09-11 | 📝 docs(shifts): record isolated Sheets rehearsal
 
 - 2026-09-08 | 📝 docs(shifts): reconcile HU-083 acceptance evidence

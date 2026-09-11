@@ -4,19 +4,20 @@
 
 Cut 27 pushed: `a1ef9ca`; lint/build, 525 local passes and 275 emulator executions.
 Android catalog update pushed: `aa95dc9`; 480 unit/23 emulator tests pass, no new lint findings.
-The maintainer confirms Codex provisionally prepared the current season; next year uses the app.
-The isolated copy is backed up/adapted to HU-083's readable, stacked format. Fresh read-back
-preserves 72 shifts/assignees and 54 rounds; anonymized synthetic-baseline import yields no patches.
-Actual develop Firestore evidence, separate auditor/backups and repair-or-deferral remain pending.
-Only the isolated copy was edited; production/develop are unchanged. HU-085 must pair production
-workbook adaptation with backend activation, preserving current assignments.
-Details: `spec/shifts/hu-083-multi-season-shift-sheets/plan.md` and `inventory.md`.
+Copy rehearsal pushed: `173efb7`; 72 shifts/54 rounds preserved in the isolated readable copy.
+Authorized actual develop capture is complete: stable backup, 114-document emulator restore,
+temporary grants removed and auditor disabled; issued token rejected before expiry.
+Findings: 62 legacy 2025–26 shifts, 54 future Sheets rows absent from Firestore, five missing
+state/rotation documents, two name aliases. No live source write or deployment.
+Next: exact offline migration/bootstrap review and repair-or-deferral; cut 29 has not started.
+HU-085 retains coordinated production adaptation/activation. Details: `source-capture-review.md`
+under `spec/shifts/hu-083-multi-season-shift-sheets/`.
 
 ## Tracking
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — cut 28 copy rehearsal complete; trusted source evidence pending
+- State: IN PROGRESS — cut 28 source captured; exact migration/bootstrap review pending
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`

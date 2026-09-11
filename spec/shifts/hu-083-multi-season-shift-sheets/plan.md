@@ -1297,3 +1297,16 @@ The synthetic rehearsal does not close that gate. HU-085 must coordinate backend
 activation with adaptation/read-back of the active production workbook, preserving
 the current season's dates, assignees, rounds and annotations rather than
 regenerating it. Neither production nor configured develop was modified here.
+
+## Cut 28 source capture result — 2026-09-11
+
+The maintainer authorized and the agent executed the concrete access proposal.
+The [source capture review](source-capture-review.md) records stable actual develop
+data, retained backup, successful 114-document emulator restore and verified
+revocation. Source access is no longer the pending input for this captured window.
+
+Continue offline with exact migration mappings: legacy historical payloads,
+54 future Sheets rows absent from Firestore, two displayed-name aliases, and
+missing approved rotation/bootstrap state. Reuse the existing audit/materializer;
+do not infer ownership or completed history from effective assignees and dates.
+Cut 28 remains open for reviewed repair-or-deferral; no new cut is introduced.

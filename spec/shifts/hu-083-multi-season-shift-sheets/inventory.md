@@ -176,3 +176,33 @@ rotation-owner, helper or Firestore revision correctness. No Firebase call,
 deployment, environment binding or actual develop/production workbook was changed.
 Cut 28 still requires the separately bounded auditor, trusted source capture and
 the exact repair-or-deferral decision.
+
+### Evidence access metadata follow-up — 2026-09-11
+
+The copy rehearsal checkpoint is committed and pushed as `173efb7`. The existing
+Firebase CLI account successfully read project-local IAM/service-account/bucket
+metadata without exporting source documents. Complete listings return four
+accounts, all with write-capable roles, and seven existing application/build
+buckets; none is a dedicated HU-083 evidence resource. The single database is
+`(default)` in `eur3`. Sheets API is enabled; IAM Credentials and Drive APIs are
+disabled in this project. An empty gcloud account list therefore is not a blocker
+to this metadata inspection, but no bounded auditor was found in this project.
+
+The [concrete access proposal](evidence-access-proposal.md) records new resource
+names, permissions, expiry, retention, inherited administrative authority and the
+database-wide read capability that must be accepted before provisioning. It is
+unapplied: no IAM, API enablement, sharing, bucket or source-data change occurred.
+
+### Authorized capture completed — 2026-09-11
+
+The maintainer subsequently authorized that exact proposal. The temporary auditor
+captured a stable develop Firestore/workbook snapshot, created the retained backup
+and was revoked/disabled. The issued token was rejected before expiry; original
+workbook permissions and unrelated IAM bindings were preserved. The 114 captured
+documents were restored and field-verified in a loopback emulator.
+
+The [source capture review](source-capture-review.md) records evidence digests,
+controls and findings: 62 legacy 2025–26 shifts, 54 future Sheets rows absent from
+Firestore, five missing state/rotation documents and two name aliases across four
+cells. Evidence access is resolved for this capture. Exact reviewed migration,
+bootstrap lineage and repair-or-deferral remain open within cut 28.

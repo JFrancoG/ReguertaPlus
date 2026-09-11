@@ -115,16 +115,18 @@ they do not certify live conversion or retire the legacy writer paths.
   (`reguerta-9f27f`, `develop/plus-collections`; not a live source inventory).
 - [x] Record that `{develop}` and `{production}` share project-wide Functions
   revisions and Firestore Rules; forbid a develop-only shared deploy.
-- [ ] Inventory the develop workbook ID, tab names/aliases, headers, formulas, protected
+- [x] Inventory the develop workbook ID, tab names/aliases, headers, formulas, protected
   ranges, row counts, and sharing principals without writing.
-  - Partial authorized connector inspection: [inventory.md](inventory.md).
-    Four tabs and their A1:K180 layout are observed; complete protections,
-    effective authority and the source/backup baseline remain pending.
+  - Authorized auditor capture now covers all four bounded grids and native
+    metadata; direct sharing grants were verified and restored. Full effective
+    writer-authority/fencing proof remains an apply gate, not an inventory claim.
 - [x] Capture local Functions parameter names/presence without logging values:
   `SHEETS_SPREADSHEET_ID_DEVELOP`, `SHEETS_DELIVERY_RANGE_DEVELOP`, and
   `SHEETS_MARKET_RANGE_DEVELOP` exist and are nonempty in the original checkout.
   No local production parameter was found; deployed parameters remain unverified.
-- [ ] Export/hash a read-only Firestore and Sheets baseline.
+- [x] Export/hash a read-only Firestore and Sheets capture through the authorized
+  auditor; verify stable reads, encrypted retained backup and 114-document local
+  restore. This source capture is not the post-repair migration baseline.
 
 ## 1. RED Sheets contract
 
@@ -376,8 +378,11 @@ they do not certify live conversion or retire the legacy writer paths.
 - [ ] Cut 28: real source evidence and exact repair or zero-write deferral.
   - [x] Verify live Firebase connection, deployed-function inventory and bounded
     workbook metadata; record limits in `inventory.md` (2026-09-09).
-  - [ ] Identify/verify the separate keyless auditor and encrypted evidence
-    destination before source capture. No live baseline or accepted deferral yet.
+  - [x] Provision the explicitly approved keyless auditor and encrypted evidence
+    destination; capture stable source data and verify restore, then revoke and
+    disable the auditor. See `source-capture-review.md` (2026-09-11).
+  - [ ] Review exact alias/bootstrap/calendar/history mappings and materialize
+    the repair proposal; no accepted live repair or zero-write deferral yet.
 - [ ] Cut 29: acceptance and separately authorized delivery/closure.
 
 
@@ -399,6 +404,8 @@ they do not certify live conversion or retire the legacy writer paths.
   a synthetic baseline: 72 shifts, no missing/changed assignments or backend patches.
 - [ ] Contrast with trusted actual develop Firestore evidence; synthetic UIDs and
   absent helper values do not prove source equivalence or complete cut 28.
+  - Actual develop capture and initial comparison are complete; the test copy
+    remains separate. Legacy source and unresolved bootstrap prevent equivalence.
 - [ ] Hand off coordinated production workbook adaptation/read-back and backend
   activation to HU-085, preserving current assignments rather than regenerating.
 
