@@ -87,7 +87,17 @@ an assertion that the permission operations leave Drive metadata unchanged.
 
 ## Next bounded operation
 
-Prepare the exact offline proposal from this frozen capture: explicit mappings
+Later maintainer clarification identified the old develop schedule as disposable
+test data. The explicitly authorized workbook rebuild is complete; see the latest
+section of `offline-reconciliation-proposal.md`. This capture remains historical
+evidence and must not be passed as the current workbook snapshot.
+
+Offline reconciliation findings and the pending source-data decision are now
+recorded in [the reconciliation proposal](offline-reconciliation-proposal.md).
+The existing repair materializer requires a canonical before-image and cannot
+directly bind the captured legacy payloads.
+
+Complete the exact offline proposal from this frozen capture: explicit mappings
 for the two name aliases, approved rotation/calendar/bootstrap inputs, treatment
 of legacy historical records, and the 54 visible future rows absent from source.
 Preserve historical assignments and existing annotations. Do not fabricate

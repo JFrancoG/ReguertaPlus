@@ -381,6 +381,14 @@ they do not certify live conversion or retire the legacy writer paths.
   - [x] Provision the explicitly approved keyless auditor and encrypted evidence
     destination; capture stable source data and verify restore, then revoke and
     disable the auditor. See `source-capture-review.md` (2026-09-11).
+  - [x] Reconcile all 156 identity slots, four calendar overrides and future
+    calendar prefixes offline. Record roster divergence and the legacy-schema
+    materializer boundary in `offline-reconciliation-proposal.md`.
+  - [x] Resolve the source-data decision: maintainer confirms disposable develop
+    test data and authorizes workbook reconstruction.
+  - [x] Rebuild the stable-ID develop workbook from the isolated reference; verify
+    72 turns/108 phone additions, native format, private backup, unchanged historic
+    tabs and ACL. See `offline-reconciliation-proposal.md`.
   - [ ] Review exact alias/bootstrap/calendar/history mappings and materialize
     the repair proposal; no accepted live repair or zero-write deferral yet.
 - [ ] Cut 29: acceptance and separately authorized delivery/closure.

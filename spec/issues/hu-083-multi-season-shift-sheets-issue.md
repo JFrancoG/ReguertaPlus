@@ -2,22 +2,21 @@
 
 ## Cut 28 checkpoint — 2026-09-11
 
-Cut 27 pushed: `a1ef9ca`; lint/build, 525 local passes and 275 emulator executions.
-Android catalog update pushed: `aa95dc9`; 480 unit/23 emulator tests pass, no new lint findings.
-Copy rehearsal pushed: `173efb7`; 72 shifts/54 rounds preserved in the isolated readable copy.
-Authorized actual develop capture is complete: stable backup, 114-document emulator restore,
-temporary grants removed and auditor disabled; issued token rejected before expiry.
-Findings: 62 legacy 2025–26 shifts, 54 future Sheets rows absent from Firestore, five missing
-state/rotation documents, two name aliases. No live source write or deployment.
-Next: exact offline migration/bootstrap review and repair-or-deferral; cut 29 has not started.
-HU-085 retains coordinated production adaptation/activation. Details: `source-capture-review.md`
-under `spec/shifts/hu-083-multi-season-shift-sheets/`.
+Cut 27: `a1ef9ca`; Android: `aa95dc9`; copy rehearsal: `173efb7`; capture: `c219272`.
+Maintainer confirmed disposable develop test data and authorized workbook reconstruction.
+Develop rebuilt with the same ID, private backup and clear DEVELOP title: four readable
+seasonal tabs, 72 reference turns, 27 exact-matched active members, 108 phone additions.
+Historical tabs and ACL preserved; reference unchanged; no production access/Firebase write.
+Next: develop Firestore/rotation fixture and end-to-end rehearsal (32 eligible users versus
+27 reference participants). No accepted repair/deferral yet; cut 28 open, cut 29 not started.
+Details: `spec/shifts/hu-083-multi-season-shift-sheets/offline-reconciliation-proposal.md`.
+HU-085 retains coordinated production adaptation/activation.
 
 ## Tracking
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — cut 28 source captured; exact migration/bootstrap review pending
+- State: IN PROGRESS — cut 28 develop workbook rebuilt; backend fixture pending
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`

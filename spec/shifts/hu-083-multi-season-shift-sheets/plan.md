@@ -1310,3 +1310,20 @@ Continue offline with exact migration mappings: legacy historical payloads,
 missing approved rotation/bootstrap state. Reuse the existing audit/materializer;
 do not infer ownership or completed history from effective assignees and dates.
 Cut 28 remains open for reviewed repair-or-deferral; no new cut is introduced.
+
+
+### Cut 28 develop test-fixture decision — 2026-09-11
+
+The maintainer identified the old develop assignments as disposable test data and
+explicitly authorized rebuilding/renaming that workbook. This supersedes the
+pending question of preserving the obsolete future roster. Rebuilt the same-ID
+workbook with four native reference copies (72 turns, 27 exact-matched active
+members), populated 108 empty phone cells from develop users, retained historical
+tabs and verified the private backup, all changed cells and visual layout.
+No production access or Firebase write/deployment occurred.
+
+The next step is the develop Firestore/rotation rehearsal fixture, accounting for
+32 currently eligible users versus 27 reference participants. The old source
+capture remains historical evidence; this workbook rebuild does not manufacture
+a canonical before-image or satisfy final repair/activation acceptance. Full
+execution evidence is in `offline-reconciliation-proposal.md`.
