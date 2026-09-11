@@ -1328,6 +1328,10 @@ cells in the simulated workbook, applies exactly two cross-season patches, and
 verifies replay/write-back without changing users, ownership or completion.
 Planning authority is synthetic fixture data; Sheets uses the existing stateful
 API fixture. No live backend/Sheets writes or trigger/mobile validation occurred.
-Next: exact disposable-source replacement and inverse, then current deployed
-writer compatibility. Cut 28 remains open; evidence and limits are recorded in
-`offline-reconciliation-proposal.md`.
+The subsequent 139-write disposable-source replacement and exact inverse also
+pass in emulation, including replay/inventory/update-time drift rejection. Direct
+inspection and local execution of the deployed handler show that a later confirmed
+canonical turn still enters the legacy writer without reading maintenance state.
+Do not apply the synthetic fixture live. Continue the existing HU-085 deferral
+handoff: operational baseline/manifest and remaining app/equivalence evidence,
+then cut-29 acceptance. Evidence and limits: `offline-reconciliation-proposal.md`.

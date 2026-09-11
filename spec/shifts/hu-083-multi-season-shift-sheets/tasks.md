@@ -393,8 +393,15 @@ they do not certify live conversion or retire the legacy writer paths.
     48 users/32 eligible members: 53 helper normalizations, two cross-season
     patches, replay and stateful Sheets write-back; preserve users and ownership.
     Synthetic planning authority is not a live replacement or activation plan.
-  - [ ] Review exact alias/bootstrap/calendar/history mappings and materialize
-    the repair proposal; no accepted live repair or zero-write deferral yet.
+  - [x] Rehearse an exact disposable-source candidate/inverse: 139 writes, 62
+    legacy turns restored, 48 users/four calendars preserved, duplicate/inventory/
+    update-time drift rejected. Candidate authority remains synthetic and local.
+  - [x] Inspect pinned deployed sources and execute the actual shift handler with
+    I/O test doubles: initial planned writes are quiet, but a later confirmation
+    enters the legacy writer without maintenance/provenance guards.
+  - [ ] Complete operational baseline/manifest and app/equivalence evidence for
+    the existing HU-085 deferral handoff. No live replacement or accepted final
+    zero-write deferral yet; do not apply the emulator fixture as live authority.
 - [ ] Cut 29: acceptance and separately authorized delivery/closure.
 
 

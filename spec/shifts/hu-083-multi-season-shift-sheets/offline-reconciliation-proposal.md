@@ -79,18 +79,88 @@ The private runner/input/receipt remain outside Git because the captured fixture
 contains member data. No production code changed; full build/lint/mobile suites
 were not repeated for this evidence/documentation step.
 
+### Disposable-source replacement and inverse — rehearsed 2026-09-11
+
+Import evidence is committed/pushed as `cbd9a55`. The next bounded operation
+verified the retained capture generation/SHA-256 and prepared a private exact
+forward/inverse **emulator-only replacement candidate**. The ordinary repair
+materializer still rejects the legacy schema; it was not weakened. A private
+loopback-only runner uses existing canonical payload/rotation builders and native
+Firestore transactions to test replacement of the obsolete test dataset.
+
+| Operation | Verified emulator result |
+| --- | --- |
+| Forward | One transaction: delete 62 captured legacy shifts, create 72 canonical shifts and five private planning documents; 139 writes |
+| Inverse | Restore all 62 original payloads, remove all 77 newly created documents; exact field read-back |
+| Preserved | All 48 current user documents and four captured calendar documents |
+| Rejection | Duplicate forward; unexpected extra public document; original payload restored after an intervening write but with a newer service update time |
+
+Inverse restores fields and absence, not Firestore-generated update times. Its
+preconditions are bound to forward read-back. After the deliberately injected
+drift test, the runner explicitly verifies identical payloads and captures new
+update times before the final inverse; it never silently relaxes a stale guard.
+
+This candidate starts a **new test scenario**: all 32 eligible UIDs in stable
+sorted order, round 1/index 0, consuming 54 positions per rotation while retaining
+the supplied 27 effective assignees. Initial completion is explicitly uncompleted
+fixture state. It neither reconstructs historical ownership nor proves an actual
+bootstrap/activation. The five private documents use emulator operation identity
+and synthetic workbook version `100`; they are not approved live authority or a
+final migration baseline. No user record or historical payload is rewritten to
+make the ordinary parser accept it.
+
+Private candidate plan digest:
+`shift-planning:v1:sha256:6cf64b9aa8b024e224339e02dbde1b0b93903c1a9554e2a656a448ce527d85db`.
+Private receipt SHA-256:
+`368b0c09cc395858695607cf679855625be8e8d01e954326a8f6990393bfbfdc`.
+Captured member data and exact writes remain outside Git and the issue.
+
+### Deployed-writer compatibility — live apply gate fails
+
+Read-only Firebase metadata and generation-pinned deployed source retrieval
+confirmed six relevant Functions are ACTIVE: shift writes, calendar writes,
+planning requests, import HTTP, export HTTP and notification events. All six
+retrieved source archives have SHA-256
+`07cd231c91df1e7bd31ab6a9f6a711559536aca3e7de697e641628d6c8216b49`.
+Their deployed updates are dated 2026-04-07; this is direct deployed-source
+evidence, not an inference from the current branch or an old inventory.
+
+The actual deployed `onShiftWritten` handler ignores deletions, `google_sheets`
+source and non-confirmed turns. It does **not** read the new maintenance authority
+or recognize canonical backend-mutation markers. A local test double executed
+that exact compiled handler: 72 planned creates, 62 legacy deletes and 62 legacy
+restores perform no I/O, but confirming a canonical `source=app` turn reaches the
+legacy writer. The test intercepted its first Sheets call; no Google write or
+notification was sent. No maintenance-state read occurred. This distinguishes a
+quiet initial write from a safely usable final state.
+
+The old writer uses `syncMeta.sheetName` or configured fixed ranges. Planning
+still rewrites seasonal sheets; calendar handling and the HTTP import/export
+paths also lack the new maintenance/provenance contract. Creating only a
+maintenance document would therefore not contain the deployed system. No
+production workbook/data, IAM, Functions, Rules or live Firestore document was
+modified. Access was limited to develop's retained capture and deployment metadata
+/source archives; the auditor stayed revoked.
+
 ### Remaining backend boundary
 
-Commit `2f2679a` records the workbook rebuild and is pushed. This rehearsal adds
-passing transactional import evidence; it performs **zero live writes**, including
-no live helper-cell write-back. The actual develop Firestore source still contains
-the old 62-document dataset and is not synchronized with the new 72 workbook turns.
+The 139-write candidate and inverse pass locally. **Do not apply this fixture to
+live develop:** source revisions/complete inventory need a fresh bounded check,
+operational rotation/baseline authority remains to be materialized, and deployed
+writers/clients are not contained. The old 62-document live source has not been
+replaced and no live helper-cell normalization has occurred.
 
-Next within cut 28: define the exact replacement of the disposable develop source
-and its inverse from the retained backup, then evaluate compatibility with the
-current deployed writers/triggers. Reuse existing materializers; do not relabel
-synthetic fixture ownership as historical authority or deploy shared Functions
-or Rules. Live repair or an exact HU-085 deferral and cut-29 acceptance remain open.
+The recommended route is the existing HU-085 deferred activation handoff, with
+these exact reset/inverse findings and the deployed-writer blocker. Finish its
+operational baseline/manifest and required app/equivalence evidence within cut 28;
+then perform cut-29 acceptance. This rehearsal alone is not an accepted zero-write
+deferral, mobile read-back or permission to deploy shared Functions/Rules. No new
+implementation cut or generic legacy migration framework is introduced.
+
+Validation: successful Firestore emulator forward/inverse with the three negative
+cases above and exact deployed-handler probes. Rules, automatic trigger delivery,
+FCM and mobile behavior were not exercised. No product code changed, so full
+build/lint/platform suites were not repeated for this documentation/evidence step.
 
 ## Earlier offline capture review
 

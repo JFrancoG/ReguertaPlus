@@ -1,5 +1,19 @@
 # HU-083 — consolidated acceptance review
 
+## Current cut-28 evidence — 2026-09-11
+
+Source capture/revocation, workbook reconstruction, 72-turn import and exact
+139-write disposable-source replacement/inverse are now evidenced. The last two
+use Firestore emulation, synthetic planning authority and stateful Sheets doubles;
+no live replacement or app acceptance is claimed. Exact deployed-source inspection
+and handler probing show that a later confirmed turn still enters the legacy
+writer without the new maintenance guard, so live apply is not safe yet.
+
+Continue the existing HU-085 deferred handoff with operational baseline/manifest
+and app/equivalence evidence. Cut 28 remains open; cut 29 has not started. See
+[the current reconciliation evidence](offline-reconciliation-proposal.md). Earlier
+sections below describe their dated checkpoints, not the latest capture status.
+
 Reviewed on 2026-09-08 at `775be1adaae27d60e506677f6d1832739846c2ba`
 (cuts 1–17 pushed). Cut 18 reconciles implementation evidence and reruns the
 backend checks. It changes no runtime, schema, permissions or deployment.

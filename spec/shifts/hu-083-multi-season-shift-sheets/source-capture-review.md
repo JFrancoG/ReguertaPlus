@@ -92,19 +92,17 @@ test data. The explicitly authorized workbook rebuild is complete; see the lates
 section of `offline-reconciliation-proposal.md`. This capture remains historical
 evidence and must not be passed as the current workbook snapshot.
 
-Offline reconciliation findings and the pending source-data decision are now
-recorded in [the reconciliation proposal](offline-reconciliation-proposal.md).
-The existing repair materializer requires a canonical before-image and cannot
-directly bind the captured legacy payloads.
+The source-data decision is resolved for disposable develop test data. The existing
+repair materializer still cannot bind its legacy payloads as a canonical before
+image. A separate loopback-only replacement candidate now proves 139 atomic
+writes and exact inverse restoration from this capture, preserving users and
+calendar. It is a new synthetic test scenario, not historical rotation authority.
 
-Complete the exact offline proposal from this frozen capture: explicit mappings
-for the two name aliases, approved rotation/calendar/bootstrap inputs, treatment
-of legacy historical records, and the 54 visible future rows absent from source.
-Preserve historical assignments and existing annotations. Do not fabricate
-completion, original ownership or revision lineage to satisfy a parser.
-
-Then run the existing audit/materializer and exact forward/inverse rehearsal
-against that reviewed proposal. Source writer/trigger containment and any live
-repair authorization remain separate; without containment, hand the exact
-materialization to HU-085. The source capture alone is not a completed zero-write
-deferral and does not advance HU-083 to cut 29.
+Direct inspection and a local probe of the deployed handler show that a subsequent
+confirmed canonical turn enters the old writer without the new maintenance guard.
+The live-apply compatibility gate fails. Continue the existing HU-085 deferred
+handoff with operational baseline/materialization and required equivalence/app
+evidence. Exact findings and artifact digests are in
+[the reconciliation proposal](offline-reconciliation-proposal.md). Neither the
+capture nor this synthetic rehearsal completes zero-write deferral acceptance or
+advances HU-083 to cut 29.
