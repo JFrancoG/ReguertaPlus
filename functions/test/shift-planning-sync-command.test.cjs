@@ -114,7 +114,7 @@ test("rejects non-canonical lineage, extras, and forged lifecycle evidence", () 
   assert.throws(
     () => createShiftPlanningCompletedSyncCommand({
       command: processing,
-      completedAt: processing.claim.expiresAt,
+      completedAt: Timestamp.fromMillis(processing.claim.acquiredAt.toMillis() - 1),
       evidence: {
         workbookRevision: "workbook-revision-8",
         partitionDigest: digest({partition: "delivery-8"}),

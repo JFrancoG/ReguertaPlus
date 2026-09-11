@@ -327,7 +327,7 @@ en un replay exacto y conserva la ultima envolvente valida si una fuente esta
 mal formada o supera su limite. El resolver forward concreto ya exige reconstruir
 y comparar por digest ese read-set dentro de cada retry de activacion, por lo que
 una envolvente cacheada obsoleta no puede autorizar escrituras. El trigger local
-de `index.ts` mantiene los documentos sin version en el handler legacy sin cambios
+de `index.ts` da a los documentos sin versión un fallo transaccional de retirada (HU-083, corte 25)
 y enruta preview/stage/activate schema v2 por el runtime gobernado. Una version
 declarada desconocida falla cerrado y nunca cae al escritor legacy. Recovery se
 exporta localmente solo mediante un adaptador HTTP de cuerpo exacto fijado al email
@@ -384,6 +384,57 @@ recovery deletes contra su before-document de activacion y el manifest inverse d
 borrado. Devuelve un digest estable del no-op auditado; un marcador retenido sigue
 siendo ordinario y un marcador cambiado sin autoridad exacta falla cerrado.
 
+El sexto corte local de HU-083 versiona el terminal de recovery a schema v2 y
+conserva el `activationTerminal` exacto dentro del mismo documento y digest de
+recovery. Recovery UPDATE exige la actualización pública exacta de la activación
+archivada y que el after reproduzca sin cambios el before-image persistido ligado
+por digest. La identidad del evento usa ID/digest de recovery, nunca el marcador
+histórico restaurado. Los eventos retrasados de activación usan la autoridad
+archivada. Los terminales schema v1 siguen admitiendo lectura estricta; sus UPDATE
+de recovery sin prueba fallan cerrado. Se mantienen rutas y número de escrituras;
+la admisión mide el terminal mayor mediante el adaptador público de ADR-0014.
+
+Ambas operaciones lógicas requieren bindings explícitos de retención. El terminal
+físico y los before-images son evidencia compartida: la caducidad de un único
+registro no permite eliminarlos mientras otra dependencia los necesite. Este corte
+no habilita TTL ni ejecutor de cleanup. La composición de trigger, alerta y política
+sigue pendiente; no cambia el comportamiento live.
+
+El séptimo corte de HU-083 compone los exports candidatos de Functions.
+`onShiftWritten` excluye marcadores cambiados/eliminados/inválidos y deletes con
+marcador antes de sus efectos ordinarios. Un `onShiftPlanningPublicWritten`
+autenticado independiente reintenta solo la auditoría durable; el trigger ordinario
+conserva su comportamiento sin reintentos. Sigue el patrón de solicitudes
+versionadas y evita repetir efectos no idempotentes de Sheets/notificación.
+Los marcadores válidos retenidos siguen siendo ordinarios.
+
+El trigger de auditoría exige el JSON completo de política ligado por digest en
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_DEVELOP` o
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_PRODUCTION`, sin valores por defecto
+ni fallback entre entornos. Conserva identidad/tiempo del CloudEvent y propaga
+fallos transitorios de autoridad/persistencia. Los rechazos persistidos emiten
+diagnósticos estructurados limitados; un log no prueba entrega de alerta al operador.
+HU-085 debe verificar ambas revisiones de trigger, política aprobada, bindings de
+retención de los productores y canal real de alertas bajo exclusión de escritores
+antes de reanudar escrituras controladas. Este corte no habilita despliegue,
+política live, envío de alertas ni ejecutor de cleanup.
+
+El octavo corte de HU-083 añade un worker HTTP privado de invocación explícita
+sobre el repositorio, ejecutor y consumidor con recibos existentes. Acepta un ID
+de comando exacto o una búsqueda de hasta dos comandos ejecutables, con entorno
+explícito. No acepta filas, libro ni credenciales del solicitante. El drain se
+para ante trabajo ocupado o pendiente de reconciliación; los reintentos usan la
+evidencia persistida de comando/envío. Repetir un terminal no hace I/O externo y
+los envíos inciertos mantienen recuperación de solo lectura.
+
+La composición exige IDs de libro por entorno y JSON de aliases revisado
+explícitamente, incluida la lista vacía. Un alias no autoriza conversión del layout
+humano. La declaración privada no crea scheduler ni permiso IAM de invocación;
+HU-085 debe aprobar identidad del worker, grants, acceso Sheets/metadatos Drive y
+exclusión de escritores externos. El grant del operador de recovery no cambia.
+El worker consume comandos de activación y no debilita el rechazo de recovery a
+comandos ya consumidos. No se invoca ni despliega ningún endpoint live.
+
 El productor local complementario de retencion congela ahora el schema v1 sin
 conectar el trigger. Una politica ligada por digest contiene el horizonte maximo
 end-to-end aprobado de entrega/reintento y un margen de seguridad positivo. Cada
@@ -404,6 +455,77 @@ lease expirado, autorización de linaje/partición inmediatamente antes del batc
 completion protegida por read-back. Un worker obsoleto pierde el fence monótono de
 partición. Las excepciones de I/O conservan el lease; HU-083 aporta el adaptador
 real de Sheets y la reconciliación durable de ambigüedad/read-back.
+
+El consumidor local de comandos de HU-083 crea ahora un recibo inmutable en
+`shiftPlanningSyncCommands/{commandId}/externalSubmissions/sheets` antes del lote
+físico. `shiftPlanningState/sheetsSubmission` señala el envío actual del libro y
+serializa reparto y mercado. Ambas rutas siguen siendo exclusivas del backend.
+El recibo vincula el claim original, digests de proyección/petición, versión Drive
+previa y hora de envío; la única adición permitida es la evidencia exacta de
+read-back. Un recibo sin resolver bloquea ambas particiones hasta reconciliación
+positiva; ningún timeout permite reenviar. Un fallo entre persistir la intención
+y llamar a Sheets conserva ese mismo estado desconocido.
+
+En el terminal schema-v1, `completedAt` representa ahora la confirmación y puede
+ser posterior al vencimiento del claim original. El repositorio sólo lo permite
+con recibo escrito dentro de aquel intervalo, read-back coincidente persistido y
+linaje/propiedad de partición todavía vigentes. No renueva el claim ni inventa una
+fecha. Sin recibo se conservan las reglas anteriores de vencimiento/takeover.
+La recuperación inversa existente rechaza comandos modificados respecto al estado
+pending de activación; no puede borrar uno en vuelo. Resolver o aislar un envío
+indemostrable sigue siendo una acción operativa separada, no otra vía de reintento.
+
+El consumidor carga únicamente las filas exactas del bundle activado y comprueba
+sus payloads contra el terminal de activación. La actualización del helper
+predecesor incluye su temporada real en el comando aunque anteceda a la objetivo.
+`files.version` de Drive es una observación int64 positiva, leída alrededor de la
+verificación de Sheets; no es un token CAS. Un recibo previo verificado explica el
+avance entre particiones; una divergencia inexplicada impide enviar. Sigue siendo
+necesaria la exclusión de colaboradores. Este corte local no añade trigger ni
+scheduler desplegado, conversión legacy, importación, reparación real ni nueva
+autoridad para escribir en un libro real.
+
+El tercer corte local de HU-083 añade lectura/preflight de importación y reutiliza
+el snapshot acotado de exportación y su codec canónico. Los formatos humanos exigen
+mapping por pestaña y filas decorativas exactas. Pestañas ausentes/parciales, personas
+ambiguas, mercados distintos de tres integrantes o cambios de propiedad/procedencia
+rechazan la importación. Una fila ausente es una discrepancia, nunca autoridad para
+borrar. El plan vincula revisiones y vecinos del reparto afectado, conserva el
+historial del predecesor completado y rechaza extremos sin vecinos demostrados.
+Son artefactos de revisión sobre entradas de confianza, no CAS ejecutado ni autoridad
+real. Aplicar sigue requiriendo cargar la fuente confiable, revalidar vecinos y
+miembros transaccionalmente, comprobar fences de escritores/notificaciones y emitir
+la procedencia exacta del evento modificado.
+
+El cuarto corte local de HU-083 asume esa preparación/aplicación de confianza.
+Relee consultas completas acotadas de turnos/socios (500 documentos combinados),
+autoridad activa y fences de rotación/Sheets/notificaciones antes de aplicar como
+máximo 100 parches de forma atómica. La misma transacción crea el terminal existente
+`syncCorrection`, su retención de operación vinculada a una política explícita y
+un resultado inmutable para replay exacto (hasta 103 escrituras). Conserva propiedad
+de rotación e historial completado; los parches exigen la procedencia activa actual.
+El resultado privado guarda las proyecciones pendientes de write-back a Sheets.
+Siguen pendientes ese write-back y su serialización/confirmación, endpoints públicos,
+integración del trigger legacy y puesta en servicio real. Observar la versión de
+Drive no sustituye la exclusión de escritores externos ni establece CAS entre
+servicios.
+
+El quinto corte local completa el write-back de importaciones canónicas usando
+el adaptador existente y el registro compartido de envíos del libro. Aplicar añade
+atómicamente una reserva del libro y su recibo privado (hasta 105 escrituras en
+total). La revisión vincula las celdas canónicas exactas; sólo permite sustituir
+esos valores, mientras la exportación ordinaria sigue rechazando cambios manuales.
+Los formatos humanos pueden leerse para revisión pero exigen conversión explícita
+antes de aplicar parches sobre ellos. Un lote registrado sólo puede inspeccionarse
+tras un resultado desconocido, sin caducidad que autorice reenviar. Marcador/celdas
+exactos y versión Drive estable y posterior confirman el recibo separado y las
+revisiones de ambas particiones de forma atómica. El resultado original permanece
+inmutable. Una importación pendiente bloquea reclamación/envío de exportaciones de
+activación y otras importaciones; un replay confirmado no sobrescribe reservas
+posteriores. No añade cola, imitación de comandos de activación, endpoints/trigger
+legacy ni despliegue real. La activación real y los escritores ordinarios/externos
+siguen necesitando el cerco operativo acordado; no se afirma CAS entre servicios ni
+recuperación automática al caducar una lease.
 
 Los comandos Sheets se serializan con epoch monotónico y lease por libro/partición.
 El worker valida comando y revisión/digest activos antes de cada batch y registra
@@ -709,6 +831,86 @@ fallback al otro.
   de mantenimiento. Mantener un resultado con plazo y rollback/reanudación para
   cada gate posterior, de modo que una aprobación de notificaciones retrasada no
   deje producción indisponible indefinidamente.
+
+El noveno corte local de HU-083 expone la API existente de importación mediante
+una entrada HTTP privada. Prepare devuelve el plan completo revisable y puede
+persistir únicamente su comando backend; apply y write-back siguen siendo llamadas
+separadas que exigen ese digest exacto. Libro, aliases, layout/decoraciones y política
+de retención proceden de configuración explícita por entorno, nunca del cuerpo.
+La conversión del formato humano sigue bloqueada hasta su revisión. Un envío externo
+incierto solo permite reconciliación por lectura, nunca reenvío. No añade despliegue,
+permisos IAM del invocador ni scheduler; HU-085 conserva la identidad runtime y la
+exclusión de escritores externos.
+
+### Decisión de hojas legibles de HU-083 — 2026-09-08
+
+El mantenedor eligió hojas legibles y editables con fechas y nombres de socios.
+La propuesta offline de archivar y crear tablas técnicas no es el flujo elegido.
+Se conservan anotaciones y fórmulas humanas; IDs estables, propiedad y digests
+siguen siendo autoridad del backend, no columnas técnicas editables.
+El exportado, los cambios ordinarios y los ajustes de calendario eligen pestaña
+por la fecha lógica del turno y los alias revisados. Un cambio de fecha efectiva
+no elige otra pestaña. Importación humana, generación y worker de activación deben
+seguir el mismo contrato visual antes del rollout. La decisión autoriza implementar
+localmente, no convertir el libro real, desplegar ni configurar producción.
+
+La importación legible usa fechas/nombres/teléfonos literales. Las fórmulas de
+anotación y notas normales no cambian asignaciones; solo una sustitución literal
+`lo hace Nombre` lo hace. La fecha visible de reparto debe coincidir con el override
+del calendario guardado en Madrid y resolver un turno/pestaña lógico único. Los
+cambios de calendario participan en el digest de fuente y comprobaciones
+transaccionales existentes. La preparación humana no habilita aplicar hasta
+integrar su escritura de vuelta legible y revisada.
+
+La aplicación/escritura legible reutiliza la corrección atómica del origen y el
+protocolo existente de reserva y envío único. Las imágenes exactas del bloque
+vinculan ubicación, valores visibles antes/después e identidad de pestaña. Solo se
+normaliza nombre/teléfono y se vacía la instrucción literal de sustitución consumida;
+se conservan las demás anotaciones y fórmulas. La propiedad e historial del helper
+siguen en el backend. Un marcador retenido se inspecciona sin exigir la imagen
+anterior; cambios de calendario tras apply impiden la escritura de vuelta. La
+exclusión real de escritores sigue siendo un requisito operativo separado, no una
+garantía de la API de Sheets.
+
+La generación legible usa el mismo adaptador y protocolo de envío. Nombres,
+teléfonos y fechas efectivas de confianza vinculan el digest de proyección;
+pestañas estacionales nuevas, celdas literales y marcadores comparten un lote
+atómico. Las tablas legibles reconocidas añaden fechas ausentes y conservan
+asignaciones/anotaciones existentes; solo se refresca el helper de reparto cuya
+autoridad es el backend. Otros formatos históricos, asignaciones distintas y
+sustituciones pendientes exigen revisión. La composición del worker debe vincular
+socios/calendario de Firestore antes de activar este modo.
+
+El consumidor de activación guarda ya las filas legibles exactas en recibos
+privados schema-v2. Las versiones acotadas de socios/calendario/turnos públicos se
+leen con la proyección activada y se vuelven a comprobar en la transacción del
+recibo, incluidos overrides ausentes. La recuperación usa los datos visibles
+guardados y conserva la validación del linaje público activo; los recibos canónicos
+schema-v1 mantienen su inspección original. Se amplía la reserva existente del
+libro, sin cambiar HTTP ni permisos. Sigue siendo necesaria la exclusión de
+escritores externos tras reservar.
+
+HU-083 retira localmente los dos escritores antiguos no atómicos. El endpoint de
+sync autenticado devuelve un error de migración; el trigger antiguo solo falla
+solicitudes sin versión todavía pendientes. No las promueve a v2 sin una nueva
+solicitud revisada. Se eliminan el importador parcial, generador y borrado de pestaña.
+Los codecs móviles actuales usan v2; el inventario y drenaje de clientes externos/
+desplegados siguen en HU-085. El exportado ordinario respeta la nueva columna de
+ayuda y conserva el formato histórico de semana.
+
+La adopción histórica revisada reutiliza el mapa exacto de decoraciones del
+importador en generación y lo guarda en el recibo/digest legible existente.
+Conserva F histórica como semana/anotación; solo las cabeceras nuevas usan F para
+ayuda. Mercado conserva huecos entre bloques, con tres participantes contiguos
+por fecha. Esta compatibilidad local no acredita ni autoriza reescribir el libro real.
+
+La revisión de integración de HU-083 conserva el protocolo de recibos existente
+para escribir ayudas legibles y consumir instrucciones, incluso si el asignado
+ya coincide, sin cambiar la revisión de asignación. El historial completado queda
+congelado. La reparación offline reutiliza diseño y calendario revisados sin
+conversión, conserva posiciones/anotaciones y emite deltas de celdas gestionadas.
+El ensayo Firestore existente sigue limitado a loopback/demo; esto no habilita
+un ejecutor real entre almacenes ni acredita autoridad operativa.
 
 ## Estado de aprobación e implementación
 

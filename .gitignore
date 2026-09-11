@@ -114,3 +114,6 @@ node_modules/
 *.tgz
 .yarn-integrity
 .dataconnect
+
+# Local opt-in marker for the isolated HU-083 acceptance controller.
+/ios/Reguerta/ReguertaTests/hu083-emulator-enabled.json

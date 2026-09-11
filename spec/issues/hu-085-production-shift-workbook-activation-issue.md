@@ -1,10 +1,25 @@
 # [HU-085] Controlled production shift workbook activation
 
+## Accepted HU-083 handoff — 2026-09-12
+
+The maintainer accepted HU-083's explicit zero-write deferral and authorized its
+full Git delivery. Both native clients verify the exact 72-turn reset/import and
+62-turn restoration; the iOS deprecation and test-host initialization are fixed.
+The final public-event auditor probe passes 4/4, proving why the content fixture
+is not a runtime command: missing forward retention and deleted inverse authority
+reject all 72 events. This issue owns the bounded runtime reset/recovery command,
+retained terminal/audit evidence and advanced security epoch, plus fresh post-drain
+source/Drive/index binding and the coordinated deployment/production adaptation.
+Preserve current production dates, assignees, rounds and annotations. No rollout
+or production access is authorized by this handoff. HU-085 remains open.
+
+Details: `spec/shifts/hu-083-multi-season-shift-sheets/closeout.md` and `hu085-handoff.md`.
+
 ## Tracking
 
 - GitHub issue: #269
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/269
-- State: DRAFT / BLOCKED BY HU-082, HU-083, AND LIVE AUTHORIZATION
+- State: OPEN — verify merged dependencies, implement runtime command and authorize live activation
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation/rollout branch: not created
 - Depends on: HU-082 / #266 and HU-083 / #267

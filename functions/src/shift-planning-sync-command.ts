@@ -6,6 +6,10 @@ import {
 } from "./shift-planning-contract.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {ShiftPlanningEnvironment} from "./shift-planning-wire.js";
+import type {
+  ShiftPlanningSheetsSubmission,
+  ShiftPlanningSheetsSubmissionBinding,
+} from "./shift-planning-sheets-submission.js";
 
 export const SHIFT_PLANNING_SYNC_COMMAND_SCHEMA_VERSION = 1 as const;
 
@@ -69,7 +73,7 @@ export type ShiftPlanningSyncReadBackEvidence = {
 
 export type ShiftPlanningSyncCommandClaimResult =
   | {
-    kind: "claimed" | "replayed";
+    kind: "claimed" | "replayed" | "reconcile";
     command: ShiftPlanningProcessingSyncCommand;
     token: ShiftPlanningSyncCommandToken;
   }
@@ -103,6 +107,20 @@ export interface ShiftPlanningSyncCommandRepository {
   authorizeBatch(
     token: ShiftPlanningSyncCommandToken,
   ): Promise<ShiftPlanningProcessingSyncCommand>;
+
+  readSubmission(
+    token: ShiftPlanningSyncCommandToken,
+  ): Promise<ShiftPlanningSheetsSubmission | null>;
+
+  prepareSubmission(input: {
+    token: ShiftPlanningSyncCommandToken;
+    binding: ShiftPlanningSheetsSubmissionBinding;
+  }): Promise<void>;
+
+  verifySubmission(input: {
+    token: ShiftPlanningSyncCommandToken;
+    evidence: ShiftPlanningSyncReadBackEvidence;
+  }): Promise<void>;
 
   complete(input: {
     token: ShiftPlanningSyncCommandToken;
@@ -423,11 +441,10 @@ const parseTerminal = (
     terminal.completedAt,
     "sync completedAt",
   );
-  if (
-    completedAt.toMillis() < claim.acquiredAt.toMillis() ||
-    completedAt.toMillis() >= claim.expiresAt.toMillis()
-  ) {
-    return failSync("Sync completion falls outside its authorized lease.");
+  // Confirmation may follow lease expiry. The repository requires an immutable
+  // pre-expiry submission and verified read-back before allowing that case.
+  if (completedAt.toMillis() < claim.acquiredAt.toMillis()) {
+    return failSync("Sync completion precedes its authorized claim.");
   }
   return {
     ...claim,

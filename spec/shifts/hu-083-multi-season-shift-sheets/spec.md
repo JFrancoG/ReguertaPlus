@@ -5,9 +5,9 @@
 - issue_id: #267
 - priority: P1
 - platform: backend
-- status: draft
+- status: accepted (2026-09-12; live reset/runtime activation deferred to HU-085)
 - depends_on: HU-082 / #266
-- architecture: ADR-0013 (proposed)
+- architecture: ADR-0013 (accepted), as amended by ADR-0014
 
 ## Context and problem
 
@@ -36,6 +36,55 @@ synchronized, audited, and repaired without losing carryover or manual
 assignments.
 
 ## Workbook and naming decision
+
+On 2026-09-08 the maintainer selected readable, editable date/name sheets.
+The cut-17 archive-and-create-technical-tables alternative is not the selected
+user workflow. Existing human titles, notes and formulas must survive migration;
+internal UID/digest representations are not a replacement for the editable view.
+Cut twenty routes full export, ordinary confirmed changes and calendar overrides
+to human seasonal ranges using the logical shift date and explicit aliases.
+Reparto updates A:C and F, preserving D:E; mercado updates only A:B for exactly
+three participants, preserving its date heading, C annotations and following block.
+Human imports, generation, new-tab creation and the activation worker still need
+the same end-to-end readable contract before rollout.
+Cut twenty-one makes reviewed preparation compatible with Spanish dates and
+annotation formulas/notes. Literal `lo hace Nombre` is the replacement instruction;
+other notes do not assign people. Visible delivery overrides are resolved only
+from the trusted Madrid calendar, whose documents participate in source guards.
+Cut twenty-two integrates reviewed human apply/write-back without converting to
+technical tables. The prepared cell images and existing durable submission fence
+preserve other annotations; only an applied `lo hace Nombre` instruction is consumed
+so it cannot override a later assignment again. Preparation stays read-only for
+public shifts.
+Cut twenty-three adds explicit readable generation/new-tab creation to the same
+adapter. Exact labeled tables append absent dates, preserve existing assignments
+and annotations, and refresh only the backend-owned delivery helper. Visible
+labels/calendar dates bind the projection digest. Activation-worker composition,
+adoption of other historical layouts and legacy generation/sync remain open.
+Cut twenty-four connects the existing activation worker to that readable adapter.
+Private schema-v2 receipts retain exact names/phones/calendar dates and source
+versions. The reservation transaction rejects changed versions; recovery uses
+persisted labels and retains active public-lineage checks. Canonical schema-v1
+receipts remain readable.
+Cut twenty-five retires the legacy sync and generator with explicit compatibility
+errors while preserving authenticated ingress and v2 dispatch. Their partial
+import and whole-tab clear code is removed. Ordinary export honors the generated
+helper header and append structure. Historical-layout adoption, full integration
+validation and real-data acceptance remain open; deployment/external caller review
+remains with HU-085.
+Cut twenty-six adopts historical readable tabs through the same exact reviewed
+mapping used by import. Its detached decorations are bound into new schema-v2
+receipts/digests; recovery retains prior mapped/unmapped/canonical behavior.
+Historical delivery F remains a week/annotation column, not an implicit helper
+migration. Title/month rows and inter-block spacing are retained. The real book
+still requires its own reviewed mapping and evidence; synthetic tests do not
+establish either. Complete integration review is next.
+Cut twenty-seven completes local integration review and corrects helper write-back,
+already-effective instructions and decoration handling. Offline audit/repair now
+accept reviewed readable layouts plus optional captured `deliveryCalendar` entries;
+the calendar is immutable between input/proposal. Repair preserves old human row
+positions, annotations and formulas and emits exact deltas for approved managed
+cells. The next gate is actual evidence, not another implementation slice.
 
 - Keep one stable workbook for develop/test and one stable workbook for
   production.
@@ -106,6 +155,11 @@ unless an operational limit is demonstrated later.
 - Workbook identifiers and any allowlist/namespace are environment-scoped
   Functions parameters; real values are never committed.
 - Develop and production may not silently fall back to one another.
+  Both canonical and remaining legacy candidate routes use the shared configuration
+  module. Legacy routes require an explicit workbook and both human ranges for the
+  requested environment; missing scoped values disable the route instead of using
+  global/default values. Existing parameter storage is not deleted or changed.
+  HU-085 must verify the scoped configuration before activating this revision.
 - HU-083 configures and mutates only the bounded develop target after its own
   explicit apply approval.
 - The new Functions adapter and any Rules changes are validated locally and in
@@ -182,6 +236,72 @@ that exact mapping/digest. A safe apply includes both typed mappings in its immu
 post-repair baseline. A zero-write handoff includes the expected mappings and exact
 HU-085 materialization manifest without claiming they already exist live.
 
+### Offline migration-baseline and inverse artifact (HU-083 cut fifteen)
+
+The optional v4 dry-run binds an exact recomputed v3 materialization digest and
+an explicit baseline revision. Its create-only baseline path is
+`develop/plus-collections/shiftPlanningMigrationBaselines/{revision}`. The
+schema-v1 `shiftPlanningMigrationBaseline` document binds the target, preparation
+time, repair operation, input/proposal/materialization digests and expected
+post-repair state: every full shift-payload digest, captured workbook-image digest,
+explicit input calendar and both typed bootstrap inputs/resolutions, row positions
+and final cursors. `baselineDigest` hashes the typed document without that field;
+the common lineage reference is `{revision, digest}`. Preparation proves neither
+capture authenticity nor calendar/mapping approval beyond supplied evidence.
+
+The artifact includes full forward writes with baseline absence and a clone-only
+inverse restoring original payloads and deleting only forward-created objects.
+Original/expected grid images and reversed cell instructions preserve spreadsheet
+evidence. Inverse execution requires fresh verified forward read-back update times
+and workbook version; service-generated update times are not restorable payloads.
+The two `shiftRotations` attachment entries explicitly await authoritative captures
+and are not executable aggregate updates. Live repair-recovery event authority,
+retention, writer fences and commit/restore rehearsal remain required; activation-
+recovery authority must not be repurposed for repair inverses. No live readiness
+or persisted migration baseline is claimed by this offline format.
+
+### Authority-bound emulator rehearsal (HU-083 cut sixteen)
+
+The v5 review binds full typed maintenance and both rotation captures, including
+exact update times, to the original snapshot digest and target. Closed maintenance,
+matching active lineage/write epoch, no release lease, matching original cursors
+and a sufficient captured frontier are mandatory. HU-082 state parsers validate
+both aggregate updates: increment state revision, use the reviewed final cursor
+and coherent freeze state, attach the common baseline, preserve other fields.
+Maintenance remains read-only. Original aggregate payloads enter the clone inverse.
+
+The separate rehearsal executor accepts only a demo project matching the develop
+review and a loopback Firestore emulator matching its environment. It recomputes
+v5, uses HU-082 admission/fences and per-document update-time CAS, and verifies
+post-commit payloads. Typed read-back receipts bind target, direction, review digest,
+full payload digests and exact update times. Inverse requires the forward receipt;
+same-direction receipts permit verified no-write replay. Missing receipts after an
+uncertain commit do not authorize resubmission. Public forward classification uses
+the observed commit time at the trigger's millisecond boundary; CAS retains full
+nanosecond precision. Inverse event authority remains clone-only, not live recovery.
+Synthetic emulator commits and in-memory Sheets checks do not satisfy restored-backup,
+multi-store fencing, deployed-trigger, client-Rules or live-apply gates.
+
+### Offline human-layout proposal (HU-083 cut seventeen)
+
+The conversion planner requires a digest-bound snapshot and explicit per-human-tab
+source ID/title, archive title and new canonical ID. Its only strategy proposes
+archiving each complete human sheet and creating a canonical sheet at the original
+operational title. Existing canonical and unrelated sheets remain unchanged.
+It reuses the existing import and projection contracts; it must reject assignment
+disputes, incomplete calendars, ambiguous identities and invalid projection data.
+Conversion cannot select new owners, repair provenance or hide lineage findings.
+
+Original full supplied images, a hypothetical canonical audit input, per-sheet
+identities/digests and an offline inverse image are retained. All source fields,
+revisions, membership, lineage and captured workbook version stay unchanged.
+Before/after auditor findings must agree. Tab/grid limits include retained archives.
+No visual decision, trusted capture, live formula-reference rewrite, protection
+migration, writer fence, CAS, restored-clone rehearsal or apply is certified.
+`readyForApply` remains false and human apply endpoints stay closed. This artifact
+feeds offline review only; a later live conversion needs fresh version/capture
+binding and separately reviewed execution/recovery manifests.
+
 ## Scope
 
 ### In scope
@@ -220,6 +340,12 @@ HU-085 materialization manifest without claiming they already exist live.
 - HU-017, HU-020
 
 ## Acceptance criteria
+
+Final acceptance is recorded in [closeout.md](closeout.md), explicitly approved
+by the maintainer on 2026-09-12. It maps every group below to local/native evidence
+or the accepted HU-085 deferral. The original checklist is preserved as the
+requirement text; unchecked conditional live steps do not claim execution.
+Historical cut evidence remains in [acceptance-review.md](acceptance-review.md).
 
 - [ ] Develop uses one explicit stable workbook identifier and the configuration
   contract cannot fall back across environments.

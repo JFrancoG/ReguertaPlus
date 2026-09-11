@@ -1,5 +1,19 @@
 # Tasks - HU-085 (Controlled production shift workbook activation)
 
+## Accepted HU-083 handoff — 2026-09-12
+
+The maintainer accepted the [HU-083 closeout](../hu-083-multi-season-shift-sheets/closeout.md).
+The [handoff](../hu-083-multi-season-shift-sheets/hu085-handoff.md) binds native
+acceptance and the exact content baseline/inverse; it is not a runtime command.
+
+- [ ] Implement the bounded runtime-owned develop reset and recovery, binding fresh
+  post-drain source/Drive/index authority and closed maintenance. Include forward
+  retention and retain inverse operation/audit evidence plus advanced security epoch.
+- [ ] Recompute and rehearse the full forward/inverse budgets and delayed-event
+  behavior; the content-only 139-write fixture rejects under real event auditing.
+- [ ] Complete the coordinated production adaptation/backend activation below,
+  preserving the current manually prepared season. This handoff starts no rollout.
+
 ## 0. Dependency gate
 
 - [ ] Verify HU-082 / #266 and HU-083 / #267 are merged and ADR-0013 plus

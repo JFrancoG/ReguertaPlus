@@ -7,6 +7,8 @@ import {
   ShiftPlanningPublicShiftDocument,
   ShiftPlanningPublicShiftMaterialization,
   createShiftPlanningPublicShiftMaterialization,
+  encodeShiftPlanningFirestoreValue,
+  parseShiftPlanningBeforeImageEnvelope,
   parseShiftPlanningActivationOperationTerminal,
   parseShiftPlanningBackendMutationMarker,
   parseShiftPlanningPublicShiftDocument,
@@ -413,7 +415,14 @@ const controlledEventDigest = (input: {
   ),
 });
 
-const controlledDecision = (input: {
+/**
+ * Reconstructs a controlled event identity from its exact marker bindings.
+ * Durable consumers must validate the payload and persisted ledger separately;
+ * this helper alone does not establish operation authority.
+ * @param {object} input Parsed marker and operation bindings.
+ * @return {object} Stable controlled-event decision.
+ */
+export const createShiftPlanningControlledPublicEventDecision = (input: {
   operationKind:
     | "activation"
     | "recovery"
@@ -424,7 +433,9 @@ const controlledDecision = (input: {
   targetPath: string;
   beforeMarker: ShiftPlanningBackendMutationMarker | null;
   afterMarker: ShiftPlanningBackendMutationMarker | null;
-}): ShiftPlanningPublicWriteEventDecision => ({
+}): Extract<
+  ShiftPlanningPublicWriteEventDecision, {kind: "controlledNoOp"}
+> => ({
   kind: "controlledNoOp",
   operationKind: input.operationKind,
   mutationKind: input.mutationKind,
@@ -509,7 +520,7 @@ const classifyChangedAfterMarker = (input: {
       targetPath: input.targetPath,
       mutationKind,
     });
-    return controlledDecision({
+    return createShiftPlanningControlledPublicEventDecision({
       operationKind: "activation",
       mutationKind,
       operationId: operation.operationId,
@@ -541,7 +552,7 @@ const classifyChangedAfterMarker = (input: {
       targetPath: input.targetPath,
       mutationKind,
     });
-    return controlledDecision({
+    return createShiftPlanningControlledPublicEventDecision({
       operationKind: operation.kind,
       mutationKind,
       operationId: operation.operationId,
@@ -594,7 +605,19 @@ const classifyDelete = (input: {
   ) {
     return failEvent("Recovery delete does not match its exact before-image.");
   }
-  return controlledDecision({
+  if (operation.activationTerminal) {
+    validateAfterBinding({
+      document, targetPath: input.targetPath, mutationKind: "create",
+      binding: operation.activationTerminal.publicMutations.find((item) =>
+        item.targetPath === input.targetPath),
+      markerKind: "activation", operationId: operation.operationId,
+      operationIntentDigest: operation.activationOperationIntentDigest,
+      bundleRevision: operation.bundleRevision,
+      bundleDigest: operation.bundleDigest,
+      writeEpoch: operation.activationWriteEpoch,
+    });
+  }
+  return createShiftPlanningControlledPublicEventDecision({
     operationKind: "recovery",
     mutationKind: "delete",
     operationId: operation.recoveryOperationId,
@@ -605,9 +628,65 @@ const classifyDelete = (input: {
   });
 };
 
+const classifyRecoveryUpdate = (input: {
+  targetPath: string;
+  before: unknown | null;
+  after: unknown | null;
+  operation: unknown;
+  recoveryBeforeImage?: unknown;
+}): ShiftPlanningPublicWriteEventDecision => {
+  const operation = parseShiftPlanningRecoveryOperationTerminal(
+    input.operation,
+  );
+  if (!operation.activationTerminal || input.before === null ||
+    input.after === null) {
+    return failEvent("Recovery UPDATE requires archived activation authority.");
+  }
+  const before = validateMarkedDocument({
+    targetPath: input.targetPath, value: input.before,
+    expectedOperationIntentDigest: operation.activationOperationIntentDigest,
+  });
+  validateAfterBinding({
+    document: before, targetPath: input.targetPath, mutationKind: "update",
+    binding: operation.activationTerminal.publicMutations.find((item) =>
+      item.targetPath === input.targetPath),
+    markerKind: "activation", operationId: operation.operationId,
+    operationIntentDigest: operation.activationOperationIntentDigest,
+    bundleRevision: operation.bundleRevision,
+    bundleDigest: operation.bundleDigest,
+    writeEpoch: operation.activationWriteEpoch,
+  });
+  const binding = operation.restoredBeforeImages.find((item) =>
+    item.targetPath === input.targetPath);
+  const envelope = parseShiftPlanningBeforeImageEnvelope(
+    input.recoveryBeforeImage,
+  );
+  const after = parseShiftPlanningPublicShiftDocument({
+    targetPath: input.targetPath, value: input.after,
+  });
+  if (!binding || envelope.operationId !== operation.operationId ||
+    envelope.envelopePath !== binding.envelopePath ||
+    envelope.envelopeDigest !== binding.envelopeDigest ||
+    envelope.targetPath !== input.targetPath ||
+    after.writeEpoch >= before.writeEpoch ||
+    createShiftPlanningDigest(encodeShiftPlanningFirestoreValue(
+      input.after, "recovery event after", new Set(),
+    )) !== createShiftPlanningDigest(envelope.payload)) {
+    return failEvent("Recovery UPDATE differs from its exact before-image.");
+  }
+  return createShiftPlanningControlledPublicEventDecision({
+    operationKind: "recovery", mutationKind: "update",
+    operationId: operation.recoveryOperationId,
+    operationIntentDigest: operation.recoveryIntentDigest,
+    targetPath: input.targetPath,
+    beforeMarker: before.lastBackendMutation,
+    afterMarker: after.lastBackendMutation,
+  });
+};
+
 /**
  * Classifies one candidate `onShiftWritten` event without performing I/O.
- * Only an exact changed create/update marker or manifested recovery delete is a
+ * Exact changed markers and manifested recovery before/after images define a
  * controlled no-op. Retained historical provenance stays on the ordinary path.
  * @param {object} input Before/after snapshots and optional operation record.
  * @return {ShiftPlanningPublicWriteEventDecision} Fail-closed event decision.
@@ -617,6 +696,7 @@ export const classifyShiftPlanningPublicWriteEvent = (input: {
   before: unknown | null;
   after: unknown | null;
   operation: unknown | null;
+  recoveryBeforeImage?: unknown;
 }): ShiftPlanningPublicWriteEventDecision => {
   const environment = input.targetPath.split("/")[0];
   if (environment !== "develop" && environment !== "production") {
@@ -651,6 +731,10 @@ export const classifyShiftPlanningPublicWriteEvent = (input: {
   }
   if (input.operation === null) {
     return failEvent("Changed backend marker has no operation registry.");
+  }
+  if (requireRecord(input.operation, "event operation").operationKind ===
+    "activationRecovery") {
+    return classifyRecoveryUpdate({...input, targetPath});
   }
   return classifyChangedAfterMarker({
     targetPath,

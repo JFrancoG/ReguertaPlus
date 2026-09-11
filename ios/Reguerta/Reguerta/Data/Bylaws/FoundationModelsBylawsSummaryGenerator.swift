@@ -60,13 +60,16 @@ nonisolated struct FoundationModelsBylawsSummaryGenerator: BylawsSummaryGenerati
             let session = LanguageModelSession(
                 instructions: Self.instructions(for: request.responseLanguage)
             )
+            // The renamed initializer is back-deployed to iOS 26 by the Swift 6.4 SDK.
+            #if compiler(>=6.4)
+            let options = GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 180)
+            #else
+            let options = GenerationOptions(sampling: .greedy, maximumResponseTokens: 180)
+            #endif
             let response = try await session.respond(
                 to: prompt(request: request),
                 generating: BylawsGeneratedSummary.self,
-                options: GenerationOptions(
-                    sampling: .greedy,
-                    maximumResponseTokens: 180
-                )
+                options: options
             )
             try Task.checkCancellation()
             return response.content.summary

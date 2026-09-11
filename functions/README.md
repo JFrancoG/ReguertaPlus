@@ -113,26 +113,13 @@ pero respaldada por una hoja compartida de Google Sheets.
 
 ### Flujo inbound
 
-El endpoint HTTP:
-
-`https://europe-west1-reguerta-9f27f.cloudfunctions.net/syncShiftsFromGoogleSheets`
-
-lee los rangos configurados de Google Sheets y actualiza:
-
-`{env}/plus-collections/shifts/{shiftId}`
-
-Reglas MVP:
-- si la hoja trae `shiftId`, se reutiliza como id estable
-- si no, se genera un id determinista a partir de `type + date`
-- el documento se marca con `source: "google_sheets"`
-- se guarda trazabilidad mínima en `shifts.syncMeta`
-- tras leer la hoja, la operación captura la autoridad de planificación abierta;
-  cada alta, actualización o borrado revalida esa misma revisión/época dentro de
-  su transacción y se detiene si cambia
-
-El importador sigue siendo no atómico entre filas: una deriva posterior detiene
-las mutaciones restantes, pero no revierte las ya confirmadas. HU-083 sustituye
-este flujo por el consumidor multi-temporada gobernado.
+La revisión local HU-083 retira la importación no atómica de HU-020.
+`syncShiftsFromGoogleSheets` conserva método POST y autorización de administrador,
+pero devuelve `410 legacy_shift_sync_retired` sin leer Sheets ni escribir turnos.
+La alternativa es el endpoint **privado** `executeShiftSheetsImport` con llamadas
+separadas `prepare → apply → writeBack`, mapeo revisado por entorno y digest
+esperado. No se delega automáticamente una invocación antigua a una aplicación
+sin revisión. El cambio de código no implica que esté desplegado.
 
 ### Flujo outbound
 
@@ -175,14 +162,14 @@ Contrato comun:
 - `Content-Type: application/json`
 - `env` o `environment`: `develop` o `production`
 
-Ejemplo de invocacion administrativa:
+Ejemplo de consulta administrativa del contexto de planificación:
 
 ```bash
 curl -X POST \
   -H "Authorization: Bearer $FIREBASE_ID_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"env":"develop"}' \
-  "https://europe-west1-reguerta-9f27f.cloudfunctions.net/syncShiftsFromGoogleSheets"
+  -d '{"schemaVersion":1,"environment":"develop"}' \
+  "https://europe-west1-reguerta-9f27f.cloudfunctions.net/resolveShiftPlanningRequestContext"
 ```
 
 Endpoints de aplicacion:
@@ -250,6 +237,654 @@ abierta inmediatamente antes de escribir su hoja y la revalida en cada mutación
 incluida la notificación. Una deriva detiene los efectos restantes, pero no puede
 revertir una escritura de Sheets ya confirmada; HU-083 sustituye ese flujo no
 atómico.
+
+### HU-083: adaptador y consumidor local de Sheets por temporadas
+
+`shift-sheets-config.ts` exige el ID del libro del entorno solicitado, sin
+fallback global ni préstamo del otro entorno. El formateador propuesto usa
+`turnos-reparto YYYY-YY` y `turnos-mercado YYYY-YY`, con temporada de septiembre a
+agosto y aliases explícitos. Estos nombres y la cabecera técnica nueva se prueban
+con fixtures: aún no sustituyen el inventario de las pestañas humanas existentes.
+Un alias cambia el destino; no convierte una cabecera legacy al formato nuevo.
+
+`shift-sheets.ts` prepara cambios por identidad estable, conserva filas ajenas y
+columnas adicionales, y rechaza cambios manuales en celdas gestionadas pendientes
+de importación gobernada. Nunca limpia una pestaña. Crea pestañas y escribe las
+celdas y el marcador de operación en un solo `spreadsheets.batchUpdate`, con
+reintentos del SDK desactivados y autorización inmediatamente antes del envío.
+La lectura posterior confirma celdas y marcador. `inspect` sólo lee: un resultado
+ambiguo exige reconciliación por el consumidor y no autoriza reenviar.
+
+Hay un marcador reemplazable por pestaña, sin historial creciente en Sheets. La
+historia durable, el rechazo de comandos sustituidos y el intento persistido antes
+de enviar pertenecen a `shift-planning-sheets-consumer.ts` y al repositorio de
+comandos. La atomicidad de un lote no ofrece
+CAS frente a colaboradores: requiere exclusión de escritores externos, como
+explica la [referencia de Google Sheets](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate).
+Los límites del adaptador están centralizados en `SHIFT_SHEETS_LIMITS`; excederlos
+rechaza el lote completo, no lo fragmenta ni descarta filas.
+
+`shift-planning-firestore-public-event-audit.ts` añade persistencia transaccional
+a los codecs de HU-082, con política de retención explícita y tiempo estable del
+CloudEvent. Propaga fallos transitorios y devuelve la señal `alertRequired`; esa
+señal todavía no prueba envío de una alerta. No elimina terminales ni crea una
+política de retención por defecto. El sexto corte local admite recovery UPDATE
+solo con el before activado exacto y el after idéntico al before-image persistido.
+El terminal recovery v2 conserva `activationTerminal` en el mismo documento y liga
+ese archivo por digest: los eventos retrasados de activación usan su autoridad
+original; las restauraciones usan el ID/digest de recovery. Los artefactos recovery
+v1 siguen decodificándose estrictamente y sus UPDATE sin archivo se rechazan.
+Se necesitan bindings de retención explícitos para ambas operaciones lógicas.
+El terminal físico compartido y sus before-images deben conservarse hasta que todas
+sus dependencias permitan eliminarlos; no hay TTL ni ejecutor de cleanup habilitado.
+El séptimo corte conecta en el código candidato `onShiftWritten` al filtro de
+eventos controlados, antes de decodificar/exportar una fila. El nuevo
+`onShiftPlanningPublicWritten`, autenticado y con `retry: true`, persiste la
+auditoría de esos eventos. Se mantiene el trigger ordinario sin reintentos
+automáticos para no duplicar sus efectos Sheets/notificación.
+
+El trigger de auditoría exige el JSON completo del codec de política (incluido
+`policyDigest`) en `SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_DEVELOP` o
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_PRODUCTION`, según la ruta del evento.
+No hay valor por defecto ni fallback entre entornos. La política se valida al
+procesar un evento controlado; su ausencia/fallo o un fallo transitorio de autoridad
+rechaza la invocación para reintento. Los eventos ordinarios no necesitan esa
+configuración. Los rechazos persistidos emiten un diagnóstico estructurado con
+correlación opaca, código y `alertRequired`; el log no demuestra entrega de alerta.
+
+Antes de habilitar escrituras controladas, HU-085 debe desplegar/verificar ambos
+triggers bajo exclusión de escritores, fijar la política aprobada, garantizar los
+bindings de retención de cada productor y verificar el canal real de alertas.
+Este corte no despliega ni configura recursos live. Prueba reproducible local:
+`npm run test:shift-planning:public-event-trigger:emulator` ejecuta los handlers
+exportados con snapshots SDK/autoridad Firestore en un proyecto demo, sin Sheets
+ni FCM reales.
+
+### Auditoría local de snapshots (HU-083, décimo corte)
+
+`audit-shift-planning.cjs` lee exclusivamente un archivo JSON local (máximo 4 MiB).
+No inicializa clientes Firebase/Google, no usa credenciales y no tiene modo apply,
+conexión live ni generador de reparaciones. Primero compilar `npm run build` y luego:
+
+```sh
+npm run --silent audit:shift-planning -- --mode audit --input /ruta/absoluta/snapshot.json --project demo-reguerta-audit --environment develop --workbook audit-book
+```
+
+Los tres identificadores deben coincidir exactamente con `target` del archivo;
+los valores del ejemplo son sintéticos. No se selecciona el proyecto por variables
+ambientales. La captura live y su auditor autorizado siguen siendo un paso separado.
+La evidencia JSON v1 contiene exactamente estos campos; v2 añade `lineage`:
+
+| Campo | Contenido |
+| --- | --- |
+| `schemaVersion` | `1` o `2` |
+| `target` | `projectId`, `environment`, `workbookId` |
+| `capturedAt` | Fecha UTC ISO, con milisegundos, declarada por la captura |
+| `aliases`, `tabs` | Aliases y mapeo explícito del contrato de importación |
+| `workbookVersion` | Versión Drive positiva conservada como texto |
+| `spreadsheet` | Snapshot de `spreadsheets.get`: ID, metadatos y grids `userEnteredValue` de todas las pestañas incluidas |
+| `source` | Array de `{row, documentRevision, assignmentRevision, completionRevision, completed}`; `row` es la proyección `ShiftSheetsProjectionRow` |
+| `members` | Array de `{userId, names, phones, eligibleTypes}` del lector de importación |
+| `expectedDates` | `{delivery: ["YYYY-MM-DD", ...], market: ["YYYY-MM-DD", ...]}`; horizonte explícito para ambos tipos |
+
+El archivo es evidencia normalizada, no un export Firestore bruto. Debe conservar
+las revisiones, el estado real de completado y cualquier valor inválido observado
+(por ejemplo `source: "planner"`); no corregirlos durante la preparación. Cada grid
+debe traer `data` y `rowData` explícitos, y cada fila `values`, incluso vacíos.
+El formato humano necesita su mapeo revisado; no se deduce del nombre de la pestaña.
+El snapshot puede contener datos personales: el informe solo emite códigos, índices
+de `source`, fechas del horizonte y digests, nunca nombres, teléfonos ni errores raw.
+
+Se detectan identidades/fechas duplicadas, huecos y fechas extra respecto al horizonte,
+fuente inválida, proyecciones/grupos inválidos, inelegibilidad actual, líderes
+adyacentes iguales, ayudantes planificados incoherentes y diferencias entre almacenes.
+La comparación de ayudantes cruza temporadas, pero no salta huecos del horizonte ni
+recalcula ayudantes completados. La elegibilidad actual se comprueba solo para turnos
+no completados. Una lectura Sheets incompleta/ambigua rechaza toda la comparación;
+un origen inválido la deja sin evaluar. Nunca se interpreta ausencia como borrado.
+
+Stdout contiene JSON con `inputDigest`, `reportDigest`, hallazgos y comprobaciones
+pendientes; stderr muestra un resumen. Salidas: `0` sin hallazgos **en el alcance
+comprobado**, `2` con hallazgos, `1` con argumentos/evidencia rechazados. La herramienta
+no certifica captura, permisos, completitud live ni calendario aprobado. En v1,
+linaje/rondas y bootstrap quedan sin evaluar; la elegibilidad histórica y los
+ayudantes en los extremos siguen pendientes en ambas versiones. Siempre devuelve
+`readyForRepair: false`; incluso `0` no completa HU-083 ni autoriza apply. El digest
+vincula exactamente el archivo normalizado (incluido el orden de arrays), no acredita
+su procedencia. Validación local: `npm run test:shift-planning:audit`.
+
+El undécimo corte conserva v1 y añade evidencia v2 de linaje para ambos tipos:
+`lineage: {delivery: ..., market: ...}`. Cada tipo puede ser `null` (hallazgo de
+falta de evidencia) o contener exactamente:
+
+| Campo | Evidencia observada |
+| --- | --- |
+| `beforeDate` | Primera fecha de `expectedDates[type]`; el bootstrap debe describir el estado inmediatamente anterior a ese horizonte |
+| `bootstrap` | Contrato `ShiftRotationBootstrapInput` de HU-082, con los siete campos explícitos: `type`, `eligibleUserIds`, `isTrulyNewRotation`, `versionedState`, `ownerHistory`, `approvedMapping`, `legacyDeliveryHelper`; los cuatro últimos admiten `null` |
+| `rows` | `[{shiftId, positions: [{roundNumber, positionInRound}, ...]}]`; metadatos observados de cada turno del horizonte, una posición para reparto y tres para mercado |
+| `rotationAfterHorizon` | Cursor observado después del horizonte completo: `schemaVersion`, `type`, `cohortUserIds`, `roundNumber`, `nextMemberIndex` |
+
+Los formatos anidados de bootstrap son los existentes en
+[`shift-rotation-bootstrap.ts`](src/shift-rotation-bootstrap.ts); se comprueban también
+sus claves y límites antes de resolverlos. Los propietarios salen exclusivamente de
+`source[].row.rotationOwnerUserIds`, nunca de los asignados efectivos. El auditor
+ordena las fechas y consume las posiciones con `consumeRotationPositions`: compara
+propietarios, ronda/posición y cursor final, sin reiniciar en septiembre. Mercado
+consume tres posiciones por fecha, incluso si un grupo cruza una ronda. Faltas o
+duplicados en `rows` o en su origen no cuentan como una comprobación satisfactoria.
+
+Se conserva la prioridad HU-082: estado versionado, historial reproducible y mapeo
+aprobado; un estado corrupto no permite fallback. La auditoría informa por separado
+fuentes alternativas inválidas o contradictorias, aunque la selección principal sea
+válida. El historial se ordena por su secuencia explícita y los mapeos respetan orden
+estable y continuidad del ayudante heredado según HU-082. El estado versionado
+conserva su excepción de helper heredado; comprobar ayudantes fuera del horizonte
+sigue pendiente. No se inventa un mapeo para resolver un conflicto.
+
+La cohorte debe coincidir con el roster elegible suministrado para ese tipo. Esta
+versión audita una cohorte congelada por horizonte; no reconstruye cambios históricos
+de membresía ni aprueba la política HU-084. Las referencias `revision`, `digest` y
+`provenance`, igual que `approvalStatus`, son evidencia declarada en el archivo: no
+se certifica su origen, la aprobación externa, la captura ni el calendario. Un cursor
+capturado después de generar filas no puede etiquetarse como estado anterior.
+
+El informe v2 añade `lineage` por tipo con estado, fuente seleccionada y digest del
+bootstrap resuelto, sin volcar UIDs ni evidencia privada. La ausencia o el rechazo se
+reflejan en hallazgos; v1 sigue marcando linaje/bootstrap como no evaluados. Las dos
+versiones mantienen `readyForRepair: false`; coherencia interna no equivale a permiso
+para preparar/aplicar una reparación live. La CLI y sus códigos de salida no cambian.
+
+### Revisión de reparación en seco (HU-083, duodécimo corte)
+
+`repair-planned-shifts.cjs` compara un snapshot v2 original con una propuesta v2
+explícita. Ambos usan el formato del auditor anterior. Primero ejecutar el auditor
+sobre cada archivo y revisar sus resultados; sus respectivos `inputDigest` son los
+valores que exige este comando (después de `npm run build`):
+
+```sh
+npm run --silent repair:planned-shifts -- --mode dry-run --input /ruta/original.json --proposal /ruta/propuesta.json --project demo-reguerta-audit --environment develop --workbook audit-book --expected-input-digest '<inputDigest original>' --expected-proposal-digest '<inputDigest propuesta>'
+```
+
+Cada archivo está acotado a 4 MiB. La propuesta expresa valores deseados sobre la
+misma captura: conserva `capturedAt`, `workbookVersion`, horizonte, miembros, aliases,
+mapeo de pestañas y bootstrap anterior al horizonte. No se presenta como una nueva
+captura ni autoriza sustituir evidencia ambigua. Debe pasar la auditoría sin hallazgos
+en el alcance comprobado y con ambos linajes consistentes. El original puede tener
+filas/posiciones/cursor incorrectos o ausentes, pero exige bootstrap resoluble y sin
+fuentes alternativas contradictorias. Un caso ambiguo requiere evidencia revisada
+antes de volver a preparar el plan; el script no fabrica un mapeo.
+
+El resultado JSON contiene:
+
+- `projectionChanges`: proyecciones normalizadas completas antes/después, con las
+  revisiones observadas y el estado de completado. `before: null` representa un alta
+  propuesta con revisiones cero, no un documento ya persistido. Para filas existentes
+  se conservan los contadores; el ejecutor futuro deberá definir su incremento CAS.
+- `lineageChanges`: posiciones y cursor final antes/después, manteniendo el bootstrap.
+- `sheetsChanges`: ID de pestaña, fila/columna base 1 y valor literal antes/después de
+  cada celda gestionada. No cambia metadatos, cabeceras, columnas manuales, fórmulas,
+  celdas protegidas/fusionadas ni pestañas fuera del mapeo. Las altas solo ocupan filas
+  sin contenido previo en las columnas gestionadas. No convierte formatos humanos ni
+  crea pestañas.
+- Digests de ambos snapshots, de sus auditorías y del plan completo. El digest original
+  vincula también los vecinos y filas sin cambios; no equivale a una precondición
+  Firestore `updateTime` ni a un CAS de Sheets.
+
+No admite borrados ni IDs ambiguos, cambios de completado/revisiones, mutaciones de
+filas completadas o de sus posiciones históricas. Un cambio de líder requiere ambos
+vecinos en original y propuesta; cambiar un ayudante requiere su sucesor. La auditoría
+comprueba la continuidad resultante. Una corrección de fuente/origen debe terminar
+en `source: "app"`, `origin: "planner"`. El historial completado se conserva incluso
+si contiene un dato que no se puede reparar con este corte.
+
+El plan es un artefacto privado de revisión: contiene UIDs y valores de celdas, por
+lo que no debe copiarse en logs o comentarios públicos. Stdout emite el JSON y stderr
+solo cantidades/errores genéricos. Salida `0` significa plan generado; `1`, rechazo.
+Siempre incluye `readyForApply: false`: no es un manifiesto ejecutable de documentos
+Firestore completos, un lote Sheets listo para enviar, un baseline de migración ni
+un backup/inverso de rollback. Faltan captura/calendario acreditados, historia y
+extremos, backups/restore, exclusión de escritores y triggers, CAS/provenance atómicos,
+baseline y rollback. No hay clientes live ni modo apply. Repetir las mismas entradas
+produce el mismo plan; esto no demuestra idempotencia de una futura escritura.
+`npm run test:shift-planning:audit` valida conjuntamente auditoría y plan en seco.
+
+El decimotercer corte permite vincular ese plan a una captura completa de los
+documentos de turnos. Añadir **ambas** opciones al comando anterior:
+
+```sh
+--firestore-capture /ruta/captura.json --expected-capture-digest '<digest de la captura>'
+```
+
+El digest es `createShiftPlanningDigest(captura)` con el codec canónico existente,
+no un hash del texto JSON. La captura (máximo 4 MiB) tiene exactamente estos campos:
+
+| Campo | Contrato |
+| --- | --- |
+| `schemaVersion` | `1` |
+| `target` | Mismo proyecto, entorno y libro del snapshot original |
+| `inputDigest` | Digest del snapshot normalizado original completo |
+| `capturedAt` | Misma fecha de captura del original |
+| `documents` | Una entrada `{targetPath, updateTime, payload}` por cada fila original, incluidos vecinos sin cambios |
+| `absentPaths` | Exactamente las rutas de las altas propuestas; sin duplicados ni rutas adicionales |
+
+`payload` utiliza `encodeShiftPlanningFirestoreValue` y debe representar un mapa;
+`updateTime`, un valor `{kind: "timestamp", seconds, nanoseconds}` del mismo codec.
+No usar la serialización JSON directa de objetos SDK como sustituto. El decodificador
+rechaza tipos no soportados y la recodificación debe reproducir el valor canónico.
+Se conservan timestamps con nanosegundos, bytes, GeoPoints, anidamientos, campos
+adicionales y la provenance original. No se convierte la captura en el esquema
+estricto de una publicación nueva: por ejemplo, `source: "planner"` se conserva
+como valor original que el plan pretende corregir.
+
+Las rutas deben ser exactamente `{environment}/plus-collections/shifts/{id}` para
+las filas del original. Se comprueba que cada documento reproduce su proyección,
+revisiones, estado/revisión de completado y posiciones de ronda; también la relación
+propietario/asignado de las posiciones de mercado. El formato de estos campos sigue
+el payload HU-082 (incluidos los campos de rotación nulos del tipo opuesto). No se
+inventan valores predeterminados para documentos legacy que no lo representan.
+El helper real y su timestamp de completado permanecen en el cuerpo íntegro aunque
+no aparezcan en la proyección. Un `updateTime` posterior a `capturedAt` se rechaza.
+
+Con estas opciones, el resultado es un **plan v2** con `firestoreEvidence`: digest de
+captura, documentos completos ordenados con `updateTime`, digest de payload y digest
+de proyección, más las ausencias exactas. Cambiar incluso un campo adicional o un
+nanosegundo de un vecino altera el digest del plan. Sin las opciones se conserva el
+plan v1 sin vinculación; opciones incompletas, captura nula o discrepancias se rechazan.
+
+Este vínculo solo acredita coherencia entre los archivos suministrados. No prueba
+quién capturó los datos, completitud de una consulta live, ausencias reales ni la
+actualidad de perfiles, rotaciones y fences. Los before-images son privados; no se
+vuelcan en stderr. Sigue faltando construir y ensayar la transacción de documentos
+finales, terminal, retención y provenance, el baseline y su recuperación. Los dos
+formatos mantienen `readyForApply: false`; no hay captura live ni ejecutor de escritura.
+
+El decimocuarto corte añade la **materialización offline v3**. Manteniendo las
+opciones de captura, añadir ambas opciones:
+
+```sh
+--materialization /ruta/documentos-finales.json --expected-materialization-digest '<digest del paquete>'
+```
+
+El paquete (máximo 4 MiB, digest canónico) tiene exactamente estos campos:
+
+| Campo | Contrato |
+| --- | --- |
+| `schemaVersion` | `1` |
+| `target` | Mismo proyecto/libro; solo `develop` en esta reparación |
+| `repairPlanDigest` | Digest del plan v2, que se vuelve a calcular desde los tres archivos originales |
+| `operationId` | Identidad explícita del futuro terminal de reparación |
+| `preparedAt` | Timestamp tipado no anterior a la captura; instante propuesto para los documentos/terminal |
+| `authority` | `{bundleRevision, bundleDigest, writeEpoch}` explícitos; aún sin acreditación contra autoridad live |
+| `retentionPolicy` | Política HU-082 completa y vinculada por su propio digest |
+| `writes` | Exactamente un `{targetPath, payload}` por alta o cambio público revisado; `payload` es el mapa tipado final sin `lastBackendMutation` |
+
+Los documentos finales deben satisfacer el parser público HU-082 y reproducir las
+proyecciones y posiciones de la propuesta. Incluye cambios solo de ronda aunque no
+cambie ninguna celda. Cada actualización aumenta `documentRevision` en uno y solo
+incrementa `assignmentRevision` cuando cambia el asignado o helper. Las altas parten
+de ambas revisiones en uno y `createdAt = updatedAt = preparedAt`. Los documentos
+existentes conservan fecha exacta, creación, completado, identidad de petición,
+motivos de planificación y cualquier campo ajeno a la corrección. Los metadatos
+que falten en documentos antiguos deben aportarse explícitamente en el paquete.
+No se redondean fechas legacy para superar el requisito de medianoche UTC.
+
+El parser público exige campos exactos: una fila modificada con campos adicionales,
+o una procedencia previa malformada que el clasificador no reconoce, se rechaza.
+No se descartan esos datos para fabricar una publicación válida. Los documentos
+sin cambios, incluidos completados y vecinos, conservan sus before-images íntegros.
+Los cambios exclusivos de Sheets o del cursor no crean terminales públicos vacíos;
+en esos casos se usa el plan v2 y se resuelve su vía de ejecución por separado.
+
+`materializationEvidence.atomicGroup` contiene las escrituras públicas marcadas,
+terminal `repair` y retención mediante los builders HU-082, más condiciones de
+lectura para **todos** los turnos capturados (updateTime y digest completo) y de
+inexistencia para altas, terminal y retención. No se divide el conjunto: se rechazan
+más de 498 turnos modificados, reservando dos escrituras para terminal y retención.
+Esto no valida todavía el tamaño físico ni ejecuta/admite una transacción Firestore.
+`eventRehearsal` registra el resultado del clasificador/retención existente para cada
+evento previsto: exige `controlledNoOp` y `legacySideEffectsAllowed = false`.
+Es un ensayo del contrato local, no de los triggers desplegados ni de FCM.
+
+`parentPlanDigest` enlaza el plan v2 y `planDigest` vincula también este conjunto.
+Los documentos con estado `committed` son **plantillas sin persistir**; su presencia
+no acredita un commit real. El resultado mantiene `readyForApply: false`. Faltan la
+vinculación live de autoridad/ausencias, admisión y ejecución CAS, baseline, inversa,
+ensayo de commit/restauración y cerco entre Firestore y Sheets. Cambiar el instante,
+la autoridad o cualquier payload exige generar y revisar otro digest. La CLI no
+crea clientes SDK, no escribe archivos de entrada ni admite `--mode apply`.
+
+El decimoquinto corte completa el **artefacto offline v4 de baseline e inversa**.
+Al comando v3 se añaden dos opciones, sin otro archivo de configuración:
+
+```sh
+--baseline-revision migration-r1 --expected-materialized-plan-digest '<planDigest v3 revisado>'
+```
+
+Se recalculan las cuatro entradas y el plan v3 antes de aceptar ese digest. La
+revisión debe ser un identificador exacto de hasta 128 caracteres; cambiarla cambia
+el baseline y el digest final. El resultado conserva las evidencias anteriores y
+`parentMaterializedPlanDigest`; `recoveryEvidence.forward` es el conjunto completo
+para el ensayo, incluido el nuevo baseline. El grupo v3 anidado conserva su alcance
+histórico y no debe confundirse con el conjunto completo v4.
+
+El baseline es una plantilla create-only en
+`develop/plus-collections/shiftPlanningMigrationBaselines/{revision}`. Su documento
+`schemaVersion: 1`, `recordKind: shiftPlanningMigrationBaseline` conserva el target,
+la revisión, `preparedAt`, operación de reparación, digests v3/original/propuesta y
+`expectedPostRepair`: digests de **todos** los documentos finales de turnos, imagen
+esperada del libro, calendario y ambas rotaciones. Cada rotación incluye entrada y
+resolución de bootstrap HU-082, posiciones y cursor final. Conserva mappings,
+orden estable y evidencia del helper cuando existen; no fabrica una aprobación
+administrativa a partir de un estado versionado. `baselineDigest` es el digest
+canónico del documento codificado sin ese mismo campo. La referencia común es
+`{revision, digest}`. El grupo completo reserva tres escrituras
+auxiliares (terminal, retención y baseline): como máximo 497 turnos modificados.
+
+`rotationLineageAttachments` identifica ambos agregados, su cursor esperado y la
+misma referencia, pero mantiene `state: requires_authoritative_capture`. Todavía
+no emite escrituras sobre `shiftRotations`: faltan sus capturas, revisiones, leases
+y autoridad. Un baseline previsto no acredita persistencia ni enlace live.
+
+`recoveryEvidence.inverse` restaura exactamente los payloads modificados y elimina
+solo los objetos creados por el forward, incluidos terminal/retención/baseline en
+el clon. Sus condiciones cubren todo el estado posterior esperado, también vecinos
+sin cambios. Exige vincular los `updateTime` al read-back verificado del forward:
+esos tiempos los genera Firestore, no se inventan ni pueden restaurarse a su valor
+original. El bloque Sheets conserva imágenes completas, digests y cambios de celda
+en ambos sentidos; exige la nueva versión verificada del libro. Las imágenes son
+fixtures de restauración, no peticiones de reemplazo completo a Google Sheets.
+
+La inversa está marcada **`isolated_clone_only`**: eliminar pruebas de procedencia
+no es una recuperación live segura. El contrato existente de HU-082 autoriza
+recuperaciones de activación, no estos eventos inversos de reparación. Siguen
+pendientes la autoridad de esos eventos, retención, cerco operativo y ejecución/
+admisión transaccional. Las pruebas interpretan instrucciones de payload y celdas
+en memoria; no son un ensayo de commit en Firestore ni de restauración de un backup
+real. `readyForApply` permanece en `false` y la CLI sigue sin modo apply.
+
+El decimosexto corte añade la **vinculación v5 con mantenimiento y rotaciones**.
+Al comando v4 se añaden ambas opciones:
+
+```sh
+--authority-capture /ruta/autoridad.json --expected-authority-capture-digest '<digest de la captura>'
+```
+
+La captura tiene exactamente `{schemaVersion: 1, target, inputDigest, capturedAt,
+documents}`. Las cuatro primeras propiedades coinciden con el snapshot original;
+`documents` contiene exclusivamente las tres entradas `{targetPath, payload,
+updateTime}` de `shiftPlanningState/current`, `shiftRotations/delivery` y
+`shiftRotations/market`, bajo `develop/plus-collections`. Payload y tiempo usan el
+codec tipado HU-082; los tiempos completos no pueden ser posteriores a la captura.
+
+Se reutiliza el parser de estado autoritativo HU-082: mantenimiento cerrado con
+barrera no futura, misma revisión/digest activos y writeEpoch que el paquete,
+ambos leases nulos y cursores actuales iguales a los cursores finales declarados
+en el original. El horizonte debe caber en el frontier capturado. Cada agregado
+recibe el cursor revisado, freeze coherente, baseline común y `stateRevision + 1`;
+conserva el resto de sus campos. La inversa restaura ambos payloads originales.
+Mantenimiento es una condición de lectura, no una escritura. El conjunto v5
+completo está en `recoveryEvidence.forward/inverse`, incluye esas condiciones y
+queda limitado a 495 turnos más terminal, retención, baseline y dos agregados.
+`authorityDocuments` conserva la evidencia completa, y `parentRecoveryPlanDigest`
+enlaza v4. Esto acredita coherencia de archivos; no autentica una captura live.
+
+`rehearse-shift-repair.cjs` exporta `rehearseShiftRepair` para ejecutar **solo en un
+emulador loopback** (`127.0.0.1`, `localhost` o `[::1]`, puerto explícito). Exige que
+el host coincida con `FIRESTORE_EMULATOR_HOST` y que el proyecto `demo-*` sea el
+mismo del plan develop. Construye su propio cliente después de comprobar estos
+límites; no admite un cliente inyectado ni un proyecto live. Entradas: `options`
+(las del compilador v5), `expectedReviewDigest`, `direction: forward | inverse`,
+`emulator: {host, projectId}`, `indexConfigurationDigest` y `readBack` opcional.
+La CLI de revisión continúa sin modo apply.
+
+Cada intento recompone el plan, comprueba todos los payloads/updateTime/ausencias
+y utiliza la admisión y los fences de notificación de la transacción HU-082. Las
+actualizaciones usan CAS; la inversa elimina expresamente campos añadidos por el
+forward para que `update()` no deje procedencia residual. El read-back verifica
+el estado completo y emite un recibo con digest, target, dirección, plan y tiempos
+exactos por documento. Para forward comprueba también la clasificación controlada
+con el tiempo de commit, normalizado a milisegundos igual que el trigger; los
+nanosegundos completos permanecen en recibos y CAS. No ejecuta el trigger ni FCM.
+
+La inversa requiere el recibo forward; un recibo de la misma dirección sirve para
+replay verificado sin escrituras. Datos iguales con un updateTime posterior se
+rechazan. Un fallo después del commit y antes del recibo sigue siendo un resultado
+desconocido: no se reenvían escrituras automáticamente. La restauración de payloads
+no restaura los tiempos de servicio, por lo que otra aplicación después de la
+inversa necesita una captura/revisión nueva. Un recibo no es prueba firmada externa.
+
+Validación reproducible:
+
+```sh
+npm run test:shift-repair:authority
+npm run test:shift-repair:emulator
+```
+
+El segundo comando levanta solo Firestore con fixtures sintéticas en
+`demo-reguerta-hu083-repair`: verifica commits forward/inverse, replays sin nuevas
+escrituras, CAS obsoleto, cambio y restitución de datos (ABA), carreras entre dos
+intentos y fences activos. Sheets conserva su ensayo de celdas en memoria. Esto
+no restaura un backup real ni prueba atomicidad Firestore/Sheets, Rules de cliente,
+triggers desplegados o recuperación live. Los artefactos conservan
+`readyForApply: false`; los gates de evidencia, escritores y procedencia inversa
+live siguen abiertos.
+
+El octavo corte exporta `executeShiftPlanningSheetsSync` como HTTP privado
+(`invoker: private`, sin scheduler, timeout de 300 s). El acceso IAM al invoker y
+la identidad runtime quedan para HU-085; no se amplía el permiso del operador de
+recovery. Acepta solo POST sin query con `schemaVersion: 1`, `environment` y:
+
+- `mode: "execute"` y el `commandId` persistido exacto.
+- `mode: "drain"` y `limit: 1` o `2`; redescubre trabajo pendiente/caducado.
+
+No acepta filas, workbook alternativo ni credenciales del solicitante. La composición
+usa `SHEETS_SPREADSHEET_ID_DEVELOP`/`SHEETS_SPREADSHEET_ID_PRODUCTION` y exige el JSON
+revisado `SHIFT_SHEETS_ALIASES_DEVELOP`/`SHIFT_SHEETS_ALIASES_PRODUCTION` del entorno,
+incluso `[]` si no hay aliases. Cada alias contiene solo `type`, `seasonStartYear`
+y `title`. No hay fallback a configuración global; un alias no autoriza convertir
+el layout humano. El cliente usa scopes de Sheets y `drive.metadata.readonly` para
+leer la versión del libro.
+
+El worker devuelve 200 al completar/repetir terminales (o al no hallar trabajo),
+202 con `retryAtMillis` si está ocupado y 409 si requiere reconciliación o rechaza
+la autoridad/configuración; 503 indica fallo transitorio sin diagnóstico privado.
+Los resultados solo incluyen tipo e ID/reintento, nunca filas. Un drain se detiene
+al encontrar trabajo ocupado o incierto. Un error/timeout no demuestra que una
+escritura anterior del mismo drain no ocurriera: una nueva invocación consulta los
+comandos y recibos persistidos; nunca interpreta la ausencia de respuesta como
+permiso para reenviar. Las llamadas ya enviadas mantienen recuperación solo de
+lectura. Sigue siendo necesaria la exclusión operativa de escritores externos.
+La ruta todavía consume comandos de activación; no habilita recuperación de
+comandos consumidos ni reemplaza las barreras de recovery existentes.
+
+El noveno corte exporta `executeShiftSheetsImport` como HTTP privado, sin scheduler
+ni despliegue. Acepta POST sin query con `schemaVersion: 1`, `environment`,
+`operationId` y una sola operación:
+
+- `mode: "prepare"`: carga el origen y devuelve el plan completo con `planDigest`.
+  Puede persistir el comando inmutable en Firestore privado; no modifica turnos
+  públicos ni celdas. El plan contiene asignaciones por UID y guardas del origen:
+  su respuesta es privada y lleva `Cache-Control: no-store`.
+- `mode: "apply"` y `expectedPlanDigest`: exige el digest exacto revisado y aplica
+  atómicamente las correcciones en Firestore tras revalidar la autoridad.
+- `mode: "writeBack"` y el mismo `expectedPlanDigest`: completa explícitamente
+  la escritura pendiente en Sheets. Nunca se encadena automáticamente con apply.
+
+El cuerpo no acepta filas, origen, configuración ni políticas. Además del workbook,
+aliases y política de retención del entorno, la composición exige el JSON revisado
+`SHIFT_SHEETS_IMPORT_TABS_DEVELOP` o `SHIFT_SHEETS_IMPORT_TABS_PRODUCTION`. Cada entrada
+contiene exactamente `type`, `seasonStartYear`, `title`, `layout` y `decorations`;
+el título debe resolver al alias/ruta configurado. `layout` es `canonical` (con
+`decorations: []`), `delivery_human` o `market_human` según el tipo. Cada decoración
+contiene solo `rowNumber` (base 1) y `cells` literales. No se infiere el formato ni se
+convierte el libro. Desde el corte 22, los formatos humanos también permiten
+apply/writeBack con las imágenes exactas revisadas; no requieren tablas técnicas.
+Los límites de pestañas, filas y columnas son los del adaptador.
+
+Devuelve 200 con el plan o resultado, 400 para un comando mal formado, 405 para otro
+método, 409 para rechazo o reconciliación pendiente y 503 para un fallo inesperado.
+Apply/writeBack devuelven metadatos de resultado, sin payload interno. Ante pérdida
+de respuesta se repite la misma operación con el mismo ID/digest; un envío incierto
+solo permite lectura/reconciliación y nunca otro envío. Los logs omiten diagnósticos
+privados. HU-085 debe establecer IAM, identidad runtime y exclusión de escritores.
+`npm run test:shift-sheets:import:emulator` cubre los tres modos sobre Firestore demo
+y Sheets simulado, incluidos digest alterado, revisión obsoleta y replay.
+
+Las revisiones de libro del bundle son observaciones por partición y pueden
+diferir; no son tokens CAS de Sheets. El ejecutor entrega al consumidor un callback
+para revalidar autoridad antes de cada lote. El consumidor carga las filas exactas
+del bundle activado y comprueba sus marcadores contra el terminal; incluye el
+helper predecesor y su temporada cuando cambia.
+
+Antes de `batchUpdate`, el repositorio crea
+`shiftPlanningSyncCommands/{commandId}/externalSubmissions/sheets` y actualiza
+`shiftPlanningState/sheetsSubmission` en la misma transacción. Este último documento
+serializa reparto y mercado para el libro estable del entorno. El recibo conserva
+el claim original, digests de proyección/petición, versión previa y hora de envío;
+sólo admite añadir evidencia de lectura verificada. Un resultado desconocido,
+incluso un fallo justo antes de invocar Sheets, no permite otro envío ni liberar
+el libro por vencimiento. Los reintentos llaman únicamente a `inspect`.
+
+La lectura de `files.version` exige acceso de metadatos Drive, comprueba ID/tipo
+del libro y conserva el int64 como texto. Lee la versión alrededor del read-back:
+un cambio durante la lectura impide completar. La versión observada es la de
+[Drive](https://developers.google.com/workspace/drive/api/reference/rest/v3/files),
+no una revisión artificial ni una garantía CAS. El recibo verificado anterior
+explica el avance del libro causado por la otra partición.
+
+Una confirmación puede llegar después del lease original. La completion exige
+entonces evidencia ya persistida y los mismos linaje/propiedad; conserva worker,
+intento y epoch originales. Un claim sin recibo no obtiene esa excepción. No hay
+TTL, borrado del recibo ni reenvío automático para resolver incertidumbre.
+La exclusión efectiva de escritores externos sigue pendiente de HU-085.
+
+Validación enfocada: `npm run test:shift-sheets` y
+`npm run test:shift-planning:public-event-audit:emulator`, además de
+`npm run test:shift-planning:sheets-consumer:emulator`. Esta última usa el
+repositorio real contra Firestore emulado y el adaptador real contra una API Sheets
+simulada; no demuestra comportamiento de red ni permisos de Google reales. El estado completo y
+los siguientes cortes están en el
+[plan de HU-083](../spec/shifts/hu-083-multi-season-shift-sheets/plan.md).
+No hay conexión nueva en `index.ts`, importación sobre datos reales, reparación
+de datos reales ni despliegue. Android e iOS siguen leyendo el contrato Firestore de
+HU-082.
+
+### HU-083: lectura de importación y plan previo
+
+`readShiftSheetsImport` reutiliza la lectura acotada del exportador. Recibe las
+pestañas exactas, baseline Firestore y miembros de confianza. Lee todas las pestañas
+seleccionadas o rechaza el conjunto; verifica la versión Drive antes/después.
+Devuelve asignaciones observadas, discrepancias por filas ausentes y digests de
+baseline, mapping, miembros y calendario. No escribe ni genera órdenes de borrado.
+
+Los formatos se seleccionan explícitamente por pestaña:
+
+- `canonical`: cabecera técnica exacta; sólo admite cambios en asignados/estado.
+  Identidad, fecha, temporada, propietario, helper, source/origin y rowDigest deben
+  coincidir con el baseline. El digest de fila sigue representando la exportación
+  anterior; no se recalcula en la hoja para encubrir una edición manual.
+- `delivery_human`: A fecha, B nombre, C teléfono, E sustitución opcional
+  `lo hace Nombre`. D/F no se importan. Los títulos/meses deben figurar en
+  `decorations` con número de fila y contenido exacto; no hay descarte heurístico.
+- `market_human`: cabecera de fecha seguida de tres participantes, con nombre,
+  teléfono opcional y sustitución en A/B/C. Se permite distinta separación entre
+  bloques. Un bloque incompleto, una identidad ambigua o sustitución desconocida
+  rechaza la lectura; nunca vuelve silenciosamente al titular original.
+
+Las fechas admiten ISO, día/mes/año explícito, fecha larga española como
+`6 DE SEPTIEMBRE DE 2026` o serial entero de Sheets, sin conversión por la zona
+horaria del libro. Las fechas efectivas de reparto se cotejan con `deliveryCalendar`
+de Firestore, interpretado en Europe/Madrid, y conservan la fecha lógica/ID/pestaña
+originales. Coincidir en semana ISO sin ese override no basta. El calendario se
+incluye en el digest de fuente y se relee dentro de las transacciones existentes.
+
+Fecha, nombre y teléfono exigen valores literales; sus fórmulas se rechazan.
+Las fórmulas de anotación D/E/F en reparto y C en mercado no se evalúan ni asignan
+personas. Las notas se conservan; solo un literal `lo hace Nombre` en E/C propone
+sustitución, y una instrucción `lo hace` incompleta o con nombre desconocido rechaza.
+Las demás notas no proponen cambios. Los nombres/teléfonos son aliases del catálogo facilitado; un teléfono
+contradictorio no resuelve un nombre ambiguo. Los turnos históricos sin cambios
+pueden conservar miembros inactivos; una asignación nueva exige elegibilidad.
+
+`planShiftSheetsImport` produce parches limitados a asignados, estado y helper
+previsto, más guards de revisión de los vecinos afectados. Conserva el helper del
+predecesor completado y rechaza cambios de historial, swaps pendientes, responsables
+adyacentes iguales y extremos sin vecinos demostrados. Los guards son valores para
+revisión: aún no son un CAS ejecutado. Aplicar exige cargar y releer autoridad real,
+cronología completa, elegibilidad y fences de escritores/notificaciones dentro del
+flujo transaccional, y generar la procedencia de evento correspondiente.
+
+Pruebas: `npm run test:shift-sheets` (38 casos) y
+`npm run test:shift-planning:sheets-consumer:emulator` (15 casos). Las APIs Google
+son simuladas. No se conecta este preflight al importador legacy de `index.ts`,
+no se convierten pestañas humanas y no se modifica ningún dato real.
+
+### Importación transaccional y write-back local (HU-083, cortes cuarto y quinto)
+
+`createFirestoreShiftSheetsImport` compone `prepare(operationId)`,
+`apply(operationId, expectedPlanDigest)` y `writeBack(operationId, expectedPlanDigest)`
+sobre el cliente público de Firestore y el adaptador Sheets existente.
+La preparación carga todos los turnos y socios (máximo combinado de 500), exige
+estado activo abierto, rotaciones sin lease y sincronización Sheets libre, y
+revalida la misma fuente después de leer Google. El catálogo usa `displayName`,
+roles canónicos y `phoneNumber` con los alias legacy explícitos del escritor de
+socios. No deduce identidades por nombre de pila. Los documentos públicos deben
+cumplir el contrato canónico HU-082; este repositorio no migra documentos legacy.
+
+El plan inmutable vive en
+`{env}/plus-collections/shiftPlanningOperations/sheets-import-{id}/sheetsImport/prepared`.
+Aplicar exige su digest revisado y relee autoridad, documentos, vecinos, socios y
+fences de notificación en la transacción que escribe. Un alta/baja, revisión o
+bloqueo posterior invalida el lote entero. Los parches deben pertenecer a la
+revisión/digest/epoch activos. Se conservan propiedad de rotación, cursores e
+historial completado; solo se modifican asignados, estado y helper previsto. En
+mercado, `rotationPositions.effectiveAssigneeUserId` se actualiza junto al array de
+asignados, conservando propietario, ronda, posición y motivo de planificación.
+
+El límite es 100 parches y hasta 105 escrituras atómicas: turnos, terminal existente
+`syncCorrection`, retención de operación, resultado, recibo de importación y reserva
+del libro. La composición exige la
+política explícita de retención HU-082, vinculada al plan; no introduce TTL. El
+resultado inmutable en `sheetsImport/result` conserva las proyecciones exactas con
+`writeBackState = pending`. Su replay no vuelve a consultar Google ni modifica
+turnos. La auditoría existente reconoce el cambio como evento controlado; el
+trigger real todavía requiere integración.
+
+El lector conserva las once celdas canónicas de cada fila dentro de la observación
+revisada. El write-back sólo admite esos valores exactos, incluida la ubicación,
+antes de sustituir asignados, helper, estado y digest. El exportador ordinario sigue
+rechazando ediciones manuales; columnas ajenas, fórmulas fuera del área gestionada
+y formato permanecen intactos. El corte 22 amplía ese protocolo a bloques humanos
+con imágenes antes/después revisadas. Actualiza nombre/teléfono y consume únicamente
+la instrucción literal `lo hace …` aplicada; conserva fechas y otras anotaciones.
+No convierte el libro ni cambia el contrato de propiedad de la rotación.
+
+El recibo `sheetsImport/submission` y el documento compartido
+`shiftPlanningState/sheetsSubmission` contienen la misma reserva `importWriteBack`.
+Con `batch = null`, el libro está reservado pero no se ha enviado nada. Una vez
+persistido el digest del lote y su instante de envío, todos los reintentos son de
+lectura, aunque haya pasado un día: un timeout no autoriza reenviar. Esa reserva
+impide preparar otra importación o reclamar/enviar una exportación de activación.
+Se usa el mismo registro compartido para reparto y mercado, sin cola adicional.
+
+`writeBack` relee el resultado, procedencia pública, baseline, vecinos, miembros y
+fences antes del envío y de la confirmación. El marcador y las celdas deben coincidir
+exactamente; la versión Drive debe ser estable durante la lectura y posterior a la
+revisada. La confirmación guarda `evidence` en ambos recibos y actualiza las revisiones
+de las dos particiones en una transacción. El resultado original conserva
+`writeBackState = pending` como hecho histórico; el estado efectivo se consulta en
+el recibo separado. Un replay confirmado no consulta Google ni recupera una reserva
+que ya pertenece a otro envío. Un resultado desconocido o una divergencia conserva
+el bloqueo y necesita reconciliación explícita, nunca una caducidad automática.
+
+Validación local: `npm run test:shift-sheets:import:emulator` (37 casos),
+`npm run test:shift-planning:sheets-consumer:emulator` (15), repositorio sync (7),
+Sheets (38), Rules strict (32) y phase1 (8), sin skips. Firestore es emulado y las
+APIs Google son simuladas. Las Rules deniegan estos artefactos privados a clientes.
+La versión Drive sigue siendo una observación, no CAS entre servicios: la activación,
+los escritores ordinarios y los colaboradores externos siguen necesitando su cerco
+operativo antes de cualquier uso real. Este corte no conecta endpoints ni el trigger
+legacy de `index.ts`, no envía FCM y no despliega ni modifica datos reales.
 
 ### Baseline comunicable sin activación de producción
 
@@ -542,7 +1177,9 @@ que ambos release leases sigan sellados por esa operacion. El batch inverse borr
 solo esos creates y restaura targets con su `lastUpdateTime`. Recupera el lineage
 de negocio anterior, pero avanza un `writeEpoch` nuevo y revisiones monotonicamente
 superiores, limpia ambos leases y reemplaza el tombstone por un terminal de
-recovery ligado por digest. Para no dejar campos posteriores, la restauracion
+recovery v2 ligado por digest, que conserva el terminal de activación original
+en `activationTerminal`. No añade rutas ni escrituras; el payload mayor atraviesa
+la admisión existente de transacciones y documentos. Para no dejar campos posteriores, la restauracion
 reescribe mapas top-level completos y usa `FieldValue.delete()` en los campos
 top-level que ya no deben existir. Before-images y request historica completada
 se conservan. Un vector de emulador confirma la restauración atómica mediante
@@ -601,7 +1238,7 @@ epoch de fencing superior, revalida linaje activo y particion inmediatamente ant
 del batch externo, y solo completa/libera el lease con read-back de revision y
 digest. `shift-planning-sync-command-executor.ts` mantiene la I/O fuera del
 repositorio y demuestra con un consumidor falso que una confirmacion perdida se
-redescubre sin duplicar el efecto idempotente. HU-083 implementara la I/O real y
+redescubre sin duplicar el efecto idempotente. El consumidor local HU-083 añade la I/O real y
 la evidencia durable de resultados ambiguos; no se exporta aqui ningun trigger.
 
 `shift-planning-public-event-contract.ts` fija el filtro puro que el futuro
@@ -798,6 +1435,367 @@ La validación actualiza:
 Parámetros opcionales:
 - `env=develop` o `env=production`
 - `envs=develop,production` (lista separada por comas)
+
+
+## Revisión integral y correcciones (HU-083, corte 27)
+
+La importación revisada actualiza también el nombre de ayuda de la columna F en
+las pestañas con la cabecera nueva exacta. El nombre/ID quedan vinculados a la
+proyección y a la imagen revisada del recibo. La F histórica sigue conservándose.
+Una instrucción `lo hace Nombre` que ya coincide con Firestore puede consumirse:
+se registra una revisión documental controlada sin cambiar la revisión de
+asignación, propietarios ni historial completado. Preparaciones cuyo plan cambie
+requieren un digest revisado nuevo; los lotes ya enviados conservan su recuperación.
+
+Generación/importación/exportado comparten la comparación de decoraciones sin
+contar vacíos finales de formato. Las filas de anotaciones se conservan; nombres
+o instrucciones huérfanas siguen rechazándose. No hay normalización masiva de
+nombres o teléfonos que no requieren un cambio revisado.
+
+El auditor offline y `repair-planned-shifts.cjs` admiten el formato legible elegido.
+La evidencia puede incluir `deliveryCalendar: [{weekKey, date}]`, capturado y
+revisado; no se infiere ni modifica entre entrada y propuesta. La auditoría detecta
+ayudas visibles desactualizadas. La propuesta mantiene las pestañas, metadatos,
+filas existentes y anotaciones: permite corregir celdas gestionadas o completar
+filas ausentes en espacios vacíos, nunca mover filas o sustituir fórmulas/notas.
+Las filas históricas nuevas solo admiten su semana ISO exacta en F. El materializador
+y ensayo existentes aceptan esas evidencias; el ensayo ejecuta únicamente la parte
+Firestore en un emulador loopback/demo. Los deltas Sheets siguen siendo un artefacto
+de revisión, sin nuevo ejecutor real ni conversión a tabla técnica.
+
+La revisión/validación completas se registran en
+[`acceptance-review.md`](../spec/shifts/hu-083-multi-season-shift-sheets/acceptance-review.md).
+No hay despliegue, mutación real, cambio IAM ni envío FCM; los contratos móviles
+no cambian. Quedan evidencia real y reparación/aplazamiento exactos, y aceptación.
+
+## Compatibilidad histórica revisada (HU-083, corte 26)
+
+La generación y el worker reutilizan `SHIFT_SHEETS_IMPORT_TABS_<ENV>` para adoptar
+pestañas `delivery_human`/`market_human`. Sus títulos y meses se declaran con las
+filas literales exactas de `decorations`; los alias solo resuelven el destino.
+Sin ese mapa, el generador sigue aceptando únicamente las cabeceras legibles nuevas.
+No configurar este parámetro con datos sintéticos para operar un libro real.
+
+El mapa se guarda en el recibo privado schema-v2 y participa en el digest. Una
+recuperación usa el mapa enviado, aunque la configuración posterior cambie o falte.
+Los recibos anteriores sin mapa y los canónicos schema-v1 siguen recuperándose.
+Una pestaña histórica revisada desaparecida/vacía, una decoración alterada o un
+bloque ambiguo rechaza la generación antes de autorizar el lote. Mercado conserva
+los huecos entre bloques; cada fecha sigue requiriendo tres participantes contiguos.
+Cambios de asignación deben pasar por el importador revisado antes de generar.
+
+Reparto histórico conserva la F existente (semana/anotación, incluidas fórmulas)
+y añade el número de semana solo en filas nuevas. No añade una columna de ayuda.
+La cabecera nueva exacta mantiene F como nombre de ayuda. Notas, fórmulas de
+anotación, títulos y formato permanecen; no hay conversión, borrado ni reordenación.
+Los exportados ordinarios usan fechas literales/seriales/ISO y el mismo parser;
+leen fórmulas como fórmulas, conservan F histórica y rechazan fórmulas en identidad
+o fechas inválidas. Con mapa revisado no añaden nuevos títulos de mes y aceptan
+separadores de mercado declarados; conservan sus fences y notificaciones previos.
+
+Validación local: lint/build, 200 casos de regresión, 24 del consumidor, 27 de los
+handlers exportados y 12 de fences en emulador. Los 11 casos omitidos fuera del
+emulador se ejecutan en esos 12. Sheets es un fake: el mapa real, inventario completo,
+backup, exclusión de escritores y reparación/aplazamiento siguen pendientes.
+Este corte no modifica datos reales ni cambia los contratos móviles.
+
+## Retirada de escritores antiguos (HU-083, corte 25)
+
+Los repositorios actuales de Android e iOS escriben solicitudes de planificación
+schema-v2 y no invocan el endpoint de sincronización antiguo. La función
+`onShiftPlanningRequestCreated` conserva la frontera de autorización pero marca
+una solicitud antigua pendiente como `failed / legacy_planning_retired` con un
+mensaje para crear una nueva previsualización. Relee el documento en transacción;
+no sobrescribe solicitudes v2, versiones desconocidas ni resultados terminales.
+Repetir el evento no reescribe el fallo. Las solicitudes v2 siguen perteneciendo
+a `onVersionedShiftPlanningRequestCreated` y a su pipeline existente.
+
+Se eliminan el importador por rangos fijos con escrituras/borrados parciales, el
+planificador antiguo, sus helpers exclusivos y `updateWholeSheet` (`values.clear`).
+Permanecen los dos entry points como respuestas de compatibilidad, las variables
+almacenadas y el lector aislado de configuración heredada. Antes del despliegue,
+HU-085 debe comprobar consumidores externos/versiones antiguas y drenar trabajo en
+curso; esta revisión local no certifica qué código está desplegado. El inventario conservador
+`hu082-affected-writers-v2` conserva sus identidades y referencias históricas;
+no se elimina un cerco por haber retirado su implementación solo localmente.
+
+La exportación ordinaria distingue la cabecera exacta creada por el adaptador:
+en reparto F contiene el **nombre de ayuda**, y añadir una fecha no introduce una
+cabecera de mes. En las hojas históricas conserva la semántica previa de número
+de semana. D:E y las notificaciones ordinarias se mantienen; un helper sin nombre
+impide escribir en el formato nuevo. También se permite vaciar una ayuda eliminada.
+
+Validación: lint/build; 197 casos locales correctos y 11 dependientes de emulador
+omitidos en esa invocación. La suite del cerco pasa 12/12 en emulador (los 11
+omitidos y un caso local repetido), junto con 19/19 de handlers exportados
+(5 nuevos), sin fallos/omisiones.
+No se modifican apps ni se ejecutan despliegues, mutaciones reales, IAM o FCM.
+
+## Worker de activación legible (HU-083, corte 24)
+
+`executeShiftPlanningSheetsSync` compone ahora el consumidor existente con la
+generación legible. El origen reúne en una transacción los turnos activados, sus
+socios asignados/helpers y los documentos presentes o ausentes del calendario de
+reparto. Lee nombres y teléfonos (`phoneNumber`, con los alias heredados ya
+admitidos); no sustituye nombres ausentes por UID. Interpreta `deliveryDate` en
+Europe/Madrid y exige su semana exacta. La fecha lógica sigue eligiendo la pestaña.
+
+Los nuevos recibos privados de envío usan `schemaVersion: 2` y guardan los valores
+visibles exactos, el entorno y las versiones de todos esos documentos. Antes de
+crear el recibo y reservar el libro, el repositorio vuelve a leer esas versiones
+en su transacción: cambios de socios/turnos o creación/cambio/borrado de un override
+impiden enviar. Se limita el conjunto a 500 documentos y la parte legible del
+recibo a 900000 bytes, con validación exacta de campos y rutas del entorno.
+Los nombres/teléfonos quedan en recibos privados; la respuesta HTTP y los logs
+operativos siguen sin exponer filas. No se añaden permisos ni endpoints.
+
+Tras persistir un envío, toda recuperación usa los nombres/fechas de ese recibo;
+no los reconstruye a partir de un directorio o calendario que pudo cambiar. La
+revisión activa y los turnos públicos siguen validándose como antes. Los recibos
+canónicos `schemaVersion: 1` conservan su lectura/reconciliación sin exigir socios.
+El mismo recibo, reserva de libro y marcador gobiernan envío único y recuperación.
+La comprobación de versiones protege hasta la reserva: sigue siendo necesaria la
+exclusión operativa de escritores durante la llamada externa; no es CAS de Sheets.
+
+Validación: lint/build, 186/186 casos locales y emulador Firestore con consumidor
+23/23, importación 45/45 y repositorio 7/7; cero fallos/omisiones. Se prueban fechas
+Madrid, alias de teléfono, origen cambiante, respuesta perdida, recuperación con
+socios/calendario modificados y recibos canónicos previos. Sheets sigue siendo un
+fake. Quedan adopción de otras cabeceras históricas, generación/sync antiguos y
+aceptación real en develop. No hay despliegue ni cambios en datos reales o apps.
+
+## Generación legible sin borrados (HU-083, corte 23)
+
+El adaptador `createShiftSheetsAdapter` admite `generationRows` junto a las
+proyecciones del backend. Cada registro aporta fecha visible, nombres/teléfonos
+con sus IDs y helper; se exige correspondencia con los IDs de la proyección,
+identidades no ambiguas y fechas válidas. El calendario efectivo puede mover un
+reparto dentro de su semana, pero la fecha lógica conserva la autoridad de ruta,
+incluso al cruzar agosto/septiembre. Estos datos visibles participan en el digest
+que vincula autorización, marcador y lectura posterior.
+
+Las pestañas nuevas se crean en el mismo `batchUpdate` que sus celdas y marcador.
+El reparto usa cabecera `Fecha | Persona | Teléfono | Notas | Cambio | Ayuda`;
+el mercado, `Fecha / Persona | Teléfono | Notas / Cambio`, seguido de una fila de
+fecha y exactamente tres personas. Son valores literales `dd/mm/aaaa` y nombres,
+sin columnas técnicas visibles. El importador existente las reconoce con la
+cabecera declarada como decoración revisada; la prueba de ida y vuelta incluye
+un reparto cuya fecha visible cruza de temporada.
+
+La ampliación acepta esta cabecera exacta o una pestaña vacía, conserva las filas
+existentes y añade al final las fechas ausentes; no reordena ni borra filas.
+Una asignación/teléfono diferente, fecha ambigua o sustitución pendiente exige
+revisión. Solo el helper F de un reparto existente se refresca desde el backend;
+D:E y C de mercado se conservan, incluidas notas, fórmulas y formato. Las fórmulas,
+protecciones y celdas combinadas impiden escribir en celdas gestionadas. Se
+mantienen los límites de lectura, cuadrícula y tamaño de petición del adaptador.
+
+La llamada reutiliza autorización previa, envío único y recuperación mediante
+`inspect`. Un resultado incierto no prueba un rechazo y nunca se reenvía desde
+la recuperación. El llamador debe persistir/vincular los datos visibles y excluir
+escritores concurrentes; la API de Sheets no proporciona CAS entre almacenes.
+La composición del worker con socios/calendario de Firestore, la adopción de
+otras cabeceras históricas y la sustitución de la generación/sync antiguos siguen
+pendientes. Este corte no cambia endpoints ni despliega o modifica datos reales.
+
+Validación: lint/build, 183/183 casos locales (10 nuevos) y regresiones de
+importación 45/45 y consumidor 17/17 en Firestore Emulator. Sheets usa un fake
+que aplica lotes atómicos; esta evidencia no sustituye aceptación en develop.
+
+## Aplicación y escritura legibles (HU-083, corte 22)
+
+El endpoint privado de importación completa `prepare → apply → writeBack` también
+con `delivery_human` y `market_human`, incluso junto a pestañas técnicas revisadas.
+La preparación guarda el ID de pestaña, la fila y las imágenes literales antes y
+después del bloque; los nombres de salida proceden del nombre visible del socio,
+sin añadir su UID como alias. Apply conserva propiedad, cursor e historial y exige
+una imagen revisada para cada parche, incluido el helper de la temporada anterior.
+
+El mismo adaptador y recibo durable envían un lote de celdas y marcadores. Se revisan
+los valores originales, el ID de pestaña y las protecciones/mezclas de las celdas
+que cambiarán. La máscara `userEnteredValue` conserva formato y comentarios;
+una celda vacía bajo esa máscara consume la sustitución literal ya aplicada.
+Véase [UpdateCellsRequest](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest).
+Las demás notas, fórmulas y cabeceras se conservan y se comprueban en la lectura
+posterior. No se escriben fechas lógicas, propietarios ni IDs en columnas humanas.
+
+Una respuesta incierta conserva la reserva y solo permite inspección, aunque pase
+el tiempo. Un marcador retenido se comprueba antes de exigir la imagen anterior;
+jamás provoca reenvío. También se verifica que el calendario siga siendo el
+revisado entre el commit Firestore y la escritura de vuelta. Preparar, aplicar y
+escribir siguen siendo invocaciones separadas, sin envío de FCM.
+
+Validación: lint/build, 173/173 casos locales, 45/45 del emulador de importación y
+17/17 del consumidor existente, sin fallos ni omisiones. Sheets es un fake y los
+socios son ficticios. Quedan generación/nuevas pestañas, el worker de activación
+y la migración o retirada del endpoint antiguo de sincronización.
+Las pruebas no acreditan exclusión real de escritores, backups ni rollout.
+
+## Preparación desde hojas legibles (HU-083, corte 21)
+
+El importador revisado admite la salida legible de reparto/mercado: fechas largas,
+notas y fórmulas de anotación, así como cambios directos de nombre o sustituciones
+literales `lo hace Nombre`. Los campos de identidad siguen siendo estrictos y los
+bloques de mercado requieren tres participantes distintos. Los overrides proceden
+de una consulta acotada a `deliveryCalendar`; su fecha Madrid debe pertenecer a su
+semana y se relaciona con un único turno original, incluso entre agosto/septiembre.
+Una inserción, modificación o borrado de calendario durante preparación o después
+de revisión invalida la fuente y requiere preparar de nuevo.
+
+Validación local: lint/build, 104/104 casos focalizados y 42/42 del emulador de
+importación, más 64/64 de auditoría/reparación, sin fallos ni omisiones. Sheets es
+un fake y los socios son ficticios.
+Los títulos/meses revisados en `decorations` siguen exigiendo su imagen literal
+exacta; las fórmulas admitidas pertenecen a las anotaciones de los turnos.
+
+En el corte 21 se preparaba el plan sin habilitar aún `apply`/`writeBack` humano ni migra
+el endpoint antiguo `syncShiftsFromGoogleSheets`. Sigue pendiente conectar la
+escritura humana con el protocolo durable, además de generación/nuevas pestañas y
+worker de activación. No modifica libros reales, datos públicos ni envía FCM.
+
+## Hojas legibles elegidas y rutas estacionales (HU-083, corte 20)
+
+El formato elegido es **legible y editable con fechas y nombres**. La alternativa
+del corte 17 de archivar y crear tablas técnicas no se elige para trabajar.
+El exportado completo, `onShiftWritten` ordinario y `onDeliveryCalendarOverrideWritten`
+usan el mismo resolver de pestaña por fecha lógica del turno y alias explícitos.
+Requieren `SHEETS_SPREADSHEET_ID_<ENV>` y `SHIFT_SHEETS_ALIASES_<ENV>` (incluido `[]`
+explícito si no hay alias); estas rutas ya no usan los rangos fijos del corte 19
+ni aceptan `syncMeta.sheetName` como destino. El importador/generador legacy
+restante conserva temporalmente su configuración de rangos aislada por entorno.
+
+La lectura humana se limita a A1:F2000 en reparto y A1:C2000 en mercado. Se verifica
+el libro/pestaña y una cuadrícula de hasta 2000 filas antes de leer valores.
+Falta de pestaña, identidades incompletas o nombres ambiguos, fechas duplicadas,
+bloques ambiguos y cabeceras técnicas rechazan la operación. La creación de pestañas humanas sigue pendiente.
+Reparto actualiza A:C y F en un lote, preservando D:E incluso si contienen fórmulas.
+Mercado actualiza A:B de exactamente tres participantes, sin reescribir la cabecera
+de fecha, la columna C ni el siguiente bloque. No se rellenan filas de participantes
+ficticios. Los nombres proceden de los socios, no de IDs visibles; el teléfono
+vacío no hereda el del anterior asignado. Un override conserva la semana ISO y la
+pestaña lógica, aunque cambie la fecha visible. Los títulos con comillas o `!` se
+citan correctamente y `syncMeta` guarda el título sin escapes A1.
+
+Validación: 90/90 pruebas focalizadas y 22/22 del trigger/emulador. Las pruebas
+invocan el HTTP de exportado completo, el evento ordinario y el override reales;
+Sheets es un fake y no se envía FCM real. Se mantienen los fences y efectos de
+notificación existentes; no se atribuye a estos escritores legacy el protocolo de
+recibos/reconciliación del worker canónico. Siguen pendientes la importación y
+write-back humanos revisados, generación/nuevas pestañas y la adaptación del worker
+al formato elegido, además de evidencia real, exclusión de escritores y rollout.
+
+## Aislamiento de configuración de las rutas antiguas (HU-083, corte 19)
+
+Las rutas antiguas de exportado completo, importación, generación, evento ordinario
+y override usan ahora `readLegacyShiftSheetsConfig` del módulo compartido de
+configuración. Exigen estas tres variables para el entorno solicitado:
+
+- `SHEETS_SPREADSHEET_ID_DEVELOP` / `SHEETS_SPREADSHEET_ID_PRODUCTION`
+- `SHEETS_DELIVERY_RANGE_DEVELOP` / `SHEETS_DELIVERY_RANGE_PRODUCTION`
+- `SHEETS_MARKET_RANGE_DEVELOP` / `SHEETS_MARKET_RANGE_PRODUCTION`
+
+Si falta el libro o cualquiera de los rangos, el resolver devuelve ausencia de
+configuración: cada llamador mantiene su rechazo o salida sin exportar. No se
+recurre al libro global, al otro entorno ni a `Delivery!A:Z`/`Market!A:Z` inventados.
+Se rechazan IDs de libro inválidos o compartidos entre entornos y rangos con
+caracteres de control o más de 1024 caracteres. Los rangos explícitos conservan
+su formato humano actual. La configuración se lee en cada invocación.
+
+Es un cambio de código candidato: no borra parámetros almacenados ni cambia su
+valor. Los despliegues que dependan de variables globales o rangos predeterminados
+necesitarán las tres variables explícitas antes de activar esta revisión en HU-085.
+No demuestra que esa configuración esté presente en producción. La migración de
+las rutas estacionales y la elección del formato visible siguen pendientes.
+
+Validación: 85/85 casos de configuración/adaptador/import/worker/seguridad y 13/13
+del trigger con emulador, incluido el `onShiftWritten` exportado que no abre Sheets
+cuando falta una variable develop aunque existan globals y configuración production.
+
+## Estado conjunto de HU-083 (corte 18)
+
+La [revisión de aceptación](../spec/shifts/hu-083-multi-season-shift-sheets/acceptance-review.md)
+vincula las pruebas con el código y las rutas pendientes. El worker/importador
+canónico y el audit de eventos están integrados localmente; exportado completo,
+eventos ordinarios, overrides y sincronización legacy aún no están todos migrados.
+La conversión de diseño humano sigue siendo una propuesta. No interpretar las
+pruebas del adaptador como migración completa o como una autorización de despliegue.
+
+Validación conjunta: lint/build correctos; 492 pruebas locales pasan, 51 requieren
+su contexto de emulador y se omiten. Nueve scripts focalizados de emulador pasan
+160 ejecuciones sin omisiones, con solapamiento parcial respecto a las locales.
+La revisión contiene los comandos, límites y requisitos de evidencia real restantes.
+
+## Propuesta offline de conversión de pestañas humanas (HU-083, corte 17)
+
+`plan:shift-sheets:conversion` prepara una alternativa revisable: conservar cada
+pestaña humana completa con un nombre de archivo explícito y añadir una pestaña
+canónica nueva con el título operativo anterior y las once columnas existentes.
+Es una propuesta de formato; no aprueba el diseño visual ni renombra pestañas live.
+No añade una API de escritura, un endpoint o un segundo importador.
+
+La entrada es el snapshot v1/v2 del auditor y una selección JSON con campos exactos:
+
+```json
+{
+  "schemaVersion": 1,
+  "target": {"projectId": "demo-example", "environment": "develop", "workbookId": "fixture-book"},
+  "inputDigest": "<digest del snapshot revisado>",
+  "strategy": "archive_and_create_canonical",
+  "tabs": [{
+    "sourceSheetId": 10,
+    "sourceTitle": "TORRE 2025-26",
+    "archiveTitle": "Archivo TORRE 2025-26",
+    "canonicalSheetId": 20
+  }]
+}
+```
+
+Los IDs y nombres del ejemplo son ficticios. La selección debe incluir todas y
+solo las particiones humanas del snapshot; cada ID nuevo debe estar libre y los
+nombres de archivo no pueden colisionar con ninguna pestaña. Se reutilizan los
+mapeos de decoraciones, identidades y fechas del importador existente. Se rechazan
+asignaciones en disputa, huecos de calendario, identidades ambiguas, fórmulas en
+celdas de importación y proyecciones inválidas, incluido `source = planner`.
+Estos datos requieren una resolución explícita; no se normalizan al convertir el
+formato. Los hallazgos de rotación/elegibilidad que permiten una lectura válida
+se conservan exactamente para la revisión de reparación posterior.
+
+```bash
+npm run plan:shift-sheets:conversion -- \
+  --mode dry-run --input /ruta/privada/snapshot.json \
+  --selection /ruta/privada/conversion.json \
+  --expected-input-digest '<digest del snapshot>' \
+  --expected-selection-digest '<digest de la selección>' \
+  --project demo-example --environment develop --workbook fixture-book \
+  > /ruta/privada/conversion-review.json
+```
+
+Los digests usan `createShiftPlanningDigest`, igual que el resto de revisiones.
+Ambos archivos se limitan a 4 MiB y permanecen intactos. El resultado incluye las
+imágenes originales completas y `canonicalInput`, que es un snapshot **hipotético**
+compatible con el auditor y el planificador de reparaciones, no una captura nueva.
+Conserva el `workbookVersion` capturado para vincular la propuesta, sin inventar una
+versión futura. `inverse.originalInput` permite recuperar la imagen offline bajo
+el digest esperado del estado canónico; no es una operación de rollback live.
+El artefacto contiene los datos privados de entrada y se guarda fuera de Git.
+
+Se conservan íntegramente las celdas, notas, formatos, fórmulas, merges y protecciones
+presentes en la captura original, cambiando solo el título de su copia archivada.
+Las pestañas canónicas existentes y las ajenas al mapeo permanecen iguales; los
+límites de ocho pestañas y 250000 celdas incluyen archivos y nuevas tablas.
+El auditor debe devolver exactamente los mismos hallazgos antes y después.
+La prueba de integración verifica que el exportador existente actualiza los IDs
+canónicos nuevos y conserva los archivos humanos.
+
+`readyForApply` permanece `false`. Captura completa y confiable, aprobación visual,
+efectos del renombrado sobre referencias de fórmulas/protecciones, fence exclusivo,
+CAS/revisión y read-back live, ensayo en un clon restaurado y autorización final
+siguen pendientes. Preservar fórmulas como datos en un JSON no prueba cómo Sheets
+las reescribirá al renombrar. Las imágenes no son cuerpos `batchUpdate`, ni prueban
+metadatos omitidos por el capturador. Esta alternativa de conversión no es el
+flujo elegido; el corte 22 integra apply/writeBack directamente en las hojas legibles.
+
+Validación focalizada: `npm run test:shift-sheets:conversion`.
 
 ## 🧰 Migraciones de autorizacion
 

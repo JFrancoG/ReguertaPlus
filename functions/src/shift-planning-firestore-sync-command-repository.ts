@@ -1,3 +1,4 @@
+import {isDeepStrictEqual} from "node:util";
 import {
   DocumentSnapshot,
   FieldPath,
@@ -10,6 +11,11 @@ import {
   ShiftPlanningWorkbookPartition,
 } from "./shift-planning-bundle.js";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
+import {createShiftPlanningDigest} from "./shift-planning-digest.js";
+import {
+  parseShiftPlanningSheetsSubmission,
+  parseShiftSheetsWorkbookSubmission,
+} from "./shift-planning-sheets-submission.js";
 import {
   ShiftPlanningCompletedSyncCommand,
   ShiftPlanningProcessingSyncCommand,
@@ -166,7 +172,7 @@ const parsePartitionLease = (
   };
 };
 
-const parsePartition = (
+export const parseShiftPlanningWorkbookPartition = (
   value: unknown,
 ): ShiftPlanningWorkbookPartition => {
   const partition = requireRecord(value, "sync workbook partition");
@@ -219,7 +225,7 @@ const requireSourcePolicy = (
   );
   return {
     reference: snapshot.ref,
-    partition: parsePartition(partitions[command.type]),
+    partition: parseShiftPlanningWorkbookPartition(partitions[command.type]),
   };
 };
 
@@ -299,6 +305,20 @@ const sourcePolicyReference = (
   `${environment}/plus-collections/shiftPlanningState/sourcePolicy`,
 );
 
+const submissionReference = (
+  firestore: Firestore,
+  token: ShiftPlanningSyncCommandToken,
+) => commandReference(firestore, requireEnvironment(token.environment),
+  requireIdentifier(token.commandId, "sync commandId"))
+  .collection("externalSubmissions").doc("sheets");
+
+const workbookSubmissionReference = (
+  firestore: Firestore,
+  environment: ShiftPlanningEnvironment,
+) => firestore.doc(
+  `${environment}/plus-collections/shiftPlanningState/sheetsSubmission`,
+);
+
 const updatePartition = (
   transaction: Transaction,
   sourcePolicy: SyncCommandSourcePolicy,
@@ -337,6 +357,36 @@ const requireOpenClaim = (
   if (now.toMillis() >= command.claim.expiresAt.toMillis()) {
     failSync("Sync command claim expired before the external batch.");
   }
+};
+
+const readOwnedCommand = async (
+  firestore: Firestore,
+  transaction: Transaction,
+  token: ShiftPlanningSyncCommandToken,
+  now: Timestamp | null,
+) => {
+  const environment = requireEnvironment(token.environment);
+  const [commandSnapshot, maintenanceSnapshot, sourcePolicySnapshot] =
+    await Promise.all([
+      transaction.get(commandReference(firestore, environment,
+        requireIdentifier(token.commandId, "sync commandId"))),
+      transaction.get(maintenanceReference(firestore, environment)),
+      transaction.get(sourcePolicyReference(firestore, environment)),
+    ]);
+  const command = parseShiftPlanningPersistedSyncCommand(
+    requireSnapshotData(commandSnapshot, "sync command"),
+  );
+  if (command.state !== "processing") {
+    return failSync("Sync command is not processing.");
+  }
+  requireShiftPlanningSyncCommandToken(command, token);
+  if (now !== null) requireOpenClaim(command, now);
+  requireActiveCommand(maintenanceSnapshot, command);
+  const sourcePolicy = requireSourcePolicy(
+    sourcePolicySnapshot, environment, command,
+  );
+  requireOwnedPartition(command, sourcePolicy.partition);
+  return {command, sourcePolicy};
 };
 
 /**
@@ -403,8 +453,26 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       if (persisted.state === "completed") {
         return {kind: "terminalReplay", command: persisted};
       }
+      const workbook = await transaction.get(
+        workbookSubmissionReference(firestore, environment),
+      );
+      if (workbook.exists) {
+        const current = parseShiftSheetsWorkbookSubmission(workbook.data());
+        if (current.importOperationId && current.evidence === null) {
+          return failSync("Workbook is reserved by an unfinished import.");
+        }
+      }
       const now = clock();
       if (persisted.state === "processing") {
+        const token = tokenFor(environment, persisted);
+        const submitted = await transaction.get(
+          submissionReference(firestore, token),
+        );
+        if (submitted.exists) {
+          const receipt = parseShiftPlanningSheetsSubmission(submitted.data());
+          requireShiftPlanningSyncCommandToken(receipt.command, token);
+          return {kind: "reconcile", command: persisted, token};
+        }
         if (
           persisted.claim.workerId === workerId &&
           persisted.claim.attemptId === attemptId &&
@@ -483,35 +551,115 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
   },
 
   async authorizeBatch(token) {
-    const environment = requireEnvironment(token.environment);
-    const reference = commandReference(
-      firestore,
-      environment,
-      requireIdentifier(token.commandId, "sync token commandId"),
-    );
     return firestore.runTransaction(async (transaction) => {
-      const [commandSnapshot, maintenanceSnapshot, sourcePolicySnapshot] =
-        await Promise.all([
-          transaction.get(reference),
-          transaction.get(maintenanceReference(firestore, environment)),
-          transaction.get(sourcePolicyReference(firestore, environment)),
-        ]);
-      const command = parseShiftPlanningPersistedSyncCommand(
-        requireSnapshotData(commandSnapshot, "sync command"),
+      const {command} = await readOwnedCommand(
+        firestore, transaction, token, clock(),
       );
-      if (command.state !== "processing") {
-        return failSync("Sync command is not processing.");
+      const submitted = await transaction.get(
+        submissionReference(firestore, token),
+      );
+      if (submitted.exists) {
+        return failSync("Submitted Sheets work may only be reconciled.");
       }
-      requireShiftPlanningSyncCommandToken(command, token);
-      requireOpenClaim(command, clock());
-      requireActiveCommand(maintenanceSnapshot, command);
-      const sourcePolicy = requireSourcePolicy(
-        sourcePolicySnapshot,
-        environment,
-        command,
-      );
-      requireOwnedPartition(command, sourcePolicy.partition);
       return command;
+    });
+  },
+
+  async readSubmission(token) {
+    return firestore.runTransaction(async (transaction) => {
+      await readOwnedCommand(firestore, transaction, token, null);
+      const snapshot = await transaction.get(
+        submissionReference(firestore, token),
+      );
+      if (!snapshot.exists) return null;
+      const receipt = parseShiftPlanningSheetsSubmission(snapshot.data());
+      requireShiftPlanningSyncCommandToken(receipt.command, token);
+      return receipt;
+    });
+  },
+
+  async prepareSubmission({token, binding}) {
+    return firestore.runTransaction(async (transaction) => {
+      const now = clock();
+      const {command} = await readOwnedCommand(
+        firestore, transaction, token, now,
+      );
+      const reference = submissionReference(firestore, token);
+      const workbookReference = workbookSubmissionReference(
+        firestore, token.environment,
+      );
+      const [existing, workbook] = await Promise.all([
+        transaction.get(reference), transaction.get(workbookReference),
+      ]);
+      if (existing.exists) {
+        return failSync("Sheets submission already exists; inspect only.");
+      }
+      const receipt = parseShiftPlanningSheetsSubmission({
+        schemaVersion: binding.readable ? 2 : 1, command, ...binding,
+        submittedAt: now, evidence: null,
+      });
+      if (receipt.readable) {
+        if (receipt.readable.environment !== token.environment) {
+          return failSync("Readable source targets another environment.");
+        }
+        const versions = receipt.readable.sourceVersions;
+        const sources = await transaction.getAll(...versions.map((source) =>
+          firestore.doc(source.path)));
+        if (sources.some((source, index) => source.exists ?
+          (!source.updateTime ||
+            !versions[index].updateTime?.isEqual(source.updateTime)) :
+          versions[index].updateTime !== null)) {
+          return failSync("Readable source changed before submission.");
+        }
+      }
+      let expectedRevision = command.workbookRevision;
+      if (workbook.exists) {
+        const preceding = parseShiftSheetsWorkbookSubmission(workbook.data());
+        if (preceding.workbookId !== command.workbookId ||
+          preceding.evidence === null) {
+          return failSync("Workbook has unresolved Sheets work or changed ID.");
+        }
+        expectedRevision = preceding.evidence.workbookRevision;
+      }
+      if (receipt.beforeWorkbookRevision !== expectedRevision) {
+        return failSync("Workbook version changed without a verified receipt.");
+      }
+      transaction.create(reference, receipt);
+      transaction.set(workbookReference, receipt);
+    });
+  },
+
+  async verifySubmission({token, evidence}) {
+    return firestore.runTransaction(async (transaction) => {
+      await readOwnedCommand(firestore, transaction, token, null);
+      const reference = submissionReference(firestore, token);
+      const workbookReference = workbookSubmissionReference(
+        firestore, token.environment,
+      );
+      const [snapshot, workbook] = await Promise.all([
+        transaction.get(reference), transaction.get(workbookReference),
+      ]);
+      const receipt = parseShiftPlanningSheetsSubmission(
+        requireSnapshotData(snapshot, "Sheets submission"),
+      );
+      requireShiftPlanningSyncCommandToken(receipt.command, token);
+      const verified = parseShiftPlanningSheetsSubmission({
+        ...receipt, evidence,
+      });
+      if (receipt.evidence !== null) {
+        if (!isDeepStrictEqual(receipt, verified)) {
+          return failSync("Sheets read-back replay changed its evidence.");
+        }
+        return;
+      }
+      const current = parseShiftPlanningSheetsSubmission(
+        requireSnapshotData(workbook, "current workbook submission"),
+      );
+      if (!isDeepStrictEqual(current, receipt)) {
+        return failSync("Current workbook submission no longer matches.");
+      }
+      transaction.set(reference, verified);
+      transaction.set(workbookReference, verified);
     });
   },
 
@@ -542,7 +690,20 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       }
       requireShiftPlanningSyncCommandToken(persisted, token);
       const completedAt = clock();
-      requireOpenClaim(persisted, completedAt);
+      const submitted = await transaction.get(
+        submissionReference(firestore, token),
+      );
+      if (submitted.exists) {
+        const receipt = parseShiftPlanningSheetsSubmission(submitted.data());
+        requireShiftPlanningSyncCommandToken(receipt.command, token);
+        if (receipt.evidence === null ||
+          createShiftPlanningDigest(receipt.evidence) !==
+          createShiftPlanningDigest(input.evidence)) {
+          return failSync("Completion requires persisted Sheets read-back.");
+        }
+      } else {
+        requireOpenClaim(persisted, completedAt);
+      }
       const [maintenanceSnapshot, sourcePolicySnapshot] = await Promise.all([
         transaction.get(maintenanceReference(firestore, environment)),
         transaction.get(sourcePolicyReference(firestore, environment)),

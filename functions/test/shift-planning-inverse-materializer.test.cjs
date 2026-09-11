@@ -596,6 +596,16 @@ test("exact replacement deletes after-only fields and replaces nested maps", () 
   assert.ok(replacement.afterOnly instanceof FieldValue);
 });
 
+test("recovery cannot delete a Sheets command once it has been claimed", () => {
+  const input = fixture();
+  const sync = input.currentDocuments.find(({targetPath}) =>
+    targetPath.includes("/shiftPlanningSyncCommands/"));
+  assert.ok(sync);
+  sync.data = {...sync.data, state: "processing"};
+  assert.throws(() => materializeShiftPlanningInverseRecovery(input),
+    errorCode("invalid_planning_inverse_materialization"));
+});
+
 test("rejects active CAS and before-image drift", () => {
   const stale = fixture();
   const maintenanceDocument = stale.currentDocuments.find(({targetPath}) =>

@@ -314,7 +314,7 @@ and preserves the last valid envelope when a source is malformed or exceeds its
 bound. The concrete forward resolver now requires that producer read-set to be
 rebuilt and digest-compared inside every activation retry, so a stale cached
 envelope cannot authorize writes. The local `index.ts` trigger now routes
-unversioned documents through the unchanged legacy handler and schema-v2
+unversioned documents to a transactional retirement result (HU-083 cut 25) and schema-v2
 preview/stage/activate requests through the governed runtime. Unknown declared
 versions fail closed instead of falling back. Recovery is exported locally only
 through an exact-body HTTP adapter pinned to the future dedicated operator
@@ -371,6 +371,54 @@ inverse deletion manifest. It returns a stable audited-no-op event digest; a
 retained marker remains ordinary and a changed marker without exact authority
 fails closed.
 
+HU-083's sixth local cut versions the recovery terminal to schema v2, retaining
+an exact `activationTerminal` within the same operation document and recovery
+intent digest. Recovery UPDATE requires the archived activation's exact public
+update and the persisted digest-bound before-image reproduced exactly by the
+after snapshot. Its event identity uses the recovery ID/intent, never the restored
+historical marker. Delayed activation events use the archived activation authority.
+Schema-v1 terminals remain strictly readable; their unproven recovery UPDATEs fail
+closed. Mutation paths/counts stay unchanged, and admission measures the larger
+terminal through ADR-0014's public transaction adapter.
+
+Both logical operations require explicit retention bindings. The physical terminal
+and before-images are shared evidence: a single expired retention record is not
+permission to delete them while another dependency still needs them. No TTL or
+cleanup executor is enabled by this cut. Trigger, alert and policy composition
+remain pending; no live behavior is changed.
+
+The seventh HU-083 cut composes the candidate Functions exports. `onShiftWritten`
+excludes changed/removed/malformed markers and marked deletes before ordinary row
+effects. A separate authenticated `onShiftPlanningPublicWritten` retries only the
+durable audit; the ordinary trigger keeps its existing non-retrying behavior.
+This mirrors versioned-request routing and avoids replaying non-idempotent Sheets
+or notification effects. Valid retained markers remain ordinary.
+
+The audit trigger requires the full digest-bound policy JSON in
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_DEVELOP` or
+`SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_PRODUCTION`, without defaults or
+cross-environment fallback. It preserves CloudEvent identity/time and propagates
+transient authority/persistence failures. Persisted rejections emit allowlisted
+structured diagnostics; a log is not proof of operator alert delivery. HU-085 must
+verify both trigger revisions, approved policy, producer retention bindings and the
+real alert channel under writer exclusion before controlled writes resume. This
+cut enables no deployment, live policy, alert send or cleanup executor.
+
+The eighth HU-083 cut adds a private, explicitly invoked Sheets HTTP worker over
+the existing repository, executor and receipt-aware consumer. It accepts an exact
+command ID or a poll of at most two runnable commands, with an explicit environment.
+It accepts no caller-supplied rows, workbook or credentials. A drain stops on busy
+or reconciliation-required work; retries use persisted command/submission evidence.
+Terminal replay performs no external I/O and uncertain submissions stay read-only.
+
+Runtime composition requires environment-specific workbook IDs and explicitly
+reviewed alias JSON, including an empty list. Aliases do not authorize human-layout
+conversion. The private declaration creates no scheduler or caller IAM grant;
+HU-085 must approve the worker identity, invocation grants, Sheets/Drive metadata
+access and external writer exclusion. Recovery's invoker grant is unchanged. The
+worker consumes existing activation commands and does not weaken recovery's
+rejection of already-consumed commands. No live endpoint is invoked or deployed.
+
 The companion local retention producer now freezes schema v1 without wiring the
 trigger. A digest-bound policy carries the approved maximum end-to-end delivery/
 retry horizon plus a positive safety margin. A controlled terminal gets one
@@ -391,6 +439,72 @@ lease takeover, pre-batch active-lineage/partition authorization, and read-back-
 guarded completion. A stale worker loses its monotonically advanced partition
 fence. External I/O exceptions retain the lease; HU-083 supplies the real Sheets
 adapter plus durable ambiguity/read-back reconciliation.
+
+The HU-083 local command consumer now creates one immutable submission receipt at
+`shiftPlanningSyncCommands/{commandId}/externalSubmissions/sheets` before the
+physical batch. `shiftPlanningState/sheetsSubmission` points to the current
+workbook submission and serializes delivery and market. Both remain backend-only.
+The receipt binds the original processing claim, projection/request digests,
+pre-submission Drive version, and submission time; exact read-back evidence is the
+only allowed addition. An unresolved receipt blocks both partitions indefinitely
+until positive reconciliation; it never becomes permission to resend on timeout.
+A crash between persisting intent and invoking Sheets has the same unknown status.
+
+Schema-v1 terminal `completedAt` now means confirmation time and may follow the
+original claim expiry. The repository permits this only with a receipt written
+inside that claim interval, persisted matching read-back, and unchanged active
+lineage/partition ownership. It neither renews the claim nor invents a timestamp.
+Claims with no submission still obey the original expiry/takeover rules. Existing
+inverse recovery rejects any command changed from its pending activation state;
+it cannot delete an in-flight command. Resolving or quarantining an unprovable
+submission remains a separate operational action, not a new retry lane.
+
+The consumer loads only the bundle's exact activated rows and validates their
+payloads against the activation terminal. A predecessor helper update includes
+its actual season in the command, even when it predates the target season. Drive
+`files.version` is a positive int64 observation read around Sheets verification,
+not a CAS token. A prior verified receipt explains cross-partition advancement;
+unexplained drift prevents submission. Collaborator exclusion remains required.
+This local cut adds no deployed trigger or scheduler, legacy-layout conversion,
+import path, live repair, or new authority to write a real workbook.
+
+The third HU-083 local cut adds read-only import/preflight, reusing the bounded
+export snapshot and canonical projection codec. Human layouts require an explicit
+per-tab mapping and exact decoration rows. Missing/partial tabs, ambiguous people,
+non-three-person markets or changes to ownership/provenance reject the import.
+Missing rows are discrepancies, never deletion authority. Assignment plans bind
+source revisions and the affected delivery neighborhood; completed predecessor
+history stays frozen and an unproven edge rejects the edit. These are review
+artifacts over trusted caller inputs, not completed CAS or live authority. Actual
+apply still requires trusted source loading, transactional neighborhood/membership
+revalidation, writer/notification fencing and exact changed-event provenance.
+
+The fourth HU-083 local cut owns that trusted preparation/apply boundary. It
+re-reads complete bounded shift/member queries (500 documents combined), active
+writer authority and rotation/Sheets/notification fences before atomically applying
+at most 100 patches. The same transaction creates the existing `syncCorrection`
+terminal, its explicit policy-bound operation retention and an immutable exact
+replay result (at most 103 writes). Rotation ownership and completed history stay
+unchanged; patched rows require the current active lineage. The private result
+retains exact projections pending Sheets write-back. Google write-back and its
+serialization/acknowledgement, public endpoints, legacy trigger integration and
+live rollout remain pending. Drive version observation does not replace external
+writer exclusion or establish a cross-service CAS.
+
+The fifth local cut completes canonical import write-back using the existing
+adapter and shared workbook submission pointer. Import apply additionally reserves
+the workbook and creates its private receipt atomically (at most 105 writes total).
+A review binds the exact canonical managed cells; only those before-images may be
+replaced, while ordinary export still rejects manual edits. Human layouts remain
+readable for review but require explicit conversion before affected imports apply.
+A recorded batch is inspect-only indefinitely after an unknown result. Exact
+marker/cell read-back and a stable advancing Drive version acknowledge the separate
+receipt and both workbook partition revisions atomically. The original result stays
+immutable. Pending imports block activation export claims/submissions and other
+imports; acknowledged replay cannot overwrite a later workbook reservation. This
+adds no queue, activation-command imitation, endpoint/legacy trigger wiring or live
+deployment. Live activation and ordinary/external writers still require the agreed
+operational fence; no cross-service CAS or automatic lease-expiry recovery is claimed.
 
 Sheets commands are serialized by a monotonic epoch and lease per workbook/
 partition. A worker validates command plus active revision/digest before each batch
@@ -689,6 +803,80 @@ no fallback to the other.
 - Prebuild additive indexes and wait for `READY` before the main maintenance
   window. Keep a timeboxed rollback/resume outcome for every later gate so
   delayed notification approval cannot leave production unavailable indefinitely.
+
+HU-083's ninth local cut exposes the existing import API through a private HTTP
+entry. Prepare returns the complete reviewable plan and may persist only its
+backend command; apply and write-back remain separate invocations requiring that
+exact plan digest. Workbook, aliases, tab layout/decorations and retention policy
+come from explicit environment configuration, never request input. Human-layout
+conversion remains gated. Unknown external submissions permit read-only
+reconciliation, never resend. This adds no deployment, caller IAM grant or scheduler;
+HU-085 still owns runtime identity and external-writer exclusion.
+
+### HU-083 readable Sheets decision — 2026-09-08
+
+The maintainer selected readable, editable sheets with dates and member names.
+The offline archive-and-create-technical-tables proposal is not the chosen user
+workflow. Existing human annotations/formulas stay in place; internal stable IDs,
+ownership and digests remain backend authority, not editable technical columns.
+Seasonal export/ordinary-change/calendar-override routing uses the logical shift
+date and reviewed aliases. Effective date overrides do not select another tab.
+Human import, generation and activation-worker integration must follow the same
+presentation contract before rollout. This decision authorizes local implementation,
+not live workbook conversion, shared deployment or production configuration.
+
+Readable import uses literal dates/names/phones. Annotation formulas and ordinary
+notes do not change assignments; only a literal `lo hace Name` replacement does.
+Visible delivery dates must match the stored Madrid delivery-calendar override and
+resolve to a unique logical shift/tab. Calendar document changes participate in
+the existing source digest and transaction checks. Human preparation alone does
+not authorize apply without its reviewed readable write-back path.
+
+Readable apply/write-back now reuses the existing atomic source correction and
+reserved single-submission protocol. Exact human block images bind cell location,
+visible before/after values and sheet identity. Normalization changes name/phone
+and clears only a consumed literal replacement instruction, preserving all other
+annotations and formulas. Backend ownership/helper history is never derived from
+visible cells. A retained marker is inspected without requiring the old before-image;
+calendar changes after apply reject write-back. Live writer exclusion remains a
+separate operational requirement, not a guarantee of the Sheets API.
+
+Readable generation uses the same adapter and submission protocol. Trusted
+names, phones and effective dates bind the projection digest; missing seasonal
+tabs, literal cells and operation markers share one atomic batch. Recognized
+readable tables append absent dates and preserve existing assignments/annotations;
+only the backend-owned delivery helper is refreshed. Other historical layouts,
+assignment differences and pending replacements require review. Worker composition
+must bind Firestore display/calendar data before this mode is activated.
+
+The activation consumer now persists exact readable rows in private schema-v2
+submission receipts. Bounded member/calendar/public-row versions are read with
+the activation projection and checked again in the receipt transaction, including
+absent calendar entries. Recovery uses persisted display data while retaining
+active public-lineage checks; schema-v1 canonical receipts keep their original
+inspection path. This extends the existing workbook reservation, not the HTTP
+surface or permissions. External writer exclusion remains necessary after reserve.
+
+HU-083 retires the two non-atomic legacy writers locally. The authenticated sync
+endpoint returns a migration error; the legacy request trigger only fails still
+pending unversioned requests. It never promotes them to v2 without a fresh reviewed
+request. The old partial importer, generator and whole-tab clear are removed.
+Current mobile codecs use v2; deployed/external client inventory and drain remain
+HU-085 rollout requirements. Ordinary export honors the new readable helper column
+while preserving the historical week-number layout. Reviewed adoption now reuses
+exact import decoration mappings in generation and persists them in the existing
+readable receipt/digest. It retains historical F rather than reinterpreting it as
+a helper column; only new labeled tabs own helper F. Variable inter-block market
+spacing is preserved; each date still requires three contiguous participants.
+This is local compatibility, not approval or evidence for a real workbook rewrite.
+
+HU-083 integration review retains the existing receipt protocol for readable
+helper write-back and instruction consumption, including unchanged effective
+assignments without assignment-revision changes. Completed history stays frozen.
+Offline repair reuses the reviewed readable layout and captured calendar without
+conversion, preserves old row positions/annotations and emits exact managed-cell
+deltas. Its existing Firestore rehearsal remains loopback/demo-only; no live
+cross-store executor or operational authority is implied.
 
 ## Approval and implementation status
 

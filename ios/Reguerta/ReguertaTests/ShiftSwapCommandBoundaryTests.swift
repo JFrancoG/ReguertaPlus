@@ -1,4 +1,3 @@
-import FirebaseFirestore
 import Foundation
 import Testing
 
@@ -307,7 +306,7 @@ struct ShiftSwapCommandBoundaryTests {
 
     private func makeRepository(dataLoader: any HTTPDataLoading) -> FirestoreShiftSwapRequestRepository {
         FirestoreShiftSwapRequestRepository(
-            firebaseAppName: Firestore.firestore().app.name,
+            firebaseAppName: CommandBoundaryFirebaseFixture.appName,
             functionsClient: AuthenticatedFirebaseFunctionsClient(
                 baseURL: URL(string: "https://example.test")!,
                 tokenProvider: RecordingFirebaseIDTokenProvider(token: "token"),

@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-09-11 | 📝 docs(shifts): prepare HU-085 evidence handoff
+
+- 2026-09-11 | 📝 docs(shifts): record replacement safety rehearsal
+
+- 2026-09-11 | 📝 docs(shifts): record develop import rehearsal
+
+- 2026-09-11 | 📝 docs(shifts): record develop workbook rebuild
+
+- 2026-09-11 | 📝 docs(shifts): record develop source capture
+
+- 2026-09-11 | 📝 docs(shifts): record isolated Sheets rehearsal
+
+- 2026-09-08 | 📝 docs(shifts): reconcile HU-083 acceptance evidence
+
 - 2026-08-30 | 📝 docs(shifts): link HU-082 delivery
 - 2026-08-30 | 📝 docs(shifts): close HU-082 implementation
 - 2026-08-30 | 📝 docs(shifts): freeze HU-083 handoff
@@ -35,6 +49,41 @@ All notable changes to this project will be documented in this file.
 - 2026-08-05 | 💄 style(ios): clear Swift line-length baseline
 
 ### Added
+
+- 2026-09-08 | ✨ feat(sheets): adopt reviewed historical layouts
+
+- 2026-09-08 | ✨ feat(sheets): connect readable sync worker
+
+- 2026-09-08 | ✨ feat(sheets): generate readable seasonal tabs
+
+- 2026-09-08 | ✨ feat(shifts): plan human sheet conversion offline
+
+- 2026-09-08 | ✨ feat(shifts): rehearse guarded repair transactions
+
+- 2026-09-08 | ✨ feat(shifts): prepare repair baseline and inverse
+
+- 2026-09-08 | ✨ feat(shifts): materialize reviewed repair documents
+
+- 2026-09-08 | ✨ feat(shifts): bind repair plans to full captures
+- 2026-09-08 | ✨ feat(shifts): plan reviewed offline repairs
+- 2026-09-08 | ✨ feat(shifts): audit rotation lineage and rounds
+- 2026-09-08 | ✨ feat(shifts): add offline snapshot audit
+- 2026-09-08 | ✨ feat(sheets): expose reviewed import operations
+- 2026-09-08 | ✨ feat(sheets): expose private command worker
+
+- 2026-09-08 | ✨ feat(shifts): route controlled events to retryable audit
+
+- 2026-09-08 | ✨ feat(shifts): audit recovery updates with retained authority
+
+- 2026-09-08 | ✨ feat(sheets): complete durable import write-back
+
+- 2026-09-08 | ✨ feat(sheets): apply reviewed imports atomically
+
+- 2026-09-08 | ✨ feat(sheets): add guarded import preflight
+
+- 2026-09-08 | ✨ feat(sheets): persist and reconcile command submissions
+
+- 2026-09-08 | ✨ feat(sheets): add seasonal adapter and event audit
 
 - 2026-08-29 | ✨ feat(shifts): sanitize planning logs
 - 2026-08-29 | ✨ feat(shifts): stage completed previews
@@ -156,6 +205,18 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-09-09 | 🐛 fix(sheets): close readable integration gaps
+
+- 2026-09-08 | 🐛 fix(sheets): retire legacy shift writers
+
+- 2026-09-08 | 🐛 fix(sheets): apply reviewed human imports
+
+- 2026-09-08 | 🐛 fix(sheets): prepare imports from readable tabs
+
+- 2026-09-08 | 🐛 fix(sheets): route readable seasonal exports
+
+- 2026-09-08 | 🐛 fix(sheets): isolate legacy environment config
+
 - 2026-09-08 | 🐛 fix(shifts): resolve HU-082 audit findings
 - 2026-08-29 | 🐛 fix(shifts): require owned preview staging
 - 2026-08-29 | 🐛 fix(shifts): bind recovery replay identity
@@ -255,6 +316,10 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-09-12 | ✅ test(shifts): seal HU-083 deferred acceptance
+
+- 2026-09-12 | ✅ test(shifts): verify native reset acceptance
+
 - 2026-08-30 | ✅ test(shifts): prove atomic planning rejection
 - 2026-08-30 | ✅ test(shifts): prove rollback cleanup retention
 - 2026-08-30 | ✅ test(shifts): prove idempotent consumer handoff
@@ -308,6 +373,8 @@ All notable changes to this project will be documented in this file.
 - 2026-03-19 | 📝 docs(orders): define consumer name snapshots
 
 ### Maintenance
+
+- 2026-09-11 | 📦 build(android): update toolchain and platform BOMs
 
 - 2026-09-08 | 📦 build(android): update Coil to 3.6.2
 - 2026-08-30 | 🔧 chore(shifts): integrate main into HU-082
