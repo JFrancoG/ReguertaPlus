@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-09-11 | 📝 docs(shifts): record develop import rehearsal
+
 - 2026-09-11 | 📝 docs(shifts): record develop workbook rebuild
 
 - 2026-09-11 | 📝 docs(shifts): record develop source capture

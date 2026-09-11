@@ -1,7 +1,8 @@
 # Cut 28 offline reconciliation proposal — 2026-09-11
 
 Status: **develop workbook rebuilt under explicit maintainer authorization**;
-backend source synchronization and cut-28 acceptance remain open. The maintainer
+the backend import rehearsal passes in emulation; live source synchronization
+and cut-28 acceptance remain open. The maintainer
 confirmed that the previous develop turns were disposable test data and authorized
 rebuilding/renaming develop while protecting production. Earlier pending-data
 questions below are retained as the audit history, not additional approval gates.
@@ -39,22 +40,57 @@ Private receipt SHA-256:
 `0f99455737a4361b30f98ab04ff893792dfee7f58a71ba5c32c67c78b3aa5131`.
 Raw IDs, phone values and backup references remain outside Git/the issue.
 
+### Backend import rehearsal — completed 2026-09-11
+
+Ran the existing transactional Firestore import implementation against a local
+Firestore emulator, using the four rebuilt develop tab snapshots and all 48
+captured users. All 32 eligible members remain in the synthetic rotation cohort;
+the 27 reference participants remain the initial effective assignees. None of the
+five additional eligible members was disabled or excluded.
+
+The initial planning state, ownership, cursor, completion and activation terminal
+are explicitly **new emulator fixture data**, built with the existing contract
+builders. They do not establish historical lineage, execute a real activation or
+provide a migration plan for the 62 legacy develop documents. Sheets/Drive calls
+use the existing stateful API fixture populated from the actual read-back.
+
+Verified in one successful executable rehearsal:
+
+- Initial prepare detects 53 missing helper names in readable delivery cells.
+  Apply/write-back fills them in the simulated workbook while preserving all
+  effective assignments, helper identities, ownership and completion. Prepare
+  itself does not change public shift documents.
+- The normalized baseline prepares as unchanged across all 72 turns.
+- A `Lo hace` instruction on 2027-09-01 selects an eligible member outside the
+  reference's 27 participants. Exactly that delivery and its 2027-08-25
+  predecessor change; the predecessor receives the replacement helper.
+- The other 70 public documents remain exactly unchanged. Ownership and completion
+  remain unchanged on both affected documents. Apply replay is recognized;
+  write-back updates the name and clears the instruction, and the next prepare
+  is unchanged.
+- All 48 user documents remain identical; the notification-event collection
+  remains empty. This Admin SDK rehearsal runs without Functions triggers or
+  restrictive Rules, so it does not validate deployed notification suppression,
+  client authorization or mobile read-back.
+
+Private aggregate receipt SHA-256:
+`d759148390d4b67c3eec2d2b9546ce2d246027644509ef3a5fdbad689f4a3e0e`.
+The private runner/input/receipt remain outside Git because the captured fixture
+contains member data. No production code changed; full build/lint/mobile suites
+were not repeated for this evidence/documentation step.
+
 ### Remaining backend boundary
 
-This completes the authorized **Sheets test-fixture rebuild**. It is not a
-Firestore repair, bootstrap activation, accepted inverse rehearsal or a passing
-end-to-end HU-083 import. No Firebase documents, IAM, Functions or Rules changed.
-The original captured workbook is historical evidence, not the current develop
-workbook image. The old 62-document source must not be treated as synchronized
-with these new 72 turns.
+Commit `2f2679a` records the workbook rebuild and is pushed. This rehearsal adds
+passing transactional import evidence; it performs **zero live writes**, including
+no live helper-cell write-back. The actual develop Firestore source still contains
+the old 62-document dataset and is not synchronized with the new 72 workbook turns.
 
-The current user collection has 32 eligible members; the supplied schedule has
-27. The remaining five were neither removed nor automatically classified as
-fake accounts. An import's effective assignments may cover a subset, but the
-rotation bootstrap's complete-eligible-roster contract still needs an explicit
-rehearsal scenario. Continue cut 28 by defining that develop source/rotation
-fixture and testing the new workbook with it; do not attempt to preserve the
-obsolete test roster as production history or infer approval for a shared deploy.
+Next within cut 28: define the exact replacement of the disposable develop source
+and its inverse from the retained backup, then evaluate compatibility with the
+current deployed writers/triggers. Reuse existing materializers; do not relabel
+synthetic fixture ownership as historical authority or deploy shared Functions
+or Rules. Live repair or an exact HU-085 deferral and cut-29 acceptance remain open.
 
 ## Earlier offline capture review
 

@@ -1322,8 +1322,12 @@ members), populated 108 empty phone cells from develop users, retained historica
 tabs and verified the private backup, all changed cells and visual layout.
 No production access or Firebase write/deployment occurred.
 
-The next step is the develop Firestore/rotation rehearsal fixture, accounting for
-32 currently eligible users versus 27 reference participants. The old source
-capture remains historical evidence; this workbook rebuild does not manufacture
-a canonical before-image or satisfy final repair/activation acceptance. Full
-execution evidence is in `offline-reconciliation-proposal.md`.
+The backend import rehearsal now passes in Firestore emulation with all 48 users,
+32 eligible members and 72 reconstructed turns. It normalizes 53 blank helper
+cells in the simulated workbook, applies exactly two cross-season patches, and
+verifies replay/write-back without changing users, ownership or completion.
+Planning authority is synthetic fixture data; Sheets uses the existing stateful
+API fixture. No live backend/Sheets writes or trigger/mobile validation occurred.
+Next: exact disposable-source replacement and inverse, then current deployed
+writer compatibility. Cut 28 remains open; evidence and limits are recorded in
+`offline-reconciliation-proposal.md`.

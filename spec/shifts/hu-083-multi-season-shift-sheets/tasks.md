@@ -389,6 +389,10 @@ they do not certify live conversion or retire the legacy writer paths.
   - [x] Rebuild the stable-ID develop workbook from the isolated reference; verify
     72 turns/108 phone additions, native format, private backup, unchanged historic
     tabs and ACL. See `offline-reconciliation-proposal.md`.
+  - [x] Rehearse the reconstructed 72-turn import in Firestore emulation with all
+    48 users/32 eligible members: 53 helper normalizations, two cross-season
+    patches, replay and stateful Sheets write-back; preserve users and ownership.
+    Synthetic planning authority is not a live replacement or activation plan.
   - [ ] Review exact alias/bootstrap/calendar/history mappings and materialize
     the repair proposal; no accepted live repair or zero-write deferral yet.
 - [ ] Cut 29: acceptance and separately authorized delivery/closure.

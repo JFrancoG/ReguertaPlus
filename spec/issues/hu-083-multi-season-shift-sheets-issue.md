@@ -2,21 +2,21 @@
 
 ## Cut 28 checkpoint — 2026-09-11
 
-Cut 27: `a1ef9ca`; Android: `aa95dc9`; copy rehearsal: `173efb7`; capture: `c219272`.
-Maintainer confirmed disposable develop test data and authorized workbook reconstruction.
-Develop rebuilt with the same ID, private backup and clear DEVELOP title: four readable
-seasonal tabs, 72 reference turns, 27 exact-matched active members, 108 phone additions.
-Historical tabs and ACL preserved; reference unchanged; no production access/Firebase write.
-Next: develop Firestore/rotation fixture and end-to-end rehearsal (32 eligible users versus
-27 reference participants). No accepted repair/deferral yet; cut 28 open, cut 29 not started.
-Details: `spec/shifts/hu-083-multi-season-shift-sheets/offline-reconciliation-proposal.md`.
-HU-085 retains coordinated production adaptation/activation.
+Rebuild pushed as `2f2679a`: four readable seasonal tabs, 72 turns, 27 matched
+participants, 108 phone additions; historical tabs/ACL and private backup preserved.
+Backend import rehearsal passes in Firestore emulation with all 48 users/32 eligible:
+53 helper normalizations, exactly two cross-season patches, replay and stateful Sheets
+write-back. Users, ownership and completion preserved. Planning authority is synthetic;
+no live backend write, live helper write-back, shared deploy or production access.
+Next: exact disposable develop source replacement/inverse and deployed-writer safety.
+No accepted repair/deferral yet; cut 28 open, cut 29 not started. HU-085 retains production.
+Evidence: `spec/shifts/hu-083-multi-season-shift-sheets/offline-reconciliation-proposal.md`.
 
 ## Tracking
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — cut 28 develop workbook rebuilt; backend fixture pending
+- State: IN PROGRESS — cut 28 emulator import passed; live source replacement pending
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
