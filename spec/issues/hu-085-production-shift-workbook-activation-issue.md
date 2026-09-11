@@ -1,5 +1,18 @@
 # [HU-085] Controlled production shift workbook activation
 
+## Incoming HU-083 handoff — 2026-09-11
+
+Replacement evidence is pushed through `eec8a55`. The current local handoff binds
+an exact emulator reset/inverse, market carryover, mobile presentation checks and
+unchanged live Firestore revisions. Direct deployed-source probing confirms the
+old writer bypasses new maintenance/provenance guards; do not apply the synthetic
+candidate live. Preserve the current manually prepared production season and pair
+workbook adaptation with backend activation here. HU-083 final deferral acceptance
+remains open for operational baseline/runtime materialization, exact-dataset app
+evidence and an existing iOS deprecation warning. No rollout is started.
+
+Details: `spec/shifts/hu-083-multi-season-shift-sheets/hu085-handoff.md`.
+
 ## Tracking
 
 - GitHub issue: #269

@@ -2,21 +2,19 @@
 
 ## Cut 28 checkpoint — 2026-09-11
 
-Import rehearsal pushed as `cbd9a55`; workbook rebuild as `2f2679a`.
-Local follow-up passes 139-write replacement/inverse: 62 old turns → 72 canonical
-plus five private documents; 48 users/four calendars preserved; drift rejected.
-Pinned deployed-source probe confirms later confirmations enter the old writer without
-new maintenance guards. Live apply is unsafe; no live replacement/deploy/production write.
-The candidate uses synthetic authority and is not a live bootstrap/baseline.
-Next: HU-085 deferral baseline/manifest and app/equivalence evidence; cut 28 stays open,
-cut 29 not started. No final repair/deferral acceptance claimed.
-Evidence: `spec/shifts/hu-083-multi-season-shift-sheets/offline-reconciliation-proposal.md`.
+Replacement evidence pushed as `eec8a55`. Local handoff adds market-30/carryover,
+Android 26/26 and iOS 2/2 presentation checks, plus matching live Firestore revisions
+and absent migration baseline. No live write/deploy; current writer still blocks apply.
+An existing FoundationModels deprecation prevents claiming a clean iOS gate.
+Next: operational baseline/runtime materialization and exact-dataset app acceptance.
+Cut 28 open; final deferral not accepted. HU-085 keeps coordinated production activation.
+Evidence: `spec/shifts/hu-083-multi-season-shift-sheets/hu085-handoff.md`.
 
 ## Tracking
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — cut 28 replacement rehearsed; deployed-writer gate fails
+- State: IN PROGRESS — cut 28 handoff prepared; final acceptance pending
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`

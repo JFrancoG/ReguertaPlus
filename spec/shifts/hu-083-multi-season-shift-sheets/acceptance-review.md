@@ -328,3 +328,13 @@ Sheets rows are absent from Firestore and all 62 existing payloads reject the
 canonical parser. Two name aliases need reconciliation. This is not a completed
 repair rehearsal, exact deferral, deployed integration or mobile acceptance.
 Cut 28 continues with a reviewed migration/bootstrap proposal; cut 29 has not begun.
+
+## Cut-28 receiving handoff — 2026-09-11
+
+Replacement evidence is pushed as `eec8a55`. The
+[HU-085 handoff](hu085-handoff.md) now binds the deployed-writer blocker, exact
+candidate/inverse and source-drift receipt. New checks pass market-30/carryover
+with the captured grid, Android 26/26 and iOS 2/2 presentation tests. The iOS full
+log exposes an unrelated FoundationModels deprecation; this is not a clean
+release gate. Operational baseline/runtime materialization and exact-dataset app
+acceptance remain pending; cut 28 stays open. No live data/permission/deploy change.

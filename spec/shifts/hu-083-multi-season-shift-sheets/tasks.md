@@ -436,3 +436,13 @@ they do not certify live conversion or retire the legacy writer paths.
   Lint adds no findings against the previous catalog; 136 warnings and two hints
   remain. Physical-device install was rejected, so it supplies no test evidence.
 - [x] Preserve unrelated iOS and main-checkout edits.
+
+## Cut-28 receiving handoff — 2026-09-11
+
+Replacement evidence is pushed as `eec8a55`. The
+[HU-085 handoff](hu085-handoff.md) now binds the deployed-writer blocker, exact
+candidate/inverse and source-drift receipt. New checks pass market-30/carryover
+with the captured grid, Android 26/26 and iOS 2/2 presentation tests. The iOS full
+log exposes an unrelated FoundationModels deprecation; this is not a clean
+release gate. Operational baseline/runtime materialization and exact-dataset app
+acceptance remain pending; cut 28 stays open. No live data/permission/deploy change.

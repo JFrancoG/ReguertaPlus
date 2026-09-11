@@ -1,5 +1,15 @@
 # Tasks - HU-085 (Controlled production shift workbook activation)
 
+## Incoming HU-083 evidence — 2026-09-11
+
+The [receiving handoff](../hu-083-multi-season-shift-sheets/hu085-handoff.md)
+records pushed replacement evidence through `eec8a55`, a local exact inverse,
+new market/mobile checks and an unchanged live Firestore revision inventory.
+The deployed-writer gate fails; retain coordinated production adaptation/backend
+activation here, preserving the current manually prepared season. Final HU-083
+deferral acceptance is still open: the synthetic candidate is not a live baseline
+or runtime-owned migration command. This checkpoint starts no HU-085 rollout.
+
 ## 0. Dependency gate
 
 - [ ] Verify HU-082 / #266 and HU-083 / #267 are merged and ADR-0013 plus
