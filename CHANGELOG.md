@@ -358,6 +358,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-09-11 | 📦 build(android): update toolchain and platform BOMs
+
 - 2026-09-08 | 📦 build(android): update Coil to 3.6.2
 - 2026-08-30 | 🔧 chore(shifts): integrate main into HU-082
 - 2026-08-29 | 📦 build(android): update Navigation and Coil
