@@ -1,6 +1,6 @@
 # Tasks - HU-083 (Multi-season shift Sheets and develop repair)
 
-## Current acceptance view — cut 28, updated 2026-09-12
+## Current acceptance view — final deferral accepted 2026-09-12
 
 See [native-acceptance.md](native-acceptance.md) and the current
 [HU-085 handoff](hu085-handoff.md). Both native repositories now read the same
@@ -9,7 +9,9 @@ restoration; the FoundationModels deprecation and live iOS test-host initializat
 are corrected. The approved reset content has explicit two-type baseline and
 inverse digests. Runtime-owned activation/recovery binding remains open: actual
 Drive version, post-drain capture and deployed writer/index authority are not
-replaced by test-fixture values. HU-083 and final deferral acceptance remain open.
+replaced by test-fixture values. The maintainer accepted this deferred scope for
+HU-085 and authorized complete Git delivery. [closeout.md](closeout.md) is the
+current acceptance reconciliation; historical cut checkboxes are not live claims.
 
 Earlier cut sections and [acceptance-review.md](acceptance-review.md) are historical
 checkpoints. Checked implementation items certify only the stated local/emulator
@@ -382,7 +384,7 @@ scope, not live conversion or retirement of legacy writer paths.
 - [x] Run full local regression and 20 relevant emulator suites, including the
   cases skipped outside the emulator. Detailed results: `acceptance-review.md`.
 - [x] Commit/push cut 27 integration fixes: `a1ef9ca`.
-- [ ] Cut 28: real source evidence and exact repair or zero-write deferral.
+- [x] Cut 28: real source evidence and accepted zero-write deferral; see `closeout.md`.
   - [x] Verify live Firebase connection, deployed-function inventory and bounded
     workbook metadata; record limits in `inventory.md` (2026-09-09).
   - [x] Provision the explicitly approved keyless auditor and encrypted evidence
@@ -406,10 +408,17 @@ scope, not live conversion or retirement of legacy writer paths.
   - [x] Inspect pinned deployed sources and execute the actual shift handler with
     I/O test doubles: initial planned writes are quiet, but a later confirmation
     enters the legacy writer without maintenance/provenance guards.
-  - [ ] Complete operational baseline/manifest and app/equivalence evidence for
-    the existing HU-085 deferral handoff. No live replacement or accepted final
-    zero-write deferral yet; do not apply the emulator fixture as live authority.
-- [ ] Cut 29: acceptance and separately authorized delivery/closure.
+  - [x] Complete native exact-dataset acceptance and the canonical iOS gate;
+    publish the 139-write content baseline/inverse as `601676e`.
+  - [x] Probe that exact content plan against the real event auditor in emulation:
+    missing forward retention and deleted inverse authority reject; exact local
+    retention admits all 72 creates. Details in `hu085-handoff.md`.
+  - [x] Accept the explicit deferred runtime command scope for HU-085 (2026-09-12). The content
+    plan is not a runtime operation: fresh source/Drive/index authority, retained
+    event/recovery records and monotonic security state must be materialized there.
+    Final deferral is accepted; no live replacement is claimed.
+- [x] Cut 29: acceptance and full delivery/closure explicitly authorized on 2026-09-12.
+  The definitive PR/merge/closure result is tracked in issue #267.
 
 
 ## Format consistency follow-up — 2026-09-11

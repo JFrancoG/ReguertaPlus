@@ -61,3 +61,25 @@ OAuth scope rejects `files.get`. The test copy starts its own numeric revision
 counter at 1; that counter is excluded from the content plan. HU-085 must bind a
 fresh actual Drive observation and deployed index authority after writer drain,
 then materialize the runtime-owned forward/inverse command before any live write.
+
+## Runtime boundary check
+
+Run `hu083-runtime-boundary.cjs` separately with `node --test --test-concurrency=1`,
+`HU083_EVIDENCE_DIR` pointing to the retained content plan, and a fresh emulator
+at `127.0.0.1:8797`. It requires `GCLOUD_PROJECT=demo-hu083-runtime-boundary` and
+`FIRESTORE_EMULATOR_HOST=127.0.0.1:8797`. Each case clears **only that demo project**;
+do not run the native controller concurrently. The test pins the reviewed content
+plan digest and rejects other projects/hosts before creating a Firestore client.
+
+The four cases exercise the real transactional public-event auditor against all
+72 creates/deletes and all 62 raw legacy restores/deletes. Missing retention and
+an inverse that deletes the operation must reject and replay their rejection.
+A separate fixture retention policy admits/replays the exact 72 marked creates.
+The private `runtime-boundary-receipt.json` records the distinction. This is
+negative readiness evidence, not a live reset executor or a failing app test.
+
+The clone inverse restores every original private field/absence for comparison.
+Operational recovery must instead retain its exact recovery terminal and audit
+records through their retry horizon, and preserve the advanced security epoch.
+HU-085 must account for those intentional residuals in its finite manifest; adding
+Drive metadata alone cannot turn the 139-write content plan into that command.

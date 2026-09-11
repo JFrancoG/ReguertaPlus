@@ -1,20 +1,22 @@
 # [HU-083] Multi-season shift Sheets and develop repair
 
-## Cut 28 checkpoint — 2026-09-11
+## Final acceptance — 2026-09-12
 
-Replacement evidence pushed as `eec8a55`. Local handoff adds market-30/carryover,
-Android 26/26 and iOS 2/2 presentation checks, plus matching live Firestore revisions
-and absent migration baseline. No live write/deploy; current writer still blocks apply.
-An existing FoundationModels deprecation prevents claiming a clean iOS gate.
-Next: operational baseline/runtime materialization and exact-dataset app acceptance.
-Cut 28 open; final deferral not accepted. HU-085 keeps coordinated production activation.
-Evidence: `spec/shifts/hu-083-multi-season-shift-sheets/hu085-handoff.md`.
+The maintainer accepted the zero-write deferral to HU-085 and authorized commit,
+push, PR, merge, issue closure and branch deletion. Native acceptance is pushed
+as `601676e`; the final boundary probe and acceptance record follow in this PR.
+HU-083 delivers the seasonal Sheets integration and exact local/native evidence.
+HU-085 retains runtime reset/recovery implementation, fresh source/Drive/index
+binding, retained event authority and coordinated production activation.
+The 139-write content fixture is not a live command. No shared deploy or live
+Firestore replacement occurred. Canonical acceptance:
+`spec/shifts/hu-083-multi-season-shift-sheets/closeout.md`.
 
 ## Tracking
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — cut 28 handoff prepared; final acceptance pending
+- State: ACCEPTED — final Git delivery authorized; definitive result in linked PR
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
@@ -951,41 +953,28 @@ HU-083 must persist them with create-or-exact-replay, configure the approved
 policy, deliver unknown-marker alerts, and prove real trigger behavior; it must
 not replace the upstream codecs with a looser local schema.
 
-## Delivery gate
+## Delivery gate — accepted deferral branch
 
 - [x] HU-082 and ADR-0013 integrated; ADR-0014 governs public transactions.
-- [ ] Multi-season adapter and migration tests green.
-- [ ] Local/emulator request, adapter, and notification contract green.
-- [ ] Compatible direct-script develop audit, dry-run, repair, read-back, and
-  forward/inverse commit rehearsal in an isolated restored clone green before live
-  apply, or apply is explicitly deferred to HU-085 with live
-  baseline unchanged and equivalent emulator/read-back/recovery evidence.
-- [ ] A live develop apply inventories and recoverably fences/drains every Firestore/
-  workbook writer, immediately rehashes both stores, uses per-document update-time
-  CAS plus per-batch workbook revision/digest checks, and retains the fence through
-  read-back/rollback rehearsal. If that bounded multi-store fence cannot be proved,
-  the only allowed branch is zero-write deferral to HU-085.
-- [ ] The writer gate includes My Drive owner feasibility, transitive group/domain/
-  DWD/Workspace authority, and pending offline edits; any unprovable path forces
-  zero-write deferral.
-- [ ] The direct script has a named, timeboxed, keyless repair principal/workload in
-  the manifest, exact develop targets/actions plus app guards, explicit database-
-  scoped IAM blast radius, sole-writer proof, terminal revocation, and audit read-back.
-  Any project-wide/production fence or unisolated authority forces HU-085 deferral.
-- [ ] A separate keyless evidence auditor captures exact develop Firestore/workbook
-  backups with read/export-only source access and create-only encrypted, ACL- and
-  retention-bound evidence output, then is revoked/read back before apply.
-- [ ] Safe apply records an immutable two-type post-repair baseline revision/
-  digest; deferred apply records the expected digest/materialization manifest and
-  writes no live baseline. A successful live apply ends in the repaired state; the
-  inverse is not applied live merely as a rehearsal.
-- [ ] Audit resolves each type's HU-082 bootstrap source/order/round/cursor and the
-  delivery predecessor-helper constraint, or requires an explicit approved mapping;
-  apply/deferred handoff persists/materializes that exact mapping and digest.
-- [ ] No shared-project Functions/Rules deploy or live planning notification.
-- [ ] HU-085 receives the integrated code and complete non-secret develop
-  evidence; its deferred branch receives only manifests/dry-runs, never the HU-083
-  principal/credential, and no production mutation occurs in HU-083.
+- [x] Multi-season adapter/import/export and local/emulator contract validated.
+- [x] Real source backup, explicit develop queue, content baseline and exact clone
+  forward/inverse captured with source-drift and auditor-revocation evidence.
+- [x] Both native SDK/repositories observe the exact reset/import/restoration.
+- [x] iOS canonical release gate: 895 passed, one existing skip, zero failures.
+  Android: 480 unit tests and native acceptance pass; no new lint findings.
+- [x] Final Functions lint/build and local union: 525 passed, 51 emulator-only
+  skips; unchanged emulator coverage validates those cases. Runtime boundary: 4/4.
+- [x] Explicitly accept the zero-write HU-085 deferral (maintainer, 2026-09-12).
+  Missing runtime command/retention and real activation authority are transferred
+  requirements, not completed live operations or waived safety gates.
+- [x] Preserve production and shared runtime; no live baseline or planning push.
+- [x] Authorize PR, merge, issue closure and branch deletion. Definitive delivery
+  is recorded by the linked PR and the closing delivery comment.
+
+HU-085 / #269 stays open for the bounded runtime reset/inverse, retained recovery
+records and advanced security epoch, post-drain capture, real Drive/index binding,
+writer containment and coordinated deployment/workbook/native/notification checks.
+See `spec/shifts/hu-083-multi-season-shift-sheets/closeout.md` for the criterion map.
 
 ## Suggested labels
 

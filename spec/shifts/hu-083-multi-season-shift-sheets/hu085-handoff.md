@@ -1,8 +1,9 @@
 # HU-083 → HU-085 evidence handoff — updated 2026-09-12
 
-Status: **handoff prepared; final HU-083 deferral acceptance remains open**.
+Status: **final HU-083 deferral accepted by the maintainer on 2026-09-12**.
+See [accepted closeout](closeout.md); delivery is tracked by issue #267.
 Backend implementation is `a1ef9ca`; prior evidence is pushed through
-`767f3eb`. The native acceptance tranche adds the iOS/Android scenario and the iOS
+`601676e`. The native acceptance tranche adds the iOS/Android scenario and the iOS
 warning/test-host fixes described in [native acceptance](native-acceptance.md).
 No shared deploy or live Firestore replacement has occurred. This document identifies what the receiving story can reuse and
 what still prevents a release decision.
@@ -102,8 +103,10 @@ are not an execution identity for HU-085.
 
 ## Remaining acceptance work
 
-1. Bind the approved content baseline to actual activation authority and
-   materialize the runtime-owned forward/inverse command. The native connector
+1. Review the deferred runtime work below, then bind the approved content baseline
+   to actual activation authority and materialize the runtime-owned forward/inverse
+   command in HU-085. This is an implementation requirement, not just a missing
+   metadata field. The native connector
    omits Drive `version`; the existing operator OAuth scope returns 403 for the
    direct metadata read. No invented version is substituted. The ordinary repair
    parser still cannot reinterpret the raw legacy before-image, and remains strict.
@@ -112,12 +115,12 @@ are not an execution identity for HU-085.
    deployment/coordinated workbook adaptation. The maintenance document alone
    does not stop currently deployed code. Bind deployed event/notification
    acceptance to that final runtime manifest.
-3. Review explicit final deferral acceptance and the story's delivery gate after
-   the complete validation record below. Native SDK/data acceptance and the
+3. Complete the authorized PR/merge delivery after the accepted final deferral
+   recorded in `closeout.md` and the validation record below. Native SDK/data acceptance and the
    FoundationModels source correction are no longer implementation blockers.
 
-Cut 28/final acceptance remains open for item 1 and the explicit deferral decision;
-item 2 is the receiving story's live activation work. No extra functional cut was
+Cut 28 final deferral is accepted. Items 1 and 2 remain HU-085 implementation
+and activation work; the content rehearsal does not represent them as completed. No extra functional cut was
 created. Native data/presentation acceptance does not claim UI screenshots,
 security Rules coverage, deployed event delivery or FCM dispatch.
 
@@ -136,7 +139,8 @@ The historical packet above remains immutable. The new content plan SHA-256 is
 `1ae67403844d4759d2bd0743db485f714d3386057d702d5ce34633924c183f42`;
 its plan/baseline digests and exact scope are in [native acceptance](native-acceptance.md).
 An approved content-baseline digest must not be substituted for the remaining
-runtime activation authority. `acceptedFinalDeferral` remains false. See the existing
+runtime activation authority. `acceptedFinalDeferral` is now true; immutable prior
+receipts retain their historical values and `liveExecutable` remains false. See the existing
 [HU-085 plan](../hu-085-production-shift-workbook-activation/plan.md) for the live
 execution sequence and authorization boundaries.
 
@@ -154,3 +158,47 @@ The final, successful integrated gate is bound by `release-gate-receipt.json`,
 SHA-256 `b637b7195b49fcdbd01047cad0364a99a4153d6c8b9f44783f60c0ffdf8b6396`.
 It supersedes only the interrupted-gate limitation in the previous immutable
 packet. The final `.xcresult`, native summary and emulator receipt are retained.
+
+## Exact runtime boundary — 2026-09-12
+
+The additional opt-in `hu083-runtime-boundary.cjs` runs the existing transactional
+public-event auditor in `demo-hu083-runtime-boundary`. All four cases pass with
+zero skips. This probes the event snapshots from the exact content plan; it does
+not invoke deployed Functions or simulate CloudEvent delivery.
+
+| Exact input | Existing runtime result |
+| --- | --- |
+| 72 marked creates, activation terminal present, no retention in the content plan | 72 alertable fail-closed decisions; all 72 rejection replays persist correctly |
+| Same 72 creates plus exact local fixture retention | 72 controlled no-ops; all 72 successful replays persist correctly |
+| 72 marked deletes delivered after the content inverse has deleted the operation | 72 alertable fail-closed decisions; all 72 rejection replays persist correctly |
+| 62 original `google_sheets` / `planned` records restored or deleted | 62 ordinary creates and 62 ordinary deletes; no backend mutation marker is invented |
+
+The positive control uses an explicitly local retention policy. Its duration is
+not a production retry-horizon decision. Ordinary classification alone is not
+proof that a deployed trigger or FCM send was exercised.
+
+**HU-085 must not submit the 139-write content plan as a runtime command.** Its
+forward command must include exact retained event authority and the real closed
+maintenance/write-epoch/source-policy binding. Its inverse must restore business
+data while retaining recovery terminals, before-images where required, event
+ledgers and the advanced security epoch. Deleting all newly created private
+objects is appropriate only for this isolated content-restoration comparison.
+The existing canonical activation recovery accepts its own admitted lineage;
+this legacy reset has no such runtime-owned staged bundle/authorization. Do not
+weaken those parsers or expose a generic arbitrary-write endpoint to bridge it.
+
+The bounded receiving task is to materialize/execute this approved reset through
+the fenced runtime using the existing publication, admission and audit contracts,
+with the retained recovery evidence above. Recompute both complete transaction
+budgets and re-rehearse after binding fresh source/Drive/index authority. HU-083
+hands over the exact content/inverse and these executable boundary checks; this
+is not evidence that the receiving command is already implemented.
+
+The maintainer accepted the explicit zero-write deferral on 2026-09-12, including
+the runtime implementation assigned to HU-085, and authorized HU-083 PR/merge and
+closure. This is the accepted scope, not an assertion of live readiness. The
+[closeout](closeout.md) reconciles the story criteria and delivery evidence.
+
+Runtime-boundary receipt SHA-256: `8709bfe2f9652a3df907e86bdf70db0f89753961278129c53f31922fe1781f9e`.
+Functions lint/build and `node --check` pass. No Android/iOS source changed after
+`601676e`; their accepted native/release evidence remains applicable.

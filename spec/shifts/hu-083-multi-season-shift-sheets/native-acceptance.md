@@ -55,6 +55,13 @@ debe vincular una observación real de Drive, la autoridad de índices desplegad
 la captura tras detener escritores y el comando de ejecución/reversión propiedad
 del runtime. No se debilita el parser canónico para reinterpretar el legado.
 
+La comprobación posterior del auditor real (4/4 casos en emulador) demuestra otro
+límite preciso: el plan omite la retención de las altas y la inversa elimina la
+autoridad de los borrados tardíos. Los 72 eventos se rechazan en ambos casos;
+las mismas altas pasan al aportar retención exacta de prueba. La recuperación
+operativa debe conservar sus registros de auditoría y el epoch avanzado, aunque
+restaure el contenido de negocio. Véase el [contrato pendiente](hu085-handoff.md#exact-runtime-boundary--2026-09-12).
+
 ## Correcciones de iOS
 
 `FoundationModelsBylawsSummaryGenerator` usa `samplingMode` con Swift 6.4 y
@@ -74,10 +81,9 @@ Swift y planes modificados no deja hallazgos pendientes.
 ## Estado de cierre
 
 La aceptación funcional local y la corrección de FoundationModels están hechas.
-Permanece abierta la materialización del comando operativo con la autoridad real
-anterior, junto con la aceptación explícita del diferimiento al despliegue de
-HU-085. No se declara cerrado HU-083 ni se abre otro corte funcional para ocultar
-esa dependencia. Validación final: 480 unitarios Android y su aceptación instrumentada pasan.
+El mantenedor aceptó el 12/09/2026 trasladar a HU-085 la materialización del
+comando operativo con su autoridad real y autorizó PR, merge y cierre de HU-083.
+El [cierre aceptado](closeout.md) registra el alcance y los pendientes transferidos. Validación final: 480 unitarios Android y su aceptación instrumentada pasan.
 El runner canónico `release-gate` de iOS termina con código 0: **895 aprobadas,
 una omisión previa y cero fallos**, incluyendo la aceptación del emulador.
 SwiftLint: cero incidencias en 487 archivos; builds Debug/Release y política de

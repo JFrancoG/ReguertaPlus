@@ -1,5 +1,12 @@
 # Plan - HU-083 (Multi-season shift Sheets and develop repair)
 
+## Accepted final decision — 2026-09-12
+
+The maintainer accepted the zero-write deferral, including the bounded runtime
+reset/recovery implementation in HU-085, and authorized commit/push, PR, merge,
+issue closure and branch deletion. [closeout.md](closeout.md) supersedes historical
+execution forecasts below. It preserves all required live gates under open #269.
+
 ## 1. Delivery strategy
 
 ### Execution checkpoint — 2026-09-08

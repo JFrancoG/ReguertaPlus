@@ -5,7 +5,7 @@
 - issue_id: #267
 - priority: P1
 - platform: backend
-- status: in-progress (fifth local cut validated; durable import write-back)
+- status: accepted (2026-09-12; live reset/runtime activation deferred to HU-085)
 - depends_on: HU-082 / #266
 - architecture: ADR-0013 (accepted), as amended by ADR-0014
 
@@ -341,10 +341,11 @@ binding and separately reviewed execution/recovery manifests.
 
 ## Acceptance criteria
 
-Current source-backed scope and cut-18 validation are recorded in
-[acceptance-review.md](acceptance-review.md). New-pipeline proofs do not certify
-legacy full/ordinary/override routing, the human-layout decision or either real-data
-completion branch. Criteria below stay open until their complete scope is met.
+Final acceptance is recorded in [closeout.md](closeout.md), explicitly approved
+by the maintainer on 2026-09-12. It maps every group below to local/native evidence
+or the accepted HU-085 deferral. The original checklist is preserved as the
+requirement text; unchecked conditional live steps do not claim execution.
+Historical cut evidence remains in [acceptance-review.md](acceptance-review.md).
 
 - [ ] Develop uses one explicit stable workbook identifier and the configuration
   contract cannot fall back across environments.
