@@ -1,4 +1,3 @@
-import FirebaseFirestore
 import Foundation
 import Testing
 
@@ -145,7 +144,7 @@ struct DeliveryCalendarCommandBoundaryTests {
         operationID: String
     ) -> FirestoreDeliveryCalendarRepository {
         FirestoreDeliveryCalendarRepository(
-            firebaseAppName: Firestore.firestore().app.name,
+            firebaseAppName: CommandBoundaryFirebaseFixture.appName,
             functionsClient: AuthenticatedFirebaseFunctionsClient(
                 baseURL: URL(string: "https://example.test")!,
                 tokenProvider: RecordingFirebaseIDTokenProvider(token: "token"),

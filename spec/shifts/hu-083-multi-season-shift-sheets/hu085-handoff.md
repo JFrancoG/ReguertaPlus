@@ -1,9 +1,10 @@
-# HU-083 → HU-085 evidence handoff — 2026-09-11
+# HU-083 → HU-085 evidence handoff — updated 2026-09-12
 
 Status: **handoff prepared; final HU-083 deferral acceptance remains open**.
-Implementation is `a1ef9ca`; the subsequent workbook, import and replacement
-records are pushed through `eec8a55`. No shared deploy or live Firestore replacement
-has occurred. This document identifies what the receiving story can reuse and
+Backend implementation is `a1ef9ca`; prior evidence is pushed through
+`767f3eb`. The native acceptance tranche adds the iOS/Android scenario and the iOS
+warning/test-host fixes described in [native acceptance](native-acceptance.md).
+No shared deploy or live Firestore replacement has occurred. This document identifies what the receiving story can reuse and
 what still prevents a release decision.
 
 ## Decision and data treatment
@@ -17,9 +18,13 @@ remains in place. Full replacement/inverse findings are in
 
 Develop's new test scenario keeps all 48 users and all 32 eligible members. It
 retains the reference's 27 effective assignees; it does not label the other five
-as fake or change their roles. The exact 139-write candidate and inverse are
-private, emulator-only artifacts. They use synthetic operation/source-policy
-state and **must not be submitted as live migration authority**.
+as fake or change their roles. The new private 139-write content plan and inverse use explicit reset, operation
+and two-type baseline identities. Both rotations start the approved new test
+queue with all 32 eligible UIDs, then consume 54 positions each. This replaces
+the synthetic rehearsal baseline, but **is not a live execution command**: actual
+Drive version, deployed admission authority and post-drain source binding remain
+activation requirements. The isolated transport version is excluded from this
+content plan.
 
 Production's current season was prepared manually through Codex before the app
 feature was ready. HU-085 must adapt its readable workbook and activate the backend
@@ -35,8 +40,8 @@ current production season or authorize production access.
 | Real import implementation | Emulator preparation/apply/replay plus stateful Sheets write-back; 53 helper normalizations and two cross-season patches; users/ownership/completion preserved |
 | Exact disposable replacement | 62 deletes + 72 public creates + five private creates in one emulator transaction; inverse restores all original fields; stale/extra/repeated operations reject |
 | Market target and carryover | Actual captured grid has ten 2026–27 dates/30 positions and eight 2027–28 dates/24 positions. Existing planner/adapter adds the two missing target dates, preserves every inherited block and the other three tabs, then carries the queue into two later boundary dates. One simulated batch; replay adds none |
-| Android presentation read-back | 26/26 existing tests in `SessionShiftActionsFailureTest` and `ShiftSeasonBoundaryProjectionTest`; repository doubles, not the exact 72-document Firestore dataset |
-| iOS presentation read-back | 2/2 existing Swift Testing cases for activation refresh and season boundary on iPhone 17 / iOS 26.5, `Reguerta-Develop`, official Xcode MCP; repository doubles |
+| Android native acceptance | 1/1 instrumentation scenario, Pixel 8 Pro / API 35: actual SDK/repository reads 72 turns, real import changes two rows, same repository reads the change and restored 62 records; production presentation selectors checked |
+| iOS native acceptance | 1/1 Swift Testing scenario, iPhone 17 / iOS 26.5, `Reguerta-Develop`, official Xcode MCP: actual SDK/repository and the same ViewModel observe all three phases, exact fields and upcoming roles |
 | Live source drift check | At 18:50:05Z, two complete shift inventories match all 62 captured names/update times; five planning states remain absent, migration-baseline collection empty, and 48 user projections match the rehearsal input |
 
 The latest live check uses the existing operator's read-only session and selected
@@ -46,11 +51,36 @@ times bind existing fields to the retained capture; the check does not freeze
 future writes. The workbook was intentionally rebuilt earlier, so no claim is made
 that both stores still equal the original pre-rebuild capture.
 
-The iOS source tree matches HU-083; tests ran in the already-open main checkout,
-whose unrelated project ordering edit was preserved. The complete Xcode log has
-one FoundationModels initializer deprecation outside shifts, plus AppIntents
-metadata-extraction tooling warnings. Therefore the two passing tests are not a
-zero-warning release gate. No new product code or tests were added in this step.
+The new iOS acceptance runs in the HU-083 worktree. The first run exposed live
+host initialization outside the named emulator repository. Unit/release plans
+now pass the existing `-useMockAuth` composition argument; the repeated passing
+acceptance has no such live queries. Async Firebase cleanup covers success and
+failure. Two pre-existing HTTP command suites now use a named local Firebase
+fixture instead of depending on default Firebase initialization by the live host. Independent Swift standards/source-style review has no remaining
+findings. FoundationModels uses the SDK27 renamed initializer with its iOS26 back
+deployment and retains the SDK26 spelling under older compilers. AppIntents
+metadata-tool diagnostics remain distinct from compiler deprecations.
+
+Android general validation passes all 480 unit tests. Lint has zero errors; its
+136 warnings and two hints exactly match the existing main-checkout report,
+including locations/messages. The new acceptance test introduces no lint finding.
+
+Final iOS validation: the canonical `validate-ios.sh release-gate` runner passed
+uninterrupted with exit code 0 on iPhone 17 / iOS 26.5, using Xcode RC. Its native
+summary reports 896 tests: 895 passed, one existing screenshot-launch test skipped,
+zero failures (the skipped identifier has four UI configuration executions).
+SwiftLint checks 487 files with no violations; Debug/Release builds and settings
+checks pass. The first attempt exposed the default-Firebase fixture dependency;
+that issue was fixed and the entire gate was rerun, not waived. Independent
+`fast-unit-v1` also passed all 878 Swift Testing tests (1,349 MCP reported results
+including parameterized results). SDK26 API compatibility passes
+`-warnings-as-errors`. Earlier AppIntents metadata-tool messages are distinct
+from the corrected Swift deprecation; the final runner log has no warning lines.
+
+The final controller passes both native phases, including extra-document and
+same-fields/new-updateTime inverse rejection. Its parity receipt verifies equal
+native observable values in all three phases across platforms; backend attempt
+timestamps/receipt identities remain separate per rehearsal run.
 
 ## Receiving runtime and configuration contract
 
@@ -72,23 +102,24 @@ are not an execution identity for HU-085.
 
 ## Remaining acceptance work
 
-1. Materialize the reviewed operational two-type baseline, expected digest and
-   runtime-owned replacement/rollback command. The local candidate's synthetic
-   version `100`, operation identity and cursor are not an approved live baseline;
-   the ordinary repair materializer cannot reinterpret the legacy before-image.
-2. Exercise both apps against the exact chosen post-operation dataset, not just
-   their existing presentation doubles; bind request/export/notification/recovery
-   evidence to that same final manifest.
-3. Resolve the existing FoundationModels compiler warning before claiming the
-   required iOS zero-warning gate. AppIntents tooling messages must be reported
-   separately from Swift diagnostics.
-4. In HU-085, refresh the post-drain evidence, contain current writers/clients and
-   authorize the shared deployment and coordinated workbook adaptation. A
-   maintenance document alone does not stop the currently deployed code.
+1. Bind the approved content baseline to actual activation authority and
+   materialize the runtime-owned forward/inverse command. The native connector
+   omits Drive `version`; the existing operator OAuth scope returns 403 for the
+   direct metadata read. No invented version is substituted. The ordinary repair
+   parser still cannot reinterpret the raw legacy before-image, and remains strict.
+2. In HU-085, obtain fresh post-drain evidence, contain writers/clients, bind the
+   actual Drive observation and deployed index authority, and authorize the shared
+   deployment/coordinated workbook adaptation. The maintenance document alone
+   does not stop currently deployed code. Bind deployed event/notification
+   acceptance to that final runtime manifest.
+3. Review explicit final deferral acceptance and the story's delivery gate after
+   the complete validation record below. Native SDK/data acceptance and the
+   FoundationModels source correction are no longer implementation blockers.
 
-Items 1–3 keep cut 28/final acceptance open. Item 4 remains the receiving story's
-live activation work. Do not create another implementation cut merely to rename
-these remaining requirements or mark the final zero-write deferral accepted.
+Cut 28/final acceptance remains open for item 1 and the explicit deferral decision;
+item 2 is the receiving story's live activation work. No extra functional cut was
+created. Native data/presentation acceptance does not claim UI screenshots,
+security Rules coverage, deployed event delivery or FCM dispatch.
 
 ## Artifact fingerprints
 
@@ -101,8 +132,25 @@ results. Packet SHA-256:
 - Exact candidate file: `6b157fa890b49b9152c43e9ce26c455ed30a993642cd3e34fb4680dd588f2c89`.
 - Replacement/inverse receipt: `368b0c09cc395858695607cf679855625be8e8d01e954326a8f6990393bfbfdc`.
 
-The operational baseline digest is deliberately absent until item 1 is satisfied;
-a hash of this handoff must not be substituted for it. Packet field
-`acceptedFinalDeferral` is false. See the existing
+The historical packet above remains immutable. The new content plan SHA-256 is
+`1ae67403844d4759d2bd0743db485f714d3386057d702d5ce34633924c183f42`;
+its plan/baseline digests and exact scope are in [native acceptance](native-acceptance.md).
+An approved content-baseline digest must not be substituted for the remaining
+runtime activation authority. `acceptedFinalDeferral` remains false. See the existing
 [HU-085 plan](../hu-085-production-shift-workbook-activation/plan.md) for the live
 execution sequence and authorization boundaries.
+
+
+Final local acceptance packet SHA-256:
+`61c0fce8d9984f42230115a5ad71b1bb2f609f2fc6394ef53f5f8a2142d06684`.
+The private packet retains the successful unit `.xcresult`, UI evidence, initial
+fixture-failure diagnostic, Android result, phase/parity receipts and reproducible
+controller sources. Temporary Firebase config copies, dependency link and iOS
+opt-in marker were removed after validation; connected physical devices were not
+used for installation or testing.
+
+
+The final, successful integrated gate is bound by `release-gate-receipt.json`,
+SHA-256 `b637b7195b49fcdbd01047cad0364a99a4153d6c8b9f44783f60c0ffdf8b6396`.
+It supersedes only the interrupted-gate limitation in the previous immutable
+packet. The final `.xcresult`, native summary and emulator receipt are retained.

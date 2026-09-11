@@ -316,6 +316,8 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-09-12 | ✅ test(shifts): verify native reset acceptance
+
 - 2026-08-30 | ✅ test(shifts): prove atomic planning rejection
 - 2026-08-30 | ✅ test(shifts): prove rollback cleanup retention
 - 2026-08-30 | ✅ test(shifts): prove idempotent consumer handoff

@@ -9,6 +9,12 @@
     }
   ],
   "defaultOptions" : {
+    "commandLineArgumentEntries" : [
+      {
+        "argument" : "-useMockAuth",
+        "enabled" : true
+      }
+    ],
     "codeCoverage" : false,
     "targetForVariableExpansion" : {
       "containerPath" : "container:Reguerta.xcodeproj",

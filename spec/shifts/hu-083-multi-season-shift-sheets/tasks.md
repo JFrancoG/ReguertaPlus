@@ -1,12 +1,19 @@
 # Tasks - HU-083 (Multi-season shift Sheets and develop repair)
 
-## Current acceptance view — cut eighteen, 2026-09-08
+## Current acceptance view — cut 28, updated 2026-09-12
 
-See [acceptance-review.md](acceptance-review.md) for source-backed status and the
-consolidated validation scope. Sections named after earlier cuts are historical
-checkpoints, not the current count of unfinished work. Checked implementation
-items below refer to the new canonical pipeline in local/emulator validation;
-they do not certify live conversion or retire the legacy writer paths.
+See [native-acceptance.md](native-acceptance.md) and the current
+[HU-085 handoff](hu085-handoff.md). Both native repositories now read the same
+72-document emulator dataset through their actual SDKs and observe import plus
+restoration; the FoundationModels deprecation and live iOS test-host initialization
+are corrected. The approved reset content has explicit two-type baseline and
+inverse digests. Runtime-owned activation/recovery binding remains open: actual
+Drive version, post-drain capture and deployed writer/index authority are not
+replaced by test-fixture values. HU-083 and final deferral acceptance remain open.
+
+Earlier cut sections and [acceptance-review.md](acceptance-review.md) are historical
+checkpoints. Checked implementation items certify only the stated local/emulator
+scope, not live conversion or retirement of legacy writer paths.
 
 ## First local cut — 2026-09-08
 
