@@ -372,5 +372,41 @@ they do not certify live conversion or retire the legacy writer paths.
   bounded Firestore repair/inverse rehearsal. Preserve row identity and annotations.
 - [x] Run full local regression and 20 relevant emulator suites, including the
   cases skipped outside the emulator. Detailed results: `acceptance-review.md`.
+- [x] Commit/push cut 27 integration fixes: `a1ef9ca`.
 - [ ] Cut 28: real source evidence and exact repair or zero-write deferral.
+  - [x] Verify live Firebase connection, deployed-function inventory and bounded
+    workbook metadata; record limits in `inventory.md` (2026-09-09).
+  - [ ] Identify/verify the separate keyless auditor and encrypted evidence
+    destination before source capture. No live baseline or accepted deferral yet.
 - [ ] Cut 29: acceptance and separately authorized delivery/closure.
+
+
+## Format consistency follow-up — 2026-09-11
+
+- [x] Record maintainer requirement: either participant orientation is acceptable;
+  writer and reader must match, including the active production workbook.
+- [x] Compare base and HU-083 source writers with the supplied native test copy;
+  record that source writers use stacked market rows, while the reference is horizontal.
+- [x] Check deployed Function metadata without source data reads: the five relevant
+  Functions expose develop Sheets parameter names only.
+- [x] Resolve provenance with the maintainer: Codex prepared the current season
+  provisionally; the next annual generation will use the app.
+- [x] Keep the existing HU-083 readable contract and stacked market participants.
+- [x] Back up and adapt only the isolated reference; preserve 72 shift dates and
+  assignees, 54 round values, historical tabs and summary. Verify bounded read-back
+  and inspect all four adapted tabs visually.
+- [x] Pass actual anonymized read-back through the existing reader/planner with
+  a synthetic baseline: 72 shifts, no missing/changed assignments or backend patches.
+- [ ] Contrast with trusted actual develop Firestore evidence; synthetic UIDs and
+  absent helper values do not prove source equivalence or complete cut 28.
+- [ ] Hand off coordinated production workbook adaptation/read-back and backend
+  activation to HU-085, preserving current assignments rather than regenerating.
+
+## Authorized Android dependency update — 2026-09-11
+
+- [x] Commit/push the maintainer's four catalog updates as `aa95dc9`: AGP 9.4.0,
+  Kotlin 2.4.20, Compose BOM 2026.09.00 and Firebase BOM 34.19.0.
+- [x] Validate 480 unit tests and 23 connected tests on Pixel 8 Pro API 35.
+  Lint adds no findings against the previous catalog; 136 warnings and two hints
+  remain. Physical-device install was rejected, so it supplies no test evidence.
+- [x] Preserve unrelated iOS and main-checkout edits.

@@ -1253,3 +1253,47 @@ None validates TypeScript or replaces `npm run lint` and `npm run build`.
   and emulators until the explicitly authorized HU-085 change window.
 - **Premature production work**: HU-083 stops after the develop handoff to
   HU-085.
+
+
+## Cut 28 access checkpoint — 2026-09-09
+
+Cut 27 is pushed as `a1ef9ca`. Read-only Firebase/Drive metadata checks are
+recorded in [inventory.md](inventory.md#cut-28-access-checkpoint--2026-09-09).
+Firebase is authenticated; the CLI credential gap does not establish absence of
+an auditor. Identify the separately bounded keyless principal and encrypted
+create-only evidence destination before source capture. Existing user sessions
+are not an implicit substitute. No real repair/deferral outcome is completed,
+and no additional implementation cut is introduced while access is resolved.
+
+
+## Format consistency decision — 2026-09-11
+
+The maintainer accepts either stacked or horizontal market participants. The
+requirement is one matching write/read contract, including the production
+workbook already in operational use. Do not treat adapting only the isolated
+test copy as acceptance or ask the maintainer to choose a cosmetic layout.
+If the chosen contract changes existing active tabs, its rollout must pair the
+exporter/importer revision with exact workbook migration and read-back in both
+environments. Production rollout remains a concrete coordinated operation;
+format preference alone is not an execution of that rollout.
+
+Read-only inspection found stacked market writers in both the HU-082 integrated
+base (`515b9f8`, `buildMarketSheetValues`/`upsertShiftRowInSheet`) and HU-083
+(`a1ef9ca`, `buildShiftSheetsHumanBlocks`/ordinary export). The supplied test
+copy's horizontal market layout and delivery round column do not match those
+writers. The maintainer has now confirmed the provenance: the current season
+was prepared through Codex as an emergency workaround before this app feature
+was ready. The next annual generation will run through the app.
+
+Retain HU-083's existing readable layout and stacked market participants. The
+authorized isolated copy adaptation is complete, including native backup, fresh
+read-back, visual inspection and a 72-shift anonymized reader/planner rehearsal
+with no assignment changes or backend patches. See `inventory.md` for boundaries.
+No additional parser, generator or production migration executor was added.
+
+The actual develop Firestore comparison remains the next cut-28 operation, after
+verifying the separate auditor and encrypted evidence destination required above.
+The synthetic rehearsal does not close that gate. HU-085 must coordinate backend
+activation with adaptation/read-back of the active production workbook, preserving
+the current season's dates, assignees, rounds and annotations rather than
+regenerating it. Neither production nor configured develop was modified here.

@@ -263,3 +263,38 @@ corrective cuts for demonstrated defects. Access/approval waiting is not a cut.
 After cut 27, two planned outcomes remain: (28) real evidence and exact repair or
 zero-write deferral, then (29) acceptance/delivery. No new technical cut is added.
 Any demonstrated future defect must be reported against these outcomes.
+
+
+Cut 28 started on 2026-09-09 after pushing cut 27 as `a1ef9ca`. Firebase MCP
+and bounded Drive metadata access are working; the CLI has no registered account.
+The separate auditor and encrypted backup destination remain unidentified.
+[The access checkpoint](inventory.md#cut-28-access-checkpoint--2026-09-09) records
+current deployed-function presence and the exact limits of these metadata reads.
+No trusted source capture or accepted deferral exists yet; cut 28 remains open.
+
+
+The maintainer clarified on 2026-09-11 that participant orientation is immaterial,
+but writing and reading must agree in both environments and any active-format
+change must include the production workbook. The maintainer subsequently confirmed
+that Codex prepared the current season provisionally before the app feature was
+ready; the next annual generation will use the app. The accepted contract retains
+HU-083's stacked market layout and readable delivery fields.
+
+The isolated reference was backed up and adapted without changing dates or
+assignees. Fresh bounded read-back verified all four adapted tabs, the unchanged
+historical/summary tabs and 54 preserved round values. Visual inspection passed.
+The actual read-back, anonymized in memory and processed with a synthetic baseline,
+produced 72 shifts, no missing or changed assignments and zero import patches.
+This resolves the reference layout discrepancy. It does not establish real
+Firestore identities, ownership, helper continuity or production readiness.
+Cut 28 remains open for trusted source evidence and exact repair or deferral;
+coordinated production adaptation/activation remains HU-085 work.
+
+The separately authorized Android dependency update is pushed as `aa95dc9`.
+AGP 9.4.0, Kotlin 2.4.20, Compose BOM 2026.09.00 and Firebase BOM 34.19.0 pass
+480 unit tests and 23 connected tests on Pixel 8 Pro API 35 (Android 15).
+Lint completes with 136 existing warnings and two hints, compared with 141 warnings
+and two hints under the prior catalog; an exact finding comparison shows no new
+finding. Physical-phone installation was rejected and is not counted as a pass.
+The iOS checkout edits are preserved. No Functions logic changed during this
+follow-up; the cut-27 backend gate is not presented as newly rerun evidence.

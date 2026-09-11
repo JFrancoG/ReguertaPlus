@@ -1,20 +1,22 @@
 # [HU-083] Multi-season shift Sheets and develop repair
 
-## Cut 27 checkpoint — 2026-09-09
+## Cut 28 checkpoint — 2026-09-11
 
-Cut 26 pushed: `ec301ec`. Cut 27 is local: complete integration review fixes
-readable helper write-back, already-effective instructions, annotations and the
-repair planner's obsolete technical-table restriction. Reviewed calendars and
-readable repair/inverse are covered. Lint/build pass; 525 local passes and 275
-emulator executions across 20 suites; all 51 local skips pass there. No live writes.
-Remaining: cut 28 real evidence/repair-or-deferral, cut 29 acceptance/delivery.
-Details: `spec/shifts/hu-083-multi-season-shift-sheets/acceptance-review.md`.
+Cut 27 pushed: `a1ef9ca`; lint/build, 525 local passes and 275 emulator executions.
+Android catalog update pushed: `aa95dc9`; 480 unit/23 emulator tests pass, no new lint findings.
+The maintainer confirms Codex provisionally prepared the current season; next year uses the app.
+The isolated copy is backed up/adapted to HU-083's readable, stacked format. Fresh read-back
+preserves 72 shifts/assignees and 54 rounds; anonymized synthetic-baseline import yields no patches.
+Actual develop Firestore evidence, separate auditor/backups and repair-or-deferral remain pending.
+Only the isolated copy was edited; production/develop are unchanged. HU-085 must pair production
+workbook adaptation with backend activation, preserving current assignments.
+Details: `spec/shifts/hu-083-multi-season-shift-sheets/plan.md` and `inventory.md`.
 
 ## Tracking
 
 - GitHub issue: #267
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/267
-- State: IN PROGRESS — twenty-fourth cut pushed; twenty-fifth legacy retirement validated locally
+- State: IN PROGRESS — cut 28 copy rehearsal complete; trusted source evidence pending
 - Planning branch: `codex/hu-082-shift-operations-planning`
 - Implementation branch: `codex/hu-083-multi-season-shift-sheets`
 - Base commit: `515b9f847dd6000b15962d9cf75d0f32a3bf49c0`
