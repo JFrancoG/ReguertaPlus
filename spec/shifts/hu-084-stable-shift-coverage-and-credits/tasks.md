@@ -7,7 +7,11 @@
 - [x] Implement the administrative lifecycle with transactional assignment,
   completion/credit, idempotency, membership checks and private Rules.
 - [x] Add unit, emulator race/history/eligibility and client-access tests.
-- [ ] Complete automatic selection and backend integration (outcome group 1).
+- [x] Add local frozen reserve FIFO, bounded volunteer registration/withdrawal,
+  deterministic offers, current eligibility/claim checks and exhausted-selection
+  state, reusing acceptance/completion and adding race/Rules tests.
+- [ ] Complete draw, administrative terminal resolution and backend integration
+  (outcome group 1).
 - [ ] Complete credit/membership/planner integration (outcome group 2).
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 

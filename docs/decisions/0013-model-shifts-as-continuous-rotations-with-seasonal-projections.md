@@ -910,3 +910,10 @@ activation remain subject to assembly ratification. Local completion/credit test
 are evidence of this limited implementation, not acceptance of the full policy.
 See `spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md` for the implemented
 scope and remaining identity, writer-fence, event and planner integration.
+
+Local selection now uses explicit `fifo-signup-v1` test settings: reserve entry
+order and volunteer registration order, with ordinal user-ID ties and a required
+volunteer response window. It freezes the candidate pool, rechecks eligibility and
+reserve revisions, and stops at `drawRequired` on exhaustion. Reserve lifecycle,
+proximity preferences beyond adjacent leads, final ordering/deadlines and future
+entropy remain unratified. There is no automatic live enrollment, draw or deploy.

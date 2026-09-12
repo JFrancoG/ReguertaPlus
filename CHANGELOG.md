@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-12 | ✨ feat(shifts): add reserve and volunteer selection
+
 - 2026-09-12 | ✨ feat(shifts): add provisional coverage lifecycle
 
 - 2026-09-08 | ✨ feat(sheets): adopt reviewed historical layouts

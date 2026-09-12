@@ -6,10 +6,14 @@ The maintainer explicitly requested the implementation branch and grouped delive
 Branch `codex/hu-084-stable-shift-coverage-and-credits` is created from merged
 HU-083 (`327e563`) in its own worktree. This is not assembly ratification.
 The maintainer authorized provisional local implementation on 2026-09-12.
-The administrative coverage lifecycle now has emulator-only transactional code
-and tests. Automatic selection, planner consumption and mobile integration remain
-pending; no live endpoint or deployment is enabled. Lint/build, 20 unit/regression
-tests and 22 emulator/Rules tests pass. See `plan.md` for scope and evidence.
+The administrative lifecycle was committed/pushed as `b8ce4ea`. The next local
+implementation adds frozen reserve FIFO, bounded volunteer registration/withdrawal,
+deterministic offers and current eligibility checks to the same acceptance/credit
+path. Lint/build, 23 unit/regression tests and 31 emulator/Rules tests pass. The
+explicit `fifo-signup-v1` test policy remains provisional. Reserve enrollment/exit,
+committed future-entropy draw, terminal administrative resolution, live backend
+integration, planner consumption and native flows remain pending. No live endpoint
+or deployment is enabled. See `plan.md` for current scope and evidence.
 
 The operational plan groups work into three complete outcomes: coverage backend
 with persistence/security/tests; credit/membership/atomic-planner integration;

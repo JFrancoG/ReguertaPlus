@@ -947,3 +947,11 @@ locales de cumplimiento/crédito acreditan este alcance limitado, no la aceptaci
 de toda la política. El alcance implementado y la integración pendiente de
 identidad, bloqueos de escritura, eventos y planificador figuran en
 `spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md`.
+
+La selección local usa parámetros explícitos de prueba `fifo-signup-v1`: orden de
+entrada en reserva y de inscripción voluntaria, desempate ordinal por ID y plazo
+obligatorio de convocatoria. Fija la lista de candidatos, revalida elegibilidad y
+revisiones de reserva, y termina en `drawRequired` al agotarse. Siguen sin ratificar
+el ciclo de reserva, la proximidad más allá de responsables adyacentes, el orden y
+los plazos definitivos y la entropía futura. No hay altas automáticas reales,
+sorteo ni despliegue.

@@ -39,7 +39,7 @@ const materialize = (id, type, date, assigned, helper = null) => {
 const snapshot = async () => {
   const output = {};
   for (const collection of ["shifts", "users", "shiftCoverageCases", "shiftCoverageCredits",
-    "shiftCoverageSlots", "shiftCoverageMemberClaims", "shiftCoverageOperations", "shiftCoverageLedgerState"]) {
+    "shiftCoverageSlots", "shiftCoverageReserves", "shiftCoverageMemberClaims", "shiftCoverageOperations", "shiftCoverageLedgerState"]) {
     output[collection] = (await db.collection(`${root}/${collection}`).get()).docs.map((d) => [d.id, d.data()]);
   }
   return output;
@@ -69,7 +69,8 @@ before(() => {
   assert.equal(process.env.FIRESTORE_EMULATOR_HOST, "127.0.0.1:8798");
   assert.equal(process.env.GCLOUD_PROJECT, projectId);
   db = new Firestore({projectId, host: "127.0.0.1:8798", ssl: false});
-  store = createProvisionalShiftCoverageStore({nowMillis: () => now, maximumOfferWindowMillis: 60_000});
+  store = createProvisionalShiftCoverageStore({nowMillis: () => now, maximumOfferWindowMillis: 60_000,
+    selectionPolicy: {version: "fifo-signup-v1", volunteerWindowMillis: 1000}});
 });
 after(async () => { if (store) await store.close(); if (db) await db.terminate(); });
 beforeEach(async () => {
@@ -235,4 +236,140 @@ run("an offered member's removal does not prevent administrator expiry and cance
   await execute("case-1", "cancel", "admin", {reason: "Vacancy no longer needed"});
   assert.equal((await db.collection(`${root}/shiftCoverageSlots`).get()).size, 0);
   assert.equal((await db.collection(`${root}/shiftCoverageCredits`).get()).size, 0);
+});
+
+const reserve = (userId, enteredAtMillis, extra = {}) => ref("shiftCoverageReserves",
+  digest(["delivery", userId]).slice("shift-planning:v1:sha256:".length)).set({userId,
+  type: "delivery", active: true, enteredAtMillis, revision: 1, ...extra});
+const startSelection = () => execute("case-1", "startSelection", "admin");
+const offerNext = () => execute("case-1", "offerNext", "admin", {expiresAtMillis: now + 10_000});
+const selection = async () => (await read("shiftCoverageCases", "case-1")).value.selection;
+
+run("reserve FIFO continues after decline and expiry, then collects volunteers and reuses completion", async () => {
+  await reserve("e", now - 100); await reserve("d", now - 200);
+  await open(); await startSelection();
+  const original = await selection();
+  assert.equal((await offerNext()).case.offer.userId, "d");
+  await execute("case-1", "decline", "d");
+  assert.equal((await offerNext()).case.offer.userId, "e");
+  now += 10_000;
+  await execute("case-1", "expire", "admin");
+  assert.equal((await offerNext()).case.selection.phase, "volunteers");
+  await execute("case-1", "volunteer", "f");
+  await rejectWithoutWrites(await makeCommand("case-1", "offerNext", {expiresAtMillis: now + 5000}),
+    "admin", "coverage_volunteer_window_open");
+  now += 1000;
+  const offered = (await offerNext()).case;
+  assert.equal(offered.offer.userId, "f"); assert.equal(offered.offer.source, "volunteer");
+  await execute("case-1", "accept", "f");
+  now = (await read("shifts", "shift_delivery_20270901")).date.toMillis() + 1000;
+  await execute("case-1", "complete", "admin");
+  assert.equal((await read("shiftCoverageCredits", "case-1")).userId, "f");
+  assert.deepEqual((await selection()).snapshot, original.snapshot);
+  assert.equal((await selection()).snapshotDigest, original.snapshotDigest);
+  assert.deepEqual((await selection()).attemptedUserIds, ["d", "e", "f"]);
+});
+
+run("source snapshot records exclusions, ignores late entrants and skips changed reserves", async () => {
+  await reserve("d", now - 200); await reserve("e", now - 100);
+  await reserve("a", now - 400); await reserve("b", now - 300);
+  await open(); await startSelection();
+  const original = await selection();
+  assert.equal(original.snapshot.find((v) => v.userId === "a").exclusion, "already_assigned");
+  assert.equal(original.snapshot.find((v) => v.userId === "b").exclusion, "adjacent_delivery");
+  await reserve("f", now - 500);
+  await ref("users", "d").update({isActive: false});
+  const offered = (await offerNext()).case;
+  assert.equal(offered.offer.userId, "e");
+  assert.ok(offered.selection.latestExclusions.some((e) => e.userId === "d" && e.reason === "inactive"));
+  await reserve("e", now - 100, {active: false, revision: 2});
+  await rejectWithoutWrites(await makeCommand("case-1", "accept"), "e", "coverage_reserve_changed");
+  assert.deepEqual((await selection()).snapshot, original.snapshot);
+});
+
+run("volunteer order is server time then ID; withdrawal and late response cannot change it", async () => {
+  await open(); await startSelection(); await offerNext();
+  const first = await makeCommand("case-1", "volunteer");
+  await store.execute(first, "f");
+  const after = await snapshot();
+  assert.equal((await store.execute(first, "f")).replayed, true);
+  assert.deepEqual(await snapshot(), after);
+  await execute("case-1", "volunteer", "e");
+  await execute("case-1", "volunteer", "d");
+  await execute("case-1", "withdrawVolunteer", "d");
+  now += 1000;
+  await rejectWithoutWrites(await makeCommand("case-1", "volunteer"), "admin", "coverage_volunteer_window_closed");
+  await rejectWithoutWrites(await makeCommand("case-1", "withdrawVolunteer"), "e", "coverage_volunteer_window_closed");
+  assert.equal((await offerNext()).case.offer.userId, "e");
+  await execute("case-1", "decline", "e");
+  assert.equal((await offerNext()).case.offer.userId, "f");
+});
+
+run("exhausted selection stops at drawRequired without an invented draw or administrator override", async () => {
+  await open(); await startSelection(); await offerNext();
+  now += 1000;
+  const result = await offerNext();
+  assert.equal(result.case.selection.phase, "drawRequired");
+  assert.equal(result.case.offer, null);
+  assert.deepEqual((await read("shifts", "shift_delivery_20270901")).assignedUserIds, ["a"]);
+  await rejectWithoutWrites(await makeCommand("case-1", "offerNext", {expiresAtMillis: now + 5000}),
+    "admin", "coverage_draw_required");
+  await rejectWithoutWrites(await makeCommand("case-1", "offer", {userId: "d", reason: "Override", expiresAtMillis: now + 5000}),
+    "admin", "coverage_selection_admin_override_blocked");
+  assert.equal((await db.collection(`${root}/shiftCoverageCredits`).get()).size, 0);
+});
+
+run("simultaneous selection offers commit once and reject identity or snapshot replacement", async () => {
+  await reserve("d", now - 1); await open();
+  await rejectWithoutWrites(await makeCommand("case-1", "startSelection"), "d", "coverage_actor_forbidden");
+  await startSelection();
+  await rejectWithoutWrites(await makeCommand("case-1", "startSelection"), "admin", "coverage_selection_already_started");
+  const command = await makeCommand("case-1", "offerNext", {expiresAtMillis: now + 1000});
+  await rejectWithoutWrites({...command, userId: "f"}, "admin", "invalid_coverage_command");
+  const results = await Promise.allSettled([store.execute(command, "admin"),
+    store.execute({...command, operationId: "parallel"}, "admin")]);
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  assert.deepEqual((await selection()).attemptedUserIds, ["d"]);
+});
+
+run("a volunteer's new same-type claim is excluded when the response window closes", async () => {
+  await open("other", "shift_delivery_20270908", "c");
+  // A second delivery requires its own successor; use a separately held claim
+  // with exactly the schema written by the already validated acceptance path.
+  await open(); await startSelection(); await offerNext();
+  await execute("case-1", "volunteer", "d");
+  await ref("shiftCoverageMemberClaims", digest(["delivery", "d"]).slice("shift-planning:v1:sha256:".length))
+    .set({caseId: "other", userId: "d", type: "delivery", state: "accepted"});
+  now += 1000;
+  const result = (await offerNext()).case;
+  assert.equal(result.selection.phase, "drawRequired");
+  assert.deepEqual(result.selection.latestExclusions, [{userId: "d", reason: "same_type_claim"}]);
+});
+
+run("market selection isolates its reserve pool and preserves three assignees and owners", async () => {
+  await reserve("f", now - 500);
+  await ref("users", "d").update({roles: ["member", "producer"], isCommonPurchaseManager: true});
+  await ref("shiftCoverageReserves", digest(["market", "d"]).slice("shift-planning:v1:sha256:".length))
+    .set({userId: "d", type: "market", active: true, enteredAtMillis: now - 100, revision: 1});
+  await open("case-1", "shift_market_20270904"); await startSelection();
+  const offered = (await offerNext()).case;
+  assert.equal(offered.offer.userId, "d");
+  await execute("case-1", "accept", "d");
+  const market = await read("shifts", "shift_market_20270904");
+  assert.deepEqual(market.assignedUserIds, ["d", "b", "c"]);
+  assert.deepEqual(market.rotationOwnerUserIds, ["a", "b", "c"]);
+});
+
+run("server clock regression cannot reorder volunteer registration", async () => {
+  await open(); await startSelection(); await offerNext();
+  now += 50;
+  await execute("case-1", "volunteer", "e");
+  now -= 10;
+  await rejectWithoutWrites(await makeCommand("case-1", "volunteer"), "d", "invalid_coverage_clock");
+});
+
+run("selection cannot reset a case that already attempted an administrative offer", async () => {
+  await open(); await offer(); await execute("case-1", "decline", "d");
+  await rejectWithoutWrites(await makeCommand("case-1", "startSelection"), "admin",
+    "coverage_selection_requires_new_case");
 });

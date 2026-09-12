@@ -67,7 +67,7 @@ Run from `functions`: `npm run test:shift-coverage` and
 The latter uses `firebase.coverage-emulator.json`, with Firestore on port 8798.
 Fixtures are synthetic; no live develop/production data or Sheets are read/written.
 
-### Validation — 2026-09-12
+### Validation of administrative lifecycle — 2026-09-12
 
 - `npm run lint` and `npm run build`: passed, no compiler/lint diagnostics.
 - Coverage input/eligibility/isolation plus existing swap/publication/writer tests:
@@ -80,18 +80,62 @@ Fixtures are synthetic; no live develop/production data or Sheets are read/writt
 - Android/iOS are unchanged and not validated in this checkpoint. Their coverage
   product flows remain pending on both platforms.
 
+### Local reserve/volunteer selection — 2026-09-12
+
+The administrative lifecycle was committed and pushed as `b8ce4ea`. The next
+cohesive implementation adds selection to that same lifecycle:
+
+- An administrator starts selection once, immediately after opening the case;
+  previous administrative offers cannot be erased by restarting selection. The
+  case retains a sorted candidate
+  snapshot, predicate digest, initial exclusions, reserve entry/revision and policy
+  digest. Attempts never replace that pool; operation receipts retain successive
+  exclusions and responses. Member/admin identities remain trusted adapter inputs.
+- `fifo-signup-v1` is an explicit provisional test policy: reserves sort by server
+  entry time then ordinal user ID; volunteers sort by server registration time then
+  the same tie-break. `volunteerWindowMillis` is required configuration. These
+  choices are not assembly ratification. A backwards server clock is rejected.
+- Each `offerNext` selects at most one currently eligible member from the frozen
+  pool. Acceptance still rechecks claims, membership, public revisions and delivery
+  neighbors. A reserve exit/re-entry revision invalidates an outstanding reserve
+  offer; late reserve entrants cannot enter the frozen FIFO. Decline/expiry advances
+  to remaining candidates, never repeats a previously offered member.
+- Exhausting reserve opens the configured volunteer window. Members register or
+  withdraw themselves before the deadline; selection waits until that deadline.
+  Missing/inactive/real-producer, assigned/adjacent and same-type-claim exclusions
+  are explicit. Completed credits continue to block more same-type coverage.
+- Exhausting volunteers records `drawRequired` without assigning anyone. No random
+  winner, seed or silent administrator override is introduced. An administrator
+  can cancel the case with a reason; documented manual reopening remains a separate
+  administrative action, not proof that automatic selection was exhausted fairly.
+- `shiftCoverageReserves` is backend-private under both Rules policies. In this
+  local rehearsal it is seeded with synthetic entries. Automatic reserve enrollment,
+  exit and membership transitions are still pending; the entry schema does not
+  decide when a real member enters/leaves the reserve pool.
+
+Validation of the extended lifecycle: `npm run lint` and `npm run build` passed;
+23 unit/regression tests and 31 emulator/Rules tests passed, with no failures or
+skips (21 lifecycle scenarios, 2 access matrices, 8 phase-1 regressions). The new
+scenarios cover full FIFO-to-volunteer completion, stable snapshots, eligibility
+and reserve drift, withdrawal/deadlines/ties, simultaneous offers, same-type
+claims, market parity, backwards clocks and attempts to reset selection history.
+No native files were changed; native coverage screens remain pending on both apps.
+
 ### Remaining integration boundary
 
-This is the administrative path within outcome group 1, not a complete backend.
-Reserve FIFO, volunteers and committed future-entropy draw remain unimplemented.
-The local adapter bounds source reads to 1,000 documents and deliberately has no
-HTTP endpoint, public user-facing projection, notifications or Sheets effects.
-Before any live endpoint, integrate authenticated identity, the existing writer
-resource fences, admission limits and public-event/notification authority rather
-than importing this prototype. Credit consumption, ledger binding to staged
-plans/activation, claim release on consumption, membership changes and both native
-clients remain in the following outcome groups. Production planners still reject
-non-zero credits. Assembly decisions and deployment remain separate gates.
+This is still outcome group 1, not a complete production backend. The committed
+future-entropy draw and its administrative terminal resolution remain pending.
+Proximity preferences beyond immediate delivery neighbors also remain a business
+policy decision; the local implementation enforces the hard neighbor invariant.
+The local adapter bounds shifts to 1,000 documents and selection inputs to 250
+users/reserves/claims per queried source. It deliberately has no HTTP endpoint,
+public user-facing projection, notifications or Sheets effects. Before any live
+endpoint, integrate authenticated identity, existing writer resource fences,
+admission limits and public-event/notification authority. Credit consumption,
+ledger binding to staged plans/activation, claim release on consumption, membership
+changes and both native clients remain in the following outcome groups.
+Production planners still reject non-zero credits. Assembly decisions and
+deployment remain separate gates.
 
 ## 2. Technical approach after approval
 

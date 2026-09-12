@@ -15,8 +15,10 @@
 The maintainer explicitly authorized implementing this proposal provisionally for
 local tests. This authorizes the implementation branch and emulator-only behavior;
 it does not ratify the proposal or authorize deployment/live activation. The
-administrative coverage lifecycle is the initial implementation. Selection order,
-reserve exit, draw entropy and response windows remain pending business decisions.
+administrative lifecycle now includes a frozen reserve FIFO and bounded volunteer
+selection using explicit `fifo-signup-v1` test settings. Reserve exit, draw entropy,
+proximity preferences, response windows and final ordering remain pending business
+decisions; the tested provisional behavior is not the ratified live policy.
 See `plan.md` for implemented behavior, validation and integration limits.
 
 ## Context and problem

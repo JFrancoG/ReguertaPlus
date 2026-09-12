@@ -1,3 +1,4 @@
+import type {CoverageSelection} from "./shift-coverage-selection.js";
 import {HttpRequestError} from "./backend-security.js";
 import {isEligibleForShiftRotation} from "./shift-eligibility.js";
 
@@ -15,7 +16,9 @@ type CommandBase = {
 export type ShiftCoverageCommand = CommandBase & (
   | {action: "open"; shiftId: string; absentUserId: string; reason: string}
   | {action: "offer"; userId: string; reason: string; expiresAtMillis: number}
-  | {action: "accept" | "decline" | "expire" | "complete"}
+  | {action: "accept" | "decline" | "expire" | "complete" |
+      "startSelection" | "volunteer" | "withdrawVolunteer"}
+  | {action: "offerNext"; expiresAtMillis: number}
   | {action: "cancel" | "fail"; reason: string}
 );
 
@@ -34,7 +37,9 @@ export type ShiftCoverageCase = {
   status: "open" | "offered" | "accepted" |
     "completed" | "cancelled" | "failed";
   revision: number;
+  selection?: CoverageSelection;
   offer: {
+    source: "admin" | "reserve" | "volunteer";
     id: string;
     userId: string;
     expiresAtMillis: number;
@@ -119,6 +124,11 @@ export const parseShiftCoverageCommand = (
       reason: reason(body.reason),
       expiresAtMillis: revision(body.expiresAtMillis)};
     break;
+  case "offerNext":
+    command = {...base, action: "offerNext",
+      expiresAtMillis: revision(body.expiresAtMillis)};
+    break;
+  case "startSelection": case "volunteer": case "withdrawVolunteer":
   case "accept": case "decline": case "expire": case "complete":
     command = {...base, action: body.action};
     break;

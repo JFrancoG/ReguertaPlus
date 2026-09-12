@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {test} = require("node:test");
 const {initializeTestEnvironment, assertFails} = require("@firebase/rules-unit-testing");
-const collections = ["shiftCoverageCases", "shiftCoverageOperations", "shiftCoverageSlots",
+const collections = ["shiftCoverageReserves", "shiftCoverageCases", "shiftCoverageOperations", "shiftCoverageSlots",
   "shiftCoverageMemberClaims", "shiftCoverageCredits", "shiftCoverageLedgerState"];
 
 for (const policy of ["strict", "phase1"]) {

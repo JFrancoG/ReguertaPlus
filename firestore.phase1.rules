@@ -43,6 +43,7 @@ service cloud.firestore {
         "shiftPlanningPublicEventLedgers",
         "deliveryCalendarMutationReceipts",
         "shiftCoverageCases",
+        "shiftCoverageReserves",
         "shiftCoverageOperations",
         "shiftCoverageSlots",
         "shiftCoverageMemberClaims",

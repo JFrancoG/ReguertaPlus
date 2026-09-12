@@ -1,3 +1,12 @@
+import {
+  advanceCoverageSelection,
+  coverageCandidateExclusion,
+  CoverageCandidate,
+  CoverageReserve,
+  CoverageSelectionPolicy,
+  createCoverageSelection,
+  parseCoverageSelectionPolicy,
+} from "./shift-coverage-selection.js";
 import {Firestore, Timestamp} from "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {
@@ -49,6 +58,7 @@ const context = (shift: ShiftPlanningPublicShiftDocument | undefined) =>
 export const createProvisionalShiftCoverageStore = (options: {
   nowMillis: () => number;
   maximumOfferWindowMillis: number;
+  selectionPolicy?: CoverageSelectionPolicy;
 }) => {
   if (process.env.GCLOUD_PROJECT !== projectId ||
       process.env.FIRESTORE_EMULATOR_HOST !== host ||
@@ -57,6 +67,8 @@ export const createProvisionalShiftCoverageStore = (options: {
     return rejectCoverage("coverage_provisional_emulator_required");
   }
   const {nowMillis, maximumOfferWindowMillis} = options;
+  const selectionPolicy = options.selectionPolicy ?
+    parseCoverageSelectionPolicy(options.selectionPolicy) : undefined;
   const db = new Firestore({projectId, host, ssl: false});
   const ref = (collection: string, id: string) =>
     db.doc(`${root}/${collection}/${id}`);
@@ -79,7 +91,8 @@ export const createProvisionalShiftCoverageStore = (options: {
             ref("shiftPlanningState", "current"));
         const actor = coverageMember(actorSnapshot.data());
         if (!actor.active ||
-            (["offer", "expire", "complete", "fail"].includes(command.action) &&
+            (["offer", "offerNext", "startSelection", "expire", "complete",
+              "fail"].includes(command.action) &&
               !actor.admin)) return rejectCoverage("coverage_actor_forbidden");
         const authority =
           captureShiftPlanningWriterAuthority(maintenance.data());
@@ -103,6 +116,9 @@ export const createProvisionalShiftCoverageStore = (options: {
         if ((previous?.revision ?? 0) !== command.expectedRevision ||
             (command.action === "open") === Boolean(previous)) {
           return rejectCoverage("coverage_revision_conflict");
+        }
+        if (previous && now < previous.updatedAtMillis) {
+          return rejectCoverage("invalid_coverage_clock");
         }
         if (previous) {
           assertShiftPlanningWriterAuthority({
@@ -141,20 +157,10 @@ export const createProvisionalShiftCoverageStore = (options: {
         }
         const slotRef = ref("shiftCoverageSlots", hashId([shiftId,
           String(positionIndex)]));
-        const candidateId = command.action === "offer" ? command.userId :
-          previous?.acceptedUserId ?? previous?.offer?.userId;
-        const claimRef = candidateId ?
-          ref("shiftCoverageMemberClaims", hashId([shift.type,
-            candidateId])) : null;
         const creditRef = ref("shiftCoverageCredits", command.caseId);
         const ledgerRef = ref("shiftCoverageLedgerState", shift.type);
         const [slotSnapshot, creditSnapshot, ledgerSnapshot] =
           await transaction.getAll(slotRef, creditRef, ledgerRef);
-        const claim = claimRef ? await transaction.get(claimRef) : null;
-        const candidate = candidateId && ["offer",
-          "accept"].includes(command.action) ? coverageMember(
-            (await transaction.get(ref("users", candidateId))).data(),
-          ) : null;
         if (command.action !== "open" &&
           slotSnapshot.data()?.caseId !== command.caseId) {
           return rejectCoverage("coverage_slot_changed");
@@ -173,6 +179,100 @@ export const createProvisionalShiftCoverageStore = (options: {
           target: context(shift), previous: context(predecessor?.data),
           next: context(successor?.data),
         });
+        let preparedSelection = previous?.selection;
+        let selectedUserId: string | null = null;
+        let candidates: CoverageCandidate[] = [];
+        const needsSelection = ["startSelection", "offerNext", "volunteer",
+          "withdrawVolunteer"].includes(command.action) ||
+          (command.action === "accept" &&
+            previous?.offer?.source === "reserve");
+        if (needsSelection) {
+          if (!previous || previous.status !==
+              (command.action === "accept" ? "offered" : "open")) {
+            return rejectCoverage("coverage_state_conflict");
+          }
+          if (command.action === "startSelection" && previous.selection) {
+            return rejectCoverage("coverage_selection_already_started");
+          }
+          if (command.action === "startSelection" && previous.revision !== 1) {
+            return rejectCoverage("coverage_selection_requires_new_case");
+          }
+          if (command.action !== "startSelection" && !previous.selection) {
+            return rejectCoverage("coverage_selection_missing");
+          }
+          const users = await transaction.get(
+            db.collection(`${root}/users`).limit(251));
+          const reserves = await transaction.get(
+            db.collection(`${root}/shiftCoverageReserves`)
+              .where("type", "==", shift.type).limit(251));
+          const claims = await transaction.get(
+            db.collection(`${root}/shiftCoverageMemberClaims`)
+              .where("type", "==", shift.type).limit(251));
+          if ([users, reserves, claims].some((items) => items.size > 250)) {
+            return rejectCoverage("coverage_selection_source_limit");
+          }
+          const reserveByUser = new Map<string, CoverageReserve>();
+          for (const document of reserves.docs) {
+            const value = document.data() as CoverageReserve;
+            const id = coverageId(value.userId);
+            if (document.id !== hashId([shift.type, id]) ||
+                typeof value.active !== "boolean" ||
+                !Number.isSafeInteger(value.enteredAtMillis) ||
+                value.enteredAtMillis < 0 || value.enteredAtMillis > now ||
+                !Number.isSafeInteger(value.revision) || value.revision < 1) {
+              return rejectCoverage("invalid_coverage_reserve");
+            }
+            reserveByUser.set(id, {userId: id, type: shift.type,
+              active: value.active, enteredAtMillis: value.enteredAtMillis,
+              revision: value.revision});
+          }
+          const claimed = new Set(claims.docs.map((item) => {
+            const id = coverageId(item.data().userId);
+            if (item.id !== hashId([shift.type, id])) {
+              return rejectCoverage("invalid_coverage_claim");
+            }
+            return id;
+          }));
+          const adjacentUserIds = shift.type === "delivery" ?
+            [predecessor?.data.assignedUserIds[0],
+              successor?.data.assignedUserIds[0]]
+              .filter((id): id is string => Boolean(id)) : [];
+          candidates = users.docs.map((item) => {
+            let membership;
+            try {
+              membership = coverageMember(item.data());
+            } catch {
+              membership = {invalid: true};
+            }
+            return {userId: coverageId(item.id),
+              memberDigest: digest(membership),
+              reserve: reserveByUser.get(item.id) ?? null,
+              exclusion: coverageCandidateExclusion({userId: item.id,
+                memberValue: item.data(), claimed: claimed.has(item.id),
+                assignedUserIds: shift.assignedUserIds, adjacentUserIds})};
+          });
+          if (command.action === "startSelection") {
+            preparedSelection = createCoverageSelection({caseId: command.caseId,
+              policy: parseCoverageSelectionPolicy(selectionPolicy),
+              candidates});
+          } else if (command.action === "offerNext" && preparedSelection) {
+            const advanced = advanceCoverageSelection({
+              selection: preparedSelection, candidates, now});
+            preparedSelection = advanced.selection;
+            selectedUserId = advanced.userId;
+          }
+        }
+        const candidateId = command.action === "offerNext" ? selectedUserId :
+          command.action === "offer" ? command.userId :
+            previous?.acceptedUserId ?? previous?.offer?.userId;
+        const claimRef = candidateId ?
+          ref("shiftCoverageMemberClaims", hashId([shift.type, candidateId])) :
+          null;
+        const claim = claimRef ? await transaction.get(claimRef) : null;
+        const candidate = candidateId && ["offer", "offerNext",
+          "accept"].includes(command.action) ? coverageMember(
+            (await transaction.get(ref("users", candidateId))).data(),
+          ) : null;
         const pending = () => {
           if (shift.completion.state !== "uncompleted" ||
               shift.status === "swap_pending" || shift.date.toMillis() <= now) {
@@ -229,11 +329,61 @@ export const createProvisionalShiftCoverageStore = (options: {
           next = {...current, revision: current.revision + 1,
             updatedAtMillis: now};
           switch (command.action) {
-          case "offer":
+          case "startSelection":
+            pending();
+            next.selection = preparedSelection ??
+              rejectCoverage("coverage_selection_missing");
+            break;
+          case "volunteer": case "withdrawVolunteer": {
+            pending();
+            const selection = structuredClone(current.selection) ??
+              rejectCoverage("coverage_selection_missing");
+            if (selection.phase !== "volunteers" ||
+                selection.volunteerClosesAtMillis === null ||
+                now >= selection.volunteerClosesAtMillis) {
+              return rejectCoverage("coverage_volunteer_window_closed");
+            }
+            const entry = selection.volunteers.find(
+              (v) => v.userId === actorId);
+            if (command.action === "withdrawVolunteer") {
+              if (!entry || entry.withdrawn) {
+                return rejectCoverage("coverage_volunteer_missing");
+              }
+              entry.withdrawn = true;
+            } else {
+              const source = selection.snapshot.find(
+                (v) => v.userId === actorId);
+              const live = candidates.find((v) => v.userId === actorId);
+              if (!source || source.exclusion || !live || live.exclusion ||
+                  selection.attemptedUserIds.includes(actorId) || entry) {
+                return rejectCoverage("coverage_candidate_ineligible");
+              }
+              selection.volunteers.push({userId: actorId,
+                receivedAtMillis: now, withdrawn: false});
+            }
+            next.selection = selection;
+            break;
+          }
+          case "offer": case "offerNext":
             pending();
             if (current.status !== "open" ||
                 shift.assignedUserIds[positionIndex] !== current.absentUserId) {
               return rejectCoverage("coverage_state_conflict");
+            }
+            if (command.action === "offerNext") {
+              next.selection = preparedSelection ??
+                rejectCoverage("coverage_selection_missing");
+              if (!selectedUserId) {
+                const closes = next.selection.volunteerClosesAtMillis;
+                if (closes !== null && (!Number.isSafeInteger(closes) ||
+                    closes >= shift.date.toMillis())) {
+                  return rejectCoverage("coverage_offer_deadline");
+                }
+                break;
+              }
+            } else if (current.selection) {
+              return rejectCoverage(
+                "coverage_selection_admin_override_blocked");
             }
             eligible();
             if (command.expiresAtMillis <= now ||
@@ -242,7 +392,12 @@ export const createProvisionalShiftCoverageStore = (options: {
               return rejectCoverage("coverage_offer_deadline");
             }
             next.status = "offered";
-            next.offer = {id: command.operationId, userId: command.userId,
+            next.offer = {id: command.operationId,
+              userId: candidateId ??
+                rejectCoverage("coverage_candidate_missing"),
+              source: command.action === "offer" ? "admin" :
+                preparedSelection?.phase === "reserve" ?
+                  "reserve" : "volunteer",
               expiresAtMillis: command.expiresAtMillis,
               assignmentContextDigest};
             break;
@@ -261,6 +416,17 @@ export const createProvisionalShiftCoverageStore = (options: {
             if (command.action === "accept") {
               pending();
               eligible();
+              if (current.offer.source === "reserve") {
+                const original = current.selection?.snapshot.find(
+                  (entry) => entry.userId === actorId)?.reserve;
+                const live = candidates.find(
+                  (entry) => entry.userId === actorId)?.reserve;
+                if (!original || !live?.active ||
+                    live.revision !== original.revision ||
+                    live.enteredAtMillis !== original.enteredAtMillis) {
+                  return rejectCoverage("coverage_reserve_changed");
+                }
+              }
               const sameContext = current.offer.assignmentContextDigest ===
                 assignmentContextDigest;
               const sameAssignee = shift.assignedUserIds[positionIndex] ===
