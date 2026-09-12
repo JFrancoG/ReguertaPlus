@@ -568,7 +568,6 @@ const buildSourceInTransaction = async (input: {
   environment: ShiftPlanningEnvironment;
 }): Promise<ShiftPlanningLiveSourceDocument> => {
   const {firestore, transaction, environment} = input;
-  await assertProvisionalShiftMembershipSource(input);
   const root = planningRoot(environment);
   const [
     policySnapshot,
@@ -642,6 +641,9 @@ const buildSourceInTransaction = async (input: {
     releaseLeaseDurationMillis: policy.releaseLeaseDurationMillis,
     policyRevision: policy.policyRevision,
   };
+  if (policy.creditLedger.enabled !== true) {
+    await assertProvisionalShiftMembershipSource(input);
+  }
   const creditLedger = policy.creditLedger.enabled === true ? {
     enabled: true, policyRevision: "hu084-provisional-v1",
     sources: await captureShiftCreditPublicationSources({...input, rotations,

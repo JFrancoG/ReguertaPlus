@@ -1,3 +1,5 @@
+import {restoreShiftMembershipPlanningRecord} from
+  "./shift-membership-planning.js";
 import {assertProvisionalShiftMembershipSource,
   assertShiftCreditPublicationSource,
   requireProvisionalCreditPublication, shiftCreditPublicationAfter} from
@@ -1167,7 +1169,9 @@ export const materializeShiftPlanningInverseRecovery = (
         .includes("/shiftCoverageLedgerState/");
       const restored = isLedger ?
         {...document, revision: (creditChange.after.revision as number) + 1} :
-        document;
+        envelope.targetPath.includes("/shiftMembershipState/") ?
+          restoreShiftMembershipPlanningRecord(document, creditChange.after,
+            envelope.targetPath.split("/").at(-1) ?? "") : document;
       return {targetPath: envelope.targetPath, document: restored};
     }
     parseWithInverseFailure(
@@ -1295,7 +1299,6 @@ export const materializeShiftPlanningInverseRecovery = (
 export const applyShiftPlanningInverseRecoveryAttempt = async (
   input: ApplyShiftPlanningInverseRecoveryAttemptInput,
 ): Promise<ShiftPlanningInverseRecoveryAttempt> => {
-  await assertProvisionalShiftMembershipSource(input);
   const materialization = materializeShiftPlanningInverseRecovery(input);
   const artifact = input.bundle.artifact;
   if (artifact.manifests.forward?.creditPublication) {
@@ -1304,6 +1307,8 @@ export const applyShiftPlanningInverseRecoveryAttempt = async (
     await assertShiftCreditPublicationSource({...input,
       publication: artifact.manifests.forward?.creditPublication,
       activatedAtMillis: activation.attemptedAt.toMillis()});
+  } else {
+    await assertProvisionalShiftMembershipSource(input);
   }
   const measurement =
     await applyShiftPlanningFirestoreTransactionAttempt({

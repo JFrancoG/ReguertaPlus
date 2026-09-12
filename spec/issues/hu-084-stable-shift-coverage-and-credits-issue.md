@@ -2,41 +2,32 @@
 
 ## Start checkpoint — 2026-09-12
 
-The maintainer explicitly requested the implementation branch and grouped delivery.
-Branch `codex/hu-084-stable-shift-coverage-and-credits` is created from merged
-HU-083 (`327e563`) in its own worktree. This is not assembly ratification.
-The maintainer authorized provisional local implementation on 2026-09-12.
-The administrative lifecycle was pushed as `b8ce4ea`, reserve/volunteer selection
-as `67f16ce`, and committed draws/admin recovery as `730e148`. The current local
-implementation adds whole-unit credit planning with reverse-order deferral and a
-transactional preview/stage/activation rehearsal. It consumes earned credits,
-releases same-type claims and advances the canonical cursor atomically with a
-private `localRehearsal` unit record. It does not publish public shifts or a HU-082
-seasonal bundle. Lint/build, 31 unit/regression tests and 48 emulator/Rules tests
-pass for that checkpoint. Complete seasonal credit traversal now reuses both
-existing planners, with credited cross-season carryover and exact ledger images.
-The seasonal checkpoint passes lint/build, 25 coverage/credit tests, 69 focused
-regressions and 48 emulator/Rules tests. The broader HU-082 command passes 294 tests
-with 51 emulator-dependent cases skipped. Governed source capture and existing HU-082 forward/inverse publication are now
-integrated locally: public rows, credit/claim/cursor changes, before images and
-held intents/sync commands share one admitted transaction. Full-ledger CAS guards
-both directions; released claims are reusable and ledger generations never rewind.
-Seasonal publication was committed and pushed as `c81d936`. The current local
-checkpoint atomically reconciles observed member/eligibility transitions, both
-reserve pools and affected future published coverage cases. Re-entry goes to the
-FIFO tail; August/cohort inclusion does not imply reserve exit. Historical owners,
-public dates, cursors and credits remain unchanged. Pending queue transitions
-block source capture and forward/inverse publication, including credit-disabled
-plans, to prevent restoration of old positions after reactivation. Pending swaps
-and occupied coverage cases retain their administrative resolution workflow.
-Latest evidence: build/lint clean, 25 focused unit and 294 HU-082 regression passes
-(51 other-emulator cases skipped), plus 73 passing emulator/Rules scenarios.
-Remaining outcome group 2 work: new-round admission and frozen unpublished
-skips with whole-unit activation/inverse and minimum-cohort fallback. A real
-entropy provider, live transition observation/coverage transport, native flows
-and deployment remain pending. This is fixed-emulator provisional implementation,
-not live policy ratification or completion of the membership planning integration.
-See `plan.md` for the distinction between the local rehearsal and live delivery.
+The maintainer requested grouped implementation on branch
+`codex/hu-084-stable-shift-coverage-and-credits`, based on merged HU-083 (`327e563`),
+and authorized provisional local work on 2026-09-12. Assembly policy and live
+activation remain unratified. This branch has local coverage lifecycle,
+reserve/volunteer selection, committed draws/admin recovery, seasonal credit
+planning and governed forward/inverse publication. Membership/reserve reconciliation
+was committed and pushed as `6706c5c`.
+
+The current checkpoint integrates membership admission at wholly new round
+boundaries into both seasonal planners and the existing publication/inverse
+transaction. Retained owners keep order; new/re-entering members append by reserve
+time then UID, independently per rotation. Membership acknowledgements, calendars,
+cursors and credit changes commit together. Complete state/reserve snapshots and
+current member predicates invalidate stale forward/inverse attempts. Recovery
+restores pending admissions and prior cohorts while increasing membership revisions.
+Cohort inclusion does not imply reserve exit. Legacy pending records without
+per-type evidence, frozen rounds and insufficient staffing fail closed.
+
+Validation: build/lint clean; 32 coverage/credit/admission unit passes, 294 HU-082
+regression passes (51 other-emulator cases skipped), and 81 emulator/Rules passes.
+Remaining outcome group 2 work is frozen unpublished departures/ineligibility:
+reason-coded skips with complete physical units, minimum-cohort fallback and inverse
+evidence. Real entropy, live transition observation/coverage transport, native flows,
+notification/Sheets product integration, ratification and deployment remain pending.
+This checkpoint is restricted to the fixed local emulator. See `plan.md` for the
+current boundary and evidence.
 
 The operational plan groups work into three complete outcomes: coverage backend
 with persistence/security/tests; credit/membership/atomic-planner integration;

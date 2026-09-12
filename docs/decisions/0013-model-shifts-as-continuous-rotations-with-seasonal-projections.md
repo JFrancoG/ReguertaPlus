@@ -973,3 +973,18 @@ including credit-disabled plans, preventing restoration of an old queue position
 on re-entry. New-round admission and frozen unpublished skips with complete physical
 units remain unimplemented; no standalone tombstones are written. The adapter is
 emulator-only, not a deployed observer of user changes or a ratified live policy.
+
+The local new-round admission checkpoint now removes the pending-admission fence
+only through governed ledger planning when both cursors are at wholly new round
+boundaries beyond all public/frozen evidence. Reconciliation retains admission
+intent per rotation; legacy pending records without this evidence fail closed.
+Retained owners keep order and observed entrants/re-entries append by reserve time
+then ordinal UID. The planners validate old carryover against its original cursor
+before traversing the new cohort. Complete-unit staffing, credit deferral and
+completed-helper history remain enforced. Full membership/reserve snapshots and
+live member predicates bind forward and inverse publication. Membership
+acknowledgements join the existing public/cursor/ledger transaction and its before
+images; inverse restores pending intent and prior cohorts with higher membership
+revisions. Reserves are not removed on cohort inclusion. Frozen unpublished
+positions remain blocked until skips can commit with full physical units and
+inverse evidence. This remains a fixed-emulator implementation without deployment.

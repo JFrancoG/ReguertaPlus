@@ -1,3 +1,7 @@
+import {assertShiftMembershipPlanningSource,
+  captureShiftMembershipPlanningSource, parseShiftMembershipPlanningSource,
+  ShiftMembershipPlanningSource, ShiftMembershipPlanningChange} from
+  "./shift-membership-planning.js";
 import {assertNoPendingShiftMembership} from
   "./shift-membership-reconciliation.js";
 import {consumeRotationPositions, RotationProjectionPrefix} from
@@ -22,6 +26,7 @@ export type ShiftCreditPublicationSource = ProvisionalSeasonCredits & {
 export type ShiftCreditPublicationSources = {
   delivery: ShiftCreditPublicationSource;
   market: ShiftCreditPublicationSource;
+  membership?: ShiftMembershipPlanningSource;
 };
 export type ShiftCreditPublication = {
   policyRevision: typeof SHIFT_COVERAGE_POLICY_REVISION;
@@ -69,8 +74,12 @@ export const parseShiftCreditPublicationSources = (
 ): ShiftCreditPublicationSources => {
   requireProvisionalCreditPublication(environment);
   const sources = value as ShiftCreditPublicationSources;
-  if (!sources || Object.keys(sources).sort().join() !== "delivery,market") {
+  if (!sources || !["delivery,market", "delivery,market,membership"].includes(
+    Object.keys(sources).sort().join())) {
     return rejectCoverage("invalid_credit_publication_source");
+  }
+  if ("membership" in sources) {
+    parseShiftMembershipPlanningSource(sources.membership);
   }
   for (const type of ["delivery", "market"] as const) {
     const source = sources[type];
@@ -154,9 +163,11 @@ export const buildShiftCreditPublication = (input: {
   delivery: ShiftSeasonCreditProjection;
   market: ShiftSeasonCreditProjection;
   planId: string;
+  membershipChanges?: ShiftMembershipPlanningChange[];
 }): ShiftCreditPublication => {
   coverageId(input.planId);
-  const changes: ShiftCreditPublication["changes"] = [];
+  const changes: ShiftCreditPublication["changes"] =
+    [...input.membershipChanges ?? []];
   for (const type of ["delivery", "market"] as const) {
     const source = input.sources[type];
     const projection = input[type];
@@ -193,7 +204,8 @@ export const shiftCreditPublicationAfter = (
         activatedAtMillis < change.before.earnedAtMillis)) {
     return rejectCoverage("invalid_coverage_credit");
   }
-  return change.targetPath.includes("/shiftCoverageLedgerState/") ?
+  return (change.targetPath.includes("/shiftCoverageLedgerState/") ||
+    change.targetPath.includes("/shiftMembershipState/")) ?
     change.after : {...change.after, consumedAtMillis: activatedAtMillis};
 };
 
@@ -213,6 +225,10 @@ export const assertShiftCreditPublicationSource = async (input: {
   if (!provisionalDatabases.has(input.firestore)) {
     return rejectCoverage("coverage_provisional_emulator_required");
   }
+  await assertShiftMembershipPlanningSource({...input,
+    source: input.publication.sources.membership,
+    activatedChanges: input.activatedAtMillis === undefined ? undefined :
+      input.publication.changes});
   for (const type of ["delivery", "market"] as const) {
     const source = input.publication.sources[type];
     const expected = new Map<string, unknown>([
@@ -329,6 +345,11 @@ export const captureShiftCreditPublicationSources = async (input: {
       });
     }
     sources[type] = source;
+  }
+  const membership = await captureShiftMembershipPlanningSource(
+    input.firestore, input.transaction);
+  if (membership.records.length || membership.reserves.length) {
+    sources.membership = membership;
   }
   return parseShiftCreditPublicationSources(sources, "develop");
 };

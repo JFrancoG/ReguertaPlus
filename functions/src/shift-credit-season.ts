@@ -11,6 +11,7 @@ import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 export type ProvisionalSeasonCredits = {
   credits: readonly ShiftCoverageCredit[];
   frozenThroughRound: number;
+  cohortAtStart?: readonly string[];
   inheritedUnits?: readonly (readonly ServedRotationPosition[])[];
 };
 
@@ -55,7 +56,13 @@ export const planShiftSeasonCreditUnits = (input: {
   }
   const consumed = new Set<string>();
   const units: ShiftCreditUnit[] = [];
-  let cursor = original;
+  if (input.policy.cohortAtStart && (original.nextMemberIndex !== 0 ||
+      original.roundNumber <= input.policy.frozenThroughRound)) {
+    return rejectCoverage("membership_frozen_unit_required");
+  }
+  let cursor = input.policy.cohortAtStart ? consumeRotationPositions({
+    ...original, cohortUserIds: [...input.policy.cohortAtStart]}, 0)
+    .nextRotation : original;
   let previous = input.previousDeliveryUserId ?? null;
   const append = (stopAfterRound?: number) => {
     const unit = planShiftCreditUnit({rotation: cursor,

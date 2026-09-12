@@ -102,7 +102,8 @@ export const planMarketShifts = (input: MarketPlannerInput): MarketPlan => {
       "Market planner requires a market rotation.",
     );
   }
-  if (input.rotation.cohortUserIds.length < 3) {
+  if ((input.provisionalCredits?.cohortAtStart ??
+    input.rotation.cohortUserIds).length < 3) {
     throw new ShiftPlanningError(
       "insufficient_market_members",
       "Market planning requires at least three eligible members.",

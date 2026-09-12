@@ -1,3 +1,4 @@
+import {planShiftMembershipAdmission} from "./shift-membership-planning.js";
 import {buildShiftCreditPublication, parseShiftCreditPublicationSources,
   ShiftCreditPublication, ShiftCreditPublicationSources} from
   "./shift-credit-publication.js";
@@ -445,6 +446,7 @@ type BundleFairnessSnapshot = {
   deliveryWeekday: BusinessWeekday;
   creditLedgerWriteCount: number;
   creditSources?: ShiftCreditPublicationSources;
+  membershipAdmission?: ReturnType<typeof planShiftMembershipAdmission>;
   creditPublication?: ShiftCreditPublication;
   releaseLeaseDurationMillis: number;
   syncLeaseDurationMillis: number;
@@ -864,9 +866,15 @@ const parseBundleFairnessSnapshot = (
         "creditLedger.plannedWriteCount") !== 0) {
     return failState("Coverage-credit transitions remain disabled.");
   }
+  const membershipAdmission = creditSources?.membership ?
+    planShiftMembershipAdmission({source: creditSources.membership,
+      rotations: {delivery: delivery.cursor, market: market.cursor},
+      frozenThroughRound: {delivery: creditSources.delivery.frozenThroughRound,
+        market: creditSources.market.frozenThroughRound}, roster}) : undefined;
   return {
     normalized,
     authoritativeState,
+    ...(membershipAdmission ? {membershipAdmission} : {}),
     environment: authoritativeState.environment,
     activeRevision: authoritativeState.maintenance.activeRevision,
     activeDigest: authoritativeState.maintenance.activeDigest,
@@ -953,13 +961,19 @@ const validateModeGate = (
   validateCohort(
     request.mode,
     "delivery",
-    snapshot.delivery,
+    snapshot.membershipAdmission ? {...snapshot.delivery,
+      cursor: {...snapshot.delivery.cursor,
+        cohortUserIds: snapshot.membershipAdmission.cohorts.delivery}} :
+      snapshot.delivery,
     snapshot.eligibleUserIds,
   );
   validateCohort(
     request.mode,
     "market",
-    snapshot.market,
+    snapshot.membershipAdmission ? {...snapshot.market,
+      cursor: {...snapshot.market.cursor,
+        cohortUserIds: snapshot.membershipAdmission.cohorts.market}} :
+      snapshot.market,
     snapshot.eligibleUserIds,
   );
   if (
@@ -2076,20 +2090,27 @@ export const planShiftPlanningBundle = (
     rotation: snapshot.delivery.cursor,
     inheritedTargetPrefix: input.delivery.inheritedTargetPrefix ?? null,
     continuity: input.delivery.continuity,
-    provisionalCredits: snapshot.creditSources?.delivery,
+    provisionalCredits: snapshot.creditSources ? {
+      ...snapshot.creditSources.delivery,
+      ...(snapshot.membershipAdmission?.changes.length ? {cohortAtStart:
+        snapshot.membershipAdmission.cohorts.delivery} : {})} : undefined,
   });
   const market = planMarketShifts({
     planningRequestId: request.bundleId,
     targetSeasonStartYear: request.subplans.market.targetSeasonStartYear,
     rotation: snapshot.market.cursor,
     inheritedTargetPrefix: input.market.inheritedTargetPrefix ?? null,
-    provisionalCredits: snapshot.creditSources?.market,
+    provisionalCredits: snapshot.creditSources ? {
+      ...snapshot.creditSources.market,
+      ...(snapshot.membershipAdmission?.changes.length ? {cohortAtStart:
+        snapshot.membershipAdmission.cohorts.market} : {})} : undefined,
   });
   if (snapshot.creditSources && delivery.creditProjection &&
       market.creditProjection) {
     snapshot.creditPublication = buildShiftCreditPublication({
       sources: snapshot.creditSources, delivery: delivery.creditProjection,
-      market: market.creditProjection, planId: request.bundleId});
+      market: market.creditProjection, planId: request.bundleId,
+      membershipChanges: snapshot.membershipAdmission?.changes});
     snapshot.creditLedgerWriteCount = snapshot.creditPublication.changes.length;
   }
   const recipients = recipientManifest(delivery, market, snapshot.roster);

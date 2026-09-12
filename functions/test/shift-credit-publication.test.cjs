@@ -94,9 +94,15 @@ const seed = async (db, data) => {
   for (const type of ["delivery", "market"]) {
     const source = data.publication?.sources[type];
     if (!source) continue;
-    batch.set(db.doc(`${root}/shiftCoverageLedgerState/${type}`), source.ledger);
+    if (source.ledger) batch.set(db.doc(`${root}/shiftCoverageLedgerState/${type}`), source.ledger);
     for (const c of source.credits) batch.set(db.doc(`${root}/shiftCoverageCredits/${c.id}`), c);
     for (const c of source.claims) batch.set(db.doc(`${root}/shiftCoverageMemberClaims/${c.id}`), c.data);
+  }
+  const membership = data.publication?.sources.membership;
+  if (membership) {
+    for (const record of membership.records) batch.set(db.doc(`${root}/shiftMembershipState/${record.id}`), record.data);
+    for (const reserve of membership.reserves) batch.set(db.doc(`${root}/shiftCoverageReserves/${reserve.id}`), reserve.data);
+    for (const member of data.snapshot?.roster ?? []) batch.set(db.doc(`${root}/users/${member.userId}`), member);
   }
   batch.set(db.doc(`${root}/shiftPlanningBundles/${data.value.preflight.bundle.bundleRevision}`), data.value.preflight.bundle);
   await batch.commit();
@@ -116,7 +122,7 @@ const inverse = (db, data) => db.runTransaction(async (transaction) => {
     recoveredAt: Timestamp.fromMillis(data.input.attemptedAt.toMillis() + 1_000)});
 });
 const capture = async (db) => {
-  const collections = ["shifts", "shiftRotations", "shiftPlanningState", "shiftCoverageCredits",
+  const collections = ["shiftMembershipState", "shiftMembershipOperations", "shiftCoverageReserves", "shifts", "shiftRotations", "shiftPlanningState", "shiftCoverageCredits",
     "shiftCoverageMemberClaims", "shiftCoverageLedgerState", "shiftPlanningOperations", "shiftPlanningRequests"];
   const result = {};
   for (const c of collections) {
@@ -189,8 +195,8 @@ test("competing activation attempts cannot consume twice or partly publish", {sk
 
 const {createGovernedShiftPlanningForwardActivationResolver, refreshShiftPlanningLiveSource,
   loadCurrentShiftPlanningLiveSource} = require("../lib/shift-planning-firestore-source-producer.js");
-const seedGoverned = async (db) => {
-  const initial = setup(); await seed(db, initial);
+const seedGoverned = async (db, initial = setup()) => {
+  await seed(db, initial);
   const policy = {schemaVersion: 1, environment: "develop", policyRevision: "hu084-local-source",
     delivery: {continuity: {kind: "newRotation"}, inheritedTargetPrefix: null, futureProjectionOccupancy: []},
     market: {inheritedTargetPrefix: null, futureProjectionOccupancy: []},
@@ -292,7 +298,7 @@ test("membership re-entry fences governed source and ordinary credit-disabled pu
       await db.doc(`${root}/shiftMembershipState/member-1`).set({value, digest: digest(value)});
     };
     await seedGoverned(db); await pending();
-    await db.doc(`${root}/shiftPlanningState/sourcePolicy`).update({creditLedger: fairnessSnapshot().creditLedger});
+    await db.doc(`${root}/shiftPlanningState/sourcePolicy`).update({creditLedger: {...fairnessSnapshot().creditLedger, digest: digest("disabled")}});
     let before = await capture(db);
     await assert.rejects(refreshShiftPlanningLiveSource({firestore: db, environment: "develop"}),
       {code: "membership_queue_transition_pending"});
@@ -303,4 +309,96 @@ test("membership re-entry fences governed source and ordinary credit-disabled pu
     await seed(db, data); await pending(); before = await capture(db);
     await assert.rejects(forward(db, data), {code: "membership_queue_transition_pending"});
     assert.deepEqual(await capture(db), before);
+  }));
+
+const {admissionSnapshot} = require("./shift-membership-planning-fixture.cjs");
+const setupAdmission = (withCredits = false) => {
+  const snapshot = admissionSnapshot();
+  if (withCredits) {
+    const creditSources = setup().snapshot.creditLedger.sources;
+    snapshot.creditLedger.sources.delivery = creditSources.delivery;
+    snapshot.creditLedger.sources.market = creditSources.market;
+  }
+  const value = fixture(snapshot); const input = materializerInput(value);
+  const publication = value.liveResult.manifests.forward.creditPublication;
+  input.beforeImageDocuments.push(...publication.changes.map((change) => readDocument(change.targetPath, change.before, 100)));
+  return {snapshot, value, input, publication};
+};
+
+test("new-round admission publishes both cohorts and acknowledgements together; inverse restores order and advances member revisions",
+  {skip: !emulatorAvailable}, () => withDatabase(async (db) => {
+    const data = setupAdmission(true); await seed(db, data);
+    const before = await capture(db);
+    const result = await forward(db, data);
+    assert.equal(result.measurement.documentWriteCount, data.value.liveResult.budgets.forward.totalWrites);
+    for (const type of ["delivery", "market"]) {
+      const rotation = (await db.doc(`${root}/shiftRotations/${type}`).get()).data();
+      assert.deepEqual(rotation.cursor.cohortUserIds, data.value.liveResult[type].nextRotation.cohortUserIds);
+      assert.equal(rotation.cursor.cohortUserIds.includes("member-2"), false);
+      assert.ok(rotation.cursor.cohortUserIds.indexOf("member-1") > 0);
+      assert.equal((await db.doc(`${root}/shiftCoverageCredits/${type}-member-1`).get()).data().state, "consumed");
+    }
+    for (const entry of data.publication.sources.membership.records) {
+      const state = (await db.doc(`${root}/shiftMembershipState/${entry.id}`).get()).data();
+      assert.equal(state.value.pendingQueueTransition, false); assert.equal(state.value.revision, 4);
+      assert.equal(state.digest, digest(state.value));
+    }
+    assert.deepEqual((await capture(db)).shiftCoverageReserves, before.shiftCoverageReserves);
+    await inverse(db, data);
+    assert.equal((await db.collection(`${root}/shifts`).get()).size, 0);
+    for (const entry of data.publication.sources.membership.records) {
+      const state = (await db.doc(`${root}/shiftMembershipState/${entry.id}`).get()).data();
+      assert.equal(state.value.revision, 5); assert.equal(state.value.pendingQueueTransition, true);
+      assert.deepEqual(state.value.admissionRequired, entry.data.value.admissionRequired);
+      assert.equal(state.digest, digest(state.value));
+    }
+    for (const type of ["delivery", "market"]) {
+      assert.deepEqual((await db.doc(`${root}/shiftRotations/${type}`).get()).data().cursor, data.snapshot.rotations[type].cursor);
+    }
+  }));
+
+for (const drift of ["reserve", "state", "unreconciledUser", "newState"]) {
+  test(`membership ${drift} drift rejects forward/inverse admission without partial publication`,
+    {skip: !emulatorAvailable}, () => withDatabase(async (db) => {
+      const data = setupAdmission();
+      const change = async () => {
+        const source = data.publication.sources.membership;
+        if (drift === "reserve") await db.doc(`${root}/shiftCoverageReserves/${source.reserves[0].id}`).update({revision: 99});
+        if (drift === "state") {
+          const ref = db.doc(`${root}/shiftMembershipState/member-1`); const stored = (await ref.get()).data();
+          stored.value.revision += 1; stored.digest = digest(stored.value); await ref.set(stored);
+        }
+        if (drift === "unreconciledUser") await db.doc(`${root}/users/member-1`).update({isCommonPurchaseManager: true});
+        if (drift === "newState") {
+          const value = {...source.records[0].data.value, userId: "late", pendingQueueTransition: false};
+          await db.doc(`${root}/shiftMembershipState/late`).set({value, digest: digest(value)});
+        }
+      };
+      await seed(db, data); await change(); const before = await capture(db);
+      await assert.rejects(forward(db, data)); assert.deepEqual(await capture(db), before);
+      await db.recursiveDelete(db.doc(root)); await seed(db, data); await forward(db, data); await change();
+      const active = await capture(db); await assert.rejects(inverse(db, data)); assert.deepEqual(await capture(db), active);
+    }));
+}
+
+test("governed source derives and activates new-round membership from canonical state and reserves", {skip: !emulatorAvailable},
+  () => withDatabase(async (db) => {
+    const data = await seedGoverned(db, setupAdmission());
+    const before = await capture(db);
+    const source = await loadCurrentShiftPlanningLiveSource({firestore: db, environment: "develop"});
+    assert.equal(source.inputs.fairnessSnapshot.creditLedger.sources.membership.records.length, 3);
+    assert.deepEqual(await capture(db), before);
+    await governedForward(db, data);
+    assert.equal((await db.doc(`${root}/shiftMembershipState/member-1`).get()).data().value.pendingQueueTransition, false);
+    await inverse(db, data);
+    assert.equal((await db.doc(`${root}/shiftMembershipState/member-1`).get()).data().value.pendingQueueTransition, true);
+  }));
+
+test("concurrent admission cannot acknowledge membership twice or partly publish one cohort", {skip: !emulatorAvailable},
+  () => withDatabase(async (db) => {
+    const data = setupAdmission(); await seed(db, data);
+    const results = await Promise.allSettled([forward(db, data), forward(db, data)]);
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    assert.equal((await db.doc(`${root}/shiftMembershipState/member-1`).get()).data().value.revision, 4);
+    const after = await capture(db); await assert.rejects(forward(db, data)); assert.deepEqual(await capture(db), after);
   }));

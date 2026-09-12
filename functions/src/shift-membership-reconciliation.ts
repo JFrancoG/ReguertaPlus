@@ -17,17 +17,19 @@ const types = ["delivery", "market"] as const;
 const hash = (values: string[]) => digest(values).split(":").at(-1) as string;
 type Intent = {schemaVersion: 1; environment: "develop"; operationId: string;
   userId: string; expectedRevision: number};
-type MemberSource = {isActive: boolean; roles: string[];
+export type MemberSource = {isActive: boolean; roles: string[];
   isCommonPurchaseManager: boolean} | null;
-type MembershipState = {
+export type MembershipState = {
   schemaVersion: 1; policyRevision: typeof SHIFT_COVERAGE_POLICY_REVISION;
   userId: string; revision: number; source: MemberSource; eligible: boolean;
   observedAtMillis: number; pendingQueueTransition: boolean;
   admissionAfterRound: {delivery: number; market: number};
+  admissionRequired?: {delivery: boolean; market: boolean};
 };
 
-const readState = (data: Record<string, unknown> | undefined,
-  userId: string): MembershipState | null => {
+export const readShiftMembershipState = (
+  data: Record<string, unknown> | undefined, userId: string,
+): MembershipState | null => {
   if (!data) return null;
   const state = data.value as MembershipState;
   if (!state || data.digest !== digest(state) || state.userId !== userId ||
@@ -38,6 +40,11 @@ const readState = (data: Record<string, unknown> | undefined,
       !Number.isSafeInteger(state.observedAtMillis) ||
       state.observedAtMillis < 0 ||
       typeof state.pendingQueueTransition !== "boolean" ||
+      (state.admissionRequired !== undefined && (!state.admissionRequired ||
+        Object.keys(state.admissionRequired).sort().join() !==
+          "delivery,market" ||
+        types.some((type) => typeof state.admissionRequired?.[type] !==
+          "boolean"))) ||
       state.eligible !== (state.source ?
         coverageMember(state.source).eligible : false) ||
       !types.every((type) => Number.isSafeInteger(
@@ -62,7 +69,7 @@ export const assertNoPendingShiftMembership = async (
     `${root}/shiftMembershipState`).limit(251));
   if (states.size > 250) return rejectCoverage("membership_source_limit");
   for (const doc of states.docs) {
-    if (readState(doc.data(), doc.id)?.pendingQueueTransition) {
+    if (readShiftMembershipState(doc.data(), doc.id)?.pendingQueueTransition) {
       return rejectCoverage("membership_queue_transition_pending");
     }
   }
@@ -121,9 +128,12 @@ export const createShiftMembershipReconciliation = (
         }
         return {result: receipt.data()?.result, replayed: true};
       }
-      const previous = readState(stateDoc.data(), userId);
+      const previous = readShiftMembershipState(stateDoc.data(), userId);
       if ((previous?.revision ?? 0) !== intent.expectedRevision) {
         return rejectCoverage("membership_revision_conflict");
+      }
+      if (previous?.pendingQueueTransition && !previous.admissionRequired) {
+        return rejectCoverage("membership_admission_evidence_required");
       }
       if (previous && now < previous.observedAtMillis) {
         return rejectCoverage("invalid_coverage_clock");
@@ -161,12 +171,15 @@ export const createShiftMembershipReconciliation = (
       const reserveChanges: {before: CoverageReserve | null;
         after: CoverageReserve}[] = [];
       const admissionAfterRound = {delivery: 0, market: 0};
+      const admissionRequired = {...previous?.admissionRequired ??
+        {delivery: false, market: false}};
       let pending = previous?.pendingQueueTransition ?? false;
       for (const [index, type] of types.entries()) {
         const rotation = rotations[index];
         const inCohort = rotation.cursor.cohortUserIds.includes(userId);
         const entering = eligible &&
           (previous ? !previous.eligible : !inCohort);
+        admissionRequired[type] ||= entering;
         pending ||= entering || (!eligible && inCohort) ||
           Boolean(previous?.eligible && !eligible);
         admissionAfterRound[type] = Math.max(
@@ -196,7 +209,7 @@ export const createShiftMembershipReconciliation = (
         revision: (previous?.revision ?? 0) + (changed ? 1 : 0), source,
         eligible, observedAtMillis: changed ? now :
           (previous?.observedAtMillis ?? now), pendingQueueTransition: pending,
-        admissionAfterRound};
+        admissionAfterRound, admissionRequired};
       const affected = eligible ? [] : publicShifts.filter(({shift}) =>
         shift.assignedUserIds.includes(userId) && shift.date.toMillis() > now &&
         shift.completion.state === "uncompleted");

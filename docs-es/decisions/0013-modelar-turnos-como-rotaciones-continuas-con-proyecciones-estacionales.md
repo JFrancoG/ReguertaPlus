@@ -1018,3 +1018,20 @@ antigua al reactivarse. Quedan por implementar la incorporación a rondas nuevas
 los saltos de posiciones congeladas no publicadas junto con unidades físicas
 completas; no se escriben tombstones aislados. El adaptador solo funciona en el
 emulador; no observa cambios de usuarios desplegados ni ratifica la política real.
+
+El bloque local de admisión a rondas nuevas permite resolver la incorporación
+pendiente mediante la planificación gobernada del ledger cuando ambos cursores
+están al inicio de rondas nuevas posteriores a toda evidencia publicada/congelada.
+La reconciliación conserva la intención de admisión por tipo; los registros
+pendientes antiguos sin esa evidencia se rechazan. Los socios que permanecen
+conservan su orden y las altas/reactivaciones se añaden por fecha de reserva y UID
+ordinal. Los planificadores validan el arrastre con el cursor anterior antes de
+recorrer la nueva cohorte. Se mantienen unidades completas, aplazamiento de créditos
+e historial del ayudante real. La publicación e inversa vinculan todas las reservas,
+estados de membresía y predicados actuales de los socios. La confirmación de
+admisión comparte la transacción y las imágenes anteriores de calendarios, cursores
+y ledger; la inversa restaura intenciones pendientes y cohortes previas incrementando
+las revisiones de membresía. Entrar en la cohorte no elimina la reserva. Las
+posiciones congeladas no publicadas siguen bloqueadas hasta integrar sus omisiones
+con unidades físicas completas e inversa. La implementación sigue limitada al
+emulador fijo, sin despliegue.

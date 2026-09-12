@@ -332,9 +332,10 @@ admission limits and public-event/notification authority. The unit credit solver
 and local atomic consumption rehearsal are implemented, and complete seasonal
 credit planning and governed HU-082 forward/inverse publication are integrated
 locally. Membership reconciliation now manages reserve transitions and published
-coverage cases locally. Remaining outcome group 2 work applies pending queue
-changes at the first new unfrozen round and handles frozen unpublished departures
-with complete physical-unit activation and inverse evidence. Both native clients and coverage notification/Sheets product integration
+coverage cases locally. The following admission checkpoint now integrates new
+unfrozen cohorts into governed publication and inverse. Remaining outcome group 2
+work handles frozen unpublished departures/ineligibility with complete physical
+units, staffing fallback and inverse evidence. Both native clients and coverage notification/Sheets product integration
 remain unfinished. Shared-project credit activation, assembly decisions and
 deployment remain separate gates.
 
@@ -372,9 +373,9 @@ deployment remain separate gates.
   advance or standalone tombstone occurs. Governed source capture, forward and
   inverse publication and the private unit rehearsal reject pending transitions;
   even disabling credits cannot revive an old position after reactivation.
-  Next implement new-round admission and frozen unpublished skips together with
-  full physical units, minimum-cohort fallback and inverse evidence. This is the
-  remaining planning integration, not completion of outcome group 2.
+  At this checkpoint both new-round admission and frozen unpublished skips were
+  pending. The admission checkpoint below supersedes the new-round restriction;
+  frozen unpublished skips still require full physical units and inverse evidence.
 
 Validation: build/lint clean, 25 coverage/credit unit passes, 294 HU-082 regression
 passes (51 tests for other emulator configurations skipped), and 73 passing local
@@ -385,6 +386,58 @@ pending membership blocking both credited and credit-disabled publication.
 The shared activation fixture now copies its cohort so one carryover test cannot
 mutate the roster used by subsequent scenarios. Native clients are unchanged;
 no Android/iOS runtime evidence is claimed by this backend checkpoint.
+
+### Local new-round admission and publication — 2026-09-12
+
+The reconciliation block is committed/pushed as `6706c5c`. This checkpoint reuses
+its private state and both seasonal planners; it adds no alternative publisher.
+
+- Reconciliation now records `admissionRequired` independently for delivery and
+  market. A pending older record lacking this evidence fails closed; reconciling
+  it cannot guess whether to keep or append an old position. This is a local
+  provisional schema addition, not a deployed data migration.
+- Governed enabled-ledger source capture includes all membership state and reserve
+  records (250/500 limits). Every observed member predicate must still match the
+  current roster. The source policy cannot supply ordering, reserve timestamps,
+  or acknowledged states. Ordinary credit-disabled planning retains its pending
+  membership fence; an enabled local ledger may admit members even with no credits.
+- Admission requires both cursors at index zero strictly after all public/frozen
+  rounds and every pending member's recorded admission boundary. Retained owners
+  keep their exact order. Reconciled departures leave only the unfrozen cohort;
+  new/re-entering members append by same-type reserve time then ordinal UID.
+  Per-type flags prevent a market-only admission from moving a delivery owner.
+  Missing reserve evidence, unobserved departures, inconsistent predicates, fewer
+  than two delivery/three market members, or a frozen source reject the proposal.
+- Each existing seasonal planner validates its inherited prefix against the original
+  cursor, then starts the new cohort at the same new round. Whole physical units,
+  credit deferral, cross-season overflow and prospective helper updates use the
+  existing solver. Completed helpers stay historical; an equal adjacent delivery
+  lead blocks generation instead of silently changing the new queue order.
+- The existing forward manifest includes exact membership acknowledgement images
+  alongside credits/claims. Acknowledgements, both cursors, both public calendars,
+  before images, held intents and sync commands share the existing transaction
+  admission. The full membership/reserve snapshot and live member predicates are
+  reread on each forward/inverse retry, including records not acknowledged by the
+  candidate. Changes after stage/activation reject without partial publication.
+- Inverse restores the former cohorts and pending admissions with the original
+  per-type evidence while advancing membership revisions, preventing stale
+  reconciliation commands from becoming valid again. Reserve entries stay active
+  and retain their FIFO time: cohort inclusion does not invent a reserve-exit rule.
+
+Validation: clean build/lint, 32 coverage/credit/admission unit tests, 294 HU-082
+regressions (51 cases for other emulator configurations skipped), and 81 local
+emulator/Rules scenarios. New evidence covers simultaneous admission/publication,
+credit plus membership consumption, exact inverse, full-source drift in both
+directions, new-cohort carryover, insufficient staffing, old pending records,
+per-type ordering and helper history. Under an emulator retry-token closure during
+contention, the race test checks the exact transport error and retries the losing
+command to prove its revision conflict and absence of duplicate writes; no SDK
+workaround was added to production code.
+
+Still pending: frozen unpublished `excusedDeparture`/`excusedIneligible` positions
+must commit with complete physical units, cursor/round closure and inverse evidence.
+No such tombstone or skip is written here. Both clients and live coverage transport,
+real entropy, dispatch, assembly ratification and deployment remain separate work.
 
 ## 2. Technical approach after approval
 

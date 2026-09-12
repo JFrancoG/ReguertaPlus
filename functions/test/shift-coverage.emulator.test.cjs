@@ -794,7 +794,15 @@ run("concurrent reconciliations commit one baseline and one pair of reserve entr
   const commands = await Promise.all([membershipCommand("d", "join-one"), membershipCommand("d", "join-two")]);
   const results = await Promise.allSettled(commands.map((command) => store.reconcileMembership(command, "admin")));
   assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
-  assert.equal(results.find((r) => r.status === "rejected").reason.code, "membership_revision_conflict");
+  const loser = results.findIndex((result) => result.status === "rejected");
+  const error = results[loser].reason;
+  if (error.code === 3) {
+    // The emulator can close its retry transaction under lock contention.
+    assert.match(error.message, /Transaction is invalid or closed/);
+    await assert.rejects(store.reconcileMembership(commands[loser], "admin"), {code: "membership_revision_conflict"});
+  } else {
+    assert.equal(error.code, "membership_revision_conflict");
+  }
   assert.equal((await snapshot()).shiftMembershipOperations.length, 1);
   assert.equal((await reserveFor("d")).revision, 1);
 });
@@ -849,5 +857,15 @@ run("membership reconciliation leaves pending swaps for resolution and rejects o
   await ref("shiftCoverageSlots", slotId).set({caseId: "missing-case"});
   const before = await snapshot();
   await assert.rejects(reconcile("a"), {code: "invalid_coverage_case"});
+  assert.deepEqual(await snapshot(), before);
+});
+
+run("legacy pending membership cannot acquire guessed per-type admission flags on reconciliation", async () => {
+  await seedMembershipRotations(); await reconcile("d");
+  const record = await read("shiftMembershipState", "d");
+  delete record.value.admissionRequired; record.digest = digest(record.value);
+  await ref("shiftMembershipState", "d").set(record);
+  const before = await snapshot();
+  await assert.rejects(reconcile("d"), {code: "membership_admission_evidence_required"});
   assert.deepEqual(await snapshot(), before);
 });

@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-12 | ✨ feat(shifts): admit members in new round publication
+
 - 2026-09-12 | ✨ feat(shifts): reconcile membership and reserves
 
 - 2026-09-12 | ✨ feat(shifts): publish and recover seasonal credits

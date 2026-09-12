@@ -821,12 +821,13 @@ export const materializeShiftPlanningForwardActivation = (
 export const applyShiftPlanningForwardActivationAttempt = async (
   input: ApplyShiftPlanningForwardActivationAttemptInput,
 ): Promise<ShiftPlanningForwardActivationAttempt> => {
-  await assertProvisionalShiftMembershipSource(input);
   const materialization = materializeShiftPlanningForwardActivation(input);
   const artifact = input.preflight.bundle.artifact;
   if (artifact.manifests.forward.creditPublication) {
     await assertShiftCreditPublicationSource({...input,
       publication: artifact.manifests.forward.creditPublication});
+  } else {
+    await assertProvisionalShiftMembershipSource(input);
   }
   const measurement =
     await applyShiftPlanningFirestoreTransactionAttempt({

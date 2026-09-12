@@ -25,9 +25,12 @@
   both reserve pools and individual published coverage cases atomically locally.
   Preserve re-entry ordering evidence and block old-position revival, including
   credit-disabled planning; do not infer reserve exit from cohort inclusion.
-- [ ] Apply pending membership changes to new unfrozen rounds and integrate
-  frozen unpublished departures/ineligibility with whole-unit activation/inverse
-  (remaining outcome group 2).
+- [x] Admit reconciled membership changes at wholly new round boundaries in both
+  seasonal planners and the governed HU-082 forward/inverse transaction. Preserve
+  retained order, append new/re-entering owners by reserve time/UID, bind complete
+  membership/reserve evidence and keep acknowledgement revisions monotonic.
+- [ ] Integrate frozen unpublished departures/ineligibility with whole-unit
+  activation/inverse and minimum-cohort fallback (remaining outcome group 2).
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset
