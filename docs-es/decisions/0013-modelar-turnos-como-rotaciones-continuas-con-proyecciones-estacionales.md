@@ -1078,3 +1078,13 @@ importa esta composición.
 Un ejecutor local explícito conecta el manejador únicamente a loopback, con archivo
 de política/puerto obligatorios y peticiones JSON acotadas. Las pruebas de red usan
 este servidor con Auth y Firestore emulados; importarlo no arranca servicios.
+
+El siguiente hito nativo añade repositorios tipados y propietarios de las operaciones
+equivalentes en Android/iOS. Los adaptadores locales solo compilan en Debug y no
+forman parte de la composición real. UID, socio y revisión de autorización delimitan
+la obtención del token, HTTP y la publicación del resultado. Los resultados inciertos
+conservan el mismo comando para repetirlo explícitamente; un fallo de recarga no
+repite una escritura ya confirmada. Solo las credenciales del emulador Auth del
+proyecto demo fijo pueden llegar a loopback, sin seguir redirecciones. Siguen
+pendientes la composición de sesión/UI nativa, sus pruebas conectadas, los efectos
+de notificaciones/Sheets y la ratificación/activación real.

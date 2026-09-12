@@ -93,6 +93,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // One wire oracle shared with the iOS repository/presentation pipeline tests.
+    sourceSets.getByName("test").resources.srcDir(
+        "../../../ios/Reguerta/ReguertaTests/Fixtures/ShiftCoverage"
+    )
+
     buildFeatures {
         compose = true
         buildConfig = true

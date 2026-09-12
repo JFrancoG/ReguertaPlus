@@ -508,3 +508,29 @@ prints only its loopback URL and closes its owned resources on SIGINT/SIGTERM.
 - [ ] Any live activation remains open in a separately authorized rollout story.
 - [ ] ADR/data documentation is aligned where architecture changed.
 - [ ] Issue, branch, commits, and PR are linked.
+
+
+### Native provisional boundary — 2026-09-12
+
+The native repository accepts a session value containing Auth UID, member ID and
+an authorization revision. Composition must advance the revision for every
+logout/relogin (including the same UID), member/environment/role change. A response
+is usable only if the captured session is still current after token retrieval and
+after HTTP; presentation also fences completion/cleanup against its own generation.
+The fixed local contract always targets `develop`. Release contains no local
+repository, and the live app graph does not construct one.
+
+Only unsigned Auth-emulator JWTs for `demo-reguerta-hu084-coverage`, with the exact
+issuer and captured UID, may be sent to the local host. This is a client credential
+routing guard, **not** token verification; the actual server verifies Auth and
+canonical membership on every request. Token providers must return current emulator
+credentials and must not persist them in presentation state. Native HTTP refuses
+redirects and does not cache the private response.
+
+Retain the full command, operation ID and both revisions on uncertain completion;
+block different mutations until explicit replay resolves it. Do not regenerate an
+ID or infer rollback from cancellation. A valid matching acknowledgement settles
+the write even when subsequent read-back fails. Clear stale displayed state until
+a fresh read succeeds. Definitive 400/409 rejections settle the rejected intent;
+401/403 additionally remove the bound session and private state. These rules are
+shared by both native ViewModels; business authorization remains server-side.

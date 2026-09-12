@@ -784,3 +784,70 @@ a credit ledger. Every mutable aggregate needs a version and idempotency key.
 - **Queue drift**: immutable rotation owner distinct from assignee.
 - **Bias or non-reproducibility**: persisted candidates/exclusions/input/version.
 - **Cross-platform divergence**: shared lifecycle fixtures and parity criteria.
+
+
+## Native client and session checkpoint — 2026-09-12
+
+The authenticated loopback API was committed and pushed as `70a1778` before this
+step. The two existing apps use real Firebase authentication. Reusing their live
+functions client would mix live credentials and a provisional local endpoint, so
+this checkpoint groups the native contracts, local repositories, presentation
+operation ownership and their tests before any route is exposed.
+
+Both platforms now have typed overview/detail, case/offer/selection, own reserve
+and credit projections plus command acknowledgements. Their coverage ViewModels
+own one inbox and one in-flight mutation for an explicit UID/member/authorization
+revision. The caller must replace that revision on logout/relogin, environment,
+identity or authorization changes; responses from older revisions cannot publish
+state or clear a newer operation. Tokens stay in Data, never in the ViewModel.
+
+A lost response, cancellation after sending, invalid acknowledgement or transient
+failure preserves the exact command/operation/revisions for explicit retry. An
+acknowledgement followed by failed read-back clears the command and requires a new
+read; it must not issue a second mutation. Definitive 400/409 failures discard the
+intent and stale inbox; 401/403 also detach the local session and private state.
+No optimistic assignment/credit is synthesized, and no retry changes the operation
+ID. Eligibility, deadlines, selection, CAS and credit accounting remain backend-owned.
+
+Local repositories are excluded from Release (`src/debug` / `#if DEBUG`) and have
+no live composition call site. They accept only the fixed demo project's unsigned
+Auth-emulator token for the captured UID, reject signed/foreign tokens before HTTP,
+use only loopback (Android emulator host alias when needed), refuse redirects and
+avoid response caching. The iOS adapter uses Foundation's documented stateless
+redirect delegate with immediate `completionHandler(nil)`; async/await still owns
+the request. No unsafe concurrency annotation or deprecated API was added.
+
+The shared JSON oracle lives under iOS test resources and is also loaded as an
+Android test resource. Repository-to-ViewModel tests cover inbox/offer/accounting,
+accept/read-back, identical-intent retries, cancellation, UID/session changes during
+token/HTTP suspension, invalid receipts/projections and definitive rejection.
+An independent read-only architecture/style review found a byte-order-dependent
+JSON assertion; it was replaced by comparison of decoded command fields.
+
+Next grouped step: compose a separate emulator-auth rehearsal session and connect
+both native member/admin routes, with action/deadline affordances, localized copy,
+accessibility and UI/emulator journeys. These adapters and presentation models are
+not yet user-accessible screens. Real native HTTP, connected UI, notification/Sheets
+effects, entropy selection, ratification and activation remain pending.
+
+
+Validation for this native checkpoint:
+
+- Android `app:testDebugUnitTest`: 490 tests, zero failures/errors/skips, including
+  ten new repository/presentation pipeline tests.
+- Android `app:lintDebug`: successful, 136 warnings and two hints in unchanged
+  files; zero diagnostics in the new coverage sources. This is not a global
+  zero-warning claim, and no unrelated lint cleanup/dependency update is included.
+- iOS repository `fast-unit` runner, iPhone 17 / iOS 26.5: 893 passed, zero failed,
+  one skipped (existing opt-in HU-083 emulator test). The native result bundle reports
+  1,365 successful parameterized/device executions; these are not 1,365 distinct tests.
+- SwiftLint: zero violations in 493 files. Changed-diff Swift style audit: six
+  files inspected, no remaining candidates/findings. `git diff --check` clean.
+- Xcode MCP was queried first, but did not expose this worktree; validation used
+  the repository-authorized runner and inspected its closed native `.xcresult`.
+- No UI route/composition changed. Connected/native HTTP/UI-smoke and full release
+  acceptance remain assigned to the next UI/emulator integration step. The connected
+  Android device is a physical phone; it was not used to run an incomplete local
+  rehearsal through the existing real-auth application graph.
+- No Functions code changed after `70a1778`, so its already-recorded backend suites
+  were not repeated. No shared Firebase/Sheets writes or notification dispatch.

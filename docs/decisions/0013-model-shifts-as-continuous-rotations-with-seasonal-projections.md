@@ -1025,3 +1025,12 @@ live activation remain pending. No production entrypoint imports this compositio
 An explicit local runner now binds the handler to loopback only, with a required
 policy file/port and bounded JSON requests. Network tests exercise this host with
 Auth and Firestore emulators; importing it starts no listener or live service.
+
+The subsequent native checkpoint adds equivalent typed repositories and operation
+owners on Android/iOS. Local adapters are compiled only in Debug and are absent
+from live composition. A captured UID/member/authorization revision fences token
+retrieval, HTTP and presentation completion. Uncertain results retain the same
+command for explicit replay; acknowledged writes are never replayed merely because
+read-back failed. Only fixed-demo Auth-emulator credentials may reach loopback,
+with redirects refused. Native UI/session composition and connected journeys remain
+pending alongside notification/Sheets effects and live ratification/activation.

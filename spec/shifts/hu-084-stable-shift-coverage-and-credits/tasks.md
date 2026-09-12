@@ -35,6 +35,11 @@
 - [x] Add authenticated fixed-emulator command transport and member/admin read
   models; prove real Auth token checks, transactional UID/member binding, safe
   projections, revoked/disabled sessions and exact command replay locally.
+- [x] Add equivalent Android/iOS typed local repositories and presentation operation
+  ownership, session revision fences, explicit uncertain-command replay and shared
+  wire-fixture pipeline tests. Keep local adapters outside Release/live composition.
+- [ ] Compose isolated emulator Auth sessions and connect member/admin native UI,
+  localization, accessibility and real HTTP/connected journeys.
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset

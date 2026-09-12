@@ -10,27 +10,33 @@ reserve/volunteer selection, committed draws/admin recovery, seasonal credit
 planning and governed forward/inverse publication. Frozen whole-unit omissions and
 inverse recovery were committed and pushed as `1ea675f`.
 
-The current checkpoint adds the local app-access boundary: actual Auth emulator
-bearer verification with revocation checks, transactional UID/member/role resolution,
-member/admin overview/detail projections and safe command acknowledgements, served through an explicit loopback HTTP runner. Replay
-binds UID, member and operation so a new linked session cannot reuse another UID's
-receipt. Candidate/exclusion/draw records stay private; offers and accounting are
-limited to the caller, with explicit administrator context. Maintenance remains
-readable while writes are disabled. Inbox size limits reject rather than truncate.
+The authenticated loopback API was committed and pushed as `70a1778`. Its
+verification includes 45 coverage/HTTP unit tests, 31 security tests, 294 planning
+regressions, 87 Firestore/Rules tests and 17 HTTP/Auth/Firestore emulator scenarios.
 
-Validation: build/lint clean; 45 coverage/HTTP unit passes, 31 security passes,
-294 planning regressions (51 other-emulator cases skipped), 87 existing emulator/
-Rules passes, and 17 new HTTP scenarios with actual Auth and Firestore emulators. These
-cover delivery/market completion and credit, privacy, role/link/session changes,
-revocation, competing/replayed commands, maintenance and eligibility/read bounds.
+The current checkpoint adds equivalent Android/iOS typed local repositories and
+presentation operation owners. Both platforms fence token retrieval, HTTP results
+and presentation cleanup to the captured UID/member/authorization revision. An
+uncertain command keeps its exact operation/revisions for explicit replay; a valid
+acknowledgement followed by failed read-back never reissues the mutation. Definitive
+rejections clear stale state, and revoked/forbidden sessions detach private data.
+Only fixed-demo Auth-emulator credentials may reach loopback; the adapters are
+excluded from Release and absent from the live app graph. A shared JSON fixture
+exercises the repository-to-ViewModel pipeline on both platforms.
 
-The next coherent work is equivalent Android/iOS member/admin flows and their
-session-safe repository integration against this verified contract. Native files
-are unchanged in this checkpoint. Notification/Sheets effects,
-real entropy, assembly ratification and deployment remain pending. No deployable
-function, public listener, production write or dispatch was introduced. The story remains
-open and limited to the fixed demo/loopback environment. See the spec and `plan.md`
-for the client contract and validation boundary.
+Validation: Android 490 unit tests pass; lint completes with 136 warnings and two
+hints in unchanged files, none in the new coverage code. iOS `fast-unit-v1` passes
+893 tests with one existing opt-in HU-083 emulator test skipped, on iPhone 17/iOS
+26.5; SwiftLint reports zero violations. Independent architecture/style review
+corrected an unstable byte-order JSON comparison and checked session/cancellation/
+replay semantics. No active UI route changed or real native HTTP journey is claimed.
+
+Next grouped step: compose an isolated emulator-auth rehearsal session and connect
+equivalent member/admin screens, localized actions/deadlines, accessibility and
+native HTTP/UI journeys. Notification/Sheets effects, real entropy, assembly
+ratification and deployment remain pending. No live endpoint, production write or
+notification dispatch was introduced. The story remains open. See the spec and
+`plan.md` for the current client contract and evidence boundary.
 
 The operational plan groups work into three complete outcomes: coverage backend
 with persistence/security/tests; credit/membership/atomic-planner integration;
