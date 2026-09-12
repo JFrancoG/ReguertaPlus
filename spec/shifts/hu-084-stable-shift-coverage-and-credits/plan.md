@@ -909,3 +909,59 @@ notification infrastructure, with cross-platform reconciliation/regression. Comp
 assistive-technology/device acceptance, real entropy selection, assembly ratification,
 full release acceptance and HU-085 activation remain open. No shared Firebase/Sheets
 writes, deployment, notification dispatch or production mutation occurred.
+
+## Local coverage effects checkpoint — 2026-09-12
+
+Commit `455d27a` published the native rehearsal screens. The current grouped backend
+change connects successful coverage commands to a private atomic effects record,
+the existing HU-083 readable Sheets adapter and generic notification inbox records.
+The command receipt binds the effect digest; exact command replay creates no second
+outbox. Rotation ownership, credit accounting and historical public-write markers
+remain under their existing authorities.
+
+Delivery acceptance updates the effective lead and prospective predecessor helper
+across seasonal tabs; market replaces one person in the existing four-row layout.
+The existing identity resolver is shared with import to reject ambiguous new labels.
+Manual assignee/helper conflicts stop before overwriting, while notes, formulas and
+formatting survive. Only changed public projections require a Sheet operation.
+Completing coverage never writes Sheets again or grants another credit in this worker.
+
+The fixed-demo worker reserves the workbook per projection operation and persists
+exact human before/after images with complete bounded source document versions.
+Authority, case and source checks precede external mutation and notification release.
+Unknown acknowledgements retain the same submission; read-back can recover without
+another mutation. Source drift retains the unresolved reservation for explicit
+reconciliation. This deliberately bounded mechanism is not production multi-writer
+recovery or a replacement for HU-082 admission/fences. Operations superseded before
+processing are rejected; they are not silently marked delivered or re-prepared.
+
+Generic inbox delivery and effect completion share one Firestore transaction, with
+stable per-recipient IDs and inactive-user exclusion. The private record contains
+case/revision references; no reasons or candidate/credit evidence enter Sheets or
+notification copy. No notificationEvents fan-out event, FCM send, deployed function
+or live Google client is constructed. The native UI fixture does not auto-drain the
+in-memory workbook: this checkpoint proves the integration through automated local
+scenarios, not a shared-project or physical-device end-to-end acceptance.
+
+Validation:
+
+- Functions build and lint pass without diagnostics.
+- 45 coverage units and 72 Sheets scenarios pass.
+- 101 Firestore/Rules scenarios pass, including 14 new effects cases: cross-season
+  helper/lead projection, market round-trip, note/formula preservation, ambiguous
+  labels, manual conflicts, uncertain transport before/after apply, drift, expiry,
+  concurrent drains, replay, private collections and unchanged earned credits.
+- 20 Auth/Firestore HTTP scenarios pass with zero-write snapshots now including
+  effects and workbook reservations.
+- 31 backend/security/HU-016 scenarios and 294 HU-082 planning units pass. The latter
+  reports 51 emulator-dependent skips in its unit-only lane; these are not passes.
+- Android/iOS sources are unchanged since `455d27a`; their native gates were not
+  repeated. This backend checkpoint does not close the pending physical/assistive
+  acceptance matrix. `git diff --check` is clean.
+
+Next grouped outcome: authenticated case-specific notification detail/navigation
+in both native rehearsals and integrated reconciliation, then the complete release
+and device acceptance matrix. Real notification dispatch, external multi-writer
+recovery and entropy provider selection require their governed integration; assembly
+ratification and HU-085 remain the live activation boundary. No production data or
+shared workbook was modified. The bilingual rehearsal guides document these limits.

@@ -37,7 +37,7 @@ const open = (shiftId = "shift_delivery_20270901") => execute("a", "open",
 const offer = () => execute("admin", "offer", {userId: "d", reason: "Explicit arrangement", expiresAtMillis: now + 10_000});
 const capture = async () => {
   const result = {};
-  for (const name of ["users", "authLinks", "shifts", "shiftCoverageCases", "shiftCoverageOperations", "shiftCoverageCredits",
+  for (const name of ["users", "authLinks", "shifts", "shiftCoverageCases", "shiftCoverageOperations", "shiftCoverageEffects", "shiftCoverageProjectionState", "shiftCoverageCredits",
     "shiftCoverageMemberClaims", "shiftCoverageLedgerState", "shiftCoverageSlots", "shiftCoverageReserves"]) {
     result[name] = (await db.collection(`${root}/${name}`).orderBy("__name__").get()).docs.map((doc) => [doc.id, doc.data()]);
   }

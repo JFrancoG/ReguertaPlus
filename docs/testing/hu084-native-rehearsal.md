@@ -74,3 +74,42 @@ After completing delivery as admin, run the AX5 credit read test separately with
 `-only-testing:ReguertaUITests/CoverageRehearsalUITests/testLocalEarnedCreditAtAccessibilitySize`.
 It requires the completed-delivery state and skips unless explicitly selected by
 that environment flag. It records a persistent screenshot in the result bundle.
+
+## Coverage effects rehearsal
+
+`npm run test:shift-coverage:emulator` now includes the command-to-Sheets-to-inbox
+integration. It uses only the fixed Firestore demo and the existing in-memory
+Sheets API fixture (`coverage-rehearsal-book`). It does not drain the native UI
+fixture automatically or connect to a shared workbook.
+
+Every successful new command writes a private `shiftCoverageEffects` record in the
+same transaction as its receipt, assignment and any earned credit. The receipt
+binds its digest. The fixed-demo worker reuses the HU-083 importer, identity resolver,
+exact-cell adapter and read-back marker, plus the existing generic notification
+copy and inbox builder. It preserves rotation owners and historical backend markers.
+Only changed assignment/helper projections require a Sheet write; completion alone
+never rewrites a Sheet or awards another credit.
+
+Acceptance projects the effective lead and prospective predecessor helper across
+season tabs, or one member in the existing four-row market block. Notes, formulas
+and formatting survive; a conflicting manual assignee/helper or ambiguous name stops
+before submission. Readable round-trip imports retain the same effective members.
+No coverage reason, candidate evidence or credit fields are added to the workbook.
+
+A private workbook reservation serializes different projection operations. Before
+external mutation and inbox release, the worker checks writer authority, the exact
+case revision and the complete bounded source snapshot (at most 500 documents in
+each of shifts, users and deliveryCalendar). Persisted submissions bind document
+update times and exact human before/after images. Unknown acknowledgements retain
+that submission and reservation: verified read-back resumes without another write.
+Source drift stops recovery rather than replacing the pending submission. A
+pre-submission conflict releases its reservation; an uncertain submitted operation
+requires explicit reconciliation before another operation can use the workbook.
+
+Generic per-recipient inbox records are created atomically with effect completion
+only after verified projection; inactive recipients are skipped. Offers are checked
+for expiry/supersession. Replays and concurrent drains cannot duplicate inbox
+records. No `notificationEvents` fan-out event or FCM send is created. The private
+effect keeps case/revision references; case-specific notification navigation and
+actual dispatch remain pending, as does governed shared-workbook recovery/activation.
+The rehearsal reservation is not a production distributed lock across all writers.

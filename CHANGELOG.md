@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-13 | ✨ feat(shifts): rehearse coverage effects
+
 - 2026-09-12 | ✨ feat(shifts): connect native coverage rehearsal screens
 
 - 2026-09-12 | ✨ feat(shifts): add native coverage session clients

@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {test} = require("node:test");
 const {initializeTestEnvironment, assertFails} = require("@firebase/rules-unit-testing");
-const collections = ["shiftMembershipState", "shiftMembershipOperations", "shiftCoverageBeaconRounds", "shiftCoverageReserves", "shiftCoverageCreditPlans", "shiftCoverageCreditUnits",
+const collections = ["shiftCoverageEffects", "shiftCoverageProjectionState", "shiftMembershipState", "shiftMembershipOperations", "shiftCoverageBeaconRounds", "shiftCoverageReserves", "shiftCoverageCreditPlans", "shiftCoverageCreditUnits",
   "shiftCoverageCases", "shiftCoverageOperations", "shiftCoverageSlots",
   "shiftCoverageMemberClaims", "shiftCoverageCredits", "shiftCoverageLedgerState"];
 

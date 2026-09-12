@@ -19,7 +19,7 @@ const member = (roles = ["member"], isCommonPurchaseManager = false) =>
 const snapshot = async () => {
   const output = {};
   for (const collection of ["shiftMembershipState", "shiftMembershipOperations", "shifts", "users", "shiftRotations", "shiftCoverageCreditPlans", "shiftCoverageCreditUnits", "shiftCoverageCases", "shiftCoverageCredits",
-    "shiftCoverageSlots", "shiftCoverageBeaconRounds", "shiftCoverageReserves", "shiftCoverageMemberClaims", "shiftCoverageOperations", "shiftCoverageLedgerState"]) {
+    "shiftCoverageSlots", "shiftCoverageBeaconRounds", "shiftCoverageReserves", "shiftCoverageMemberClaims", "shiftCoverageOperations", "shiftCoverageEffects", "shiftCoverageProjectionState", "shiftCoverageLedgerState"]) {
     output[collection] = (await db.collection(`${root}/${collection}`).get()).docs.map((d) => [d.id, d.data()]);
   }
   return output;

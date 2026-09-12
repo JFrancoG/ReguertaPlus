@@ -1,3 +1,4 @@
+import {buildShiftCoverageEffects} from "./shift-coverage-effects.js";
 import {VerifiedIdentity} from "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {createShiftCoverageClientReader} from "./shift-coverage-client.js";
@@ -614,6 +615,14 @@ export const createProvisionalShiftCoverageStore = (options: {
         if (claimAction !== null && !claimRef) {
           return rejectCoverage("coverage_claim_missing");
         }
+        const before = new Map([...writes.keys()].map((path) => {
+          const source = shifts.docs.find((item) => item.ref.path === path);
+          return [path, parseShiftPlanningPublicShiftDocument({
+            targetPath: path, value: source?.data()})] as const;
+        }));
+        const effects = buildShiftCoverageEffects({operationId:
+          command.operationId, action: command.action, previous, next,
+        before, writes});
         // Every read and validation precedes all writes. Firestore retries the
         // entire source/claim/ledger observation on concurrent modifications.
         if (command.action === "open") {
@@ -634,7 +643,10 @@ export const createProvisionalShiftCoverageStore = (options: {
         writes.forEach((data, path) => transaction.set(db.doc(path), data));
         transaction.set(caseRef, {value: next, digest: digest(next),
           authority});
+        transaction.create(ref("shiftCoverageEffects", command.operationId),
+          {value: effects, state: "pending", authority});
         transaction.create(receiptRef, {commandDigest, command,
+          effectsDigest: effects.effectsDigest,
           actorMemberId: actorId, ...authBinding,
           result: next, previousRevision: previous?.revision ?? 0});
         return {case: next, replayed: false};

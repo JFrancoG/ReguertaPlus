@@ -40,6 +40,10 @@
   wire-fixture pipeline tests. Keep local adapters outside Release/live composition.
 - [x] Compose isolated emulator Auth sessions and connect member/admin native UI,
   localized forms/actions, static accessibility, previews and native HTTP journeys.
+- [x] Persist atomic command effects and rehearse HU-083 readable projection plus
+  generic inbox release with exact retries, manual conflict preservation and private Rules.
+- [ ] Complete case-specific notification routing, dispatch and governed external
+  recovery/activation; the fixed-demo worker is not a live delivery entrypoint.
 - [ ] Complete assistive-technology and adaptive-device acceptance of these routes.
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 

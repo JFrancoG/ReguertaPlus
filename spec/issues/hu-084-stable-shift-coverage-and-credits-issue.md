@@ -15,7 +15,7 @@ verification includes 45 coverage/HTTP unit tests, 31 security tests, 294 planni
 regressions, 87 Firestore/Rules tests and 17 HTTP/Auth/Firestore emulator scenarios.
 
 Commit `99c5777` published the equivalent native repositories and session owners.
-The current working-tree checkpoint connects Debug-only member/admin screens to
+Commit `455d27a` published Debug-only member/admin screens connected to
 isolated Auth-emulator sessions, with absence and offer forms, selection actions,
 completion/failure, own credits/reserves, localized copy and explicit uncertain
 operation retry. Both platforms revalidate session, revision, action and expiry
@@ -34,12 +34,26 @@ Independent architecture/UI reviews closed all actionable findings; VoiceOver an
 the full adaptive-device matrix remain open.
 
 Rehearsal instructions: `docs/testing/hu084-native-rehearsal.md` and its Spanish
-counterpart. The next grouped step connects coverage effects through existing
-HU-083 Sheets and notification infrastructure and reconciles the end-to-end result.
-Real entropy selection, assembly ratification, full release acceptance and HU-085
-activation remain pending. No live endpoint, shared Firebase/Sheets write or
-notification dispatch was introduced. The story remains open. See `plan.md` for
-the current contract, validation details and evidence boundaries.
+counterpart. The current backend checkpoint persists atomic command effects,
+projects effective assignees/prospective helpers through the existing HU-083 readable
+adapter and releases generic inbox records only after verified projection. It retains
+exact submissions on uncertain responses, rejects manual conflicts and source drift,
+preserves notes/formulas/owners, and prevents duplicate credits or inbox entries.
+This uses the fixed Firestore demo and an in-memory workbook; the native UI fixture
+does not auto-drain it. No notificationEvents fan-out or FCM dispatch is introduced.
+
+Validation adds 101 Firestore/Rules scenarios (14 effects integrations), 72 Sheets
+scenarios, 45 coverage units, 20 Auth/Firestore HTTP scenarios, 31 backend/security
+scenarios and 294 planning units, with lint/build clean. The planning unit lane has
+51 explicitly emulator-dependent skips. Native sources are unchanged since `455d27a`;
+those gates were not repeated for this backend checkpoint.
+
+Next grouped outcome: authenticated case-specific notification detail/navigation in
+both native rehearsals and integrated reconciliation, then full release/device
+acceptance. Real dispatch, external multi-writer recovery, entropy selection,
+assembly ratification and HU-085 activation remain pending. No live endpoint, shared
+Firebase/Sheets write or notification dispatch was introduced. The story remains
+open. See `plan.md` for current contracts, validation and evidence boundaries.
 
 The operational plan groups work into three complete outcomes: coverage backend
 with persistence/security/tests; credit/membership/atomic-planner integration;
