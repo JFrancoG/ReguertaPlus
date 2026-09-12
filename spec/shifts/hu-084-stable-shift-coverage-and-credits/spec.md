@@ -5,10 +5,19 @@
 - issue_id: #268
 - priority: P1
 - platform: both
-- status: draft
-- blocked_by: assembly ratification
+- status: provisional local implementation in progress
+- blocked_by: assembly ratification for live activation
 - decision_gate: assembly ratification
 - depends_on: HU-082 / #266, HU-083 / #267
+
+## Local implementation authorization — 2026-09-12
+
+The maintainer explicitly authorized implementing this proposal provisionally for
+local tests. This authorizes the implementation branch and emulator-only behavior;
+it does not ratify the proposal or authorize deployment/live activation. The
+administrative coverage lifecycle is the initial implementation. Selection order,
+reserve exit, draw entropy and response windows remain pending business decisions.
+See `plan.md` for implemented behavior, validation and integration limits.
 
 ## Context and problem
 
@@ -277,8 +286,9 @@ The assembly must ratify or amend, at minimum:
   the original owner ultimately working;
 - who may open/cancel a vacancy and confirm completion.
 
-No implementation phase starts before the decision is reflected in the English
-and Spanish authoritative requirements.
+No live activation starts before the decision is reflected in the English and
+Spanish authoritative requirements. The dated local authorization above permits
+provisional emulator implementation while this gate remains open.
 
 ## Scope after approval
 
@@ -302,7 +312,7 @@ and Spanish authoritative requirements.
 - Treating a unilateral coverage as an HU-016 reciprocal swap.
 - Opaque or client-side random selection.
 - Consuming a credit by removing an already published assignment.
-- Implementing any unresolved policy before assembly ratification.
+- Activating unresolved policy on shared/live data before assembly ratification.
 
 ## Linked functional requirements
 
@@ -393,14 +403,15 @@ and Spanish authoritative requirements.
   semantics.
 - HU-083 / issue #267 must be integrated and preserve effective assignment
   separately in Sheets.
-- Assembly ratification and bilingual requirements are hard blockers.
+- Assembly ratification and bilingual requirements are hard live-activation blockers.
 - HU-085 production activation for the base planner is independent and need not
   wait for HU-084.
 
 ## Risks and mitigations
 
-- **Policy implemented by accident**: keep issue/spec blocked and all
-  implementation tasks unchecked until assembly evidence is linked.
+- **Policy activated by accident**: keep the provisional adapter demo/loopback-only,
+  without production endpoint imports, and live acceptance tasks unchecked until
+  assembly evidence and the complete integration are verified.
 - **Life disruption**: freeze unaffected published rows and require explicit
   responses.
 - **Gaming volunteers/credits**: issue credits only from completed authoritative

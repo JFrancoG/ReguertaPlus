@@ -93,7 +93,9 @@
     "plan:shift-sheets:conversion": "node scripts/plan-shift-sheets-conversion.cjs",
     "test:shift-sheets:conversion": "npm run build && node --test test/shift-sheets-conversion.test.cjs",
     "test:shift-repair:authority": "npm run build && node --test test/shift-repair-authority.test.cjs",
-    "test:shift-repair:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-repair --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-repair-rehearsal.test.cjs\""
+    "test:shift-repair:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-repair --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-repair-rehearsal.test.cjs\"",
+    "test:shift-coverage": "npm run build && node --test test/shift-coverage.test.cjs",
+    "test:shift-coverage:emulator": "npm run build && firebase emulators:exec --config ../firebase.coverage-emulator.json --project demo-reguerta-hu084-coverage --only firestore \"GCLOUD_PROJECT=demo-reguerta-hu084-coverage METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-coverage.emulator.test.cjs test/firestore/shift-coverage.rules.test.cjs test/firestore/phase1-compatibility.rules.test.cjs\""
   },
   "engines": {
     "node": "22"

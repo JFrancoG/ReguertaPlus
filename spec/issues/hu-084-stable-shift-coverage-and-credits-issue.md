@@ -1,12 +1,29 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Start checkpoint — 2026-09-12
+
+The maintainer explicitly requested the implementation branch and grouped delivery.
+Branch `codex/hu-084-stable-shift-coverage-and-credits` is created from merged
+HU-083 (`327e563`) in its own worktree. This is not assembly ratification.
+The maintainer authorized provisional local implementation on 2026-09-12.
+The administrative coverage lifecycle now has emulator-only transactional code
+and tests. Automatic selection, planner consumption and mobile integration remain
+pending; no live endpoint or deployment is enabled. Lint/build, 20 unit/regression
+tests and 22 emulator/Rules tests pass. See `plan.md` for scope and evidence.
+
+The operational plan groups work into three complete outcomes: coverage backend
+with persistence/security/tests; credit/membership/atomic-planner integration;
+then equivalent member/admin mobile flows plus Sheets and integrated validation.
+Avoid per-helper/per-test cuts. Reuse HU-082 eligibility, ownership, admission and
+HU-083 projection/event infrastructure. Detailed plan: the existing `plan.md` below.
+
 ## Tracking
 
 - GitHub issue: #268
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/268
-- State: DRAFT / BLOCKED BY ASSEMBLY
+- State: IN PROGRESS / PROVISIONAL LOCAL IMPLEMENTATION
 - Planning branch: `codex/hu-082-shift-operations-planning`
-- Implementation branch: forbidden until the assembly gate is satisfied
+- Implementation branch: `codex/hu-084-stable-shift-coverage-and-credits` (explicitly requested; policy ratification not inferred)
 - Depends on: HU-082 / #266 and HU-083 / #267
 - Independent production activation: HU-085 / #269
 
@@ -82,7 +99,7 @@ assembly, so issue creation is traceability, not approval.
 - Plan: `spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md`
 - Tasks: `spec/shifts/hu-084-stable-shift-coverage-and-credits/tasks.md`
 
-## Hard gate
+## Live activation gate
 
 - [ ] Assembly decision/date and accepted wording linked.
 - [ ] Normal-round tail placement and simultaneous-join ordering explicitly
@@ -99,7 +116,9 @@ assembly, so issue creation is traceability, not approval.
   fully accounted coverage fallback explicitly ratified.
 - [ ] English/Spanish requirements updated.
 - [ ] Spec/issue reconciled and maintainer-approved.
-- [ ] Only then may an implementation branch or code change begin.
+- [x] Implementation branch explicitly requested and created on 2026-09-12.
+- [x] Provisional local implementation explicitly authorized on 2026-09-12.
+- [ ] Assembly ratification and complete integration authorize live activation.
 
 ## Suggested labels
 

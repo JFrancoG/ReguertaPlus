@@ -929,3 +929,21 @@ siendo independiente y no está aprobada.
 - HU-084 / issue #268
 - HU-085 / issue #269
 - ADR-0003: Usar Firebase como backend
+
+## Implementación local provisional de HU-084 — 2026-09-12
+
+El mantenedor autorizó implementar provisionalmente y probar en el emulador local
+antes de la ratificación de la asamblea. Esta excepción permite desarrollar el
+ciclo administrativo de cobertura con documentos canónicos de turnos en un proyecto
+demo fijo. Ningún endpoint productivo importa el adaptador, que exige Firestore en
+loopback; las colecciones privadas de cobertura deniegan lecturas/escrituras de
+clientes en ambas políticas de Rules. Este hito no autoriza cambios en Firebase o
+Sheets compartidos ni despliegues. El planificador productivo sigue rechazando
+créditos habilitados.
+
+La política definitiva de reserva/selección/plazos, las transiciones de membresía
+y la activación real siguen pendientes de ratificación por asamblea. Las pruebas
+locales de cumplimiento/crédito acreditan este alcance limitado, no la aceptación
+de toda la política. El alcance implementado y la integración pendiente de
+identidad, bloqueos de escritura, eventos y planificador figuran en
+`spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md`.

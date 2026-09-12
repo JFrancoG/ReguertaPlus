@@ -894,3 +894,19 @@ The assembly-gated HU-084 policy remains independent and unapproved.
 - HU-084 / issue #268
 - HU-085 / issue #269
 - ADR-0003: Use Firebase as Backend
+
+## HU-084 provisional local implementation — 2026-09-12
+
+The maintainer authorized provisional implementation and local emulator tests
+before assembly ratification. This exception permits the administrative coverage
+lifecycle to be developed against canonical shift documents in a fixed demo
+project. The store is not imported by a production endpoint and requires loopback
+Firestore; private coverage collections deny client reads/writes under both Rules
+policies. No shared Firebase/Sheets changes or deployment are authorized by this
+checkpoint. The existing production planner continues to reject enabled credits.
+
+The final reserve/selection/deadline policy, membership transitions and live
+activation remain subject to assembly ratification. Local completion/credit tests
+are evidence of this limited implementation, not acceptance of the full policy.
+See `spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md` for the implemented
+scope and remaining identity, writer-fence, event and planner integration.

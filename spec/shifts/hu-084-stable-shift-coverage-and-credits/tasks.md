@@ -1,6 +1,20 @@
 # Tasks - HU-084 (Stable shift coverage and earned credits)
 
-## 0. Hard decision gate
+## Local implementation checkpoint — 2026-09-12
+
+- [x] Maintainer authorized provisional local implementation before ratification.
+- [x] Create `codex/hu-084-stable-shift-coverage-and-credits` from merged HU-083.
+- [x] Implement the administrative lifecycle with transactional assignment,
+  completion/credit, idempotency, membership checks and private Rules.
+- [x] Add unit, emulator race/history/eligibility and client-access tests.
+- [ ] Complete automatic selection and backend integration (outcome group 1).
+- [ ] Complete credit/membership/planner integration (outcome group 2).
+- [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
+
+Detailed tasks below describe the complete live feature. An emulator-only subset
+is not completion of those production tasks. See `plan.md` for the current boundary.
+
+## 0. Live activation decision gate
 
 - [ ] Present normal-round placement/tie order for joins/reactivations, reserve
   lifecycle and exit boundary, volunteer, draw, admin fallback, deadlines,
@@ -12,7 +26,7 @@
 - [ ] Update authoritative English and Spanish requirements/user stories.
 - [ ] Reconcile issue #268 and this spec with any amendments.
 - [ ] Obtain maintainer approval of the reconciled implementation scope.
-- [ ] Only then create the HU-084 implementation branch.
+- [ ] Only then authorize live activation of the reconciled implementation.
 
 ## 1. Threat model and contracts
 

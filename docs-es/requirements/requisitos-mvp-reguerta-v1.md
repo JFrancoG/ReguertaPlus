@@ -128,6 +128,11 @@ Fuera de MVP (fase posterior):
 
 Nota de gobierno: la política definitiva para cubrir bajas sobrevenidas tras publicar turnos queda para asamblea.
 
+Autorización del mantenedor (2026-09-12): HU-084 puede implementarse de forma
+provisional en el emulador local. No autoriza la activación real ni ratifica la
+política; véanse la aclaración fechada de ADR-0013 y el plan de HU-084.
+
+
 ### 3.8 Noticias y comunicación
 
 - `RF-NOTI-01` En MVP solo admin puede publicar noticias.

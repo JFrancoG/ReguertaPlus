@@ -1,10 +1,97 @@
 # Plan - HU-084 (Stable shift coverage and earned credits)
 
+## Start checkpoint — 2026-09-12
+
+The maintainer requested the implementation branch and fewer, larger delivery
+blocks. Branch `codex/hu-084-stable-shift-coverage-and-credits` starts from merged
+HU-083 (`327e563`). Existing changes in the main checkout remain untouched.
+The maintainer subsequently authorized provisional local implementation on
+2026-09-12. Assembly ratification remains pending for live activation. Unresolved
+selection rules and deadlines must remain explicit rather than silently defaulted.
+
+Use three cohesive delivery blocks, not a new cut for each contract or test:
+
+1. **Coverage backend:** lifecycle, candidate eligibility, reserve/volunteer/draw
+   transitions, acceptance, cancellation, completion and credit issuance together
+   with transactional persistence, authorization and emulator tests. Finalize the
+   policy inputs before committing behavior that depends on them.
+2. **Planning integration:** credit consumption and whole-unit staffing, membership
+   transitions, immutable published ownership and atomic ledger/cursor publication
+   with inverse/retry tests. Reuse the existing HU-082 planning/activation authority.
+3. **Member/admin product and integration:** equivalent Android/iOS flows, Sheets
+   projection, notification navigation and complete native/emulator validation.
+
+Commit at coherent validated milestones. Split a block only for a demonstrated
+independent risk or an unresolved product decision, not because a chat turn ended.
+These are outcome groups, not a promise that each is one short session.
+
+### Reuse identified before policy implementation
+
+- `shift-eligibility.ts`: canonical active/common-purchase-manager predicate.
+- `shift-planning-contract.ts`: queue cursor and owned positions.
+- `shift-planning-bundle.ts` and source producer: credits currently reject when
+  enabled; preserve that production boundary until the approved integration exists.
+- `shift-sheets-import-plan.ts`: prospective helper and neighborhood revision
+  contract; coverage must preserve the same completed-history invariant.
+- Existing writer authorization, operation/event retention and transactional CAS
+  boundaries remain the integration points. Do not add a parallel generic workflow
+  or migration engine to implement this story.
+
 ## 1. Current state
 
-Planning only. This plan is intentionally non-executable until the assembly
-ratifies the business policy and the bilingual requirements are updated. Issue
-#268 may collect amendments, but an open issue is not approval.
+Provisional local implementation is in progress under the maintainer
+authorization of 2026-09-12. Live activation remains gated by assembly ratification.
+The administrative lifecycle below is implemented; the full coverage backend,
+planning integration and native product groups remain unfinished.
+
+### Implemented local administrative lifecycle — 2026-09-12
+
+- Open a stable vacancy, offer explicitly as administrator, accept/decline as the
+  offered member, expire/cancel, record failure, and confirm completed coverage.
+- Firestore transactions re-read active membership/admin roles, canonical target
+  and delivery neighbors, maintenance authority and same-type member claims.
+  Expected case/public revisions and operation receipts prevent stale writes and
+  duplicate effects; rotation ownership and completed helper history are retained.
+- Accepted coverage holds one same-type claim. Only completion creates a pending
+  credit and advances that type's ledger revision; failure releases the claim
+  without credit and retains the effective assignment for explicit re-resolution.
+- Private cases, operation receipts, slot/member claims, credits and ledger state
+  deny client access under both Rules policies. No Rules were deployed.
+- `shift-coverage-provisional-store.ts` requires the fixed demo project and
+  loopback emulator. No production entrypoint imports it. The trusted caller
+  supplies a resolved member ID, clock and maximum offer window; no HTTP identity
+  boundary or assembly deadline is implied by the test adapter.
+
+Run from `functions`: `npm run test:shift-coverage` and
+`npm run test:shift-coverage:emulator` (Java 21+ on PATH/JAVA_HOME).
+The latter uses `firebase.coverage-emulator.json`, with Firestore on port 8798.
+Fixtures are synthetic; no live develop/production data or Sheets are read/written.
+
+### Validation — 2026-09-12
+
+- `npm run lint` and `npm run build`: passed, no compiler/lint diagnostics.
+- Coverage input/eligibility/isolation plus existing swap/publication/writer tests:
+  20 passed, zero failures/skips.
+- `npm run test:shift-coverage:emulator`: 22 passed, zero failures/skips
+  (12 coverage scenarios, 2 Rules matrices and 8 existing phase-1 compatibility
+  tests). Real Firestore transactions cover simultaneous opens/accepts, replay,
+  stale revisions/authority, eligibility drift, seasonal helper history, distinct
+  market coverage, same-type exclusions and cross-type independence.
+- Android/iOS are unchanged and not validated in this checkpoint. Their coverage
+  product flows remain pending on both platforms.
+
+### Remaining integration boundary
+
+This is the administrative path within outcome group 1, not a complete backend.
+Reserve FIFO, volunteers and committed future-entropy draw remain unimplemented.
+The local adapter bounds source reads to 1,000 documents and deliberately has no
+HTTP endpoint, public user-facing projection, notifications or Sheets effects.
+Before any live endpoint, integrate authenticated identity, the existing writer
+resource fences, admission limits and public-event/notification authority rather
+than importing this prototype. Credit consumption, ledger binding to staged
+plans/activation, claim release on consumption, membership changes and both native
+clients remain in the following outcome groups. Production planners still reject
+non-zero credits. Assembly decisions and deployment remain separate gates.
 
 ## 2. Technical approach after approval
 
@@ -78,7 +165,7 @@ a credit ledger. Every mutable aggregate needs a version and idempotency key.
 - Record accepted wording, thresholds, deadlines, authorities, and any rejected
   option.
 - Update English/Spanish requirements and user stories.
-- Re-review this spec and issue before creating an implementation branch.
+- Re-review this spec and issue before authorizing live activation.
 
 ### Phase 1 - Threat model and RED contract
 
