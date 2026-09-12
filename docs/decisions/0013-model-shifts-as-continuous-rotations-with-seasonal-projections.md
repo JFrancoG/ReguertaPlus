@@ -1007,3 +1007,21 @@ credit backtracking contracts remain intact. Local planning integration is compl
 mobile/coverage transport and notification/Sheets product integration, real entropy,
 assembly ratification and deployment remain pending. Fixed-emulator evidence does
 not authorize shared-project writes or live activation.
+
+
+The local app-access checkpoint adds an explicitly composed Auth/Firestore emulator
+handler, not a deployable endpoint. Actual Admin Auth verification checks revoked
+credentials per request; canonical Auth links, active membership and roles are read
+inside each command/query transaction. Authenticated receipts additionally bind the
+UID so account relinking cannot replay another session's operation. Existing direct
+member-ID calls remain confined to the earlier trusted test harness. Member/admin
+read projections expose only relevant offers, own accounting and explicit management
+context; internal candidate/exclusion/draw records never cross this boundary. Valid
+maintenance remains readable with stale-write controls disabled. The engine retains
+all command/neighbor/credit checks. This supplies the common local client contract;
+native presentation/session fencing, notification/Sheets effects and
+live activation remain pending. No production entrypoint imports this composition.
+
+An explicit local runner now binds the handler to loopback only, with a required
+policy file/port and bounded JSON requests. Network tests exercise this host with
+Auth and Firestore emulators; importing it starts no listener or live service.

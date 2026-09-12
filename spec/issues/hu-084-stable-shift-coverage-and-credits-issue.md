@@ -7,31 +7,30 @@ The maintainer requested grouped implementation on branch
 and authorized provisional local work on 2026-09-12. Assembly policy and live
 activation remain unratified. This branch has local coverage lifecycle,
 reserve/volunteer selection, committed draws/admin recovery, seasonal credit
-planning and governed forward/inverse publication. New-round admission was committed
-and pushed as `859ede8`.
+planning and governed forward/inverse publication. Frozen whole-unit omissions and
+inverse recovery were committed and pushed as `1ea675f`.
 
-The current checkpoint completes the provisional local planning integration:
-frozen unpublished departures/ineligibility retain original owner, round, position,
-reason and membership revision inside the activated bundle's full physical units.
-No separate tombstone collection or writer is added. Cohorts change only at the
-permitted new-round boundary; cross-boundary market groups retain replayable
-carryover evidence. Reactivation preserves the old exclusion and enters a new
-normal position. Each type acknowledges admission only after its first complete
-new-cohort unit, without forcing another round merely to clear pending state.
+The current checkpoint adds the local app-access boundary: actual Auth emulator
+bearer verification with revocation checks, transactional UID/member/role resolution,
+member/admin overview/detail projections and safe command acknowledgements, served through an explicit loopback HTTP runner. Replay
+binds UID, member and operation so a new linked session cannot reuse another UID's
+receipt. Candidate/exclusion/draw records stay private; offers and accounting are
+limited to the caller, with explicit administrator context. Maintenance remains
+readable while writes are disabled. Inbox size limits reject rather than truncate.
 
-Existing forward/inverse transactions bind membership, reserves, credits and current
-user predicates, and reject omission of any already published owner position.
-Recovery restores frozen cursors, credits and pending intent with higher revisions.
-Insufficient staffing rejects without partial writes. Reserves remain independent
-of cohort inclusion; completed helper history stays unchanged.
+Validation: build/lint clean; 45 coverage/HTTP unit passes, 31 security passes,
+294 planning regressions (51 other-emulator cases skipped), 87 existing emulator/
+Rules passes, and 17 new HTTP scenarios with actual Auth and Firestore emulators. These
+cover delivery/market completion and credit, privacy, role/link/session changes,
+revocation, competing/replayed commands, maintenance and eligibility/read bounds.
 
-Validation: build/lint clean; 39 coverage/credit/membership unit passes, 294 HU-082
-regression passes (51 other-emulator cases skipped), and 87 distinct emulator/Rules
-scenarios across the full suite and focused publication rerun. The next grouped
-outcome is equivalent Android/iOS member/admin flows and authenticated coverage,
-notification and Sheets product integration. Real entropy, assembly ratification
-and deployment remain pending. This checkpoint is restricted to the fixed local
-emulator; it does not complete or activate the live story. See `plan.md` for evidence.
+The next coherent work is equivalent Android/iOS member/admin flows and their
+session-safe repository integration against this verified contract. Native files
+are unchanged in this checkpoint. Notification/Sheets effects,
+real entropy, assembly ratification and deployment remain pending. No deployable
+function, public listener, production write or dispatch was introduced. The story remains
+open and limited to the fixed demo/loopback environment. See the spec and `plan.md`
+for the client contract and validation boundary.
 
 The operational plan groups work into three complete outcomes: coverage backend
 with persistence/security/tests; credit/membership/atomic-planner integration;

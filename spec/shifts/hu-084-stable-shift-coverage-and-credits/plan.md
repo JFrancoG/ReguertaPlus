@@ -485,6 +485,60 @@ Real entropy/provider policy, assembly ratification and deployment remain separa
 gates. No live Firestore/Sheets, notification dispatch or shared-project deployment
 was performed; this is not completion of the live HU-084 story.
 
+### App integration: authenticated local access — 2026-09-12
+
+The frozen-unit block was committed and pushed as `1ea675f`. The next authorized
+implementation groups command transport, member/admin read models and identity/
+privacy tests. This security boundary precedes native UI: the current engine accepts
+already resolved member IDs and returns internal selection snapshots, so exposing
+it directly would trust client identity and disclose candidate/exclusion evidence.
+Verify bearer tokens per request and resolve canonical Auth links and current
+members inside the same transaction as commands/replays. Project only client-safe
+information.
+Use real Auth and Firestore emulators in the fixed demo project. No deployable
+function is exported and native integration remains pending until this contract is
+verified. This is an independently reviewable access boundary, not a per-helper cut.
+
+### Authenticated local access result — 2026-09-12
+
+- `createProvisionalShiftCoverageApp` composes actual Admin Auth token verification
+  (`checkRevoked: true`) and the existing coverage engine. Both Auth (9098) and
+  Firestore (8798) must be on exact loopback addresses in the fixed demo project.
+  Environment checks precede SDK composition and run before/after verification.
+  No deployed export, production endpoint or identity bypass is introduced.
+- Every query and command resolves `authLinks/{uid}` and the linked member's
+  `authUid`, active status and roles in its Firestore transaction. Retry/replay
+  re-reads that authority; receipts bind Auth UID, member, command and operation ID.
+  A newly linked UID cannot replay the former session's receipt for the same member.
+- Overview/detail return dates, statuses, case/current-shift revisions, own offer
+  and volunteering, own credits/reserves, server time and configured deadlines.
+  Administrators additionally receive the case reason/opener and volunteer count.
+  No candidate snapshot, exclusion list, draw input, full ledger, token or internal
+  SDK error is returned. Closed cases are visible only to participants/admins;
+  real producers cannot browse vacancies, while common purchase managers remain eligible.
+- Reads remain available during valid maintenance with `writable: false`. The flag
+  indicates current planning authority, not advance authorization of a command:
+  the engine still rechecks state, eligibility, deadlines, claims and neighbors.
+  An oversized overview (over 250 cases/own credits) rejects explicitly; detail
+  remains available. The provisional contract does not silently truncate data.
+- The included local HTTP server binds only `127.0.0.1`, requires a policy JSON
+  and port, limits JSON bodies to 16 KiB and exposes `/coverage`. Actual network
+  tests run all app scenarios through it. It starts only when explicitly invoked;
+  importing the module starts nothing, and cleanup releases listener/SDK resources.
+- HTTP accepts POST with an exact command or `overview`/`detail` query and bearer
+  token. Mutation acknowledgements contain only operation/case IDs, revision and
+  replay status; clients must reload current state and retain the same operation
+  ID when retrying an uncertain result. See the spec's local-client contract.
+
+Validation: build/lint clean; 45 coverage/HTTP unit tests, 31 backend-security tests,
+294 planning regressions (51 cases requiring other emulator configurations skipped),
+87 existing coverage/publication/Rules emulator cases, and 17 new HTTP/real Auth plus
+Firestore integration scenarios. Native sources are untouched; no native build or
+UI evidence is claimed. Android/iOS presentation/session fencing, notification/Sheets
+product effects and real entropy remain pending. The next
+coherent implementation is the two native member/admin flows against this contract;
+activation/ratification remains a separate gate.
+
 ## 2. Technical approach after approval
 
 Build coverage as a separate state machine, not as a special reciprocal swap or

@@ -32,6 +32,9 @@
 - [x] Integrate frozen unpublished departures/ineligibility with whole-unit
   activation/inverse, reason-preserving re-entry, cross-season carryover and
   zero-write rejection when a complete valid unit cannot be staffed (local outcome group 2).
+- [x] Add authenticated fixed-emulator command transport and member/admin read
+  models; prove real Auth token checks, transactional UID/member binding, safe
+  projections, revoked/disabled sessions and exact command replay locally.
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset

@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-12 | ✨ feat(shifts): add authenticated local coverage API
+
 - 2026-09-12 | ✨ feat(shifts): publish frozen omissions atomically
 
 - 2026-09-12 | ✨ feat(shifts): admit members in new round publication

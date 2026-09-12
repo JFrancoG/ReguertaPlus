@@ -409,6 +409,69 @@ provisional emulator implementation while this gate remains open.
 - [ ] Local/emulator acceptance covers all ratified edge cases before a separate
   shared-project activation story is proposed.
 
+## Provisional local-client contract — 2026-09-12
+
+This contract supports the authorized local implementation only. Construct
+`createProvisionalShiftCoverageApp` with an explicit offer window, trusted clock
+and any configured selection/beacon policy. Its `handle` adapter starts no listener.
+The explicit `startProvisionalShiftCoverageServer` wrapper binds only loopback and
+exports no deployable Cloud Function. Auth and Firestore must use
+`demo-reguerta-hu084-coverage` at `127.0.0.1:9098` and `127.0.0.1:8798` respectively.
+Real SDK verification is tested against Auth emulator tokens; this is not proof of
+production token/IAM deployment configuration.
+
+Requests use POST and an Authorization bearer token. They accept no query-string
+fields, actor ID, role, balance, candidate evidence or alternate environment.
+The existing exact `ShiftCoverageCommand` is the mutation body, including case,
+operation and expected case/shift revisions. Queries are:
+
+```json
+{"schemaVersion":1,"environment":"develop","action":"overview"}
+{"schemaVersion":1,"environment":"develop","action":"detail","caseId":"case-id"}
+```
+
+Success is `{ok: true, data: ...}`. A mutation's data contains `schemaVersion`,
+`environment`, `operationId`, `caseId`, `revision` and `replayed`. Retry an uncertain
+mutation with the same operation ID/body; reload current query state afterward.
+A read includes resolved `memberId`, current admin/eligibility flags, server time,
+explicit policy windows/capability, case views and only the caller's credits and
+reserves. Every case includes its public date/type/position, current revisions,
+status, own offer/volunteering and planning-authority availability. Admin-only
+context contains reason, opener and volunteer count; candidate/exclusion/draw
+records are not exposed. A case is visible to its participants/admins, or to an
+eligible member while it is open/offered. Missing and hidden detail share one error.
+
+Auth UID-to-member binding is re-read transactionally, including on replay. Native
+clients must additionally fence asynchronous results to their captured session,
+member and environment. `writable` only reports the planning authority: each command
+still enforces permissions, state, time and physical-unit rules server-side. Valid
+maintenance allows reads but disables mutations. Overview rejects over 250 cases or
+250 caller credits; it never returns a partial board disguised as complete. Detail
+bypasses the overview case-count bound; the same own-account limits still apply.
+
+Errors return `{ok: false, code: ...}` without token, reason, stack or SDK messages:
+401 for token failure, 403 for account-link/member authorization, 400 for malformed
+transport/body, 409 for domain/source conflicts, 405 for unsupported method and
+413 for bodies over 16 KiB, 415 for non-JSON POST bodies and 500 for unexpected
+infrastructure failure. No notification or Sheets execution is implied by the
+local handler. Native UI and integrated side effects remain open acceptance work.
+
+Run the explicit local server from `functions` after starting Auth/Firestore with
+`firebase.coverage-emulator.json` and the fixed demo project:
+
+```sh
+GCLOUD_PROJECT=demo-reguerta-hu084-coverage \
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8798 \
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9098 \
+npm run serve:shift-coverage:local -- /absolute/path/policy.json 8789
+```
+
+The policy JSON must contain `maximumOfferWindowMillis` and may contain the existing
+`selectionPolicy`/`beaconPolicy` objects. No duration, real beacon or assembly choice
+is inferred by the runner. Tests supply synthetic policy explicitly. The server
+prints only its loopback URL and closes its owned resources on SIGINT/SIGTERM.
+
+
 ## Dependencies
 
 - HU-082 / issue #266 supplies rotation ownership, cohorts, and unpublished-round

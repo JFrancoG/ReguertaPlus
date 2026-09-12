@@ -1057,3 +1057,24 @@ completa; siguen pendientes los clientes y transporte de coberturas, la integrac
 de producto de notificaciones/Sheets, la entropía real, la ratificación y el
 despliegue. La evidencia del emulador fijo no autoriza escrituras en proyectos
 compartidos ni la activación real.
+
+
+El bloque de acceso local desde las apps añade un manejador compuesto explícitamente
+para los emuladores de Auth/Firestore, no un endpoint desplegable. La verificación
+real de Admin Auth comprueba credenciales revocadas en cada petición; los vínculos
+Auth, la actividad y los roles del socio se leen dentro de cada transacción de
+consulta/comando. Los recibos autenticados vinculan además el UID para impedir que
+un cambio de cuenta repita la operación de otra sesión. Las llamadas directas con
+ID de socio quedan en el entorno de pruebas de confianza anterior. Las proyecciones
+para socio/administrador exponen solo ofertas pertinentes, contabilidad propia y
+contexto explícito de gestión; no envían candidatos, exclusiones ni datos internos
+del sorteo. El mantenimiento válido permite consultar con los controles de escritura
+obsoleta deshabilitados. El motor conserva todas las comprobaciones de comandos,
+vecinos y créditos. Queda disponible el contrato local común; siguen pendientes la
+presentación y protección de sesión nativas, los efectos de
+notificaciones/Sheets y la activación real. Ningún punto de entrada de producción
+importa esta composición.
+
+Un ejecutor local explícito conecta el manejador únicamente a loopback, con archivo
+de política/puerto obligatorios y peticiones JSON acotadas. Las pruebas de red usan
+este servidor con Auth y Firestore emulados; importarlo no arranca servicios.

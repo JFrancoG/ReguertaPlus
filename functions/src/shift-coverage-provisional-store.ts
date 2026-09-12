@@ -1,3 +1,6 @@
+import {VerifiedIdentity} from "./backend-security.js";
+import {readShiftCoverageActor} from "./shift-coverage-access.js";
+import {createShiftCoverageClientReader} from "./shift-coverage-client.js";
 import {createShiftMembershipReconciliation} from
   "./shift-membership-reconciliation.js";
 import {buildShiftCoverageOpening,
@@ -54,7 +57,7 @@ const context = (shift: ShiftPlanningPublicShiftDocument | undefined) =>
 
 /**
  * Runs provisional administrative coverage exclusively in a fixed local
- * emulator. No endpoint imports this store; it cannot construct a live client.
+ * emulator. No deployed entrypoint imports it or constructs a live client.
  * The identity is an already resolved member ID, not a field in the command.
  * Membership/roles, source neighborhood and claims are re-read transactionally.
  * Offer duration is required test policy, not an implicit assembly decision.
@@ -86,13 +89,21 @@ export const createProvisionalShiftCoverageStore = (options: {
     ...createShiftCreditRehearsal(db, nowMillis),
     ...createShiftMembershipReconciliation(db, nowMillis),
     close: () => db.terminate(),
-    async execute(value: unknown, actorMemberId: string) {
+    readClient: createShiftCoverageClientReader(db, nowMillis, {
+      maximumOfferWindowMillis,
+      volunteerWindowMillis: selectionPolicy?.volunteerWindowMillis ?? null,
+      drawAvailable: Boolean(beaconPolicy)}),
+    async execute(value: unknown, actorSource: string | VerifiedIdentity) {
       const command = parseShiftCoverageCommand(value);
-      const actorId = coverageId(actorMemberId);
-      const commandDigest = digest({actorId, command});
       const caseRef = ref("shiftCoverageCases", command.caseId);
       const receiptRef = ref("shiftCoverageOperations", command.operationId);
       return db.runTransaction(async (transaction) => {
+        const actorId = typeof actorSource === "string" ?
+          coverageId(actorSource) : (await readShiftCoverageActor(
+            db, transaction, actorSource)).memberId;
+        const authBinding = typeof actorSource === "string" ? {} :
+          {authUid: actorSource.uid};
+        const commandDigest = digest({actorId, command, ...authBinding});
         const now = nowMillis();
         if (!Number.isSafeInteger(now) || now < 0) {
           return rejectCoverage("invalid_coverage_clock");
@@ -624,7 +635,7 @@ export const createProvisionalShiftCoverageStore = (options: {
         transaction.set(caseRef, {value: next, digest: digest(next),
           authority});
         transaction.create(receiptRef, {commandDigest, command,
-          actorMemberId: actorId,
+          actorMemberId: actorId, ...authBinding,
           result: next, previousRevision: previous?.revision ?? 0});
         return {case: next, replayed: false};
       });
