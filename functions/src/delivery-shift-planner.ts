@@ -1,3 +1,5 @@
+import {planShiftSeasonCreditUnits, ProvisionalSeasonCredits,
+  ShiftSeasonCreditProjection} from "./shift-credit-season.js";
 import {
   consumeRotationPositions,
   plannerProvenance,
@@ -70,6 +72,7 @@ export type DeliveryPlannerInput = {
   rotation: ShiftRotationCursor;
   inheritedTargetPrefix?: RotationProjectionPrefix | null;
   continuity: DeliveryPlanningContinuity;
+  provisionalCredits?: ProvisionalSeasonCredits;
 };
 
 export type PlannedDeliveryShift = {
@@ -88,6 +91,7 @@ export type PlannedDeliveryShift = {
 };
 
 export type DeliveryPlan = {
+  creditProjection?: ShiftSeasonCreditProjection;
   targetSeasonShiftCount: number;
   generatedTargetShiftCount: number;
   shifts: PlannedDeliveryShift[];
@@ -179,6 +183,10 @@ export const planDeliveryShifts = (
     input.deliveryWeekday,
   );
   const inheritedTargetPrefix = input.inheritedTargetPrefix || null;
+  if (input.provisionalCredits?.inheritedUnits && !inheritedTargetPrefix) {
+    throw new ShiftPlanningError("invalid_inherited_rotation_lineage",
+      "Credit carryover requires its calendar and physical-owner prefix.");
+  }
   const occupiedTargetDates = inheritedTargetPrefix?.dates || [];
   requireProjectionPrefix(targetDates, occupiedTargetDates);
   if (inheritedTargetPrefix) {
@@ -186,6 +194,7 @@ export const planDeliveryShifts = (
       inheritedTargetPrefix,
       input.rotation,
       1,
+      input.provisionalCredits?.inheritedUnits,
     );
   }
   if (occupiedTargetDates.length === targetDates.length) {
@@ -208,17 +217,26 @@ export const planDeliveryShifts = (
     );
   }
   const remainingTargetDates = targetDates.slice(occupiedTargetDates.length);
-  const targetResult = consumeRotationPositions(
-    input.rotation,
-    remainingTargetDates.length,
-  );
+  const predecessor = predecessorForContinuity(input.continuity);
+  const creditPlan = input.provisionalCredits ? planShiftSeasonCreditUnits({
+    rotation: input.rotation, targetUnitCount: remainingTargetDates.length,
+    policy: input.provisionalCredits,
+    previousDeliveryUserId: predecessor?.effectiveLeadUserId,
+  }) : null;
+  const targetResult = creditPlan ? {
+    positions: creditPlan.projection.units.slice(0, remainingTargetDates.length)
+      .flatMap((unit) => unit.assignments),
+    nextRotation: creditPlan.cursorAtTargetBoundary,
+  } : consumeRotationPositions(input.rotation, remainingTargetDates.length);
   const targetCursor = targetResult.nextRotation;
-  const overflowPositionCount = targetCursor.nextMemberIndex === 0 ?
-    0 : targetCursor.cohortUserIds.length - targetCursor.nextMemberIndex;
-  const overflowResult = consumeRotationPositions(
-    targetResult.nextRotation,
-    overflowPositionCount,
-  );
+  const overflowResult = creditPlan ? {
+    positions: creditPlan.projection.units.slice(remainingTargetDates.length)
+      .flatMap((unit) => unit.assignments),
+    nextRotation: creditPlan.nextRotation,
+  } : consumeRotationPositions(targetCursor,
+    targetCursor.nextMemberIndex === 0 ? 0 :
+      targetCursor.cohortUserIds.length - targetCursor.nextMemberIndex);
+  const overflowPositionCount = overflowResult.positions.length;
   const overflowDates = Array.from(
     {length: overflowPositionCount},
     (_, index) => addBusinessDays(
@@ -238,7 +256,6 @@ export const planDeliveryShifts = (
   ];
   const dates = [...remainingTargetDates, ...overflowDates];
   const firstOwnerUserId = positions[0].rotationOwnerUserId;
-  const predecessor = predecessorForContinuity(input.continuity);
   if (predecessor) {
     requirePredecessor(predecessor);
   }
@@ -291,7 +308,9 @@ export const planDeliveryShifts = (
   }
   if (
     requiredFirstOwnerUserId !== null &&
-    requiredFirstOwnerUserId !== firstOwnerUserId
+    requiredFirstOwnerUserId !== (creditPlan ?
+      consumeRotationPositions(input.rotation, 1).positions[0]
+        .rotationOwnerUserId : firstOwnerUserId)
   ) {
     throw new ShiftPlanningError(
       "delivery_helper_cursor_conflict",
@@ -372,6 +391,7 @@ export const planDeliveryShifts = (
   } : null;
 
   return {
+    ...(creditPlan ? {creditProjection: creditPlan.projection} : {}),
     targetSeasonShiftCount: targetDates.length,
     generatedTargetShiftCount: remainingTargetDates.length,
     shifts,

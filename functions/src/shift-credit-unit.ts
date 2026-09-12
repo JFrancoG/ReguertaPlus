@@ -61,6 +61,7 @@ export const planShiftCreditUnit = (input: {
   credits: readonly ShiftCoverageCredit[];
   frozenThroughRound: number;
   adjacentDeliveryUserIds: readonly string[];
+  stopAfterRound?: number;
 }): ShiftCreditUnit => {
   const rotation = consumeRotationPositions(input.rotation, 0).nextRotation;
   const width = rotation.type === "delivery" ? 1 : 3;
@@ -99,6 +100,8 @@ export const planShiftCreditUnit = (input: {
         return rejectCoverage("invalid_credit_unit_cursor");
       }
       const position = traversal.positions[0];
+      if (input.stopAfterRound !== undefined &&
+          position.roundNumber > input.stopAfterRound) break;
       const owner = position.rotationOwnerUserId;
       if (resting.has(owner) || assignments.some((item) =>
         item.rotationOwnerUserId === owner)) break;

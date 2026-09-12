@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-12 | ✨ feat(shifts): integrate seasonal credit planning
+
 - 2026-09-12 | ✨ feat(shifts): add whole-unit credit rehearsal
 
 - 2026-09-12 | ✨ feat(shifts): add committed draw and admin recovery

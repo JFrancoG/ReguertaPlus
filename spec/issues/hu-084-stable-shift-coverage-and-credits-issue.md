@@ -13,8 +13,13 @@ transactional preview/stage/activation rehearsal. It consumes earned credits,
 releases same-type claims and advances the canonical cursor atomically with a
 private `localRehearsal` unit record. It does not publish public shifts or a HU-082
 seasonal bundle. Lint/build, 31 unit/regression tests and 48 emulator/Rules tests
-pass. Seasonal planner/manifests/inverse integration, membership transitions, a
-real entropy provider, live transport, native flows and deployment remain pending.
+pass for that checkpoint. Complete seasonal credit traversal now reuses both
+existing planners, with credited cross-season carryover and exact ledger images.
+The seasonal checkpoint passes lint/build, 25 coverage/credit tests, 69 focused
+regressions and 48 emulator/Rules tests. The broader HU-082 command passes 294 tests
+with 51 emulator-dependent cases skipped. HU-082 bundle/manifests/inverse
+persistence, membership transitions, a real entropy provider, live transport,
+native flows and deployment remain pending.
 See `plan.md` for the distinction between the local rehearsal and live delivery.
 
 The operational plan groups work into three complete outcomes: coverage backend

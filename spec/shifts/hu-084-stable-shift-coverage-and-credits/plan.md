@@ -202,7 +202,8 @@ and retains completed predecessor history. Already public dates are rejected.
 or app state is published by this rehearsal.** The next integration must put those
 real projection mutations and credit/cursor effects in the existing HU-082 forward
 and inverse manifests; a private unit record is not a substitute for public
-activation. Calendar continuity and complete seasonal planning also remain there.
+activation. The subsequent checkpoint implements calendar continuity and complete
+seasonal planning locally, as detailed below.
 
 Both `shiftCoverageCreditPlans` and `shiftCoverageCreditUnits` deny direct client
 access under strict and compatibility Rules. The only writes run on synthetic
@@ -216,6 +217,54 @@ preview/stage purity, whole-ledger drift, competing activation, demotion/members
 authority changes, minimum-cohort deferral, frozen rounds, public-date rejection,
 forged proposals, delivery neighbors/history, and missing ledger/claim records.
 
+### Complete seasonal credit planning — 2026-09-12
+
+The whole-unit rehearsal was committed and pushed as `00b3628`. The next local
+checkpoint integrates credit traversal into the existing `planDeliveryShifts`
+and `planMarketShifts`, using an explicit internal `provisionalCredits` input.
+Calendars, projection dates, provenance, physical groups and ordinary output
+remain owned by those planners. With an empty ledger their ordinary output is
+identical across delivery cohorts of 2–35 and market cohorts of 3–35 members.
+
+- Plan every target delivery date / all ten market dates, then close the actual
+  served boundary round. Keep every skipped credit position alongside physical
+  assignments so the cursor never advances by just the visible row count.
+- Retry deferred credits at later eligible positions, preserve frozen rounds,
+  distinct market workers and consecutive delivery leads. Closing delivery cannot
+  spill into another round merely to compensate its final owner: defer that credit
+  and let the restored owner close the existing round. Market still completes its
+  final physical group, recording boundary and padding worker positions separately.
+- Verify a persisted delivery helper against the canonical owner cursor before
+  credits. A compensated first owner can change an uncompleted predecessor's
+  prospective helper; completed actual helper/revision/time remain untouched.
+- Carry credited overflow into the following season using complete served units,
+  the ordinary calendar/physical-owner prefix and consumed ledger evidence. Reject
+  missing/reordered positions, repeated credit IDs, unbound resting owners and
+  attempts to thaw those published rounds. Ordinary prefix validation continues
+  to reject skipped ownership without this explicit evidence.
+- Return the full same-type ledger digest, consumed/pending IDs and every unit's
+  traversal. A pure builder prepares exact before/after credit documents and binds
+  even deferred/out-of-cohort ledger entries. These values support a future inverse
+  manifest; they are **not an implemented activation or recovery transaction**.
+
+The HU-082 bundle intake still rejects enabled/non-zero credit transitions. This
+checkpoint adds no Firestore schema, endpoint, public writes, deployment or native
+changes. The pending integration is concrete: capture this evidence in the bundle
+source/wire contract, include public rows/helpers plus credit/claim/cursor changes
+in forward/inverse manifests, validate transaction admission and demonstrate CAS,
+rollback and replay together in the existing HU-082 runtime. Membership transitions
+remain part of outcome group 2 after that publication integration.
+
+Validation: `npm run build` and `npm run lint` passed without diagnostics.
+`test:shift-coverage` passed 25 tests (11 new seasonal scenarios); the seasonal
+suite checks 500 credit-subset/cohort combinations and 67 empty-ledger comparisons,
+including complete two-season delivery and market carryover. Focused existing
+planner/bundle/swap/publication/writer regression passed 69 tests. The broad HU-082
+unit command passed 294 tests, with 51 existing emulator-dependent tests skipped;
+this is not evidence that those 51 integration cases ran. The separate coverage
+emulator/Rules command passed all 48 tests, with zero failures/skips. No native code
+changed; Android/iOS feature parity remains pending on both platforms.
+
 ### Remaining integration boundary
 
 The provisional coverage lifecycle is implemented locally through draw/admin
@@ -228,10 +277,10 @@ users/reserves/claims per queried source. It deliberately has no HTTP endpoint,
 public user-facing projection, notifications or Sheets effects. Before any live
 endpoint, integrate authenticated identity, existing writer resource fences,
 admission limits and public-event/notification authority. The unit credit solver
-and local atomic consumption rehearsal are implemented, but full seasonal credit
-planning, HU-082 forward/inverse publication, membership transitions and both native
-clients remain in the following outcome groups.
-Production planners still reject non-zero credits. Assembly decisions and
+and local atomic consumption rehearsal are implemented, and complete seasonal
+credit planning now reuses the existing pure planners. HU-082 forward/inverse
+publication, membership transitions and both native clients remain unfinished.
+Production bundle intake still rejects non-zero credits. Assembly decisions and
 deployment remain separate gates.
 
 ## 2. Technical approach after approval

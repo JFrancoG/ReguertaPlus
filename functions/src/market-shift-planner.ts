@@ -1,3 +1,5 @@
+import {planShiftSeasonCreditUnits, ProvisionalSeasonCredits,
+  ShiftSeasonCreditProjection} from "./shift-credit-season.js";
 import {
   consumeRotationPositions,
   PlannedRotationPosition,
@@ -19,6 +21,7 @@ export type MarketPlannerInput = {
   targetSeasonStartYear: number;
   rotation: ShiftRotationCursor;
   inheritedTargetPrefix?: RotationProjectionPrefix | null;
+  provisionalCredits?: ProvisionalSeasonCredits;
 };
 
 type PlannedMarketPosition = PlannedRotationPosition & {
@@ -45,6 +48,7 @@ export type PlannedMarketShift = {
 };
 
 export type MarketPlan = {
+  creditProjection?: ShiftSeasonCreditProjection;
   targetSeasonPositionCount: 30;
   generatedTargetPositionCount: number;
   shifts: PlannedMarketShift[];
@@ -107,6 +111,10 @@ export const planMarketShifts = (input: MarketPlannerInput): MarketPlan => {
   const provenance = plannerProvenance(input.planningRequestId);
   const targetDates = buildMarketSeasonDates(input.targetSeasonStartYear);
   const inheritedTargetPrefix = input.inheritedTargetPrefix || null;
+  if (input.provisionalCredits?.inheritedUnits && !inheritedTargetPrefix) {
+    throw new ShiftPlanningError("invalid_inherited_rotation_lineage",
+      "Credit carryover requires its calendar and physical-owner prefix.");
+  }
   const occupiedTargetDates = inheritedTargetPrefix?.dates || [];
   requireProjectionPrefix(targetDates, occupiedTargetDates);
   if (inheritedTargetPrefix) {
@@ -114,6 +122,7 @@ export const planMarketShifts = (input: MarketPlannerInput): MarketPlan => {
       inheritedTargetPrefix,
       input.rotation,
       3,
+      input.provisionalCredits?.inheritedUnits,
     );
   }
   if (occupiedTargetDates.length === targetDates.length) {
@@ -124,27 +133,38 @@ export const planMarketShifts = (input: MarketPlannerInput): MarketPlan => {
   }
   const remainingTargetDates = targetDates.slice(occupiedTargetDates.length);
   const generatedTargetPositionCount = remainingTargetDates.length * 3;
-  const targetResult = consumeRotationPositions(
-    input.rotation,
-    generatedTargetPositionCount,
-  );
+  const creditPlan = input.provisionalCredits ? planShiftSeasonCreditUnits({
+    rotation: input.rotation, targetUnitCount: remainingTargetDates.length,
+    policy: input.provisionalCredits,
+  }) : null;
+  const targetResult = creditPlan ? {
+    positions: creditPlan.projection.units.slice(0, remainingTargetDates.length)
+      .flatMap((unit) => unit.assignments),
+    nextRotation: creditPlan.cursorAtTargetBoundary,
+  } : consumeRotationPositions(input.rotation, generatedTargetPositionCount);
+  const closingRound = targetResult.nextRotation.roundNumber;
   const boundaryRoundRemainingPositionCount =
-    targetResult.nextRotation.nextMemberIndex === 0 ?
-      0 :
+    targetResult.nextRotation.nextMemberIndex === 0 ? 0 :
       targetResult.nextRotation.cohortUserIds.length -
         targetResult.nextRotation.nextMemberIndex;
-  const boundaryResult = consumeRotationPositions(
-    targetResult.nextRotation,
-    boundaryRoundRemainingPositionCount,
-  );
-  const finalGroupPaddingPositionCount =
-    boundaryRoundRemainingPositionCount === 0 ?
-      0 :
+  const overflowAssignments = creditPlan?.projection.units
+    .slice(remainingTargetDates.length).flatMap((unit) => unit.assignments);
+  const boundaryResult = creditPlan && overflowAssignments ? {
+    positions: overflowAssignments.filter((p) =>
+      p.roundNumber === closingRound),
+    nextRotation: creditPlan.nextRotation,
+  } : consumeRotationPositions(targetResult.nextRotation,
+    boundaryRoundRemainingPositionCount);
+  const finalGroupPaddingPositionCount = overflowAssignments ?
+    overflowAssignments.filter((p) => p.roundNumber > closingRound).length :
+    boundaryRoundRemainingPositionCount === 0 ? 0 :
       (3 - (boundaryRoundRemainingPositionCount % 3)) % 3;
-  const paddingResult = consumeRotationPositions(
-    boundaryResult.nextRotation,
-    finalGroupPaddingPositionCount,
-  );
+  const paddingResult = creditPlan && overflowAssignments ? {
+    positions: overflowAssignments.filter((p) =>
+      p.roundNumber > closingRound),
+    nextRotation: creditPlan.nextRotation,
+  } : consumeRotationPositions(
+    boundaryResult.nextRotation, finalGroupPaddingPositionCount);
   const targetPositions: PlannedMarketPosition[] = targetResult.positions.map(
     (position) => ({...position, planningReason: "target"}),
   );
@@ -171,6 +191,7 @@ export const planMarketShifts = (input: MarketPlannerInput): MarketPlan => {
   ));
 
   return {
+    ...(creditPlan ? {creditProjection: creditPlan.projection} : {}),
     targetSeasonPositionCount: 30,
     generatedTargetPositionCount,
     shifts,

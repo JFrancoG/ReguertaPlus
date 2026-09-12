@@ -974,3 +974,14 @@ y preparar no consumen créditos. No es la publicación estacional de HU-082: fa
 turnos/ayudantes públicos, manifiestos de activación y reversión, admisión completa
 y efectos en notificaciones/Sheets. El planificador productivo sigue rechazando
 créditos no nulos.
+
+El siguiente hito local integra el recorrido completo de créditos estacionales en
+los planificadores existentes de reparto y mercado. Los créditos sirven posiciones
+del propietario canónico sin ocupar fechas; cada unidad física y sus posiciones
+compensadas se arrastran juntas entre temporadas. Sin créditos, el resultado
+ordinario sigue siendo idéntico. Reparto valida el ayudante previsto anterior frente
+al cursor previo a los créditos y solo puede actualizar su ayudante prospectivo;
+el ayudante completado permanece histórico. Se preparan imágenes exactas anteriores
+y posteriores del crédito para integrar después los manifiestos HU-082; este cambio
+no implementa activación estacional ni transacción inversa de créditos. La entrada
+productiva del bundle sigue rechazando créditos habilitados o distintos de cero.

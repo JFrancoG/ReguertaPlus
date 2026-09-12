@@ -23,7 +23,10 @@ ordering remain pending business decisions. The tested provisional behavior is n
 the ratified live policy.
 The pure whole-unit credit solver and atomic consumption rehearsal are also
 implemented locally. The rehearsal records private units and does not publish
-seasonal bundles/public shifts. See `plan.md` for evidence and integration limits.
+seasonal bundles/public shifts. Existing delivery/market planners now also support
+provisional full-season credit traversal, credited carryover and exact ledger
+before/after images. HU-082 bundle persistence and forward/inverse activation are
+still pending; live intake rejects credits. See `plan.md` for evidence and limits.
 
 ## Context and problem
 

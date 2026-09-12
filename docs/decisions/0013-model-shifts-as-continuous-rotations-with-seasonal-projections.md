@@ -934,3 +934,13 @@ cursor with a private `localRehearsal` physical-unit record. Preview/stage do no
 spend credits. This is not HU-082 seasonal publication: public shifts/helpers,
 forward/inverse manifests, complete admission and notification/Sheets effects
 remain unintegrated. The production planner's non-zero-credit rejection is retained.
+
+The following local checkpoint integrates full seasonal credit traversal into the
+existing delivery/market planners. Credits serve canonical owner positions without
+occupying dates; complete physical units and their skipped positions carry across
+seasons together. Ordinary planner output remains identical with no credits.
+Delivery validates the prior planned helper against the pre-credit cursor, then
+may update only its prospective helper. A completed helper remains historical.
+Exact credit before/after images are prepared for later HU-082 manifest integration;
+no seasonal credit activation or inverse transaction is implemented by this change.
+Production bundle intake retains its enabled/non-zero-credit rejection.

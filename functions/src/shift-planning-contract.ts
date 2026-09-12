@@ -16,6 +16,10 @@ export type PlannedRotationPosition = {
   positionInRound: number;
 };
 
+export type ServedRotationPosition = PlannedRotationPosition & {
+  creditId: string | null;
+};
+
 export type RotationProjectionPrefix = {
   dates: readonly string[];
   positions: readonly PlannedRotationPosition[];
@@ -195,6 +199,7 @@ export const requireRotationProjectionPrefix = (
   prefix: RotationProjectionPrefix,
   rotationAfterPrefix: ShiftRotationCursor,
   positionsPerDate: number,
+  servedPositionUnits?: readonly (readonly ServedRotationPosition[])[],
 ): void => {
   if (!Number.isSafeInteger(positionsPerDate) || positionsPerDate < 1) {
     throw new ShiftPlanningError(
@@ -216,14 +221,47 @@ export const requireRotationProjectionPrefix = (
       "Inherited projection lineage is incomplete.",
     );
   }
+  let traversedPositions = prefix.positions;
+  if (servedPositionUnits) {
+    const creditIds = new Set<string>();
+    const physical = servedPositionUnits.flatMap((unit) =>
+      unit.filter((position) => position.creditId === null));
+    const invalidUnit = servedPositionUnits.some((unit) => {
+      const owners = unit.map((position) => position.rotationOwnerUserId);
+      return unit.at(-1)?.creditId !== null ||
+        new Set(owners).size !== owners.length ||
+        unit.filter((position) => position.creditId === null).length !==
+          positionsPerDate || unit.some((position) => {
+        if (position.creditId === null) return false;
+        const id = position.creditId;
+        if (typeof id !== "string" || !id.trim() || id.includes("/") ||
+              creditIds.has(id)) return true;
+        creditIds.add(id);
+        return false;
+      });
+    });
+    const physicalMatches = physical.length === prefix.positions.length &&
+      physical.every((position, index) => {
+        const actual = prefix.positions[index];
+        return actual.rotationOwnerUserId === position.rotationOwnerUserId &&
+          actual.roundNumber === position.roundNumber &&
+          actual.positionInRound === position.positionInRound;
+      });
+    if (servedPositionUnits.length !== prefix.dates.length ||
+        invalidUnit || !physicalMatches) {
+      throw new ShiftPlanningError("invalid_inherited_rotation_lineage",
+        "Credit carryover must retain complete physical units and ownership.");
+    }
+    traversedPositions = servedPositionUnits.flat();
+  }
   const expected = consumeRotationPositions(
     prefix.rotationBeforePrefix,
-    prefix.positions.length,
+    traversedPositions.length,
   );
   const normalizedCurrent = consumeRotationPositions(rotationAfterPrefix, 0)
     .nextRotation;
   const positionsMatch = expected.positions.every((position, index) => {
-    const actual = prefix.positions[index];
+    const actual = traversedPositions[index];
     return actual.rotationOwnerUserId === position.rotationOwnerUserId &&
       actual.roundNumber === position.roundNumber &&
       actual.positionInRound === position.positionInRound;
