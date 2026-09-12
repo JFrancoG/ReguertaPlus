@@ -1,3 +1,4 @@
+import type {ShiftMembershipUnitPolicy} from "./shift-credit-unit.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {ShiftRotationCursor} from "./shift-planning-contract.js";
@@ -13,6 +14,7 @@ type RecordDocument = {id: string; data: RecordValue};
 export type ShiftMembershipPlanningSource = {
   records: RecordDocument[];
   reserves: RecordDocument[];
+  publishedOwnerPositionKeys?: string[];
 };
 export type ShiftMembershipPlanningChange = {
   targetPath: string; before: RecordValue; after: RecordValue;
@@ -31,9 +33,18 @@ export const parseShiftMembershipPlanningSource = (
   value: unknown,
 ): ShiftMembershipPlanningSource => {
   const source = value as ShiftMembershipPlanningSource;
-  if (!source || Object.keys(source).sort().join() !== "records,reserves" ||
+  if (!source || !["records,reserves",
+    "publishedOwnerPositionKeys,records,reserves"].includes(
+    Object.keys(source).sort().join()) ||
       !Array.isArray(source.records) || !Array.isArray(source.reserves) ||
       source.records.length > 250 || source.reserves.length > 500) {
+    return rejectCoverage("invalid_membership_planning_source");
+  }
+  if (source.publishedOwnerPositionKeys !== undefined &&
+      (!Array.isArray(source.publishedOwnerPositionKeys) ||
+        source.publishedOwnerPositionKeys.length > 3000 ||
+        source.publishedOwnerPositionKeys.some((key) =>
+          typeof key !== "string"))) {
     return rejectCoverage("invalid_membership_planning_source");
   }
   for (const records of [source.records, source.reserves]) {
@@ -84,9 +95,10 @@ export const captureShiftMembershipPlanningSource = async (
  * Rebuild cohorts only at wholly new round boundaries. Retained owners keep
  * order; new/re-entering members append by reserve entry time then UID.
  * Prefixes and canonical input cursors are unchanged until the combined bundle
- * commits. Frozen unpublished departures still require whole-unit skips.
+ * commits. Frozen exclusions are proposed with their original owner and reason;
+ * planners must pair them with a full physical unit before acknowledgement.
  * @param {object} input Authoritative cursors, public frontier and live roster.
- * @return {object} Planned cohorts and exact membership acknowledgement images.
+ * @return {object} Planned cohorts and complete-unit transition policies.
  */
 export const planShiftMembershipAdmission = (input: {
   source: ShiftMembershipPlanningSource;
@@ -108,27 +120,31 @@ export const planShiftMembershipAdmission = (input: {
   const pending = states.filter(({state}) => state.pendingQueueTransition);
   const cohorts = {delivery: [...input.rotations.delivery.cohortUserIds],
     market: [...input.rotations.market.cohortUserIds]};
-  const changes: ShiftMembershipPlanningChange[] = [];
-  if (!pending.length) return {cohorts, changes};
+  const policies: Partial<Record<"delivery" | "market",
+    ShiftMembershipUnitPolicy>> = {};
+  if (!pending.length) return {cohorts, policies};
   const eligibleIds = input.roster.filter((member) =>
     coverageMember(member).eligible).map((member) => member.userId);
   for (const type of types) {
     const cursor = input.rotations[type];
-    if (cursor.nextMemberIndex !== 0 || cursor.roundNumber <=
-        input.frozenThroughRound[type] || pending.some(({state}) =>
-      cursor.roundNumber <= state.admissionAfterRound[type])) {
-      return rejectCoverage("membership_frozen_unit_required");
-    }
-    if (pending.some(({state}) => !state.admissionRequired ||
+    const pendingForType = pending.filter(({state}) =>
+      state.pendingTypes?.[type] ?? true);
+    if (!pendingForType.length) continue;
+    const startRound = Math.max(cursor.roundNumber +
+      (cursor.nextMemberIndex === 0 ? 0 : 1),
+    input.frozenThroughRound[type] + 1,
+    ...pendingForType.map(({state}) => state.admissionAfterRound[type] + 1));
+    if (pendingForType.some(({state}) => !state.admissionRequired ||
         types.some((key) => typeof state.admissionRequired?.[key] !==
           "boolean"))) {
       return rejectCoverage("membership_admission_evidence_required");
     }
     if (cursor.cohortUserIds.some((id) => !eligibleIds.includes(id) &&
-        !pending.some(({state}) => state.userId === id && !state.eligible))) {
+        !pendingForType.some(({state}) =>
+          state.userId === id && !state.eligible))) {
       return rejectCoverage("membership_source_not_reconciled");
     }
-    const entrants = pending.filter(({state}) => state.eligible &&
+    const entrants = pendingForType.filter(({state}) => state.eligible &&
       state.admissionRequired?.[type]).map(({state}) => {
       const reserve = source.reserves.find((record) =>
         record.data.type === type && record.data.userId === state.userId)?.data;
@@ -149,18 +165,63 @@ export const planShiftMembershipAdmission = (input: {
     if (cohorts[type].length < (type === "delivery" ? 2 : 3)) {
       return rejectCoverage("membership_unit_unstaffable");
     }
+    const excusedOwners = pendingForType.filter(({state}) =>
+      startRound > cursor.roundNumber &&
+      cursor.cohortUserIds.includes(state.userId) &&
+      (!state.eligible || state.admissionRequired?.[type])).map(({state}) => {
+      const exclusion = state.frozenExclusion ?? (!state.eligible ? {
+        reason: (!state.source || !state.source.isActive ? "excusedDeparture" :
+          "excusedIneligible") as "excusedDeparture" | "excusedIneligible",
+        revision: state.revision} : null);
+      if (!exclusion) {
+        return rejectCoverage("membership_exclusion_evidence_required");
+      }
+      return {userId: state.userId, reason: exclusion.reason,
+        membershipRevision: exclusion.revision};
+    });
+    policies[type] = {cohortUserIds: cohorts[type], startRound, excusedOwners,
+      publishedOwnerPositionKeys: source.publishedOwnerPositionKeys ?? []};
   }
-  for (const {state, record} of pending) {
+  return {cohorts, policies};
+};
+
+/**
+ * Acknowledge only the rotation whose first complete new-cohort unit activated.
+ * The other rotation may retain its pending evidence for a later frontier.
+ * @param {ShiftMembershipPlanningSource} source Bound pre-activation records.
+ * @param {object} applied Complete-unit admission outcomes by rotation.
+ * @return {ShiftMembershipPlanningChange[]} Exact transactional state images.
+ */
+export const buildShiftMembershipAcknowledgements = (
+  source: ShiftMembershipPlanningSource,
+  applied: {delivery: boolean; market: boolean},
+): ShiftMembershipPlanningChange[] => {
+  const changes: ShiftMembershipPlanningChange[] = [];
+  for (const record of source.records) {
+    const state = readShiftMembershipState(record.data, record.id);
+    if (!state?.pendingQueueTransition) continue;
+    const pendingTypes = {...state.pendingTypes ??
+      {delivery: true, market: true}};
+    const admissionRequired = {...state.admissionRequired ??
+      {delivery: false, market: false}};
+    let changed = false;
+    for (const type of types) {
+      if (!pendingTypes[type] || !applied[type]) continue;
+      changed = true;
+      pendingTypes[type] = false;
+      admissionRequired[type] = false;
+    }
+    if (!changed) continue;
     if (state.revision >= Number.MAX_SAFE_INTEGER - 2) {
       return rejectCoverage("invalid_shift_membership_state");
     }
-    const after = {...state, revision: state.revision + 1,
-      pendingQueueTransition: false,
-      admissionRequired: {delivery: false, market: false}};
+    const after = {...state, revision: state.revision + 1, pendingTypes,
+      pendingQueueTransition: types.some((type) => pendingTypes[type]),
+      admissionRequired};
     changes.push({targetPath: `${root}/shiftMembershipState/${record.id}`,
       before: record.data, after: {value: after, digest: digest(after)}});
   }
-  return {cohorts, changes};
+  return changes;
 };
 
 /**

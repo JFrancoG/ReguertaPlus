@@ -333,9 +333,9 @@ and local atomic consumption rehearsal are implemented, and complete seasonal
 credit planning and governed HU-082 forward/inverse publication are integrated
 locally. Membership reconciliation now manages reserve transitions and published
 coverage cases locally. The following admission checkpoint now integrates new
-unfrozen cohorts into governed publication and inverse. Remaining outcome group 2
-work handles frozen unpublished departures/ineligibility with complete physical
-units, staffing fallback and inverse evidence. Both native clients and coverage notification/Sheets product integration
+unfrozen cohorts into governed publication and inverse. The frozen-unit checkpoint
+below completes local outcome group 2 with whole-unit omissions and inverse
+evidence. Both native clients and coverage notification/Sheets product integration
 remain unfinished. Shared-project credit activation, assembly decisions and
 deployment remain separate gates.
 
@@ -434,10 +434,56 @@ contention, the race test checks the exact transport error and retries the losin
 command to prove its revision conflict and absence of duplicate writes; no SDK
 workaround was added to production code.
 
-Still pending: frozen unpublished `excusedDeparture`/`excusedIneligible` positions
-must commit with complete physical units, cursor/round closure and inverse evidence.
-No such tombstone or skip is written here. Both clients and live coverage transport,
-real entropy, dispatch, assembly ratification and deployment remain separate work.
+At that checkpoint, frozen unpublished positions were still blocked. The following
+whole-unit checkpoint supersedes this restriction only in the fixed local emulator.
+
+### Local frozen-unit publication and inverse — 2026-09-12
+
+The new-round admission checkpoint was committed and pushed as `859ede8`.
+This checkpoint completes the provisional planning integration outcome locally:
+
+- Traverse frozen owner positions without changing their historical cohort/order.
+  Reconciled departures and eligibility loss retain `excusedDeparture` or
+  `excusedIneligible`, original owner, round, position and membership revision in
+  the activated bundle's complete-unit traversal. Re-entry preserves its prior
+  exclusion evidence and can work only a new admitted position.
+- Each omission commits with a complete delivery slot or three distinct market
+  workers through the existing HU-082 activation. It creates no dated omission
+  row, completion or credit. No separate tombstone collection or writer is added.
+  Existing credits remain pending at omitted positions; a later eligible normal
+  position may redeem them under the existing rules.
+- Change cohort only at the first permitted new-round boundary. A market group
+  can cross that boundary; its traversal records the new cohort so next-season
+  carryover can replay both the old positions and the transition. A delivery
+  boundary omission requires the next real slot; a trailing credit alone still
+  cannot force an extra round. Prospective helper updates preserve completed
+  helper history and all neighborhood constraints.
+- Track pending acknowledgement independently per rotation. A plan ending before
+  the first complete new-cohort unit leaves that type pending, without generating
+  another round merely to clear an admission flag. Retained owner order and
+  reserve FIFO are preserved when the remaining type is admitted later.
+- Bind the complete membership/reserve/credit source and current user predicates
+  during preview/stage/activation. Forward and inverse also read public owner
+  positions in the same transaction: an already published position requires its
+  coverage workflow and cannot be omitted, including publication after preview.
+- Inverse restores prior public rows, frozen cursors, pending intent and credits
+  atomically while advancing membership revisions. Repeat/racing activation cannot
+  acknowledge twice. Insufficient cohorts or a unit that violates unique staffing
+  or delivery adjacency reject with no cursor, omission, acknowledgement or credit
+  writes; no unratified replacement algorithm is invented.
+
+Validation: build/lint clean; 39 coverage/credit/membership unit passes, 294 HU-082
+regression passes (51 other-emulator cases skipped), and 87 distinct emulator/Rules
+scenarios validated across the full suite and focused publication rerun. Coverage
+includes frozen departures/reactivation, producer/common-purchase-manager reasons,
+minimum staffing, group transitions, published-position rejection in both directions,
+large-cohort carryover and deferred per-type admission.
+
+Next grouped outcome: member/admin product and local integration across Android,
+iOS, authenticated coverage transport, Sheets projection and notification navigation.
+Real entropy/provider policy, assembly ratification and deployment remain separate
+gates. No live Firestore/Sheets, notification dispatch or shared-project deployment
+was performed; this is not completion of the live HU-084 story.
 
 ## 2. Technical approach after approval
 

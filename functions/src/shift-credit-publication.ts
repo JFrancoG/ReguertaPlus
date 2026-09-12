@@ -4,10 +4,12 @@ import {assertShiftMembershipPlanningSource,
   "./shift-membership-planning.js";
 import {assertNoPendingShiftMembership} from
   "./shift-membership-reconciliation.js";
-import {consumeRotationPositions, RotationProjectionPrefix} from
+import {consumeRotationPositions, RotationProjectionPrefix,
+  rotationOwnerPositionKey} from
   "./shift-planning-contract.js";
 import {ShiftRotationAggregateWire} from "./shift-planning-wire.js";
-import {parseShiftPlanningPublicShiftDocument} from
+import {parseShiftPlanningPublicShiftDocument,
+  ShiftPlanningPublicShiftDocument} from
   "./shift-planning-publication-contract.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
 import {coverageId, rejectCoverage, ShiftCoverageCredit,
@@ -33,6 +35,16 @@ export type ShiftCreditPublication = {
   planId: string;
   sources: ShiftCreditPublicationSources;
   changes: {targetPath: string; before: Data; after: Data}[];
+  excusedOwnerPositionKeys?: string[];
+};
+const publishedPositionKeys = (shift: ShiftPlanningPublicShiftDocument) => {
+  const positions = shift.type === "delivery" ? [{
+    rotationOwnerUserId: shift.rotationOwnerUserId ?? "",
+    roundNumber: shift.roundNumber ?? 0,
+    positionInRound: shift.positionInRound ?? 0}] :
+    shift.rotationPositions ?? [];
+  return positions.map((position) => rotationOwnerPositionKey(
+    shift.type, position));
 };
 const root = "develop/plus-collections";
 const provisionalDatabases = new WeakSet<Firestore>();
@@ -191,8 +203,17 @@ export const buildShiftCreditPublication = (input: {
         before: source.ledger, after: {revision: source.ledger.revision + 1}});
     }
   }
+  const excusedOwnerPositionKeys = ["delivery", "market"].flatMap((type) =>
+    input[type as "delivery" | "market"].units.flatMap((unit) =>
+      unit.servedPositions.filter((position) => position.excuse).map(
+        (position) => rotationOwnerPositionKey(unit.type, position))));
+  if (new Set(excusedOwnerPositionKeys).size !==
+      excusedOwnerPositionKeys.length) {
+    return rejectCoverage("membership_duplicate_omission");
+  }
   return {policyRevision: SHIFT_COVERAGE_POLICY_REVISION, planId: input.planId,
-    sources: input.sources, changes};
+    sources: input.sources, changes,
+    ...(excusedOwnerPositionKeys.length ? {excusedOwnerPositionKeys} : {})};
 };
 
 export const shiftCreditPublicationAfter = (
@@ -224,6 +245,18 @@ export const assertShiftCreditPublicationSource = async (input: {
   requireProvisionalCreditPublication("develop");
   if (!provisionalDatabases.has(input.firestore)) {
     return rejectCoverage("coverage_provisional_emulator_required");
+  }
+  if (input.publication.excusedOwnerPositionKeys?.length) {
+    const shifts = await input.transaction.get(input.firestore.collection(
+      `${root}/shifts`).limit(1001));
+    if (shifts.size > 1000) return rejectCoverage("credit_source_limit");
+    const published = shifts.docs.flatMap((doc) => publishedPositionKeys(
+      parseShiftPlanningPublicShiftDocument({targetPath: doc.ref.path,
+        value: doc.data()})));
+    if (input.publication.excusedOwnerPositionKeys.some((key) =>
+      published.includes(key))) {
+      return rejectCoverage("membership_position_already_published");
+    }
   }
   await assertShiftMembershipPlanningSource({...input,
     source: input.publication.sources.membership,
@@ -285,6 +318,7 @@ export const captureShiftCreditPublicationSources = async (input: {
     return rejectCoverage("coverage_provisional_emulator_required");
   }
   const sources = {} as ShiftCreditPublicationSources;
+  const publicPositionKeys: string[] = [];
   for (const type of ["delivery", "market"] as const) {
     const rotation = input.rotations[type];
     const ledger = await input.transaction.get(input.firestore.doc(
@@ -301,6 +335,7 @@ export const captureShiftCreditPublicationSources = async (input: {
     const rounds = shifts.flatMap((doc) => {
       const shift = parseShiftPlanningPublicShiftDocument({
         targetPath: doc.ref.path, value: doc.data()});
+      publicPositionKeys.push(...publishedPositionKeys(shift));
       return shift.type === "delivery" ? [shift.roundNumber ?? 0] :
         shift.rotationPositions?.map((p) => p.roundNumber) ?? [];
     });
@@ -349,7 +384,8 @@ export const captureShiftCreditPublicationSources = async (input: {
   const membership = await captureShiftMembershipPlanningSource(
     input.firestore, input.transaction);
   if (membership.records.length || membership.reserves.length) {
-    sources.membership = membership;
+    sources.membership = {...membership,
+      publishedOwnerPositionKeys: [...new Set(publicPositionKeys)].sort()};
   }
   return parseShiftCreditPublicationSources(sources, "develop");
 };

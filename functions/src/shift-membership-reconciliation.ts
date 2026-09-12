@@ -25,6 +25,9 @@ export type MembershipState = {
   observedAtMillis: number; pendingQueueTransition: boolean;
   admissionAfterRound: {delivery: number; market: number};
   admissionRequired?: {delivery: boolean; market: boolean};
+  pendingTypes?: {delivery: boolean; market: boolean};
+  frozenExclusion?: {reason: "excusedDeparture" | "excusedIneligible";
+    revision: number};
 };
 
 export const readShiftMembershipState = (
@@ -45,6 +48,17 @@ export const readShiftMembershipState = (
           "delivery,market" ||
         types.some((type) => typeof state.admissionRequired?.[type] !==
           "boolean"))) ||
+      (state.pendingTypes !== undefined && (!state.pendingTypes ||
+        Object.keys(state.pendingTypes).sort().join() !== "delivery,market" ||
+        types.some((type) => typeof state.pendingTypes?.[type] !== "boolean") ||
+        state.pendingQueueTransition !==
+          types.some((type) => state.pendingTypes?.[type]))) ||
+      (state.frozenExclusion !== undefined && (!state.frozenExclusion ||
+        !["excusedDeparture", "excusedIneligible"].includes(
+          state.frozenExclusion.reason) ||
+        !Number.isSafeInteger(state.frozenExclusion.revision) ||
+        state.frozenExclusion.revision < 1 ||
+        state.frozenExclusion.revision > state.revision)) ||
       state.eligible !== (state.source ?
         coverageMember(state.source).eligible : false) ||
       !types.every((type) => Number.isSafeInteger(
@@ -56,9 +70,9 @@ export const readShiftMembershipState = (
 };
 
 /**
- * Until whole-unit queue transitions are implemented, a reconciled departure or
- * re-entry must not become plannable merely because the current roster matches
- * its old cohort again. Reuse this fence at source capture and activation.
+ * Ordinary planning cannot acknowledge pending membership transitions. Only the
+ * provisional whole-unit path carries their complete evidence through source
+ * capture, activation and inverse; matching an old cohort is not sufficient.
  * @param {Firestore} db Fixed provisional emulator client.
  * @param {Transaction} transaction Planning source transaction.
  */
@@ -173,14 +187,16 @@ export const createShiftMembershipReconciliation = (
       const admissionAfterRound = {delivery: 0, market: 0};
       const admissionRequired = {...previous?.admissionRequired ??
         {delivery: false, market: false}};
-      let pending = previous?.pendingQueueTransition ?? false;
+      const pendingTypes = {...previous?.pendingTypes ?? {
+        delivery: previous?.pendingQueueTransition ?? false,
+        market: previous?.pendingQueueTransition ?? false}};
       for (const [index, type] of types.entries()) {
         const rotation = rotations[index];
         const inCohort = rotation.cursor.cohortUserIds.includes(userId);
         const entering = eligible &&
           (previous ? !previous.eligible : !inCohort);
         admissionRequired[type] ||= entering;
-        pending ||= entering || (!eligible && inCohort) ||
+        pendingTypes[type] ||= entering || (!eligible && inCohort) ||
           Boolean(previous?.eligible && !eligible);
         admissionAfterRound[type] = Math.max(
           previous?.admissionAfterRound[type] ?? 0,
@@ -207,9 +223,16 @@ export const createShiftMembershipReconciliation = (
       const next: MembershipState = {schemaVersion: 1,
         policyRevision: SHIFT_COVERAGE_POLICY_REVISION, userId,
         revision: (previous?.revision ?? 0) + (changed ? 1 : 0), source,
+        ...(previous?.frozenExclusion ?
+          {frozenExclusion: previous.frozenExclusion} : {}),
+        ...(changed && !eligible ? {frozenExclusion: {
+          reason: (!source || !source.isActive ? "excusedDeparture" :
+            "excusedIneligible") as "excusedDeparture" | "excusedIneligible",
+          revision: (previous?.revision ?? 0) + 1}} : {}),
         eligible, observedAtMillis: changed ? now :
-          (previous?.observedAtMillis ?? now), pendingQueueTransition: pending,
-        admissionAfterRound, admissionRequired};
+          (previous?.observedAtMillis ?? now),
+        pendingQueueTransition: types.some((type) => pendingTypes[type]),
+        admissionAfterRound, admissionRequired, pendingTypes};
       const affected = eligible ? [] : publicShifts.filter(({shift}) =>
         shift.assignedUserIds.includes(userId) && shift.date.toMillis() > now &&
         shift.completion.state === "uncompleted");

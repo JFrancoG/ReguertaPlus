@@ -312,13 +312,14 @@ test("membership re-entry fences governed source and ordinary credit-disabled pu
   }));
 
 const {admissionSnapshot} = require("./shift-membership-planning-fixture.cjs");
-const setupAdmission = (withCredits = false) => {
+const setupAdmission = (withCredits = false, configure = () => {}) => {
   const snapshot = admissionSnapshot();
   if (withCredits) {
     const creditSources = setup().snapshot.creditLedger.sources;
     snapshot.creditLedger.sources.delivery = creditSources.delivery;
     snapshot.creditLedger.sources.market = creditSources.market;
   }
+  configure(snapshot);
   const value = fixture(snapshot); const input = materializerInput(value);
   const publication = value.liveResult.manifests.forward.creditPublication;
   input.beforeImageDocuments.push(...publication.changes.map((change) => readDocument(change.targetPath, change.before, 100)));
@@ -401,4 +402,154 @@ test("concurrent admission cannot acknowledge membership twice or partly publish
     assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
     assert.equal((await db.doc(`${root}/shiftMembershipState/member-1`).get()).data().value.revision, 4);
     const after = await capture(db); await assert.rejects(forward(db, data)); assert.deepEqual(await capture(db), after);
+  }));
+
+const freezeMarket = (snapshot) => {
+  const rotation = snapshot.rotations.market;
+  rotation.cursor.nextMemberIndex = 1; rotation.cohortFrozen = true;
+  rotation.frozenCohortUserIds = [...rotation.cursor.cohortUserIds];
+  snapshot.creditLedger.sources.market.frozenThroughRound = 1;
+  for (const record of snapshot.creditLedger.sources.membership.records) {
+    record.data.value.admissionAfterRound.market = 1;
+    record.data.digest = digest(record.data.value);
+  }
+};
+
+test("frozen seasonal preview preserves departed and reactivated owners as omissions inside complete market units", () => {
+  const data = setupAdmission(true, freezeMarket);
+  const units = data.value.liveResult.market.creditProjection.units;
+  assert.deepEqual(units[0].assignments.map((p) => p.rotationOwnerUserId), ["member-6", "member-5", "member-4"]);
+  assert.deepEqual(units[0].servedPositions.filter((p) => p.excuse).map((p) =>
+    [p.rotationOwnerUserId, p.roundNumber, p.positionInRound, p.excuse.reason, p.creditId]),
+  [["member-2", 1, 2, "excusedDeparture", null], ["member-1", 1, 3, "excusedDeparture", null]]);
+  assert.equal(data.publication.excusedOwnerPositionKeys.length, 2);
+  assert.ok(units.slice(1).some((unit) => unit.consumedCreditIds.includes("market-member-1")));
+  const snapshot = structuredClone(data.snapshot);
+  snapshot.creditLedger.sources.membership.publishedOwnerPositionKeys = [JSON.stringify(["market", 1, 2, "member-2"])];
+  assert.throws(() => fixture(snapshot), {code: "membership_position_already_published"});
+});
+
+test("frozen publication commits omission evidence, full units and membership together; inverse restores frozen ownership",
+  {skip: !emulatorAvailable}, () => withDatabase(async (db) => {
+    const data = setupAdmission(true, freezeMarket); await seed(db, data);
+    await forward(db, data);
+    const active = (await db.doc(`${root}/shiftPlanningBundles/${data.value.preflight.bundle.bundleRevision}`).get()).data();
+    assert.ok(JSON.stringify(active).includes("excusedDeparture"));
+    const shifts = await db.collection(`${root}/shifts`).where("type", "==", "market").get();
+    assert.ok(shifts.docs.every((doc) => new Set(doc.data().assignedUserIds).size === 3));
+    assert.ok(shifts.docs.every((doc) => !doc.data().rotationPositions.some((p) =>
+      p.roundNumber === 1 && ["member-1", "member-2"].includes(p.rotationOwnerUserId))));
+    assert.equal((await db.doc(`${root}/shiftMembershipState/member-2`).get()).data().value.pendingQueueTransition, false);
+    await inverse(db, data);
+    assert.equal((await db.collection(`${root}/shifts`).get()).size, 0);
+    assert.deepEqual((await db.doc(`${root}/shiftRotations/market`).get()).data().cursor, data.snapshot.rotations.market.cursor);
+    const restored = (await db.doc(`${root}/shiftMembershipState/member-1`).get()).data();
+    assert.equal(restored.value.revision, 5); assert.equal(restored.value.pendingQueueTransition, true);
+    assert.deepEqual(restored.value.frozenExclusion, {reason: "excusedDeparture", revision: 2});
+    assert.equal((await db.doc(`${root}/shiftCoverageCredits/market-member-1`).get()).data().state, "pending");
+  }));
+
+test("a position published after frozen preview rejects activation and inverse with zero partial writes",
+  {skip: !emulatorAvailable}, () => withDatabase(async (db) => {
+    const data = setupAdmission(false, freezeMarket);
+    const materialized = materializeShiftPlanningForwardActivation(data.input);
+    const original = materialized.publicDocuments.find((item) => item.document.type === "market").document;
+    const document = {...original, date: Timestamp.fromDate(new Date("2025-09-01T00:00:00Z")),
+      projectionSeasonStartYear: 2025, rotationPositions: [...original.rotationPositions],
+      rotationOwnerUserIds: [...original.rotationOwnerUserIds], assignedUserIds: [...original.assignedUserIds],
+      lastBackendMutation: {...original.lastBackendMutation, targetPath: `${root}/shifts/shift_market_20250901`}};
+    document.rotationPositions[0] = {...original.rotationPositions[0], rotationOwnerUserId: "member-2",
+      effectiveAssigneeUserId: "member-2", roundNumber: 1, positionInRound: 2};
+    document.rotationOwnerUserIds[0] = "member-2";
+    document.assignedUserIds[0] = "member-2";
+    const ref = db.doc(`${root}/shifts/shift_market_20250901`);
+    const {parseShiftPlanningPublicShiftDocument} = require("../lib/shift-planning-publication-contract.js");
+    parseShiftPlanningPublicShiftDocument({targetPath: ref.path, value: document});
+    await seed(db, data); await ref.set(document);
+    const before = await capture(db);
+    await assert.rejects(forward(db, data), {code: "membership_position_already_published"});
+    assert.deepEqual(await capture(db), before);
+    await ref.delete(); await forward(db, data); await ref.set(document);
+    const active = await capture(db);
+    await assert.rejects(inverse(db, data), {code: "membership_position_already_published"});
+    assert.deepEqual(await capture(db), active);
+  }));
+
+test("governed source captures frozen ownership and resolves publication through the canonical activation path",
+  {skip: !emulatorAvailable}, () => withDatabase(async (db) => {
+    const data = await seedGoverned(db, setupAdmission(false, freezeMarket));
+    const source = await loadCurrentShiftPlanningLiveSource({firestore: db, environment: "develop"});
+    assert.deepEqual(source.inputs.fairnessSnapshot.creditLedger.sources.membership.publishedOwnerPositionKeys, []);
+    assert.equal(data.publication.excusedOwnerPositionKeys.length, 2);
+    await governedForward(db, data); await inverse(db, data);
+    assert.equal((await db.doc(`${root}/shiftRotations/market`).get()).data().cursor.nextMemberIndex, 1);
+  }));
+
+const setupLargeFrozen = (departure) => setup((snapshot) => {
+  const {recordFor, reserveFor} = require("./shift-membership-planning-fixture.cjs");
+  const member = snapshot.roster[0];
+  snapshot.roster = Array.from({length: departure ? 34 : 35}, (_, i) => ({...member, userId: `member-${i + 1}`}));
+  const ids = snapshot.roster.slice(0, 34).map((m) => m.userId);
+  for (const type of ["delivery", "market"]) snapshot.rotations[type].cursor.cohortUserIds = [...ids];
+  const changing = snapshot.roster.at(-1);
+  changing.isActive = !departure;
+  const record = recordFor(changing, !departure);
+  const membership = {records: [record], reserves: departure ? [] :
+    ["delivery", "market"].map((type) => reserveFor(changing.userId, type))};
+  const empty = () => ({credits: [], claims: [], ledger: null, frozenThroughRound: 0});
+  snapshot.creditLedger.sources = {delivery: empty(), market: empty(), membership};
+  freezeMarket(snapshot);
+});
+
+test("frozen overflow retains omission and cohort-boundary proof in the active bundle for next-season carryover",
+  {skip: !emulatorAvailable}, () => withDatabase(async (db) => {
+    const data = setupLargeFrozen(true); await seed(db, data); await forward(db, data);
+    const market = data.value.liveResult.market; const overflow = market.shifts.slice(10);
+    const units = market.creditProjection.units.slice(10);
+    assert.equal(units.length, 1);
+    assert.deepEqual(units[0].assignments.map((p) => p.rotationOwnerUserId), ["member-32", "member-33", "member-1"]);
+    assert.equal(units[0].servedPositions[2].excuse.reason, "excusedDeparture");
+    assert.equal(units[0].servedPositions.at(-1).cohortStartUserIds.length, 33);
+    const prefix = {dates: overflow.map((shift) => shift.date), positions: overflow.flatMap((shift) => shift.rotationPositions),
+      rotationBeforePrefix: market.cursorAtTargetBoundary, lineageRevision: data.value.liveResult.bundleRevision,
+      lineageDigest: data.value.liveResult.bundleDigest};
+    const before = await capture(db);
+    const sources = await db.runTransaction(async (transaction) => {
+      const rotations = await transaction.getAll(db.doc(`${root}/shiftRotations/delivery`), db.doc(`${root}/shiftRotations/market`));
+      return captureShiftCreditPublicationSources({firestore: db, transaction,
+        rotations: {delivery: rotations[0].data(), market: rotations[1].data()}, prefixes: {delivery: null, market: prefix}});
+    });
+    assert.deepEqual(sources.market.inheritedUnits, units.map((unit) => unit.servedPositions));
+    assert.ok(sources.membership.publishedOwnerPositionKeys.length > 0);
+    assert.equal(sources.membership.publishedOwnerPositionKeys.includes(JSON.stringify(["market", 1, 34, "member-34"])), false);
+    const {planMarketShifts} = require("../lib/market-shift-planner.js");
+    const next = planMarketShifts({planningRequestId: "next", targetSeasonStartYear: 2027,
+      rotation: market.nextRotation, inheritedTargetPrefix: prefix, provisionalCredits: sources.market});
+    assert.ok(next.shifts.every((shift) => new Set(shift.assignedUserIds).size === 3));
+    assert.deepEqual(await capture(db), before);
+    await inverse(db, data);
+    assert.deepEqual((await db.doc(`${root}/shiftRotations/market`).get()).data().cursor.cohortUserIds,
+      data.snapshot.rotations.market.cursor.cohortUserIds);
+  }));
+
+test("publication does not add a new round solely to acknowledge admission; each type retains its pending frontier",
+  {skip: !emulatorAvailable}, () => withDatabase(async (db) => {
+    const data = setupLargeFrozen(false); await seed(db, data);
+    assert.equal(data.value.liveResult.market.creditProjection.membershipApplied, false);
+    assert.equal(data.value.liveResult.market.shifts.length, 11);
+    assert.equal(data.value.liveResult.market.nextRotation.nextMemberIndex, 0);
+    await forward(db, data);
+    const state = (await db.doc(`${root}/shiftMembershipState/member-35`).get()).data();
+    assert.deepEqual(state.value.pendingTypes, {delivery: false, market: true});
+    assert.deepEqual(state.value.admissionRequired, {delivery: false, market: true});
+    assert.equal(state.value.pendingQueueTransition, true);
+    const {planShiftMembershipAdmission} = require("../lib/shift-membership-planning.js");
+    const source = structuredClone(data.publication.sources.membership); source.records[0].data = state;
+    const next = planShiftMembershipAdmission({source, roster: data.snapshot.roster,
+      rotations: {delivery: data.value.liveResult.delivery.nextRotation, market: data.value.liveResult.market.nextRotation},
+      frozenThroughRound: {delivery: 2, market: 1}});
+    assert.equal(next.policies.delivery, undefined); assert.equal(next.cohorts.market.at(-1), "member-35");
+    await inverse(db, data);
+    assert.deepEqual((await db.doc(`${root}/shiftMembershipState/member-35`).get()).data().value.pendingTypes,
+      {delivery: true, market: true});
   }));

@@ -734,6 +734,9 @@ run("departure opens only affected future cases, preserves history and re-entry 
   await ref("users", "a").update({isActive: false});
   const departed = await reconcile("a");
   assert.equal(departed.result.state.pendingQueueTransition, true);
+  assert.deepEqual(departed.result.state.pendingTypes, {delivery: true, market: true});
+  assert.deepEqual(departed.result.state.frozenExclusion,
+    {reason: "excusedDeparture", revision: departed.result.state.revision});
   assert.equal(departed.result.coverage.length, 3);
   assert.ok(departed.result.coverage.every((c) => c.status === "opened"));
   let after = await snapshot();
@@ -749,6 +752,7 @@ run("departure opens only affected future cases, preserves history and re-entry 
   await ref("users", "a").update({isActive: true});
   const restored = await reconcile("a");
   assert.equal(restored.result.state.pendingQueueTransition, true);
+  assert.deepEqual(restored.result.state.frozenExclusion, departed.result.state.frozenExclusion);
   assert.equal((await reserveFor("a")).enteredAtMillis, now);
   assert.equal((await reserveFor("a", "market")).active, true);
   const {assertNoPendingShiftMembership} = require("../lib/shift-membership-reconciliation.js");
@@ -768,11 +772,14 @@ run("producer/company eligibility changes deactivate reserves and re-entry goes 
   now += 10; await ref("users", "d").update({roles: ["member", "producer"]});
   const producer = await reconcile("d");
   assert.equal(producer.result.state.eligible, false);
+  assert.deepEqual(producer.result.state.frozenExclusion,
+    {reason: "excusedIneligible", revision: producer.result.state.revision});
   assert.equal((await reserveFor("d")).active, false);
   assert.equal((await reserveFor("d")).revision, 2);
   now += 10; await ref("users", "d").update({isCommonPurchaseManager: true});
   const manager = await reconcile("d");
   assert.equal(manager.result.state.eligible, true);
+  assert.deepEqual(manager.result.state.frozenExclusion, producer.result.state.frozenExclusion);
   assert.equal((await reserveFor("d")).revision, 3);
   assert.ok((await reserveFor("d")).enteredAtMillis > (await reserveFor("e")).enteredAtMillis);
   await open(); await execute("case-1", "startSelection", "admin");

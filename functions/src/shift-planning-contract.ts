@@ -18,7 +18,15 @@ export type PlannedRotationPosition = {
 
 export type ServedRotationPosition = PlannedRotationPosition & {
   creditId: string | null;
+  excuse?: {reason: "excusedDeparture" | "excusedIneligible";
+    membershipRevision: number};
+  cohortStartUserIds?: readonly string[];
 };
+
+export const rotationOwnerPositionKey = (
+  type: ShiftRotationType, position: PlannedRotationPosition,
+): string => JSON.stringify([type, position.roundNumber,
+  position.positionInRound, position.rotationOwnerUserId]);
 
 export type RotationProjectionPrefix = {
   dates: readonly string[];
@@ -225,13 +233,23 @@ export const requireRotationProjectionPrefix = (
   if (servedPositionUnits) {
     const creditIds = new Set<string>();
     const physical = servedPositionUnits.flatMap((unit) =>
-      unit.filter((position) => position.creditId === null));
+      unit.filter((position) => position.creditId === null &&
+        !position.excuse));
     const invalidUnit = servedPositionUnits.some((unit) => {
-      const owners = unit.map((position) => position.rotationOwnerUserId);
-      return unit.at(-1)?.creditId !== null ||
+      const owners = unit.filter((position) => !position.excuse)
+        .map((position) => position.rotationOwnerUserId);
+      return unit.at(-1)?.creditId !== null || !!unit.at(-1)?.excuse ||
         new Set(owners).size !== owners.length ||
-        unit.filter((position) => position.creditId === null).length !==
+        unit.filter((position) => position.creditId === null &&
+          !position.excuse).length !==
           positionsPerDate || unit.some((position) => {
+        if (position.excuse) {
+          return position.creditId !== null || !!position.cohortStartUserIds ||
+            !["excusedDeparture", "excusedIneligible"].includes(
+              position.excuse.reason) ||
+            !Number.isSafeInteger(position.excuse.membershipRevision) ||
+            position.excuse.membershipRevision < 1;
+        }
         if (position.creditId === null) return false;
         const id = position.creditId;
         if (typeof id !== "string" || !id.trim() || id.includes("/") ||
@@ -254,10 +272,30 @@ export const requireRotationProjectionPrefix = (
     }
     traversedPositions = servedPositionUnits.flat();
   }
-  const expected = consumeRotationPositions(
-    prefix.rotationBeforePrefix,
-    traversedPositions.length,
-  );
+  const expected = servedPositionUnits ? {
+    positions: [] as PlannedRotationPosition[],
+    nextRotation: consumeRotationPositions(prefix.rotationBeforePrefix, 0)
+      .nextRotation,
+  } : consumeRotationPositions(prefix.rotationBeforePrefix,
+    traversedPositions.length);
+  if (servedPositionUnits) {
+    for (const position of servedPositionUnits.flat()) {
+      if (position.cohortStartUserIds) {
+        if (expected.nextRotation.nextMemberIndex !== 0 ||
+            position.cohortStartUserIds.length <
+              Math.max(positionsPerDate, 2)) {
+          throw new ShiftPlanningError("invalid_inherited_rotation_lineage",
+            "Cohort admission must start at a new round boundary.");
+        }
+        expected.nextRotation = consumeRotationPositions({
+          ...expected.nextRotation, cohortUserIds: position.cohortStartUserIds},
+        0).nextRotation;
+      }
+      const traversal = consumeRotationPositions(expected.nextRotation, 1);
+      expected.positions.push(traversal.positions[0]);
+      expected.nextRotation = traversal.nextRotation;
+    }
+  }
   const normalizedCurrent = consumeRotationPositions(rotationAfterPrefix, 0)
     .nextRotation;
   const positionsMatch = expected.positions.every((position, index) => {

@@ -7,27 +7,31 @@ The maintainer requested grouped implementation on branch
 and authorized provisional local work on 2026-09-12. Assembly policy and live
 activation remain unratified. This branch has local coverage lifecycle,
 reserve/volunteer selection, committed draws/admin recovery, seasonal credit
-planning and governed forward/inverse publication. Membership/reserve reconciliation
-was committed and pushed as `6706c5c`.
+planning and governed forward/inverse publication. New-round admission was committed
+and pushed as `859ede8`.
 
-The current checkpoint integrates membership admission at wholly new round
-boundaries into both seasonal planners and the existing publication/inverse
-transaction. Retained owners keep order; new/re-entering members append by reserve
-time then UID, independently per rotation. Membership acknowledgements, calendars,
-cursors and credit changes commit together. Complete state/reserve snapshots and
-current member predicates invalidate stale forward/inverse attempts. Recovery
-restores pending admissions and prior cohorts while increasing membership revisions.
-Cohort inclusion does not imply reserve exit. Legacy pending records without
-per-type evidence, frozen rounds and insufficient staffing fail closed.
+The current checkpoint completes the provisional local planning integration:
+frozen unpublished departures/ineligibility retain original owner, round, position,
+reason and membership revision inside the activated bundle's full physical units.
+No separate tombstone collection or writer is added. Cohorts change only at the
+permitted new-round boundary; cross-boundary market groups retain replayable
+carryover evidence. Reactivation preserves the old exclusion and enters a new
+normal position. Each type acknowledges admission only after its first complete
+new-cohort unit, without forcing another round merely to clear pending state.
 
-Validation: build/lint clean; 32 coverage/credit/admission unit passes, 294 HU-082
-regression passes (51 other-emulator cases skipped), and 81 emulator/Rules passes.
-Remaining outcome group 2 work is frozen unpublished departures/ineligibility:
-reason-coded skips with complete physical units, minimum-cohort fallback and inverse
-evidence. Real entropy, live transition observation/coverage transport, native flows,
-notification/Sheets product integration, ratification and deployment remain pending.
-This checkpoint is restricted to the fixed local emulator. See `plan.md` for the
-current boundary and evidence.
+Existing forward/inverse transactions bind membership, reserves, credits and current
+user predicates, and reject omission of any already published owner position.
+Recovery restores frozen cursors, credits and pending intent with higher revisions.
+Insufficient staffing rejects without partial writes. Reserves remain independent
+of cohort inclusion; completed helper history stays unchanged.
+
+Validation: build/lint clean; 39 coverage/credit/membership unit passes, 294 HU-082
+regression passes (51 other-emulator cases skipped), and 87 distinct emulator/Rules
+scenarios across the full suite and focused publication rerun. The next grouped
+outcome is equivalent Android/iOS member/admin flows and authenticated coverage,
+notification and Sheets product integration. Real entropy, assembly ratification
+and deployment remain pending. This checkpoint is restricted to the fixed local
+emulator; it does not complete or activate the live story. See `plan.md` for evidence.
 
 The operational plan groups work into three complete outcomes: coverage backend
 with persistence/security/tests; credit/membership/atomic-planner integration;

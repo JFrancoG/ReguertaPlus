@@ -5,7 +5,7 @@ process.env.GCLOUD_PROJECT = "demo-reguerta-hu084-coverage";
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8798";
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {fixture, fairnessSnapshot} = require("./shift-planning-activation-fixture.cjs");
-const {planShiftMembershipAdmission: plan} = require("../lib/shift-membership-planning.js");
+const {planShiftMembershipAdmission: plan, buildShiftMembershipAcknowledgements: acknowledge} = require("../lib/shift-membership-planning.js");
 const {planMarketShifts} = require("../lib/market-shift-planner.js");
 
 const {admissionSnapshot, recordFor, reserveFor, inputFor} = require("./shift-membership-planning-fixture.cjs");
@@ -15,8 +15,9 @@ test("new-round admission retains order, appends re-entry/new members by FIFO th
   const result = plan(inputFor(snapshot));
   assert.deepEqual(result.cohorts.delivery, ["member-3", "member-4", "member-5", "member-6", "member-1", "member-7"]);
   assert.deepEqual(result.cohorts.market, ["member-3", "member-6", "member-5", "member-4", "member-1", "member-7"]);
-  assert.equal(result.changes.length, 3);
-  assert.ok(result.changes.every((change) => change.after.value.revision === 4 && !change.after.value.pendingQueueTransition));
+  const changes = acknowledge(inputFor(snapshot).source, {delivery: true, market: true});
+  assert.equal(changes.length, 3);
+  assert.ok(changes.every((change) => change.after.value.revision === 4 && !change.after.value.pendingQueueTransition));
   assert.deepEqual(snapshot, before);
 });
 
@@ -35,15 +36,9 @@ test("combined seasonal candidate binds membership acknowledgements and publishe
 });
 
 test("public/frozen rounds, missing reserve evidence and unreconciled departures cannot be silently replanned", () => {
-  for (const kind of ["partial", "published", "admissionFloor", "missingReserve", "futureReserve", "missingPerType", "unobservedDeparture", "changedRole"]) {
+  for (const kind of ["missingReserve", "futureReserve", "missingPerType", "unobservedDeparture", "changedRole"]) {
     const snapshot = admissionSnapshot(); const input = inputFor(snapshot);
     let code;
-    if (kind === "partial") { input.rotations.market.nextMemberIndex = 1; code = "membership_frozen_unit_required"; }
-    if (kind === "published") { input.frozenThroughRound.market = 1; code = "membership_frozen_unit_required"; }
-    if (kind === "admissionFloor") {
-      const entry = input.source.records[0]; entry.data.value.admissionAfterRound.delivery = 1;
-      entry.data.digest = digest(entry.data.value); code = "membership_frozen_unit_required";
-    }
     if (kind === "missingReserve") { input.source.reserves.pop(); code = "membership_reserve_evidence_required"; }
     if (kind === "futureReserve") { input.source.reserves[0].data.enteredAtMillis = 11; code = "membership_reserve_evidence_required"; }
     if (kind === "missingPerType") {
@@ -105,7 +100,7 @@ test("admission changes only the prospective delivery helper and rejects an equa
     completion: {state: "uncompleted", assignmentRevision: 4, completionRevision: 0, plannedHelperUserId: "member-1"}};
   const input = {planningRequestId: "admission", targetSeasonStartYear: 2026, deliveryWeekday: "THU",
     rotation: snapshot.rotations.delivery.cursor, continuity: {kind: "persistedAppend", predecessor},
-    provisionalCredits: {credits: [], frozenThroughRound: 0, cohortAtStart: admission.cohorts.delivery}};
+    provisionalCredits: {credits: [], frozenThroughRound: 0, membership: admission.policies.delivery}};
   const result = planDeliveryShifts(input);
   assert.equal(result.shifts[0].rotationOwnerUserId, "member-3");
   assert.deepEqual(result.predecessorHelperUpdate, {shiftId: "prior", helperUserId: "member-3"});
@@ -117,4 +112,66 @@ test("admission changes only the prospective delivery helper and rejects an equa
   assert.equal(completedResult.predecessorGuard.expectedActualHelperUserId, "member-1");
   const impossible = structuredClone(input); impossible.continuity.predecessor.effectiveLeadUserId = "member-3";
   assert.throws(() => planDeliveryShifts(impossible), {code: "credit_unit_unstaffable"});
+});
+
+test("frozen and partial rounds defer admission, preserve old reactivation evidence and require it before omitting", () => {
+  const snapshot = admissionSnapshot(); const input = inputFor(snapshot);
+  input.rotations.market.nextMemberIndex = 1;
+  input.frozenThroughRound.delivery = 1;
+  const before = structuredClone(input); const result = plan(input);
+  for (const type of ["delivery", "market"]) {
+    assert.equal(result.policies[type].startRound, 2);
+    assert.deepEqual(result.policies[type].excusedOwners.map((owner) => owner.userId), ["member-1", "member-2"]);
+    assert.equal(result.policies[type].excusedOwners[0].membershipRevision, 2);
+  }
+  assert.deepEqual(input, before);
+  delete input.source.records[0].data.value.frozenExclusion;
+  input.source.records[0].data.digest = digest(input.source.records[0].data.value);
+  assert.throws(() => plan(input), {code: "membership_exclusion_evidence_required"});
+});
+
+test("one complete admitted rotation acknowledges only that type and later planning retains its established order", () => {
+  const snapshot = admissionSnapshot(); const input = inputFor(snapshot);
+  const proposal = plan(input);
+  const changes = acknowledge(input.source, {delivery: true, market: false});
+  assert.equal(changes.length, 3);
+  for (const record of input.source.records) {
+    record.data = changes.find((change) => change.targetPath.endsWith(`/${record.id}`)).after;
+    assert.equal(record.data.value.pendingQueueTransition, true);
+    assert.deepEqual(record.data.value.pendingTypes, {delivery: false, market: true});
+    assert.equal(record.data.value.admissionRequired.delivery, false);
+  }
+  input.rotations.delivery.cohortUserIds = proposal.cohorts.delivery;
+  input.rotations.delivery.nextMemberIndex = 1;
+  const next = plan(input);
+  assert.equal(next.policies.delivery, undefined);
+  assert.deepEqual(next.cohorts.delivery, proposal.cohorts.delivery);
+  assert.ok(next.policies.market);
+  const final = acknowledge(input.source, {delivery: false, market: true});
+  assert.ok(final.every((change) => !change.after.value.pendingQueueTransition && change.after.value.revision === 5));
+});
+
+test("frozen delivery skips departed/re-entering old owners and recomputes only an uncompleted predecessor helper", () => {
+  const {planDeliveryShifts} = require("../lib/delivery-shift-planner.js");
+  const snapshot = admissionSnapshot(); const input = inputFor(snapshot);
+  input.frozenThroughRound.delivery = 1;
+  const admission = plan(input);
+  const predecessor = {shiftId: "prior", scheduledDate: "2026-08-27", effectiveLeadUserId: "member-6",
+    completion: {state: "uncompleted", assignmentRevision: 4, completionRevision: 0, plannedHelperUserId: "member-1"}};
+  const source = {planningRequestId: "frozen-delivery", targetSeasonStartYear: 2026, deliveryWeekday: "THU",
+    rotation: input.rotations.delivery, continuity: {kind: "persistedAppend", predecessor},
+    provisionalCredits: {credits: [], frozenThroughRound: 1, membership: admission.policies.delivery}};
+  const result = planDeliveryShifts(source);
+  assert.equal(result.shifts[0].rotationOwnerUserId, "member-3");
+  assert.equal(result.shifts[0].roundNumber, 1);
+  assert.equal(result.creditProjection.units[0].servedPositions.filter((p) => p.excuse).length, 2);
+  assert.deepEqual(result.predecessorHelperUpdate, {shiftId: "prior", helperUserId: "member-3"});
+  const completed = structuredClone(source);
+  completed.continuity.predecessor.completion = {state: "completed", assignmentRevision: 4, completionRevision: 1,
+    actualHelperUserId: "member-1", helperSourceAssignmentRevision: 4, completedAtMillis: 10};
+  assert.equal(planDeliveryShifts(completed).predecessorHelperUpdate, null);
+  const impossible = structuredClone(source); impossible.continuity.predecessor.effectiveLeadUserId = "member-3";
+  const before = structuredClone(impossible);
+  assert.throws(() => planDeliveryShifts(impossible), {code: "credit_unit_unstaffable"});
+  assert.deepEqual(impossible, before);
 });

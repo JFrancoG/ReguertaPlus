@@ -988,3 +988,22 @@ images; inverse restores pending intent and prior cohorts with higher membership
 revisions. Reserves are not removed on cohort inclusion. Frozen unpublished
 positions remain blocked until skips can commit with full physical units and
 inverse evidence. This remains a fixed-emulator implementation without deployment.
+
+
+The subsequent frozen-unit checkpoint supersedes that local restriction. Frozen
+unpublished departures/ineligibility retain original owner, round, position, reason
+and membership revision in the activated bundle's complete physical-unit traversal;
+no standalone tombstone collection or writer is introduced. Reactivation preserves
+its exclusion evidence and admits the member only at a new normal position. The
+cohort changes at the permitted round boundary, even inside a market group, and
+carryover retains this transition for exact replay. Each type acknowledges admission
+only after a complete new-cohort unit; reaching the next boundary alone does not
+force another round or clear pending intent. Forward/inverse bind all membership,
+reserve and credit sources plus current member predicates, and query published
+ownership transactionally so an existing public position cannot be omitted. Inverse
+restores frozen cursors and pending intent with higher revisions. Unstaffable units
+reject without partial cursor/omission/credit writes. Existing helper-history and
+credit backtracking contracts remain intact. Local planning integration is complete;
+mobile/coverage transport and notification/Sheets product integration, real entropy,
+assembly ratification and deployment remain pending. Fixed-emulator evidence does
+not authorize shared-project writes or live activation.

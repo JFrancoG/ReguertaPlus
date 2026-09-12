@@ -29,8 +29,9 @@
   seasonal planners and the governed HU-082 forward/inverse transaction. Preserve
   retained order, append new/re-entering owners by reserve time/UID, bind complete
   membership/reserve evidence and keep acknowledgement revisions monotonic.
-- [ ] Integrate frozen unpublished departures/ineligibility with whole-unit
-  activation/inverse and minimum-cohort fallback (remaining outcome group 2).
+- [x] Integrate frozen unpublished departures/ineligibility with whole-unit
+  activation/inverse, reason-preserving re-entry, cross-season carryover and
+  zero-write rejection when a complete valid unit cannot be staffed (local outcome group 2).
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset

@@ -3,7 +3,8 @@ import {consumeRotationPositions, ServedRotationPosition,
   "./shift-planning-contract.js";
 import {coverageId, rejectCoverage, ShiftCoverageCredit} from
   "./shift-coverage.js";
-import {parseShiftCoverageCredit, planShiftCreditUnit, ShiftCreditUnit} from
+import {parseShiftCoverageCredit, planShiftCreditUnit, ShiftCreditUnit,
+  ShiftMembershipUnitPolicy} from
   "./shift-credit-unit.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 
@@ -11,7 +12,7 @@ import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 export type ProvisionalSeasonCredits = {
   credits: readonly ShiftCoverageCredit[];
   frozenThroughRound: number;
-  cohortAtStart?: readonly string[];
+  membership?: ShiftMembershipUnitPolicy;
   inheritedUnits?: readonly (readonly ServedRotationPosition[])[];
 };
 
@@ -20,6 +21,7 @@ export type ShiftSeasonCreditProjection = {
   sourceLedgerDigest: string;
   consumedCreditIds: string[];
   remainingPendingCreditIds: string[];
+  membershipApplied?: boolean;
 };
 
 /**
@@ -56,21 +58,18 @@ export const planShiftSeasonCreditUnits = (input: {
   }
   const consumed = new Set<string>();
   const units: ShiftCreditUnit[] = [];
-  if (input.policy.cohortAtStart && (original.nextMemberIndex !== 0 ||
-      original.roundNumber <= input.policy.frozenThroughRound)) {
-    return rejectCoverage("membership_frozen_unit_required");
-  }
-  let cursor = input.policy.cohortAtStart ? consumeRotationPositions({
-    ...original, cohortUserIds: [...input.policy.cohortAtStart]}, 0)
-    .nextRotation : original;
+  let cursor = original;
   let previous = input.previousDeliveryUserId ?? null;
+  let membershipApplied = false;
   const append = (stopAfterRound?: number) => {
     const unit = planShiftCreditUnit({rotation: cursor,
       credits: ledger.filter((credit) => !consumed.has(credit.id)),
       frozenThroughRound: input.policy.frozenThroughRound,
       adjacentDeliveryUserIds: previous ? [previous] : [],
-      stopAfterRound});
+      stopAfterRound,
+      membership: membershipApplied ? undefined : input.policy.membership});
     units.push(unit);
+    membershipApplied ||= unit.membershipApplied ?? false;
     for (const id of unit.consumedCreditIds) consumed.add(id);
     cursor = unit.nextRotation;
     previous = unit.assignments.at(-1)?.rotationOwnerUserId ?? null;
@@ -85,6 +84,7 @@ export const planShiftSeasonCreditUnits = (input: {
   }
   const projection: ShiftSeasonCreditProjection = {
     units, sourceLedgerDigest: createShiftPlanningDigest(ledger),
+    ...(input.policy.membership ? {membershipApplied} : {}),
     consumedCreditIds: [...consumed],
     remainingPendingCreditIds: ledger.filter((credit) =>
       credit.state === "pending" && !consumed.has(credit.id))

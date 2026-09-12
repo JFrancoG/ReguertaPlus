@@ -171,7 +171,7 @@ export const planDeliveryShifts = (
       "Delivery planner requires a delivery rotation.",
     );
   }
-  if ((input.provisionalCredits?.cohortAtStart ??
+  if ((input.provisionalCredits?.membership?.cohortUserIds ??
     input.rotation.cohortUserIds).length < 2) {
     throw new ShiftPlanningError(
       "insufficient_delivery_members",

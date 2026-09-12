@@ -6,6 +6,9 @@ const recordFor = (member, entering, floor = 0, observedAtMillis = 10) => {
     revision: 3, source: {isActive: member.isActive, roles: [...member.roles].sort(),
       isCommonPurchaseManager: member.isCommonPurchaseManager}, eligible: member.isActive,
     observedAtMillis, pendingQueueTransition: true,
+    pendingTypes: {delivery: true, market: true},
+    ...(!member.isActive || member.userId === "member-1" ?
+      {frozenExclusion: {reason: "excusedDeparture", revision: 2}} : {}),
     admissionAfterRound: {delivery: floor, market: floor},
     admissionRequired: {delivery: entering, market: entering}};
   return {id: member.userId, data: {value, digest: digest(value)}};

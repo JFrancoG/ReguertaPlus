@@ -1035,3 +1035,25 @@ las revisiones de membresía. Entrar en la cohorte no elimina la reserva. Las
 posiciones congeladas no publicadas siguen bloqueadas hasta integrar sus omisiones
 con unidades físicas completas e inversa. La implementación sigue limitada al
 emulador fijo, sin despliegue.
+
+
+El siguiente bloque de unidades congeladas sustituye esa restricción local. Las
+bajas y pérdidas de elegibilidad en posiciones congeladas no publicadas conservan
+propietario, ronda, posición, motivo y revisión de membresía en el recorrido de la
+unidad física completa del bundle activado; no se añade una colección de tombstones
+ni un escritor independiente. La reactivación conserva su evidencia de exclusión y
+solo incorpora al socio en una posición ordinaria nueva. La cohorte cambia en el
+límite de ronda permitido, incluso dentro de un grupo de mercado, y el arrastre
+conserva la transición para reproducirla exactamente. Cada tipo confirma la admisión
+solo tras una unidad completa con la nueva cohorte; alcanzar el siguiente límite
+no fuerza otra ronda ni elimina la intención pendiente. La publicación e inversa
+vinculan todas las fuentes de membresía, reservas y créditos y los predicados
+actuales, y consultan los propietarios publicados dentro de la transacción para
+impedir omitir una posición ya pública. La inversa restaura cursores congelados e
+intenciones pendientes con revisiones superiores. Una unidad imposible se rechaza
+sin cambios parciales de cursor, omisiones o créditos. Se mantienen el historial
+del ayudante y el retroceso de créditos. La integración local de planificación queda
+completa; siguen pendientes los clientes y transporte de coberturas, la integración
+de producto de notificaciones/Sheets, la entropía real, la ratificación y el
+despliegue. La evidencia del emulador fijo no autoriza escrituras en proyectos
+compartidos ni la activación real.

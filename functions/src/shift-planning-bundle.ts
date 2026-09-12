@@ -1,4 +1,5 @@
-import {planShiftMembershipAdmission} from "./shift-membership-planning.js";
+import {planShiftMembershipAdmission, buildShiftMembershipAcknowledgements} from
+  "./shift-membership-planning.js";
 import {buildShiftCreditPublication, parseShiftCreditPublicationSources,
   ShiftCreditPublication, ShiftCreditPublicationSources} from
   "./shift-credit-publication.js";
@@ -2092,8 +2093,8 @@ export const planShiftPlanningBundle = (
     continuity: input.delivery.continuity,
     provisionalCredits: snapshot.creditSources ? {
       ...snapshot.creditSources.delivery,
-      ...(snapshot.membershipAdmission?.changes.length ? {cohortAtStart:
-        snapshot.membershipAdmission.cohorts.delivery} : {})} : undefined,
+      ...(snapshot.membershipAdmission?.policies.delivery ? {membership:
+        snapshot.membershipAdmission.policies.delivery} : {})} : undefined,
   });
   const market = planMarketShifts({
     planningRequestId: request.bundleId,
@@ -2102,15 +2103,19 @@ export const planShiftPlanningBundle = (
     inheritedTargetPrefix: input.market.inheritedTargetPrefix ?? null,
     provisionalCredits: snapshot.creditSources ? {
       ...snapshot.creditSources.market,
-      ...(snapshot.membershipAdmission?.changes.length ? {cohortAtStart:
-        snapshot.membershipAdmission.cohorts.market} : {})} : undefined,
+      ...(snapshot.membershipAdmission?.policies.market ? {membership:
+        snapshot.membershipAdmission.policies.market} : {})} : undefined,
   });
   if (snapshot.creditSources && delivery.creditProjection &&
       market.creditProjection) {
     snapshot.creditPublication = buildShiftCreditPublication({
       sources: snapshot.creditSources, delivery: delivery.creditProjection,
       market: market.creditProjection, planId: request.bundleId,
-      membershipChanges: snapshot.membershipAdmission?.changes});
+      membershipChanges: snapshot.creditSources.membership ?
+        buildShiftMembershipAcknowledgements(
+          snapshot.creditSources.membership, {
+            delivery: delivery.creditProjection.membershipApplied ?? false,
+            market: market.creditProjection.membershipApplied ?? false}) : []});
     snapshot.creditLedgerWriteCount = snapshot.creditPublication.changes.length;
   }
   const recipients = recipientManifest(delivery, market, snapshot.roster);
