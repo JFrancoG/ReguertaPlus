@@ -21,7 +21,9 @@ settings are `fifo-signup-v1`, `hu084-local-beacon-v1` and `sha256-rank-v1`. Res
 exit, the real entropy provider, proximity preferences, response windows and final
 ordering remain pending business decisions. The tested provisional behavior is not
 the ratified live policy.
-See `plan.md` for implemented behavior, validation and integration limits.
+The pure whole-unit credit solver and atomic consumption rehearsal are also
+implemented locally. The rehearsal records private units and does not publish
+seasonal bundles/public shifts. See `plan.md` for evidence and integration limits.
 
 ## Context and problem
 

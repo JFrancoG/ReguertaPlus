@@ -40,7 +40,7 @@ const materialize = (id, type, date, assigned, helper = null) => {
 };
 const snapshot = async () => {
   const output = {};
-  for (const collection of ["shifts", "users", "shiftCoverageCases", "shiftCoverageCredits",
+  for (const collection of ["shifts", "users", "shiftRotations", "shiftCoverageCreditPlans", "shiftCoverageCreditUnits", "shiftCoverageCases", "shiftCoverageCredits",
     "shiftCoverageSlots", "shiftCoverageBeaconRounds", "shiftCoverageReserves", "shiftCoverageMemberClaims", "shiftCoverageOperations", "shiftCoverageLedgerState"]) {
     output[collection] = (await db.collection(`${root}/${collection}`).get()).docs.map((d) => [d.id, d.data()]);
   }
@@ -515,4 +515,149 @@ run("source drift between commitment and reveal rejects the result and preserves
   await execute("case-1", "cancel", "admin", {reason: "Source changed during commitment"});
   await execute("case-1", "resumeAdmin", "admin", {reason: "Resolve from current source without drawing again"});
   assert.deepEqual((await selection()).draw, draw);
+});
+
+const seedCreditRotation = (type, cohortUserIds, roundNumber = 2, nextMemberIndex = 0) =>
+  ref("shiftRotations", type).set({schemaVersion: 1, type, stateRevision: 1,
+    cursor: {schemaVersion: 1, type, cohortUserIds, roundNumber, nextMemberIndex},
+    planningFrontierSeasonStartYear: 2027, cohortFrozen: nextMemberIndex !== 0,
+    frozenCohortUserIds: nextMemberIndex ? cohortUserIds : [],
+    activeRevision: "active-1", activeDigest, lastIdempotencyKey: null, migrationBaseline: null, releaseLease: null});
+const creditIntent = (planId = "plan-1", type = "market", scheduledDate = "2027-09-18") =>
+  ({schemaVersion: 1, environment: "develop", planId, type, scheduledDate});
+const prepareEarnedCredit = async () => {
+  await open("case-1", "shift_market_20270904"); await offer(); await execute("case-1", "accept", "d");
+  now = (await read("shifts", "shift_market_20270904")).date.toMillis() + 1000;
+  await execute("case-1", "complete", "admin");
+  await seedCreditRotation("market", ["d", "a", "b", "c", "e", "f"]);
+};
+const activatePlan = (plan) => store.activateCreditUnit({planId: plan.proposal.planId, planDigest: plan.planDigest}, "admin");
+const creditRejectWithoutWrites = async (action, code) => {
+  const original = await snapshot();
+  await assert.rejects(action(), code ? {code} : undefined);
+  assert.deepEqual(await snapshot(), original);
+};
+
+run("earned credit previews without writes, stages without spending, then atomically advances a private complete unit", async () => {
+  await prepareEarnedCredit();
+  const original = await snapshot();
+  const preview = await store.previewCreditUnit(creditIntent(), "admin");
+  assert.deepEqual(await snapshot(), original);
+  assert.deepEqual(preview.proposal.unit.consumedCreditIds, ["case-1"]);
+  assert.deepEqual(preview.proposal.unit.assignments.map((p) => p.rotationOwnerUserId), ["a", "b", "c"]);
+  const staged = await store.stageCreditUnit(creditIntent(), "admin");
+  assert.equal(staged.planDigest, preview.planDigest);
+  assert.equal((await read("shiftCoverageCredits", "case-1")).state, "pending");
+  assert.deepEqual((await snapshot()).shiftRotations, original.shiftRotations);
+  const result = await activatePlan(staged);
+  assert.equal(result.replayed, false);
+  assert.equal((await read("shiftCoverageCredits", "case-1")).state, "consumed");
+  assert.equal((await read("shiftCoverageLedgerState", "market")).revision, 2);
+  assert.equal((await db.collection(`${root}/shiftCoverageMemberClaims`).get()).size, 0);
+  assert.equal((await read("shiftRotations", "market")).cursor.nextMemberIndex, 4);
+  const recorded = await read("shiftCoverageCreditUnits", "market_2027-09-18");
+  assert.equal(recorded.scope, "localRehearsal");
+  assert.equal(recorded.unit.assignments.length, 3);
+  assert.deepEqual((await snapshot()).shifts, original.shifts);
+  const completed = await snapshot();
+  assert.equal((await activatePlan(staged)).replayed, true);
+  assert.deepEqual(await snapshot(), completed);
+  await creditRejectWithoutWrites(() => store.stageCreditUnit(creditIntent("different"), "admin"), "credit_unit_occupied");
+});
+
+run("any same-type ledger change after stage invalidates activation, including credits not consumed by that unit", async () => {
+  await prepareEarnedCredit();
+  const plan = await store.stageCreditUnit(creditIntent(), "admin");
+  const earned = await read("shiftCoverageCredits", "case-1");
+  await ref("shiftCoverageCredits", "unrelated").set({...earned, id: "unrelated", caseId: "unrelated", userId: "f"});
+  await ref("shiftCoverageMemberClaims", digest(["market", "f"]).slice("shift-planning:v1:sha256:".length))
+    .set({caseId: "unrelated", userId: "f", type: "market", state: "creditPending"});
+  await ref("shiftCoverageLedgerState", "market").update({revision: 2});
+  await creditRejectWithoutWrites(() => activatePlan(plan), "credit_plan_source_changed");
+  assert.equal((await read("shiftCoverageCredits", "case-1")).state, "pending");
+});
+
+run("competing local activations cannot spend a credit or cursor twice", async () => {
+  await prepareEarnedCredit();
+  const one = await store.stageCreditUnit(creditIntent("one"), "admin");
+  const two = await store.stageCreditUnit(creditIntent("two", "market", "2027-09-25"), "admin");
+  const results = await Promise.allSettled([activatePlan(one), activatePlan(two)]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal((await read("shiftCoverageLedgerState", "market")).revision, 2);
+  assert.equal((await read("shiftRotations", "market")).stateRevision, 2);
+  assert.equal((await db.collection(`${root}/shiftCoverageCreditUnits`).get()).size, 1);
+});
+
+run("admin demotion, membership drift and changed maintenance authority reject credit activation atomically", async () => {
+  await prepareEarnedCredit();
+  const plan = await store.stageCreditUnit(creditIntent(), "admin");
+  await ref("users", "admin").update({roles: ["member"]});
+  await creditRejectWithoutWrites(() => activatePlan(plan), "coverage_actor_forbidden");
+  await ref("users", "admin").update({roles: ["admin", "member"]});
+  await ref("users", "b").update({isActive: false});
+  await creditRejectWithoutWrites(() => activatePlan(plan), "credit_cohort_ineligible");
+  await ref("users", "b").update({isActive: true});
+  await ref("shiftPlanningState", "current").update({stateRevision: 2});
+  await creditRejectWithoutWrites(() => activatePlan(plan), "credit_plan_source_changed");
+});
+
+run("frozen-round and insufficient-market fallback retain credit and claim while advancing ordinary positions", async () => {
+  await prepareEarnedCredit();
+  await seedCreditRotation("market", ["d", "a", "b"]);
+  const plan = await store.stageCreditUnit(creditIntent(), "admin");
+  assert.deepEqual(plan.proposal.unit.consumedCreditIds, []);
+  assert.deepEqual(plan.proposal.unit.deferredCreditIds, ["case-1"]);
+  await activatePlan(plan);
+  assert.equal((await read("shiftCoverageCredits", "case-1")).state, "pending");
+  assert.equal((await read("shiftCoverageLedgerState", "market")).revision, 1);
+  assert.equal((await db.collection(`${root}/shiftCoverageMemberClaims`).get()).size, 1);
+  await seedCreditRotation("market", ["a", "d", "b", "c", "e", "f"], 2, 1);
+  const frozen = await store.previewCreditUnit(creditIntent("frozen", "market", "2027-09-25"), "admin");
+  assert.deepEqual(frozen.proposal.unit.consumedCreditIds, []);
+});
+
+run("already public dates and forged credit plan payloads reject before any mutation", async () => {
+  await prepareEarnedCredit();
+  await creditRejectWithoutWrites(() => store.stageCreditUnit(creditIntent("public", "market", "2027-09-11"), "admin"),
+    "credit_unit_already_public");
+  await creditRejectWithoutWrites(() => store.stageCreditUnit({...creditIntent(), consumedCreditIds: ["case-1"]}, "admin"),
+    "invalid_credit_plan_command");
+  const plan = await store.stageCreditUnit(creditIntent(), "admin");
+  await creditRejectWithoutWrites(() => store.activateCreditUnit({planId: "plan-1", planDigest: plan.planDigest,
+    unit: {assignments: ["d"]}}, "admin"), "invalid_credit_plan_command");
+  await creditRejectWithoutWrites(() => store.activateCreditUnit({planId: "plan-1", planDigest: "forged"}, "admin"),
+    "credit_plan_digest_changed");
+});
+
+run("delivery credit activation binds both neighbors and preserves completed helper history", async () => {
+  await open(); await offer(); await execute("case-1", "accept", "d");
+  now = (await read("shifts", "shift_delivery_20270901")).date.toMillis() + 1000;
+  await execute("case-1", "complete", "admin");
+  await seedCreditRotation("delivery", ["d", "f", "a", "b", "c", "e"]);
+  const history = await read("shifts", "shift_delivery_20270901");
+  const plan = await store.stageCreditUnit(creditIntent("delivery-credit", "delivery", "2027-09-05"), "admin");
+  assert.deepEqual(plan.proposal.unit.consumedCreditIds, ["case-1"]);
+  assert.equal(plan.proposal.unit.assignments[0].rotationOwnerUserId, "f");
+  assert.ok(plan.proposal.deliveryProjection);
+  await activatePlan(plan);
+  assert.deepEqual(await read("shifts", "shift_delivery_20270901"), history);
+  assert.equal((await read("shiftRotations", "delivery")).cursor.nextMemberIndex, 2);
+  assert.equal((await read("shiftCoverageCredits", "case-1")).state, "consumed");
+});
+
+run("ledger contents are bound even without a revision bump, and missing claims fail closed", async () => {
+  await prepareEarnedCredit();
+  const plan = await store.stageCreditUnit(creditIntent(), "admin");
+  const credit = await read("shiftCoverageCredits", "case-1");
+  await ref("shiftCoverageCredits", "case-1").update({earnedAtMillis: credit.earnedAtMillis - 1});
+  await creditRejectWithoutWrites(() => activatePlan(plan), "credit_plan_source_changed");
+  await ref("shiftCoverageCredits", "case-1").set(credit);
+  await ref("shiftCoverageMemberClaims", digest(["market", "d"]).slice("shift-planning:v1:sha256:".length)).delete();
+  await creditRejectWithoutWrites(() => activatePlan(plan), "credit_claim_changed");
+});
+
+run("a missing ledger cannot turn issued credits into an unversioned activation", async () => {
+  await prepareEarnedCredit();
+  await ref("shiftCoverageLedgerState", "market").delete();
+  await creditRejectWithoutWrites(() => store.stageCreditUnit(creditIntent(), "admin"), "invalid_credit_plan_revision");
 });

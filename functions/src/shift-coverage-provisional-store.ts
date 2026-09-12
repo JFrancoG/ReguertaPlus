@@ -1,3 +1,4 @@
+import {createShiftCreditRehearsal} from "./shift-credit-rehearsal.js";
 import {
   commitCoverageDraw,
   CoverageBeaconPolicy,
@@ -83,6 +84,7 @@ export const createProvisionalShiftCoverageStore = (options: {
     db.doc(`${root}/${collection}/${id}`);
 
   return {
+    ...createShiftCreditRehearsal(db, nowMillis),
     close: () => db.terminate(),
     async execute(value: unknown, actorMemberId: string) {
       const command = parseShiftCoverageCommand(value);

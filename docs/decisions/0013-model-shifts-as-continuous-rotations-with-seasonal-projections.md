@@ -926,3 +926,11 @@ reasoned admin recovery preserves the draw and requires member consent. Signed
 authenticity alone is not an assurance of unbiased/unpredictable entropy: the real
 provider, trust/IAM boundary, failure deadlines and assembly policy remain pending.
 This protocol remains confined to the fixed local emulator, with no deployment.
+
+The local credit checkpoint reuses the canonical owner cursor for whole-unit
+planning and reverse-order credit deferral. A fixed-emulator transaction binds the
+complete ledger and sources, then updates consumed credits, claims and canonical
+cursor with a private `localRehearsal` physical-unit record. Preview/stage do not
+spend credits. This is not HU-082 seasonal publication: public shifts/helpers,
+forward/inverse manifests, complete admission and notification/Sheets effects
+remain unintegrated. The production planner's non-zero-credit rejection is retained.

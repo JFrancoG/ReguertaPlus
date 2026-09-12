@@ -14,7 +14,10 @@
   retries, administrative offers and cancellation recovery without reroll.
 - [ ] Select/ratify the real entropy provider and complete live backend integration
   (outcome group 1).
-- [ ] Complete credit/membership/planner integration (outcome group 2).
+- [x] Add pure whole-unit credit/backtracking planning and atomic local
+  preview/stage/consumption rehearsal with full-ledger binding and claim release.
+- [ ] Integrate credit units into complete seasonal plans and HU-082 forward/inverse
+  publication; complete membership transitions (outcome group 2).
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset

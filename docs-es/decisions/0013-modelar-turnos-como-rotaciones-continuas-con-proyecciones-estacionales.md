@@ -965,3 +965,12 @@ aceptación del socio. La autenticidad de la firma no garantiza entropía imparc
 o impredecible: siguen pendientes el proveedor real, su autoridad/IAM, los plazos
 de fallo y la política de asamblea. El protocolo sigue confinado al emulador local
 fijo y no se ha desplegado.
+
+El hito local de créditos reutiliza el cursor canónico para resolver unidades
+completas y aplazar créditos en orden inverso. Una transacción del emulador fijo
+vincula el libro completo y sus fuentes, y actualiza créditos consumidos, bloqueos
+y cursor canónico junto a una unidad física privada `localRehearsal`. Previsualizar
+y preparar no consumen créditos. No es la publicación estacional de HU-082: faltan
+turnos/ayudantes públicos, manifiestos de activación y reversión, admisión completa
+y efectos en notificaciones/Sheets. El planificador productivo sigue rechazando
+créditos no nulos.

@@ -42,6 +42,8 @@ service cloud.firestore {
         "shiftPlanningOperations",
         "shiftPlanningPublicEventLedgers",
         "deliveryCalendarMutationReceipts",
+        "shiftCoverageCreditPlans",
+        "shiftCoverageCreditUnits",
         "shiftCoverageCases",
         "shiftCoverageReserves",
         "shiftCoverageBeaconRounds",

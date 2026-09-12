@@ -163,6 +163,59 @@ The scenarios include signatures/rounds/publication-time failures, altered
 commitments, repeat reveal, competing commitments, cancellation/restart, source and
 eligibility drift, exhaustion/admin acceptance and full draw-to-credit completion.
 
+### Whole-unit credits and atomic local rehearsal — 2026-09-12
+
+The draw/admin block was committed and pushed as `730e148`. The next implementation
+reuses `consumeRotationPositions` and `ShiftRotationCursor` for a pure unit solver:
+
+- Traverse owners in queue order. A pending same-type credit may serve its owner's
+  first reached position only beyond the frozen/public round boundary. It consumes
+  no calendar slot and its resting owner cannot also work that unit.
+- Fill one delivery lead or three distinct market owners. If staffing fails,
+  retry from the original cursor after disabling the last tentative credit;
+  repeat until feasible or reject without a partial result. Disabled/frozen credits
+  remain pending. Uncredited owners are never silently skipped to make a plan fit.
+- The result records every served position, actual worker positions, next cursor,
+  consumed credits and deferred credits. The strict ledger reader supports pending
+  and consumed records, preserves the earning evidence and rejects duplicate
+  pending same-type credits for a member.
+
+`shift-credit-rehearsal.ts` is composed only into the existing fixed-demo/loopback
+store. Its `previewCreditUnit` writes nothing. `stageCreditUnit` creates a private,
+immutable proposal bound to the complete same-type ledger contents/revision,
+claims, canonical rotation aggregate, membership, public shifts and maintenance
+authority. Changed source data invalidates activation even if a credit's revision
+was incorrectly left unchanged. Missing ledger/claim evidence fails closed.
+
+`activateCreditUnit` is explicitly a **local transaction rehearsal**, not the
+HU-082 production activation path. It atomically records the complete physical unit
+under `shiftCoverageCreditUnits` with `scope = localRehearsal`, advances the existing
+canonical rotation aggregate, marks selected credits consumed, releases their
+claims, increments the ledger revision and marks the proposal `activatedLocal`.
+Replay changes nothing; competing candidates cannot spend twice. It checks the
+repository's document-write cap before writing. This rehearsal has no production
+request-size admission/manifest/inverse integration and cannot authorize rollout.
+
+For delivery it binds both public neighboring leads, includes a helper projection
+and retains completed predecessor history. Already public dates are rejected.
+**No public shift, predecessor helper, Sheets row, notification, seasonal bundle,
+or app state is published by this rehearsal.** The next integration must put those
+real projection mutations and credit/cursor effects in the existing HU-082 forward
+and inverse manifests; a private unit record is not a substitute for public
+activation. Calendar continuity and complete seasonal planning also remain there.
+
+Both `shiftCoverageCreditPlans` and `shiftCoverageCreditUnits` deny direct client
+access under strict and compatibility Rules. The only writes run on synthetic
+emulator data; shared develop/production remain unchanged.
+
+Validation: build/lint passed; 14 coverage/draw/credit unit tests, 17 existing
+swap/publication/writer regressions, and 48 emulator/Rules tests passed with no
+failures or skips. One unit test enumerates 1,272 small-cohort combinations of
+credit subsets and cursor starts. Emulator cases cover earned-credit consumption,
+preview/stage purity, whole-ledger drift, competing activation, demotion/membership/
+authority changes, minimum-cohort deferral, frozen rounds, public-date rejection,
+forged proposals, delivery neighbors/history, and missing ledger/claim records.
+
 ### Remaining integration boundary
 
 The provisional coverage lifecycle is implemented locally through draw/admin
@@ -174,9 +227,10 @@ The local adapter bounds shifts to 1,000 documents and selection inputs to 250
 users/reserves/claims per queried source. It deliberately has no HTTP endpoint,
 public user-facing projection, notifications or Sheets effects. Before any live
 endpoint, integrate authenticated identity, existing writer resource fences,
-admission limits and public-event/notification authority. Credit consumption,
-ledger binding to staged plans/activation, claim release on consumption, membership
-changes and both native clients remain in the following outcome groups.
+admission limits and public-event/notification authority. The unit credit solver
+and local atomic consumption rehearsal are implemented, but full seasonal credit
+planning, HU-082 forward/inverse publication, membership transitions and both native
+clients remain in the following outcome groups.
 Production planners still reject non-zero credits. Assembly decisions and
 deployment remain separate gates.
 
@@ -190,7 +244,7 @@ coverage cases, offers, candidate evidence, and credits explicit.
 Suggested backend modules:
 
 - `functions/src/shift-coverage.ts`
-- `functions/src/shift-credit-ledger.ts`
+- `functions/src/shift-credit-unit.ts` and `shift-credit-rehearsal.ts`
 - `functions/src/shift-coverage-draw.ts` (local protocol implemented)
 
 Suggested collections are frozen only after policy approval and threat-model

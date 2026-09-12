@@ -6,15 +6,16 @@ The maintainer explicitly requested the implementation branch and grouped delive
 Branch `codex/hu-084-stable-shift-coverage-and-credits` is created from merged
 HU-083 (`327e563`) in its own worktree. This is not assembly ratification.
 The maintainer authorized provisional local implementation on 2026-09-12.
-The administrative lifecycle was pushed as `b8ce4ea`; reserve/volunteer selection
-was pushed as `67f16ce`. The next local implementation adds committed future-round
-draws, signed evidence verification, a fixed retry ordering and explicit admin
-resolution/recovery. Cancellation retains a committed draw's vacancy to block
-reroll through a new case. Lint/build, 26 unit/regression tests and 39 emulator/Rules
-tests pass. The signed issuer is synthetic; a signature does not prove unbiased or
-unpredictable entropy. Real-source selection/assurance, reserve enrollment/exit,
-live backend integration, planner credit consumption and native flows remain
-pending. No live endpoint or deployment is enabled. See `plan.md` for evidence.
+The administrative lifecycle was pushed as `b8ce4ea`, reserve/volunteer selection
+as `67f16ce`, and committed draws/admin recovery as `730e148`. The current local
+implementation adds whole-unit credit planning with reverse-order deferral and a
+transactional preview/stage/activation rehearsal. It consumes earned credits,
+releases same-type claims and advances the canonical cursor atomically with a
+private `localRehearsal` unit record. It does not publish public shifts or a HU-082
+seasonal bundle. Lint/build, 31 unit/regression tests and 48 emulator/Rules tests
+pass. Seasonal planner/manifests/inverse integration, membership transitions, a
+real entropy provider, live transport, native flows and deployment remain pending.
+See `plan.md` for the distinction between the local rehearsal and live delivery.
 
 The operational plan groups work into three complete outcomes: coverage backend
 with persistence/security/tests; credit/membership/atomic-planner integration;
