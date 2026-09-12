@@ -104,10 +104,8 @@ cohesive implementation adds selection to that same lifecycle:
   withdraw themselves before the deadline; selection waits until that deadline.
   Missing/inactive/real-producer, assigned/adjacent and same-type-claim exclusions
   are explicit. Completed credits continue to block more same-type coverage.
-- Exhausting volunteers records `drawRequired` without assigning anyone. No random
-  winner, seed or silent administrator override is introduced. An administrator
-  can cancel the case with a reason; documented manual reopening remains a separate
-  administrative action, not proof that automatic selection was exhausted fairly.
+- Exhausting volunteers records `drawRequired` without assigning anyone. The
+  subsequent commitment/reveal and administrative paths are described below.
 - `shiftCoverageReserves` is backend-private under both Rules policies. In this
   local rehearsal it is seeded with synthetic entries. Automatic reserve enrollment,
   exit and membership transitions are still pending; the entry schema does not
@@ -121,10 +119,55 @@ and reserve drift, withdrawal/deadlines/ties, simultaneous offers, same-type
 claims, market parity, backwards clocks and attempts to reset selection history.
 No native files were changed; native coverage screens remain pending on both apps.
 
+### Local committed draw and administrative resolution — 2026-09-12
+
+Reserve/volunteer selection was committed and pushed as `67f16ce`. This subsequent
+implementation extends the same lifecycle rather than adding a parallel workflow:
+
+- `commitDraw` fixes remaining candidates/exclusions, the original selection
+  digest, public-neighborhood context, `sha256-rank-v1`, issuer public key and a
+  future round. The round is computed from trusted genesis/period configuration
+  with at least one complete period of lead time; no command accepts a candidate
+  list, seed, round or signing key. An already published round is rejected.
+- The demo `hu084-local-beacon-v1` evidence has a source, round, scheduled publication
+  time, 32-byte hex value and Ed25519 signature over its canonical digest.
+  `revealDraw` verifies those fields, the signature, commitment and current public
+  context before persisting the signed evidence and one complete candidate order.
+  Only the public signing key is persisted. Test-only signing keys exist in memory.
+- An offer consumes the next currently eligible entry in that order. Declines,
+  expiry, deactivation and same-type claims never change the committed evidence
+  or add later candidates. Assignment/credit effects still require acceptance and
+  actual completion. Replayed operations return the same result without writes.
+- An empty eligible pool or exhausted draw records `adminRequired`. `offerAdmin`
+  requires an explicit reason, current eligibility and member acceptance; the
+  administrator cannot silently assign somebody or issue a credit directly.
+- Cancelling a case with a committed draw preserves its slot claim. Creating a
+  replacement case for the same vacancy therefore cannot obtain another draw.
+  `resumeAdmin` permits explicit administrator recovery of that cancelled case,
+  retaining the original commitment, evidence and attempts. This is an audited
+  exception, not a claim that every drawn candidate was exhausted. Failed accepted
+  coverage releases its slot normally; the effective assignment has already changed.
+- No real beacon/source has been chosen. The signing issuer is synthetic and
+  trusted in this emulator rehearsal. Authentication alone does not prove fairness
+  or unpredictability. A production provider, its assurance/IAM boundary, failure
+  deadlines and assembly agreement remain prerequisites to live activation.
+  If a draw cannot be committed before the shift, it rejects; a reasoned cancel and
+  separate manual arrangement remains available before a commitment exists.
+- `shiftCoverageBeaconRounds` is backend-private under both Rules policies and is
+  populated only by test fixtures here. No HTTP/feed publisher or deployment exists.
+
+Validation: lint/build passed; 9 coverage/draw unit tests, 17 existing
+swap/publication/writer regressions and 39 emulator/Rules tests passed, zero failures
+or skips (29 lifecycle scenarios, 2 access matrices and 8 phase-1 regressions).
+The scenarios include signatures/rounds/publication-time failures, altered
+commitments, repeat reveal, competing commitments, cancellation/restart, source and
+eligibility drift, exhaustion/admin acceptance and full draw-to-credit completion.
+
 ### Remaining integration boundary
 
-This is still outcome group 1, not a complete production backend. The committed
-future-entropy draw and its administrative terminal resolution remain pending.
+The provisional coverage lifecycle is implemented locally through draw/admin
+resolution. Outcome group 1 still lacks the real entropy provider and live backend
+integration; local proofs do not close the production backend acceptance gate.
 Proximity preferences beyond immediate delivery neighbors also remain a business
 policy decision; the local implementation enforces the hard neighbor invariant.
 The local adapter bounds shifts to 1,000 documents and selection inputs to 250
@@ -148,7 +191,7 @@ Suggested backend modules:
 
 - `functions/src/shift-coverage.ts`
 - `functions/src/shift-credit-ledger.ts`
-- `functions/src/auditable-draw.ts`
+- `functions/src/shift-coverage-draw.ts` (local protocol implemented)
 
 Suggested collections are frozen only after policy approval and threat-model
 review. Likely concepts include coverage cases/offers, reserve membership, and

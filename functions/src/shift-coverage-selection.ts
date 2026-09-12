@@ -1,3 +1,4 @@
+import type {CoverageDraw} from "./shift-coverage-draw.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {coverageMember, rejectCoverage} from "./shift-coverage.js";
 
@@ -25,7 +26,8 @@ export type CoverageSelection = {
   policy: CoverageSelectionPolicy;
   snapshot: CoverageCandidate[];
   snapshotDigest: string;
-  phase: "reserve" | "volunteers" | "drawRequired";
+  phase: "reserve" | "volunteers" | "drawRequired" | "draw" | "adminRequired";
+  draw?: CoverageDraw;
   attemptedUserIds: string[];
   volunteers: {userId: string; receivedAtMillis: number; withdrawn: boolean}[];
   volunteerClosesAtMillis: number | null;
@@ -95,7 +97,7 @@ export const createCoverageSelection = (input: {
  * Advances only through the frozen pool. Declines/expiry never rebuild it or
  * repeat an offered member. Current exclusions and reserve exits are persisted
  * with the operation; newly joined reserves cannot jump into an existing queue.
- * This stops at drawRequired: no seed, randomness or winner is fabricated.
+ * Draw offers use the committed order; exhaustion requires admin resolution.
  * @param {object} input Frozen selection, current eligibility and server time.
  * @return {object} Next selection state and at most one proposed offer.
  */
@@ -105,6 +107,9 @@ export const advanceCoverageSelection = (input: {
   now: number;
 }): {selection: CoverageSelection; userId: string | null} => {
   const selection = structuredClone(input.selection);
+  if (selection.phase === "adminRequired") {
+    return rejectCoverage("coverage_admin_required");
+  }
   if (selection.phase === "drawRequired") {
     return rejectCoverage("coverage_draw_required");
   }
@@ -114,12 +119,15 @@ export const advanceCoverageSelection = (input: {
     return rejectCoverage("coverage_volunteer_window_open");
   }
   const current = new Map(input.candidates.map((item) => [item.userId, item]));
-  const pool = selection.phase === "reserve" ? selection.snapshot
-    .filter((item) => item.reserve?.active)
-    .sort((a, b) => (a.reserve?.enteredAtMillis ?? 0) -
+  const pool = selection.phase === "draw" ?
+    (selection.draw?.order ?? rejectCoverage("coverage_draw_not_revealed"))
+      .map((userId) => ({userId})) : selection.phase === "reserve" ?
+      selection.snapshot
+        .filter((item) => item.reserve?.active)
+        .sort((a, b) => (a.reserve?.enteredAtMillis ?? 0) -
       (b.reserve?.enteredAtMillis ?? 0) || compareId(a.userId, b.userId)) :
-    selection.volunteers.filter((item) => !item.withdrawn)
-      .sort((a, b) => a.receivedAtMillis - b.receivedAtMillis ||
+      selection.volunteers.filter((item) => !item.withdrawn)
+        .sort((a, b) => a.receivedAtMillis - b.receivedAtMillis ||
         compareId(a.userId, b.userId));
   const original = new Map(
     selection.snapshot.map((item) => [item.userId, item]));
@@ -149,7 +157,8 @@ export const advanceCoverageSelection = (input: {
     selection.volunteerClosesAtMillis =
       input.now + selection.policy.volunteerWindowMillis;
   } else {
-    selection.phase = "drawRequired";
+    selection.phase = selection.phase === "draw" ?
+      "adminRequired" : "drawRequired";
   }
   return {selection, userId: selected};
 };

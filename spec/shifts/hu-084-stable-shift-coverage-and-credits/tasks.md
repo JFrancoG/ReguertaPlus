@@ -10,7 +10,9 @@
 - [x] Add local frozen reserve FIFO, bounded volunteer registration/withdrawal,
   deterministic offers, current eligibility/claim checks and exhausted-selection
   state, reusing acceptance/completion and adding race/Rules tests.
-- [ ] Complete draw, administrative terminal resolution and backend integration
+- [x] Add local committed future-round draw, signed evidence verification, fixed
+  retries, administrative offers and cancellation recovery without reroll.
+- [ ] Select/ratify the real entropy provider and complete live backend integration
   (outcome group 1).
 - [ ] Complete credit/membership/planner integration (outcome group 2).
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).

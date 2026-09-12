@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-12 | ✨ feat(shifts): add committed draw and admin recovery
+
 - 2026-09-12 | ✨ feat(shifts): add reserve and volunteer selection
 
 - 2026-09-12 | ✨ feat(shifts): add provisional coverage lifecycle

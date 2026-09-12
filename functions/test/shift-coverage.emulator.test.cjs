@@ -1,6 +1,8 @@
 "use strict";
 const assert = require("node:assert/strict");
 const {test, before, beforeEach, after} = require("node:test");
+const {generateKeyPairSync, sign} = require("node:crypto");
+const {publicKey, privateKey} = generateKeyPairSync("ed25519");
 const {Firestore, Timestamp} = require("@google-cloud/firestore");
 const {createProvisionalShiftCoverageStore} = require("../lib/shift-coverage-provisional-store.js");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
@@ -39,7 +41,7 @@ const materialize = (id, type, date, assigned, helper = null) => {
 const snapshot = async () => {
   const output = {};
   for (const collection of ["shifts", "users", "shiftCoverageCases", "shiftCoverageCredits",
-    "shiftCoverageSlots", "shiftCoverageReserves", "shiftCoverageMemberClaims", "shiftCoverageOperations", "shiftCoverageLedgerState"]) {
+    "shiftCoverageSlots", "shiftCoverageBeaconRounds", "shiftCoverageReserves", "shiftCoverageMemberClaims", "shiftCoverageOperations", "shiftCoverageLedgerState"]) {
     output[collection] = (await db.collection(`${root}/${collection}`).get()).docs.map((d) => [d.id, d.data()]);
   }
   return output;
@@ -70,7 +72,9 @@ before(() => {
   assert.equal(process.env.GCLOUD_PROJECT, projectId);
   db = new Firestore({projectId, host: "127.0.0.1:8798", ssl: false});
   store = createProvisionalShiftCoverageStore({nowMillis: () => now, maximumOfferWindowMillis: 60_000,
-    selectionPolicy: {version: "fifo-signup-v1", volunteerWindowMillis: 1000}});
+    selectionPolicy: {version: "fifo-signup-v1", volunteerWindowMillis: 1000},
+    beaconPolicy: {sourceId: "local-test-beacon", publicKeyPem: publicKey.export({format: "pem", type: "spki"}),
+      genesisMillis: initialTime, periodMillis: 1000}});
 });
 after(async () => { if (store) await store.close(); if (db) await db.terminate(); });
 beforeEach(async () => {
@@ -372,4 +376,143 @@ run("selection cannot reset a case that already attempted an administrative offe
   await open(); await offer(); await execute("case-1", "decline", "d");
   await rejectWithoutWrites(await makeCommand("case-1", "startSelection"), "admin",
     "coverage_selection_requires_new_case");
+});
+
+const waitForDraw = async () => {
+  await open(); await startSelection(); await offerNext(); now += 1000; await offerNext();
+};
+const commitDraw = () => execute("case-1", "commitDraw", "admin");
+const revealDraw = () => execute("case-1", "revealDraw", "admin");
+const beaconRef = (draw) => ref("shiftCoverageBeaconRounds",
+  digest([draw.beacon.sourceId, String(draw.round)]).slice("shift-planning:v1:sha256:".length));
+const publishBeacon = async (draw, overrides = {}) => {
+  const payload = {domain: "hu084-local-beacon-v1", sourceId: draw.beacon.sourceId,
+    round: draw.round, publishedAtMillis: draw.availableAtMillis, randomness: "12".repeat(32)};
+  await beaconRef(draw).set({...payload,
+    signatureHex: sign(null, Buffer.from(digest(payload)), privateKey).toString("hex"), ...overrides});
+};
+
+run("committed future draw verifies evidence, preserves ordering on replay and reaches completion", async () => {
+  await waitForDraw();
+  const committed = (await commitDraw()).case.selection.draw;
+  assert.equal(committed.order, null);
+  assert.ok(committed.availableAtMillis > now);
+  await rejectWithoutWrites(await makeCommand("case-1", "revealDraw"), "admin", "coverage_entropy_not_available");
+  now = committed.availableAtMillis;
+  await publishBeacon(committed);
+  const command = await makeCommand("case-1", "revealDraw");
+  const revealed = (await store.execute(command, "admin")).case.selection.draw;
+  assert.equal(revealed.commitmentDigest, committed.commitmentDigest);
+  assert.deepEqual(new Set(revealed.order), new Set(["admin", "d", "e", "f"]));
+  const evidence = await snapshot();
+  assert.equal((await store.execute(command, "admin")).replayed, true);
+  assert.deepEqual(await snapshot(), evidence);
+  await rejectWithoutWrites(await makeCommand("case-1", "revealDraw"), "admin", "coverage_draw_state_conflict");
+  const offered = (await offerNext()).case;
+  assert.equal(offered.offer.source, "draw"); assert.equal(offered.offer.userId, revealed.order[0]);
+  await execute("case-1", "accept", revealed.order[0]);
+  now = (await read("shifts", "shift_delivery_20270901")).date.toMillis() + 1000;
+  await execute("case-1", "complete", "admin");
+  assert.equal((await read("shiftCoverageCredits", "case-1")).userId, revealed.order[0]);
+});
+
+run("bad signature, changed round and prepublished entropy reject without writes", async () => {
+  await waitForDraw();
+  const {commitCoverageDraw} = require("../lib/shift-coverage-draw.js");
+  const anticipated = commitCoverageDraw({caseId: "case-1", selectionDigest: "unused", assignmentContextDigest: "unused",
+    candidates: [], policy: {sourceId: "local-test-beacon", publicKeyPem: publicKey.export({format: "pem", type: "spki"}),
+      genesisMillis: initialTime, periodMillis: 1000}, now});
+  await publishBeacon(anticipated);
+  await rejectWithoutWrites(await makeCommand("case-1", "commitDraw"), "admin", "coverage_entropy_already_available");
+  await beaconRef(anticipated).delete();
+  const draw = (await commitDraw()).case.selection.draw;
+  now = draw.availableAtMillis;
+  await publishBeacon(draw, {signatureHex: "00".repeat(64)});
+  await rejectWithoutWrites(await makeCommand("case-1", "revealDraw"), "admin", "coverage_beacon_signature_invalid");
+  await publishBeacon(draw, {round: draw.round + 1});
+  await rejectWithoutWrites(await makeCommand("case-1", "revealDraw"), "admin", "coverage_beacon_evidence_invalid");
+  await publishBeacon(draw); await revealDraw();
+});
+
+run("draw retries use remaining committed order then explicit admin consent", async () => {
+  await waitForDraw(); const draw = (await commitDraw()).case.selection.draw;
+  now = draw.availableAtMillis; await publishBeacon(draw);
+  const order = (await revealDraw()).case.selection.draw.order;
+  for (const id of order) {
+    assert.equal((await offerNext()).case.offer.userId, id);
+    await execute("case-1", "decline", id);
+  }
+  assert.equal((await offerNext()).case.selection.phase, "adminRequired");
+  await rejectWithoutWrites(await makeCommand("case-1", "offerNext", {expiresAtMillis: now + 1000}),
+    "admin", "coverage_admin_required");
+  await execute("case-1", "offerAdmin", "admin", {userId: "d", reason: "Member agreed after reviewing circumstances",
+    expiresAtMillis: now + 1000});
+  assert.deepEqual((await read("shifts", "shift_delivery_20270901")).assignedUserIds, ["a"]);
+  await execute("case-1", "accept", "d");
+  assert.deepEqual((await read("shifts", "shift_delivery_20270901")).assignedUserIds, ["d"]);
+  assert.deepEqual((await selection()).draw.order, order);
+});
+
+run("cancelled draw cannot reopen under a new case; administrative recovery preserves evidence", async () => {
+  await waitForDraw(); const draw = (await commitDraw()).case.selection.draw;
+  now = draw.availableAtMillis; await publishBeacon(draw); await revealDraw();
+  const before = (await selection()).draw;
+  await execute("case-1", "cancel", "a", {reason: "Needs administrative review"});
+  await assert.rejects(open("replacement"), {code: "coverage_slot_occupied"});
+  await rejectWithoutWrites(await makeCommand("case-1", "resumeAdmin", {reason: "Review"}), "a", "coverage_actor_forbidden");
+  await execute("case-1", "resumeAdmin", "admin", {reason: "Documented recovery without reroll"});
+  await rejectWithoutWrites(await makeCommand("case-1", "commitDraw"), "admin", "coverage_draw_state_conflict");
+  await execute("case-1", "offerAdmin", "admin", {userId: "d", reason: "Explicit arrangement", expiresAtMillis: now + 1000});
+  await execute("case-1", "accept", "d");
+  assert.deepEqual((await selection()).draw, before);
+});
+
+run("draw skips current ineligibility without rewriting evidence or including later members", async () => {
+  await waitForDraw(); const draw = (await commitDraw()).case.selection.draw;
+  now = draw.availableAtMillis; await publishBeacon(draw);
+  const revealed = (await revealDraw()).case.selection.draw;
+  const [first, second] = revealed.order;
+  if (first === "admin") await ref("users", first).update({roles: ["admin", "producer"]});
+  else await ref("users", first).update({isActive: false});
+  await ref("users", "newcomer").set(member());
+  const next = (await offerNext()).case;
+  assert.equal(next.offer.userId, second);
+  assert.ok(next.selection.latestExclusions.some((entry) => entry.userId === first));
+  assert.deepEqual(next.selection.draw, revealed);
+});
+
+run("concurrent commitments fix one draw and commands cannot supply seed, key or candidates", async () => {
+  await waitForDraw(); const command = await makeCommand("case-1", "commitDraw");
+  for (const extra of [{seed: "chosen"}, {round: 123}, {candidates: ["d"]}, {publicKeyPem: "chosen"}]) {
+    await rejectWithoutWrites({...command, ...extra}, "admin", "invalid_coverage_command");
+  }
+  const results = await Promise.allSettled([store.execute(command, "admin"),
+    store.execute({...command, operationId: "competing"}, "admin")]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  await rejectWithoutWrites(await makeCommand("case-1", "commitDraw"), "admin", "coverage_draw_state_conflict");
+});
+
+run("empty draw pool requires admin resolution without waiting for entropy or forcing an assignee", async () => {
+  await waitForDraw();
+  for (const id of ["d", "e", "f"]) await ref("users", id).update({isActive: false});
+  await ref("users", "admin").update({roles: ["admin", "producer"]});
+  const result = (await commitDraw()).case;
+  assert.equal(result.selection.phase, "adminRequired");
+  assert.equal(result.selection.draw, undefined);
+  assert.deepEqual((await read("shifts", "shift_delivery_20270901")).assignedUserIds, ["a"]);
+  await rejectWithoutWrites(await makeCommand("case-1", "offerAdmin", {userId: "d", reason: "Attempt",
+    expiresAtMillis: now + 1000}), "admin", "coverage_candidate_ineligible");
+  await ref("users", "d").update({isActive: true});
+  await execute("case-1", "offerAdmin", "admin", {userId: "d", reason: "Available again", expiresAtMillis: now + 1000});
+  await execute("case-1", "accept", "d");
+});
+
+run("source drift between commitment and reveal rejects the result and preserves recoverable evidence", async () => {
+  await waitForDraw(); const draw = (await commitDraw()).case.selection.draw;
+  await ref("shifts", "shift_delivery_20270908").update({documentRevision: 2});
+  now = draw.availableAtMillis; await publishBeacon(draw);
+  await rejectWithoutWrites(await makeCommand("case-1", "revealDraw"), "admin", "coverage_draw_source_changed");
+  await execute("case-1", "cancel", "admin", {reason: "Source changed during commitment"});
+  await execute("case-1", "resumeAdmin", "admin", {reason: "Resolve from current source without drawing again"});
+  assert.deepEqual((await selection()).draw, draw);
 });

@@ -955,3 +955,13 @@ revisiones de reserva, y termina en `drawRequired` al agotarse. Siguen sin ratif
 el ciclo de reserva, la proximidad más allá de responsables adyacentes, el orden y
 los plazos definitivos y la entropía futura. No hay altas automáticas reales,
 sorteo ni despliegue.
+
+El siguiente hito local incorpora `hu084-local-beacon-v1` con emisor Ed25519
+sintético y `sha256-rank-v1`. Una transacción fija candidatos y ronda futura antes
+de revelar el orden con evidencia firmada; los reintentos conservan ese orden.
+Cancelar conserva la vacante comprometida para impedir otro sorteo con un caso
+nuevo; la recuperación administrativa motivada conserva el sorteo y exige
+aceptación del socio. La autenticidad de la firma no garantiza entropía imparcial
+o impredecible: siguen pendientes el proveedor real, su autoridad/IAM, los plazos
+de fallo y la política de asamblea. El protocolo sigue confinado al emulador local
+fijo y no se ha desplegado.

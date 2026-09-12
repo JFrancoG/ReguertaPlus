@@ -917,3 +917,12 @@ volunteer response window. It freezes the candidate pool, rechecks eligibility a
 reserve revisions, and stops at `drawRequired` on exhaustion. Reserve lifecycle,
 proximity preferences beyond adjacent leads, final ordering/deadlines and future
 entropy remain unratified. There is no automatic live enrollment, draw or deploy.
+
+The next local checkpoint adds `hu084-local-beacon-v1` with a synthetic Ed25519
+issuer and `sha256-rank-v1`. A transaction fixes the candidate pool and a future
+round before signed evidence can reveal the order; retries retain that order.
+Cancellation retains the committed vacancy so a replacement case cannot reroll;
+reasoned admin recovery preserves the draw and requires member consent. Signed
+authenticity alone is not an assurance of unbiased/unpredictable entropy: the real
+provider, trust/IAM boundary, failure deadlines and assembly policy remain pending.
+This protocol remains confined to the fixed local emulator, with no deployment.

@@ -1,4 +1,10 @@
 import {
+  commitCoverageDraw,
+  CoverageBeaconPolicy,
+  parseCoverageBeaconPolicy,
+  revealCoverageDraw,
+} from "./shift-coverage-draw.js";
+import {
   advanceCoverageSelection,
   coverageCandidateExclusion,
   CoverageCandidate,
@@ -59,6 +65,7 @@ export const createProvisionalShiftCoverageStore = (options: {
   nowMillis: () => number;
   maximumOfferWindowMillis: number;
   selectionPolicy?: CoverageSelectionPolicy;
+  beaconPolicy?: CoverageBeaconPolicy;
 }) => {
   if (process.env.GCLOUD_PROJECT !== projectId ||
       process.env.FIRESTORE_EMULATOR_HOST !== host ||
@@ -69,6 +76,8 @@ export const createProvisionalShiftCoverageStore = (options: {
   const {nowMillis, maximumOfferWindowMillis} = options;
   const selectionPolicy = options.selectionPolicy ?
     parseCoverageSelectionPolicy(options.selectionPolicy) : undefined;
+  const beaconPolicy = options.beaconPolicy ?
+    parseCoverageBeaconPolicy(options.beaconPolicy) : undefined;
   const db = new Firestore({projectId, host, ssl: false});
   const ref = (collection: string, id: string) =>
     db.doc(`${root}/${collection}/${id}`);
@@ -92,7 +101,8 @@ export const createProvisionalShiftCoverageStore = (options: {
         const actor = coverageMember(actorSnapshot.data());
         if (!actor.active ||
             (["offer", "offerNext", "startSelection", "expire", "complete",
-              "fail"].includes(command.action) &&
+              "fail", "commitDraw", "revealDraw", "offerAdmin", "resumeAdmin"]
+              .includes(command.action) &&
               !actor.admin)) return rejectCoverage("coverage_actor_forbidden");
         const authority =
           captureShiftPlanningWriterAuthority(maintenance.data());
@@ -183,7 +193,7 @@ export const createProvisionalShiftCoverageStore = (options: {
         let selectedUserId: string | null = null;
         let candidates: CoverageCandidate[] = [];
         const needsSelection = ["startSelection", "offerNext", "volunteer",
-          "withdrawVolunteer"].includes(command.action) ||
+          "withdrawVolunteer", "commitDraw"].includes(command.action) ||
           (command.action === "accept" &&
             previous?.offer?.source === "reserve");
         if (needsSelection) {
@@ -262,14 +272,68 @@ export const createProvisionalShiftCoverageStore = (options: {
             selectedUserId = advanced.userId;
           }
         }
+        let preparedDraw = previous?.selection?.draw;
+        if (command.action === "commitDraw") {
+          if (!preparedSelection ||
+              preparedSelection.phase !== "drawRequired" ||
+              preparedSelection.draw) {
+            return rejectCoverage("coverage_draw_state_conflict");
+          }
+          const frozen = preparedSelection.snapshot.map((original) => {
+            const current = candidates.find((item) =>
+              item.userId === original.userId);
+            return {...(current ?? original), exclusion: original.exclusion ??
+              (preparedSelection?.attemptedUserIds.includes(original.userId) ?
+                "already_offered" : current?.exclusion ??
+                (!current ? "member_missing" : null))};
+          });
+          preparedSelection = structuredClone(preparedSelection);
+          preparedSelection.latestExclusions = frozen.flatMap((item) =>
+            item.exclusion ?
+              [{userId: item.userId, reason: item.exclusion}] : []);
+          if (frozen.every((item) => item.exclusion)) {
+            preparedSelection.phase = "adminRequired";
+          } else {
+            preparedDraw = commitCoverageDraw({caseId: command.caseId,
+              selectionDigest: preparedSelection.snapshotDigest,
+              assignmentContextDigest, candidates: frozen,
+              policy: beaconPolicy, now});
+            if (preparedDraw.availableAtMillis >= shift.date.toMillis()) {
+              return rejectCoverage("coverage_draw_too_late");
+            }
+            const published = await transaction.get(
+              ref("shiftCoverageBeaconRounds", hashId([
+                preparedDraw.beacon.sourceId, String(preparedDraw.round)])));
+            if (published.exists) {
+              return rejectCoverage("coverage_entropy_already_available");
+            }
+            preparedSelection.draw = preparedDraw;
+          }
+        } else if (command.action === "revealDraw") {
+          if (previous?.status !== "open" ||
+              preparedSelection?.phase !== "drawRequired" || !preparedDraw) {
+            return rejectCoverage("coverage_draw_state_conflict");
+          }
+          if (preparedDraw.assignmentContextDigest !==
+              assignmentContextDigest) {
+            return rejectCoverage("coverage_draw_source_changed");
+          }
+          const published = await transaction.get(
+            ref("shiftCoverageBeaconRounds", hashId([
+              preparedDraw.beacon.sourceId, String(preparedDraw.round)])));
+          preparedSelection = {...preparedSelection, phase: "draw",
+            draw: revealCoverageDraw({draw: preparedDraw,
+              value: published.data(), now})};
+        }
         const candidateId = command.action === "offerNext" ? selectedUserId :
-          command.action === "offer" ? command.userId :
+          command.action === "offer" || command.action === "offerAdmin" ?
+            command.userId :
             previous?.acceptedUserId ?? previous?.offer?.userId;
         const claimRef = candidateId ?
           ref("shiftCoverageMemberClaims", hashId([shift.type, candidateId])) :
           null;
         const claim = claimRef ? await transaction.get(claimRef) : null;
-        const candidate = candidateId && ["offer", "offerNext",
+        const candidate = candidateId && ["offer", "offerNext", "offerAdmin",
           "accept"].includes(command.action) ? coverageMember(
             (await transaction.get(ref("users", candidateId))).data(),
           ) : null;
@@ -329,7 +393,7 @@ export const createProvisionalShiftCoverageStore = (options: {
           next = {...current, revision: current.revision + 1,
             updatedAtMillis: now};
           switch (command.action) {
-          case "startSelection":
+          case "startSelection": case "commitDraw": case "revealDraw":
             pending();
             next.selection = preparedSelection ??
               rejectCoverage("coverage_selection_missing");
@@ -364,7 +428,16 @@ export const createProvisionalShiftCoverageStore = (options: {
             next.selection = selection;
             break;
           }
-          case "offer": case "offerNext":
+          case "resumeAdmin":
+            pending();
+            if (current.status !== "cancelled" || !current.selection?.draw ||
+                shift.assignedUserIds[positionIndex] !== current.absentUserId) {
+              return rejectCoverage("coverage_admin_resume_forbidden");
+            }
+            next.status = "open";
+            next.selection = {...current.selection, phase: "adminRequired"};
+            break;
+          case "offer": case "offerNext": case "offerAdmin":
             pending();
             if (current.status !== "open" ||
                 shift.assignedUserIds[positionIndex] !== current.absentUserId) {
@@ -381,6 +454,10 @@ export const createProvisionalShiftCoverageStore = (options: {
                 }
                 break;
               }
+            } else if (command.action === "offerAdmin") {
+              if (current.selection?.phase !== "adminRequired") {
+                return rejectCoverage("coverage_admin_not_required");
+              }
             } else if (current.selection) {
               return rejectCoverage(
                 "coverage_selection_admin_override_blocked");
@@ -395,9 +472,10 @@ export const createProvisionalShiftCoverageStore = (options: {
             next.offer = {id: command.operationId,
               userId: candidateId ??
                 rejectCoverage("coverage_candidate_missing"),
-              source: command.action === "offer" ? "admin" :
-                preparedSelection?.phase === "reserve" ?
-                  "reserve" : "volunteer",
+              source: command.action !== "offerNext" ? "admin" :
+                preparedSelection?.phase === "draw" ? "draw" :
+                  preparedSelection?.phase === "reserve" ?
+                    "reserve" : "volunteer",
               expiresAtMillis: command.expiresAtMillis,
               assignmentContextDigest};
             break;
@@ -465,7 +543,9 @@ export const createProvisionalShiftCoverageStore = (options: {
             }
             next.status = "cancelled";
             next.offer = null;
-            releaseSlot = true;
+            // Retain a committed draw's vacancy through cancellation so a new
+            // case cannot reset its seed. Explicit admin resume keeps evidence.
+            releaseSlot = !current.selection?.draw;
             break;
           case "fail": case "complete": {
             if (current.status !== "accepted" || !candidateId ||

@@ -17,8 +17,12 @@ export type ShiftCoverageCommand = CommandBase & (
   | {action: "open"; shiftId: string; absentUserId: string; reason: string}
   | {action: "offer"; userId: string; reason: string; expiresAtMillis: number}
   | {action: "accept" | "decline" | "expire" | "complete" |
-      "startSelection" | "volunteer" | "withdrawVolunteer"}
+      "startSelection" | "volunteer" | "withdrawVolunteer" |
+      "commitDraw" | "revealDraw"}
   | {action: "offerNext"; expiresAtMillis: number}
+  | {action: "offerAdmin"; userId: string; reason: string;
+      expiresAtMillis: number}
+  | {action: "resumeAdmin"; reason: string}
   | {action: "cancel" | "fail"; reason: string}
 );
 
@@ -39,7 +43,7 @@ export type ShiftCoverageCase = {
   revision: number;
   selection?: CoverageSelection;
   offer: {
-    source: "admin" | "reserve" | "volunteer";
+    source: "admin" | "reserve" | "volunteer" | "draw";
     id: string;
     userId: string;
     expiresAtMillis: number;
@@ -119,8 +123,8 @@ export const parseShiftCoverageCommand = (
     command = {...base, action: "open", shiftId: coverageId(body.shiftId),
       absentUserId: coverageId(body.absentUserId), reason: reason(body.reason)};
     break;
-  case "offer":
-    command = {...base, action: "offer", userId: coverageId(body.userId),
+  case "offer": case "offerAdmin":
+    command = {...base, action: body.action, userId: coverageId(body.userId),
       reason: reason(body.reason),
       expiresAtMillis: revision(body.expiresAtMillis)};
     break;
@@ -128,11 +132,12 @@ export const parseShiftCoverageCommand = (
     command = {...base, action: "offerNext",
       expiresAtMillis: revision(body.expiresAtMillis)};
     break;
+  case "commitDraw": case "revealDraw":
   case "startSelection": case "volunteer": case "withdrawVolunteer":
   case "accept": case "decline": case "expire": case "complete":
     command = {...base, action: body.action};
     break;
-  case "cancel": case "fail":
+  case "cancel": case "fail": case "resumeAdmin":
     command = {...base, action: body.action, reason: reason(body.reason)};
     break;
   default:

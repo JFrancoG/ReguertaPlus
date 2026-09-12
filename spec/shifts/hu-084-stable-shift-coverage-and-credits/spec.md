@@ -15,10 +15,12 @@
 The maintainer explicitly authorized implementing this proposal provisionally for
 local tests. This authorizes the implementation branch and emulator-only behavior;
 it does not ratify the proposal or authorize deployment/live activation. The
-administrative lifecycle now includes a frozen reserve FIFO and bounded volunteer
-selection using explicit `fifo-signup-v1` test settings. Reserve exit, draw entropy,
-proximity preferences, response windows and final ordering remain pending business
-decisions; the tested provisional behavior is not the ratified live policy.
+administrative lifecycle includes frozen reserve FIFO, bounded volunteers and a
+committed draw using a synthetic signed future-round issuer. The explicit test
+settings are `fifo-signup-v1`, `hu084-local-beacon-v1` and `sha256-rank-v1`. Reserve
+exit, the real entropy provider, proximity preferences, response windows and final
+ordering remain pending business decisions. The tested provisional behavior is not
+the ratified live policy.
 See `plan.md` for implemented behavior, validation and integration limits.
 
 ## Context and problem
