@@ -1,4 +1,5 @@
-import {assertShiftCreditPublicationSource,
+import {assertProvisionalShiftMembershipSource,
+  assertShiftCreditPublicationSource,
   requireProvisionalCreditPublication, shiftCreditPublicationAfter} from
   "./shift-credit-publication.js";
 import {
@@ -1294,6 +1295,7 @@ export const materializeShiftPlanningInverseRecovery = (
 export const applyShiftPlanningInverseRecoveryAttempt = async (
   input: ApplyShiftPlanningInverseRecoveryAttemptInput,
 ): Promise<ShiftPlanningInverseRecoveryAttempt> => {
+  await assertProvisionalShiftMembershipSource(input);
   const materialization = materializeShiftPlanningInverseRecovery(input);
   const artifact = input.bundle.artifact;
   if (artifact.manifests.forward?.creditPublication) {

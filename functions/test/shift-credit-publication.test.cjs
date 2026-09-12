@@ -92,7 +92,8 @@ const seed = async (db, data) => {
   batch.set(db.doc(data.input.requestDocument.targetPath), data.input.requestDocument.data);
   for (const doc of data.input.beforeImageDocuments) batch.set(db.doc(doc.targetPath), doc.data);
   for (const type of ["delivery", "market"]) {
-    const source = data.publication.sources[type];
+    const source = data.publication?.sources[type];
+    if (!source) continue;
     batch.set(db.doc(`${root}/shiftCoverageLedgerState/${type}`), source.ledger);
     for (const c of source.credits) batch.set(db.doc(`${root}/shiftCoverageCredits/${c.id}`), c);
     for (const c of source.claims) batch.set(db.doc(`${root}/shiftCoverageMemberClaims/${c.id}`), c.data);
@@ -147,7 +148,7 @@ test("atomic seasonal publication and canonical inverse restore credits/claims a
     assert.deepEqual(await capture(db), restored);
   }));
 
-for (const drift of ["deferredCredit", "newCredit", "claim", "ledger"]) {
+for (const drift of ["deferredCredit", "newCredit", "claim", "ledger", "membershipReentry"]) {
   test(`complete source CAS blocks ${drift} drift before forward and inverse with zero partial writes`, {skip: !emulatorAvailable},
     () => withDatabase(async (db) => {
       const data = setup(); await seed(db, data);
@@ -157,6 +158,13 @@ for (const drift of ["deferredCredit", "newCredit", "claim", "ledger"]) {
         if (drift === "claim") await db.doc(`${root}/shiftCoverageMemberClaims/${claim(credit("member-1", "delivery")).id}`)
           .update({caseId: "another-case"});
         if (drift === "ledger") await db.doc(`${root}/shiftCoverageLedgerState/delivery`).update({revision: 123});
+        if (drift === "membershipReentry") {
+          const value = {schemaVersion: 1, policyRevision: "hu084-provisional-v1", userId: "member-1",
+            revision: 3, source: {isActive: true, roles: ["member"], isCommonPurchaseManager: false},
+            eligible: true, observedAtMillis: 3, pendingQueueTransition: true,
+            admissionAfterRound: {delivery: 1, market: 1}};
+          await db.doc(`${root}/shiftMembershipState/member-1`).set({value, digest: digest(value)});
+        }
       };
       await change(); const before = await capture(db);
       await assert.rejects(() => forward(db, data));
@@ -272,4 +280,27 @@ test("governed credit carryover is recovered from the active bundle and its actu
     assert.deepEqual(await capture(db), before);
     await db.doc(`${root}/shiftPlanningBundles/${data.value.liveResult.bundleRevision}`).update({artifactDigest: digest("forged")});
     await assert.rejects(() => captureSources(), {code: "credit_prefix_ledger_changed"});
+  }));
+
+test("membership re-entry fences governed source and ordinary credit-disabled publication", {skip: !emulatorAvailable},
+  () => withDatabase(async (db) => {
+    const pending = async () => {
+      const value = {schemaVersion: 1, policyRevision: "hu084-provisional-v1", userId: "member-1",
+        revision: 3, source: {isActive: true, roles: ["member"], isCommonPurchaseManager: false},
+        eligible: true, observedAtMillis: 3, pendingQueueTransition: true,
+        admissionAfterRound: {delivery: 1, market: 1}};
+      await db.doc(`${root}/shiftMembershipState/member-1`).set({value, digest: digest(value)});
+    };
+    await seedGoverned(db); await pending();
+    await db.doc(`${root}/shiftPlanningState/sourcePolicy`).update({creditLedger: fairnessSnapshot().creditLedger});
+    let before = await capture(db);
+    await assert.rejects(refreshShiftPlanningLiveSource({firestore: db, environment: "develop"}),
+      {code: "membership_queue_transition_pending"});
+    assert.deepEqual(await capture(db), before);
+    await db.recursiveDelete(db.doc(root));
+    const value = fixture(); const data = {value, input: materializerInput(value)};
+    assert.equal(value.liveResult.manifests.forward.creditPublication, undefined);
+    await seed(db, data); await pending(); before = await capture(db);
+    await assert.rejects(forward(db, data), {code: "membership_queue_transition_pending"});
+    assert.deepEqual(await capture(db), before);
   }));

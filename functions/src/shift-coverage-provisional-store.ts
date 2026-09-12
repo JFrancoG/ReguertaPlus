@@ -1,3 +1,8 @@
+import {createShiftMembershipReconciliation} from
+  "./shift-membership-reconciliation.js";
+import {buildShiftCoverageOpening,
+  shiftCoverageOwnershipDigest as ownership} from
+  "./shift-coverage-opening.js";
 import {createProvisionalCreditFirestore, isReleasedShiftCoverageClaim} from
   "./shift-credit-publication.js";
 import {createShiftCreditRehearsal} from "./shift-credit-rehearsal.js";
@@ -41,14 +46,6 @@ const host = "127.0.0.1:8798";
 const root = "develop/plus-collections";
 const hashId = (values: string[]) =>
   digest(values).slice("shift-planning:v1:sha256:".length);
-const ownership = (shift: ShiftPlanningPublicShiftDocument) => digest({
-  owner: shift.rotationOwnerUserId, owners: shift.rotationOwnerUserIds,
-  round: shift.roundNumber, position: shift.positionInRound,
-  positions: shift.rotationPositions?.map((position) => ({
-    owner: position.rotationOwnerUserId, round: position.roundNumber,
-    position: position.positionInRound,
-  })) ?? null,
-});
 const context = (shift: ShiftPlanningPublicShiftDocument | undefined) =>
   shift ? {assigned: shift.assignedUserIds, helper: shift.helperUserId,
     assignment: shift.assignmentRevision, document: shift.documentRevision,
@@ -87,6 +84,7 @@ export const createProvisionalShiftCoverageStore = (options: {
 
   return {
     ...createShiftCreditRehearsal(db, nowMillis),
+    ...createShiftMembershipReconciliation(db, nowMillis),
     close: () => db.terminate(),
     async execute(value: unknown, actorMemberId: string) {
       const command = parseShiftCoverageCommand(value);
@@ -385,15 +383,8 @@ export const createProvisionalShiftCoverageStore = (options: {
           if (slotSnapshot.exists) {
             return rejectCoverage("coverage_slot_occupied");
           }
-          next = {schemaVersion: 1,
-            policyRevision: SHIFT_COVERAGE_POLICY_REVISION,
-            environment: "develop", id: command.caseId, shiftId,
-            type: shift.type,
-            absentUserId: command.absentUserId, positionIndex,
-            ownershipDigest: ownership(shift), openedByUserId: actorId,
-            reason: command.reason, status: "open", revision: 1, offer: null,
-            acceptedUserId: null, creditId: null, createdAtMillis: now,
-            updatedAtMillis: now};
+          next = buildShiftCoverageOpening({caseId: command.caseId, shiftId,
+            shift, positionIndex, actorId, reason: command.reason, now});
         } else {
           const current = previous ?? rejectCoverage("coverage_case_missing");
           next = {...current, revision: current.revision + 1,

@@ -1,4 +1,5 @@
-import {captureShiftCreditPublicationSources,
+import {assertProvisionalShiftMembershipSource,
+  captureShiftCreditPublicationSources,
   requireProvisionalCreditPublication} from "./shift-credit-publication.js";
 import {
   DocumentReference,
@@ -567,6 +568,7 @@ const buildSourceInTransaction = async (input: {
   environment: ShiftPlanningEnvironment;
 }): Promise<ShiftPlanningLiveSourceDocument> => {
   const {firestore, transaction, environment} = input;
+  await assertProvisionalShiftMembershipSource(input);
   const root = planningRoot(environment);
   const [
     policySnapshot,

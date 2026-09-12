@@ -1002,3 +1002,19 @@ libro y las épocas de escritura. La ejecución con créditos habilitados se lim
 al cliente Firestore construido para el emulador demo/loopback fijo. Esto sustituye
 la carencia de publicación local anterior; no es ratificación de la asamblea,
 activación real ni envío de notificaciones o ejecución en Sheets.
+
+El siguiente bloque local reconcilia una transición observada del usuario, ambas
+reservas y los casos de cobertura de turnos futuros publicados en una transacción,
+con auditoría de origen/fecha/actor y CAS. Los socios elegibles ya presentes en la
+cohorte constituyen la base; las altas y reactivaciones entran en la reserva FIFO
+con la fecha de observación. Perder elegibilidad desactiva la reserva; recuperarla
+incrementa su revisión y lleva al final. Ni agosto ni incorporarse a la cohorte
+implican la salida de reservas aún pendiente de ratificación. Se conservan fechas,
+propietarios, ayudantes reales completados, cursores y créditos. Las permutas
+pendientes y coberturas ocupadas requieren su flujo administrativo existente.
+Las transiciones de cola pendientes bloquean la captura de fuentes y la publicación
+local directa/inversa, incluso sin créditos, para impedir recuperar una posición
+antigua al reactivarse. Quedan por implementar la incorporación a rondas nuevas y
+los saltos de posiciones congeladas no publicadas junto con unidades físicas
+completas; no se escriben tombstones aislados. El adaptador solo funciona en el
+emulador; no observa cambios de usuarios desplegados ni ratifica la política real.

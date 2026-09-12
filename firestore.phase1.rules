@@ -46,6 +46,8 @@ service cloud.firestore {
         "shiftCoverageCreditUnits",
         "shiftCoverageCases",
         "shiftCoverageReserves",
+        "shiftMembershipState",
+        "shiftMembershipOperations",
         "shiftCoverageBeaconRounds",
         "shiftCoverageOperations",
         "shiftCoverageSlots",

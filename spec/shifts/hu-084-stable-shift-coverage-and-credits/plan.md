@@ -107,9 +107,9 @@ cohesive implementation adds selection to that same lifecycle:
 - Exhausting volunteers records `drawRequired` without assigning anyone. The
   subsequent commitment/reveal and administrative paths are described below.
 - `shiftCoverageReserves` is backend-private under both Rules policies. In this
-  local rehearsal it is seeded with synthetic entries. Automatic reserve enrollment,
-  exit and membership transitions are still pending; the entry schema does not
-  decide when a real member enters/leaves the reserve pool.
+  first rehearsal it was seeded with synthetic entries. The membership checkpoint
+  below now manages observed local enrollment, ineligibility exit and re-entry;
+  normal-cohort inclusion still does not decide the unratified reserve-exit boundary.
 
 Validation of the extended lifecycle: `npm run lint` and `npm run build` passed;
 23 unit/regression tests and 31 emulator/Rules tests passed, with no failures or
@@ -331,11 +331,60 @@ endpoint, integrate authenticated identity, existing writer resource fences,
 admission limits and public-event/notification authority. The unit credit solver
 and local atomic consumption rehearsal are implemented, and complete seasonal
 credit planning and governed HU-082 forward/inverse publication are integrated
-locally. The next coherent step in outcome group 2 is membership/eligibility and
-reserve transitions, preserving published ownership and applying whole-unit
-staffing. Both native clients and coverage notification/Sheets product integration
+locally. Membership reconciliation now manages reserve transitions and published
+coverage cases locally. Remaining outcome group 2 work applies pending queue
+changes at the first new unfrozen round and handles frozen unpublished departures
+with complete physical-unit activation and inverse evidence. Both native clients and coverage notification/Sheets product integration
 remain unfinished. Shared-project credit activation, assembly decisions and
 deployment remain separate gates.
+
+### Local membership and reserve reconciliation — 2026-09-12
+
+- A trusted administrator reconciles one member against current Firestore user,
+  both rotation aggregates, open maintenance authority, both reserve records and
+  published shifts in a single transaction. CAS revision and actor-bound receipt
+  prevent duplicate/conflicting operations. The audit keeps previous/current
+  predicate inputs, source update timestamp, observed time, reason and reserve
+  changes. Missing users are departures; malformed present users fail closed.
+- Initial eligible cohort members establish a baseline without becoming new
+  reserves. Eligible members outside the cohort and observed re-entries join both
+  pools at the trusted observation time; same-time FIFO still uses ordinal UID.
+  This is local observation provenance, not reconstructed historical activation
+  dates. Ineligibility deactivates existing reserve entries; re-entry increments
+  revision and resets FIFO time, invalidating outstanding reserve offers. Neither
+  August nor normal-cohort inclusion removes an otherwise eligible reserve.
+- An ineligible effective assignee gets one ordinary coverage case for each
+  uncompleted future public position, preserving public dates, historical owners,
+  completed helpers, rotations and credits. Existing occupied cases are reused;
+  pending swaps are returned for administrative resolution. Accepted coverage
+  that becomes ineligible also remains an existing case requiring resolution;
+  this command never silently cancels or substitutes it. The shared opening
+  constructor keeps subsequent selection/acceptance/completion on the existing
+  workflow. All state/reserve/case/slot/receipt writes commit together; more than
+  the canonical 500 writes or an oversized audit rejects with zero mutations.
+- `shiftMembershipState` and `shiftMembershipOperations` are private under strict
+  and phase1 Rules. The local adapter remains composed only by the fixed emulator
+  store, with no deployed trigger, live user-write interception or native UI.
+  User changes not observed between reconciliations cannot be reconstructed;
+  live integration must observe each authoritative transition.
+- Pending queue transitions retain a lower bound after every published/frozen
+  round. They are not applied by this checkpoint: no cohort reordering, cursor
+  advance or standalone tombstone occurs. Governed source capture, forward and
+  inverse publication and the private unit rehearsal reject pending transitions;
+  even disabling credits cannot revive an old position after reactivation.
+  Next implement new-round admission and frozen unpublished skips together with
+  full physical units, minimum-cohort fallback and inverse evidence. This is the
+  remaining planning integration, not completion of outcome group 2.
+
+Validation: build/lint clean, 25 coverage/credit unit passes, 294 HU-082 regression
+passes (51 tests for other emulator configurations skipped), and 73 passing local
+emulator/Rules scenarios. These include FIFO re-entry, stale offers, real-producer
+versus common-purchase-manager transitions, per-position departure coverage,
+concurrency, oversized zero-write rejection, pending swaps/orphan claims, and
+pending membership blocking both credited and credit-disabled publication.
+The shared activation fixture now copies its cohort so one carryover test cannot
+mutate the roster used by subsequent scenarios. Native clients are unchanged;
+no Android/iOS runtime evidence is claimed by this backend checkpoint.
 
 ## 2. Technical approach after approval
 

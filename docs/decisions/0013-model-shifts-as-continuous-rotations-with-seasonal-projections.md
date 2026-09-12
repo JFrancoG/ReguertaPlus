@@ -959,3 +959,17 @@ change and restores credit/claim values while increasing ledger generations and
 write epochs. Enabled-credit execution remains restricted to a Firestore client
 created for the fixed demo/loopback emulator. This supersedes the prior local
 publication gap; it is not assembly ratification, live activation or dispatch.
+
+The subsequent local membership checkpoint reconciles one observed user transition,
+both reserve pools and affected future published coverage cases atomically, with
+source/time/actor audit and CAS. Existing eligible cohort members are baseline;
+new members and re-entries join reserve FIFO at observation time. Ineligibility
+removes reserve eligibility; re-entry increments its revision and starts at the
+tail. Neither August nor cohort inclusion implies the unratified reserve exit.
+Public dates, owners, actual completed helpers, cursors and credits remain unchanged.
+Pending swaps/occupied coverage cases require their existing administrative workflow.
+Pending queue transitions block local source capture and forward/inverse publication,
+including credit-disabled plans, preventing restoration of an old queue position
+on re-entry. New-round admission and frozen unpublished skips with complete physical
+units remain unimplemented; no standalone tombstones are written. The adapter is
+emulator-only, not a deployed observer of user changes or a ratified live policy.

@@ -40,7 +40,7 @@ const materialize = (id, type, date, assigned, helper = null) => {
 };
 const snapshot = async () => {
   const output = {};
-  for (const collection of ["shifts", "users", "shiftRotations", "shiftCoverageCreditPlans", "shiftCoverageCreditUnits", "shiftCoverageCases", "shiftCoverageCredits",
+  for (const collection of ["shiftMembershipState", "shiftMembershipOperations", "shifts", "users", "shiftRotations", "shiftCoverageCreditPlans", "shiftCoverageCreditUnits", "shiftCoverageCases", "shiftCoverageCredits",
     "shiftCoverageSlots", "shiftCoverageBeaconRounds", "shiftCoverageReserves", "shiftCoverageMemberClaims", "shiftCoverageOperations", "shiftCoverageLedgerState"]) {
     output[collection] = (await db.collection(`${root}/${collection}`).get()).docs.map((d) => [d.id, d.data()]);
   }
@@ -675,4 +675,179 @@ run("a released seasonal claim re-enters selection and can be replaced by a new 
   await execute("case-2", "accept", "d");
   assert.equal((await read("shiftCoverageMemberClaims", claimId)).state, "accepted");
   assert.equal((await read("shiftCoverageMemberClaims", claimId)).caseId, "case-2");
+});
+
+const seedMembershipRotations = async () => {
+  for (const type of ["delivery", "market"]) await ref("shiftRotations", type).set({schemaVersion: 1,
+    type, stateRevision: 4, cursor: {schemaVersion: 1, type, cohortUserIds: ["a", "b", "c"],
+      roundNumber: 1, nextMemberIndex: 1}, planningFrontierSeasonStartYear: 2027,
+    cohortFrozen: true, frozenCohortUserIds: ["a", "b", "c"], activeRevision: "active-1",
+    activeDigest, lastIdempotencyKey: null, migrationBaseline: null, releaseLease: null});
+};
+const membershipCommand = async (userId, operationId = `membership-${++sequence}`) => ({
+  schemaVersion: 1, environment: "develop", userId, operationId,
+  expectedRevision: (await read("shiftMembershipState", userId))?.value.revision ?? 0,
+});
+const reconcile = async (userId) => store.reconcileMembership(await membershipCommand(userId), "admin");
+const reserveFor = (userId, type = "delivery") => read("shiftCoverageReserves", digest([type, userId]).split(":").at(-1));
+
+run("membership baseline preserves cohort members and idempotency is actor-bound", async () => {
+  await seedMembershipRotations(); const before = await snapshot();
+  const command = await membershipCommand("a");
+  const first = await store.reconcileMembership(command, "admin");
+  assert.equal(first.result.state.pendingQueueTransition, false);
+  assert.equal(first.result.state.revision, 1);
+  assert.deepEqual(first.result.coverage, []);
+  assert.equal(await reserveFor("a"), undefined);
+  const after = await snapshot();
+  assert.deepEqual(after.shifts, before.shifts); assert.deepEqual(after.shiftRotations, before.shiftRotations);
+  assert.equal((await store.reconcileMembership(command, "admin")).replayed, true);
+  assert.deepEqual(await snapshot(), after);
+  await ref("users", "e").update({roles: ["member", "admin"]});
+  await assert.rejects(store.reconcileMembership(command, "e"), {code: "membership_operation_conflict"});
+  const unchanged = await reconcile("a");
+  assert.equal(unchanged.result.state.revision, 1);
+});
+
+run("new membership enters both FIFO pools, stays reserved across August and normal cohort inclusion", async () => {
+  await seedMembershipRotations();
+  const joined = await reconcile("d");
+  assert.equal(joined.result.state.pendingQueueTransition, true);
+  assert.deepEqual(joined.result.state.admissionAfterRound, {delivery: 1, market: 1});
+  for (const type of ["delivery", "market"]) assert.deepEqual(await reserveFor("d", type),
+    {userId: "d", type, active: true, enteredAtMillis: initialTime, revision: 1});
+  await open(); await execute("case-1", "startSelection", "admin");
+  const offered = await execute("case-1", "offerNext", "admin", {expiresAtMillis: now + 10_000});
+  assert.equal(offered.case.offer.userId, "d"); assert.equal(offered.case.offer.source, "reserve");
+  now = Date.parse("2028-09-01T00:00:00Z");
+  for (const type of ["delivery", "market"]) await ref("shiftRotations", type).update({
+    "cursor.cohortUserIds": ["a", "b", "c", "d"], "cursor.roundNumber": 2,
+    "cursor.nextMemberIndex": 0, cohortFrozen: false, frozenCohortUserIds: []});
+  await reconcile("d");
+  assert.equal((await reserveFor("d")).enteredAtMillis, initialTime);
+  assert.equal((await reserveFor("d")).revision, 1);
+});
+
+run("departure opens only affected future cases, preserves history and re-entry cannot revive old positions", async () => {
+  await seedMembershipRotations(); await reconcile("a");
+  const before = await snapshot();
+  await ref("users", "a").update({isActive: false});
+  const departed = await reconcile("a");
+  assert.equal(departed.result.state.pendingQueueTransition, true);
+  assert.equal(departed.result.coverage.length, 3);
+  assert.ok(departed.result.coverage.every((c) => c.status === "opened"));
+  let after = await snapshot();
+  assert.deepEqual(after.shifts, before.shifts); assert.deepEqual(after.shiftRotations, before.shiftRotations);
+  assert.deepEqual(after.shiftCoverageCredits, before.shiftCoverageCredits);
+  assert.equal(after.shiftCoverageCases.length, 3);
+  for (const [, entry] of after.shiftCoverageCases) {
+    assert.equal(entry.value.absentUserId, "a"); assert.equal(entry.value.reason, "member_inactive");
+  }
+  const repeat = await reconcile("a");
+  assert.ok(repeat.result.coverage.every((c) => c.status === "existing_case"));
+  now += 100;
+  await ref("users", "a").update({isActive: true});
+  const restored = await reconcile("a");
+  assert.equal(restored.result.state.pendingQueueTransition, true);
+  assert.equal((await reserveFor("a")).enteredAtMillis, now);
+  assert.equal((await reserveFor("a", "market")).active, true);
+  const {assertNoPendingShiftMembership} = require("../lib/shift-membership-reconciliation.js");
+  await assert.rejects(db.runTransaction((transaction) => assertNoPendingShiftMembership(db, transaction)),
+    {code: "membership_queue_transition_pending"});
+  after = await snapshot();
+  assert.equal(after.shiftCoverageCases.length, 3); assert.deepEqual(after.shifts, before.shifts);
+  const delivery = departed.result.coverage.find((c) => c.shiftId === "shift_delivery_20270901");
+  await offer(delivery.caseId, "d"); await execute(delivery.caseId, "accept", "d");
+  assert.equal((await read("shifts", delivery.shiftId)).rotationOwnerUserId, "a");
+  assert.deepEqual((await read("shifts", delivery.shiftId)).assignedUserIds, ["d"]);
+});
+
+run("producer/company eligibility changes deactivate reserves and re-entry goes to the FIFO tail", async () => {
+  await seedMembershipRotations(); await reconcile("d");
+  now += 10; await reconcile("e");
+  now += 10; await ref("users", "d").update({roles: ["member", "producer"]});
+  const producer = await reconcile("d");
+  assert.equal(producer.result.state.eligible, false);
+  assert.equal((await reserveFor("d")).active, false);
+  assert.equal((await reserveFor("d")).revision, 2);
+  now += 10; await ref("users", "d").update({isCommonPurchaseManager: true});
+  const manager = await reconcile("d");
+  assert.equal(manager.result.state.eligible, true);
+  assert.equal((await reserveFor("d")).revision, 3);
+  assert.ok((await reserveFor("d")).enteredAtMillis > (await reserveFor("e")).enteredAtMillis);
+  await open(); await execute("case-1", "startSelection", "admin");
+  const offered = await execute("case-1", "offerNext", "admin", {expiresAtMillis: now + 10_000});
+  assert.equal(offered.case.offer.userId, "e");
+});
+
+run("reactivation invalidates an older reserve offer even when current user fields match again", async () => {
+  await seedMembershipRotations(); await reconcile("d");
+  await open(); await execute("case-1", "startSelection", "admin");
+  await execute("case-1", "offerNext", "admin", {expiresAtMillis: now + 10_000});
+  now += 1; await ref("users", "d").update({isActive: false}); await reconcile("d");
+  now += 1; await ref("users", "d").update({isActive: true}); await reconcile("d");
+  await rejectWithoutWrites(await makeCommand("case-1", "accept"), "d");
+});
+
+run("concurrent reconciliations commit one baseline and one pair of reserve entries", async () => {
+  await seedMembershipRotations();
+  const commands = await Promise.all([membershipCommand("d", "join-one"), membershipCommand("d", "join-two")]);
+  const results = await Promise.allSettled(commands.map((command) => store.reconcileMembership(command, "admin")));
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(results.find((r) => r.status === "rejected").reason.code, "membership_revision_conflict");
+  assert.equal((await snapshot()).shiftMembershipOperations.length, 1);
+  assert.equal((await reserveFor("d")).revision, 1);
+});
+
+run("membership commands fail closed for unauthorized actors, malformed source, stale authority and command injection", async () => {
+  await seedMembershipRotations(); const command = await membershipCommand("d");
+  let before = await snapshot();
+  await assert.rejects(store.reconcileMembership(command, "a"), {code: "coverage_actor_forbidden"});
+  await assert.rejects(store.reconcileMembership({...command, eligible: true}, "admin"), {code: "invalid_membership_command"});
+  assert.deepEqual(await snapshot(), before);
+  await ref("users", "d").update({roles: "member"}); before = await snapshot();
+  await assert.rejects(store.reconcileMembership(command, "admin"), {code: "invalid_coverage_member"});
+  assert.deepEqual(await snapshot(), before);
+  await ref("users", "d").set(member());
+  await ref("shiftRotations", "market").update({activeRevision: "stale"}); before = await snapshot();
+  await assert.rejects(store.reconcileMembership(command, "admin"), {code: "membership_rotation_changed"});
+  assert.deepEqual(await snapshot(), before);
+});
+
+run("deleted members become audited departures and existing cases are reused", async () => {
+  await seedMembershipRotations(); await reconcile("a"); await open();
+  await ref("users", "a").delete();
+  const result = await reconcile("a");
+  assert.equal(result.result.state.source, null);
+  assert.equal(result.result.coverage.filter((c) => c.status === "existing_case").length, 1);
+  assert.equal((await snapshot()).shiftCoverageCases.length, 3);
+});
+
+run("oversized departure reconciliations leave reserves, cases, state and rotations untouched", async () => {
+  await seedMembershipRotations(); await ref("users", "a").update({isActive: false});
+  const batch = db.batch();
+  for (let i = 0; i < 250; i++) {
+    const date = new Date(Date.parse("2028-01-01T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10);
+    const id = `shift_market_${date.replaceAll("-", "")}`;
+    batch.set(ref("shifts", id), materialize(id, "market", date, ["a", "b", "c"]));
+  }
+  await batch.commit();
+  const before = await snapshot();
+  await assert.rejects(reconcile("a"), {code: "membership_transaction_oversize"});
+  assert.deepEqual(await snapshot(), before);
+});
+
+run("membership reconciliation leaves pending swaps for resolution and rejects orphan coverage claims atomically", async () => {
+  await seedMembershipRotations(); await ref("users", "a").update({isActive: false});
+  await ref("shifts", "shift_delivery_20270901").update({status: "swap_pending"});
+  const first = await reconcile("a");
+  assert.deepEqual(first.result.coverage.find((c) => c.shiftId === "shift_delivery_20270901"),
+    {shiftId: "shift_delivery_20270901", status: "swap_pending", caseId: null});
+  assert.equal((await read("shifts", "shift_delivery_20270901")).status, "swap_pending");
+  assert.equal((await snapshot()).shiftCoverageCases.length, 2);
+  const slotId = digest(["shift_market_20270904", "0"]).split(":").at(-1);
+  await ref("shiftCoverageSlots", slotId).set({caseId: "missing-case"});
+  const before = await snapshot();
+  await assert.rejects(reconcile("a"), {code: "invalid_coverage_case"});
+  assert.deepEqual(await snapshot(), before);
 });

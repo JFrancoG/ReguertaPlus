@@ -21,11 +21,21 @@ with 51 emulator-dependent cases skipped. Governed source capture and existing H
 integrated locally: public rows, credit/claim/cursor changes, before images and
 held intents/sync commands share one admitted transaction. Full-ledger CAS guards
 both directions; released claims are reusable and ledger generations never rewind.
+Seasonal publication was committed and pushed as `c81d936`. The current local
+checkpoint atomically reconciles observed member/eligibility transitions, both
+reserve pools and affected future published coverage cases. Re-entry goes to the
+FIFO tail; August/cohort inclusion does not imply reserve exit. Historical owners,
+public dates, cursors and credits remain unchanged. Pending queue transitions
+block source capture and forward/inverse publication, including credit-disabled
+plans, to prevent restoration of old positions after reactivation. Pending swaps
+and occupied coverage cases retain their administrative resolution workflow.
 Latest evidence: build/lint clean, 25 focused unit and 294 HU-082 regression passes
-(51 other-emulator cases skipped), plus 61 distinct emulator cases across the full
-and focused runs. Membership/eligibility and reserve transitions are next; a real
-entropy provider, live coverage transport, native flows and deployment remain
-pending. Enabled-credit execution is restricted to the fixed local emulator.
+(51 other-emulator cases skipped), plus 73 passing emulator/Rules scenarios.
+Remaining outcome group 2 work: new-round admission and frozen unpublished
+skips with whole-unit activation/inverse and minimum-cohort fallback. A real
+entropy provider, live transition observation/coverage transport, native flows
+and deployment remain pending. This is fixed-emulator provisional implementation,
+not live policy ratification or completion of the membership planning integration.
 See `plan.md` for the distinction between the local rehearsal and live delivery.
 
 The operational plan groups work into three complete outcomes: coverage backend

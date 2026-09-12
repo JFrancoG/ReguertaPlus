@@ -1,3 +1,5 @@
+import {assertNoPendingShiftMembership} from
+  "./shift-membership-reconciliation.js";
 import {SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT} from
   "./shift-planning-bundle.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
@@ -67,6 +69,7 @@ export const createShiftCreditRehearsal = (
   const capture = async (transaction: Transaction, intent: Intent,
     authority: NonNullable<ReturnType<
       typeof captureShiftPlanningWriterAuthority>>) => {
+    await assertNoPendingShiftMembership(db, transaction);
     const now = nowMillis();
     const dateMillis = Date.parse(`${intent.scheduledDate}T12:00:00Z`);
     if (!Number.isSafeInteger(now) || now < 0 || dateMillis <= now) {

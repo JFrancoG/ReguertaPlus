@@ -21,7 +21,13 @@
 - [x] Integrate governed seasonal credit sources and credit/claim/cursor/public
   writes into existing HU-082 forward/inverse publication, with full-source CAS,
   before images, shared admission/fences and local emulator evidence.
-- [ ] Complete membership/eligibility and reserve transitions (outcome group 2).
+- [x] Reconcile observed membership/eligibility changes with versioned audit,
+  both reserve pools and individual published coverage cases atomically locally.
+  Preserve re-entry ordering evidence and block old-position revival, including
+  credit-disabled planning; do not infer reserve exit from cohort inclusion.
+- [ ] Apply pending membership changes to new unfrozen rounds and integrate
+  frozen unpublished departures/ineligibility with whole-unit activation/inverse
+  (remaining outcome group 2).
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset

@@ -1,3 +1,5 @@
+import {assertNoPendingShiftMembership} from
+  "./shift-membership-reconciliation.js";
 import {consumeRotationPositions, RotationProjectionPrefix} from
   "./shift-planning-contract.js";
 import {ShiftRotationAggregateWire} from "./shift-planning-wire.js";
@@ -37,6 +39,19 @@ export const createProvisionalCreditFirestore = (): Firestore => {
   provisionalDatabases.add(db);
   return db;
 };
+/**
+ * Local membership transitions also fence ordinary (credit-disabled) plans.
+ * Live and legacy test clients keep their existing authority contract.
+ * @param {object} input Transaction and its registered emulator client.
+ */
+export const assertProvisionalShiftMembershipSource = async (input: {
+  firestore: Firestore; transaction: Transaction;
+}) => {
+  if (provisionalDatabases.has(input.firestore)) {
+    await assertNoPendingShiftMembership(input.firestore, input.transaction);
+  }
+};
+
 const claimId = (type: string, id: string) => digest([type, id])
   .slice("shift-planning:v1:sha256:".length);
 
