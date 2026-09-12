@@ -257,7 +257,8 @@ export const createProvisionalCoverageEffectsWorker = (input: {
             createdBy: "system", sentAt: Timestamp.fromMillis(now),
           }, intent.userId) ?? rejectCoverage("coverage_effects_inbox_invalid");
           tx.create(db.doc(`${root}/users/${intent.userId}/` +
-            `notificationInbox/${eventId}`), inbox);
+            `notificationInbox/${eventId}`),
+          {...inbox, coverageOperationId: id});
           deliveredTo.push(intent.userId);
         }
         tx.update(effectRef(id), {state: "completed", projection,

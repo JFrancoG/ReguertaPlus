@@ -32,7 +32,7 @@ Estas rutas no se registran en Release.
 
 Contraseña común del escenario: `local-fixture-password`.
 
-- `d@example.test`: abrir mercado, aceptar la oferta y comprobar su lectura posterior.
+- `d@example.test`: abrir el aviso genérico, consultar mercado, aceptar y comprobar la lectura posterior.
 - `admin@example.test`: abrir reparto y confirmar la cobertura realizada.
 - `e@example.test`: comprobar el crédito pendiente de reparto generado.
 - `a@example.test`: socio asignado originalmente, disponible para formularios de ausencia.
@@ -66,8 +66,9 @@ TEST_RUNNER_COVERAGE_REHEARSAL=1 xcodebuild test \
 ```
 
 Reconstruir el escenario antes de repetir la aceptación. El test se omite en las
-validaciones habituales. Este ensayo no acredita efectos de notificaciones/Sheets,
-despliegue real, VoiceOver ni la matriz completa de dispositivos y tamaños.
+validaciones habituales. Los efectos se comprueban contra el libro simulado y la
+bandeja local; el despliegue real, VoiceOver y la matriz completa de dispositivos
+y tamaños siguen pendientes.
 
 Después de confirmar el reparto como admin, ejecutar la lectura del crédito en AX5
 con `TEST_RUNNER_COVERAGE_CREDIT_REHEARSAL=1` y
@@ -79,8 +80,9 @@ captura en el resultado de pruebas.
 
 `npm run test:shift-coverage:emulator` incluye ahora la integración de comando,
 Sheets y bandeja de avisos. Solo utiliza el proyecto demo fijo de Firestore y la
-simulación existente de la API de Sheets (`coverage-rehearsal-book`). No consume
-automáticamente la fixture de la UI nativa ni conecta con un libro compartido.
+simulación existente de la API de Sheets (`coverage-rehearsal-book`). La fixture
+nativa también procesa automáticamente cada efecto nuevo mediante ese consumidor,
+tras preparar el libro legible. No conecta con un libro compartido.
 
 Cada comando nuevo correcto crea un registro privado `shiftCoverageEffects` en la
 misma transacción que su recibo, asignación y eventual crédito ganado. El recibo
@@ -114,6 +116,26 @@ del efecto, tras verificar la proyección; se omiten destinatarios inactivos. Se
 comprueba la caducidad o sustitución de ofertas. Los reintentos y consumidores
 simultáneos no duplican avisos. No se crean eventos `notificationEvents` ni envíos
 FCM. El efecto privado conserva referencias al caso y su revisión; quedan pendientes
-la navegación específica desde el aviso, el envío real y la recuperación y activación
-gobernadas sobre libros compartidos. La reserva del ensayo no es un bloqueo de
+el envío real y la recuperación y activación gobernadas sobre libros compartidos. La reserva del ensayo no es un bloqueo de
 producción distribuido entre todos los escritores.
+
+## Abrir un aviso autenticado
+
+Ambas apps muestran avisos genéricos de la bandeja local del socio identificado.
+Abrir uno envía únicamente su identificador opaco. El backend comprueba destinatario,
+efecto completado y recibo vinculado, y devuelve la proyección mínima actual del caso.
+Un ayudante de reparto o compañero de mercado afectado puede consultarla sin obtener
+motivos administrativos, evidencias de crédito ni nuevos permisos de modificación.
+Copiar el identificador no concede acceso a otro socio; una sesión inactiva se rechaza.
+
+Un aviso de oferta antiguo abre su estado actual y nunca repite aquella acción.
+Actualizar conserva el ámbito autorizado del aviso. Volver atrás recarga el listado
+completo, incluso con una petición pendiente; una operación incierta conserva su
+reintento explícito y la navegación nunca la repite. Un cambio de sesión descarta
+las respuestas tardías y la intención de navegación.
+
+La fixture incluye otra ausencia de reparto el 08/09/2027 para comprobar que volver
+atrás restaura más casos. La aceptación iOS comprueba la vuelta antes y después de
+aceptar mercado. Los avisos de reparto se pueden consultar con `e@example.test`.
+El escenario registra identificadores de efectos completados y lotes del libro simulado,
+sin tokens ni datos personales. Esta navegación local no constituye envío push del sistema.

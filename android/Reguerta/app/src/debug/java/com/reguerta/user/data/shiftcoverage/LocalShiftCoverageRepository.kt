@@ -55,6 +55,17 @@ internal class LocalShiftCoverageRepository(
         return result
     }
 
+    override suspend fun readNotification(eventId: String, session: ShiftCoverageSession): ShiftCoverageSnapshot {
+        val result: ShiftCoverageSnapshot = post(json.encodeToString(Query(action = "notification", eventId = eventId)), session)
+        val reference = result.notification
+        val item = result.cases.singleOrNull()
+        if (result.schemaVersion != 1 || result.environment != "develop" || result.policyRevision != "hu084-provisional-v1" ||
+            result.memberId != session.memberId || reference?.eventId != eventId || reference.caseRevision <= 0 ||
+            item?.caseId != reference.caseId || item.revision < reference.caseRevision
+        ) throw ShiftCoverageFailure.InvalidResponse
+        return result
+    }
+
     override suspend fun execute(command: ShiftCoverageCommand, session: ShiftCoverageSession) {
         if (command.expectedRevision !in 0 until 9_007_199_254_740_991L) throw ShiftCoverageFailure.InvalidResponse
         val result: Receipt = post(json.encodeToString(command), session)
@@ -106,7 +117,7 @@ internal class LocalShiftCoverageRepository(
     }
 
     @Serializable
-    private data class Query(val action: String, val caseId: String?) {
+    private data class Query(val action: String, val caseId: String? = null, val eventId: String? = null) {
         val schemaVersion: Int = 1
         val environment: String = "develop"
     }

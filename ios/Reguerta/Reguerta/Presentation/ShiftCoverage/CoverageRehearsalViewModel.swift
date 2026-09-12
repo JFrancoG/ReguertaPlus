@@ -7,6 +7,7 @@ final class CoverageRehearsalViewModel {
     let coverage: ShiftCoverageViewModel
     var email = ""
     var password = ""
+    var casePath: [String] = []
     var draft: CoverageCommandDraft?
     private(set) var isSigningIn = false
     private(set) var loginFailed = false
@@ -46,10 +47,24 @@ final class CoverageRehearsalViewModel {
         revision &+= 1
         access.signOut()
         coverage.bind(nil)
+        casePath = []
         password = ""
         draft = nil
         isSigningIn = false
         loginFailed = false
+    }
+
+    func openNotification(_ eventId: String) async {
+        guard draft == nil else { return }
+        casePath = []
+        if let caseId = await coverage.openNotification(eventId) {
+            casePath = [caseId]
+        }
+    }
+
+    func reloadOverviewAfterNavigation() async {
+        guard casePath.isEmpty, coverage.session != nil else { return }
+        await coverage.refreshOverview()
     }
 
     var canOpen: Bool {

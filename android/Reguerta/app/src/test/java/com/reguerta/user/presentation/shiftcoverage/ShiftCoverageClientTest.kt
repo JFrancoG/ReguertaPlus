@@ -9,6 +9,7 @@ import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSession
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot
 import java.io.IOException
 import java.util.Base64
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -23,6 +24,82 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShiftCoverageClientTest {
+    @Test fun returningDuringRequestRestoresOverviewWithoutReplayingUncertainCommand() = runTest {
+        for (command in listOf(false, true)) {
+            val harness = Harness()
+            harness.model.openNotification("coverage-fixture-event")
+            harness.transport.loseFirstCommandResponse = command
+            harness.transport.whileRequestPending = {
+                harness.transport.whileRequestPending = null
+                yield()
+                assertTrue(harness.model.state.value.isBusy)
+                harness.model.refreshOverview()
+            }
+            if (command) harness.model.submit(harness.command) else harness.model.refresh()
+            assertNull(harness.model.state.value.snapshot?.notification)
+            assertNotNull(harness.model.state.value.snapshot)
+            assertFalse(harness.model.state.value.isBusy)
+            assertEquals(if (command) harness.command else null, harness.model.state.value.pendingCommand)
+            assertEquals(if (command) 1 else 0, harness.transport.commands.size)
+            harness.model.refresh()
+            assertNull(harness.model.state.value.snapshot?.notification)
+            assertEquals(if (command) 1 else 0, harness.transport.commands.size)
+        }
+    }
+
+    @Test fun notificationRefreshRetainsItsAuthorityUntilReturningToOverview() = runTest {
+        val harness = Harness()
+        assertEquals("case-a", harness.model.openNotification("coverage-fixture-event"))
+        harness.model.refresh()
+        assertEquals(ShiftCoverageSnapshot.Status.accepted, harness.model.state.value.snapshot?.cases?.first()?.status)
+        harness.model.refreshOverview()
+        assertEquals(ShiftCoverageSnapshot.Status.offered, harness.model.state.value.snapshot?.cases?.first()?.status)
+        assertTrue(harness.transport.commands.isEmpty())
+    }
+
+    @Test fun notificationLoadsCurrentCaseWithoutReplayingOldOffer() = runTest {
+        val harness = Harness()
+        harness.model.refresh()
+        assertEquals("case-a", harness.model.openNotification("coverage-fixture-event"))
+        assertEquals(ShiftCoverageSnapshot.Status.accepted, harness.model.state.value.snapshot?.cases?.first()?.status)
+        assertEquals(3L, harness.model.state.value.snapshot?.cases?.first()?.revision)
+        assertTrue(harness.transport.commands.isEmpty())
+    }
+
+    @Test fun mismatchedNotificationCannotEnableNavigation() = runTest {
+        for ((from, to) in listOf(
+            "coverage-fixture-event" to "another-event",
+            "\"caseRevision\": 2" to "\"caseRevision\": 4",
+            "\"memberId\": \"member-a\"" to "\"memberId\": \"someone-else\"",
+            "\"caseId\": \"case-a\",\n      \"caseRevision\"" to "\"caseId\": \"wrong-case\",\n      \"caseRevision\"",
+        )) {
+            val harness = Harness()
+            harness.transport.notification = harness.transport.notification.replace(from, to)
+            assertNull(harness.model.openNotification("coverage-fixture-event"))
+            assertNull(harness.model.state.value.snapshot)
+            assertEquals(ShiftCoverageFailure.InvalidResponse, harness.model.state.value.failure)
+        }
+    }
+
+    @Test fun notificationAfterSessionChangeCannotNavigateOrRestorePrivateState() = runTest {
+        val harness = Harness()
+        harness.transport.beforeResponse = { harness.bind(2) }
+        assertNull(harness.model.openNotification("coverage-fixture-event"))
+        assertNull(harness.model.state.value.snapshot)
+        assertEquals(2L, harness.model.state.value.session?.authorizationRevision)
+    }
+
+    @Test fun notificationDoesNotDiscardUncertainCommand() = runTest {
+        val harness = Harness()
+        harness.model.refresh()
+        harness.transport.loseFirstCommandResponse = true
+        harness.model.submit(harness.command)
+        val requests = harness.transport.requests
+        assertNull(harness.model.openNotification("coverage-fixture-event"))
+        assertEquals(requests, harness.transport.requests)
+        assertEquals(harness.command, harness.model.state.value.pendingCommand)
+    }
+
     @Test fun inboxAndAcceptanceUsePrivateProjectionAndReadBack() = runTest {
         val harness = Harness()
         harness.model.refresh()
@@ -186,19 +263,25 @@ class ShiftCoverageClientTest {
     private class Transport : CoverageHttpTransport {
         var overview = checkNotNull(javaClass.classLoader?.getResourceAsStream("shift-coverage-overview.json"))
             .bufferedReader().use { it.readText() }
+        var notification = checkNotNull(javaClass.classLoader?.getResourceAsStream("shift-coverage-notification.json"))
+            .bufferedReader().use { it.readText() }
         val commands = mutableListOf<String>()
         var requests = 0
         var loseFirstCommandResponse = false
         var failReadBack = false
         var wrongReceipt = false
         var rejectionStatus: Int? = null
+        var whileRequestPending: (suspend () -> Unit)? = null
         var beforeResponse: (() -> Unit)? = null
 
         override suspend fun post(url: String, token: String, body: String): CoverageHttpResponse {
             requests++
             val action = Json.parseToJsonElement(body).jsonObject.getValue("action").jsonPrimitive.content
+            whileRequestPending?.invoke()
             var response = overview
-            if (action != "overview" && action != "detail") {
+            if (action == "notification") {
+                response = notification
+            } else if (action != "overview" && action != "detail") {
                 commands += body
                 if (loseFirstCommandResponse && commands.size == 1) throw IOException("Lost response")
                 val operationId = if (wrongReceipt) "wrong-operation" else "accept-once"

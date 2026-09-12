@@ -302,3 +302,45 @@ run("admin absence choices retain inactive assigned owners before any case exist
     {memberId: "a", displayName: "Member a", offerCandidate: false});
   assert.deepEqual(await capture(), before);
 });
+
+run("notification reference resolves only for its recipient and returns current case state", async () => {
+  const {createProvisionalCoverageEffectsWorker} = require("../lib/shift-coverage-effects-worker.js");
+  const {createShiftSheetsConfig} = require("../lib/shift-sheets-config.js");
+  await open(); const offered = await offer();
+  const worker = createProvisionalCoverageEffectsWorker({
+    config: createShiftSheetsConfig({environment: "develop", workbooks: {develop: "coverage-rehearsal-book"}}),
+    sheets: {}, tabs: [], readWorkbookVersion: async () => "1", nowMillis: () => now});
+  try { await worker.drain(offered.value.data.operationId); } finally { await worker.close(); }
+  const response = await call("d", overview);
+  assert.equal(response.value.data.notifications.length, 1);
+  const {eventId} = response.value.data.notifications[0];
+  const query = {...overview, action: "notification", eventId};
+  assert.equal((await call("e", query)).value.code, "coverage_notification_unavailable");
+  assert.equal((await call("admin", query)).value.code, "coverage_notification_unavailable", "admin is not the recipient");
+  assert.equal((await call("d", {...query, caseId: "case"})).status, 400);
+  const before = await capture();
+  const selected = await call("d", query);
+  assert.equal(selected.status, 200); assert.equal(selected.value.data.notification.caseId, "case");
+  assert.equal(selected.value.data.cases[0].status, "offered");
+  assert.equal(JSON.stringify(selected.value).includes("Private absence reason"), false);
+  assert.deepEqual(await capture(), before, "opening a notification is read-only");
+  await execute("d", "accept");
+  const current = await call("d", query);
+  assert.equal(current.value.data.cases[0].status, "accepted", "old offer opens current state");
+  assert.equal(current.value.data.cases[0].revision, 3);
+  await ref("users", "d").update({isActive: false});
+  assert.equal((await call("d", query)).status, 403);
+});
+
+run("missing, pending and forged notification references cannot reveal a case", async () => {
+  await open(); const offered = await offer();
+  const effect = await read("shiftCoverageEffects", offered.value.data.operationId);
+  const eventId = effect.value.notifications[0].push.data.eventId;
+  const query = {...overview, action: "notification", eventId};
+  assert.equal((await call("d", query)).value.code, "coverage_notification_unavailable");
+  const inboxRef = ref("users", "d").collection("notificationInbox").doc(eventId);
+  await inboxRef.set({coverageOperationId: offered.value.data.operationId, type: "shift_updated", sentAt: new Date()});
+  assert.equal((await call("d", query)).value.code, "coverage_notification_unavailable", "no completed delivery");
+  await ref("shiftCoverageEffects", offered.value.data.operationId).update({state: "completed", deliveredTo: ["e"]});
+  assert.equal((await call("d", query)).value.code, "coverage_notification_unavailable", "not a delivered recipient");
+});

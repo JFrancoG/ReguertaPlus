@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 
 internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalAccess) : ViewModel() {
     val coverage = ShiftCoverageViewModel(access.repository)
+    var selectedCaseId by mutableStateOf<String?>(null)
     var email by mutableStateOf("")
     var password by mutableStateOf("")
     var isSigningIn by mutableStateOf(false)
@@ -51,6 +52,7 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
         revision++
         access.signOut()
         coverage.bind(null)
+        selectedCaseId = null
         password = ""
         draft = null
         isSigningIn = false
@@ -89,6 +91,19 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
         draft = null
         viewModelScope.launch { coverage.submit(command) }
     }
+    fun openNotification(eventId: String) {
+        if (draft != null) return
+        selectedCaseId = null
+        viewModelScope.launch {
+            coverage.openNotification(eventId)?.let { selectedCaseId = it }
+        }
+    }
+
+    fun showOverview() {
+        selectedCaseId = null
+        viewModelScope.launch { coverage.refreshOverview() }
+    }
+
     fun refresh() { viewModelScope.launch { coverage.refresh() } }
     fun retryPending() { viewModelScope.launch { coverage.retryPending() } }
 

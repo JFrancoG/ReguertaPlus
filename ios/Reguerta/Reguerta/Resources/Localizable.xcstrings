@@ -1,6 +1,60 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "coverage.notifications": {
+    "comment": "Local coverage rehearsal notification navigation",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Coverage notifications"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Avisos de cobertura"
+        }
+      }
+    }
+  },
+  "coverage.no_notifications": {
+    "comment": "Local coverage rehearsal notification navigation",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No coverage notifications."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No hay avisos de cobertura."
+        }
+      }
+    }
+  },
+  "coverage.notification_title": {
+    "comment": "Local coverage rehearsal notification navigation",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "View updated coverage"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Consultar cobertura actualizada"
+        }
+      }
+    }
+  },
   "coverage.absent": {
     "localizations": {
       "en": {

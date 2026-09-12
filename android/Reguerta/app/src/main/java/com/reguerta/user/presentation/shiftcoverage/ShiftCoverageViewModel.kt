@@ -25,6 +25,8 @@ internal data class ShiftCoverageState(
 internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepository) : ViewModel() {
     private val mutableState = MutableStateFlow(ShiftCoverageState())
     val state = mutableState.asStateFlow()
+    private var detailEventId: String? = null
+    private var overviewRequested = false
     private var generation = 0L
     private var receivedAtNanos = System.nanoTime()
 
@@ -34,26 +36,51 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
     fun bind(session: ShiftCoverageSession?) {
         if (state.value.session == session) return
         generation++
+        detailEventId = null
+        overviewRequested = false
         mutableState.value = ShiftCoverageState(session = session)
     }
 
-    suspend fun refresh() {
-        val session = state.value.session ?: return
+    suspend fun refresh() { load(detailEventId) }
+
+    suspend fun refreshOverview() {
+        overviewRequested = true
         if (state.value.isBusy) return
+        overviewRequested = false
+        detailEventId = null
+        load(null)
+    }
+
+    suspend fun openNotification(eventId: String): String? {
+        if (state.value.pendingCommand != null) return null
+        return load(eventId)
+    }
+
+    private suspend fun load(eventId: String?): String? {
+        val session = state.value.session ?: return null
+        if (state.value.isBusy) return null
         val owner = generation
         mutableState.value = state.value.copy(isBusy = true, snapshot = null, failure = null)
+        var selectedCaseId: String? = null
         try {
-            val result = repository.read(null, session)
-            if (owner != generation) return
+            val result = if (eventId == null) repository.read(null, session) else repository.readNotification(eventId, session)
+            if (owner != generation) return null
             currentCoroutineContext().ensureActive()
             receivedAtNanos = System.nanoTime()
             mutableState.value = state.value.copy(snapshot = result)
+            detailEventId = eventId
+            selectedCaseId = result.notification?.caseId
         } catch (error: Exception) {
-            if (owner != generation) return
-            record(error)
+            if (owner == generation) record(error)
         } finally {
             if (owner == generation) mutableState.value = state.value.copy(isBusy = false)
         }
+        if (owner != generation) return null
+        if (overviewRequested) {
+            refreshOverview()
+            return null
+        }
+        return selectedCaseId
     }
 
     suspend fun submit(command: ShiftCoverageCommand) {
@@ -81,7 +108,8 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
             // A read-back failure cannot turn an acknowledged command back into an uncertain write.
             mutableState.value = state.value.copy(pendingCommand = null)
             currentCoroutineContext().ensureActive()
-            val result = repository.read(null, session)
+            val eventId = detailEventId
+            val result = if (eventId == null) repository.read(null, session) else repository.readNotification(eventId, session)
             if (owner != generation) return
             currentCoroutineContext().ensureActive()
             receivedAtNanos = System.nanoTime()
@@ -95,6 +123,7 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
         } finally {
             if (owner == generation) mutableState.value = state.value.copy(isBusy = false)
         }
+        if (owner == generation && overviewRequested) refreshOverview()
     }
 
     private fun record(error: Exception) {

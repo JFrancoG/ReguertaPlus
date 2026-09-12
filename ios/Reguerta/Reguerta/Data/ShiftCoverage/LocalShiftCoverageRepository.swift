@@ -27,6 +27,20 @@ struct LocalShiftCoverageRepository: ShiftCoverageRepository {
         return result
     }
 
+    func readNotification(eventId: String, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot {
+        let query = Query(action: "notification", caseId: nil, eventId: eventId)
+        let result: ShiftCoverageSnapshot = try await post(query, session: session)
+        guard result.schemaVersion == 1, result.environment == "develop",
+              result.policyRevision == "hu084-provisional-v1", result.memberId == session.memberId,
+              let reference = result.notification, reference.eventId == eventId,
+              reference.caseRevision > 0, result.cases.count == 1,
+              result.cases.first?.caseId == reference.caseId,
+              (result.cases.first?.revision ?? 0) >= reference.caseRevision else {
+            throw ShiftCoverageFailure.invalidResponse
+        }
+        return result
+    }
+
     func execute(_ command: ShiftCoverageCommand, session: ShiftCoverageSession) async throws {
         guard (0..<9_007_199_254_740_991).contains(command.expectedRevision) else {
             throw ShiftCoverageFailure.invalidResponse
@@ -97,6 +111,7 @@ struct LocalShiftCoverageRepository: ShiftCoverageRepository {
         let environment = "develop"
         let action: String
         let caseId: String?
+        var eventId: String?
     }
 
     private struct Envelope<Value: Decodable>: Decodable {

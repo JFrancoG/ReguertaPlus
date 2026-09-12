@@ -1,5 +1,47 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Authenticated notification rehearsal checkpoint — 2026-09-13
+
+Commit `c672c76` (`feat(shifts): rehearse coverage effects`) is pushed. The next
+local block implements and validates equivalent iOS/Android inbox-to-case navigation. The server resolves only an authenticated
+recipient's delivered event, binding the completed effect and receipt to the
+current minimal case. Affected helpers/market companions can read that projection
+without administrative reasons, other members' credits or new command privileges.
+Old offers show current state; copied, forged, pending and inactive-user references
+are denied. Refresh retains notification scope, and Back restores the full overview
+even during a pending request, without replaying or discarding an uncertain command.
+Session changes invalidate late reads and navigation intent.
+
+The native fixture now seeds a readable in-memory workbook and drains new effects
+automatically. Native iOS market acceptance produced a completed effect and a third
+simulated workbook batch. A further September 8 delivery vacancy makes restoration
+of the full overview observable. No shared workbook, real Firebase project, FCM
+send or notificationEvents fan-out is involved.
+
+Validation:
+
+- Functions build/lint and 45 coverage units pass; 103 Firestore/Rules and 22 real
+  local Auth/HTTP scenarios pass, including recipient-reference authorization.
+- Android passes 501 unit tests, lint (no coverage findings; unrelated baseline
+  findings remain), and 23 connected tests on Pixel 8 Pro/API 35. The opt-in HU-083
+  Sheets acceptance class is excluded because its separate fixture is not running.
+  Runtime inspection confirms local notices open and refresh accepted delivery.
+- iOS passes 906 tests with one existing opt-in HU-083 skip on iPhone 17/iOS 26.5,
+  four UI-smoke journeys and explicit notification-to-market acceptance. That UI
+  journey verifies Back both before and after acceptance. The final pending-request
+  correction is additionally covered in both native unit suites, including response
+  loss without command replay. SwiftLint is clean.
+- Independent source review resolved recipient access, refresh scope and Back-during-
+  request findings. Xcode MCP did not expose this worktree, so the repository runner
+  and closed native xcresult bundles provide the build/test evidence; no new MCP
+  previews or VoiceOver acceptance are claimed. `git diff --check` is clean.
+
+Next grouped work: reconcile the remaining acceptance matrix and run the full release
+validation, grouping simulator/device, accessibility and role scenarios. Real OS push
+routing/dispatch, governed shared-writer recovery and entropy-provider selection
+still need their integrations and decisions; assembly ratification and HU-085 retain
+the live activation boundary. The story stays open; this is local integration evidence.
+
 ## Start checkpoint — 2026-09-12
 
 The maintainer requested grouped implementation on branch

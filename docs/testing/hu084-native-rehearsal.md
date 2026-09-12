@@ -33,7 +33,7 @@ composition with push disabled. Neither route is registered in Release.
 
 All fixture accounts use `local-fixture-password`:
 
-- `d@example.test`: open **Market**, accept the offer and inspect read-back.
+- `d@example.test`: open the generic notification, inspect **Market**, accept the offer and inspect read-back.
 - `admin@example.test`: open **Delivery**, confirm that coverage was completed.
 - `e@example.test`: inspect the resulting pending delivery credit.
 - `a@example.test`: original assigned member, available for absence forms.
@@ -66,8 +66,9 @@ TEST_RUNNER_COVERAGE_REHEARSAL=1 xcodebuild test \
 ```
 
 Run from `ios/Reguerta`. Recreate the fixture before repeating the acceptance test.
-The test skips in ordinary gates. No notification/Sheets effect, live deployment,
-VoiceOver approval or full device/layout matrix is implied by this rehearsal.
+The test skips in ordinary gates. The effects are verified against the simulated
+workbook and local inbox only; live deployment, VoiceOver approval and the complete
+device/layout matrix remain separate.
 
 After completing delivery as admin, run the AX5 credit read test separately with
 `TEST_RUNNER_COVERAGE_CREDIT_REHEARSAL=1` and
@@ -79,8 +80,8 @@ that environment flag. It records a persistent screenshot in the result bundle.
 
 `npm run test:shift-coverage:emulator` now includes the command-to-Sheets-to-inbox
 integration. It uses only the fixed Firestore demo and the existing in-memory
-Sheets API fixture (`coverage-rehearsal-book`). It does not drain the native UI
-fixture automatically or connect to a shared workbook.
+Sheets API fixture (`coverage-rehearsal-book`). The native fixture also drains each new effect automatically through this same
+worker, after seeding the readable workbook. It never connects to a shared workbook.
 
 Every successful new command writes a private `shiftCoverageEffects` record in the
 same transaction as its receipt, assignment and any earned credit. The receipt
@@ -110,6 +111,27 @@ Generic per-recipient inbox records are created atomically with effect completio
 only after verified projection; inactive recipients are skipped. Offers are checked
 for expiry/supersession. Replays and concurrent drains cannot duplicate inbox
 records. No `notificationEvents` fan-out event or FCM send is created. The private
-effect keeps case/revision references; case-specific notification navigation and
-actual dispatch remain pending, as does governed shared-workbook recovery/activation.
+effect keeps case/revision references. Actual dispatch and governed shared-workbook
+recovery/activation remain pending.
 The rehearsal reservation is not a production distributed lock across all writers.
+
+## Open an authenticated notification
+
+Both native routes list generic notices from the signed-in member's local inbox.
+Opening a notice sends only its opaque event ID. The backend checks the recipient,
+completed effect and bound command receipt, then returns the current minimal case
+projection. An affected delivery helper or market companion can inspect that case
+without gaining administrative reasons, credit evidence or new mutation privileges.
+A copied event ID does not grant another member access; inactive sessions are denied.
+
+An old offer notice opens the current accepted/resolved state and never repeats its
+old action. Refresh retains the verified notification scope. Back reloads the full
+list, including when a request is still pending; an uncertain command stays available
+for explicit retry and is never replayed by navigation. Session changes discard late
+responses and navigation intent.
+
+The fixture includes a further delivery vacancy on 2027-09-08 to check that Back
+restores more than the single notification case. iOS acceptance exercises Back both
+before and after market acceptance. Delivery notices can be inspected as `e@example.test`.
+The fixture reports completed effect IDs and simulated workbook batch counts, without
+tokens or personal data. This list is local rehearsal navigation, not OS push dispatch.

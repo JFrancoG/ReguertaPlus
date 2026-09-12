@@ -43,7 +43,8 @@ export const createShiftCoverageHttpHandler = (dependencies: Dependencies) =>
       if (Object.keys(request.query).length) {
         throw new HttpRequestError(400, "invalid_coverage_request", "Invalid");
       }
-      const query = ["overview", "detail"].includes(request.body?.action);
+      const query = ["overview", "detail", "notification"]
+        .includes(request.body?.action);
       let parsed;
       try {
         parsed = query ? parseShiftCoverageQuery(request.body) :

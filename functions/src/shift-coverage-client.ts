@@ -1,3 +1,5 @@
+import {readCoverageNotificationInbox, readCoverageNotificationReference} from
+  "./shift-coverage-notification.js";
 import {readShiftCoverageChoices} from "./shift-coverage-choices.js";
 import {Firestore} from "@google-cloud/firestore";
 import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
@@ -14,21 +16,25 @@ import {requireProvisionalCreditPublication} from
   "./shift-credit-publication.js";
 
 export type ShiftCoverageQuery = {schemaVersion: 1; environment: "develop"} &
-  ({action: "overview"} | {action: "detail"; caseId: string});
+  ({action: "overview"} | {action: "detail"; caseId: string} |
+    {action: "notification"; eventId: string});
 
 export const parseShiftCoverageQuery = (value: unknown): ShiftCoverageQuery => {
   const body = value as ShiftCoverageQuery;
   if (!body || typeof body !== "object" ||
       Object.getPrototypeOf(body) !== Object.prototype ||
       body.schemaVersion !== 1 || body.environment !== "develop" ||
-      !["overview", "detail"].includes(body.action) ||
+      !["overview", "detail", "notification"].includes(body.action) ||
       Object.keys(body).sort().join() !== (body.action === "overview" ?
         "action,environment,schemaVersion" :
-        "action,caseId,environment,schemaVersion")) {
+        body.action === "detail" ? "action,caseId,environment,schemaVersion" :
+          "action,environment,eventId,schemaVersion")) {
     return rejectCoverage("invalid_coverage_query");
   }
-  return body.action === "overview" ? {...body} :
-    {...body, caseId: coverageId(body.caseId)};
+  if (body.action === "overview") return {...body};
+  return body.action === "detail" ?
+    {...body, caseId: coverageId(body.caseId)} :
+    {...body, eventId: coverageId(body.eventId)};
 };
 
 const visibleCase = (
@@ -111,8 +117,13 @@ export const createShiftCoverageClientReader = (
       if (!(error instanceof HttpRequestError) ||
           error.code !== "shift_planning_maintenance") throw error;
     }
-    const cases = query.action === "detail" ? [await transaction.get(
-      db.doc(`${root}/shiftCoverageCases/${query.caseId}`))] :
+    const notification = query.action === "notification" ?
+      await readCoverageNotificationReference(
+        db, transaction, actor.memberId, query.eventId) : null;
+    const caseId = query.action === "detail" ? query.caseId :
+      notification?.caseId;
+    const cases = caseId ? [await transaction.get(
+      db.doc(`${root}/shiftCoverageCases/${caseId}`))] :
       (await transaction.get(db.collection(`${root}/shiftCoverageCases`)
         .orderBy("__name__").limit(251))).docs;
     if (cases.length > 250) return rejectCoverage("coverage_read_limit");
@@ -125,11 +136,15 @@ export const createShiftCoverageClientReader = (
           item.policyRevision !== SHIFT_COVERAGE_POLICY_REVISION) {
         return rejectCoverage("invalid_coverage_case");
       }
-      return visibleCase(item, actor) ? [{item, authority: stored?.authority}] :
-        [];
+      // A verified delivered reference also grants the affected colleague the
+      // same minimal projection, never the administrative absence context.
+      return visibleCase(item, actor) || notification?.caseId === item.id ?
+        [{item, authority: stored?.authority}] : [];
     });
-    if (query.action === "detail" && !visible.length) {
-      return rejectCoverage("coverage_case_unavailable");
+    if (caseId && (!visible.length || (notification &&
+      visible[0].item.revision < notification.caseRevision))) {
+      return rejectCoverage(notification ? "coverage_notification_unavailable" :
+        "coverage_case_unavailable");
     }
     const shifts = visible.length ? await transaction.getAll(...visible.map(
       ({item}) => db.doc(`${root}/shifts/${coverageId(item.shiftId)}`))) : [];
@@ -158,7 +173,10 @@ export const createShiftCoverageClientReader = (
         [item.absentUserId, item.acceptedUserId, item.offer?.userId]
           .filter((id): id is string => Boolean(id)))},
       now, Boolean(authority));
-    return {...choices, schemaVersion: 1, environment: "develop",
+    const notifications = await readCoverageNotificationInbox(
+      db, transaction, actor.memberId);
+    return {...choices, notifications, notification, schemaVersion: 1,
+      environment: "develop",
       memberId: actor.memberId,
       isAdmin: actor.admin, eligible: actor.eligible, serverTimeMillis: now,
       policyRevision: SHIFT_COVERAGE_POLICY_REVISION, policy: {...policy},

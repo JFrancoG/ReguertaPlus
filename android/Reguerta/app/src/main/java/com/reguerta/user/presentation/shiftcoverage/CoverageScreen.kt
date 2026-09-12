@@ -24,9 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -49,11 +47,11 @@ import kotlinx.coroutines.delay
 @Composable
 internal fun CoverageScreen(model: CoverageRehearsalViewModel) {
     val state by model.coverage.state.collectAsStateWithLifecycle()
-    var caseId by rememberSaveable { mutableStateOf<String?>(null) }
+    val caseId = model.selectedCaseId
     var tick by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(state.session) { caseId = null }
+    LaunchedEffect(state.session) { model.selectedCaseId = null }
     LaunchedEffect(Unit) { while (true) { delay(1000); tick++ } }
-    BackHandler(enabled = caseId != null && model.draft == null) { caseId = null }
+    BackHandler(enabled = caseId != null && model.draft == null) { model.showOverview() }
     val selected = state.snapshot?.cases?.firstOrNull { it.caseId == caseId }
     val actions = remember(state, selected, tick) { selected?.let { model.coverage.actions(it) }.orEmpty() }
     Scaffold { padding ->
@@ -71,7 +69,7 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel) {
                 item { CoverageLogin(model) }
             } else {
                 item {
-                    if (caseId != null) TextButton(onClick = { caseId = null }) { Text(stringResource(R.string.coverage_dismiss)) }
+                    if (caseId != null) TextButton(onClick = model::showOverview) { Text(stringResource(R.string.coverage_dismiss)) }
                     Button(onClick = { model.present(Action.open) }, enabled = model.canOpen, modifier = Modifier.testTag("coverage.open")) {
                         Text(stringResource(R.string.coverage_action_open))
                     }
@@ -89,10 +87,22 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel) {
                     }
                 }
                 if (caseId == null) {
+                    item { Text(stringResource(R.string.coverage_notifications), style = MaterialTheme.typography.titleLarge) }
+                    if (state.snapshot?.notifications?.isEmpty() == true) item { Text(stringResource(R.string.coverage_no_notifications)) }
+                    items(state.snapshot?.notifications.orEmpty(), key = { it.eventId }) { notification ->
+                        TextButton(onClick = { model.openNotification(notification.eventId) },
+                            enabled = !state.isBusy && state.pendingCommand == null,
+                            modifier = Modifier.testTag("coverage.notification.${notification.eventId}")) {
+                            Column {
+                                Text(stringResource(R.string.coverage_notification_title))
+                                Text(coverageDate(notification.sentAtMillis))
+                            }
+                        }
+                    }
                     item { Text(stringResource(R.string.coverage_cases), style = MaterialTheme.typography.titleLarge) }
                     if (state.snapshot?.cases?.isEmpty() == true) item { Text(stringResource(R.string.coverage_empty)) }
                     items(state.snapshot?.cases.orEmpty(), key = { it.caseId }) { item ->
-                        Card(onClick = { caseId = item.caseId }, modifier = Modifier.fillMaxWidth().testTag("coverage.case.${item.caseId}")) {
+                        Card(onClick = { model.selectedCaseId = item.caseId }, modifier = Modifier.fillMaxWidth().testTag("coverage.case.${item.caseId}")) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(stringResource(coverageKindLabel(item.type)), style = MaterialTheme.typography.titleMedium)
                                 Text(coverageShiftDate(item.scheduledAtMillis))

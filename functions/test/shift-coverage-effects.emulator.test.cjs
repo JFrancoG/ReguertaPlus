@@ -230,3 +230,19 @@ run("concurrent acceptance drains converge on the stored submission and one inbo
   assert.equal(content(sheet("turnos-reparto 2027-28"), 1, 1).stringValue, "Member d");
   assert.equal(content(sheet("turnos-reparto 2026-27"), 1, 5).stringValue, "Member d");
 });
+
+for (const type of ["delivery", "market"]) run(`delivered ${type} colleague reference grants only current minimal case projection`, async () => {
+  await ref("users", "b").update({authUid: "auth-b"});
+  await ref("authLinks", "auth-b").set({memberId: "b"});
+  const value = await accept(type); await worker.drain(value.operationId);
+  const entry = (await ref("users", "b").collection("notificationInbox").get()).docs[0];
+  assert.ok(entry);
+  const snapshot = await store.readClient({schemaVersion: 1, environment: "develop", action: "notification", eventId: entry.id}, {uid: "auth-b"});
+  assert.equal(snapshot.cases[0].status, "accepted");
+  assert.equal(snapshot.cases[0].administration, null);
+  assert.equal(snapshot.cases[0].offer, null);
+  assert.equal(snapshot.credits.length, 0);
+  assert.equal(JSON.stringify(snapshot).includes("Private reason"), false);
+  await ref("users", "b").update({isActive: false});
+  await assert.rejects(store.readClient({schemaVersion: 1, environment: "develop", action: "notification", eventId: entry.id}, {uid: "auth-b"}));
+});

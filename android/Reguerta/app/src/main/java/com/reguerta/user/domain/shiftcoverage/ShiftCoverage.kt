@@ -17,7 +17,15 @@ internal data class ShiftCoverageSnapshot(
     val reserves: List<Reserve>,
     val availableShifts: List<AvailableShift> = emptyList(),
     val members: List<MemberLabel> = emptyList(),
+    val notifications: List<Notification> = emptyList(),
+    val notification: NotificationReference? = null,
 ) {
+    @Serializable
+    data class Notification(val eventId: String, val sentAtMillis: Long)
+
+    @Serializable
+    data class NotificationReference(val eventId: String, val caseId: String, val caseRevision: Long)
+
     @Serializable
     enum class Kind { delivery, market }
     @Serializable
@@ -132,6 +140,8 @@ internal sealed class ShiftCoverageFailure : Exception() {
 
 internal interface ShiftCoverageRepository {
     suspend fun read(caseId: String?, session: ShiftCoverageSession): ShiftCoverageSnapshot
+    suspend fun readNotification(eventId: String, session: ShiftCoverageSession): ShiftCoverageSnapshot =
+        throw ShiftCoverageFailure.Unavailable
     suspend fun execute(command: ShiftCoverageCommand, session: ShiftCoverageSession)
 }
 

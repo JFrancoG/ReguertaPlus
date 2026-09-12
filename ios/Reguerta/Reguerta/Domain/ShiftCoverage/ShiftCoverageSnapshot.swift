@@ -12,6 +12,20 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
     let cases: [Case]
     let credits: [Credit]
     let reserves: [Reserve]
+    let notifications: [Notification]?
+    let notification: NotificationReference?
+
+    struct Notification: Decodable, Equatable, Identifiable {
+        let eventId: String
+        let sentAtMillis: Int64
+        var id: String { eventId }
+    }
+
+    struct NotificationReference: Decodable, Equatable {
+        let eventId: String
+        let caseId: String
+        let caseRevision: Int64
+    }
 
     enum Kind: String, Decodable { case delivery, market }
     enum Status: String, Decodable { case open, offered, accepted, completed, cancelled, failed }
@@ -116,5 +130,12 @@ enum ShiftCoverageFailure: Error, Equatable {
 @MainActor
 protocol ShiftCoverageRepository {
     func read(caseId: String?, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot
+    func readNotification(eventId: String, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot
     func execute(_ command: ShiftCoverageCommand, session: ShiftCoverageSession) async throws
+}
+
+extension ShiftCoverageRepository {
+    func readNotification(eventId: String, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot {
+        throw ShiftCoverageFailure.unavailable
+    }
 }

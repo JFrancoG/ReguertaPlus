@@ -4,6 +4,93 @@ import Testing
 
 @MainActor
 struct ShiftCoverageClientTests {
+    @Test(arguments: [false, true])
+    func returningDuringRequestRestoresOverviewWithoutReplayingUncertainCommand(_ command: Bool) async throws {
+        let harness = try CoverageClientHarness()
+        _ = await harness.model.openNotification("coverage-fixture-event")
+        harness.transport.loseFirstCommandResponse = command
+        harness.transport.whileRequestPending = {
+            harness.transport.whileRequestPending = nil
+            await Task.yield()
+            #expect(harness.model.isBusy)
+            await harness.model.refreshOverview()
+        }
+        if command {
+            await harness.model.submit(harness.command)
+        } else {
+            await harness.model.refresh()
+        }
+        #expect(harness.model.snapshot?.notification == nil)
+        #expect(harness.model.snapshot != nil)
+        #expect(!harness.model.isBusy)
+        #expect(harness.model.pendingCommand == (command ? harness.command : nil))
+        #expect(harness.transport.commands.count == (command ? 1 : 0))
+        await harness.model.refresh()
+        #expect(harness.model.snapshot?.notification == nil)
+        #expect(harness.transport.commands.count == (command ? 1 : 0))
+    }
+
+    @Test func notificationRefreshRetainsItsAuthorityUntilReturningToOverview() async throws {
+        let harness = try CoverageClientHarness()
+        #expect(await harness.model.openNotification("coverage-fixture-event") == "case-a")
+        await harness.model.refresh()
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+        await harness.model.refreshOverview()
+        #expect(harness.model.snapshot?.cases.first?.status == .offered)
+        #expect(harness.transport.commands.isEmpty)
+    }
+
+    @Test func notificationLoadsCurrentCaseWithoutReplayingTheOldOffer() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        let caseId = await harness.model.openNotification("coverage-fixture-event")
+        #expect(caseId == "case-a")
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+        #expect(harness.model.snapshot?.cases.first?.revision == 3)
+        #expect(harness.transport.commands.isEmpty)
+    }
+
+    @Test(arguments: ["event", "case", "revision", "member"])
+    func mismatchedNotificationCannotEnableNavigation(_ alteration: String) async throws {
+        let harness = try CoverageClientHarness()
+        let replacements = [
+            "event": ("coverage-fixture-event", "another-event"),
+            "case": (
+                "\"caseId\": \"case-a\",\n      \"caseRevision\"",
+                "\"caseId\": \"wrong-case\",\n      \"caseRevision\""
+            ),
+            "revision": ("\"caseRevision\": 2", "\"caseRevision\": 4"),
+            "member": ("\"memberId\": \"member-a\"", "\"memberId\": \"someone-else\"")
+        ]
+        let replacement = try #require(replacements[alteration])
+        harness.transport.notification = harness.transport.notification.replacingOccurrences(
+            of: replacement.0,
+            with: replacement.1
+        )
+        #expect(await harness.model.openNotification("coverage-fixture-event") == nil)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.model.failure == .invalidResponse)
+    }
+
+    @Test func notificationCompletionAfterSessionChangeCannotNavigateOrRestorePrivateState() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.beforeResponse = { harness.bind(revision: 2) }
+        #expect(await harness.model.openNotification("coverage-fixture-event") == nil)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.model.session?.authorizationRevision == 2)
+    }
+
+    @Test func notificationDoesNotDiscardAnUncertainCommand() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        harness.transport.loseFirstCommandResponse = true
+        await harness.model.submit(harness.command)
+        let requests = harness.transport.requests
+        #expect(await harness.model.openNotification("coverage-fixture-event") == nil)
+        #expect(harness.transport.requests == requests)
+        #expect(harness.model.pendingCommand == harness.command)
+    }
+
     @Test func inboxAndAcceptanceUseThePrivateProjectionAndReadBack() async throws {
         let harness = try CoverageClientHarness()
         await harness.model.refresh()

@@ -5,6 +5,7 @@ const {getAuth} = require("firebase-admin/auth");
 const {createProvisionalCreditFirestore} = require("../lib/shift-credit-publication.js");
 const {startProvisionalShiftCoverageServer} = require("../lib/shift-coverage-local-server.js");
 const {materialize, initialTime, activeDigest} = require("./shift-coverage-fixture.cjs");
+const {createCoverageWorkbookFixture} = require("./shift-coverage-workbook-fixture.cjs");
 const projectId = "demo-reguerta-hu084-coverage", root = "develop/plus-collections";
 
 const main = async () => {
@@ -38,6 +39,7 @@ const main = async () => {
     ["shift_market_20270904", "market", "2027-09-04", ["a", "b", "c"], null],
   ]) await ref("shifts", id).set(materialize(id, type, date, assigned, helper));
   let now = initialTime, sequence = 0;
+  const {worker, sheets} = await createCoverageWorkbookFixture(db, () => now);
   const server = await startProvisionalShiftCoverageServer({nowMillis: () => now, maximumOfferWindowMillis: 86400000,
     selectionPolicy: {version: "fifo-signup-v1", volunteerWindowMillis: 3600000}}, 8799);
   const command = async (actor, caseId, action, extra = {}) => {
@@ -49,6 +51,7 @@ const main = async () => {
       operationId: `native-seed-${++sequence}`, expectedRevision: item?.revision ?? 0,
       expectedShiftRevision: shift.documentRevision, action, ...extra})});
     if (!response.ok) throw new Error(`Seed action failed: ${JSON.stringify(await response.json())}`);
+    await worker.drain((await response.json()).data.operationId);
   };
   await command("a", "native-delivery", "open", {shiftId: "shift_delivery_20270901", absentUserId: "a", reason: "Ensayo de reparto"});
   await command("admin", "native-delivery", "offer", {userId: "e", reason: "Acuerdo de prueba", expiresAtMillis: now + 3600000});
@@ -56,11 +59,21 @@ const main = async () => {
   now = Date.parse("2027-09-02T10:00:00Z");
   await command("a", "native-market", "open", {shiftId: "shift_market_20270904", absentUserId: "a", reason: "Ensayo de mercado"});
   await command("admin", "native-market", "offer", {userId: "d", reason: "Acuerdo de prueba", expiresAtMillis: now + 86400000});
+  await command("c", "native-next-delivery", "open", {shiftId: "shift_delivery_20270908", absentUserId: "c", reason: "Otra ausencia de prueba"});
   process.stdout.write("Native rehearsal ready on 127.0.0.1:8799; virtual time 2027-09-02T10:00:00Z\n");
+  let queue = Promise.resolve();
+  const unsubscribe = db.collection(`${root}/shiftCoverageEffects`).where("state", "==", "pending").onSnapshot((snapshot) => {
+    for (const change of snapshot.docChanges().filter((item) => item.type === "added")) {
+      queue = queue.then(async () => {
+        const result = await worker.drain(change.doc.id);
+        process.stdout.write(`Local effect ${change.doc.id}: ${result.state}; workbook batches ${sheets.mutations.length}\n`);
+      }).catch((error) => process.stderr.write(`Local effect retained: ${error.code ?? "unavailable"}\n`));
+    }
+  }, () => process.stderr.write("Local effects listener stopped\n"));
   let closing = false;
   const close = async () => {
     if (closing) return; closing = true;
-    await server.close(); await db.terminate(); await deleteApp(app);
+    unsubscribe(); await server.close(); await queue; await worker.close(); await db.terminate(); await deleteApp(app);
   };
   process.once("SIGINT", close); process.once("SIGTERM", close);
 };

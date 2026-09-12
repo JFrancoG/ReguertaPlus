@@ -4,7 +4,7 @@ struct CoverageRehearsalView: View {
     @Bindable var model: CoverageRehearsalViewModel
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $model.casePath) {
             List {
                 Section {
                     Text(CoverageCopy.text("local_note"))
@@ -25,12 +25,27 @@ struct CoverageRehearsalView: View {
                     }
                     CoverageFeedbackSection(model: model.coverage)
                     if let snapshot = model.coverage.snapshot {
+                        Section(CoverageCopy.text("notifications")) {
+                            if snapshot.notifications?.isEmpty != false {
+                                Text(CoverageCopy.text("no_notifications"))
+                            }
+                            ForEach(snapshot.notifications ?? []) { notification in
+                                Button {
+                                    Task { await model.openNotification(notification.eventId) }
+                                } label: {
+                                    VStack(alignment: .leading) {
+                                        Text(CoverageCopy.text("notification_title"))
+                                        Text(CoverageCopy.date(notification.sentAtMillis))
+                                    }
+                                }
+                                .disabled(model.coverage.isBusy || model.coverage.pendingCommand != nil)
+                                .accessibilityIdentifier("coverage.notification.\(notification.eventId)")
+                            }
+                        }
                         Section(CoverageCopy.text("cases")) {
                             if snapshot.cases.isEmpty { Text(CoverageCopy.text("empty")) }
                             ForEach(snapshot.cases) { item in
-                                NavigationLink {
-                                    CoverageCaseDetailView(model: model, caseId: item.caseId)
-                                } label: {
+                                NavigationLink(value: item.caseId) {
                                     VStack(alignment: .leading) {
                                         Text(CoverageCopy.text(item.type.rawValue)).font(.headline)
                                         Text(CoverageCopy.shiftDate(item.scheduledAtMillis))
@@ -45,6 +60,11 @@ struct CoverageRehearsalView: View {
                     }
                 }
             }
+            .navigationDestination(for: String.self) { caseId in
+                CoverageCaseDetailView(model: model, caseId: caseId)
+            }
+            .onChange(of: model.casePath) { Task { await model.reloadOverviewAfterNavigation() } }
+            .onChange(of: model.coverage.session) { model.casePath = [] }
             .navigationTitle(CoverageCopy.text("title"))
             .sheet(item: $model.draft) { draft in
                 CoverageCommandSheet(model: model, draft: draft)

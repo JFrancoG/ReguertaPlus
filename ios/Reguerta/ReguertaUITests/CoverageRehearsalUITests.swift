@@ -20,8 +20,15 @@ final class CoverageRehearsalUITests: XCTestCase {
         password.tap()
         password.typeText("local-fixture-password")
         app.buttons["coverage.signIn"].tap()
-        let row = app.buttons["coverage.case.native-market"]
+        let row = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@", "coverage.notification."
+        )).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 15), app.debugDescription)
+        row.tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let remaining = app.buttons["coverage.case.native-next-delivery"]
+        XCTAssertTrue(remaining.waitForExistence(timeout: 10), app.debugDescription)
+        for _ in 0..<6 where !row.isHittable { app.swipeDown() }
         row.tap()
         let accept = app.buttons["coverage.action.accept"]
         for _ in 0..<6 where !accept.isHittable { app.swipeUp() }
@@ -34,6 +41,10 @@ final class CoverageRehearsalUITests: XCTestCase {
         waitForExpectations(timeout: 10)
         XCTAssertFalse(app.buttons["coverage.action.accept"].exists)
         XCTAssertFalse(app.staticTexts["coverage.failure"].exists)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let other = app.buttons["coverage.case.native-next-delivery"]
+        for _ in 0..<6 where !other.isHittable { app.swipeUp() }
+        XCTAssertTrue(other.waitForExistence(timeout: 10), app.debugDescription)
     }
 
     @MainActor func testLocalEarnedCreditAtAccessibilitySize() throws {

@@ -54,24 +54,33 @@ final class CoverageClientHarness {
 @MainActor
 final class CoverageClientTransport: HTTPDataLoading {
     var overview: String
+    var notification: String = ""
     var commands: [Data] = []
     var requests = 0
     var loseFirstCommandResponse = false
     var failReadBack = false
     var wrongReceipt = false
     var rejectionStatus: Int?
+    var whileRequestPending: (@MainActor () async -> Void)?
     var beforeResponse: (@MainActor () -> Void)?
 
     init(overview: String) {
         self.overview = overview
+        if let url = Bundle(for: CoverageClientBundle.self)
+            .url(forResource: "shift-coverage-notification", withExtension: "json") {
+            notification = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        }
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requests += 1
         let body = try #require(request.httpBody)
         let action = try JSONDecoder().decode(Action.self, from: body).action
+        await whileRequestPending?()
         var response = overview
-        if action != "overview" && action != "detail" {
+        if action == "notification" {
+            response = notification
+        } else if action != "overview" && action != "detail" {
             commands.append(body)
             if loseFirstCommandResponse && commands.count == 1 {
                 throw URLError(.timedOut)
