@@ -15,6 +15,8 @@ internal data class ShiftCoverageSnapshot(
     val cases: List<Case>,
     val credits: List<Credit>,
     val reserves: List<Reserve>,
+    val availableShifts: List<AvailableShift> = emptyList(),
+    val members: List<MemberLabel> = emptyList(),
 ) {
     @Serializable
     enum class Kind { delivery, market }
@@ -53,6 +55,11 @@ internal data class ShiftCoverageSnapshot(
         val volunteered: Boolean,
         val updatedAtMillis: Long,
         val administration: Administration?,
+        val openedByMe: Boolean = false,
+        val canResumeAdmin: Boolean = false,
+        val hasVolunteered: Boolean = false,
+        val drawCommitted: Boolean = false,
+        val drawAvailableAtMillis: Long? = null,
     )
 
     @Serializable
@@ -69,6 +76,19 @@ internal data class ShiftCoverageSnapshot(
         val state: CreditState,
         val earnedAtMillis: Long,
         val consumedAtMillis: Long?,
+    )
+
+    @Serializable
+    data class MemberLabel(val memberId: String, val displayName: String, val offerCandidate: Boolean = false)
+
+    @Serializable
+    data class AvailableShift(
+        val shiftId: String,
+        val type: Kind,
+        val scheduledAtMillis: Long,
+        val shiftRevision: Long,
+        val writable: Boolean,
+        val assignedUserIds: List<String>,
     )
 
     @Serializable
@@ -113,4 +133,11 @@ internal sealed class ShiftCoverageFailure : Exception() {
 internal interface ShiftCoverageRepository {
     suspend fun read(caseId: String?, session: ShiftCoverageSession): ShiftCoverageSnapshot
     suspend fun execute(command: ShiftCoverageCommand, session: ShiftCoverageSession)
+}
+
+
+internal interface CoverageRehearsalAccess {
+    val repository: ShiftCoverageRepository
+    suspend fun signIn(email: String, password: String): ShiftCoverageSession
+    fun signOut()
 }

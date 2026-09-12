@@ -67,7 +67,7 @@ beforeEach(async () => {
     assert.equal(JSON.parse(Buffer.from(result.idToken.split(".")[1], "base64url")).aud, projectId);
     tokens[id] = result.idToken;
     await ref("authLinks", `auth-${id}`).set({memberId: id});
-    await ref("users", id).set({authUid: `auth-${id}`, isActive: true, isCommonPurchaseManager: false,
+    await ref("users", id).set({displayName: `Member ${id}`, authUid: `auth-${id}`, isActive: true, isCommonPurchaseManager: false,
       roles: id === "admin" ? ["member", "admin"] : ["member"]});
   }
   for (const [id, date, assigned, helper] of [["shift_delivery_20270825", "2027-08-25", ["b"], "a"],
@@ -121,7 +121,9 @@ run("selection views show own reserve/volunteer data, never candidate snapshots,
   }
   assert.deepEqual(await capture(), before);
   await execute("e", "withdrawVolunteer");
-  assert.equal((await call("e", detail())).value.data.cases[0].volunteered, false);
+  const withdrawn = (await call("e", detail())).value.data.cases[0];
+  assert.equal(withdrawn.volunteered, false);
+  assert.equal(withdrawn.hasVolunteered, true);
 });
 
 for (const drift of ["inactive", "unlink", "wrongLink", "authDisabled", "authDeleted", "authRevoked"]) {
@@ -256,5 +258,47 @@ run("loopback HTTP enforces route, JSON, method, bounded body and no-cache error
     assert.equal(response.status, status); assert.equal(response.headers.get("cache-control"), "no-store");
     assert.equal((await response.json()).ok, false);
   }
+  assert.deepEqual(await capture(), before);
+});
+
+run("form choices expose owned lead slots and visible names, with eligible admin candidates and no writes", async () => {
+  await open(); await offer();
+  await ref("users", "e").update({isActive: false});
+  const before = await capture();
+  const member = (await call("a", overview)).value.data;
+  assert.deepEqual(member.availableShifts.map((s) => s.shiftId), ["shift_delivery_20270901", "shift_market_20270904"]);
+  assert.ok(member.availableShifts.every((s) => s.assignedUserIds.join() === "a"));
+  assert.deepEqual(member.members, [{memberId: "a", displayName: "Member a", offerCandidate: false}]);
+  assert.equal(member.cases[0].openedByMe, true);
+  const offered = (await call("d", overview)).value.data;
+  assert.deepEqual(offered.members.map((m) => m.memberId).sort(), ["a", "d"]);
+  const admin = (await call("admin", overview)).value.data;
+  assert.deepEqual(admin.members.filter((m) => m.offerCandidate).map((m) => m.memberId).sort(), ["a", "admin", "b", "c", "d"]);
+  assert.ok(admin.members.every((m) => Object.keys(m).sort().join() === "displayName,memberId,offerCandidate"));
+  assert.deepEqual(await capture(), before);
+  await ref("users", "a").update({isActive: false});
+  const inactive = (await call("admin", overview)).value.data.members.find((m) => m.memberId === "a");
+  assert.equal(inactive.displayName, "Member a"); assert.equal(inactive.offerCandidate, false);
+});
+
+run("maintenance makes new absence choices read-only", async () => {
+  const state = await read("shiftPlanningState", "current");
+  await ref("shiftPlanningState", "current").set({...state, maintenanceStatus: "closed",
+    intakeBarrier: {revision: "closed", digest: digest("closed"), verifiedAtMillis: now}});
+  const before = await capture();
+  const value = (await call("a", overview)).value.data;
+  assert.ok(value.availableShifts.length > 0);
+  assert.ok(value.availableShifts.every((s) => !s.writable));
+  assert.deepEqual(await capture(), before);
+});
+
+run("admin absence choices retain inactive assigned owners before any case exists", async () => {
+  await ref("users", "a").update({isActive: false});
+  const before = await capture();
+  const value = (await call("admin", overview)).value.data;
+  assert.deepEqual(value.cases, []);
+  assert.ok(value.availableShifts.some((s) => s.assignedUserIds.includes("a")));
+  assert.deepEqual(value.members.find((m) => m.memberId === "a"),
+    {memberId: "a", displayName: "Member a", offerCandidate: false});
   assert.deepEqual(await capture(), before);
 });

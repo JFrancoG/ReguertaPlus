@@ -1,3 +1,4 @@
+import {readShiftCoverageChoices} from "./shift-coverage-choices.js";
 import {Firestore} from "@google-cloud/firestore";
 import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
@@ -63,7 +64,14 @@ export const projectShiftCoverageCase = (input: {
     volunteerClosesAtMillis: value.selection?.volunteerClosesAtMillis ?? null,
     volunteered: value.selection?.volunteers.some((item) =>
       item.userId === memberId && !item.withdrawn) ?? false,
+    hasVolunteered: value.selection?.volunteers.some((item) =>
+      item.userId === memberId) ?? false,
+    drawCommitted: Boolean(value.selection?.draw),
+    drawAvailableAtMillis: value.selection?.draw?.availableAtMillis ?? null,
     updatedAtMillis: value.updatedAtMillis,
+    openedByMe: value.openedByUserId === memberId,
+    canResumeAdmin: Boolean(admin && value.status === "cancelled" &&
+      value.selection?.draw),
     administration: admin ? {openedByUserId: value.openedByUserId,
       reason: value.reason,
       volunteerCount: value.selection?.volunteers.filter((item) =>
@@ -145,7 +153,13 @@ export const createShiftCoverageClientReader = (
     if (credits.size > 250 || reserves.size > 2) {
       return rejectCoverage("coverage_read_limit");
     }
-    return {schemaVersion: 1, environment: "develop", memberId: actor.memberId,
+    const choices = await readShiftCoverageChoices(
+      db, transaction, {...actor, visibleMemberIds: projected.flatMap((item) =>
+        [item.absentUserId, item.acceptedUserId, item.offer?.userId]
+          .filter((id): id is string => Boolean(id)))},
+      now, Boolean(authority));
+    return {...choices, schemaVersion: 1, environment: "develop",
+      memberId: actor.memberId,
       isAdmin: actor.admin, eligible: actor.eligible, serverTimeMillis: now,
       policyRevision: SHIFT_COVERAGE_POLICY_REVISION, policy: {...policy},
       cases: projected,

@@ -26,6 +26,10 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
     private val mutableState = MutableStateFlow(ShiftCoverageState())
     val state = mutableState.asStateFlow()
     private var generation = 0L
+    private var receivedAtNanos = System.nanoTime()
+
+    val nowMillis: Long
+        get() = (state.value.snapshot?.serverTimeMillis ?: 0) + (System.nanoTime() - receivedAtNanos) / 1_000_000
 
     fun bind(session: ShiftCoverageSession?) {
         if (state.value.session == session) return
@@ -42,6 +46,7 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
             val result = repository.read(null, session)
             if (owner != generation) return
             currentCoroutineContext().ensureActive()
+            receivedAtNanos = System.nanoTime()
             mutableState.value = state.value.copy(snapshot = result)
         } catch (error: Exception) {
             if (owner != generation) return
@@ -79,6 +84,7 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
             val result = repository.read(null, session)
             if (owner != generation) return
             currentCoroutineContext().ensureActive()
+            receivedAtNanos = System.nanoTime()
             mutableState.value = state.value.copy(snapshot = result)
         } catch (error: Exception) {
             if (owner != generation) return

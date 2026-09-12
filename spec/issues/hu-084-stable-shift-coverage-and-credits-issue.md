@@ -14,29 +14,32 @@ The authenticated loopback API was committed and pushed as `70a1778`. Its
 verification includes 45 coverage/HTTP unit tests, 31 security tests, 294 planning
 regressions, 87 Firestore/Rules tests and 17 HTTP/Auth/Firestore emulator scenarios.
 
-The current checkpoint adds equivalent Android/iOS typed local repositories and
-presentation operation owners. Both platforms fence token retrieval, HTTP results
-and presentation cleanup to the captured UID/member/authorization revision. An
-uncertain command keeps its exact operation/revisions for explicit replay; a valid
-acknowledgement followed by failed read-back never reissues the mutation. Definitive
-rejections clear stale state, and revoked/forbidden sessions detach private data.
-Only fixed-demo Auth-emulator credentials may reach loopback; the adapters are
-excluded from Release and absent from the live app graph. A shared JSON fixture
-exercises the repository-to-ViewModel pipeline on both platforms.
+Commit `99c5777` published the equivalent native repositories and session owners.
+The current working-tree checkpoint connects Debug-only member/admin screens to
+isolated Auth-emulator sessions, with absence and offer forms, selection actions,
+completion/failure, own credits/reserves, localized copy and explicit uncertain
+operation retry. Both platforms revalidate session, revision, action and expiry
+before confirming. Minimal names distinguish market vacancies and retain inactive
+future owners for admin absence forms without offering them as replacements.
 
-Validation: Android 490 unit tests pass; lint completes with 136 warnings and two
-hints in unchanged files, none in the new coverage code. iOS `fast-unit-v1` passes
-893 tests with one existing opt-in HU-083 emulator test skipped, on iPhone 17/iOS
-26.5; SwiftLint reports zero violations. Independent architecture/style review
-corrected an unstable byte-order JSON comparison and checked session/cancellation/
-replay semantics. No active UI route changed or real native HTTP journey is claimed.
+Validation: Functions lint/build, 45 unit tests and 20 real Auth/Firestore emulator
+scenarios pass. Android passes 495 unit tests and 23 connected tests on Pixel 8 Pro
+API 35; lint passes with no coverage diagnostics and existing unrelated findings.
+iOS iPhone 17/iOS 26.5 passes 900 tests, one existing HU-083 opt-in skip and the four
+UI-smoke journeys; SwiftLint is clean. Explicit native HTTP tests demonstrated iOS
+market acceptance and own-credit read at AX5. Android UI confirmed past delivery
+completion and the replacement's earned credit. Direct local Firestore read-back
+confirmed market accepted rev3, delivery completed rev4 and one pending credit.
+Independent architecture/UI reviews closed all actionable findings; VoiceOver and
+the full adaptive-device matrix remain open.
 
-Next grouped step: compose an isolated emulator-auth rehearsal session and connect
-equivalent member/admin screens, localized actions/deadlines, accessibility and
-native HTTP/UI journeys. Notification/Sheets effects, real entropy, assembly
-ratification and deployment remain pending. No live endpoint, production write or
-notification dispatch was introduced. The story remains open. See the spec and
-`plan.md` for the current client contract and evidence boundary.
+Rehearsal instructions: `docs/testing/hu084-native-rehearsal.md` and its Spanish
+counterpart. The next grouped step connects coverage effects through existing
+HU-083 Sheets and notification infrastructure and reconciles the end-to-end result.
+Real entropy selection, assembly ratification, full release acceptance and HU-085
+activation remain pending. No live endpoint, shared Firebase/Sheets write or
+notification dispatch was introduced. The story remains open. See `plan.md` for
+the current contract, validation details and evidence boundaries.
 
 The operational plan groups work into three complete outcomes: coverage backend
 with persistence/security/tests; credit/membership/atomic-planner integration;

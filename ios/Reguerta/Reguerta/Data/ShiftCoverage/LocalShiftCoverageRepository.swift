@@ -11,10 +11,17 @@ struct LocalShiftCoverageRepository: ShiftCoverageRepository {
     private let loader: any HTTPDataLoading
 
     func read(caseId: String?, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot {
+        let result = try await resolveMember(caseId: caseId, session: session)
+        guard result.memberId == session.memberId else { throw ShiftCoverageFailure.invalidResponse }
+        return result
+    }
+
+    /// Bootstrap resolves the canonical member from Auth; the provisional session must still own the request.
+    func resolveMember(caseId: String? = nil, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot {
         let query = Query(action: caseId == nil ? "overview" : "detail", caseId: caseId)
         let result: ShiftCoverageSnapshot = try await post(query, session: session)
         guard result.schemaVersion == 1, result.environment == "develop",
-              result.policyRevision == "hu084-provisional-v1", result.memberId == session.memberId else {
+              result.policyRevision == "hu084-provisional-v1", !result.memberId.isEmpty else {
             throw ShiftCoverageFailure.invalidResponse
         }
         return result
@@ -124,7 +131,7 @@ extension LocalShiftCoverageRepository {
         port: Int,
         currentSession: @escaping @MainActor () -> ShiftCoverageSession?,
         tokenProvider: @escaping @MainActor () async throws -> String,
-        loader: any HTTPDataLoading = LocalCoverageDataLoader()
+        loader: any HTTPDataLoading = CoverageLoopbackDataLoader()
     ) throws {
         guard (1...65535).contains(port), let endpoint = URL(string: "http://127.0.0.1:\(port)/coverage") else {
             throw ShiftCoverageFailure.localOnly
@@ -137,7 +144,7 @@ extension LocalShiftCoverageRepository {
 }
 
 @MainActor
-private struct LocalCoverageDataLoader: HTTPDataLoading {
+struct CoverageLoopbackDataLoader: HTTPDataLoading {
     private let session = URLSession(configuration: .ephemeral)
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {

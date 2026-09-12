@@ -851,3 +851,61 @@ Validation for this native checkpoint:
   rehearsal through the existing real-auth application graph.
 - No Functions code changed after `70a1778`, so its already-recorded backend suites
   were not repeated. No shared Firebase/Sheets writes or notification dispatch.
+
+
+## Native UI rehearsal checkpoint — 2026-09-12
+
+Commit `99c5777` delivered the preceding native repositories/session block. The
+current working tree connects member and administrator screens through separate,
+Debug-only Auth-emulator sessions on both platforms. Tokens remain memory-only;
+canonical membership is resolved by the server. iOS selects its existing test
+composition; Android launches a separate process without the normal Firebase
+provider or MainActivity graph. No Release route or live endpoint is enabled.
+
+The grouped UI includes inbox/detail, absence forms, offer responses, volunteer
+withdrawal, reserve/draw/manual actions, completion/failure, credits/reserves,
+localized errors and deadlines, explicit uncertain-operation retry and logout.
+Form confirmation rechecks session, current revisions, action availability and
+expiry. Names distinguish concurrent market absences. Future inactive owners remain
+selectable as absent members for admins while never becoming offer candidates.
+Selections and accounting remain backend-owned; no extra domain workflow layer was
+introduced. iOS date/time and Android minute inputs share the same deadline contract.
+
+The bounded read model adds future assigned slots and minimal names, with eligibility
+hints only for administration. Existing transactions still authorize reads and
+commands. It never publishes private candidate snapshots, exclusions, emails or
+Auth UIDs. The server supports up to 500 future slots and 500 member labels, with
+an explicit limit error rather than truncation.
+
+Reproducible setup and accounts: [native rehearsal](../../../docs/testing/hu084-native-rehearsal.md)
+and [Spanish guide](../../../docs-es/testing/hu084-ensayo-nativo.md). The fixture
+seeds only the fixed demo emulators and supplies a future market offer plus an
+accepted past delivery. Native runtime demonstrated iOS member acceptance and
+Android admin completion followed by the replacement's own earned-credit read.
+Direct Firestore read-back confirmed market accepted revision 3, delivery completed
+revision 4 and exactly one pending delivery credit for the replacement.
+
+Validation:
+
+- Functions lint/build and 45 unit scenarios pass. The final Auth/Firestore suite
+  passes 20 scenarios, including inactive-owner and choice privacy regressions.
+- Android: 495 unit tests, zero failures/skips; 23 connected tests pass on Pixel 8 Pro
+  API 35. The separately opt-in HU-083 Sheets fixture was explicitly excluded after
+  its missing-fixture assumption was reported as a failure by the runner. An initial
+  UI automation collision was resolved by running the connected gate without any
+  concurrent layout inspector. Lint passes with no diagnostics in coverage files;
+  pre-existing unrelated diagnostics remain.
+- iOS iPhone 17 / iOS 26.5: 900 passed, one existing HU-083 opt-in skip, zero failures;
+  four UI-smoke tests pass. The explicit local HTTP acceptance test and own-credit read in AX5 also pass.
+  The AX5 screenshot was inspected: names/state/credit wrap without truncation.
+  Closed native result bundles were inspected. SwiftLint has zero violations.
+- Independent read-only architecture/UI reviews corrected draft expiry/session
+  validation, withdrawn volunteer and committed draw affordances, pending-operation
+  guards, inactive-owner labels and deterministic previews. The design review found
+  no need for more abstraction layers.
+
+The next grouped integration is coverage effects through existing HU-083 Sheets and
+notification infrastructure, with cross-platform reconciliation/regression. Complete
+assistive-technology/device acceptance, real entropy selection, assembly ratification,
+full release acceptance and HU-085 activation remain open. No shared Firebase/Sheets
+writes, deployment, notification dispatch or production mutation occurred.

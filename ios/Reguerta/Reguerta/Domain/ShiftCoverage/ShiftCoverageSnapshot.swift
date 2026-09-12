@@ -6,6 +6,8 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
     let eligible: Bool
     let serverTimeMillis: Int64
     let policyRevision: String
+    let availableShifts: [AvailableShift]?
+    let members: [MemberLabel]?
     let policy: Policy
     let cases: [Case]
     let credits: [Credit]
@@ -41,6 +43,11 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
         let volunteered: Bool
         let updatedAtMillis: Int64
         let administration: Administration?
+        let openedByMe: Bool?
+        let canResumeAdmin: Bool?
+        let hasVolunteered: Bool?
+        let drawCommitted: Bool?
+        let drawAvailableAtMillis: Int64?
 
         var id: String { caseId }
     }
@@ -64,6 +71,23 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
         let state: CreditState
         let earnedAtMillis: Int64
         let consumedAtMillis: Int64?
+    }
+
+    struct MemberLabel: Decodable, Equatable, Identifiable {
+        let memberId: String
+        let displayName: String
+        let offerCandidate: Bool?
+        var id: String { memberId }
+    }
+
+    struct AvailableShift: Decodable, Equatable, Identifiable {
+        let shiftId: String
+        let type: Kind
+        let scheduledAtMillis: Int64
+        let shiftRevision: Int64
+        let writable: Bool
+        let assignedUserIds: [String]
+        var id: String { shiftId }
     }
 
     struct Reserve: Decodable, Equatable {

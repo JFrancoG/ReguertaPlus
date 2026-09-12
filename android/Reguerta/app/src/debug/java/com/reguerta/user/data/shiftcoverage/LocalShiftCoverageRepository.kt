@@ -41,10 +41,16 @@ internal class LocalShiftCoverageRepository(
     }
 
     override suspend fun read(caseId: String?, session: ShiftCoverageSession): ShiftCoverageSnapshot {
+        val result = resolveMember(caseId, session)
+        if (result.memberId != session.memberId) throw ShiftCoverageFailure.InvalidResponse
+        return result
+    }
+
+    suspend fun resolveMember(caseId: String? = null, session: ShiftCoverageSession): ShiftCoverageSnapshot {
         val query = Query(action = if (caseId == null) "overview" else "detail", caseId = caseId)
         val result: ShiftCoverageSnapshot = post(json.encodeToString(query), session)
         if (result.schemaVersion != 1 || result.environment != "develop" ||
-            result.policyRevision != "hu084-provisional-v1" || result.memberId != session.memberId
+            result.policyRevision != "hu084-provisional-v1" || result.memberId.isEmpty()
         ) throw ShiftCoverageFailure.InvalidResponse
         return result
     }
@@ -123,7 +129,7 @@ internal class LocalShiftCoverageRepository(
     private data class TokenClaims(val aud: String, val iss: String, val sub: String)
 }
 
-private class LocalCoverageHttpTransport : CoverageHttpTransport {
+internal class LocalCoverageHttpTransport : CoverageHttpTransport {
     override suspend fun post(url: String, token: String, body: String): CoverageHttpResponse =
         withContext(Dispatchers.IO) {
             val connection = URL(url).openConnection() as HttpURLConnection
@@ -134,7 +140,7 @@ private class LocalCoverageHttpTransport : CoverageHttpTransport {
                 connection.connectTimeout = 10_000
                 connection.readTimeout = 15_000
                 connection.doOutput = true
-                connection.setRequestProperty("Authorization", "Bearer $token")
+                if (token.isNotEmpty()) connection.setRequestProperty("Authorization", "Bearer $token")
                 connection.setRequestProperty("Content-Type", "application/json")
                 currentCoroutineContext().ensureActive()
                 connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }

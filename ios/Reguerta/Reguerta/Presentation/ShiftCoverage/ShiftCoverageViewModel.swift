@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// Owns a single coverage inbox and serial mutation for one authorization revision.
@@ -11,6 +12,7 @@ final class ShiftCoverageViewModel {
     private(set) var failure: ShiftCoverageFailure?
     private(set) var isBusy = false
     @ObservationIgnored private let repository: any ShiftCoverageRepository
+    @ObservationIgnored private var receivedAt = ContinuousClock.now
     @ObservationIgnored private var generation: UInt64 = 0
 
     init(repository: any ShiftCoverageRepository) {
@@ -27,6 +29,12 @@ final class ShiftCoverageViewModel {
         isBusy = false
     }
 
+    var nowMillis: Int64 {
+        guard let snapshot else { return 0 }
+        let elapsed = receivedAt.duration(to: .now).components
+        return snapshot.serverTimeMillis + elapsed.seconds * 1000 + elapsed.attoseconds / 1_000_000_000_000_000
+    }
+
     func refresh() async {
         guard let session, !isBusy else { return }
         let owner = generation
@@ -37,6 +45,7 @@ final class ShiftCoverageViewModel {
             let result = try await repository.read(caseId: nil, session: session)
             guard generation == owner else { return }
             try Task.checkCancellation()
+            receivedAt = .now
             snapshot = result
         } catch {
             guard generation == owner else { return }
@@ -72,6 +81,7 @@ final class ShiftCoverageViewModel {
             let result = try await repository.read(caseId: nil, session: session)
             guard generation == owner else { return }
             try Task.checkCancellation()
+            receivedAt = .now
             snapshot = result
         } catch {
             guard generation == owner else { return }

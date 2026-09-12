@@ -1,6 +1,1094 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "coverage.absent": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Absent member"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Socio ausente"
+        }
+      }
+    }
+  },
+  "coverage.replacement": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Covering member"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Socio que cubre"
+        }
+      }
+    }
+  },
+  "coverage.minutes": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Response window (minutes)"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Plazo de respuesta (minutos)"
+        }
+      }
+    }
+  },
+  "coverage.title": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Shift coverage"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Coberturas de turnos"
+        }
+      }
+    }
+  },
+  "coverage.rehearsal": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Local rehearsal"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ensayo local"
+        }
+      }
+    }
+  },
+  "coverage.local_note": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Use only rehearsal accounts. Changes stay in the local emulator."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Usa solo cuentas de ensayo. Los cambios quedan en el emulador local."
+        }
+      }
+    }
+  },
+  "coverage.email": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Email"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Correo"
+        }
+      }
+    }
+  },
+  "coverage.password": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Password"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Contraseña"
+        }
+      }
+    }
+  },
+  "coverage.sign_in": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Sign in"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Entrar"
+        }
+      }
+    }
+  },
+  "coverage.sign_out": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Sign out"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Salir"
+        }
+      }
+    }
+  },
+  "coverage.login_failed": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Could not sign in. Check the rehearsal account and local server."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No se pudo entrar. Comprueba la cuenta de ensayo y el servidor local."
+        }
+      }
+    }
+  },
+  "coverage.refresh": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Refresh"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Actualizar"
+        }
+      }
+    }
+  },
+  "coverage.loading": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Loading coverage…"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Cargando coberturas…"
+        }
+      }
+    }
+  },
+  "coverage.cases": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Coverage requests"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Solicitudes de cobertura"
+        }
+      }
+    }
+  },
+  "coverage.empty": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No coverage requests"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No hay solicitudes de cobertura"
+        }
+      }
+    }
+  },
+  "coverage.accounting": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Your credits and reserves"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Tus créditos y reservas"
+        }
+      }
+    }
+  },
+  "coverage.no_credits": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No earned credits yet."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Todavía no tienes créditos ganados."
+        }
+      }
+    }
+  },
+  "coverage.credit_pending": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Pending credit"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Crédito pendiente"
+        }
+      }
+    }
+  },
+  "coverage.credit_consumed": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Credit used"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Crédito utilizado"
+        }
+      }
+    }
+  },
+  "coverage.reserve_active": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Active reserve"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Reserva activa"
+        }
+      }
+    }
+  },
+  "coverage.reserve_inactive": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Reserve completed"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Reserva finalizada"
+        }
+      }
+    }
+  },
+  "coverage.delivery": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Delivery"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Reparto"
+        }
+      }
+    }
+  },
+  "coverage.market": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Market"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Mercado"
+        }
+      }
+    }
+  },
+  "coverage.status_open": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Open vacancy"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Vacante abierta"
+        }
+      }
+    }
+  },
+  "coverage.status_offered": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Awaiting response"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Pendiente de respuesta"
+        }
+      }
+    }
+  },
+  "coverage.status_accepted": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Coverage accepted"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Cobertura aceptada"
+        }
+      }
+    }
+  },
+  "coverage.status_completed": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Completed"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Realizada"
+        }
+      }
+    }
+  },
+  "coverage.status_cancelled": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Cancelled"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Cancelada"
+        }
+      }
+    }
+  },
+  "coverage.status_failed": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Not completed"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No realizada"
+        }
+      }
+    }
+  },
+  "coverage.read_only": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "This request is read-only. Refresh before continuing."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Esta solicitud es de solo lectura. Actualiza antes de continuar."
+        }
+      }
+    }
+  },
+  "coverage.offer_deadline": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Offer expires"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "La oferta caduca"
+        }
+      }
+    }
+  },
+  "coverage.volunteer_deadline": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Volunteer registration closes"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "El plazo de voluntariado termina"
+        }
+      }
+    }
+  },
+  "coverage.reason": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Reason"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Motivo"
+        }
+      }
+    }
+  },
+  "coverage.member": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Member"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Socio"
+        }
+      }
+    }
+  },
+  "coverage.choose": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Choose…"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Elige…"
+        }
+      }
+    }
+  },
+  "coverage.shift": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Shift"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Turno"
+        }
+      }
+    }
+  },
+  "coverage.confirm": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Confirm"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Confirmar"
+        }
+      }
+    }
+  },
+  "coverage.dismiss": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Back"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Volver"
+        }
+      }
+    }
+  },
+  "coverage.deadline": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Response deadline"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Plazo de respuesta"
+        }
+      }
+    }
+  },
+  "coverage.confirm_note": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Review the action before confirming. The server will check availability and permissions."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Revisa la acción antes de confirmar. El servidor comprobará disponibilidad y permisos."
+        }
+      }
+    }
+  },
+  "coverage.complete_note": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Confirm only after the member has completed the coverage. This earns a credit."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Confirma solo cuando el socio haya realizado la cobertura. Esta acción genera un crédito."
+        }
+      }
+    }
+  },
+  "coverage.uncertain": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The result is not confirmed. Retry the same operation before making another change."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "El resultado no está confirmado. Repite la misma operación antes de hacer otro cambio."
+        }
+      }
+    }
+  },
+  "coverage.retry": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Retry same operation"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Repetir la misma operación"
+        }
+      }
+    }
+  },
+  "coverage.unavailable": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Could not refresh the data. Try again."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No se pudieron actualizar los datos. Inténtalo de nuevo."
+        }
+      }
+    }
+  },
+  "coverage.conflict": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The request changed or the action is unavailable. Refresh and review it."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "La solicitud ha cambiado o la acción no está disponible. Actualiza y revísala."
+        }
+      }
+    }
+  },
+  "coverage.access_lost": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Your session or permissions changed. Sign in again."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Tu sesión o tus permisos han cambiado. Vuelve a entrar."
+        }
+      }
+    }
+  },
+  "coverage.phase_reserve": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Reserve selection"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Selección de reserva"
+        }
+      }
+    }
+  },
+  "coverage.phase_volunteers": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Volunteer registration"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Inscripción de voluntarios"
+        }
+      }
+    }
+  },
+  "coverage.phase_drawRequired": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Draw required"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Requiere sorteo"
+        }
+      }
+    }
+  },
+  "coverage.phase_draw": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Committed draw"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Sorteo comprometido"
+        }
+      }
+    }
+  },
+  "coverage.phase_adminRequired": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Administrative resolution"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Resolución administrativa"
+        }
+      }
+    }
+  },
+  "coverage.draw_unavailable": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The draw provider is not configured for this rehearsal."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "El proveedor de sorteo no está configurado para este ensayo."
+        }
+      }
+    }
+  },
+  "coverage.action_open": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Report an absence"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Comunicar ausencia"
+        }
+      }
+    }
+  },
+  "coverage.action_offer": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Offer coverage"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ofrecer cobertura"
+        }
+      }
+    }
+  },
+  "coverage.action_accept": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Accept coverage"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Aceptar cobertura"
+        }
+      }
+    }
+  },
+  "coverage.action_decline": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Decline offer"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Rechazar oferta"
+        }
+      }
+    }
+  },
+  "coverage.action_expire": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Close expired offer"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Cerrar oferta caducada"
+        }
+      }
+    }
+  },
+  "coverage.action_complete": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Confirm completed coverage"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Confirmar cobertura realizada"
+        }
+      }
+    }
+  },
+  "coverage.action_startSelection": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Start reserve selection"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Iniciar selección de reserva"
+        }
+      }
+    }
+  },
+  "coverage.action_volunteer": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Volunteer"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ofrecerme voluntario"
+        }
+      }
+    }
+  },
+  "coverage.action_withdrawVolunteer": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Withdraw volunteering"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Retirar voluntariado"
+        }
+      }
+    }
+  },
+  "coverage.action_commitDraw": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Commit draw"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Comprometer sorteo"
+        }
+      }
+    }
+  },
+  "coverage.action_revealDraw": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Resolve committed draw"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Resolver sorteo comprometido"
+        }
+      }
+    }
+  },
+  "coverage.action_offerNext": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Continue selection"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Continuar selección"
+        }
+      }
+    }
+  },
+  "coverage.action_offerAdmin": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Offer administrative coverage"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ofrecer cobertura administrativa"
+        }
+      }
+    }
+  },
+  "coverage.action_resumeAdmin": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Resume administrative resolution"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Retomar resolución administrativa"
+        }
+      }
+    }
+  },
+  "coverage.action_cancel": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Cancel request"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Cancelar solicitud"
+        }
+      }
+    }
+  },
+  "coverage.action_fail": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Mark as not completed"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Marcar como no realizada"
+        }
+      }
+    }
+  },
     "" : {
 
     },

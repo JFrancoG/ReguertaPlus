@@ -3,6 +3,10 @@
   "data": {
     "schemaVersion": 1, "environment": "develop", "memberId": "member-a",
     "isAdmin": false, "eligible": true, "serverTimeMillis": 1800000000000,
+    "availableShifts": [{"shiftId": "market-next", "type": "market", "scheduledAtMillis": 1800200000000,
+      "shiftRevision": 7, "writable": true, "assignedUserIds": ["member-a"]}],
+    "members": [{"memberId": "member-a", "displayName": "Ana de prueba", "offerCandidate": false},
+      {"memberId": "member-b", "displayName": "Beatriz de prueba", "offerCandidate": false}],
     "policyRevision": "hu084-provisional-v1",
     "policy": {"maximumOfferWindowMillis": 86400000, "volunteerWindowMillis": 3600000, "drawAvailable": false},
     "cases": [{

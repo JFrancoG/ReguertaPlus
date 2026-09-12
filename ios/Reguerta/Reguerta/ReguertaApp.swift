@@ -13,6 +13,10 @@ struct ReguertaApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage(AppAppearance.storageKey) private var appAppearanceRawValue = AppAppearance.system.rawValue
 
+    #if DEBUG
+    private let coverageRehearsal: CoverageRehearsalViewModel?
+    #endif
+
     private let appEnvironment: ReguertaAppEnvironment
 
     private var appAppearance: AppAppearance {
@@ -22,8 +26,15 @@ struct ReguertaApp: App {
     var body: some Scene {
         WindowGroup {
             ReguertaTheme {
-                MainView()
-                    .reguertaAppEnvironment(appEnvironment)
+                #if DEBUG
+                if let coverageRehearsal {
+                    CoverageRehearsalView(model: coverageRehearsal)
+                } else {
+                    MainView().reguertaAppEnvironment(appEnvironment)
+                }
+                #else
+                MainView().reguertaAppEnvironment(appEnvironment)
+                #endif
             }
             .preferredColorScheme(appAppearance.preferredColorScheme)
         }
@@ -32,7 +43,24 @@ struct ReguertaApp: App {
 
 extension ReguertaApp {
     init() {
-        let appConfiguration = ReguertaAppConfiguration(arguments: ProcessInfo.processInfo.arguments)
+        let arguments = ProcessInfo.processInfo.arguments
+        #if DEBUG
+        let rehearsesCoverage = arguments.contains("-coverageRehearsal")
+        if rehearsesCoverage {
+            do {
+                coverageRehearsal = CoverageRehearsalViewModel(access: try LocalCoverageRehearsalAccess())
+            } catch {
+                preconditionFailure("Invalid fixed local coverage configuration")
+            }
+        } else {
+            coverageRehearsal = nil
+        }
+        let appConfiguration = rehearsesCoverage ? .uiTesting : ReguertaAppConfiguration(
+            arguments: arguments
+        )
+        #else
+        let appConfiguration = ReguertaAppConfiguration(arguments: arguments)
+        #endif
         let appEnvironment = ReguertaAppEnvironment.make(configuration: appConfiguration)
         self.appEnvironment = appEnvironment
         appDelegate.configure(
