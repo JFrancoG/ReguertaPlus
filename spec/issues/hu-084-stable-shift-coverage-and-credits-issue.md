@@ -17,9 +17,15 @@ pass for that checkpoint. Complete seasonal credit traversal now reuses both
 existing planners, with credited cross-season carryover and exact ledger images.
 The seasonal checkpoint passes lint/build, 25 coverage/credit tests, 69 focused
 regressions and 48 emulator/Rules tests. The broader HU-082 command passes 294 tests
-with 51 emulator-dependent cases skipped. HU-082 bundle/manifests/inverse
-persistence, membership transitions, a real entropy provider, live transport,
-native flows and deployment remain pending.
+with 51 emulator-dependent cases skipped. Governed source capture and existing HU-082 forward/inverse publication are now
+integrated locally: public rows, credit/claim/cursor changes, before images and
+held intents/sync commands share one admitted transaction. Full-ledger CAS guards
+both directions; released claims are reusable and ledger generations never rewind.
+Latest evidence: build/lint clean, 25 focused unit and 294 HU-082 regression passes
+(51 other-emulator cases skipped), plus 61 distinct emulator cases across the full
+and focused runs. Membership/eligibility and reserve transitions are next; a real
+entropy provider, live coverage transport, native flows and deployment remain
+pending. Enabled-credit execution is restricted to the fixed local emulator.
 See `plan.md` for the distinction between the local rehearsal and live delivery.
 
 The operational plan groups work into three complete outcomes: coverage backend

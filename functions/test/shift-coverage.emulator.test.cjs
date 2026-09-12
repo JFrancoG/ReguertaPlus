@@ -661,3 +661,18 @@ run("a missing ledger cannot turn issued credits into an unversioned activation"
   await ref("shiftCoverageLedgerState", "market").delete();
   await creditRejectWithoutWrites(() => store.stageCreditUnit(creditIntent(), "admin"), "invalid_credit_plan_revision");
 });
+
+run("a released seasonal claim re-enters selection and can be replaced by a new accepted coverage", async () => {
+  const claimId = digest(["delivery", "d"]).split(":").at(-1);
+  await ref("shiftCoverageMemberClaims", claimId).set({caseId: "old-completed", type: "delivery", userId: "d",
+    state: "released", consumedByPlanId: "seasonal-plan", consumedAtMillis: now - 1});
+  await open();
+  await execute("case-1", "startSelection", "admin");
+  const state = (await read("shiftCoverageCases", "case-1")).value;
+  assert.equal(state.selection.snapshot.find((c) => c.userId === "d").exclusion, null);
+  await execute("case-1", "cancel", "admin", {reason: "Exercise administrative offer"});
+  await open("case-2"); await offer("case-2");
+  await execute("case-2", "accept", "d");
+  assert.equal((await read("shiftCoverageMemberClaims", claimId)).state, "accepted");
+  assert.equal((await read("shiftCoverageMemberClaims", claimId)).caseId, "case-2");
+});

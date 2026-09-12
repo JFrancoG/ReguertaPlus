@@ -1,3 +1,6 @@
+import {buildShiftCreditPublication, parseShiftCreditPublicationSources,
+  ShiftCreditPublication, ShiftCreditPublicationSources} from
+  "./shift-credit-publication.js";
 import {
   DeliveryPlan,
   DeliveryPlanningContinuity,
@@ -248,6 +251,7 @@ export type ShiftPlanningActivationManifest = {
   ];
   heldRecipients: readonly RecipientManifest[];
   creditLedgerWriteCount: number;
+  creditPublication?: ShiftCreditPublication;
   releaseLeaseIntents: readonly [
     Omit<
       ShiftPlanningReleaseLeaseIntent,
@@ -440,6 +444,8 @@ type BundleFairnessSnapshot = {
   market: BundleRotationSnapshot;
   deliveryWeekday: BusinessWeekday;
   creditLedgerWriteCount: number;
+  creditSources?: ShiftCreditPublicationSources;
+  creditPublication?: ShiftCreditPublication;
   releaseLeaseDurationMillis: number;
   syncLeaseDurationMillis: number;
   workbookPartitions: {
@@ -837,14 +843,26 @@ const parseBundleFairnessSnapshot = (
   ) {
     return failState("Workbook partition identities are inconsistent.");
   }
-  const creditLedgerWriteCount = requireNonNegativeInteger(
-    creditLedger.plannedWriteCount,
-    "creditLedger.plannedWriteCount",
-  );
-  if (creditLedger.enabled !== false || creditLedgerWriteCount !== 0) {
-    return failState(
-      "Coverage-credit transitions remain disabled until HU-084.",
-    );
+  let creditSources: ShiftCreditPublicationSources | undefined;
+  if (creditLedger.enabled === true) {
+    if (Object.keys(creditLedger).sort().join() !==
+        "enabled,policyRevision,sources" ||
+        creditLedger.policyRevision !== "hu084-provisional-v1") {
+      return failState("HU-084 credit policy fields are not exact.");
+    }
+    creditSources = parseShiftCreditPublicationSources(
+      creditLedger.sources, authoritativeState.environment);
+    for (const type of ["delivery", "market"] as const) {
+      const rotation = authoritativeState.rotations[type];
+      if (rotation.cohortFrozen && creditSources[type].frozenThroughRound <
+          rotation.cursor.roundNumber) {
+        return failState("Credit policy cannot thaw an authoritative round.");
+      }
+    }
+  } else if (creditLedger.enabled !== false ||
+      requireNonNegativeInteger(creditLedger.plannedWriteCount,
+        "creditLedger.plannedWriteCount") !== 0) {
+    return failState("Coverage-credit transitions remain disabled.");
   }
   return {
     normalized,
@@ -863,7 +881,8 @@ const parseBundleFairnessSnapshot = (
       "market",
     ),
     deliveryWeekday: config.deliveryWeekday as BusinessWeekday,
-    creditLedgerWriteCount,
+    creditLedgerWriteCount: 0,
+    ...(creditSources ? {creditSources} : {}),
     releaseLeaseDurationMillis,
     syncLeaseDurationMillis,
     workbookPartitions,
@@ -1442,6 +1461,8 @@ const activationManifest = (input: {
   ],
   heldRecipients: input.recipients,
   creditLedgerWriteCount: input.snapshot.creditLedgerWriteCount,
+  ...(input.snapshot.creditPublication ?
+    {creditPublication: input.snapshot.creditPublication} : {}),
   releaseLeaseIntents: input.releaseLeaseIntents,
 });
 
@@ -1489,6 +1510,9 @@ const recoveryManifest = (input: {
       contract: input.snapshot.authoritativeState.maintenance,
     },
   ];
+  for (const change of input.snapshot.creditPublication?.changes ?? []) {
+    beforeImageTargets.push({path: change.targetPath, contract: change.before});
+  }
   if (input.delivery.predecessorHelperUpdate !== null) {
     const predecessorGuard = input.delivery.predecessorGuard;
     if (predecessorGuard === null) {
@@ -2052,13 +2076,22 @@ export const planShiftPlanningBundle = (
     rotation: snapshot.delivery.cursor,
     inheritedTargetPrefix: input.delivery.inheritedTargetPrefix ?? null,
     continuity: input.delivery.continuity,
+    provisionalCredits: snapshot.creditSources?.delivery,
   });
   const market = planMarketShifts({
     planningRequestId: request.bundleId,
     targetSeasonStartYear: request.subplans.market.targetSeasonStartYear,
     rotation: snapshot.market.cursor,
     inheritedTargetPrefix: input.market.inheritedTargetPrefix ?? null,
+    provisionalCredits: snapshot.creditSources?.market,
   });
+  if (snapshot.creditSources && delivery.creditProjection &&
+      market.creditProjection) {
+    snapshot.creditPublication = buildShiftCreditPublication({
+      sources: snapshot.creditSources, delivery: delivery.creditProjection,
+      market: market.creditProjection, planId: request.bundleId});
+    snapshot.creditLedgerWriteCount = snapshot.creditPublication.changes.length;
+  }
   const recipients = recipientManifest(delivery, market, snapshot.roster);
   const frontiers = frontierTransitions({
     snapshot,

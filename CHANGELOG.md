@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-12 | ✨ feat(shifts): publish and recover seasonal credits
+
 - 2026-09-12 | ✨ feat(shifts): integrate seasonal credit planning
 
 - 2026-09-12 | ✨ feat(shifts): add whole-unit credit rehearsal

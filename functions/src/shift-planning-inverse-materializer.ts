@@ -1,3 +1,6 @@
+import {assertShiftCreditPublicationSource,
+  requireProvisionalCreditPublication, shiftCreditPublicationAfter} from
+  "./shift-credit-publication.js";
 import {
   DocumentData,
   FieldValue,
@@ -318,10 +321,15 @@ const requireBundle = (bundle: ShiftPlanningPersistedBundle) => {
     budget.updateWrites !== expectedRestoreWrites + 2 ||
     budget.totalWrites !== budget.updateWrites + budget.deleteWrites ||
     budget.beforeImageWrites !== 0 ||
-    budget.creditLedgerWrites !== 0 ||
-    manifest.creditLedgerRestores !== 0
+    budget.creditLedgerWrites !==
+      (artifact.manifests.forward?.creditPublication?.changes.length ?? 0) ||
+    manifest.creditLedgerRestores !==
+      (artifact.manifests.forward?.creditPublication?.changes.length ?? 0)
   ) {
     return failInverse("Persisted inverse bundle authority has drifted.");
+  }
+  if (artifact.manifests.forward?.creditPublication) {
+    requireProvisionalCreditPublication(bundle.environment);
   }
   return artifact;
 };
@@ -1142,6 +1150,25 @@ export const materializeShiftPlanningInverseRecovery = (
         document: authoritative.restored.market,
       };
     }
+    const creditChange = artifact.manifests.forward?.creditPublication?.changes
+      .find((change) => change.targetPath === envelope.targetPath);
+    if (creditChange) {
+      const current = currentDocuments.get(envelope.targetPath);
+      if (!current || createShiftPlanningDigest(document) !==
+          createShiftPlanningDigest(creditChange.before) ||
+          createShiftPlanningDigest(current.data) !== createShiftPlanningDigest(
+            shiftCreditPublicationAfter(creditChange,
+              activation.attemptedAt.toMillis()))) {
+        return failInverse("Credit/claim/ledger changed after activation.");
+      }
+      // Ledger generations remain monotonic even when restoring credit values.
+      const isLedger = envelope.targetPath
+        .includes("/shiftCoverageLedgerState/");
+      const restored = isLedger ?
+        {...document, revision: (creditChange.after.revision as number) + 1} :
+        document;
+      return {targetPath: envelope.targetPath, document: restored};
+    }
     parseWithInverseFailure(
       () => parseShiftPlanningPublicShiftDocument({
         targetPath: envelope.targetPath,
@@ -1269,6 +1296,13 @@ export const applyShiftPlanningInverseRecoveryAttempt = async (
 ): Promise<ShiftPlanningInverseRecoveryAttempt> => {
   const materialization = materializeShiftPlanningInverseRecovery(input);
   const artifact = input.bundle.artifact;
+  if (artifact.manifests.forward?.creditPublication) {
+    const activation = parseShiftPlanningActivationOperationTerminal(
+      input.activationOperationDocument.data);
+    await assertShiftCreditPublicationSource({...input,
+      publication: artifact.manifests.forward?.creditPublication,
+      activatedAtMillis: activation.attemptedAt.toMillis()});
+  }
   const measurement =
     await applyShiftPlanningFirestoreTransactionAttempt({
       firestore: input.firestore,

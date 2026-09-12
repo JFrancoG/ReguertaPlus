@@ -944,3 +944,18 @@ may update only its prospective helper. A completed helper remains historical.
 Exact credit before/after images are prepared for later HU-082 manifest integration;
 no seasonal credit activation or inverse transaction is implemented by this change.
 Production bundle intake retains its enabled/non-zero-credit rejection.
+
+The 2026-09-12 publication checkpoint now connects those credit images to the
+existing HU-082 governed source, bundle, forward/inverse materializers and shared
+transaction admission/notification fences. Both complete ledgers and claim sets
+are transactionally reread, including deferred credits. The source producer derives
+frozen rounds from canonical/public state and recovers credited carryover from the
+active bundle; source policy cannot supply credit balances. Credit, claim, cursor,
+public rows, before images and held-intent/sync-command changes commit together.
+Seasonal consumption retains a `released` claim with plan/time evidence so inverse
+CAS can restore its exact former value. Released claims do not block selection or
+another acceptance, which replaces them. Recovery rejects any later ledger/claim
+change and restores credit/claim values while increasing ledger generations and
+write epochs. Enabled-credit execution remains restricted to a Firestore client
+created for the fixed demo/loopback emulator. This supersedes the prior local
+publication gap; it is not assembly ratification, live activation or dispatch.

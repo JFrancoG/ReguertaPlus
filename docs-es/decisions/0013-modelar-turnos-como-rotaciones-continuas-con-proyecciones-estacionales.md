@@ -985,3 +985,20 @@ el ayudante completado permanece histórico. Se preparan imágenes exactas anter
 y posteriores del crédito para integrar después los manifiestos HU-082; este cambio
 no implementa activación estacional ni transacción inversa de créditos. La entrada
 productiva del bundle sigue rechazando créditos habilitados o distintos de cero.
+
+El hito de publicación de 2026-09-12 conecta esas imágenes de crédito con la fuente
+gobernada, bundle, materializadores de avance/reversión y admisión/vallas de
+notificaciones existentes de HU-082. Ambos libros completos y sus reservas se
+releen en la transacción, incluidos los créditos diferidos. La fuente deriva las
+rondas congeladas del estado canónico/público y recupera el arrastre compensado del
+bundle activo; la política de fuente no puede proporcionar saldos. Créditos,
+reservas, cursores, filas públicas, imágenes anteriores e intenciones retenidas y
+comandos de sincronización se confirman juntos. El consumo estacional conserva una
+reserva `released` con plan/fecha para que la reversión por CAS pueda restaurar su
+valor anterior exacto. Las reservas liberadas no bloquean la selección ni otra
+aceptación, que las reemplaza. La recuperación rechaza cambios posteriores del
+libro/reservas y restaura créditos/reservas incrementando las generaciones del
+libro y las épocas de escritura. La ejecución con créditos habilitados se limita
+al cliente Firestore construido para el emulador demo/loopback fijo. Esto sustituye
+la carencia de publicación local anterior; no es ratificación de la asamblea,
+activación real ni envío de notificaciones o ejecución en Sheets.

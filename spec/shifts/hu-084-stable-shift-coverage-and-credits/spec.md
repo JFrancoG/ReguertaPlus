@@ -25,8 +25,11 @@ The pure whole-unit credit solver and atomic consumption rehearsal are also
 implemented locally. The rehearsal records private units and does not publish
 seasonal bundles/public shifts. Existing delivery/market planners now also support
 provisional full-season credit traversal, credited carryover and exact ledger
-before/after images. HU-082 bundle persistence and forward/inverse activation are
-still pending; live intake rejects credits. See `plan.md` for evidence and limits.
+before/after images. Governed HU-082 source capture, bundle persistence and shared
+forward/inverse credit activation now work in the fixed local emulator, including
+released claims and monotonic ledger generations. Shared-project activation stays
+disabled. Membership transitions and native product integration remain pending.
+See `plan.md` for evidence and limits.
 
 ## Context and problem
 

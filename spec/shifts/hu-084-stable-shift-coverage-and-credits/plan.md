@@ -265,6 +265,57 @@ this is not evidence that those 51 integration cases ran. The separate coverage
 emulator/Rules command passed all 48 tests, with zero failures/skips. No native code
 changed; Android/iOS feature parity remains pending on both platforms.
 
+### Governed seasonal publication and inverse — 2026-09-12
+
+Seasonal planning was committed and pushed as `e86ef80`. This checkpoint connects
+credits to the existing HU-082 source producer, bundle, forward materializer,
+inverse resolver/materializer and transaction admission/fence adapter. It does
+not introduce another publication engine or a new public endpoint.
+
+- An explicit local `sourcePolicy.creditLedger` setting contains only `enabled`
+  and `policyRevision = hu084-provisional-v1`. The source producer reads both
+  complete credit/claim collections and ledger generations inside its transaction;
+  policy cannot inject balances or lower the frozen/public round boundary.
+  Credited carryover is read from the active bundle with matching rotation lineage
+  and artifact digest, then checked against the actual consumed-credit ledger.
+- Preview/stage retain provisional ledger effects. The bundle digest binds the
+  whole source, including deferred/out-of-cohort credits and claims. Manifest write
+  counts are derived from the actual credit/claim/ledger changes, not an input count.
+- Forward activation writes public delivery/market rows, prospective helpers,
+  canonical cursors/maintenance, credit consumption, claim release, ledger
+  increments, before images, held notification intents, sync commands and the
+  ordinary terminal request/operation in the same existing transaction.
+- A consumed claim is updated to `released`, retaining plan/time evidence for exact
+  recovery CAS. It no longer excludes the member from selection or another offer;
+  a subsequent acceptance replaces it normally. This is technical accounting, not
+  a new stacking policy. The earlier private one-unit rehearsal retains its own
+  historical deletion behavior; seasonal publication uses the shared HU-082 path.
+- Inverse recovery verifies the complete post-activation ledger/claim set in the
+  same transaction. Drift in a deferred credit, a newly issued credit, a reused
+  claim or a ledger generation rejects recovery before any write. It restores
+  exact credit/claim before images and advances ledger generations monotonically;
+  it never resets a generation to the old number. The existing active-lineage,
+  public-marker, sealed-lease, increasing-write-epoch and request replay checks
+  remain in force.
+- Existing logical write/byte admission and notification writer resource fences
+  apply to the combined mutation set. Ordinary no-credit fixtures still pass,
+  including inverse fixtures that predate the optional credit manifest.
+- All enabled-credit planning requires the fixed demo project/loopback environment.
+  Applying it additionally requires a Firestore instance constructed by the fixed
+  local factory. Shared develop/production remain disabled, with no deploy, Sheets
+  execution, notification dispatch or native changes.
+
+Validation: build/lint passed without diagnostics; 25 coverage/seasonal unit tests
+and 294 HU-082 unit/regression tests passed (51 existing cases require their other
+emulator suites and were skipped). The expanded coverage/Rules emulator command
+passed 60 tests; a subsequent focused publication run passed all 12 tests including
+one added active-bundle carryover case (61 distinct emulator scenarios in total).
+These cover real public publication and inverse through the common resolvers,
+zero-write source drift/replay rejection, competing activation, eligibility drift,
+write-budget rejection, exact before images, released-claim reuse and carryover.
+No native tests ran because neither app changed. Both coverage product flows remain
+pending, rather than a one-platform parity exception.
+
 ### Remaining integration boundary
 
 The provisional coverage lifecycle is implemented locally through draw/admin
@@ -273,14 +324,17 @@ integration; local proofs do not close the production backend acceptance gate.
 Proximity preferences beyond immediate delivery neighbors also remain a business
 policy decision; the local implementation enforces the hard neighbor invariant.
 The local adapter bounds shifts to 1,000 documents and selection inputs to 250
-users/reserves/claims per queried source. It deliberately has no HTTP endpoint,
-public user-facing projection, notifications or Sheets effects. Before any live
+users/reserves/claims per queried source. The coverage lifecycle itself has no HTTP endpoint or native product projection.
+The local seasonal publication path now creates ordinary public rows, held intents
+and sync commands; no notification dispatch or Sheets execution has occurred. Before any live
 endpoint, integrate authenticated identity, existing writer resource fences,
 admission limits and public-event/notification authority. The unit credit solver
 and local atomic consumption rehearsal are implemented, and complete seasonal
-credit planning now reuses the existing pure planners. HU-082 forward/inverse
-publication, membership transitions and both native clients remain unfinished.
-Production bundle intake still rejects non-zero credits. Assembly decisions and
+credit planning and governed HU-082 forward/inverse publication are integrated
+locally. The next coherent step in outcome group 2 is membership/eligibility and
+reserve transitions, preserving published ownership and applying whole-unit
+staffing. Both native clients and coverage notification/Sheets product integration
+remain unfinished. Shared-project credit activation, assembly decisions and
 deployment remain separate gates.
 
 ## 2. Technical approach after approval
@@ -293,7 +347,9 @@ coverage cases, offers, candidate evidence, and credits explicit.
 Suggested backend modules:
 
 - `functions/src/shift-coverage.ts`
-- `functions/src/shift-credit-unit.ts` and `shift-credit-rehearsal.ts`
+- `functions/src/shift-credit-unit.ts`, `shift-credit-season.ts` and
+  `shift-credit-publication.ts`; `shift-credit-rehearsal.ts` is the earlier private
+  single-unit test adapter.
 - `functions/src/shift-coverage-draw.ts` (local protocol implemented)
 
 Suggested collections are frozen only after policy approval and threat-model

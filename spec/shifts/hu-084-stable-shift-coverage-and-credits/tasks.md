@@ -18,8 +18,10 @@
   preview/stage/consumption rehearsal with full-ledger binding and claim release.
 - [x] Integrate credits into existing complete seasonal planners, including boundary
   closure, credited carryover, prospective helper changes and exact ledger images.
-- [ ] Integrate seasonal credit evidence and credit/claim/cursor/public writes into
-  HU-082 forward/inverse publication; complete membership transitions (group 2).
+- [x] Integrate governed seasonal credit sources and credit/claim/cursor/public
+  writes into existing HU-082 forward/inverse publication, with full-source CAS,
+  before images, shared admission/fences and local emulator evidence.
+- [ ] Complete membership/eligibility and reserve transitions (outcome group 2).
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset

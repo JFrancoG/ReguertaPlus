@@ -1,3 +1,5 @@
+import {createProvisionalCreditFirestore, isReleasedShiftCoverageClaim} from
+  "./shift-credit-publication.js";
 import {createShiftCreditRehearsal} from "./shift-credit-rehearsal.js";
 import {
   commitCoverageDraw,
@@ -14,7 +16,7 @@ import {
   createCoverageSelection,
   parseCoverageSelectionPolicy,
 } from "./shift-coverage-selection.js";
-import {Firestore, Timestamp} from "@google-cloud/firestore";
+import {Timestamp} from "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {
   parseShiftPlanningPublicShiftDocument,
@@ -79,7 +81,7 @@ export const createProvisionalShiftCoverageStore = (options: {
     parseCoverageSelectionPolicy(options.selectionPolicy) : undefined;
   const beaconPolicy = options.beaconPolicy ?
     parseCoverageBeaconPolicy(options.beaconPolicy) : undefined;
-  const db = new Firestore({projectId, host, ssl: false});
+  const db = createProvisionalCreditFirestore();
   const ref = (collection: string, id: string) =>
     db.doc(`${root}/${collection}/${id}`);
 
@@ -238,7 +240,8 @@ export const createProvisionalShiftCoverageStore = (options: {
               active: value.active, enteredAtMillis: value.enteredAtMillis,
               revision: value.revision});
           }
-          const claimed = new Set(claims.docs.map((item) => {
+          const claimed = new Set(claims.docs.filter((item) =>
+            !isReleasedShiftCoverageClaim(item.data())).map((item) => {
             const id = coverageId(item.data().userId);
             if (item.id !== hashId([shift.type, id])) {
               return rejectCoverage("invalid_coverage_claim");
@@ -348,7 +351,8 @@ export const createProvisionalShiftCoverageStore = (options: {
         const eligible = () => {
           if (!candidate?.eligible || !candidateId ||
               shift.assignedUserIds.includes(candidateId) ||
-              (claim?.exists && claim.data()?.caseId !== command.caseId)) {
+              (claim?.exists && !isReleasedShiftCoverageClaim(claim.data()) &&
+                claim.data()?.caseId !== command.caseId)) {
             return rejectCoverage("coverage_candidate_ineligible");
           }
           if (shift.type === "delivery" && (!predecessor || !successor ||

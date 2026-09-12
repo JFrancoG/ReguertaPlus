@@ -1,3 +1,5 @@
+import {captureShiftCreditPublicationSources,
+  requireProvisionalCreditPublication} from "./shift-credit-publication.js";
 import {
   DocumentReference,
   DocumentSnapshot,
@@ -305,20 +307,23 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
     policy.creditLedger,
     "planning source policy creditLedger",
   );
-  requireExactKeys(creditLedger, [
-    "enabled",
-    "revision",
-    "digest",
-    "plannedWriteCount",
-  ], "planning source policy creditLedger");
-  if (
-    creditLedger.enabled !== false ||
-    creditLedger.plannedWriteCount !== 0
-  ) {
-    return failSource("Planning source coverage credits remain disabled.");
+  if (creditLedger.enabled === true) {
+    requireProvisionalCreditPublication(requireEnvironment(policy.environment));
+    requireExactKeys(creditLedger, ["enabled", "policyRevision"],
+      "provisional credit source policy");
+    if (creditLedger.policyRevision !== "hu084-provisional-v1") {
+      return failSource("Unknown provisional credit policy.");
+    }
+  } else {
+    requireExactKeys(creditLedger, ["enabled", "revision", "digest",
+      "plannedWriteCount"], "planning source policy creditLedger");
+    if (creditLedger.enabled !== false ||
+        creditLedger.plannedWriteCount !== 0) {
+      return failSource("Planning source coverage credits remain disabled.");
+    }
+    requireIdentifier(creditLedger.revision, "planning credit revision");
+    requireDigest(creditLedger.digest, "planning credit digest");
   }
-  requireIdentifier(creditLedger.revision, "planning credit revision");
-  requireDigest(creditLedger.digest, "planning credit digest");
   const sync = requireRecord(policy.sync, "planning source policy sync");
   requireExactKeys(sync, [
     "leaseDurationMillis",
@@ -635,6 +640,12 @@ const buildSourceInTransaction = async (input: {
     releaseLeaseDurationMillis: policy.releaseLeaseDurationMillis,
     policyRevision: policy.policyRevision,
   };
+  const creditLedger = policy.creditLedger.enabled === true ? {
+    enabled: true, policyRevision: "hu084-provisional-v1",
+    sources: await captureShiftCreditPublicationSources({...input, rotations,
+      prefixes: {delivery: policy.delivery.inheritedTargetPrefix,
+        market: policy.market.inheritedTargetPrefix}}),
+  } : policy.creditLedger;
   const fairnessSnapshot = normalizeShiftPlanningFairnessSnapshot({
     snapshotVersion: 1,
     environment,
@@ -668,7 +679,7 @@ const buildSourceInTransaction = async (input: {
       digest: calendarDigest,
       entries: calendarEntries,
     },
-    creditLedger: policy.creditLedger,
+    creditLedger,
     sync: policy.sync,
     migrationBaseline: rotations.delivery.migrationBaseline,
   });
