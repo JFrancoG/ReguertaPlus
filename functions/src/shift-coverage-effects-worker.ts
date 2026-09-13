@@ -1,7 +1,7 @@
 import type {sheets_v4 as SheetsV4} from "googleapis";
 import {Transaction, Timestamp} from "@google-cloud/firestore";
-import {buildNotificationInboxDocument} from "./notification-inbox.js";
-import {coverageId, coverageMember, rejectCoverage} from "./shift-coverage.js";
+import {coverageId, rejectCoverage} from "./shift-coverage.js";
+import {releaseCoverageInbox} from "./shift-coverage-inbox.js";
 import {coverageSheetRow, ShiftCoverageEffects} from
   "./shift-coverage-effects.js";
 import {createProvisionalCreditFirestore} from "./shift-credit-publication.js";
@@ -17,7 +17,8 @@ import {ShiftSheetsConfig} from "./shift-sheets-config.js";
 import {createShiftSheetsAdapter, ShiftSheetsHumanWriteBackRow,
   ShiftSheetsProjectionRow} from "./shift-sheets.js";
 
-type Submission = {operationId: string; rows: ShiftSheetsProjectionRow[];
+export type CoverageSubmission = {
+  operationId: string; rows: ShiftSheetsProjectionRow[];
   humanRows: ShiftSheetsHumanWriteBackRow[]; sourceDigest: string};
 
 /**
@@ -63,6 +64,9 @@ export const createProvisionalCoverageEffectsWorker = (input: {
     if (record?.state === "completed") {
       return {completed: true as const, value};
     }
+    if (record?.state === "retired") {
+      return rejectCoverage("coverage_effects_retired");
+    }
     assertShiftPlanningWriterAuthority({capturedValue: record?.authority,
       currentStateValue: maintenance.data(),
       changedCode: "coverage_effects_authority_changed",
@@ -97,7 +101,7 @@ export const createProvisionalCoverageEffectsWorker = (input: {
     const sourceDigest = digest([shifts, users, calendar].map((s) =>
       s.docs.map((doc) => [doc.id, doc.updateTime?.seconds,
         doc.updateTime?.nanoseconds])));
-    const submission = record?.submission as Submission | undefined;
+    const submission = record?.submission as CoverageSubmission | undefined;
     if (submission && (submission.sourceDigest !== sourceDigest ||
       digest(submission) !== record?.submissionDigest)) {
       return rejectCoverage("coverage_effects_source_changed");
@@ -194,7 +198,7 @@ export const createProvisionalCoverageEffectsWorker = (input: {
             }
             return next;
           });
-          const prepared: Submission = {operationId: id,
+          const prepared: CoverageSubmission = {operationId: id,
             rows: source.value.changes.map((c) => c.after), humanRows,
             sourceDigest: source.sourceDigest};
           submission = await db.runTransaction(async (tx) => {
@@ -246,21 +250,9 @@ export const createProvisionalCoverageEffectsWorker = (input: {
         if (!Number.isSafeInteger(now) || now < 0) {
           return rejectCoverage("invalid_coverage_clock");
         }
-        const deliveredTo: string[] = [];
-        for (const intent of fresh.value.notifications) {
-          const user = fresh.users.docs.find((doc) => doc.id === intent.userId);
-          if (!user || !coverageMember(user.data()).active) continue;
-          const eventId = intent.push.data.eventId;
-          const inbox = buildNotificationInboxDocument(eventId, {
-            ...intent.push.notification, type: intent.push.data.type,
-            target: "users", targetPayload: {userIds: [intent.userId]},
-            createdBy: "system", sentAt: Timestamp.fromMillis(now),
-          }, intent.userId) ?? rejectCoverage("coverage_effects_inbox_invalid");
-          tx.create(db.doc(`${root}/users/${intent.userId}/` +
-            `notificationInbox/${eventId}`),
-          {...inbox, coverageOperationId: id});
-          deliveredTo.push(intent.userId);
-        }
+        const deliveredTo = releaseCoverageInbox({
+          db, tx, value: fresh.value, users: fresh.users, now,
+        });
         tx.update(effectRef(id), {state: "completed", projection,
           completedAt: Timestamp.fromMillis(now), deliveredTo});
         if (fresh.value.changes.length) tx.delete(reservation);

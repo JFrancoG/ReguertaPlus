@@ -1034,3 +1034,25 @@ command for explicit replay; acknowledged writes are never replayed merely becau
 read-back failed. Only fixed-demo Auth-emulator credentials may reach loopback,
 with redirects refused. Native UI/session composition and connected journeys remain
 pending alongside notification/Sheets effects and live ratification/activation.
+
+
+### HU-084 local recovery authority — 2026-09-13
+
+Coverage recovery reuses the trusted HU-082 closed-intake barrier and its failure
+journal. It requires backend-owned authorization bound to an active administrator,
+exact Firestore source versions, closed maintenance and the fixed demo workbook.
+The injected control plane must fence and drain coverage runtimes along with the
+manifested writers; neither a timeout nor a closed state document proves this.
+HU-083 inspection supplies read-only projection evidence. Only verified current
+rows permit atomic inbox release and reservation removal. Obsolete notification
+intents retire without replay; a mismatched/missing projection retains its reservation.
+The command receipt, case, assignment and credit history are never rewritten.
+
+Push reconciliation preserves accepted/failed/unknown outcomes and classifies an
+interrupted submission as unknown; absent submission receipts are listed separately.
+Neither case authorizes a resend. A terminal recovery receipt is idempotent, but a
+failed final barrier read-back remains an incident even after its transaction commits.
+Controls remain closed; re-opening and admitting delivery under a new writer epoch
+are separate governed operations. Existing effect writer authority is not renewed.
+There is no deployed recovery endpoint, allowlist issuer or real control-plane driver
+in this local composition. Their wiring and live evidence remain HU-085 responsibilities.

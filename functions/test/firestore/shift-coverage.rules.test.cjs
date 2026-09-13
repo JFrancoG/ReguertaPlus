@@ -22,11 +22,21 @@ for (const policy of ["strict", "phase1"]) {
             roles: ["admin", "member"], isCommonPurchaseManager: false});
           await db.doc(`${root}/authLinks/admin-uid`).set({memberId: "admin"});
           for (const collection of collections) await db.doc(`${root}/${collection}/existing`).set({revision: 1});
+          for (const child of ["recoveryAuthorizations", "recoveries", "pushes"]) {
+            await db.doc(`${root}/shiftCoverageEffects/existing/${child}/private`).set({revision: 1});
+          }
         }
       });
       for (const db of [env.authenticatedContext("admin-uid").firestore(),
         env.authenticatedContext("member-uid").firestore(), env.unauthenticatedContext().firestore()]) {
         for (const environment of ["develop", "production"]) {
+          for (const child of ["recoveryAuthorizations", "recoveries", "pushes"]) {
+            const ref = db.doc(`${environment}/plus-collections/shiftCoverageEffects/existing/${child}/private`);
+            await assertFails(ref.get());
+            await assertFails(ref.set({actorId: "admin", state: "accepted"}));
+            await assertFails(ref.update({revision: 2}));
+            await assertFails(ref.delete());
+          }
           for (const collection of collections) {
             const ref = db.collection(`${environment}/plus-collections/${collection}`);
             await assertFails(ref.doc("existing").get());

@@ -1058,7 +1058,7 @@ stays open.
 ## Coverage push rehearsal checkpoint — 2026-09-13
 
 Commit `3dcc84c` (`test(shifts): validate native coverage acceptance`) is pushed.
-The next grouped block is implemented locally and remains uncommitted. It reuses
+The push block is committed and pushed as `2779b2e`. It reuses
 our generic Messaging transport with injected demo destinations and simulated SDK
 submission. A verified inbox/effect is required; membership, offer expiry, case
 revision and writer authority are checked again before claiming a send. Each
@@ -1108,3 +1108,109 @@ outcomes and shared-writer recovery. Real destination admission, provider select
 physical assistive-technology/device evidence, assembly ratification and HU-085
 remain explicit live gates. Issue #268 stays open. Reproduction instructions and
 local evidence limits are in the bilingual native rehearsal guides.
+
+
+## Governed recovery implementation — 2026-09-13
+
+Approved next grouped outcome: recover fixed-demo projection and push effects using
+HU-082's trusted closed-intake barrier and backend-owned, operator-bound authorization.
+Bind authorization to the exact current evidence, require closed maintenance, verify
+external evidence before committing, and preserve operation history. Reuse HU-083
+read-only inspection: recovery cannot patch Sheets or resend push. Verified current
+projections can release their generic inbox; superseded effects can be retired only
+with exact projected rows still matching canonical assignments. Unverifiable rows
+keep their reservation. Interrupted push submissions remain unknown, never delivered.
+Replays and concurrent recovery must not duplicate inbox, alter credits or reopen
+writers. Validate denial, drift, crashes/unknown outcomes and cross-season projection
+recovery in the existing emulator suites. This does not supply live IAM/Drive controls,
+real destination admission or new client/operator endpoints; those remain HU-085.
+
+
+## Governed recovery checkpoint — 2026-09-13
+
+This checkpoint builds on pushed commit `2779b2e` (coverage push dispatch and
+routing) and implements and validates the grouped local recovery block.
+It reuses the HU-082 trusted closed-intake adapter, evidence verifier and immutable
+failure journal, plus HU-083 read-only projection inspection. No alternate lock,
+live endpoint, IAM/Drive controller or automatic retry scheduler is introduced.
+
+Backend-owned authorization beneath the exact effect binds an active administrator,
+closed maintenance, workbook and source versions. Source, role and authorization
+changes reject before effect completion. Matching canonical assignments and exact
+Sheet read-back can atomically complete the effect, release its generic inbox and
+remove its reservation without a new Sheets write. Shared inbox construction retains
+the ordinary worker's behavior. Superseded/expired notification-only effects retire;
+missing/conflicting projections or changed assignments keep the reservation.
+
+Recovery preserves accepted, failed and unknown push history; an interrupted
+submitting record becomes unknown with the original attempt and destination digest.
+Recipients with no submission are listed separately. None is automatically resent.
+Concurrent/repeated recovery produces one receipt/inbox release. A failed final
+barrier check after commit leaves the receipt and a durable incident; retry cannot
+claim clean completion. Writers remain closed, and the original effect authority is
+not renewed. Future push admission after a new epoch requires its governed path.
+
+Validation:
+
+- Functions build and lint pass.
+- 122 fixed-demo emulator/Rules scenarios pass, zero failures/skips, including
+  14 new recovery scenarios. This covers lost projection acknowledgement, roster
+  and writer drift, manual conflicts, canonical assignment drift, expired evidence,
+  active/inactive administrator, missing/forged/revoked authorization, in-flight
+  writers, another workbook, concurrent recovery, malformed push evidence, missing
+  submissions and a lost final barrier acknowledgement. Nested authorization,
+  recovery and push records deny client reads/writes under strict and phase1 Rules.
+- 86 units pass, zero failures/skips: coverage/credits plus intake-barrier,
+  trusted-adapter and notification-reconciliation regressions. The barrier fixture
+  is shared with the pre-existing HU-082 tests rather than copied into a new framework.
+- Source review and `git diff --check` pass. No Android/iOS code changed in this
+  block, so their accepted push-block validations are retained without rerunning
+  native builds. There is no new platform parity gap.
+
+Evidence logs: `/tmp/hu084-recovery-emulator-final.log`,
+`/tmp/hu084-recovery-units-final.log`, `/tmp/hu084-recovery-lint-final.log`.
+Tests use real local Firestore/Rules and a stateful Sheets fake; the external
+control-plane proof is simulated, not evidence of deployed IAM or Drive fencing.
+No production/shared data or real notification endpoint was accessed.
+
+Next: review the HU-084 acceptance matrix for closeout and consolidate remaining
+local/manual evidence versus HU-085 activation work. Physical assistive-technology,
+API 29, Android tray/FCM, iOS cold-process/APNs delivery, real entropy/provider and
+assembly decisions remain explicit gaps. Issue #268 remains open.
+
+
+## Pre-PR assessment — 2026-09-13
+
+The next recommended step is one final branch review and validation pass, not more
+independent feature cuts. A PR may review the explicitly provisional, demo-only
+implementation with `Refs #268`. It must not claim the assembly-approved Definition
+of Done or close #268. No PR, merge or activation is authorized by this checkpoint.
+
+Before presenting that PR as ready for review:
+
+1. Reconcile the full branch against the acceptance criteria in one current matrix;
+   review cross-feature regressions, source/ownership boundaries and unnecessary
+   complexity. Historical checkpoints and unchecked live tasks are not that matrix.
+2. Validate the final revision: Functions suites including HU-016/HU-082 regressions,
+   Android unit/lint/connected gates, and the canonical iOS release gate. Reuse
+   unaffected recent evidence explicitly. The last full iOS release gate predates
+   the final push callback; later focused/smoke tests do not replace that full gate.
+   Separate the 137 recorded Android baseline lint findings from new diagnostics.
+3. Attach the exact residual acceptance list: physical VoiceOver/TalkBack, Android
+   API 29, Android notification-tray opening and iOS cold-process notification
+   opening. Run feasible local checks; an unperformed check stays visible and cannot
+   be marked passed. Real APNs/FCM delivery is also unverified.
+
+Full HU-084 closure additionally requires the linked assembly decision and bilingual
+ratified requirements, reconciliation/testing of any policy amendments (reserve exit,
+windows/order, eligibility/departures, draw and credits), the real entropy-provider
+contract, and completion or explicit disposition of operational observability:
+structured logs/metrics for stuck cases, exhaustion, retries and credit failures.
+Persisted audit receipts alone do not complete that observability task. Live backend,
+mobile composition, destination admission and operational recovery remain unwired;
+they need an explicitly scoped coverage activation handoff after ratification.
+
+HU-085/#269 currently owns the base planner/workbook rollout and is independent of
+HU-084. Its existing scope must not be treated as implicit completion or automatic
+ownership of every remaining coverage task. Real IAM/Drive fencing, deployment and
+production writes remain separately authorized activation work.

@@ -1088,3 +1088,26 @@ repite una escritura ya confirmada. Solo las credenciales del emulador Auth del
 proyecto demo fijo pueden llegar a loopback, sin seguir redirecciones. Siguen
 pendientes la composición de sesión/UI nativa, sus pruebas conectadas, los efectos
 de notificaciones/Sheets y la ratificación/activación real.
+
+
+### Autoridad de recuperación local HU-084 — 2026-09-13
+
+La recuperación de coberturas reutiliza la barrera de entradas cerradas HU-082 y su
+registro de fallos. Exige autorización del backend ligada a un administrador activo,
+versiones exactas de las fuentes Firestore, mantenimiento cerrado y el libro demo fijo.
+El controlador inyectado debe bloquear y drenar también los procesos de coberturas,
+además de los escritores inventariados: un timeout o un documento cerrado no lo prueban.
+La inspección HU-083 aporta evidencia de proyección mediante lectura. Solo las filas
+vigentes verificadas permiten liberar el buzón y retirar la reserva atómicamente.
+Los avisos obsoletos se retiran sin repetirse; una proyección ausente o distinta mantiene
+la reserva. No se reescriben recibos de comandos, casos, asignaciones ni créditos.
+
+La conciliación push conserva los resultados aceptado/fallido/incierto y clasifica
+un envío interrumpido como incierto; enumera aparte los destinatarios sin recibo de
+intento. Ninguno de esos estados autoriza un reenvío. El recibo terminal es idempotente,
+pero un fallo de verificación final de la barrera sigue siendo una incidencia aunque
+la transacción haya hecho commit. Los controles permanecen cerrados; reabrirlos y
+admitir entregas bajo una época nueva son operaciones gobernadas independientes.
+No se renueva la autoridad original del efecto. Esta composición local no despliega
+endpoint de recuperación, emisor de autorizaciones ni controlador real. Su conexión
+y evidencia en vivo siguen siendo responsabilidad de HU-085.

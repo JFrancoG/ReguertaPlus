@@ -269,3 +269,50 @@ Local evidence: `/tmp/hu084-push-ios-system-tap.json`,
 physical-device, real FCM/APNs, iOS cold-process or Android notification-tray evidence.
 Live destination admission, uncertain-result/shared-writer recovery, entropy-provider
 selection, assembly ratification and HU-085 remain pending.
+
+
+## Governed recovery rehearsal
+
+The recovery adapter operates only in the fixed demo project/workbook. It has no
+HTTP endpoint or live control-plane implementation. `inspect(operationId, actorId)`
+provides the source-version digest to the trusted operator harness; it does not
+create authority. The harness must already hold closed maintenance and backend
+permission to persist the exact authorization under:
+
+`shiftCoverageEffects/{operationId}/recoveryAuthorizations/{recoveryId}`
+
+The exact fields are `schemaVersion: 1`, `actorId`, `evidenceDigest`, and `scope`.
+The scope is HU-082's complete closed-barrier binding; its authoritative digest
+binds this coverage source snapshot, and it names the fixed workbook and current
+maintenance revision/epoch/lineage. The control plane must durably fence and drain
+all affected writers, including coverage workers and external editors, and return
+the matching held checkpoint before and after recovery. Neither closed Firestore
+maintenance nor waiting for a timeout replaces that evidence. There is no reopen
+method. Real controls/allowlist issuance remain HU-085 work.
+
+`reconcile(operationId, recoveryId, actorId)` rechecks the authorization and source
+inside its commit transaction. It only reads Sheets and never submits push.
+
+| Observed outcome | Recovery behavior |
+| --- | --- |
+| Pending effect, verified projection and current canonical assignments | Complete effect, atomically release generic inbox and remove its reservation |
+| Superseded or expired notice with no outstanding projection | Retire effect without releasing the old notice |
+| Missing/mismatched projection or changed canonical assignments | Keep pending effect and reservation; retain closed-barrier incident |
+| Interrupted push submission | Keep its attempt/destination evidence and mark unknown; no resend |
+| Accepted/failed/unknown push or no recorded submission | Preserve outcome; list unsent recipients separately; no resend |
+| Final barrier verification fails after commit | Keep recovery receipt and incident; retry does not claim clean completion |
+
+The immutable result is under `shiftCoverageEffects/{operationId}/recoveries/{recoveryId}`.
+Authorizations and results remain backend-only, even for authenticated app admins.
+Replays do not rewrite case/credit/assignment history, re-open writers or renew the
+original effect's writer authority. Inbox release is not FCM/APNs admission under a
+new epoch. A mismatched workbook requires a separate reviewed repair, not overwriting
+cells through this recovery path.
+
+Run the existing `npm run test:shift-coverage:emulator` from `functions` with no native
+fixture running. The suite includes 14 recovery scenarios with a stateful Sheets fake
+and a simulated trusted control plane. The 2026-09-13 run passes all 122 emulator/Rules
+scenarios; 86 coverage/barrier/reconciliation units and Functions lint/build also pass.
+No Android/iOS code changed in this block. Those tests prove local behavior, not live
+multi-service fencing or delivery. See the current plan for the remaining acceptance
+and HU-085 boundaries.

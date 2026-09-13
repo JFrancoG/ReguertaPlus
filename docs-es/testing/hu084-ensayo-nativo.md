@@ -277,3 +277,49 @@ Evidencia local: `/tmp/hu084-push-ios-system-tap.json`,
 FCM/APNs reales, arranque iOS en frío ni la bandeja Android. Siguen pendientes la
 admisión de destinos reales, recuperación de resultados inciertos y escritores
 compartidos, proveedor de entropía, ratificación y HU-085.
+
+
+## Ensayo de recuperación gobernada
+
+El adaptador solo opera en el proyecto y libro demo fijos. No tiene endpoint HTTP
+ni controlador real. `inspect(operationId, actorId)` facilita el digest de versiones
+al ejecutor de confianza; no crea autoridad. Este debe tener mantenimiento cerrado
+y permiso del backend para guardar la autorización exacta en:
+
+`shiftCoverageEffects/{operationId}/recoveryAuthorizations/{recoveryId}`
+
+Los campos exactos son `schemaVersion: 1`, `actorId`, `evidenceDigest` y `scope`.
+El ámbito contiene el contrato completo de barrera cerrada HU-082; su digest
+autoritativo liga esta captura de coberturas e identifica el libro fijo y la revisión,
+época y linaje actuales del mantenimiento. El controlador debe bloquear y drenar
+los escritores afectados, incluidos los procesos de coberturas y editores externos,
+y devolver el mismo checkpoint cerrado antes y después. Un documento de mantenimiento
+cerrado o esperar un timeout no sustituyen esa evidencia. No existe operación de
+reapertura. Los controles reales y la emisión de autorizaciones corresponden a HU-085.
+
+`reconcile(operationId, recoveryId, actorId)` vuelve a verificar autorización y fuentes
+dentro de la transacción de commit. Solo lee Sheets y nunca envía push.
+
+| Resultado observado | Recuperación |
+| --- | --- |
+| Efecto pendiente, proyección verificada y asignaciones canónicas vigentes | Completa el efecto, libera el buzón genérico y retira la reserva atómicamente |
+| Aviso obsoleto o caducado sin proyección pendiente | Retira el efecto sin liberar el aviso antiguo |
+| Proyección ausente/distinta o asignaciones modificadas | Mantiene efecto y reserva; registra la incidencia con la barrera cerrada |
+| Envío push interrumpido | Conserva intento/evidencia de destinos y marca incierto; no reenvía |
+| Push aceptado/fallido/incierto o sin intento registrado | Conserva el resultado y enumera destinatarios sin envío; no reenvía |
+| Falla la comprobación final de barrera después del commit | Conserva recibo e incidencia; el reintento no afirma una finalización correcta |
+
+El resultado inmutable queda en `shiftCoverageEffects/{operationId}/recoveries/{recoveryId}`.
+Autorizaciones y resultados son privados del backend incluso para administradores
+autenticados de la app. Repetir no reescribe casos, créditos o asignaciones, no reabre
+escritores ni renueva la autoridad original del efecto. Liberar el buzón no autoriza
+FCM/APNs bajo una época nueva. Un libro distinto exige una reparación revisada aparte;
+esta recuperación no sobrescribe sus celdas.
+
+Ejecutar `npm run test:shift-coverage:emulator` desde `functions` sin otro escenario
+nativo activo. Incluye 14 escenarios de recuperación con Sheets simulado con estado
+y controlador de confianza simulado. El 13/09/2026 pasan los 122 escenarios de
+emulador/Rules, 86 unidades de coberturas/barreras/conciliación y lint/build Functions.
+Este bloque no cambia código Android/iOS. Acredita comportamiento local, no bloqueo
+real entre servicios ni entrega real. El plan mantiene la aceptación pendiente y los
+límites de HU-085.

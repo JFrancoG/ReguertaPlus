@@ -352,3 +352,240 @@ run("coverage replay retains SDK outcome after destinations and case change", as
     assert.equal(lookups, 1);
   } finally { await dispatcher.close(); }
 });
+
+const {createProvisionalCoverageRecovery} = require("../lib/shift-coverage-recovery.js");
+const {scope: barrierScope, evidence: barrierEvidence} = require("./shift-planning-barrier-fixture.cjs");
+const {createShiftPlanningTrustedIntakeBarrierCheckpoint: checkpoint,
+  createShiftPlanningIntakeBarrierFailureClosureRecord: failureRecord} =
+  require("../lib/shift-planning-trusted-intake-barrier-adapter.js");
+const {createShiftPlanningDigest: recoveryDigest} = require("../lib/shift-planning-digest.js");
+
+// Trusted control-plane simulation only. This fixture installs no IAM/Drive fence.
+const prepareRecovery = async (operationId, options = {}) => {
+  const recoveryId = options.recoveryId ?? "recover-1";
+  const maintenance = await read("shiftPlanningState", "current");
+  await ref("shiftPlanningState", "current").set({...maintenance, maintenanceStatus: "closed",
+    stateRevision: maintenance.stateRevision + 1, writeEpoch: maintenance.writeEpoch + 1,
+    intakeBarrier: {revision: "recovery-closed", digest: recoveryDigest("closed"), verifiedAtMillis: now}});
+  let held, failed = null, controls = 0, readBacks = 0;
+  const recovery = createProvisionalCoverageRecovery({config, sheets: {get: (...args) => sheets.get(...args)},
+    nowMillis: () => now, controlPlane: {
+      closeAndCollect: async () => { controls++; await options.onClose?.(); return held; },
+      readBackClosed: async () => { readBacks++; await options.onReadBack?.(readBacks); return held; },
+    }, failurePersistence: {
+      readExistingFailure: async () => failed,
+      retainFailureAndReadBack: async (request) => (failed = failureRecord(request, now)),
+    }});
+  try {
+    const inspected = await recovery.inspect(operationId, "admin"), state = inspected.maintenance;
+    const scope = barrierScope({transitionId: recoveryId, expectedAuthoritativeDigest: inspected.evidenceDigest,
+      expectedStateRevision: state.stateRevision, expectedWriteEpoch: state.writeEpoch,
+      expectedActiveRevision: state.activeRevision, expectedActiveDigest: state.activeDigest,
+      expectedWorkbookFileId: config.workbookId, expectedWorkbookDigest: recoveryDigest(clone(sheets.state))});
+    const payload = barrierEvidence().payload;
+    const shiftTimes = (value) => {
+      for (const [key, item] of Object.entries(value)) {
+        if (item && typeof item === "object") shiftTimes(item);
+        else if (key.endsWith("AtMillis")) value[key] += now - 520;
+      }
+    };
+    shiftTimes(payload);
+    payload.transition = {transitionId: recoveryId, expectedAuthoritativeDigest: inspected.evidenceDigest,
+      expectedStateRevision: state.stateRevision, expectedWriteEpoch: state.writeEpoch,
+      expectedActiveRevision: state.activeRevision, expectedActiveDigest: state.activeDigest};
+    payload.workbook.fileId = config.workbookId;
+    payload.workbook.digest = payload.workbook.readBackDigest = scope.expectedWorkbookDigest;
+    options.mutateEvidence?.(payload, scope);
+    held = checkpoint({scope, holdRevision: "local-held-1", evidence: {payload, digest: recoveryDigest(payload)}});
+    const authorization = {schemaVersion: 1, actorId: "admin", evidenceDigest: inspected.evidenceDigest, scope};
+    const auth = ref("shiftCoverageEffects", operationId).collection("recoveryAuthorizations").doc(recoveryId);
+    await auth.set(authorization);
+    return {recovery, auth, authorization, get failed() { return failed; }, get controls() { return controls; },
+      run: (actorId = "admin") => recovery.reconcile(operationId, recoveryId, actorId)};
+  } catch (error) { await recovery.close(); throw error; }
+};
+const ambiguousProjection = async () => {
+  const value = await accept(); sheets.onMutation = async () => { sheets.failRead = true; };
+  assert.equal((await worker.drain(value.operationId)).state, "pending");
+  sheets.onMutation = null; sheets.failRead = false; return value;
+};
+
+run("governed recovery verifies projection after writer and roster drift without another Sheets write", async () => {
+  const value = await ambiguousProjection();
+  await ref("users", "e").update({displayName: "Updated unrelated member"});
+  const pending = await read("shiftCoverageEffects", value.operationId);
+  const recovery = await prepareRecovery(value.operationId), rows = await currentRows(), count = sheets.mutations.length;
+  try {
+    const result = await recovery.run();
+    assert.equal(result.state, "completed"); assert.equal(result.projection.kind, "verified");
+    assert.equal(result.replayed, false); assert.equal((await inbox()).length, 4);
+    assert.deepEqual(await currentRows(), rows); assert.equal(sheets.mutations.length, count);
+    assert.equal((await db.collection(`${root}/shiftCoverageCredits`).get()).size, 0);
+    assert.equal(await read("shiftCoverageProjectionState", "workbook"), undefined);
+    assert.deepEqual((await read("shiftCoverageEffects", value.operationId)).submission, pending.submission);
+    assert.equal((await read("shiftPlanningState", "current")).maintenanceStatus, "closed");
+    now += 1000;
+    assert.deepEqual(await recovery.run(), {...result, replayed: true});
+    assert.equal(recovery.controls, 1); assert.equal((await inbox()).length, 4);
+    assert.equal((await worker.drain(value.operationId)).replayed, true);
+  } finally { await recovery.recovery.close(); }
+});
+
+run("recovery preserves conflicting workbook and reservation and journals the closed failure", async () => {
+  const value = await ambiguousProjection();
+  setCell(sheet("turnos-reparto 2027-28"), 1, 1, {userEnteredValue: {stringValue: "Manual replacement"}});
+  const recovery = await prepareRecovery(value.operationId);
+  const before = clone(sheets.state), pending = await read("shiftCoverageEffects", value.operationId);
+  try {
+    await assert.rejects(recovery.run(), {code: "coverage_effects_readback_required"});
+    assert.deepEqual(sheets.state, before); assert.deepEqual(await read("shiftCoverageEffects", value.operationId), pending);
+    assert.equal((await read("shiftCoverageProjectionState", "workbook")).operationId, value.operationId);
+    assert.deepEqual(await inbox(), []); assert.equal(recovery.failed.phase, "operation");
+    await assert.rejects(recovery.run(), {code: "coverage_recovery_barrier_failed"});
+  } finally { await recovery.recovery.close(); }
+});
+
+run("recovery preserves push history and marks interrupted sends unknown without resending", async () => {
+  const value = await accept(); await worker.drain(value.operationId);
+  const effects = await read("shiftCoverageEffects", value.operationId), states = ["accepted", "unknown", "failed", "submitting"];
+  for (const [i, userId] of effects.deliveredTo.entries()) {
+    const intent = effects.value.notifications.find((n) => n.userId === userId);
+    await ref("shiftCoverageEffects", value.operationId).collection("pushes").doc(userId).set({
+      eventId: intent.push.data.eventId, attemptId: `interrupted-${i}`, state: states[i],
+      sourceDigest: recoveryDigest("source"), targetsDigest: recoveryDigest("private-destinations"),
+      startedAt: Timestamp.fromMillis(now - 1000),
+      ...(states[i] === "submitting" ? {} : {result: {outcome: states[i]}, completedAt: Timestamp.fromMillis(now - 500)}),
+    });
+  }
+  const recovery = await prepareRecovery(value.operationId), count = sheets.mutations.length, delivered = await inbox();
+  try {
+    const result = await recovery.run();
+    assert.deepEqual(result.pushes.map((p) => p.disposition), ["accepted", "unknown", "failed", "unknown"]);
+    assert.deepEqual(await inbox(), delivered); assert.equal(sheets.mutations.length, count);
+    const interrupted = await ref("shiftCoverageEffects", value.operationId).collection("pushes").doc(effects.deliveredTo[3]).get();
+    assert.equal(interrupted.data().state, "unknown"); assert.equal(interrupted.data().attemptId, "interrupted-3");
+    assert.equal(interrupted.data().result.failureCode, "coverage_submission_interrupted");
+    let sends = 0;
+    const dispatcher = createProvisionalCoveragePushDispatcher({nowMillis: () => now,
+      resolveTargets: async () => { throw Error("Must not resolve destinations"); },
+      transport: {submit: async () => { sends++; return {outcome: "accepted"}; }}});
+    try {
+      for (const push of result.pushes) assert.equal((await dispatcher.submit(push.memberId, push.eventId)).replayed, true);
+      assert.equal(sends, 0);
+    } finally { await dispatcher.close(); }
+  } finally { await recovery.recovery.close(); }
+});
+
+run("superseded notification-only effects retire without reopening old offers", async () => {
+  await command("open", "a", {shiftId: "shift_delivery_20270901", absentUserId: "a", reason: "Unavailable"});
+  const offer = await command("offer", "admin", {userId: "d", reason: "Agreement", expiresAtMillis: now + 10_000});
+  await command("accept", "d"); const recovery = await prepareRecovery(offer.operationId);
+  try {
+    assert.equal((await recovery.run()).state, "retired"); assert.deepEqual(await inbox(), []);
+    await assert.rejects(worker.drain(offer.operationId), {code: "coverage_effects_retired"});
+    assert.equal((await read("shiftCoverageCases", "case-1")).value.status, "accepted");
+  } finally { await recovery.recovery.close(); }
+});
+
+run("recovery requires backend allowlisting and the current active administrator", async () => {
+  const value = await ambiguousProjection(), recovery = await prepareRecovery(value.operationId);
+  try {
+    await assert.rejects(recovery.run("a"), {code: "coverage_admin_required"});
+    await recovery.auth.delete(); await assert.rejects(recovery.run(), {code: "coverage_recovery_authorization_required"});
+    await recovery.auth.set({...recovery.authorization, evidenceDigest: recoveryDigest("forged")});
+    await assert.rejects(recovery.run(), {code: "coverage_recovery_authorization_changed"});
+    await recovery.auth.set(recovery.authorization); await ref("users", "admin").update({isActive: false});
+    await assert.rejects(recovery.run(), {code: "coverage_admin_required"});
+    assert.equal(recovery.controls, 0); assert.deepEqual(await inbox(), []);
+  } finally { await recovery.recovery.close(); }
+});
+
+for (const [name, mutateEvidence] of [
+  ["in-flight writers", (p) => { p.writerControls[0].inFlightWorkCount = 1; }],
+  ["wrong workbook", (p, s) => { p.workbook.fileId = s.expectedWorkbookFileId = "another-workbook"; }],
+]) run(`recovery rejects ${name} instead of trusting closed maintenance alone`, async () => {
+  const value = await ambiguousProjection(); let recovery;
+  try {
+    await assert.rejects(async () => { recovery = await prepareRecovery(value.operationId, {mutateEvidence}); await recovery.run(); });
+    assert.deepEqual(await inbox(), []);
+    assert.equal((await read("shiftCoverageProjectionState", "workbook")).operationId, value.operationId);
+  } finally { if (recovery) await recovery.recovery.close(); }
+});
+
+run("recovery rejects stale barrier evidence and source drift during inspection", async () => {
+  const value = await ambiguousProjection();
+  const expired = await prepareRecovery(value.operationId, {onClose: async () => { now += 200; }});
+  try { await assert.rejects(expired.run()); assert.deepEqual(await inbox(), []); }
+  finally { await expired.recovery.close(); }
+  const recovery = await prepareRecovery(value.operationId, {recoveryId: "recover-2"}), get = sheets.get;
+  sheets.get = async (...args) => { const result = await get(...args); await ref("users", "d").update({isActive: false}); return result; };
+  try {
+    await assert.rejects(recovery.run(), {code: "coverage_recovery_authorization_changed"});
+    assert.deepEqual(await inbox(), []); assert.equal((await read("shiftCoverageEffects", value.operationId)).state, "pending");
+  } finally { sheets.get = get; await recovery.recovery.close(); }
+});
+
+run("concurrent recovery creates one receipt and one inbox release", async () => {
+  const value = await ambiguousProjection(), recovery = await prepareRecovery(value.operationId);
+  try {
+    const results = await Promise.all([recovery.run(), recovery.run()]);
+    assert.equal(results.filter((r) => r.replayed).length, 1);
+    assert.equal((await ref("shiftCoverageEffects", value.operationId).collection("recoveries").get()).size, 1);
+    assert.equal((await inbox()).length, 4);
+  } finally { await recovery.recovery.close(); }
+});
+
+run("post-commit barrier failure retains result but does not report clean recovery on retry", async () => {
+  const value = await ambiguousProjection();
+  const recovery = await prepareRecovery(value.operationId, {onReadBack: async (index) => {
+    if (index === 2) throw Error("Lost final control-plane response");
+  }});
+  try {
+    await assert.rejects(recovery.run(), /Lost final control-plane response/);
+    assert.equal((await inbox()).length, 4); assert.equal(recovery.failed.phase, "finalReadBack");
+    await assert.rejects(recovery.run(), {code: "coverage_recovery_barrier_failed"});
+    assert.equal((await ref("shiftCoverageEffects", value.operationId).collection("recoveries").get()).size, 1);
+    assert.equal((await read("shiftPlanningState", "current")).maintenanceStatus, "closed");
+  } finally { await recovery.recovery.close(); }
+});
+
+run("recovery never releases a projection reservation when canonical assignments have moved on", async () => {
+  const value = await ambiguousProjection();
+  await ref("shifts", "shift_delivery_20270901").set(materialize("shift_delivery_20270901", "delivery", "2027-09-01", ["e"], "c"));
+  const recovery = await prepareRecovery(value.operationId), count = sheets.mutations.length;
+  try {
+    await assert.rejects(recovery.run(), {code: "coverage_effects_source_changed"});
+    assert.equal(sheets.mutations.length, count); assert.deepEqual(await inbox(), []);
+    assert.equal((await read("shiftCoverageProjectionState", "workbook")).operationId, value.operationId);
+  } finally { await recovery.recovery.close(); }
+});
+
+run("authorization revoked during workbook inspection rejects before inbox or receipt writes", async () => {
+  const value = await ambiguousProjection(), recovery = await prepareRecovery(value.operationId), get = sheets.get;
+  sheets.get = async (...args) => { const result = await get(...args); await recovery.auth.delete(); return result; };
+  try {
+    await assert.rejects(recovery.run(), {code: "coverage_recovery_authorization_changed"});
+    assert.deepEqual(await inbox(), []);
+    assert.equal((await ref("shiftCoverageEffects", value.operationId).collection("recoveries").get()).size, 0);
+  } finally { sheets.get = get; await recovery.recovery.close(); }
+});
+
+run("malformed terminal push evidence cannot turn an unknown result into accepted", async () => {
+  const value = await accept(); await worker.drain(value.operationId);
+  const effect = await read("shiftCoverageEffects", value.operationId), intent = effect.value.notifications[0];
+  await ref("shiftCoverageEffects", value.operationId).collection("pushes").doc(intent.userId).set({
+    eventId: intent.push.data.eventId, attemptId: "bad-terminal", state: "accepted", result: {outcome: "unknown"},
+    startedAt: Timestamp.fromMillis(now - 500), completedAt: Timestamp.fromMillis(now),
+  });
+  await assert.rejects(prepareRecovery(value.operationId), {code: "coverage_recovery_push_changed"});
+});
+
+run("recovery reports recipients without submissions but does not dispatch them", async () => {
+  const value = await accept(); await worker.drain(value.operationId);
+  const effect = await read("shiftCoverageEffects", value.operationId), recovery = await prepareRecovery(value.operationId);
+  try {
+    const result = await recovery.run();
+    assert.deepEqual(result.pushes, []); assert.deepEqual(result.unsubmittedMemberIds, effect.deliveredTo);
+    assert.equal((await ref("shiftCoverageEffects", value.operationId).collection("pushes").get()).size, 0);
+  } finally { await recovery.recovery.close(); }
+});
