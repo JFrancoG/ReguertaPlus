@@ -27,7 +27,7 @@ adb -s EMULATOR_ID shell am start \
 
 Android usa el proceso separado `:coverage_rehearsal`, sin FirebaseInitProvider del
 proceso principal ni composición de MainActivity. Solo 127.0.0.1 y 10.0.2.2 admiten
-HTTP sin TLS. iOS emplea la composición de pruebas existente con push desactivado.
+HTTP sin TLS. iOS emplea la composición de pruebas existente sin registro push remoto.
 Estas rutas no se registran en Release.
 
 Contraseña común del escenario: `local-fixture-password`.
@@ -194,3 +194,86 @@ el contenido y las acciones siguen siendo alcanzables mediante desplazamiento.
 Esta evidencia corresponde a simuladores/emuladores locales. Siguen pendientes
 VoiceOver/TalkBack físicos, API 29, la entrega push real del sistema y la activación
 con escritores/libros compartidos.
+
+
+## Envío push simulado y apertura desde el sistema
+
+El escenario nativo ejecuta ahora el despachador de coberturas mediante la interfaz
+de transporte Messaging existente, con destinos falsos y respuesta SDK aceptada.
+Registra `Local push payload` con solo `eventId`, `type` y `target`. No consulta
+destinos reales ni llama a FCM/APNs. Los seis envíos iniciales guardan recibos por
+destinatario en `shiftCoverageEffects/{operationId}/pushes/{memberId}`. Repetir el
+procesamiento devuelve el recibo original incluso si cambian el caso o los destinos.
+Un resultado submitting/unknown requiere conciliación gobernada y nunca se reenvía
+automáticamente. No se persisten tokens. El texto genérico no contiene casos,
+socios ni motivos administrativos. La clave de colapso APNs tiene 64 bytes y el
+identificador opaco completo se conserva en los datos.
+
+En iOS, arrancar Debug con `-coverageRehearsal` y `-coveragePushRehearsal`. Aceptar
+el permiso de notificaciones en el simulador propio. El segundo flag solicita solo
+la autorización local; siguen desactivados Firebase y el registro remoto. Mantener
+el proceso abierto: un arranque en frío desde el sistema no conserva estos flags.
+Copiar el payload vigente de la oferta de mercado para `d` del escenario fijo y
+añadir el sobre de alerta APNs:
+
+```json
+{
+  "eventId": "COPIAR_EVENT_ID_VIGENTE_DE_COBERTURA",
+  "type": "shift_updated",
+  "target": "users",
+  "aps": {
+    "alert": {"title": "Turnos actualizados", "body": "Consulta la aplicación para ver la información actualizada."},
+    "sound": "default"
+  }
+}
+```
+
+Guardarlo en un archivo temporal `.apns` y ejecutar:
+
+```sh
+xcrun simctl push SIMULATOR_UDID com.plusprojects.Reguerta.debug /tmp/coverage.apns
+```
+
+Abrir el aviso real del Centro de notificaciones e iniciar sesión como
+`d@example.test`. Debe aparecer la oferta sin elegir una fila del buzón. Repetir
+con el detalle abierto: debe conservar el mismo caso. No aceptar/rechazar en este
+recorrido de lectura. El callback copia una referencia tipada y finaliza en
+MainActor, también para payloads rechazados: UIKit restaura la escena al completarlo.
+La prueba del aviso detectó y ahora verifica la corrección de ese cierre por hilo.
+
+En Android, probar la entrada equivalente con el identificador vigente:
+
+```sh
+adb -s EMULATOR_ID shell am start \
+  -n com.reguerta.user.debug/com.reguerta.user.CoverageRehearsalActivity \
+  --es eventId EVENT_ID_VIGENTE --es type shift_updated --es target users
+```
+
+Ejecutar antes del login y con la actividad ya en primer plano. `singleTop` entrega
+la segunda entrada a `onNewIntent`. La apertura espera a la autenticación y a resolver
+formularios o comandos inciertos; cerrar sesión descarta la intención y lecturas
+tardías. Las rutas activas normales no envían coberturas al detalle de planificación
+estacional. Android rechazó por permisos la publicación de notificaciones desde
+shell, por lo que estos Intents no acreditan pulsaciones en la bandeja.
+
+### Evidencia del bloque push — 2026-09-13
+
+- Functions: pasan lint/build, 45 unidades de cobertura y 108 escenarios de emulador/Rules.
+- Android: pasan 502 unidades, lint y 25 pruebas conectadas en Pixel 8 Pro/API 35;
+  los Intents de actividad nueva/abierta llegan a la oferta de mercado del 4 de septiembre.
+- iOS: pasan 908 fast-unit/una omisión optativa existente, cuatro UI-smoke y las
+  18 pruebas enfocadas finales (19 ejecuciones parametrizadas), en iPhone 17/iOS 26.5.
+  Build Xcode MCP y SwiftLint finales correctos, sin warnings ni infracciones. La
+  tabla anterior del gate completo corresponde a la aceptación ya commiteada (`3dcc84c`).
+- iPhone SE/iOS 26.5: las pulsaciones reales del aviso simulado antes del login y
+  con el detalle abierto conservan la oferta, sin cierre ni vuelta al listado.
+- Lectura local recursiva: 51 documentos, seis recibos push simulados aceptados,
+  tres casos con estados/revisiones intactos y cero créditos. No se envió ninguna
+  acción de cobertura.
+
+Evidencia local: `/tmp/hu084-push-ios-system-tap.json`,
+`/tmp/hu084-push-ios-repeat-tap.json`, `/tmp/hu084-push-callback-focused.xcresult`,
+`/tmp/hu084-push-firestore-after.json` y logs de backend/Android. No acredita hardware,
+FCM/APNs reales, arranque iOS en frío ni la bandeja Android. Siguen pendientes la
+admisión de destinos reales, recuperación de resultados inciertos y escritores
+compartidos, proveedor de entropía, ratificación y HU-085.

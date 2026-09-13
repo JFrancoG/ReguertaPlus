@@ -29,7 +29,7 @@ adb -s EMULATOR_ID shell am start \
 Android uses a separate `:coverage_rehearsal` process, with no default-process
 FirebaseInitProvider or MainActivity composition. Cleartext is allowed only for
 127.0.0.1 and Android's emulator host alias 10.0.2.2. iOS uses the existing test
-composition with push disabled. Neither route is registered in Release.
+composition with remote push registration disabled. Neither route is registered in Release.
 
 All fixture accounts use `local-fixture-password`:
 
@@ -111,8 +111,8 @@ Generic per-recipient inbox records are created atomically with effect completio
 only after verified projection; inactive recipients are skipped. Offers are checked
 for expiry/supersession. Replays and concurrent drains cannot duplicate inbox
 records. No `notificationEvents` fan-out event or FCM send is created. The private
-effect keeps case/revision references. Actual dispatch and governed shared-workbook
-recovery/activation remain pending.
+effect keeps case/revision references. Real dispatch and governed shared-workbook
+recovery/activation remain pending. The simulated dispatcher below now consumes these inbox references.
 The rehearsal reservation is not a production distributed lock across all writers.
 
 ## Open an authenticated notification
@@ -188,3 +188,84 @@ launch/performance test. The native navigation titles abbreviate on the SE and a
 body content and actions remain reachable by scrolling. This evidence covers local
 simulator/emulator behavior. Physical VoiceOver/TalkBack and API 29 acceptance,
 real OS push delivery and live/shared-writer activation remain open.
+
+
+## Simulated push submission and OS opening
+
+The native fixture now runs the coverage dispatcher through the existing generic
+Messaging transport interface, injecting fake destinations and an accepted SDK
+result. It logs `Local push payload` with only `eventId`, `type` and `target`.
+No real FCM/APNs call or destination lookup occurs. Six seed submissions have durable
+per-recipient receipts beneath `shiftCoverageEffects/{operationId}/pushes/{memberId}`.
+Repeated drains return the original receipt, including after current case/destination
+changes. A submitting/unknown result requires governed reconciliation; it is never
+resent automatically. Raw tokens are not persisted. Generic text contains no case,
+member or administrative reason. APNs collapse keys are 64 bytes, while the opaque
+coverage event ID is preserved in data.
+
+For iOS, launch the Debug app with both `-coverageRehearsal` and
+`-coveragePushRehearsal`. Allow notifications on the owned simulator. The additional
+flag requests only local notification authorization: Firebase composition and
+remote registration remain disabled. Keep the app process running; a cold OS launch
+does not preserve these command-line rehearsal flags. Copy the current market-offer
+payload for recipient `d` from the fixed fixture and add the APNs alert envelope:
+
+```json
+{
+  "eventId": "COPY_CURRENT_COVERAGE_EVENT_ID",
+  "type": "shift_updated",
+  "target": "users",
+  "aps": {
+    "alert": {"title": "Turnos actualizados", "body": "Consulta la aplicación para ver la información actualizada."},
+    "sound": "default"
+  }
+}
+```
+
+Save as a temporary `.apns` file and run:
+
+```sh
+xcrun simctl push SIMULATOR_UDID com.plusprojects.Reguerta.debug /tmp/coverage.apns
+```
+
+Open the actual Notification Center notice, then sign in as `d@example.test`.
+The offer detail should appear without choosing an inbox row. Repeat while that
+detail is open: it must remain on the same case. Do not accept/decline for this
+read-only journey. The callback copies a typed reference and completes on MainActor,
+including rejected payloads, because UIKit performs scene restoration in completion.
+The simulated system tap exposed and now verifies the fix for that main-thread crash.
+
+For Android, verify the equivalent entrypoint with the current opaque event ID:
+
+```sh
+adb -s EMULATOR_ID shell am start \
+  -n com.reguerta.user.debug/com.reguerta.user.CoverageRehearsalActivity \
+  --es eventId CURRENT_COVERAGE_EVENT_ID --es type shift_updated --es target users
+```
+
+Run before login and again with the activity on top. `singleTop` delivers the latter
+through `onNewIntent`. Pending opening waits for authentication and any draft or
+uncertain command; logout discards it and late reads. Live routes do not forward
+coverage events to the seasonal-planning detail. Android shell notification posting
+was rejected by OS permission checks, so those Intent checks do not prove tray taps.
+
+### Push-block evidence — 2026-09-13
+
+- Functions: lint/build, 45 coverage units and 108 emulator/Rules scenarios pass.
+- Android: 502 units, lint and 25 connected tests pass on Pixel 8 Pro/API 35;
+  cold/warm activity Intent journeys open the offered September 4 market case.
+- iOS: 908 fast-unit passes/one existing opt-in skip, four UI-smoke passes, and
+  18 final focused tests (19 parameterized executions) pass on iPhone 17/iOS 26.5.
+  Xcode MCP build and final SwiftLint pass with no warnings/violations. The earlier
+  full release-gate table applies to committed native acceptance (`3dcc84c`).
+- iPhone SE/iOS 26.5: actual simulated system taps before login and with detail open
+  both retain the correct offer, without crashing or navigating back to overview.
+- Recursive local read-back: 51 documents, six accepted simulated push receipts,
+  three unchanged case states/revisions, zero credits. No coverage action was sent.
+
+Local evidence: `/tmp/hu084-push-ios-system-tap.json`,
+`/tmp/hu084-push-ios-repeat-tap.json`, `/tmp/hu084-push-callback-focused.xcresult`,
+`/tmp/hu084-push-firestore-after.json`, and backend/Android result logs. This is not
+physical-device, real FCM/APNs, iOS cold-process or Android notification-tray evidence.
+Live destination admission, uncertain-result/shared-writer recovery, entropy-provider
+selection, assembly ratification and HU-085 remain pending.

@@ -61,8 +61,13 @@ struct MainView: View {
             rootViewModel.refreshSessionAndEvaluateStartupGate()
         }
         .task(id: pushOpenTaskID) {
-            guard let pendingPushReference,
-                  await rootViewModel.openShiftNotificationPush(eventID: pendingPushReference.eventID) else {
+            guard let pendingPushReference else { return }
+            // Coverage remains in the isolated rehearsal until live composition is approved.
+            if pendingPushReference.isCoverage {
+                appEnvironment.shiftNotificationPushOpenStore.consume(pendingPushReference)
+                return
+            }
+            guard await rootViewModel.openShiftNotificationPush(eventID: pendingPushReference.eventID) else {
                 return
             }
             appEnvironment.shiftNotificationPushOpenStore.consume(pendingPushReference)

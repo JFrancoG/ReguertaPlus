@@ -63,6 +63,7 @@ struct CoverageRehearsalView: View {
             .navigationDestination(for: String.self) { caseId in
                 CoverageCaseDetailView(model: model, caseId: caseId)
             }
+            .onChange(of: model.readyPushEventID, initial: true) { Task { await model.openPendingPush() } }
             .onChange(of: model.casePath) { Task { await model.reloadOverviewAfterNavigation() } }
             .onChange(of: model.coverage.session) { model.casePath = [] }
             .navigationTitle(CoverageCopy.text("title"))

@@ -1012,8 +1012,8 @@ the live activation boundary. The story stays open; this is local integration ev
 ## Native acceptance and release checkpoint — 2026-09-13
 
 Commit `d0dbec5` (`feat(shifts): open authenticated coverage notifications`) is
-pushed. This next local block adds opt-in native acceptance tests and documentation;
-it is not yet committed. Product behavior and the fixed-demo backend are unchanged.
+pushed. The native acceptance block was subsequently committed and pushed as
+`3dcc84c`; it adds opt-in native acceptance tests and documentation. Product behavior and the fixed-demo backend are unchanged.
 Both platforms authenticate real local demo roles, open/cancel acceptance and
 completion forms, restore the full overview and read current server state again.
 Android uses production Compose at font scale 2; iOS uses Spanish and AX5.
@@ -1053,3 +1053,58 @@ Physical assistive-technology acceptance remains pending; shared-writer recovery
 real entropy selection, assembly ratification and HU-085 still gate live activation.
 No production/shared workbook or real notification service was modified. Issue #268
 stays open.
+
+
+## Coverage push rehearsal checkpoint — 2026-09-13
+
+Commit `3dcc84c` (`test(shifts): validate native coverage acceptance`) is pushed.
+The next grouped block is implemented locally and remains uncommitted. It reuses
+our generic Messaging transport with injected demo destinations and simulated SDK
+submission. A verified inbox/effect is required; membership, offer expiry, case
+revision and writer authority are checked again before claiming a send. Each
+recipient has one durable submission receipt, with no raw tokens. Replays return
+that receipt even if the case or destinations later change; submitting/unknown
+outcomes never trigger automatic resend. APNs collapse identifiers are 64 bytes;
+the longer opaque event ID remains intact in the generic payload.
+
+Both native rehearsal routes defer coverage push opening until authentication and
+until an active draft or uncertain command is resolved. Logout invalidates late
+responses. Opening a notice already on screen preserves case navigation. Normal
+live routes do not forward coverage events into the seasonal-planning detail.
+The iOS system-tap journey exposed a UIKit main-thread assertion in the existing
+async delegate completion bridge. The supported completion-handler signature now
+copies the immutable reference and finishes on MainActor, including invalid payloads.
+No SDK notification crosses the actor boundary.
+
+Validation:
+
+- Functions lint/build and 45 coverage unit tests pass; 108 coverage/Rules emulator
+  scenarios pass, including concurrent submission, unknown SDK outcome, expired
+  offers, source/writer drift and receipt replay after state/destination changes.
+- Android: 502 unit tests, lint and all 25 connected tests pass on Pixel 8 Pro/API
+  35, with both HU-084 opt-in journeys. The separate HU-083 fixture class is excluded.
+  Cold activity Intent before login and warm `onNewIntent` both open the correct
+  offered market case. Android shell notification posting is denied by the OS;
+  notification-tray and real FCM delivery are not certified by those Intent checks.
+- iOS: fast-unit passes 908 tests with one existing HU-083 opt-in skip; four UI-smoke
+  journeys pass on iPhone 17/iOS 26.5. The final callback/composition change passes
+  18 focused tests (19 parameterized executions), simulator build, Xcode MCP build
+  and zero MCP warnings. The prior full release-gate evidence belongs to `3dcc84c`.
+- On iPhone SE (3rd generation)/iOS 26.5, `simctl push` plus an actual Notification
+  Center Open action retains the reference before login and opens the September 4
+  market offer after authenticating as `d@example.test`, without accepting it.
+  A second system tap with detail open preserves that case. The callback no longer
+  crashes. This proves simulated OS routing, not APNs delivery or a cold-process launch.
+- Recursive fixed-demo read-back contains 51 documents: the original three cases
+  retain accepted/revision 3, offered/revision 2 and open/revision 1 states; six new
+  receipts record simulated accepted submissions. All 51 documents remain unchanged
+  after the final iOS journeys. No credit is created.
+- Independent source review and Swift source-style audit pass after resolving the
+  collapse-key, navigation, receipt-replay and callback findings. `git diff --check`
+  is clean. No shared Firebase project, workbook or real Messaging endpoint is used.
+
+Next grouped outcome: governed reconciliation for uncertain notification/projection
+outcomes and shared-writer recovery. Real destination admission, provider selection,
+physical assistive-technology/device evidence, assembly ratification and HU-085
+remain explicit live gates. Issue #268 stays open. Reproduction instructions and
+local evidence limits are in the bilingual native rehearsal guides.

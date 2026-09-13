@@ -246,3 +246,109 @@ for (const type of ["delivery", "market"]) run(`delivered ${type} colleague refe
   await ref("users", "b").update({isActive: false});
   await assert.rejects(store.readClient({schemaVersion: 1, environment: "develop", action: "notification", eventId: entry.id}, {uid: "auth-b"}));
 });
+
+const {createProvisionalCoveragePushDispatcher} = require("../lib/shift-coverage-push.js");
+const {createFirebaseShiftPlanningNotificationTransport} = require("../lib/shift-planning-firebase-notification-transport.js");
+const pushFixture = async (send, resolve) => {
+  await command("open", "a", {shiftId: "shift_delivery_20270901", absentUserId: "a", reason: "Private reason"});
+  const offered = await command("offer", "admin", {userId: "d", reason: "Private agreement", expiresAtMillis: now + 10_000});
+  const eventId = (await read("shiftCoverageEffects", offered.operationId)).value.notifications[0].push.data.eventId;
+  const dispatcher = createProvisionalCoveragePushDispatcher({nowMillis: () => now,
+    resolveTargets: resolve ?? (async (memberId) => { assert.equal(memberId, "d"); return {fcmTokens: ["fake-d-token"], firebaseInstallationIds: []}; }),
+    transport: createFirebaseShiftPlanningNotificationTransport({sendEachForMulticast: send}, () => now)});
+  return {dispatcher, offered, eventId};
+};
+const acceptedPush = () => ({responses: [{success: true, messageId: "local-accepted"}], successCount: 1, failureCount: 0});
+
+run("coverage dispatch requires verified inbox, sends generic SDK payload once and retains only destination digest", async () => {
+  const messages = [];
+  const {dispatcher, offered, eventId} = await pushFixture(async (message) => { messages.push(message); return acceptedPush(); });
+  try {
+    await assert.rejects(dispatcher.submit("d", eventId), {code: "coverage_notification_unavailable"});
+    await worker.drain(offered.operationId);
+    await assert.rejects(dispatcher.submit("c", eventId), {code: "coverage_notification_unavailable"});
+    assert.deepEqual(await dispatcher.submit("d", eventId), {state: "accepted", replayed: false});
+    assert.deepEqual(await dispatcher.submit("d", eventId), {state: "accepted", replayed: true});
+    assert.equal(messages.length, 1);
+    assert.equal(Buffer.byteLength(messages[0].apns.headers["apns-collapse-id"]), 64);
+    assert.deepEqual(messages[0].data, {eventId, type: "shift_updated", target: "users"});
+    assert.equal(messages[0].notification.title, "Turnos actualizados");
+    assert.equal(messages[0].notification.body, "Consulta la aplicación para ver la información actualizada.");
+    assert.equal(JSON.stringify(messages).includes("Private"), false);
+    const receipt = (await ref("shiftCoverageEffects", offered.operationId).collection("pushes").doc("d").get()).data();
+    assert.equal(receipt.result.acceptedTargetCount, 1);
+    assert.equal(JSON.stringify(receipt).includes("fake-d-token"), false);
+    assert.equal((await inbox()).length, 1);
+  } finally { await dispatcher.close(); }
+});
+
+run("coverage uncertain acknowledgement and concurrent worker never cause automatic duplicate sends", async () => {
+  let calls = 0, release, began;
+  const entered = new Promise((resolve) => { began = resolve; });
+  const suspended = new Promise((resolve) => { release = resolve; });
+  const {dispatcher, offered, eventId} = await pushFixture(async () => {
+    calls++; began(); await suspended; throw new Error("SDK acknowledgement lost");
+  });
+  try {
+    await worker.drain(offered.operationId);
+    const first = dispatcher.submit("d", eventId);
+    await entered;
+    assert.deepEqual(await dispatcher.submit("d", eventId), {state: "submitting", replayed: true});
+    release();
+    assert.deepEqual(await first, {state: "unknown", replayed: false});
+    assert.deepEqual(await dispatcher.submit("d", eventId), {state: "unknown", replayed: true});
+    assert.equal(calls, 1);
+  } finally { release(); await dispatcher.close(); }
+});
+
+run("coverage destination lookup cannot race inactive membership or writer authority into a send", async () => {
+  for (const drift of ["member", "writer"]) {
+    let sends = 0;
+    const {dispatcher, offered, eventId} = await pushFixture(async () => { sends++; return acceptedPush(); }, async () => {
+      if (drift === "member") await ref("users", "d").update({isActive: false});
+      else await ref("shiftPlanningState", "current").update({writeEpoch: 2});
+      return {fcmTokens: ["fake-d-token"], firebaseInstallationIds: []};
+    });
+    try {
+      await worker.drain(offered.operationId);
+      await assert.rejects(dispatcher.submit("d", eventId));
+      assert.equal(sends, 0);
+      assert.equal((await ref("shiftCoverageEffects", offered.operationId).collection("pushes").get()).size, 0);
+    } finally { await dispatcher.close(); }
+    // The second branch uses a fresh case under the same preserved fixture.
+    if (drift === "member") {
+      await ref("users", "d").update({isActive: true});
+      await command("cancel", "admin", {reason: "Fixture reset"});
+      await ref("shiftCoverageCases", "case-1").delete();
+    }
+  }
+});
+
+run("expired coverage offer and absent destinations never submit to Messaging", async () => {
+  let sends = 0;
+  const {dispatcher, offered, eventId} = await pushFixture(async () => { sends++; return acceptedPush(); },
+    async () => ({fcmTokens: [], firebaseInstallationIds: []}));
+  try {
+    await worker.drain(offered.operationId);
+    assert.deepEqual(await dispatcher.submit("d", eventId), {state: "noTargets", replayed: false});
+    now += 10_000;
+    await assert.rejects(dispatcher.submit("d", eventId), {code: "coverage_push_stale"});
+    assert.equal(sends, 0);
+  } finally { await dispatcher.close(); }
+});
+
+run("coverage replay retains SDK outcome after destinations and case change", async () => {
+  let lookups = 0, sends = 0;
+  const {dispatcher, offered, eventId} = await pushFixture(async () => { sends++; return acceptedPush(); }, async () => {
+    lookups++;
+    return {fcmTokens: lookups === 1 ? ["fake-d-token"] : [], firebaseInstallationIds: []};
+  });
+  try {
+    await worker.drain(offered.operationId);
+    await dispatcher.submit("d", eventId);
+    await command("accept", "d");
+    assert.deepEqual(await dispatcher.submit("d", eventId), {state: "accepted", replayed: true});
+    assert.equal(sends, 1);
+    assert.equal(lookups, 1);
+  } finally { await dispatcher.close(); }
+});

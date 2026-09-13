@@ -8,6 +8,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private var appConfiguration: ReguertaAppConfiguration?
     private var authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)?
     private var shiftNotificationPushOpenStore: ShiftNotificationPushOpenStore?
+    #if DEBUG
+    private var localCoveragePushEnabled = false
+    func enableLocalCoveragePush() {
+        localCoveragePushEnabled = true
+    }
+    #endif
     private var pendingRegistrationToken: PendingRegistrationToken?
 
     /// Installs launch policy and the shared device coordinator before application lifecycle callbacks begin.
@@ -29,10 +35,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         ReguertaFontRegistrar.registerDesignFonts()
+        UNUserNotificationCenter.current().delegate = self
+        #if DEBUG
+        if localCoveragePushEnabled {
+            requestPushAuthorization(registerRemotely: false)
+        }
+        #endif
         guard pushNotificationsEnabled else { return true }
         FirebaseBootstrapper.configureIfNeeded()
         Messaging.messaging().delegate = self
-        UNUserNotificationCenter.current().delegate = self
         requestPushAuthorization()
         return true
     }
@@ -55,7 +66,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         print("APNs registration failed: \(error.localizedDescription)")
     }
 
-    private func requestPushAuthorization() {
+    private func requestPushAuthorization(registerRemotely: Bool = true) {
         Task { @MainActor in
             do {
                 let granted = try await UNUserNotificationCenter.current().requestAuthorization(
@@ -65,7 +76,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                     print("Push authorization denied by user")
                     return
                 }
-                UIApplication.shared.registerForRemoteNotifications()
+                if registerRemotely {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
             } catch {
                 print("Push authorization request failed: \(error.localizedDescription)")
             }
@@ -121,19 +134,25 @@ extension AppDelegate {
         return [.banner, .sound, .badge, .list]
     }
 
+    /// Finishes on MainActor because UIKit may restore its scene inside the completion callback.
+    /// Extracts the immutable reference before hopping actors; no SDK notification crosses that boundary.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
         let userInfo = response.notification.request.content.userInfo
-        guard let reference = ShiftNotificationPushReference.validated(
+        let reference = ShiftNotificationPushReference.validated(
             eventID: userInfo["eventId"] as? String,
             type: userInfo["type"] as? String,
             target: userInfo["target"] as? String
-        ) else {
-            return
+        )
+        Task { @MainActor in
+            if let reference {
+                acceptOpenedShiftNotificationPush(reference)
+            }
+            completionHandler()
         }
-        await acceptOpenedShiftNotificationPush(reference)
     }
 
     @MainActor

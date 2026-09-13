@@ -6,6 +6,8 @@ const {createProvisionalCreditFirestore} = require("../lib/shift-credit-publicat
 const {startProvisionalShiftCoverageServer} = require("../lib/shift-coverage-local-server.js");
 const {materialize, initialTime, activeDigest} = require("./shift-coverage-fixture.cjs");
 const {createCoverageWorkbookFixture} = require("./shift-coverage-workbook-fixture.cjs");
+const {createProvisionalCoveragePushDispatcher} = require("../lib/shift-coverage-push.js");
+const {createFirebaseShiftPlanningNotificationTransport} = require("../lib/shift-planning-firebase-notification-transport.js");
 const projectId = "demo-reguerta-hu084-coverage", root = "develop/plus-collections";
 
 const main = async () => {
@@ -40,6 +42,20 @@ const main = async () => {
   ]) await ref("shifts", id).set(materialize(id, type, date, assigned, helper));
   let now = initialTime, sequence = 0;
   const {worker, sheets} = await createCoverageWorkbookFixture(db, () => now);
+  const pushDispatcher = createProvisionalCoveragePushDispatcher({nowMillis: () => now,
+    resolveTargets: async (id) => ({fcmTokens: [`fixture-${id}`], firebaseInstallationIds: []}),
+    transport: createFirebaseShiftPlanningNotificationTransport({sendEachForMulticast: async (message) => {
+      process.stdout.write(`Local push payload: ${JSON.stringify(message.data)}\n`);
+      return {successCount: message.tokens.length, failureCount: 0,
+        responses: message.tokens.map(() => ({success: true, messageId: "simulated-sdk-acceptance"}))};
+    }}, () => now)});
+  const dispatch = async (id) => {
+    const effect = (await ref("shiftCoverageEffects", id).get()).data();
+    if (effect.state !== "completed") return;
+    for (const intent of effect.value.notifications.filter((item) => effect.deliveredTo.includes(item.userId))) {
+      await pushDispatcher.submit(intent.userId, intent.push.data.eventId);
+    }
+  };
   const server = await startProvisionalShiftCoverageServer({nowMillis: () => now, maximumOfferWindowMillis: 86400000,
     selectionPolicy: {version: "fifo-signup-v1", volunteerWindowMillis: 3600000}}, 8799);
   const command = async (actor, caseId, action, extra = {}) => {
@@ -51,7 +67,9 @@ const main = async () => {
       operationId: `native-seed-${++sequence}`, expectedRevision: item?.revision ?? 0,
       expectedShiftRevision: shift.documentRevision, action, ...extra})});
     if (!response.ok) throw new Error(`Seed action failed: ${JSON.stringify(await response.json())}`);
-    await worker.drain((await response.json()).data.operationId);
+    const id = (await response.json()).data.operationId;
+    await worker.drain(id);
+    await dispatch(id);
   };
   await command("a", "native-delivery", "open", {shiftId: "shift_delivery_20270901", absentUserId: "a", reason: "Ensayo de reparto"});
   await command("admin", "native-delivery", "offer", {userId: "e", reason: "Acuerdo de prueba", expiresAtMillis: now + 3600000});
@@ -66,6 +84,7 @@ const main = async () => {
     for (const change of snapshot.docChanges().filter((item) => item.type === "added")) {
       queue = queue.then(async () => {
         const result = await worker.drain(change.doc.id);
+        await dispatch(change.doc.id);
         process.stdout.write(`Local effect ${change.doc.id}: ${result.state}; workbook batches ${sheets.mutations.length}\n`);
       }).catch((error) => process.stderr.write(`Local effect retained: ${error.code ?? "unavailable"}\n`));
     }
@@ -73,7 +92,7 @@ const main = async () => {
   let closing = false;
   const close = async () => {
     if (closing) return; closing = true;
-    unsubscribe(); await server.close(); await queue; await worker.close(); await db.terminate(); await deleteApp(app);
+    unsubscribe(); await server.close(); await queue; await worker.close(); await pushDispatcher.close(); await db.terminate(); await deleteApp(app);
   };
   process.once("SIGINT", close); process.once("SIGTERM", close);
 };

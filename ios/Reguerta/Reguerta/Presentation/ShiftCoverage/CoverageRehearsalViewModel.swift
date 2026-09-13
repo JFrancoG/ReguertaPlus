@@ -11,6 +11,7 @@ final class CoverageRehearsalViewModel {
     var draft: CoverageCommandDraft?
     private(set) var isSigningIn = false
     private(set) var loginFailed = false
+    private(set) var pendingPushEventID: String?
     @ObservationIgnored private let access: any CoverageRehearsalAccess
     @ObservationIgnored private var draftSession: ShiftCoverageSession?
     @ObservationIgnored private var revision: UInt64 = 0
@@ -44,6 +45,7 @@ final class CoverageRehearsalViewModel {
     }
 
     func signOut() {
+        pendingPushEventID = nil
         revision &+= 1
         access.signOut()
         coverage.bind(nil)
@@ -54,9 +56,26 @@ final class CoverageRehearsalViewModel {
         loginFailed = false
     }
 
+    /// A push grants no access. Defer its authenticated read until login and command reconciliation finish.
+    func acceptPush(_ reference: ShiftNotificationPushReference) {
+        guard reference.isCoverage else { return }
+        pendingPushEventID = reference.eventID
+    }
+
+    var readyPushEventID: String? {
+        guard coverage.session != nil, !isSigningIn, !coverage.isBusy,
+              coverage.pendingCommand == nil, draft == nil else { return nil }
+        return pendingPushEventID
+    }
+
+    func openPendingPush() async {
+        guard let eventID = readyPushEventID else { return }
+        pendingPushEventID = nil
+        await openNotification(eventID)
+    }
+
     func openNotification(_ eventId: String) async {
         guard draft == nil else { return }
-        casePath = []
         if let caseId = await coverage.openNotification(eventId) {
             casePath = [caseId]
         }

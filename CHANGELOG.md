@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-09-13 | ✨ feat(shifts): rehearse coverage push dispatch and routing
+
 - 2026-09-13 | ✨ feat(shifts): open authenticated coverage notifications
 
 - 2026-09-13 | ✨ feat(shifts): rehearse coverage effects

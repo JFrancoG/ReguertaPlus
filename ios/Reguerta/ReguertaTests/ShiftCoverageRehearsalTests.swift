@@ -4,6 +4,60 @@ import Testing
 
 @MainActor
 struct ShiftCoverageRehearsalTests {
+    @Test func pushWaitsForLoginAndDraftThenResolvesCurrentCaseWithoutCommand() async throws {
+        let loader = try RehearsalLoginLoader()
+        let access = try LocalCoverageRehearsalAccess(loader: loader)
+        let model = CoverageRehearsalViewModel(access: access)
+        let eventID = "coverage-" + String(repeating: "a", count: 64)
+        let reference = try #require(ShiftNotificationPushReference.validated(
+            eventID: eventID, type: "shift_updated", target: "users"
+        ))
+        model.acceptPush(reference)
+        await model.openPendingPush()
+        #expect(loader.urls.isEmpty)
+        model.email = "a@example.test"
+        model.password = "fixture"
+        await model.signIn()
+        model.present(.accept, item: try #require(model.coverage.snapshot?.cases.first))
+        await model.openPendingPush()
+        #expect(model.pendingPushEventID == eventID)
+        #expect(loader.notificationReads == 0)
+        model.draft = nil
+        model.casePath = ["case-a"]
+        loader.beforeNotificationResponse = { #expect(model.casePath == ["case-a"]) }
+        await model.openPendingPush()
+        #expect(model.casePath == ["case-a"])
+        #expect(model.pendingPushEventID == nil)
+        #expect(loader.notificationReads == 1)
+        await model.openPendingPush()
+        #expect(loader.notificationReads == 1)
+    }
+
+    @Test func logoutDropsPushAndRejectsLateNotificationNavigation() async throws {
+        let loader = try RehearsalLoginLoader()
+        let model = CoverageRehearsalViewModel(access: try LocalCoverageRehearsalAccess(loader: loader))
+        model.email = "a@example.test"
+        model.password = "fixture"
+        await model.signIn()
+        let reference = try #require(ShiftNotificationPushReference.validated(
+            eventID: "coverage-" + String(repeating: "a", count: 64), type: "shift_updated", target: "users"
+        ))
+        model.acceptPush(reference)
+        loader.beforeNotificationResponse = { model.signOut() }
+        await model.openPendingPush()
+        #expect(model.casePath.isEmpty)
+        #expect(model.coverage.session == nil)
+        #expect(model.pendingPushEventID == nil)
+        model.acceptPush(reference)
+        model.signOut()
+        #expect(model.pendingPushEventID == nil)
+        let planning = try #require(ShiftNotificationPushReference.validated(
+            eventID: "planning-event", type: "shift_updated", target: "users"
+        ))
+        model.acceptPush(planning)
+        #expect(model.pendingPushEventID == nil)
+    }
+
     @Test func localLoginResolvesCanonicalMemberAndLogoutInvalidatesRepository() async throws {
         let loader = try RehearsalLoginLoader()
         let access = try LocalCoverageRehearsalAccess(loader: loader)
@@ -136,6 +190,8 @@ private final class RehearsalLoginLoader: HTTPDataLoading {
     var token = CoverageClientHarness.token(project: "demo-reguerta-hu084-coverage", uid: "auth-a")
     var urls: [URL] = []
     var beforeLoginResponse: (@MainActor () -> Void)?
+    var beforeNotificationResponse: (@MainActor () -> Void)?
+    var notificationReads = 0
 
     private struct LoginResult: Encodable {
         let localId: String
@@ -153,6 +209,13 @@ private final class RehearsalLoginLoader: HTTPDataLoading {
         if url.port == 9098 {
             body = try JSONEncoder().encode(LoginResult(localId: "auth-a", idToken: token))
             beforeLoginResponse?()
+        } else if String(data: request.httpBody ?? Data(), encoding: .utf8)?.contains("notification") == true {
+            notificationReads += 1
+            let value = try CoverageClientHarness().transport.notification.replacingOccurrences(
+                of: "coverage-fixture-event", with: "coverage-" + String(repeating: "a", count: 64)
+            )
+            body = Data(value.utf8)
+            beforeNotificationResponse?()
         } else {
             body = Data(overview.utf8)
         }

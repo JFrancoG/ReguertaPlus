@@ -8,12 +8,60 @@ import com.reguerta.user.domain.shiftcoverage.ShiftCoverageFailure
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot
 import java.util.Base64
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.reguerta.user.domain.notifications.ShiftNotificationPushReference
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.*
 import org.junit.Test
 
 class CoverageRehearsalTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun pushWaitsForLoginAndDraftThenOpensOnceAndLogoutDropsIntent() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val transport = LoginTransport()
+            val model = CoverageRehearsalViewModel(LocalCoverageRehearsalAccess(transport = transport))
+            val eventId = "coverage-" + "a".repeat(64)
+            val reference = ShiftNotificationPushReference.validated(eventId, "shift_updated", "users")!!
+            model.acceptPush(reference)
+            model.openPendingPush()
+            assertTrue(transport.urls.isEmpty())
+            model.email = "a@example.test"
+            model.password = "fixture"
+            model.signIn()
+            advanceUntilIdle()
+            model.present(Action.accept, model.coverage.state.value.snapshot!!.cases.first())
+            model.openPendingPush()
+            assertEquals(eventId, model.pendingPushEventId)
+            assertEquals(0, transport.notificationReads)
+            model.dismissDraft()
+            model.openPendingPush()
+            advanceUntilIdle()
+            assertEquals("case-a", model.selectedCaseId)
+            assertNull(model.pendingPushEventId)
+            model.openPendingPush()
+            advanceUntilIdle()
+            assertEquals(1, transport.notificationReads)
+            model.acceptPush(reference)
+            transport.beforeNotificationResponse = model::signOut
+            model.openPendingPush()
+            advanceUntilIdle()
+            assertNull(model.selectedCaseId)
+            assertNull(model.coverage.state.value.session)
+            model.acceptPush(reference)
+            model.signOut()
+            assertNull(model.pendingPushEventId)
+            model.acceptPush(ShiftNotificationPushReference.validated("planning-event", "shift_updated", "users")!!)
+            assertNull(model.pendingPushEventId)
+        } finally { Dispatchers.resetMain() }
+    }
+
     @Test fun loginResolvesCanonicalMemberAndLogoutPreventsFurtherHTTP() = runTest {
         val transport = LoginTransport()
         val access = LocalCoverageRehearsalAccess(transport = transport)
@@ -105,6 +153,8 @@ class CoverageRehearsalTest {
         var project = "demo-reguerta-hu084-coverage"
         var overview = fixture()
         var beforeLoginResponse: (() -> Unit)? = null
+        var beforeNotificationResponse: (() -> Unit)? = null
+        var notificationReads = 0
         override suspend fun post(url: String, token: String, body: String): CoverageHttpResponse {
             urls += url
             if (url.contains(":9098/")) {
@@ -112,6 +162,13 @@ class CoverageRehearsalTest {
                 val parts = listOf("""{"alg":"none"}""", """{"aud":"$project","iss":"https://securetoken.google.com/$project","sub":"auth-a"}""")
                 val value = parts.joinToString(".") { Base64.getUrlEncoder().withoutPadding().encodeToString(it.toByteArray()) } + "."
                 return CoverageHttpResponse(200, """{"localId":"auth-a","idToken":"$value"}""")
+            }
+            if (Json.parseToJsonElement(body).jsonObject["action"].toString() == "\"notification\"") {
+                notificationReads++
+                beforeNotificationResponse?.invoke()
+                val value = requireNotNull(javaClass.classLoader).getResourceAsStream("shift-coverage-notification.json")!!
+                    .bufferedReader().use { it.readText() }.replace("coverage-fixture-event", "coverage-" + "a".repeat(64))
+                return CoverageHttpResponse(200, value)
             }
             return CoverageHttpResponse(200, overview)
         }

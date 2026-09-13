@@ -1,6 +1,8 @@
 package com.reguerta.user
 
 import android.os.Bundle
+import android.content.Intent
+import com.reguerta.user.domain.notifications.ShiftNotificationPushReference
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,7 +22,24 @@ class CoverageRehearsalActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        acceptPush(intent)
         enableEdgeToEdge()
         setContent { ReguertaTheme { CoverageScreen(model) } }
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        acceptPush(intent)
+    }
+
+    private fun acceptPush(source: Intent?) {
+        source ?: return
+        val reference = ShiftNotificationPushReference.validated(
+            source.getStringExtra("eventId"), source.getStringExtra("type"), source.getStringExtra("target"),
+        ) ?: return
+        model.acceptPush(reference)
+        source.removeExtra("eventId")
+        source.removeExtra("type")
+        source.removeExtra("target")
     }
 }

@@ -29,6 +29,13 @@ struct ReguertaApp: App {
                 #if DEBUG
                 if let coverageRehearsal {
                     CoverageRehearsalView(model: coverageRehearsal)
+                        .onChange(of: appEnvironment.shiftNotificationPushOpenStore.pendingReference, initial: true) {
+                            guard let reference = appEnvironment.shiftNotificationPushOpenStore.pendingReference else {
+                                return
+                            }
+                            coverageRehearsal.acceptPush(reference)
+                            appEnvironment.shiftNotificationPushOpenStore.consume(reference)
+                        }
                 } else {
                     MainView().reguertaAppEnvironment(appEnvironment)
                 }
@@ -63,6 +70,11 @@ extension ReguertaApp {
         #endif
         let appEnvironment = ReguertaAppEnvironment.make(configuration: appConfiguration)
         self.appEnvironment = appEnvironment
+        #if DEBUG
+        if rehearsesCoverage && arguments.contains("-coveragePushRehearsal") {
+            appDelegate.enableLocalCoveragePush()
+        }
+        #endif
         appDelegate.configure(
             appConfiguration: appConfiguration,
             authorizedDeviceRegistrar: appEnvironment.authorizedDeviceRegistrar,

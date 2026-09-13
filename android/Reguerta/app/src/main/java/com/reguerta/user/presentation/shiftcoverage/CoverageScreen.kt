@@ -50,6 +50,7 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel) {
     val caseId = model.selectedCaseId
     var tick by remember { mutableLongStateOf(0L) }
     LaunchedEffect(state.session) { model.selectedCaseId = null }
+    LaunchedEffect(model.readyPushEventId) { model.openPendingPush() }
     LaunchedEffect(Unit) { while (true) { delay(1000); tick++ } }
     BackHandler(enabled = caseId != null && model.draft == null) { model.showOverview() }
     val selected = state.snapshot?.cases?.firstOrNull { it.caseId == caseId }

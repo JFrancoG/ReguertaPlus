@@ -45,8 +45,11 @@
 - [x] Resolve authenticated notification references to current minimal cases in
   both native rehearsals; retain refresh scope and restore overview across pending
   reads/writes without replaying uncertain commands. Drain local effects automatically.
-- [ ] Complete OS notification routing/dispatch and governed external
-  recovery/activation; the fixed-demo worker is not a live delivery entrypoint.
+- [x] Add fixed-demo push submission receipts and authenticated native push routing;
+  verify iOS simulated system taps and Android cold/warm Intents, with draft/session
+  fences and no automatic resend after an uncertain result.
+- [ ] Complete real OS push delivery, Android notification-tray acceptance and
+  governed external recovery/activation; the demo worker is not a live entrypoint.
 - [x] Add opt-in native role/cancellation acceptance with enlarged text and fresh
   read-back; validate both Android phone sizes and retain iOS visual evidence.
 - [ ] Complete physical assistive-technology acceptance and remaining device coverage.

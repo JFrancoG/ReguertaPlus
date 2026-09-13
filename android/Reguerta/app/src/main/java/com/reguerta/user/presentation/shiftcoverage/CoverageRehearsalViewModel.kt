@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.reguerta.user.domain.notifications.ShiftNotificationPushReference
 import com.reguerta.user.domain.shiftcoverage.CoverageRehearsalAccess
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageCommand
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSession
@@ -24,6 +25,8 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
         private set
     private var draftSession: ShiftCoverageSession? = null
     private var revision = 0L
+    var pendingPushEventId by mutableStateOf<String?>(null)
+        private set
     val canSignIn: Boolean get() = !isSigningIn && email.isNotBlank() && password.isNotEmpty()
 
     fun signIn() {
@@ -49,6 +52,7 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
     }
 
     fun signOut() {
+        pendingPushEventId = null
         revision++
         access.signOut()
         coverage.bind(null)
@@ -91,10 +95,29 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
         draft = null
         viewModelScope.launch { coverage.submit(command) }
     }
+    fun acceptPush(reference: ShiftNotificationPushReference) {
+        if (reference.isCoverage) pendingPushEventId = reference.eventId
+    }
+
+    val readyPushEventId: String? get() {
+        val state = coverage.state.value
+        return pendingPushEventId.takeIf {
+            state.session != null && !isSigningIn && !state.isBusy && state.pendingCommand == null && draft == null
+        }
+    }
+
+    fun openPendingPush() {
+        val eventId = readyPushEventId ?: return
+        pendingPushEventId = null
+        openNotification(eventId)
+    }
+
     fun openNotification(eventId: String) {
         if (draft != null) return
         selectedCaseId = null
+        val owner = revision
         viewModelScope.launch {
+            if (owner != revision) return@launch
             coverage.openNotification(eventId)?.let { selectedCaseId = it }
         }
     }
