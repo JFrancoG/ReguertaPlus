@@ -135,3 +135,56 @@ restores more than the single notification case. iOS acceptance exercises Back b
 before and after market acceptance. Delivery notices can be inspected as `e@example.test`.
 The fixture reports completed effect IDs and simulated workbook batch counts, without
 tokens or personal data. This list is local rehearsal navigation, not OS push dispatch.
+
+## Role and large-text acceptance
+
+Keep the fixed demo fixture running. These scenarios open and cancel confirmation
+forms without accepting or completing a case; they can share the unchanged fixture.
+They check member/admin action differences, return to the full list and fresh server
+read-back after cancellation. They do not certify VoiceOver or TalkBack interaction.
+
+Android uses the real local Auth/HTTP adapter and production Compose screens with
+font scale 2. Select an emulator explicitly so Gradle cannot include a connected phone:
+
+```sh
+ANDROID_SERIAL=emulator-5554 ./gradlew app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.reguerta.user.presentation.shiftcoverage.CoverageRehearsalAcceptanceTest \
+  -Pandroid.testInstrumentationRunnerArguments.hu084Acceptance=true
+```
+
+Run from `android/Reguerta`, replacing the serial with the emulator shown by `adb devices`.
+Without the opt-in argument the two tests skip. The full suite can include them with
+the same opt-in argument; the unrelated HU-083 test needs its own fixture or exclusion.
+
+From `ios/Reguerta`, run the Spanish AX5 role journey on a phone or iPad:
+
+```sh
+TEST_RUNNER_COVERAGE_LAYOUT_REHEARSAL=1 xcodebuild test \
+  -project Reguerta.xcodeproj -scheme Reguerta -testPlan release-gate-v1 \
+  -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=26.5' \
+  -only-testing:ReguertaUITests/CoverageRehearsalLayoutUITests \
+  -parallel-testing-enabled NO
+```
+
+For landscape iPad also set `TEST_RUNNER_COVERAGE_LANDSCAPE=1` and select its exact
+destination. The test restores the previous orientation and retains three screenshots
+in the xcresult bundle: admin confirmation, replacement detail and member offer.
+The ordinary release gate skips this opt-in journey. A fresh fixture is required
+before the separate mutating market-acceptance journey described above.
+
+### Recorded local matrix — 2026-09-13
+
+| Environment | Result |
+| --- | --- |
+| Android unit / lint | 501 tests pass; 137 unrelated baseline lint findings, none in shiftcoverage |
+| Pixel 8 Pro + Small Phone / API 35 | 25 connected tests pass on each, including both opt-in font-scale-2 journeys |
+| iPhone 17 / iOS 26.5 | Full release gate: 917 pass, five expected skips; Debug/Release and SwiftLint pass |
+| iPhone SE (3rd generation) / iOS 26.5 | Spanish AX5 role/cancellation journey passes |
+| iPad mini (A17 Pro), landscape / iOS 26.5 | Spanish AX5 role/cancellation journey passes |
+
+The full Android suite excludes the independent HU-083 fixture test. The iOS skips
+are three HU-084 opt-in journeys, one HU-083 opt-in journey and the conditional
+launch/performance test. The native navigation titles abbreviate on the SE and admin iPad sheet at AX5;
+body content and actions remain reachable by scrolling. This evidence covers local
+simulator/emulator behavior. Physical VoiceOver/TalkBack and API 29 acceptance,
+real OS push delivery and live/shared-writer activation remain open.

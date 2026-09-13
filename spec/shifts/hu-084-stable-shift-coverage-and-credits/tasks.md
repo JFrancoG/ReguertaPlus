@@ -47,7 +47,9 @@
   reads/writes without replaying uncertain commands. Drain local effects automatically.
 - [ ] Complete OS notification routing/dispatch and governed external
   recovery/activation; the fixed-demo worker is not a live delivery entrypoint.
-- [ ] Complete assistive-technology and adaptive-device acceptance of these routes.
+- [x] Add opt-in native role/cancellation acceptance with enlarged text and fresh
+  read-back; validate both Android phone sizes and retain iOS visual evidence.
+- [ ] Complete physical assistive-technology acceptance and remaining device coverage.
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset

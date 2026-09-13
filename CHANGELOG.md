@@ -344,6 +344,8 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-09-13 | ✅ test(shifts): validate native coverage acceptance
+
 - 2026-09-12 | ✅ test(shifts): seal HU-083 deferred acceptance
 
 - 2026-09-12 | ✅ test(shifts): verify native reset acceptance

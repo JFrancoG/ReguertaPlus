@@ -1007,3 +1007,49 @@ validation, grouping simulator/device, accessibility and role scenarios. Real OS
 routing/dispatch, governed shared-writer recovery and entropy-provider selection
 still need their integrations and decisions; assembly ratification and HU-085 retain
 the live activation boundary. The story stays open; this is local integration evidence.
+
+
+## Native acceptance and release checkpoint — 2026-09-13
+
+Commit `d0dbec5` (`feat(shifts): open authenticated coverage notifications`) is
+pushed. This next local block adds opt-in native acceptance tests and documentation;
+it is not yet committed. Product behavior and the fixed-demo backend are unchanged.
+Both platforms authenticate real local demo roles, open/cancel acceptance and
+completion forms, restore the full overview and read current server state again.
+Android uses production Compose at font scale 2; iOS uses Spanish and AX5.
+The existing Android drawer test now scrolls before checking its offscreen rows.
+
+Validation:
+
+- Android: 501 unit tests pass; lint passes with 137 existing unrelated findings
+  and zero shiftcoverage findings. All 25 connected tests pass on both Pixel 8 Pro
+  and Small Phone, API 35, including the two new opt-in scenarios. The separate
+  HU-083 Sheets acceptance class is excluded because its fixture is not running.
+- iOS canonical release gate: 917 passes, five expected skips, zero failures on
+  iPhone 17/iOS 26.5; Debug/Release builds and SwiftLint (509 files, zero violations)
+  pass. Skips are three local HU-084 opt-in journeys, the HU-083 opt-in journey and
+  the conditional launch/performance test. Strict Swift 6/nonisolated settings
+  remain intact. Test-harness-only adjustments were rebuilt in the focused lane.
+- Spanish AX5 role/cancellation acceptance passes on iPhone SE (3rd generation),
+  and iPad mini (A17 Pro) in landscape, iOS 26.5. The xcresult retains
+  admin confirmation, replacement detail and member
+  offer screenshots. Controls and body content remain reachable by scrolling;
+  native navigation titles abbreviate at this size. This does not certify
+  VoiceOver, TalkBack, physical devices or Android API 29.
+- Final recursive Firestore read-back matches all 45 baseline demo documents: cases,
+  credits, effects and inbox records are unchanged after the cancellation journeys.
+  iPad gestures target the list, and screenshots capture the full screen so window
+  coordinates do not crop the evidence. The final iPad rerun passes with all three
+  screenshots reviewed; its long admin navigation title also abbreviates at AX5.
+
+Evidence is local: `/tmp/hu084-acceptance-release-final.xcresult`,
+`/tmp/hu084-acceptance-iphone-se-6.xcresult`,
+`/tmp/hu084-acceptance-ipad-3.xcresult`, and Android connected-result XML/logs.
+The bilingual rehearsal guides retain reproducible opt-in commands.
+
+Next grouped outcome: integrate and test actual OS notification routing and dispatch
+through the existing notification pipeline, keeping the isolated/live boundary.
+Physical assistive-technology acceptance remains pending; shared-writer recovery,
+real entropy selection, assembly ratification and HU-085 still gate live activation.
+No production/shared workbook or real notification service was modified. Issue #268
+stays open.

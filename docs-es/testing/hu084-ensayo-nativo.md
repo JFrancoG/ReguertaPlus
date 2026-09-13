@@ -139,3 +139,58 @@ atrás restaura más casos. La aceptación iOS comprueba la vuelta antes y despu
 aceptar mercado. Los avisos de reparto se pueden consultar con `e@example.test`.
 El escenario registra identificadores de efectos completados y lotes del libro simulado,
 sin tokens ni datos personales. Esta navegación local no constituye envío push del sistema.
+
+## Aceptación por roles y texto ampliado
+
+Mantener activo el escenario demo fijo. Estos recorridos abren y cancelan formularios
+sin aceptar ni completar casos; pueden compartir la misma fixture sin modificarla.
+Comprueban las diferencias entre socio y administrador, la vuelta al listado y una
+lectura nueva del servidor tras cancelar. No certifican la interacción con VoiceOver
+ni TalkBack.
+
+Android usa Auth/HTTP local real y las pantallas Compose con texto al 200 %. Seleccionar
+expresamente un emulador evita que Gradle incluya un teléfono conectado:
+
+```sh
+ANDROID_SERIAL=emulator-5554 ./gradlew app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.reguerta.user.presentation.shiftcoverage.CoverageRehearsalAcceptanceTest \
+  -Pandroid.testInstrumentationRunnerArguments.hu084Acceptance=true
+```
+
+Ejecutar desde `android/Reguerta`, sustituyendo el serial por el mostrado en `adb devices`.
+Sin el argumento optativo se omiten los dos tests. La suite completa puede incluirlos
+con el mismo argumento; el test independiente de HU-083 necesita su fixture o exclusión.
+
+Desde `ios/Reguerta`, ejecutar el recorrido de roles en español y AX5 en teléfono o iPad:
+
+```sh
+TEST_RUNNER_COVERAGE_LAYOUT_REHEARSAL=1 xcodebuild test \
+  -project Reguerta.xcodeproj -scheme Reguerta -testPlan release-gate-v1 \
+  -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=26.5' \
+  -only-testing:ReguertaUITests/CoverageRehearsalLayoutUITests \
+  -parallel-testing-enabled NO
+```
+
+Para iPad horizontal añadir `TEST_RUNNER_COVERAGE_LANDSCAPE=1` y seleccionar su destino
+exacto. El test restaura la orientación anterior y conserva tres capturas en xcresult:
+confirmación administrativa, detalle del sustituto y oferta al socio. El gate habitual
+omite este recorrido optativo. Reconstruir la fixture antes de la aceptación de mercado
+que sí modifica datos y se describe más arriba.
+
+### Matriz local registrada — 2026-09-13
+
+| Entorno | Resultado |
+| --- | --- |
+| Android unitarios / lint | 501 tests pasan; 137 avisos previos ajenos, ninguno en shiftcoverage |
+| Pixel 8 Pro + Small Phone / API 35 | 25 tests conectados pasan en cada uno, incluidos los dos recorridos al 200 % |
+| iPhone 17 / iOS 26.5 | Gate completo: 917 pasan, cinco omisiones previstas; Debug/Release y SwiftLint correctos |
+| iPhone SE (3rd generation) / iOS 26.5 | Pasa el recorrido de roles y cancelación en español y AX5 |
+| iPad mini (A17 Pro), horizontal / iOS 26.5 | Pasa el recorrido de roles y cancelación en español y AX5 |
+
+La suite Android excluye el test con fixture independiente de HU-083. Las omisiones
+iOS son tres recorridos optativos HU-084, uno HU-083 y el test condicional de
+arranque/rendimiento. Los títulos de navegación se abrevian en el SE y en la hoja administrativa del iPad con AX5;
+el contenido y las acciones siguen siendo alcanzables mediante desplazamiento.
+Esta evidencia corresponde a simuladores/emuladores locales. Siguen pendientes
+VoiceOver/TalkBack físicos, API 29, la entrega push real del sistema y la activación
+con escritores/libros compartidos.
