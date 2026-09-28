@@ -13,7 +13,9 @@ enum CoverageCopy {
 
     static func shiftDate(_ millis: Int64) -> String {
         Date(timeIntervalSince1970: Double(millis) / 1000).formatted(Date.FormatStyle(
-            date: .abbreviated, time: .omitted, timeZone: TimeZone(identifier: "Europe/Madrid") ?? .gmt
+            date: .abbreviated,
+            time: .omitted,
+            timeZone: TimeZone(identifier: "Europe/Madrid") ?? .gmt
         ))
     }
 

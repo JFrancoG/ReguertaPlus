@@ -17,9 +17,15 @@ struct CoverageLoginSection: View {
             Button(CoverageCopy.text("sign_in")) { Task { await model.signIn() } }
                 .disabled(!model.canSignIn)
                 .accessibilityIdentifier("coverage.signIn")
-            if model.isSigningIn { ProgressView(CoverageCopy.text("loading")) }
-            if model.loginFailed { Text(CoverageCopy.text("login_failed")) }
-            if let failure = model.coverage.failure { Text(CoverageCopy.failure(failure)) }
+            if model.isSigningIn {
+                ProgressView(CoverageCopy.text("loading"))
+            }
+            if model.loginFailed {
+                Text(CoverageCopy.text("login_failed"))
+            }
+            if let failure = model.coverage.failure {
+                Text(CoverageCopy.failure(failure))
+            }
         }
     }
 }

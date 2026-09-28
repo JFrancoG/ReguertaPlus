@@ -195,7 +195,6 @@ Esta evidencia corresponde a simuladores/emuladores locales. Siguen pendientes
 VoiceOver/TalkBack físicos, API 29, la entrega push real del sistema y la activación
 con escritores/libros compartidos.
 
-
 ## Envío push simulado y apertura desde el sistema
 
 El escenario nativo ejecuta ahora el despachador de coberturas mediante la interfaz
@@ -278,7 +277,6 @@ FCM/APNs reales, arranque iOS en frío ni la bandeja Android. Siguen pendientes 
 admisión de destinos reales, recuperación de resultados inciertos y escritores
 compartidos, proveedor de entropía, ratificación y HU-085.
 
-
 ## Ensayo de recuperación gobernada
 
 El adaptador solo opera en el proyecto y libro demo fijos. No tiene endpoint HTTP
@@ -323,3 +321,46 @@ emulador/Rules, 86 unidades de coberturas/barreras/conciliación y lint/build Fu
 Este bloque no cambia código Android/iOS. Acredita comportamiento local, no bloqueo
 real entre servicios ni entrega real. El plan mantiene la aceptación pendiente y los
 límites de HU-085.
+
+## Revisión final de la rama — 2026-09-13
+
+La matriz vigente de criterios y evidencia está en
+`spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md`. Functions pasa
+lint/build, 420 pruebas de regresión, 122 de coberturas Firestore/Rules y 22 de
+Auth/HTTP (51 casos de otros emuladores se omiten explícitamente en la regresión).
+Android pasa 502 unitarias y 25 conectadas en Pixel 8 Pro/API 35; lint conserva
+135 avisos previos y dos sugerencias, ninguno sobre líneas cambiadas. iOS pasa
+el release gate canónico con 919 correctas/cinco omisiones previstas/cero fallos
+en iPhone 17/iOS 26.5, SwiftLint sin infracciones en 509 archivos y el resumen
+cerrado de compilación sin warnings. Xcode MCP también compila Release/iphoneos;
+su log completo conserva un aviso de extracción de metadatos AppIntents, registrado
+por separado de los diagnósticos del compilador.
+
+La revisión solo corrige formato Swift nuevo y textos de estado desactualizados.
+En esa fecha seguían sin verificar VoiceOver/TalkBack físicos, API29 real, bandeja Android,
+notificación con proceso iOS cerrado y entrega APNs/FCM real. El AVD llamado
+`Pixel_4_A12_API29` utiliza realmente API31; no había imagen API29 instalada (resuelto en el seguimiento siguiente). El
+siguiente paso es esa matriz acotada de pruebas manuales y dispositivos. Esta
+revisión no cierra #268, ratifica políticas ni autoriza activación. Se han retirado
+las configuraciones temporales y detenido los servicios Firebase del ensayo.
+
+## Aceptación Android 10 / API 29 — 2026-09-28
+
+El nuevo AVD `Pixel_4_A10_API_29` se verifica en ejecución como Android 10, SDK 29.
+La suite conectada pasa 25 pruebas, sin fallos, errores ni omisiones, incluidos los
+dos recorridos opt-in de roles y cancelación HU-084 de socio/administrador con texto
+al doble de tamaño y el ensayo local Auth/Firestore/HTTP. Se excluye el recorrido
+independiente de HU-083, que necesita su propio escenario. No fue necesario cambiar
+código Android. El comando y los logs quedan registrados en
+`spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md`.
+
+La aceptación local en API 29 queda completada. Siguen pendientes VoiceOver/TalkBack
+físicos, bandeja Android, apertura de notificación con proceso iOS cerrado y entrega
+real APNs/FCM. Se usó configuración sintética demo; la configuración temporal y los
+servicios Firebase propios se retiran/detienen al finalizar. No se toca producción
+ni el teléfono físico.
+
+La actualización de dependencias `a50ec52` también se validó en API 29: pasan
+502 pruebas unitarias y 25 conectadas; lint conserva 135 avisos previos y dos
+sugerencias. El mantenedor autorizó commit/push de este bloque de revisión el
+2026-09-28; las comprobaciones manuales restantes siguen abiertas.

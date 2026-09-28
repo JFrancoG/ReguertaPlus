@@ -10,7 +10,9 @@ struct ShiftCoverageRehearsalTests {
         let model = CoverageRehearsalViewModel(access: access)
         let eventID = "coverage-" + String(repeating: "a", count: 64)
         let reference = try #require(ShiftNotificationPushReference.validated(
-            eventID: eventID, type: "shift_updated", target: "users"
+            eventID: eventID,
+            type: "shift_updated",
+            target: "users"
         ))
         model.acceptPush(reference)
         await model.openPendingPush()
@@ -40,7 +42,9 @@ struct ShiftCoverageRehearsalTests {
         model.password = "fixture"
         await model.signIn()
         let reference = try #require(ShiftNotificationPushReference.validated(
-            eventID: "coverage-" + String(repeating: "a", count: 64), type: "shift_updated", target: "users"
+            eventID: "coverage-" + String(repeating: "a", count: 64),
+            type: "shift_updated",
+            target: "users"
         ))
         model.acceptPush(reference)
         loader.beforeNotificationResponse = { model.signOut() }
@@ -52,7 +56,9 @@ struct ShiftCoverageRehearsalTests {
         model.signOut()
         #expect(model.pendingPushEventID == nil)
         let planning = try #require(ShiftNotificationPushReference.validated(
-            eventID: "planning-event", type: "shift_updated", target: "users"
+            eventID: "planning-event",
+            type: "shift_updated",
+            target: "users"
         ))
         model.acceptPush(planning)
         #expect(model.pendingPushEventID == nil)
@@ -113,18 +119,21 @@ struct ShiftCoverageRehearsalTests {
             .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
             .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": \"volunteers\"")
             .replacingOccurrences(
-                of: "\"volunteerClosesAtMillis\": null", with: "\"volunteerClosesAtMillis\": 1800003600000"
+                of: "\"volunteerClosesAtMillis\": null",
+                with: "\"volunteerClosesAtMillis\": 1800003600000"
             )
         await harness.model.refresh()
         #expect(harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.volunteer))
         harness.transport.overview = harness.transport.overview
             .replacingOccurrences(
-                of: "\"administration\": null", with: "\"administration\": null, \"hasVolunteered\": true"
+                of: "\"administration\": null",
+                with: "\"administration\": null, \"hasVolunteered\": true"
             )
         await harness.model.refresh()
         #expect(!harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.volunteer))
         harness.transport.overview = harness.transport.overview.replacingOccurrences(
-            of: "\"writable\": true", with: "\"writable\": false"
+            of: "\"writable\": true",
+            with: "\"writable\": false"
         )
         await harness.model.refresh()
         #expect(harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).isEmpty)
@@ -135,7 +144,10 @@ struct ShiftCoverageRehearsalTests {
         await harness.model.refresh()
         let snapshot = try #require(harness.model.snapshot)
         let draft = CoverageCommandDraft(
-            action: .open, item: nil, snapshot: snapshot, nowMillis: snapshot.serverTimeMillis
+            action: .open,
+            item: nil,
+            snapshot: snapshot,
+            nowMillis: snapshot.serverTimeMillis
         )
         #expect(draft.command == nil)
         draft.memberId = "member-b"
@@ -212,14 +224,20 @@ private final class RehearsalLoginLoader: HTTPDataLoading {
         } else if String(data: request.httpBody ?? Data(), encoding: .utf8)?.contains("notification") == true {
             notificationReads += 1
             let value = try CoverageClientHarness().transport.notification.replacingOccurrences(
-                of: "coverage-fixture-event", with: "coverage-" + String(repeating: "a", count: 64)
+                of: "coverage-fixture-event",
+                with: "coverage-" + String(repeating: "a", count: 64)
             )
             body = Data(value.utf8)
             beforeNotificationResponse?()
         } else {
             body = Data(overview.utf8)
         }
-        return (body, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
+        return (body, try #require(HTTPURLResponse(
+            url: url,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: nil
+        )))
     }
 }
 
@@ -241,6 +259,8 @@ private struct RehearsalHarnessRepository: ShiftCoverageRepository {
     }
     func execute(_ command: ShiftCoverageCommand, session: ShiftCoverageSession) async throws {
         await harness.model.submit(command)
-        if harness.model.pendingCommand != nil { throw ShiftCoverageFailure.unavailable }
+        if harness.model.pendingCommand != nil {
+            throw ShiftCoverageFailure.unavailable
+        }
     }
 }

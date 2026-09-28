@@ -5,7 +5,9 @@ struct CoverageFeedbackSection: View {
 
     var body: some View {
         Section {
-            if model.isBusy { ProgressView(CoverageCopy.text("loading")) }
+            if model.isBusy {
+                ProgressView(CoverageCopy.text("loading"))
+            }
             if let failure = model.failure {
                 Text(CoverageCopy.failure(failure)).accessibilityIdentifier("coverage.failure")
             }

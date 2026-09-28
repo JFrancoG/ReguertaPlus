@@ -5,7 +5,9 @@ struct CoverageAccountingSection: View {
 
     var body: some View {
         Section(CoverageCopy.text("accounting")) {
-            if snapshot.credits.isEmpty { Text(CoverageCopy.text("no_credits")) }
+            if snapshot.credits.isEmpty {
+                Text(CoverageCopy.text("no_credits"))
+            }
             ForEach(snapshot.credits, id: \.creditId) { credit in
                 VStack(alignment: .leading) {
                     Text(CoverageCopy.text(credit.type.rawValue)).font(.headline)

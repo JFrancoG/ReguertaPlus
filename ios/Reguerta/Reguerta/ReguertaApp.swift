@@ -62,9 +62,7 @@ extension ReguertaApp {
         } else {
             coverageRehearsal = nil
         }
-        let appConfiguration = rehearsesCoverage ? .uiTesting : ReguertaAppConfiguration(
-            arguments: arguments
-        )
+        let appConfiguration = rehearsesCoverage ? .uiTesting : ReguertaAppConfiguration(arguments: arguments)
         #else
         let appConfiguration = ReguertaAppConfiguration(arguments: arguments)
         #endif

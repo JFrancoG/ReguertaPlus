@@ -39,10 +39,12 @@ These are outcome groups, not a promise that each is one short session.
 
 ## 1. Current state
 
-Provisional local implementation is in progress under the maintainer
-authorization of 2026-09-12. Live activation remains gated by assembly ratification.
-The administrative lifecycle below is implemented; the full coverage backend,
-planning integration and native product groups remain unfinished.
+The three provisional local outcome groups are implemented under the maintainer
+authorization of 2026-09-12 and have passed the bounded final review and validation
+recorded on 2026-09-13, with the documented baseline/toolchain diagnostic residuals.
+`review.md` is the current acceptance matrix. Dated sections below retain their
+historical scope; their old pending statements do not override later checkpoints.
+Manual acceptance, ratification and live integration remain open.
 
 ### Implemented local administrative lifecycle — 2026-09-12
 
@@ -1214,3 +1216,47 @@ HU-085/#269 currently owns the base planner/workbook rollout and is independent 
 HU-084. Its existing scope must not be treated as implicit completion or automatic
 ownership of every remaining coverage task. Real IAM/Drive fencing, deployment and
 production writes remain separately authorized activation work.
+
+## Final review and validation — 2026-09-13
+
+The maintainer authorized review/validation before considering the remaining manual
+matrix. `review.md` now maps all 25 criteria to local evidence and unresolved policy
+or manual boundaries. No functional defect was confirmed; new Swift layout findings
+and stale current-status documentation are corrected. The independent 26-file Swift
+reaudit passes, and no structural rewrite is recommended.
+
+Functions: lint/build pass; 420 unit/regression passes plus 51 explicitly skipped
+other-emulator cases, 122 HU-084 Firestore/Rules passes and 22 Auth/HTTP passes.
+Android: 502 units and 25 connected tests pass on Pixel 8 Pro/API 35; lint retains
+135 baseline warnings and two hints, none on HU-084 changed lines. iOS: canonical
+release gate 919 passes, five expected skips, no failures; SwiftLint 509 files clean
+and closed result build warnings/errors zero. Xcode MCP Release/iphoneos also
+builds, with one raw AppIntents extraction warning documented in `review.md`.
+
+At this checkpoint, the AVD named API29 actually ran API31 and a genuine API29
+image/device was unavailable; the 2026-09-28 follow-up below resolves that gap. No new feature
+cut, commit, push, PR, merge, issue closure or production action is part of this
+review checkpoint. Corrections and report remain local pending delivery.
+
+
+## API 29 acceptance follow-up — 2026-09-28
+
+The new `Pixel_4_A10_API_29` runtime is verified as Android 10 / SDK 29. All 25
+connected tests pass, with zero failures/errors/skips, including both opt-in HU-084
+member/admin cancellation journeys at font scale 2 against the isolated local
+fixture. No Android implementation change was needed. See `review.md` for the
+command and evidence. Remaining device/manual checks: physical VoiceOver/TalkBack,
+Android notification tray, iOS cold-process notification opening and real APNs/FCM.
+Next recommended group: the two notification-opening checks, then physical
+accessibility and isolated real transport. At the time of this run, changes remained uncommitted.
+
+
+## Review checkpoint delivery — 2026-09-28
+
+The maintainer authorized commit/push of the already validated Swift layout
+corrections and bilingual review/API 29 evidence before the remaining manual tests.
+This checkpoint records those changes; it does not open a PR, close #268 or complete
+the outstanding acceptance gates. Android dependency updates were delivered
+separately in `a50ec52`, with 502 unit tests and 25 connected API 29 tests passing;
+lint retains 135 prior warnings and two hints. No business logic changed after the
+recorded iOS gate; no additional full-suite run is needed for this checkpoint.

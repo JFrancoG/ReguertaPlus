@@ -43,7 +43,9 @@ struct CoverageRehearsalView: View {
                             }
                         }
                         Section(CoverageCopy.text("cases")) {
-                            if snapshot.cases.isEmpty { Text(CoverageCopy.text("empty")) }
+                            if snapshot.cases.isEmpty {
+                                Text(CoverageCopy.text("empty"))
+                            }
                             ForEach(snapshot.cases) { item in
                                 NavigationLink(value: item.caseId) {
                                     VStack(alignment: .leading) {

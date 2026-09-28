@@ -94,13 +94,20 @@ final class CoverageRehearsalViewModel {
     func present(_ action: ShiftCoverageCommand.Action, item: ShiftCoverageSnapshot.Case? = nil) {
         guard let snapshot = coverage.snapshot, !coverage.isBusy, coverage.pendingCommand == nil else { return }
         draftSession = coverage.session
-        draft = CoverageCommandDraft(action: action, item: item, snapshot: snapshot, nowMillis: coverage.nowMillis)
+        draft = CoverageCommandDraft(
+            action: action,
+            item: item,
+            snapshot: snapshot,
+            nowMillis: coverage.nowMillis
+        )
     }
 
     var canConfirmDraft: Bool {
         guard let draft, let command = draft.command, let snapshot = coverage.snapshot,
               draftSession == coverage.session, !coverage.isBusy, coverage.pendingCommand == nil else { return false }
-        if let expires = command.expiresAtMillis, expires <= coverage.nowMillis { return false }
+        if let expires = command.expiresAtMillis, expires <= coverage.nowMillis {
+            return false
+        }
         if command.action == .open {
             return snapshot.availableShifts?.contains {
                 $0.shiftId == command.shiftId && $0.shiftRevision == command.expectedShiftRevision &&

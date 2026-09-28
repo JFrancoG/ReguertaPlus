@@ -189,7 +189,6 @@ body content and actions remain reachable by scrolling. This evidence covers loc
 simulator/emulator behavior. Physical VoiceOver/TalkBack and API 29 acceptance,
 real OS push delivery and live/shared-writer activation remain open.
 
-
 ## Simulated push submission and OS opening
 
 The native fixture now runs the coverage dispatcher through the existing generic
@@ -270,7 +269,6 @@ physical-device, real FCM/APNs, iOS cold-process or Android notification-tray ev
 Live destination admission, uncertain-result/shared-writer recovery, entropy-provider
 selection, assembly ratification and HU-085 remain pending.
 
-
 ## Governed recovery rehearsal
 
 The recovery adapter operates only in the fixed demo project/workbook. It has no
@@ -316,3 +314,42 @@ scenarios; 86 coverage/barrier/reconciliation units and Functions lint/build als
 No Android/iOS code changed in this block. Those tests prove local behavior, not live
 multi-service fencing or delivery. See the current plan for the remaining acceptance
 and HU-085 boundaries.
+
+## Final branch review — 2026-09-13
+
+The current criterion/evidence matrix is
+`spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md`. Functions lint/build,
+420 regression tests, 122 coverage Firestore/Rules tests and 22 Auth/HTTP tests pass
+(51 other-emulator cases explicitly skip in the regression run). Android passes
+502 units and 25 connected tests on Pixel 8 Pro/API 35; lint retains 135 baseline
+warnings and two hints, none on changed lines. iOS passes the canonical release
+gate with 919 passed/five expected skipped/zero failed on iPhone 17/iOS 26.5,
+SwiftLint zero violations across 509 files and closed build summary zero warnings.
+Xcode MCP also builds Release/iphoneos; its raw log retains an AppIntents metadata
+extraction warning, documented separately from compiler diagnostics.
+
+Only new Swift layout and stale status text changed during review. At that date, manual VoiceOver,
+TalkBack, genuine API29, Android tray, iOS cold-process and real APNs/FCM remained
+unverified. `Pixel_4_A12_API29` misleadingly uses an API31 image; there was no installed
+API29 image (resolved by the follow-up below). The next step is that bounded manual/device matrix. This review does
+not close #268, ratify policy or authorize activation. Temporary demo configuration
+and owned Firebase services were cleaned up.
+
+## Android 10 / API 29 acceptance — 2026-09-28
+
+The new AVD `Pixel_4_A10_API_29` is independently verified at runtime as Android 10,
+SDK 29. The full connected suite passes 25 tests, zero failures/errors/skips,
+including both opt-in HU-084 member/admin role and cancellation journeys at font
+scale 2 using the local Auth/Firestore/HTTP fixture. The unrelated HU-083 fixture
+journey is excluded. No Android source changes were needed. Reproduction and logs
+are recorded in `spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md`.
+
+API 29 local acceptance is now complete. Physical VoiceOver/TalkBack, Android tray,
+iOS cold-process notification opening and real APNs/FCM remain pending. The run
+used synthetic demo configuration; temporary configuration and owned local Firebase
+services are removed/stopped afterward. Production and the physical phone are untouched.
+
+The dependency update in `a50ec52` was also validated on API 29: 502 unit tests
+and 25 connected tests pass; lint retains 135 existing warnings and two hints.
+The maintainer authorized commit/push of this review checkpoint on 2026-09-28;
+the remaining manual checks stay open.

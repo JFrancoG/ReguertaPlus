@@ -8,7 +8,9 @@ extension ShiftCoverageViewModel {
     func actions(for item: ShiftCoverageSnapshot.Case) -> [ShiftCoverageCommand.Action] {
         guard let snapshot, !isBusy, pendingCommand == nil, item.writable else { return [] }
         var actions = memberActions(item, snapshot: snapshot)
-        if snapshot.isAdmin { actions += adminActions(item, policy: snapshot.policy) }
+        if snapshot.isAdmin {
+            actions += adminActions(item, policy: snapshot.policy)
+        }
         if [.open, .offered].contains(item.status), snapshot.isAdmin || item.openedByMe == true {
             actions.append(.cancel)
         }
@@ -25,7 +27,9 @@ extension ShiftCoverageViewModel {
         }
         guard item.status == .open, item.selectionPhase == .volunteers,
               let closes = item.volunteerClosesAtMillis, nowMillis < closes, snapshot.eligible else { return [] }
-        if item.volunteered { return [.withdrawVolunteer] }
+        if item.volunteered {
+            return [.withdrawVolunteer]
+        }
         return item.hasVolunteered == true ? [] : [.volunteer]
     }
 
@@ -54,7 +58,9 @@ extension ShiftCoverageViewModel {
             return nowMillis >= (item.volunteerClosesAtMillis ?? Int64.max) ? [.offerNext] : []
         case .drawRequired:
             guard policy.drawAvailable else { return [] }
-            if item.drawCommitted != true { return [.commitDraw] }
+            if item.drawCommitted != true {
+                return [.commitDraw]
+            }
             return nowMillis >= (item.drawAvailableAtMillis ?? Int64.max) ? [.revealDraw] : []
         case .adminRequired: return [.offerAdmin]
         }

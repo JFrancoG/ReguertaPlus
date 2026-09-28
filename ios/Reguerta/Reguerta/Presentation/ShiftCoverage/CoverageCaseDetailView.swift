@@ -21,7 +21,9 @@ struct CoverageCaseDetailView: View {
                         if let phase = item.selectionPhase {
                             Text(CoverageCopy.text("phase_\(phase.rawValue)"))
                         }
-                        if !item.writable { Text(CoverageCopy.text("read_only")) }
+                        if !item.writable {
+                            Text(CoverageCopy.text("read_only"))
+                        }
                         if item.status == .offered, let offer = item.offer {
                             LabeledContent(CoverageCopy.text("member"), value: model.coverage.memberName(offer.userId))
                             LabeledContent(

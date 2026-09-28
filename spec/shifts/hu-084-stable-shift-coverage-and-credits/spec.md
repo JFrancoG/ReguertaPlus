@@ -5,7 +5,7 @@
 - issue_id: #268
 - priority: P1
 - platform: both
-- status: provisional local implementation in progress
+- status: provisional local implementation reviewed and validated; manual and ratification gates remain
 - blocked_by: assembly ratification for live activation
 - decision_gate: assembly ratification
 - depends_on: HU-082 / #266, HU-083 / #267
@@ -28,8 +28,11 @@ provisional full-season credit traversal, credited carryover and exact ledger
 before/after images. Governed HU-082 source capture, bundle persistence and shared
 forward/inverse credit activation now work in the fixed local emulator, including
 released claims and monotonic ledger generations. Shared-project activation stays
-disabled. Membership transitions and native product integration remain pending.
-See `plan.md` for evidence and limits.
+disabled. Membership/eligibility transitions, both native rehearsal clients,
+readable Sheets projection, generic inbox/push and governed recovery are now
+implemented locally. This paragraph reflects the later 2026-09-13 checkpoint;
+manual acceptance and ratification remain open. See `review.md` for the current
+criterion matrix and `plan.md` for historical evidence and limits.
 
 ## Context and problem
 
@@ -454,7 +457,9 @@ Errors return `{ok: false, code: ...}` without token, reason, stack or SDK messa
 transport/body, 409 for domain/source conflicts, 405 for unsupported method and
 413 for bodies over 16 KiB, 415 for non-JSON POST bodies and 500 for unexpected
 infrastructure failure. No notification or Sheets execution is implied by the
-local handler. Native UI and integrated side effects remain open acceptance work.
+local handler alone. The separate local effects worker and native rehearsal now
+exercise those integrations; real deployment and remaining manual acceptance are
+not implied. See `review.md` for the current boundary.
 
 Run the explicit local server from `functions` after starting Auth/Firestore with
 `firebase.coverage-emulator.json` and the fixed demo project:

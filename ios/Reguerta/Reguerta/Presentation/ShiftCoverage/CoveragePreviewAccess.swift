@@ -13,8 +13,12 @@ final class CoveragePreviewAccess: CoverageRehearsalAccess, ShiftCoverageReposit
         serverTimeMillis: 1_800_000_000_000,
         policyRevision: "hu084-provisional-v1",
         availableShifts: [.init(
-            shiftId: "market-next", type: .market, scheduledAtMillis: 1_800_100_000_000,
-            shiftRevision: 1, writable: true, assignedUserIds: ["ana"]
+            shiftId: "market-next",
+            type: .market,
+            scheduledAtMillis: 1_800_100_000_000,
+            shiftRevision: 1,
+            writable: true,
+            assignedUserIds: ["ana"]
         )],
         members: [.init(memberId: "ana", displayName: "Ana de prueba", offerCandidate: true)],
         policy: .init(maximumOfferWindowMillis: 86_400_000, volunteerWindowMillis: 3_600_000, drawAvailable: false),
@@ -43,8 +47,12 @@ final class CoveragePreviewAccess: CoverageRehearsalAccess, ShiftCoverageReposit
             drawAvailableAtMillis: nil
         )],
         credits: [.init(
-            creditId: "credit", shiftId: "market-previous", type: .market, state: .pending,
-            earnedAtMillis: 1_790_000_000_000, consumedAtMillis: nil
+            creditId: "credit",
+            shiftId: "market-previous",
+            type: .market,
+            state: .pending,
+            earnedAtMillis: 1_790_000_000_000,
+            consumedAtMillis: nil
         )],
         reserves: [.init(type: .delivery, active: true, enteredAtMillis: 1_790_000_000_000)],
         notifications: [.init(eventId: "preview-notification", sentAtMillis: 1_800_000_000_000)],
