@@ -364,3 +364,100 @@ La actualización de dependencias `a50ec52` también se validó en API 29: pasan
 502 pruebas unitarias y 25 conectadas; lint conserva 135 avisos previos y dos
 sugerencias. El mantenedor autorizó commit/push de este bloque de revisión el
 2026-09-28; las comprobaciones manuales restantes siguen abiertas.
+
+
+## Aviso de bandeja Android desde la app — preparado 2026-09-28
+
+`CoverageRehearsalActivity` de Debug acepta `coveragePostNotification=true` junto
+al payload de cobertura validado. Publica un aviso genérico desde el UID de la app,
+con PendingIntent inmutable y propio del evento. Publicarlo no selecciona el caso:
+solo el toque en la bandeja entrega la referencia al modelo del ensayo. El código
+y los textos traducidos viven en `src/debug`. En API 33+ requiere permiso de
+notificaciones ya concedido; si están desactivadas no publica el aviso.
+
+Con el ensayo demo activo y el evento de oferta vigente para `d@example.test`:
+
+```sh
+adb -s EMULATOR_ID shell am start \
+  -n com.reguerta.user.debug/com.reguerta.user.CoverageRehearsalActivity \
+  --es eventId CURRENT_COVERAGE_EVENT_ID --es type shift_updated --es target users \
+  --ez coveragePostNotification true
+```
+
+Volver a Inicio, abrir la bandeja, tocar el aviso e iniciar sesión con
+`d@example.test` / `local-fixture-password`. Debe abrirse la oferta de mercado del
+4 de septiembre de 2027 sin seleccionar una fila del buzón. No aceptar ni rechazar.
+Repetir con sesión iniciada y después con el proceso del ensayo terminado en segundo
+plano (sin forzar detención, que elimina las notificaciones). Registrar cada resultado
+observado antes de dar por completada la aceptación de bandeja.
+
+La preparación pasa 502 unitarias, lint con los 135 avisos/dos sugerencias previos y
+25 pruebas conectadas en API 29. El sistema confirma que existe el aviso de la app;
+siguen pendientes los resultados humanos del toque y del arranque sin proceso.
+Esto verifica apertura local del sistema, no entrega real FCM. El ensayo demo sigue
+activo para la prueba guiada.
+
+
+### Prueba guiada de bandeja: acceso con login — 2026-09-28
+
+El mantenedor siguió los pasos de toque en notificación e inicio de sesión y aportó
+`Captura de pantalla 2026-09-28 a las 15.32.46.png`: el detalle de Market muestra
+4 de septiembre de 2027, Awaiting response y el socio de prueba d, con acciones de
+aceptar/rechazar. Queda confirmado el primer recorrido bandeja-login-oferta.
+No se pidió aceptar ni rechazar. Se prepara otro aviso con el proceso y la sesión
+existentes para comprobar la reapertura; ese resultado y el arranque sin proceso
+siguen pendientes. La captura no acredita entrega real FCM ni TalkBack.
+
+
+### Prueba guiada de bandeja: reapertura autenticada — 2026-09-28
+
+El mantenedor confirma que el segundo aviso mantiene la misma oferta sin pedir
+login ni mostrar errores. La reapertura con sesión iniciada pasa. Se publica otro
+aviso, se lleva la app a segundo plano y se ejecuta `am kill com.reguerta.user.debug`
+cuando el sistema permite terminarla en segundo plano. Se verifica que el proceso
+del ensayo ya no existe y el aviso sigue en la bandeja. Quedan preparados el toque
+con proceso cerrado y el login posterior; pendiente la observación del usuario.
+
+
+### Prueba guiada de bandeja: proceso cerrado — 2026-09-28
+
+El mantenedor confirma que el aviso conservado tras terminar el proceso solicita
+login de nuevo y abre directamente la misma oferta de mercado del 4 de septiembre
+de 2027 sin errores. El PID del ensayo nuevo difiere del proceso terminado.
+Pasan las tres variantes Android: acceso con login, reapertura autenticada y login
+tras arranque sin proceso. TalkBack físico y entrega real FCM siguen pendientes.
+
+
+## Ruta de arranque sin proceso exclusiva del simulador — 2026-09-28
+
+Debug en simulador puede leer el booleano explícito `coverageColdLaunchRehearsal`
+de las preferencias propias de la app. Selecciona la misma composición de ensayo
+y autorización de notificaciones locales que los dos argumentos existentes, incluso
+si iOS arranca desde un aviso sin argumentos. Release no incluye esta rama y Debug
+en dispositivo físico ignora la preferencia. La app nunca la activa automáticamente.
+
+Para la prueba guiada, instalar Debug en el simulador elegido, terminar el proceso
+y activar solo esa preferencia en su contenedor antes de lanzar sin argumentos.
+Una vez concedido el permiso, inyectar el payload vigente con `simctl push`, terminar
+la app con `simctl terminate` y tocar el aviso. Tras el login debe abrirse la oferta
+de mercado original. El transporte sigue siendo simulado, no entrega APNs.
+Al acabar, eliminar solo `coverageColdLaunchRehearsal` de las preferencias de esa
+app del simulador y terminarla.
+
+
+### Apertura guiada iOS sin proceso: superada — 2026-09-28
+
+Tras reabrir la ventana del iPhone 17/iOS 27.0, el mantenedor confirma que el aviso
+pendiente abre el login aislado y después resuelve directamente la oferta de
+mercado del 4 de septiembre de 2027 sin errores. El proceso se había terminado antes
+de inyectar el aviso. Queda completada la apertura local iOS sin proceso; no acredita
+transporte APNs ni VoiceOver físico. Al acabar se termina la app y se elimina solo
+la preferencia temporal `coverageColdLaunchRehearsal` de su contenedor del simulador.
+Siguen pendientes TalkBack/VoiceOver físicos y entrega real APNs/FCM aislada.
+Los cambios siguen sin commit.
+
+
+El ensayo de notificaciones completado se guarda como bloque de trabajo. Se detienen
+sus servicios demo y se retira el enlace temporal de dependencias. Para VoiceOver
+en iPhone físico hay que preparar antes un ensayo compatible: el transporte actual
+usa loopback y apunta al propio iPhone, no al Mac. Abrir la app normal no prueba esta UI.

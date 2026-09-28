@@ -51,7 +51,7 @@ Paths below are relative to the repository root.
 | 18, 19, 20 — deferred credit and whole-unit backtracking | `shift-credit-unit.test.cjs`, `shift-credit-season.test.cjs`: all subsets of small cohorts, N=2, queue wrap, ten complete markets and credited carryover | Ratify reverse-order fallback; no unstated replacement-credit accounting |
 | 21 — market staffing and delivery handover | Unit/seasonal planners plus coverage and publication emulator suites | Local |
 | 22 — independent HU-016 swaps | Existing swap/shift-planning unit regressions included in final Functions run; shared helper/lineage changes reviewed | Does not certify live swap deployment |
-| 23 — equivalent native member/admin states | Shared wire fixtures, Android client/operation tests, Swift client/rehearsal tests; local role/cancel and earlier accept/credit journeys | Physical accessibility and cold/tray notification paths remain below; API 29 passed on 2026-09-28 |
+| 23 — equivalent native member/admin states | Shared wire fixtures, Android client/operation tests, Swift client/rehearsal tests; local role/cancel and earlier accept/credit journeys | Physical accessibility and real push delivery remain below; API 29 and local Android/iOS OS openings passed on 2026-09-28 |
 | 24 — backend-only authority | Strict/phase1 Rules matrix, nested recovery authorization/results/push records and Auth emulator revocation/link tests | No Rules deployment |
 | 25 — all ratified branches before activation | Provisional workflow/Auth/projection/inbox/push/recovery suites and native gates | Cannot certify a policy the assembly has not yet ratified |
 
@@ -114,8 +114,8 @@ Firebase emulators have been removed/stopped after validation. No live Firebase/
 | Android API 29 | New AVD `Pixel_4_A10_API_29`, `emulator-5554`; runtime properties confirm Android 10 / SDK 29 | Passed on 2026-09-28: 25 connected tests, zero failures/errors/skips, including both opt-in HU-084 role/cancellation journeys at font scale 2 |
 | Physical VoiceOver | Requires an accessible physical iPhone and human assistive-technology interaction | Device availability and focused journey remain to be agreed |
 | Physical TalkBack | An Android phone is connected; this gate selected only `emulator-5554` | Confirm test installation/account scope before operating the phone |
-| Android notification tray | Cold/warm activity Intents already passed; shell tray injection previously failed on PendingIntent UID permission | Requires app-owned local notification injection or real isolated push; not certified by Intents |
-| iOS cold-process notification open | Warm simulated Notification Center taps passed previously; OS cold start drops rehearsal launch flags | Requires a bounded Debug bootstrap for the isolated route or later approved live composition |
+| Android notification tray | Cold/warm activity Intents already passed; shell tray injection previously failed on PendingIntent UID permission | App-owned Debug injection prepared on 2026-09-28; all three guided local tray variants confirmed by maintainer on API 29: login, signed-in re-entry and cold-process login; real FCM remains separate |
+| iOS cold-process notification open | Warm simulated Notification Center taps passed previously; OS cold start drops rehearsal launch flags | Passed on 2026-09-28: maintainer confirms tray-to-login-to-market on iPhone 17/iOS 27.0 after process termination; temporary preference removed afterward |
 | Real APNs/FCM | Local dispatcher uses simulated transport; `simctl push` bypasses APNs | Requires isolated app/project destinations and separate live transport setup |
 
 Do not count font scaling as VoiceOver/TalkBack evidence. All local/manual residuals
@@ -167,3 +167,55 @@ The Swift changes are the same corrections validated by the recorded release gat
 Only documentation was adjusted afterward; `git diff --check` passes. Full suites
 are not repeated just to commit these non-behavioral changes. The remaining manual,
 policy and activation boundaries above are unchanged.
+
+
+## Guided Android result and iOS cold preparation — 2026-09-28
+
+The maintainer confirmed all three app-owned Android tray journeys on API 29:
+login from a tray tap, same-case re-entry while authenticated, and direct case
+opening after process termination and a fresh login. The cold launch used a newly
+observed process. This closes local Android tray acceptance, not real FCM/TalkBack.
+
+For iOS, the only Swift change adds a Debug simulator-only explicit preference,
+`coverageColdLaunchRehearsal`, to preserve the isolated local composition without
+launch arguments. It is not written automatically and has no physical Debug or
+Release effect. A read-only one-file style audit and candidate scan pass; SwiftLint
+has zero violations across 509 files. Xcode 27.0 Service builds Release successfully
+(the existing raw AppIntents extraction warning remains), then builds Debug and
+passes 25 focused configuration/session/push cases plus all four canonical UI smoke
+cases on iPhone 17/iOS 27.0, with no failures or skips. These are targeted validation,
+not a new full release gate. Test result bundles:
+
+- `/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/ActionArtifacts/default/RunSomeTests/Test-Reguerta-2026.09.28_16-07-25-+0200.xcresult`
+- `/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/ActionArtifacts/default/RunSomeTests/Test-Reguerta-2026.09.28_16-09-09-+0200.xcresult`
+
+The simulator is `C0534329-7329-4763-A3E9-FD3F45F6E368`. Launch without arguments
+visibly opens the local rehearsal login; notification permission is granted. The
+process was terminated and a current demo market notice injected with `simctl push`;
+the actual system banner is visible. User observation of the cold tap/login is pending.
+The explicit preference must be removed after the guided test. Temporary Firebase
+build plists and generated-only catalog changes were removed/restored; the original
+Xcode destination was restored. The local demo server and dependency symlink remain
+active for the guided interaction. No commit/push or production action is included.
+
+
+## Guided iOS cold-opening result — 2026-09-28
+
+The maintainer confirms the expected login and direct market offer after tapping
+the pending notice with the original process terminated. Local Android tray and
+iOS cold-opening rows are complete. The simulator-only preference was removed and
+the iOS app terminated after the test. Physical VoiceOver, physical TalkBack and
+real isolated APNs/FCM delivery remain open, alongside the independent policy/live
+activation boundaries. No additional code change or repeat suite was needed to
+record the guided observation. This checkpoint remains uncommitted.
+
+
+## Notification checkpoint delivery — 2026-09-28
+
+Commit/push of this completed block is now authorized. The owned demo services are
+stopped and the temporary dependency symlink removed. Android and iOS preparation
+remain Debug-only, with the documented automated and maintainer-observed results.
+No behavioral edits followed those validations; delivery checks include the final
+diff and whitespace checks. Physical VoiceOver/TalkBack and real isolated transport
+remain separate pending rows. iPhone 11 is proposed next; the current iOS loopback
+transport needs a suitable physical rehearsal setup before its local login can work.

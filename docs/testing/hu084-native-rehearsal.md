@@ -353,3 +353,98 @@ The dependency update in `a50ec52` was also validated on API 29: 502 unit tests
 and 25 connected tests pass; lint retains 135 existing warnings and two hints.
 The maintainer authorized commit/push of this review checkpoint on 2026-09-28;
 the remaining manual checks stay open.
+
+
+## App-owned Android tray notice — prepared 2026-09-28
+
+Debug `CoverageRehearsalActivity` accepts `coveragePostNotification=true` together
+with the existing validated coverage payload. It posts a generic local notice from
+the app UID with an immutable, event-specific activity PendingIntent. Posting does
+not select the case: only the tray tap forwards the reference to the rehearsal model.
+Both the code and translated notice resources live in `src/debug`. On API 33+ the
+app must already have notification permission; disabled notifications are not posted.
+
+With the demo fixture running and the current offer event for `d@example.test`:
+
+```sh
+adb -s EMULATOR_ID shell am start \
+  -n com.reguerta.user.debug/com.reguerta.user.CoverageRehearsalActivity \
+  --es eventId CURRENT_COVERAGE_EVENT_ID --es type shift_updated --es target users \
+  --ez coveragePostNotification true
+```
+
+Return Home, open the notification shade, tap the notice and sign in as
+`d@example.test` / `local-fixture-password`. The September 4, 2027 market offer must
+open without selecting an inbox row. Do not accept or decline. Repeat while signed
+in, then with the background rehearsal process killed (not force-stopped, which
+removes notifications). Record each observed outcome before marking tray acceptance.
+
+Preparation passes 502 unit tests, lint with the existing 135 warnings/two hints,
+and 25 connected API 29 tests. The system confirms the posted app-owned notice;
+human tray-tap and cold-process results remain pending. This is local OS opening,
+not real FCM delivery. The demo fixture stays running for the guided test.
+
+
+### Guided tray check: login route — 2026-09-28
+
+The maintainer followed the notification-tap/login steps and supplied screenshot
+`Captura de pantalla 2026-09-28 a las 15.32.46.png`: the Market detail shows
+September 4, 2027, Awaiting response, and demo member d, with accept/decline actions.
+This confirms the first guided tray-to-login-to-offer journey. No acceptance or
+rejection was requested. A second notice is prepared with the existing authenticated
+process for the warm re-entry check; that result and cold-process opening remain
+pending. Screenshot evidence does not certify real FCM delivery or TalkBack.
+
+
+### Guided tray check: authenticated re-entry — 2026-09-28
+
+The maintainer confirms that tapping the second notice while signed in keeps the
+same offer open without another login or errors. Warm re-entry passes. A new notice
+was posted, the app backgrounded and `am kill com.reguerta.user.debug` executed
+once background killing became eligible. The rehearsal PID is verified absent
+while the notice remains in the system tray. Cold-process tap and subsequent login
+are prepared, with user observation pending.
+
+
+### Guided tray check: cold process — 2026-09-28
+
+The maintainer confirms that tapping the surviving notice after process termination
+asks for login again and directly opens the same September 4, 2027 market offer
+without errors. The new rehearsal PID differs from the terminated process.
+All three Android tray variants now pass: unauthenticated login, authenticated
+re-entry and cold-process login. Physical TalkBack and real FCM delivery remain open.
+
+
+## Simulator-only cold-launch route — 2026-09-28
+
+Debug simulator builds may read the explicit `coverageColdLaunchRehearsal` Boolean
+from the app's own preferences. It selects the same local rehearsal composition and
+local notification authorization as the two existing launch flags, even when iOS
+launches from a notice without arguments. Release builds omit the branch; physical
+Debug builds ignore this preference. The app never sets it automatically.
+
+For a guided cold test, install Debug on the selected simulator, stop its process,
+and set that single preference in its data container before launching without flags.
+After notification permission is granted, inject the current fixture payload with
+`simctl push`, terminate the app with `simctl terminate`, and tap the notice. Login
+must resolve the original offered market case. This remains a simulated notification
+transport, not APNs delivery. Remove only `coverageColdLaunchRehearsal` from that
+same simulator app's preferences after the guided tests and terminate the app.
+
+
+### Guided iOS cold opening: passed — 2026-09-28
+
+After reopening the iPhone 17/iOS 27.0 simulator window, the maintainer confirms
+that the pending system notice opens the isolated login and then directly resolves
+the offered September 4, 2027 market case without errors. The process had been
+terminated before injection. This closes the local iOS cold-opening check; it does
+not certify APNs transport or physical VoiceOver. The app was terminated afterward
+and only the temporary `coverageColdLaunchRehearsal` preference removed from its
+simulator container. Remaining manual checks: physical TalkBack/VoiceOver and real
+isolated APNs/FCM delivery. Changes remain uncommitted.
+
+
+The completed notification rehearsal is committed as a checkpoint. Its owned demo
+services are stopped and dependency symlink removed. For physical iPhone VoiceOver,
+prepare a device-compatible rehearsal first: the current loopback transport reaches
+the iPhone itself, not the Mac. A normal live-app launch does not exercise this UI.

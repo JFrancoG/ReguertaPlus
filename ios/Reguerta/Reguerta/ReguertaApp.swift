@@ -52,7 +52,13 @@ extension ReguertaApp {
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         #if DEBUG
-        let rehearsesCoverage = arguments.contains("-coverageRehearsal")
+        #if targetEnvironment(simulator)
+        // An explicit simulator preference preserves the isolated route when an OS tap launches without arguments.
+        let resumesCoverageRehearsal = UserDefaults.standard.bool(forKey: "coverageColdLaunchRehearsal")
+        #else
+        let resumesCoverageRehearsal = false
+        #endif
+        let rehearsesCoverage = arguments.contains("-coverageRehearsal") || resumesCoverageRehearsal
         if rehearsesCoverage {
             do {
                 coverageRehearsal = CoverageRehearsalViewModel(access: try LocalCoverageRehearsalAccess())
@@ -69,7 +75,8 @@ extension ReguertaApp {
         let appEnvironment = ReguertaAppEnvironment.make(configuration: appConfiguration)
         self.appEnvironment = appEnvironment
         #if DEBUG
-        if rehearsesCoverage && arguments.contains("-coveragePushRehearsal") {
+        let requestsLocalPush = arguments.contains("-coveragePushRehearsal") || resumesCoverageRehearsal
+        if rehearsesCoverage && requestsLocalPush {
             appDelegate.enableLocalCoveragePush()
         }
         #endif

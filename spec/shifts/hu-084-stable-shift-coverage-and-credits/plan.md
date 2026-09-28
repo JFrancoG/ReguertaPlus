@@ -1260,3 +1260,29 @@ the outstanding acceptance gates. Android dependency updates were delivered
 separately in `a50ec52`, with 502 unit tests and 25 connected API 29 tests passing;
 lint retains 135 prior warnings and two hints. No business logic changed after the
 recorded iOS gate; no additional full-suite run is needed for this checkpoint.
+
+
+## Guided OS notification opening — 2026-09-28
+
+The maintainer confirmed all three local Android tray variants on API 29 and the
+iOS cold-process tray/login route on iPhone 17/iOS 27.0. Debug-only preparation,
+validation and cleanup are recorded in `review.md` and both rehearsal guides.
+The iOS simulator preference has been removed. Next: physical TalkBack/VoiceOver
+journeys and separately configured isolated real APNs/FCM delivery. These results
+do not complete policy ratification or live activation. No commit/push is included.
+
+
+## Notification checkpoint delivery — 2026-09-28
+
+The maintainer authorized commit/push of the completed local notification opening
+block. Android Debug posts an app-owned tray notice; iOS Debug simulator uses an
+explicit temporary preference for cold opening. Both guided outcomes and all
+validation limits are recorded in `review.md`. The owned local Firebase services
+are stopped and the temporary dependency symlink removed after the completed
+rehearsal. No shared Firebase/Sheets resources or real APNs/FCM were used.
+
+The proposed next physical device is iPhone 11 for VoiceOver. The current iOS
+rehearsal transport deliberately accepts only loopback on ports 8799/9098; on a
+physical iPhone those addresses refer to the phone, not this Mac. Therefore a
+physical-device test setup must be prepared before using this local login there.
+Opening the normal app does not validate the provisional coverage UI.
