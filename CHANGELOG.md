@@ -237,6 +237,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-09-28 | 🐛 fix(android): keep coverage actions above IME
+
 - 2026-09-28 | 🐛 fix(ios): keep coverage text readable
 
 - 2026-09-09 | 🐛 fix(sheets): close readable integration gaps

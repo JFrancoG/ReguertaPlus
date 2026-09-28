@@ -316,3 +316,66 @@ the physical observations above. Recent build/lint and native test evidence is
 reused; only documentation changed after the final physical confirmation. The
 known App Intents tool warning is recorded, not reported as a warning-free build.
 HU-084 stays open; physical TalkBack and real isolated push delivery are pending.
+
+
+## iPhone delivered; physical Android preparation — 2026-09-28
+
+The iPhone checkpoint is committed and pushed as `bd1fea281269a702101857a98ccbc359c42275ea`;
+remote branch parity was verified and HU-084 #268 remains open. A separate local
+Debug-only `coverageUsbRehearsal` extra now selects the existing loopback adapter
+for Android USB reverse ports 9098/8799. Default emulator routing is unchanged.
+The Xiaomi/API 34 app is installed and shows the isolated login; device policy
+rejects injected taps, so the maintainer must enter fixture credentials. No device
+security setting was changed. Login/TalkBack are not yet validated.
+
+Validation: 502 unit checks pass, lint completes with 135 existing warnings/two
+hints, and API 29 connected run succeeds (23 checks plus three opt-in assumption
+exits represented as failures in XML, not assertion failures). Functions builds.
+Logs: `/tmp/hu084-talkback-build-20260928.log`,
+`/tmp/hu084-talkback-connected-20260928.log`, and
+`/tmp/hu084-talkback-emulators-20260928.log`. Demo services and the temporary
+functions dependency symlink remain active for guided testing; only USB ports
+9098/8799 were mapped on the physical device. The synthetic google-services file
+was removed after building. Android preparation is not committed yet.
+
+
+## Guided physical TalkBack result — 2026-09-28
+
+The maintainer confirms case/detail reading, activation semantics, acceptance
+confirmation/cancellation and restored focus on Xiaomi / Android 14. The absence
+form also passes shift selection, sample-reason entry and cancellation returning
+focus to Report an absence after entering the assigned-member account. The earlier
+disabled control was investigated without weakening eligibility; the login field
+confirmed the offered-member account was still selected. USB reconnection was a
+separate setup problem and the fixed reverse ports were restored as needed.
+Physical maximum-text inspection and isolated real APNs/FCM remain pending. This
+update records observations only; automated suites were not repeated.
+
+### Physical Android XXL progress — 2026-09-28
+
+Xiaomi Font settings shows the rightmost XXL selection; the rehearsal activity's
+runtime configuration confirms `fontScale=1.5` (previously 1.33). Overview cards
+are readable in the captured screen, and the maintainer confirms full market
+detail readability without clipping or overlap. This is the device's offered
+maximum, not evidence at 2.0. XXL absence-form inspection remains pending, as does
+isolated real APNs/FCM transport. Documentation only; no automated rerun.
+
+### Android keyboard obstruction fixed; physical recheck pending — 2026-09-28
+
+The XXL absence-form check finds Back hidden behind the keyboard. The dialog now
+uses `decorFitsSystemWindows=false` and safe-drawing padding outside the scrolling
+surface. A real-keyboard/touch cancellation regression at font scale 2.0 verifies
+that dismissal leaves the snapshot unchanged and no pending command. All three
+opt-in coverage acceptance tests pass on API 29; 502 unit tests pass and lint has
+no errors, with the existing 135 warnings/two hints. Build/test logs are
+`/tmp/hu084-ime-build.log` and `/tmp/hu084-ime-connected.log`. Updated isolated
+Debug APK installed on Xiaomi; physical keyboard recheck remains pending.
+
+Physical recheck confirmed by the maintainer: at XXL, reason entry and scrolling
+to/touching Back work while the keyboard remains visible, cancelling without
+saving. The guided physical TalkBack and maximum-text journeys are complete;
+the latter uses the device's 1.5 maximum, distinct from the emulator's 2.0 test.
+Owned demo services stopped; USB mappings and temporary dependency symlink removed.
+Font settings reopened for manual restoration to XL. No code changed after the
+passing validation; real isolated APNs/FCM delivery remains pending. No commit,
+push or PR is included in this confirmation step.

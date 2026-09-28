@@ -24,7 +24,13 @@ import com.reguerta.user.ui.theme.ReguertaTheme
 /** Dedicated Debug entry point. It never constructs MainActivity's live session/dependencies. */
 class CoverageRehearsalActivity : ComponentActivity() {
     private val model: CoverageRehearsalViewModel by viewModels {
-        viewModelFactory { initializer { CoverageRehearsalViewModel(LocalCoverageRehearsalAccess()) } }
+        viewModelFactory {
+            initializer {
+                // adb reverse exposes only the fixed demo ports on a connected physical device.
+                val usesUsb = intent.getBooleanExtra("coverageUsbRehearsal", false)
+                CoverageRehearsalViewModel(LocalCoverageRehearsalAccess(emulatorHost = !usesUsb))
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

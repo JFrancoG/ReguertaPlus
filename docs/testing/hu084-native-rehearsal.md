@@ -507,3 +507,96 @@ dropdown opens, the sample shift can be selected and remains selected, and Back
 returns without saving. The guided iPhone checks are complete within the offline
 scope described above. Physical TalkBack and real isolated APNs/FCM delivery
 remain pending.
+
+
+## Physical Android TalkBack setup — 2026-09-28
+
+With the fixed demo services above running, connect the physical Debug app through
+USB; the loopback/API and Auth destinations remain fixed. Configure only:
+
+```sh
+adb -s DEVICE_ID reverse tcp:9098 tcp:9098
+adb -s DEVICE_ID reverse tcp:8799 tcp:8799
+adb -s DEVICE_ID shell am force-stop com.reguerta.user.debug
+adb -s DEVICE_ID shell am start \
+  -n com.reguerta.user.debug/com.reguerta.user.CoverageRehearsalActivity \
+  --ez coverageUsbRehearsal true
+```
+
+Force-stop the Debug app before changing between emulator and USB transport, since
+the ViewModel owns its access adapter for the activity lifetime. Without the extra,
+the existing emulator host remains unchanged. No arbitrary hostname is accepted.
+Remove only these two reverse mappings after the guided session and stop the
+owned demo services; remove the temporary functions dependency symlink then.
+
+Xiaomi 21081111RG / Android 14 (API 34) is connected, the Debug APK installed and
+the isolated login visible. TalkBack is installed but not enabled by the agent.
+USB input injection is denied by the device, so the maintainer enters the fixture
+credentials manually. Authentication over USB and physical TalkBack are pending.
+Local validation: 502 unit checks passed; lint completed with the unchanged
+135 warnings and two hints. API 29 connected run succeeds with 23 executed checks
+and three opt-in assumption exits (the XML labels these as failures; each is
+`AssumptionViolatedException` for a disabled rehearsal flag). Functions build passed.
+
+USB reconnection removes adb reverse mappings. If fixture login fails, recheck
+`adb reverse --list` and restore both fixed mappings before retrying credentials.
+During physical setup the transport reconnected and both mappings disappeared;
+after restoring them, phone-side HTTP probes reached Auth (200) and the API
+listener (404 at `/`, whose supported endpoint is `/coverage`). Fixture login
+was separately confirmed at Auth with the expected sample UID. App login remains
+pending maintainer retry.
+
+
+The maintainer confirms successful USB login as the offered member, TalkBack
+reading of the case with its activation hint, complete detail traversal, and
+readable acceptance confirmation with focus restored after cancellation. The
+absence-form check is still pending: account `a` returns a writable market slot
+from the local API, but USB reverse mappings disappeared again while the device
+transport reconnected. Both fixed ports were restored; the app needs a refresh
+before the guided check can continue. No fixture or business rule was changed.
+
+
+### Guided physical TalkBack checks passed — 2026-09-28
+
+On the connected Xiaomi / Android 14, the maintainer confirms case reading with
+the activation hint, full detail traversal, acceptance-confirmation reading and
+focus restoration on cancellation. After signing in as `a@example.test`, the
+absence form also permits shift selection and sample-reason entry; closing
+without saving returns focus to Report an absence. The earlier disabled button
+was observed while `d@example.test` was still in the login field; no business
+rule was changed. USB reconnections required restoring the two fixed reverse
+ports during the session. Physical maximum-text inspection remains pending.
+
+### Physical Android XXL detail check — 2026-09-28
+
+The maintainer selects the rightmost XXL setting in Xiaomi Font settings. The
+rehearsal activity reports `fontScale=1.5`; the prior scale was 1.33. The overview
+screenshot shows readable case cards, and the maintainer confirms the complete
+market detail is readable without clipping or overlap. The increase is modest;
+this proves the device's offered XXL setting, not a 2.0 scale. The absence form
+at XXL remains pending. Only acceptance notes changed; automated tests were not
+repeated.
+
+### Physical Android keyboard obstruction — 2026-09-28
+
+The maintainer can enter an absence reason at XXL, but the keyboard hides Back;
+a physical screenshot confirms the obstruction. The command dialog now opts out
+of decor fitting and applies safe-drawing insets outside its scrollable surface,
+so keyboard and system bars constrain the available content height. A regression
+test at font scale 2.0 waits for the real IME, scrolls to Back, touches it and
+checks dismissal with unchanged snapshot and no pending command.
+
+Validation: 502 unit tests pass; lint has no errors (135 existing warnings and two
+hints); Debug app/test APKs build. All three opt-in coverage acceptance tests pass
+on API 29, including the IME regression (zero skips). Logs:
+`/tmp/hu084-ime-build.log`, `/tmp/hu084-ime-connected.log`. The updated demo-only
+Debug APK is installed on the physical Xiaomi for recheck; physical confirmation
+is pending. Temporary synthetic Google configuration was removed after building.
+
+The maintainer then confirms the corrected flow on the physical Xiaomi: with XXL
+and the keyboard open, entering a reason, scrolling to Back and cancelling without
+saving work. This closes the guided physical maximum-text check at scale 1.5;
+scale 2.0 remains emulator evidence. Only documentation changed after validation.
+Owned demo emulators/API are stopped, the two USB mappings and temporary dependency
+symlink removed. Font settings are reopened so the maintainer can restore XL.
+Real isolated APNs/FCM delivery remains pending.

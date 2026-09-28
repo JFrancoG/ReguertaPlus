@@ -12,8 +12,15 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.unit.Density
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
+import androidx.test.espresso.matcher.RootMatchers.isDialog
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import androidx.test.platform.app.InstrumentationRegistry
 import com.reguerta.user.data.shiftcoverage.LocalCoverageRehearsalAccess
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot
@@ -27,6 +34,31 @@ import org.junit.Test
 class CoverageRehearsalAcceptanceTest {
     @get:Rule val compose = createComposeRule()
     private lateinit var model: CoverageRehearsalViewModel
+
+    @Test fun absenceCanBeCancelledWithKeyboardOpenAtLargeText() {
+        start("a")
+        val before = compose.runOnIdle { model.coverage.state.value.snapshot }
+        show("coverage.open")
+        compose.onNodeWithTag("coverage.open").performClick()
+        compose.onNodeWithTag("coverage.reason").performScrollTo().performClick().performTextInput("Keyboard cancellation check")
+        lateinit var dialogView: android.view.View
+        onView(isRoot()).inRoot(isDialog()).check { view, _ -> dialogView = view }
+        compose.waitUntil(5_000) {
+            compose.runOnIdle {
+                ViewCompat.getRootWindowInsets(dialogView)?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            }
+        }
+        compose.onNodeWithTag("coverage.dismiss").performScrollTo().assertIsDisplayed()
+        // A real touch must reach the button, not be intercepted by the visible keyboard.
+        compose.onNodeWithTag("coverage.dismiss").performTouchInput { click() }
+        compose.onNodeWithTag("coverage.dismiss").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(null, model.draft)
+            assertEquals(null, model.coverage.state.value.pendingCommand)
+            assertEquals(before, model.coverage.state.value.snapshot)
+        }
+        signOut()
+    }
 
     @Test fun memberNotificationAndBackKeepTheOfferAndOtherCasesAtLargeText() {
         start("d")

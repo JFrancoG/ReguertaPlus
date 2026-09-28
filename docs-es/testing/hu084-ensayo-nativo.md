@@ -525,3 +525,96 @@ el desplegable de turno se abre, permite seleccionar el turno de prueba y mantie
 la selección; Volver regresa sin guardar. Quedan completadas las comprobaciones
 guiadas de iPhone dentro del alcance sin conexión descrito. Siguen pendientes
 TalkBack físico y entrega real APNs/FCM aislada.
+
+
+## Preparación de TalkBack en Android físico — 2026-09-28
+
+Con los servicios demo anteriores activos, conectar la app Debug por USB; los
+destinos de Auth y API siguen siendo los puertos locales fijos. Configurar solo:
+
+```sh
+adb -s DEVICE_ID reverse tcp:9098 tcp:9098
+adb -s DEVICE_ID reverse tcp:8799 tcp:8799
+adb -s DEVICE_ID shell am force-stop com.reguerta.user.debug
+adb -s DEVICE_ID shell am start \
+  -n com.reguerta.user.debug/com.reguerta.user.CoverageRehearsalActivity \
+  --ez coverageUsbRehearsal true
+```
+
+Terminar la app Debug antes de cambiar entre transporte de emulador y USB: el
+ViewModel conserva su adaptador durante la vida de la actividad. Sin el extra se
+mantiene el host del emulador. No se admite un hostname arbitrario. Al terminar,
+retirar solo esos dos mapeos USB, detener los servicios demo propios y eliminar
+el enlace temporal de dependencias de functions.
+
+Xiaomi 21081111RG / Android 14 (API 34) conectado, APK Debug instalado y login
+aislado visible. TalkBack está instalado; el agente no lo ha activado. El dispositivo
+rechaza los toques inyectados por USB, por lo que el mantenedor introduce las
+credenciales ficticias manualmente. Login por USB y TalkBack físico pendientes.
+Validación local: 502 comprobaciones unitarias superadas; lint conserva 135 avisos
+y dos sugerencias. La ejecución conectada en API 29 completa 23 comprobaciones y
+tres salidas por condiciones opt-in (el XML las marca como fallos, pero son
+`AssumptionViolatedException` por flags de ensayo desactivados). Build de Functions correcto.
+
+Una reconexión USB elimina los mapeos adb reverse. Si falla el login de ensayo,
+comprobar `adb reverse --list` y restaurar los dos mapeos antes de repetir las
+credenciales. Durante la preparación se reconectó el transporte y desaparecieron
+ambos mapeos. Tras restaurarlos, peticiones HTTP desde el teléfono alcanzaron Auth
+(200) y el servidor API (404 en `/`, cuyo endpoint es `/coverage`). Se confirmó
+aparte el login de la cuenta ficticia en Auth. Falta repetir el login desde la app.
+
+
+El mantenedor confirma login por USB con el socio ofertado, lectura del caso con
+el aviso de activación de TalkBack, recorrido completo del detalle y lectura de
+la confirmación con recuperación del foco al cancelar. Sigue pendiente el
+formulario de ausencia: la API local devuelve un turno de mercado habilitado
+para `a`, pero volvieron a desaparecer los mapeos USB al reconectarse el transporte.
+Se restauraron ambos puertos; falta actualizar la app y continuar la prueba.
+No se modificaron datos de prueba ni reglas de negocio para habilitar el botón.
+
+
+### Comprobaciones guiadas de TalkBack físico superadas — 2026-09-28
+
+En el Xiaomi conectado / Android 14, el mantenedor confirma lectura del caso con
+el aviso de activación, recorrido completo del detalle, lectura de la confirmación
+y recuperación del foco al cancelar. Tras entrar como `a@example.test`, también
+puede seleccionar el turno y escribir un motivo de prueba en el formulario de
+ausencia; cerrarlo sin guardar devuelve el foco a Comunicar ausencia. El botón
+deshabilitado anterior se observó cuando seguía `d@example.test` en el formulario
+de login; no se cambió ninguna regla de negocio. Las reconexiones USB obligaron
+a restaurar los dos puertos fijos durante el ensayo. Falta revisar el tamaño
+máximo de texto en el dispositivo físico.
+
+### Detalle con XXL en Android físico — 2026-09-28
+
+El mantenedor selecciona XXL, el extremo derecho de Ajustes de fuente de Xiaomi.
+La actividad de ensayo informa `fontScale=1.5`; la escala anterior era 1.33. La
+captura del listado muestra tarjetas legibles y el mantenedor confirma que todo
+el detalle de mercado se lee sin cortes ni solapamientos. El aumento es moderado;
+esto acredita el ajuste XXL ofrecido por el dispositivo, no una escala 2.0.
+Queda pendiente el formulario de ausencia con XXL. Solo se actualizan notas de
+aceptación; no se repiten pruebas automáticas.
+
+### Teclado sobre los botones en Android físico — 2026-09-28
+
+El mantenedor puede escribir el motivo con XXL, pero el teclado tapa Volver;
+una captura física confirma el problema. El diálogo pasa a gestionar sus insets
+y aplica el espacio seguro fuera de la superficie desplazable, de modo que el
+teclado y las barras del sistema limitan la altura disponible. La prueba de
+regresión con escala 2.0 espera al teclado real, desplaza hasta Volver, lo pulsa
+mediante un toque y comprueba el cierre sin cambiar el snapshot ni crear comandos.
+
+Validación: 502 tests unitarios correctos; lint sin errores (135 avisos previos y
+dos sugerencias); compilación de APK Debug y tests correcta. Pasan las tres pruebas
+opt-in de cobertura en API 29, incluida la regresión de teclado (sin omisiones).
+Logs: `/tmp/hu084-ime-build.log`, `/tmp/hu084-ime-connected.log`. La APK Debug con
+configuración solo de demostración queda instalada en el Xiaomi; falta confirmar
+la corrección física. Se elimina la configuración Google sintética tras compilar.
+
+El mantenedor confirma después el flujo corregido en el Xiaomi físico: con XXL
+y el teclado abierto puede escribir el motivo, desplazarse hasta Volver y cancelar
+sin guardar. Queda completada la comprobación física guiada de texto máximo con
+escala 1.5; la escala 2.0 solo se acredita en emulador. Tras validar solo cambia
+documentación. Se detienen los emuladores/API de ensayo y se eliminan los dos
+mapeos USB y el enlace temporal de dependencias. Se reabren Ajustes de fuente para
+que el mantenedor restaure XL. Sigue pendiente la entrega real APNs/FCM aislada.

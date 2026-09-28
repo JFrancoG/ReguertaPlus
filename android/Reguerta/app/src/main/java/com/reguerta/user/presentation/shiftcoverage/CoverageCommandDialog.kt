@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.reguerta.user.R
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageCommand.Action
 
@@ -31,8 +33,8 @@ internal fun CoverageCommandDialog(draft: CoverageCommandDraft, model: CoverageR
     val now by produceState(model.coverage.nowMillis) {
         while (true) { delay(1000); value = model.coverage.nowMillis }
     }
-    Dialog(onDismissRequest = model::dismissDraft) {
-        Surface {
+    Dialog(onDismissRequest = model::dismissDraft, properties = DialogProperties(decorFitsSystemWindows = false)) {
+        Surface(modifier = Modifier.safeDrawingPadding()) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(coverageActionLabel(draft.action)))
                 Text(stringResource(if (draft.action == Action.complete) R.string.coverage_complete_note else R.string.coverage_confirm_note))
@@ -63,7 +65,7 @@ internal fun CoverageCommandDialog(draft: CoverageCommandDraft, model: CoverageR
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
                 }
                 Button(onClick = model::confirmDraft, enabled = model.canConfirmDraft(now), modifier = Modifier.testTag("coverage.confirm")) { Text(stringResource(R.string.coverage_confirm)) }
-                TextButton(onClick = model::dismissDraft) { Text(stringResource(R.string.coverage_dismiss)) }
+                TextButton(onClick = model::dismissDraft, modifier = Modifier.testTag("coverage.dismiss")) { Text(stringResource(R.string.coverage_dismiss)) }
             }
         }
     }
