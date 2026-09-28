@@ -15,6 +15,7 @@ struct ReguertaApp: App {
 
     #if DEBUG
     private let coverageRehearsal: CoverageRehearsalViewModel?
+    private let coverageAccessibilityRehearsal: Bool
     #endif
 
     private let appEnvironment: ReguertaAppEnvironment
@@ -28,7 +29,15 @@ struct ReguertaApp: App {
             ReguertaTheme {
                 #if DEBUG
                 if let coverageRehearsal {
-                    CoverageRehearsalView(model: coverageRehearsal)
+                    CoverageRehearsalView(
+                        model: coverageRehearsal,
+                        rehearsalNote: CoverageCopy.text(coverageAccessibilityRehearsal ? "offline_note" : "local_note")
+                    )
+                        .task {
+                            if coverageAccessibilityRehearsal {
+                                await coverageRehearsal.coverage.refresh()
+                            }
+                        }
                         .onChange(of: appEnvironment.shiftNotificationPushOpenStore.pendingReference, initial: true) {
                             guard let reference = appEnvironment.shiftNotificationPushOpenStore.pendingReference else {
                                 return
@@ -52,6 +61,7 @@ extension ReguertaApp {
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         #if DEBUG
+        coverageAccessibilityRehearsal = arguments.contains("-coverageAccessibilityRehearsal")
         #if targetEnvironment(simulator)
         // An explicit simulator preference preserves the isolated route when an OS tap launches without arguments.
         let resumesCoverageRehearsal = UserDefaults.standard.bool(forKey: "coverageColdLaunchRehearsal")
@@ -59,7 +69,9 @@ extension ReguertaApp {
         let resumesCoverageRehearsal = false
         #endif
         let rehearsesCoverage = arguments.contains("-coverageRehearsal") || resumesCoverageRehearsal
-        if rehearsesCoverage {
+        if coverageAccessibilityRehearsal {
+            coverageRehearsal = CoveragePreviewAccess.model()
+        } else if rehearsesCoverage {
             do {
                 coverageRehearsal = CoverageRehearsalViewModel(access: try LocalCoverageRehearsalAccess())
             } catch {
@@ -68,7 +80,8 @@ extension ReguertaApp {
         } else {
             coverageRehearsal = nil
         }
-        let appConfiguration = rehearsesCoverage ? .uiTesting : ReguertaAppConfiguration(arguments: arguments)
+        let usesRehearsal = rehearsesCoverage || coverageAccessibilityRehearsal
+        let appConfiguration = usesRehearsal ? .uiTesting : ReguertaAppConfiguration(arguments: arguments)
         #else
         let appConfiguration = ReguertaAppConfiguration(arguments: arguments)
         #endif
@@ -76,7 +89,7 @@ extension ReguertaApp {
         self.appEnvironment = appEnvironment
         #if DEBUG
         let requestsLocalPush = arguments.contains("-coveragePushRehearsal") || resumesCoverageRehearsal
-        if rehearsesCoverage && requestsLocalPush {
+        if rehearsesCoverage && requestsLocalPush && !coverageAccessibilityRehearsal {
             appDelegate.enableLocalCoveragePush()
         }
         #endif

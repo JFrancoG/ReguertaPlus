@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CoverageCommandSheet: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let model: CoverageRehearsalViewModel
     @Bindable var draft: CoverageCommandDraft
 
@@ -8,12 +9,28 @@ struct CoverageCommandSheet: View {
         NavigationStack {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 Form {
+                    if dynamicTypeSize.isAccessibilitySize {
+                        Text(CoverageCopy.text("action_\(draft.action.rawValue)"))
+                            .font(.title.bold())
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                    }
                     Text(CoverageCopy.text(draft.action == .complete ? "complete_note" : "confirm_note"))
                     if draft.action == .open {
-                        Picker(CoverageCopy.text("shift"), selection: $draft.shiftId) {
-                            ForEach(draft.shifts) { shift in
-                                Text(CoverageCopy.shiftLabel(shift))
-                                    .tag(shift.shiftId)
+                        if dynamicTypeSize.isAccessibilitySize {
+                            Picker(CoverageCopy.text("shift"), selection: $draft.shiftId) {
+                                ForEach(draft.shifts) { shift in
+                                    Text(CoverageCopy.shiftLabel(shift))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .tag(shift.shiftId)
+                                }
+                            }
+                            .pickerStyle(.inline)
+                        } else {
+                            Picker(CoverageCopy.text("shift"), selection: $draft.shiftId) {
+                                ForEach(draft.shifts) { shift in
+                                    Text(CoverageCopy.shiftLabel(shift)).tag(shift.shiftId)
+                                }
                             }
                         }
                     }
@@ -36,7 +53,10 @@ struct CoverageCommandSheet: View {
                         .accessibilityIdentifier("coverage.confirm")
                 }
             }
-            .navigationTitle(CoverageCopy.text("action_\(draft.action.rawValue)"))
+            .navigationTitle(
+                dynamicTypeSize.isAccessibilitySize ? "" : CoverageCopy.text("action_\(draft.action.rawValue)")
+            )
+            .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(CoverageCopy.text("dismiss")) { model.draft = nil }

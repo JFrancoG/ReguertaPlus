@@ -219,3 +219,100 @@ No behavioral edits followed those validations; delivery checks include the fina
 diff and whitespace checks. Physical VoiceOver/TalkBack and real isolated transport
 remain separate pending rows. iPhone 11 is proposed next; the current iOS loopback
 transport needs a suitable physical rehearsal setup before its local login can work.
+
+
+## Physical accessibility preparation — 2026-09-28
+
+A Debug-only `-coverageAccessibilityRehearsal` route reuses the existing preview
+repository and real UI on iPhone 11 without relaxing the loopback transport.
+It displays an EN/ES offline notice, binds a sample session, and refuses writes.
+Live Firebase and push registration remain disabled through `.uiTesting`.
+This enables bounded physical VoiceOver/form-cancellation observations; it does
+not close VoiceOver, TalkBack, authenticated backend or real APNs/FCM acceptance.
+
+Preparation validation: Xcode 27.0 Debug build-for-testing succeeded for physical
+iPhone 11 / iOS 27.2; SwiftLint strict passed. The raw build log retains the known
+App Intents metadata-extraction warning. The selected scenario/session/push and
+four UI-smoke checks report 25 passed, zero failed/skipped on iPhone 17 / iOS 27.0
+(`Test-Reguerta-2026.09.28_20-15-36-+0200.xcresult`). No iOS 26 runtime is installed.
+The Debug bundle was installed and launched on iPhone 11 with the offline flag;
+this confirms deployment/launch, not user-observed VoiceOver behavior. Temporary
+Firebase demo configuration and generated string-catalog churn were removed;
+Xcode destination was restored to iPhone 11. Changes are not yet committed.
+
+
+## Guided physical VoiceOver observations — 2026-09-28
+
+The maintainer confirms complete overview reading with the case announced as a
+button, detail navigation without focus traps, readable acceptance confirmation,
+and absence-form shift selection/sample-reason entry on iPhone 11. Using Back
+without submitting restores focus to Accept coverage and Report an absence,
+respectively. These bounded offline VoiceOver checks pass. Physical Dynamic Type,
+TalkBack and real isolated APNs/FCM transport remain pending; no backend write or
+authenticated-role evidence is inferred. This update records observations only,
+so no automated suite was repeated.
+
+
+## Physical maximum-text finding and correction — 2026-09-28
+
+Maintainer screenshots at 21:03:24 and 21:04:30 show truncated coverage/action
+navigation titles and a truncated shift selection label. The rest of the flow is
+reported usable. Accessibility-size titles now wrap inside the scrollable content
+on overview, detail and command sheet; the shift picker uses native inline rows
+with wrapping option text. No font shrinking or Dynamic Type limit is introduced.
+Physical acceptance remains pending the corrected build. Xcode previews were
+blocked by the service's cached optimized Run configuration; runtime inspection
+is used instead and the temporary scheme edit is restored.
+
+Validation of the correction: strict SwiftLint and changed-source style audit pass.
+Debug build-for-testing succeeded for iPhone 11 / iOS 27.2 and iPhone 17 simulator
+/ iOS 27.0; raw logs retain the known App Intents metadata warning. The native
+21:07:07 xcresult contradicts the MCP all-pass summary: 21 unit checks passed on
+iPhone 11, but UI automation initialization timed out. A simulator-only retry
+(`Test-Reguerta-2026.09.28_21-12-13-+0200.xcresult`, under DerivedData/Logs/Test)
+confirms all four UI-smoke tests passed, zero failures, on C0534329 / iOS 27.0.
+The native 20:15:36 result was also checked and confirms the previous 25-pass
+preparation evidence. Use native results rather than the inconsistent MCP summary.
+
+Runtime inspection on iPhone 17 / AX5 / Spanish shows full overview and absence
+headings and the complete selected label “Mercado · 16 ene 2027” across lines.
+The corrected Debug app is installed and running in offline rehearsal on iPhone
+11 for maintainer recheck. Simulator text size was restored to large; the original
+scheme and iPhone 11 destination were restored, and temporary Firebase config and
+generated catalog churn removed. Physical recheck remains pending. No commit/push.
+
+
+### Physical recheck and standard-size picker — 2026-09-28
+
+The maintainer confirms all corrected maximum-text content is readable. The
+follow-up identifies the original dropdown interaction, so inline shift options
+are now restricted to accessibility sizes; standard sizes preserve the original
+automatic picker. No draft logic or binding changes. The accessibility branch is
+unchanged from the confirmed build. The final standard-size selection/return
+check is pending. Debug build-for-testing for iPhone 11 succeeds (21:23:05 log),
+strict SwiftLint and the changed-source style audit pass. The known raw App Intents
+metadata warning remains. The preceding unit/UI suites were not repeated for
+this presentation-only branch; manual validation targets the changed control.
+Temporary demo plist and generated catalog churn were removed. No commit/push.
+
+
+### Final standard-size physical confirmation — 2026-09-28
+
+The maintainer confirms the restored dropdown opens, preserves the sample shift
+selection and returns without saving on iPhone 11. This completes the guided
+iPhone checks within their documented offline scope, alongside the earlier
+VoiceOver observations and maximum-text readability confirmation. No backend
+write or real push transport is inferred. Physical TalkBack and isolated APNs/FCM
+remain pending. This update records observations only; no suite was repeated
+and no commit/push performed.
+
+
+## iPhone checkpoint delivery — 2026-09-28
+
+The maintainer authorizes commit/push of the completed iPhone block before physical
+Android TalkBack. The reviewed scope is the isolated Debug accessibility route,
+wrapping coverage titles, accessibility-only inline shift choices, EN/ES copy and
+the physical observations above. Recent build/lint and native test evidence is
+reused; only documentation changed after the final physical confirmation. The
+known App Intents tool warning is recorded, not reported as a warning-free build.
+HU-084 stays open; physical TalkBack and real isolated push delivery are pending.

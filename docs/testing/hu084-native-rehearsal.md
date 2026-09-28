@@ -448,3 +448,62 @@ The completed notification rehearsal is committed as a checkpoint. Its owned dem
 services are stopped and dependency symlink removed. For physical iPhone VoiceOver,
 prepare a device-compatible rehearsal first: the current loopback transport reaches
 the iPhone itself, not the Mac. A normal live-app launch does not exercise this UI.
+
+
+## Physical iPhone accessibility rehearsal — prepared 2026-09-28
+
+Launch the Debug app with `-coverageAccessibilityRehearsal`. It reuses
+`CoveragePreviewAccess` and the real coverage views/model with in-memory sample
+data, a pre-bound sample session, and an explicit offline notice. This mode uses
+the UI-testing composition: no live Firebase, remote push registration, or local
+HTTP server. Commands intentionally fail rather than save changes. The launch
+flag is compiled out of Release and takes precedence over the emulator/push flags.
+
+On iPhone 11, the guided scope is VoiceOver reading order and control labels,
+case navigation, form fields and cancellation, plus Dynamic Type. Begin at the
+overview, open the sample market case, inspect the action sheet, and cancel it.
+Do not treat this as backend, authenticated-role, saved-command or APNs evidence.
+The maintainer confirms the following physical VoiceOver checks on iPhone 11:
+
+- The overview is read completely and the case is announced as a button.
+- The case detail opens and can be traversed without trapped or jumping focus.
+- The acceptance confirmation is readable; using Back without confirming returns
+  focus to Accept coverage.
+- The absence form allows shift selection and entry of a sample reason; using
+  Back without saving returns focus to Report an absence.
+
+These bounded VoiceOver checks pass by maintainer observation. Physical Dynamic
+Type remains pending, as do TalkBack and real isolated APNs/FCM transport.
+
+
+### Physical Dynamic Type finding — 2026-09-28
+
+At the maximum accessibility text size on iPhone 11, the maintainer reports the
+rest of the flow usable but provides screenshots showing truncated navigation
+titles and a truncated shift picker value. This check is not yet passed. The
+correction moves screen titles into wrapping, scrollable headings at accessibility
+sizes and displays shift choices inline with wrapping labels. Physical recheck
+of these two findings is required; the earlier VoiceOver observations remain
+valid for the version tested and focus should be spot-checked after this change.
+
+The corrected Debug app is installed and running on iPhone 11. Runtime AX5
+inspection in Spanish on iPhone 17 confirms both full headings and the complete
+selected shift label. Strict SwiftLint passes; native results show 21 unit checks
+passed on iPhone 11 and four UI-smoke checks passed in the simulator after a
+physical automation-start timeout. Maintainer recheck remains pending.
+
+
+The maintainer confirms that the corrected maximum-text screen content is fully
+readable on iPhone 11. Following their observation about the former dropdown,
+the shift picker now preserves its original automatic style at standard text
+sizes and uses inline wrapping options only at accessibility sizes. Both styles
+bind to the same draft selection. The final standard-size dropdown/return check
+is pending. Relaunch from the icon does not retain the offline launch argument;
+launch again with `-coverageAccessibilityRehearsal` to resume the isolated flow.
+
+
+The maintainer confirms the final standard-size check on iPhone 11: the shift
+dropdown opens, the sample shift can be selected and remains selected, and Back
+returns without saving. The guided iPhone checks are complete within the offline
+scope described above. Physical TalkBack and real isolated APNs/FCM delivery
+remain pending.

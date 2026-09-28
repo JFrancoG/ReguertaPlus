@@ -1,12 +1,19 @@
 import SwiftUI
 
 struct CoverageCaseDetailView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let model: CoverageRehearsalViewModel
     let caseId: String
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             List {
+                if dynamicTypeSize.isAccessibilitySize {
+                    Text(CoverageCopy.text("title"))
+                        .font(.title.bold())
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                }
                 CoverageFeedbackSection(model: model.coverage)
                 if let item = model.coverage.caseItem(caseId) {
                     Section {
@@ -52,7 +59,8 @@ struct CoverageCaseDetailView: View {
                     .disabled(model.coverage.isBusy)
             }
         }
-        .navigationTitle(CoverageCopy.text("title"))
+        .navigationTitle(dynamicTypeSize.isAccessibilitySize ? "" : CoverageCopy.text("title"))
+        .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
     }
 }
 

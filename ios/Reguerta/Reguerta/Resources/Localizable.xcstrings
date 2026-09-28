@@ -135,6 +135,22 @@
       }
     }
   },
+  "coverage.offline_note": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Offline accessibility rehearsal with sample data. Changes cannot be saved."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ensayo de accesibilidad sin conexión con datos de ejemplo. No se pueden guardar cambios."
+        }
+      }
+    }
+  },
   "coverage.local_note": {
     "localizations": {
       "en": {

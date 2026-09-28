@@ -1,13 +1,21 @@
 import SwiftUI
 
 struct CoverageRehearsalView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Bindable var model: CoverageRehearsalViewModel
+    var rehearsalNote = CoverageCopy.text("local_note")
 
     var body: some View {
         NavigationStack(path: $model.casePath) {
             List {
+                if dynamicTypeSize.isAccessibilitySize {
+                    Text(CoverageCopy.text("title"))
+                        .font(.title.bold())
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                }
                 Section {
-                    Text(CoverageCopy.text("local_note"))
+                    Text(rehearsalNote)
                 } header: {
                     Text(CoverageCopy.text("rehearsal"))
                 }
@@ -68,7 +76,8 @@ struct CoverageRehearsalView: View {
             .onChange(of: model.readyPushEventID, initial: true) { Task { await model.openPendingPush() } }
             .onChange(of: model.casePath) { Task { await model.reloadOverviewAfterNavigation() } }
             .onChange(of: model.coverage.session) { model.casePath = [] }
-            .navigationTitle(CoverageCopy.text("title"))
+            .navigationTitle(dynamicTypeSize.isAccessibilitySize ? "" : CoverageCopy.text("title"))
+            .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
             .sheet(item: $model.draft) { draft in
                 CoverageCommandSheet(model: model, draft: draft)
             }

@@ -461,3 +461,67 @@ El ensayo de notificaciones completado se guarda como bloque de trabajo. Se deti
 sus servicios demo y se retira el enlace temporal de dependencias. Para VoiceOver
 en iPhone físico hay que preparar antes un ensayo compatible: el transporte actual
 usa loopback y apunta al propio iPhone, no al Mac. Abrir la app normal no prueba esta UI.
+
+
+## Ensayo de accesibilidad en iPhone físico — preparado 2026-09-28
+
+Abrir la app Debug con `-coverageAccessibilityRehearsal`. Reutiliza
+`CoveragePreviewAccess` y las vistas/modelo reales de cobertura con datos de ejemplo
+en memoria, sesión de ejemplo preasignada y aviso explícito de ensayo sin conexión.
+Este modo usa la composición de pruebas de UI: sin Firebase real, registro push
+remoto ni servidor HTTP local. Los comandos fallan en lugar de guardar cambios.
+El argumento no existe en Release y tiene prioridad sobre los de emulador/push.
+
+En iPhone 11, el alcance guiado es orden de lectura y etiquetas con VoiceOver,
+navegación al caso, campos y cancelación de formularios, además de Dynamic Type.
+Empezar en el listado, abrir el caso de mercado de ejemplo, revisar el formulario
+de una acción y cancelarlo. No acredita backend, roles autenticados, persistencia
+de comandos ni APNs.
+
+El mantenedor confirma estas comprobaciones físicas de VoiceOver en iPhone 11:
+
+- El listado se lee completo y el caso se anuncia como botón.
+- El detalle se abre y puede recorrerse sin saltos ni bloqueos de foco.
+- La confirmación de aceptación se lee; al pulsar Volver sin confirmar, el foco
+  regresa a Aceptar cobertura.
+- El formulario de ausencia permite seleccionar turno y escribir un motivo de
+  prueba; al pulsar Volver sin guardar, el foco regresa a Comunicar ausencia.
+
+Estas comprobaciones acotadas de VoiceOver quedan superadas por observación del
+mantenedor. Siguen pendientes Dynamic Type físico, TalkBack y transporte real
+APNs/FCM aislado.
+
+
+### Hallazgo de Dynamic Type físico — 2026-09-28
+
+Con el tamaño máximo de accesibilidad en iPhone 11, el mantenedor indica que el
+resto del flujo es usable, pero aporta capturas con títulos de navegación y valor
+del selector de turno truncados. Esta comprobación aún no está superada. La
+corrección mueve los títulos a encabezados multilínea dentro del contenido
+desplazable en tamaños de accesibilidad y muestra los turnos como opciones en
+filas con texto multilínea. Falta repetir estos dos puntos en el dispositivo; las
+observaciones previas de VoiceOver corresponden a la versión probada y conviene
+comprobar de nuevo el foco tras el cambio.
+
+La app Debug corregida está instalada y abierta en iPhone 11. La inspección en
+ejecución con AX5 y español en iPhone 17 confirma los encabezados completos y
+el turno seleccionado sin recortes. SwiftLint estricto pasa; los resultados
+nativos confirman 21 comprobaciones unitarias en iPhone 11 y cuatro de UI en
+simulador, tras un timeout al iniciar la automatización física. Falta la
+comprobación del mantenedor sobre la versión corregida.
+
+
+El mantenedor confirma que el contenido corregido se lee completo con texto
+máximo en iPhone 11. Tras su observación sobre el desplegable anterior, el selector
+conserva ahora el estilo automático original en tamaños normales y usa opciones
+en filas multilínea solo en tamaños de accesibilidad. Ambos estilos comparten
+la selección del borrador. Falta comprobar el desplegable y la vuelta con tamaño
+normal. Abrir desde el icono no conserva el argumento del ensayo: hay que lanzar
+de nuevo con `-coverageAccessibilityRehearsal` para retomar el flujo aislado.
+
+
+El mantenedor confirma la última comprobación con tamaño normal en iPhone 11:
+el desplegable de turno se abre, permite seleccionar el turno de prueba y mantiene
+la selección; Volver regresa sin guardar. Quedan completadas las comprobaciones
+guiadas de iPhone dentro del alcance sin conexión descrito. Siguen pendientes
+TalkBack físico y entrega real APNs/FCM aislada.

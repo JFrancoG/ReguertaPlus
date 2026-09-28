@@ -237,6 +237,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-09-28 | 🐛 fix(ios): keep coverage text readable
+
 - 2026-09-09 | 🐛 fix(sheets): close readable integration gaps
 
 - 2026-09-08 | 🐛 fix(sheets): retire legacy shift writers
