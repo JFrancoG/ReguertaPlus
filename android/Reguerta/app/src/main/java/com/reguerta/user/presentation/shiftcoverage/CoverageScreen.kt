@@ -160,7 +160,11 @@ private fun CoverageDetail(item: ShiftCoverageSnapshot.Case, model: CoverageRehe
             Text(model.coverage.memberName(it.userId))
             Text("${stringResource(R.string.coverage_offer_deadline)}: ${coverageDate(it.expiresAtMillis)}")
         }
-        item.volunteerClosesAtMillis?.let { Text("${stringResource(R.string.coverage_volunteer_deadline)}: ${coverageDate(it)}") }
+        if (item.status == ShiftCoverageSnapshot.Status.open && item.phaseClosesAtMillis != null) {
+            Text("${stringResource(R.string.coverage_phase_deadline)}: ${coverageDate(item.phaseClosesAtMillis)}")
+        } else {
+            item.volunteerClosesAtMillis?.let { Text("${stringResource(R.string.coverage_volunteer_deadline)}: ${coverageDate(it)}") }
+        }
         item.administration?.let { Text("${stringResource(R.string.coverage_reason)}: ${it.reason}") }
         if (item.selectionPhase == ShiftCoverageSnapshot.Phase.drawRequired && !drawAvailable) {
             Text(stringResource(R.string.coverage_draw_unavailable))

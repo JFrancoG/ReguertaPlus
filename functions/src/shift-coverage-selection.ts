@@ -1,11 +1,14 @@
 import type {CoverageDraw} from "./shift-coverage-draw.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {coverageMember, rejectCoverage} from "./shift-coverage.js";
+import {CoverageTiming, CoverageTimedPhase, createCoverageTiming,
+  enterCoverageTimedPhase, validateCoverageTiming} from
+  "./shift-coverage-deadlines.js";
 
 export type CoverageSelectionPolicy = {
   version: "fifo-signup-v1";
   volunteerWindowMillis: number;
-};
+} | {version: "hu089-provisional-v1"};
 
 export type CoverageReserve = {
   userId: string;
@@ -32,6 +35,7 @@ export type CoverageSelection = {
   volunteers: {userId: string; receivedAtMillis: number; withdrawn: boolean}[];
   volunteerClosesAtMillis: number | null;
   latestExclusions: {userId: string; reason: string}[];
+  timing?: CoverageTiming;
 };
 
 /**
@@ -65,6 +69,8 @@ export const coverageCandidateExclusion = (input: {
 export const parseCoverageSelectionPolicy = (
   value: CoverageSelectionPolicy | undefined,
 ): CoverageSelectionPolicy => {
+  if (value?.version === "hu089-provisional-v1" &&
+      Object.keys(value).join() === "version") return {...value};
   if (!value || value.version !== "fifo-signup-v1" ||
       !Number.isSafeInteger(value.volunteerWindowMillis) ||
       value.volunteerWindowMillis <= 0 ||
@@ -80,17 +86,67 @@ export const createCoverageSelection = (input: {
   policy: CoverageSelectionPolicy;
   candidates: CoverageCandidate[];
   caseId: string;
+  openedAtMillis?: number;
+  scheduledAtMillis?: number;
 }): CoverageSelection => {
   const policy = parseCoverageSelectionPolicy(input.policy);
   const snapshot = [...input.candidates]
     .sort((a, b) => compareId(a.userId, b.userId));
+  const timing = policy.version === "hu089-provisional-v1" ?
+    createCoverageTiming(input.openedAtMillis ?? NaN,
+      input.scheduledAtMillis ?? NaN) : undefined;
   return {
     policy, snapshot, snapshotDigest: digest({caseId: input.caseId,
-      policy, snapshot}), phase: "reserve", attemptedUserIds: [],
+      policy, snapshot}),
+    phase: timing?.mode === "adminOnly" ? "adminRequired" : "reserve",
+    ...(timing ? {timing} : {}), attemptedUserIds: [],
     volunteers: [], volunteerClosesAtMillis: null,
     latestExclusions: snapshot.flatMap((candidate) => candidate.exclusion ?
       [{userId: candidate.userId, reason: candidate.exclusion}] : []),
   };
+};
+
+export const enterCoverageSelectionPhase = (
+  selection: CoverageSelection, phase: CoverageTimedPhase, now: number,
+): CoverageSelection => {
+  const next = structuredClone(selection);
+  if (next.policy.version === "hu089-provisional-v1") {
+    const timing = validateCoverageTiming(next.timing, next.phase);
+    next.timing = enterCoverageTimedPhase(timing, phase, now);
+  }
+  next.phase = phase;
+  if (phase === "volunteers") {
+    next.volunteerClosesAtMillis = next.timing?.phaseClosesAtMillis ??
+      now + (next.policy.version === "fifo-signup-v1" ?
+        next.policy.volunteerWindowMillis : 0);
+  }
+  return next;
+};
+
+/**
+ * Catch up expired phases without granting a new budget to a late worker.
+ * Historical selections keep their explicit synthetic policy semantics.
+ * @param {CoverageSelection} selection Persisted selection.
+ * @param {number} now Trusted backend time.
+ * @return {CoverageSelection} Independent current selection value.
+ */
+export const refreshCoverageSelection = (
+  selection: CoverageSelection, now: number,
+): CoverageSelection => {
+  let next = structuredClone(selection);
+  if (next.policy.version !== "hu089-provisional-v1") return next;
+  if (!Number.isSafeInteger(now) || now < 0) {
+    return rejectCoverage("invalid_coverage_clock");
+  }
+  validateCoverageTiming(next.timing, next.phase);
+  while (next.phase !== "adminRequired" &&
+      next.timing && now >= next.timing.phaseClosesAtMillis) {
+    const phase = next.phase === "reserve" ? "volunteers" :
+      next.phase === "volunteers" ? "drawRequired" : "adminRequired";
+    next = enterCoverageSelectionPhase(next, phase,
+      next.timing.phaseClosesAtMillis);
+  }
+  return next;
 };
 
 /**
@@ -106,7 +162,13 @@ export const advanceCoverageSelection = (input: {
   candidates: CoverageCandidate[];
   now: number;
 }): {selection: CoverageSelection; userId: string | null} => {
-  const selection = structuredClone(input.selection);
+  let selection = refreshCoverageSelection(input.selection, input.now);
+  if (selection.policy.version === "hu089-provisional-v1" &&
+      (selection.phase === "adminRequired" ||
+      (selection.phase === "drawRequired" &&
+      input.selection.phase !== "drawRequired"))) {
+    return {selection, userId: null};
+  }
   if (selection.phase === "adminRequired") {
     return rejectCoverage("coverage_admin_required");
   }
@@ -114,6 +176,7 @@ export const advanceCoverageSelection = (input: {
     return rejectCoverage("coverage_draw_required");
   }
   if (selection.phase === "volunteers" &&
+      selection.policy.version === "fifo-signup-v1" &&
       (selection.volunteerClosesAtMillis === null ||
         input.now < selection.volunteerClosesAtMillis)) {
     return rejectCoverage("coverage_volunteer_window_open");
@@ -153,12 +216,14 @@ export const advanceCoverageSelection = (input: {
   if (selected) {
     selection.attemptedUserIds.push(selected);
   } else if (selection.phase === "reserve") {
-    selection.phase = "volunteers";
-    selection.volunteerClosesAtMillis =
-      input.now + selection.policy.volunteerWindowMillis;
+    selection = enterCoverageSelectionPhase(selection, "volunteers", input.now);
+  } else if (selection.phase === "volunteers" &&
+      selection.policy.version === "hu089-provisional-v1") {
+    // An empty volunteer pool before its deadline remains open to new signups.
+    return {selection, userId: null};
   } else {
-    selection.phase = selection.phase === "draw" ?
-      "adminRequired" : "drawRequired";
+    selection = enterCoverageSelectionPhase(selection,
+      selection.phase === "draw" ? "adminRequired" : "drawRequired", input.now);
   }
   return {selection, userId: selected};
 };

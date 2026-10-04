@@ -50,12 +50,19 @@ extension ShiftCoverageViewModel {
         _ item: ShiftCoverageSnapshot.Case,
         policy: ShiftCoverageSnapshot.Policy
     ) -> [ShiftCoverageCommand.Action] {
+        if let closes = item.phaseClosesAtMillis, nowMillis >= closes {
+            return []
+        }
         switch item.selectionPhase {
         case nil:
+            if policy.selectionRequired == true {
+                return [.startSelection]
+            }
             return item.revision == 1 && policy.volunteerWindowMillis != nil ? [.startSelection, .offer] : [.offer]
         case .reserve, .draw: return [.offerNext]
         case .volunteers:
-            return nowMillis >= (item.volunteerClosesAtMillis ?? Int64.max) ? [.offerNext] : []
+            return item.phaseClosesAtMillis != nil || nowMillis >= (item.volunteerClosesAtMillis ?? Int64.max)
+                ? [.offerNext] : []
         case .drawRequired:
             guard policy.drawAvailable else { return [] }
             if item.drawCommitted != true {

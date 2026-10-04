@@ -23,7 +23,9 @@ import {
   CoverageReserve,
   CoverageSelectionPolicy,
   createCoverageSelection,
+  enterCoverageSelectionPhase,
   parseCoverageSelectionPolicy,
+  refreshCoverageSelection,
 } from "./shift-coverage-selection.js";
 import {Timestamp} from "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
@@ -91,8 +93,11 @@ export const createProvisionalShiftCoverageStore = (options: {
     ...createShiftMembershipReconciliation(db, nowMillis),
     close: () => db.terminate(),
     readClient: createShiftCoverageClientReader(db, nowMillis, {
+      ...(selectionPolicy?.version === "hu089-provisional-v1" ?
+        {selectionRequired: true} : {}),
       maximumOfferWindowMillis,
-      volunteerWindowMillis: selectionPolicy?.volunteerWindowMillis ?? null,
+      volunteerWindowMillis: selectionPolicy?.version === "fifo-signup-v1" ?
+        selectionPolicy.volunteerWindowMillis : null,
       drawAvailable: Boolean(beaconPolicy)}),
     async execute(value: unknown, actorSource: string | VerifiedIdentity) {
       const command = parseShiftCoverageCommand(value);
@@ -203,7 +208,15 @@ export const createProvisionalShiftCoverageStore = (options: {
           target: context(shift), previous: context(predecessor?.data),
           next: context(successor?.data),
         });
-        let preparedSelection = previous?.selection;
+        let preparedSelection = previous?.selection ?
+          refreshCoverageSelection(previous.selection, now) : undefined;
+        if (preparedSelection?.timing &&
+            (preparedSelection.timing.openedAtMillis !==
+              previous?.createdAtMillis ||
+            preparedSelection.timing.scheduledAtMillis !==
+              shift.date.toMillis())) {
+          return rejectCoverage("coverage_timing_source_changed");
+        }
         let selectedUserId: string | null = null;
         let candidates: CoverageCandidate[] = [];
         const needsSelection = ["startSelection", "offerNext", "volunteer",
@@ -279,10 +292,14 @@ export const createProvisionalShiftCoverageStore = (options: {
           if (command.action === "startSelection") {
             preparedSelection = createCoverageSelection({caseId: command.caseId,
               policy: parseCoverageSelectionPolicy(selectionPolicy),
-              candidates});
+              candidates, openedAtMillis: previous.createdAtMillis,
+              scheduledAtMillis: shift.date.toMillis()});
+            preparedSelection = refreshCoverageSelection(
+              preparedSelection, now);
           } else if (command.action === "offerNext" && preparedSelection) {
             const advanced = advanceCoverageSelection({
-              selection: preparedSelection, candidates, now});
+              selection: previous.selection ?? preparedSelection,
+              candidates, now});
             preparedSelection = advanced.selection;
             selectedUserId = advanced.userId;
           }
@@ -307,13 +324,16 @@ export const createProvisionalShiftCoverageStore = (options: {
             item.exclusion ?
               [{userId: item.userId, reason: item.exclusion}] : []);
           if (frozen.every((item) => item.exclusion)) {
-            preparedSelection.phase = "adminRequired";
+            preparedSelection = enterCoverageSelectionPhase(preparedSelection,
+              "adminRequired", now);
           } else {
             preparedDraw = commitCoverageDraw({caseId: command.caseId,
               selectionDigest: preparedSelection.snapshotDigest,
               assignmentContextDigest, candidates: frozen,
               policy: beaconPolicy, now});
-            if (preparedDraw.availableAtMillis >= shift.date.toMillis()) {
+            if (preparedDraw.availableAtMillis >= shift.date.toMillis() ||
+                (preparedSelection.timing && preparedDraw.availableAtMillis >=
+                  preparedSelection.timing.phaseClosesAtMillis)) {
               return rejectCoverage("coverage_draw_too_late");
             }
             const published = await transaction.get(
@@ -409,7 +429,7 @@ export const createProvisionalShiftCoverageStore = (options: {
             break;
           case "volunteer": case "withdrawVolunteer": {
             pending();
-            const selection = structuredClone(current.selection) ??
+            const selection = structuredClone(preparedSelection) ??
               rejectCoverage("coverage_selection_missing");
             if (selection.phase !== "volunteers" ||
                 selection.volunteerClosesAtMillis === null ||
@@ -444,7 +464,10 @@ export const createProvisionalShiftCoverageStore = (options: {
               return rejectCoverage("coverage_admin_resume_forbidden");
             }
             next.status = "open";
-            next.selection = {...current.selection, phase: "adminRequired"};
+            next.selection = enterCoverageSelectionPhase(
+              preparedSelection ?? current.selection, "adminRequired",
+              preparedSelection?.phase === "adminRequired" ?
+                preparedSelection.timing?.phaseStartedAtMillis ?? now : now);
             break;
           case "offer": case "offerNext": case "offerAdmin":
             pending();
@@ -464,16 +487,21 @@ export const createProvisionalShiftCoverageStore = (options: {
                 break;
               }
             } else if (command.action === "offerAdmin") {
-              if (current.selection?.phase !== "adminRequired") {
+              if (preparedSelection?.phase !== "adminRequired") {
                 return rejectCoverage("coverage_admin_not_required");
               }
+              next.selection = preparedSelection;
             } else if (current.selection) {
               return rejectCoverage(
                 "coverage_selection_admin_override_blocked");
+            } else if (selectionPolicy?.version === "hu089-provisional-v1") {
+              return rejectCoverage("coverage_selection_missing");
             }
             eligible();
             if (command.expiresAtMillis <= now ||
                 command.expiresAtMillis > now + maximumOfferWindowMillis ||
+                (preparedSelection?.timing && command.expiresAtMillis >
+                  preparedSelection.timing.phaseClosesAtMillis) ||
                 command.expiresAtMillis >= shift.date.toMillis()) {
               return rejectCoverage("coverage_offer_deadline");
             }

@@ -36,6 +36,7 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
     struct Policy: Decodable, Equatable {
         let maximumOfferWindowMillis: Int64
         let volunteerWindowMillis: Int64?
+        var selectionRequired: Bool?
         let drawAvailable: Bool
     }
 
@@ -61,6 +62,7 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
         let canResumeAdmin: Bool?
         let hasVolunteered: Bool?
         let drawCommitted: Bool?
+        var phaseClosesAtMillis: Int64?
         let drawAvailableAtMillis: Int64?
 
         var id: String { caseId }

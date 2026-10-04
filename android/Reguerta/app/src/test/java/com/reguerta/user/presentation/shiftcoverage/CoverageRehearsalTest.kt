@@ -170,6 +170,46 @@ class CoverageRehearsalTest {
         assertNull(model.draft)
     }
 
+    @Test fun timedVolunteersCanBeOfferedImmediatelyWithinTheRemainingPhase() = runTest {
+        val transport = LoginTransport()
+        val access = LocalCoverageRehearsalAccess(transport = transport)
+        val model = ShiftCoverageViewModel(access.repository)
+        model.bind(access.signIn("a@example.test", "fixture"))
+        transport.overview = transport.overview.replace("\"isAdmin\": false", "\"isAdmin\": true")
+            .replace("\"offered\"", "\"open\"")
+            .replace("\"selectionPhase\": \"reserve\"", "\"selectionPhase\": \"volunteers\"")
+            .replace("\"volunteerClosesAtMillis\": null",
+                "\"volunteerClosesAtMillis\": 1800003600000, \"phaseClosesAtMillis\": 1800003600000")
+        model.refresh()
+        val snapshot = model.state.value.snapshot!!
+        val item = snapshot.cases.first()
+        assertTrue(model.actions(item).contains(Action.offerNext))
+        val draft = CoverageCommandDraft(Action.offerNext, item, snapshot, 1800000000000)
+        assertEquals(1800003600000, draft.command!!.expiresAtMillis)
+        draft.deadlineMinutes = "61"
+        assertNull(draft.command)
+        draft.deadlineMinutes = "0"
+        assertNull(draft.command)
+    }
+
+    @Test fun mandatorySelectionHidesDirectOfferButLegacyPolicyKeepsIt() = runTest {
+        val transport = LoginTransport()
+        val access = LocalCoverageRehearsalAccess(transport = transport)
+        val model = ShiftCoverageViewModel(access.repository)
+        model.bind(access.signIn("a@example.test", "fixture"))
+        transport.overview = transport.overview.replace("\"isAdmin\": false", "\"isAdmin\": true")
+            .replace("\"offered\"", "\"open\"").replace("\"revision\": 2", "\"revision\": 1")
+            .replace("\"selectionPhase\": \"reserve\"", "\"selectionPhase\": null")
+        model.refresh()
+        assertTrue(model.actions(model.state.value.snapshot!!.cases.first()).contains(Action.offer))
+        transport.overview = transport.overview.replace("\"drawAvailable\": false",
+            "\"drawAvailable\": false, \"selectionRequired\": true")
+        model.refresh()
+        val actions = model.actions(model.state.value.snapshot!!.cases.first())
+        assertTrue(actions.contains(Action.startSelection))
+        assertFalse(actions.contains(Action.offer))
+    }
+
     private fun snapshot(): ShiftCoverageSnapshot = json.decodeFromString(
         Json.parseToJsonElement(fixture()).jsonObject.getValue("data").toString())
 

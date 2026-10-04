@@ -22,13 +22,14 @@ internal fun ShiftCoverageViewModel.actions(item: ShiftCoverageSnapshot.Case): L
     }
     if (snapshot.isAdmin) {
         when (item.status) {
-            Status.open -> when (item.selectionPhase) {
+            Status.open -> if (item.phaseClosesAtMillis == null || now < item.phaseClosesAtMillis) when (item.selectionPhase) {
                 null -> {
-                    if (item.revision == 1L && snapshot.policy.volunteerWindowMillis != null) actions += Action.startSelection
-                    actions += Action.offer
+                    if (snapshot.policy.selectionRequired ||
+                        (item.revision == 1L && snapshot.policy.volunteerWindowMillis != null)) actions += Action.startSelection
+                    if (!snapshot.policy.selectionRequired) actions += Action.offer
                 }
                 Phase.reserve, Phase.draw -> actions += Action.offerNext
-                Phase.volunteers -> if (now >= (item.volunteerClosesAtMillis ?: Long.MAX_VALUE)) actions += Action.offerNext
+                Phase.volunteers -> if (item.phaseClosesAtMillis != null || now >= (item.volunteerClosesAtMillis ?: Long.MAX_VALUE)) actions += Action.offerNext
                 Phase.drawRequired -> if (snapshot.policy.drawAvailable) {
                     if (!item.drawCommitted) actions += Action.commitDraw
                     else if (now >= (item.drawAvailableAtMillis ?: Long.MAX_VALUE)) actions += Action.revealDraw

@@ -4,6 +4,52 @@ import Testing
 
 @MainActor
 struct ShiftCoverageClientTests {
+    @Test func timedVolunteersCanBeOfferedImmediatelyWithinTheRemainingPhase() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": \"volunteers\"")
+            .replacingOccurrences(
+                of: "\"volunteerClosesAtMillis\": null",
+                with: "\"volunteerClosesAtMillis\": 1800003600000, \"phaseClosesAtMillis\": 1800003600000"
+            )
+        await harness.model.refresh()
+        let snapshot = try #require(harness.model.snapshot)
+        let item = try #require(snapshot.cases.first)
+        #expect(harness.model.actions(for: item).contains(.offerNext))
+        let draft = CoverageCommandDraft(
+            action: .offerNext,
+            item: item,
+            snapshot: snapshot,
+            nowMillis: 1800000000000
+        )
+        #expect(draft.command?.expiresAtMillis == 1800003600000)
+        draft.deadline = Date(timeIntervalSince1970: 1800003601)
+        #expect(draft.command == nil)
+        draft.deadline = Date(timeIntervalSince1970: 1800000000)
+        #expect(draft.command == nil)
+    }
+
+    @Test func mandatorySelectionHidesDirectOfferButLegacyPolicyKeepsIt() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"revision\": 2", with: "\"revision\": 1")
+            .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": null")
+        await harness.model.refresh()
+        #expect(harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.offer))
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: "\"drawAvailable\": false",
+            with: "\"drawAvailable\": false, \"selectionRequired\": true"
+        )
+        await harness.model.refresh()
+        let actions = harness.model.actions(for: try #require(harness.model.snapshot?.cases.first))
+        #expect(actions.contains(.startSelection))
+        #expect(!actions.contains(.offer))
+    }
+
     @Test(arguments: [false, true])
     func returningDuringRequestRestoresOverviewWithoutReplayingUncertainCommand(_ command: Bool) async throws {
         let harness = try CoverageClientHarness()

@@ -31,6 +31,7 @@
     <string name="coverage_status_failed">Not completed</string>
     <string name="coverage_read_only">This request is read-only. Refresh before continuing.</string>
     <string name="coverage_offer_deadline">Offer expires</string>
+    <string name="coverage_phase_deadline">Phase ends</string>
     <string name="coverage_volunteer_deadline">Volunteer registration closes</string>
     <string name="coverage_reason">Reason</string>
     <string name="coverage_member">Member</string>

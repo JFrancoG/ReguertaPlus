@@ -585,6 +585,12 @@
       }
     }
   },
+  "coverage.phase_deadline": {
+    "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Phase ends" } },
+      "es": { "stringUnit": { "state": "translated", "value": "El plazo de esta fase termina" } }
+    }
+  },
   "coverage.volunteer_deadline": {
     "localizations": {
       "en": {

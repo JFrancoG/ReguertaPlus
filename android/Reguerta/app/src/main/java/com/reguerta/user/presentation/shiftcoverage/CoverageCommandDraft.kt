@@ -21,6 +21,7 @@ internal class CoverageCommandDraft(
     var deadlineMinutes by mutableStateOf((minOf(
         snapshot.policy.maximumOfferWindowMillis,
         (item?.scheduledAtMillis ?: Long.MAX_VALUE) - nowMillis - 1000,
+        (item?.phaseClosesAtMillis ?: Long.MAX_VALUE) - nowMillis,
     ) / 60_000).toString())
     val shifts get() = snapshot.availableShifts.filter { it.writable }
     val selectedShift get() = shifts.firstOrNull { it.shiftId == shiftId }
@@ -36,7 +37,8 @@ internal class CoverageCommandDraft(
             val minutes = deadlineMinutes.toLongOrNull() ?: 0
             if (needsDeadline && (minutes <= 0 || minutes > snapshot.policy.maximumOfferWindowMillis / 60_000)) return null
             val expires = nowMillis + minutes * 60_000
-            if (needsDeadline && expires >= (item?.scheduledAtMillis ?: 0)) return null
+            if (needsDeadline && (expires >= (item?.scheduledAtMillis ?: 0) ||
+                expires > (item?.phaseClosesAtMillis ?: Long.MAX_VALUE))) return null
             if (action == Action.open && selectedShift == null || action != Action.open && item == null) return null
             return ShiftCoverageCommand(
                 caseId = item?.caseId ?: id,

@@ -1,3 +1,4 @@
+import {refreshCoverageSelection} from "./shift-coverage-selection.js";
 import {readCoverageNotificationInbox, readCoverageNotificationReference} from
   "./shift-coverage-notification.js";
 import {readShiftCoverageChoices} from "./shift-coverage-choices.js";
@@ -56,8 +57,18 @@ const visibleCase = (
 export const projectShiftCoverageCase = (input: {
   value: ShiftCoverageCase; memberId: string; admin: boolean;
   scheduledAtMillis: number; shiftRevision: number; writable: boolean;
+  nowMillis?: number;
 }) => {
   const {value, memberId, admin} = input;
+  const selection = value.selection && value.status === "open" &&
+    input.nowMillis !== undefined ?
+    refreshCoverageSelection(value.selection, input.nowMillis) :
+    value.selection;
+  if (selection?.timing && (selection.timing.openedAtMillis !==
+      value.createdAtMillis || selection.timing.scheduledAtMillis !==
+      input.scheduledAtMillis)) {
+    return rejectCoverage("invalid_coverage_timing");
+  }
   const offer = value.offer && (admin || value.offer.userId === memberId) ? {
     userId: value.offer.userId, source: value.offer.source,
     expiresAtMillis: value.offer.expiresAtMillis} : null;
@@ -66,8 +77,10 @@ export const projectShiftCoverageCase = (input: {
     revision: value.revision, shiftRevision: input.shiftRevision,
     scheduledAtMillis: input.scheduledAtMillis, writable: input.writable,
     absentUserId: value.absentUserId, acceptedUserId: value.acceptedUserId,
-    offer, selectionPhase: value.selection?.phase ?? null,
-    volunteerClosesAtMillis: value.selection?.volunteerClosesAtMillis ?? null,
+    offer, selectionPhase: selection?.phase ?? null,
+    ...(selection?.timing ? {
+      phaseClosesAtMillis: selection.timing.phaseClosesAtMillis} : {}),
+    volunteerClosesAtMillis: selection?.volunteerClosesAtMillis ?? null,
     volunteered: value.selection?.volunteers.some((item) =>
       item.userId === memberId && !item.withdrawn) ?? false,
     hasVolunteered: value.selection?.volunteers.some((item) =>
@@ -97,7 +110,7 @@ export const createShiftCoverageClientReader = (
   db: Firestore, nowMillis: () => number,
   policy: {maximumOfferWindowMillis: number;
     volunteerWindowMillis: number | null;
-    drawAvailable: boolean},
+    drawAvailable: boolean; selectionRequired?: boolean},
 ) => async (value: unknown, identity: VerifiedIdentity) => {
   requireProvisionalCreditPublication("develop");
   const query = parseShiftCoverageQuery(value);
@@ -152,7 +165,7 @@ export const createShiftCoverageClientReader = (
       const document = shifts[index];
       const shift = parseShiftPlanningPublicShiftDocument({
         targetPath: document.ref.path, value: document.data()});
-      return projectShiftCoverageCase({value: item, ...actor,
+      return projectShiftCoverageCase({value: item, ...actor, nowMillis: now,
         scheduledAtMillis: shift.date.toMillis(),
         shiftRevision: shift.documentRevision,
         writable: Boolean(authority &&

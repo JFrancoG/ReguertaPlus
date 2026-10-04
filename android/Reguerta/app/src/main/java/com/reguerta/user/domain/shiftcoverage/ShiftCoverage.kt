@@ -42,6 +42,7 @@ internal data class ShiftCoverageSnapshot(
         val maximumOfferWindowMillis: Long,
         val volunteerWindowMillis: Long?,
         val drawAvailable: Boolean,
+        val selectionRequired: Boolean = false,
     )
 
     @Serializable
@@ -68,6 +69,7 @@ internal data class ShiftCoverageSnapshot(
         val hasVolunteered: Boolean = false,
         val drawCommitted: Boolean = false,
         val drawAvailableAtMillis: Long? = null,
+        val phaseClosesAtMillis: Long? = null,
     )
 
     @Serializable

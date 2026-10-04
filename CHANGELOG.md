@@ -52,6 +52,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-04 | ✨ feat(shifts): connect phased coverage deadlines
+
 - 2026-09-13 | ✨ feat(shifts): reconcile coverage effects behind writer barriers
 
 - 2026-09-13 | ✨ feat(shifts): rehearse coverage push dispatch and routing
