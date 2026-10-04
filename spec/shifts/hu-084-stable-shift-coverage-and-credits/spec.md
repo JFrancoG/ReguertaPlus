@@ -5,7 +5,7 @@
 - issue_id: #268
 - priority: P1
 - platform: both
-- status: provisional local implementation reviewed and validated; manual and ratification gates remain
+- status: provisional local implementation reviewed and validated; bounded native manual matrix complete; ratification and live integration remain open
 - blocked_by: assembly ratification for live activation
 - decision_gate: assembly ratification
 - depends_on: HU-082 / #266, HU-083 / #267
@@ -30,9 +30,11 @@ forward/inverse credit activation now work in the fixed local emulator, includin
 released claims and monotonic ledger generations. Shared-project activation stays
 disabled. Membership/eligibility transitions, both native rehearsal clients,
 readable Sheets projection, generic inbox/push and governed recovery are now
-implemented locally. This paragraph reflects the later 2026-09-13 checkpoint;
-manual acceptance and ratification remain open. See `review.md` for the current
-criterion matrix and `plan.md` for historical evidence and limits.
+implemented locally at the later 2026-09-13 checkpoint. The bounded native manual
+matrix is complete as of 2026-10-04, including physical accessibility and isolated
+real push receipt/opening on both platforms. Ratification and live coverage
+integration remain open. See `review.md` for the current criterion matrix and
+`plan.md` for historical evidence and limits.
 
 ## Context and problem
 
@@ -458,8 +460,8 @@ transport/body, 409 for domain/source conflicts, 405 for unsupported method and
 413 for bodies over 16 KiB, 415 for non-JSON POST bodies and 500 for unexpected
 infrastructure failure. No notification or Sheets execution is implied by the
 local handler alone. The separate local effects worker and native rehearsal now
-exercise those integrations; real deployment and remaining manual acceptance are
-not implied. See `review.md` for the current boundary.
+exercise those integrations; real deployment is not implied. See `review.md` for
+the separately recorded manual acceptance and current integration boundary.
 
 Run the explicit local server from `functions` after starting Auth/Firestore with
 `firebase.coverage-emulator.json` and the fixed demo project:

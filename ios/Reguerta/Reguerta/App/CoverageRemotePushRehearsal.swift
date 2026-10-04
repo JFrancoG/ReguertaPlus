@@ -60,7 +60,9 @@ enum CoverageRemotePushRehearsal {
             "platform": "ios",
             "fcmToken": token
         ]
-        let data = try JSONSerialization.data(withJSONObject: destination, options: [.sortedKeys])
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(destination)
         try data.write(to: url, options: [.atomic, .completeFileProtection])
     }
 }

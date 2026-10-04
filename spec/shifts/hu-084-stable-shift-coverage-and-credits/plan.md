@@ -1318,3 +1318,28 @@ rehearsal cleanup is verified; the previous Android Debug APK was restored witho
 clearing app data. See `review.md` and the bilingual native rehearsal guides for
 receipts, boundaries and physical confirmations. This closes the isolated real
 transport checks, not live business wiring or production activation.
+
+## Provisional PR preparation — 2026-10-04
+
+The maintainer authorized the recommended final review, iOS release gate, issue
+reconciliation and provisional PR. The independent Android/Functions and iOS delta
+reviews found no functional blocker. The current spec and bilingual guide summaries
+now agree with the completed manual matrix. A minimal Swift standards correction
+uses `JSONEncoder`/`JSONDecoder` for the existing Debug destination dictionary; the
+follow-up changed-source audit is clean. No new abstraction or business behavior
+is introduced.
+
+The canonical final iOS release gate passes on iPhone 17/iOS 26.5
+(`091D93C1-5A53-40D0-887E-83F81A8E0326`): 922 passed, five expected skips,
+zero failures. Debug/Release, strict SwiftLint over 511 files and the concurrency
+settings check pass; the closed result has zero build/analyzer/runtime warnings
+and errors. The raw Xcode debugger-version lookup messages and reused Android /
+Functions counts are retained explicitly in `review.md`. Temporary synthetic
+Firebase configuration was cleaned up and the original Debug configuration restored.
+
+Recent unaffected Android and Functions evidence is reused explicitly in
+`review.md`, along with the completed physical matrix. The PR must use `Refs #268`
+and retain the outstanding ratification, real entropy, observability and live
+composition/admission/recovery gates. HU-085 owns only its explicit planner/workbook
+rollout scope. Merge, issue closure, branch deletion and activation are outside
+this delivery checkpoint.

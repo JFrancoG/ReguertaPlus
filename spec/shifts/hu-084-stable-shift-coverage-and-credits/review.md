@@ -1,6 +1,53 @@
-# HU-084 final provisional review — 2026-09-13
+# HU-084 provisional review
 
-## Scope and conclusion
+## Current review — 2026-10-04
+
+The maintainer authorized the final review, validation, issue reconciliation and
+opening a provisional PR. The full branch review below is complemented by an
+independent review of the delta from `6c199c0` through `c6690b47`, including 16
+changed Swift files and the Android/Functions transport boundaries. No functional
+blocker was confirmed. Stale manual-acceptance summaries are corrected in the spec
+and both native guides. The Debug destination export now uses `JSONEncoder`, with
+the existing test decoding through `JSONDecoder`; no additional model or abstraction
+is introduced. The subsequent two-file Swift style audit is clean.
+
+The canonical `release-gate` passes on the final Swift sources, using Xcode 27.0
+and a freshly installed iOS 26.5 runtime: iPhone 17, exact simulator ID
+`091D93C1-5A53-40D0-887E-83F81A8E0326`. Debug and Release builds pass. SwiftLint
+0.61.0 reports zero violations in 511 files; all three targets preserve the
+required isolation/concurrency settings in both configurations. The closed result
+contains 927 tests: **922 passed, five expected skips, zero failures**. Skips are
+three opt-in HU-084 journeys, one opt-in HU-083 journey and the conditional launch
+test; their separate rehearsal evidence is not replaced by this ordinary gate.
+The result reports zero build/analyzer warnings, errors and runtime warnings. The
+raw log also retains 16 Xcode debugger-version lookup messages (`noURL`), with no
+failed launch or test; these are not hidden or counted as compiler diagnostics.
+
+Reused unaffected evidence: the recent Android run has 503 unit passes, normal and
+transport-opt-in Debug builds, and lint with zero errors plus 135 baseline warnings
+and two hints. Its ordinary API 29 connected run has 23 executed checks and four
+opt-in assumption exits; the earlier explicit acceptance run has 25 passes. These
+are separate runs. Functions retains the September 13 full regression evidence
+(420 passes/51 emulator-only skips, 122 Firestore/Rules passes and 22 Auth/HTTP
+passes), supplemented by the current transport block's lint/build and seven sender
+guard tests. No Android or Functions source changed during this final follow-up.
+
+Evidence is retained outside Git under
+`/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/hu084-final-ios-ipf2goyb/`:
+`release-gate.log`, `release-gate.xcresult`, parsed summary/build/tests JSON and
+`config-restoration.json`. Synthetic demo Firebase configurations were used for
+the run. The original ignored Debug configuration was restored byte-for-byte;
+the temporary Release configuration and private backup were removed. No live
+registration, remote notification, shared business write or deployment occurred.
+
+The bounded native manual matrix is complete, including six physical APNs/FCM
+state cases. Assembly ratification and bilingual requirements, the real entropy
+provider, structured operational logs/metrics and real coverage composition,
+destination admission and operator recovery remain open. An explicit activation
+handoff is still required; HU-085's planner/workbook scope does not absorb these
+coverage tasks. The PR references #268 without closing it.
+
+## Full branch scope and conclusion — 2026-09-13
 
 Reviewed the complete HU-084 change inventory against merge base
 `327e563db8315ad59657c83417d522700c8c01c3` and pushed head
@@ -60,7 +107,7 @@ native rehearsal guides. Receipts establish audit history; they do not implement
 still-open structured operational logs/metrics for stuck cases, exhaustion, retries
 and credit failures.
 
-## Validation of this review
+## Validation of the full branch review — 2026-09-13
 
 Functions lint/build pass. The combined coverage/planning/Sheets/HU-016 regression
 run has 420 passing tests and 51 explicit emulator-only skips. The fixed HU-084
@@ -118,8 +165,8 @@ Firebase emulators have been removed/stopped after validation. No live Firebase/
 | iOS cold-process notification open | Warm simulated Notification Center taps passed previously; OS cold start drops rehearsal launch flags | Passed on 2026-09-28: maintainer confirms tray-to-login-to-market on iPhone 17/iOS 27.0 after process termination; temporary preference removed afterward |
 | Real APNs/FCM | Debug-only real transport opens an in-memory sample; local injection remains separate evidence | Passed on 2026-10-04 on iPhone 11 and Xiaomi Android 14: foreground, background and process closed, with maintainer-confirmed receipt/opening; cleanup verified on both |
 
-Do not count font scaling as VoiceOver/TalkBack evidence. All local/manual residuals
-must remain visible in a provisional PR. None authorizes production access. Assembly
+Do not count font scaling as VoiceOver/TalkBack evidence. Preserve the bounded scope
+of this matrix in the provisional PR. None authorizes production access. Assembly
 ratification, the real provider, live coverage wiring/observability and activation
 handoff remain separate from this review. HU-085/#269 currently owns the base planner
 and workbook rollout; it does not implicitly absorb every unfinished HU-084 task.

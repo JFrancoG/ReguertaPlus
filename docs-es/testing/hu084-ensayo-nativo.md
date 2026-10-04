@@ -67,8 +67,9 @@ TEST_RUNNER_COVERAGE_REHEARSAL=1 xcodebuild test \
 
 Reconstruir el escenario antes de repetir la aceptación. El test se omite en las
 validaciones habituales. Los efectos se comprueban contra el libro simulado y la
-bandeja local; el despliegue real, VoiceOver y la matriz completa de dispositivos
-y tamaños siguen pendientes.
+bandeja local; el despliegue real sigue fuera de este ensayo. La matriz manual
+acotada de dispositivos, tamaños y accesibilidad está completada a 2026-10-04;
+sus resultados y límites figuran en [review.md](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md).
 
 Después de confirmar el reparto como admin, ejecutar la lectura del crédito en AX5
 con `TEST_RUNNER_COVERAGE_CREDIT_REHEARSAL=1` y

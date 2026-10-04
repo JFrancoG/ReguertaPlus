@@ -11,7 +11,7 @@ struct CoverageRemotePushRehearsalTests {
         try CoverageRemotePushRehearsal.saveDestination("cached-token", apnsRegistered: false, url: url)
         #expect(!FileManager.default.fileExists(atPath: url.path))
         try CoverageRemotePushRehearsal.saveDestination("ready-token", apnsRegistered: true, url: url)
-        let exported = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])
+        let exported = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: url))
         #expect(exported["fcmToken"] == "ready-token")
         #expect(exported["bundleId"] == "com.plusprojects.Reguerta.debug")
         try CoverageRemotePushRehearsal.saveDestination(nil, apnsRegistered: true, url: url)

@@ -67,8 +67,9 @@ TEST_RUNNER_COVERAGE_REHEARSAL=1 xcodebuild test \
 
 Run from `ios/Reguerta`. Recreate the fixture before repeating the acceptance test.
 The test skips in ordinary gates. The effects are verified against the simulated
-workbook and local inbox only; live deployment, VoiceOver approval and the complete
-device/layout matrix remain separate.
+workbook and local inbox only; live deployment remains outside this rehearsal.
+The bounded manual device, layout and accessibility matrix is complete as of
+2026-10-04; results and limits are recorded in [review.md](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md).
 
 After completing delivery as admin, run the AX5 credit read test separately with
 `TEST_RUNNER_COVERAGE_CREDIT_REHEARSAL=1` and

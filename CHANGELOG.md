@@ -416,6 +416,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-10-04 | 🔧 chore(shifts): prepare provisional coverage review
+
 - 2026-09-28 | 🔧 chore(shifts): record HU-084 review checkpoint
 
 - 2026-09-28 | 📦 build(android): update AGP and app libraries
