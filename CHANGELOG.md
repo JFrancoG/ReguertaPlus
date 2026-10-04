@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-04 | 📝 docs(shifts): define coverage ratification proposal
+
 - 2026-09-11 | 📝 docs(shifts): prepare HU-085 evidence handoff
 
 - 2026-09-11 | 📝 docs(shifts): record replacement safety rehearsal
@@ -49,6 +51,38 @@ All notable changes to this project will be documented in this file.
 - 2026-08-05 | 💄 style(ios): clear Swift line-length baseline
 
 ### Added
+
+- 2026-09-13 | ✨ feat(shifts): reconcile coverage effects behind writer barriers
+
+- 2026-09-13 | ✨ feat(shifts): rehearse coverage push dispatch and routing
+
+- 2026-09-13 | ✨ feat(shifts): open authenticated coverage notifications
+
+- 2026-09-13 | ✨ feat(shifts): rehearse coverage effects
+
+- 2026-09-12 | ✨ feat(shifts): connect native coverage rehearsal screens
+
+- 2026-09-12 | ✨ feat(shifts): add native coverage session clients
+
+- 2026-09-12 | ✨ feat(shifts): add authenticated local coverage API
+
+- 2026-09-12 | ✨ feat(shifts): publish frozen omissions atomically
+
+- 2026-09-12 | ✨ feat(shifts): admit members in new round publication
+
+- 2026-09-12 | ✨ feat(shifts): reconcile membership and reserves
+
+- 2026-09-12 | ✨ feat(shifts): publish and recover seasonal credits
+
+- 2026-09-12 | ✨ feat(shifts): integrate seasonal credit planning
+
+- 2026-09-12 | ✨ feat(shifts): add whole-unit credit rehearsal
+
+- 2026-09-12 | ✨ feat(shifts): add committed draw and admin recovery
+
+- 2026-09-12 | ✨ feat(shifts): add reserve and volunteer selection
+
+- 2026-09-12 | ✨ feat(shifts): add provisional coverage lifecycle
 
 - 2026-09-08 | ✨ feat(sheets): adopt reviewed historical layouts
 
@@ -205,6 +239,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-09-28 | 🐛 fix(android): keep coverage actions above IME
+
+- 2026-09-28 | 🐛 fix(ios): keep coverage text readable
+
 - 2026-09-09 | 🐛 fix(sheets): close readable integration gaps
 
 - 2026-09-08 | 🐛 fix(sheets): retire legacy shift writers
@@ -316,6 +354,12 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-10-04 | ✅ test(shifts): validate real coverage push on both platforms
+
+- 2026-09-28 | ✅ test(shifts): validate native notification opening
+
+- 2026-09-13 | ✅ test(shifts): validate native coverage acceptance
+
 - 2026-09-12 | ✅ test(shifts): seal HU-083 deferred acceptance
 
 - 2026-09-12 | ✅ test(shifts): verify native reset acceptance
@@ -373,6 +417,12 @@ All notable changes to this project will be documented in this file.
 - 2026-03-19 | 📝 docs(orders): define consumer name snapshots
 
 ### Maintenance
+
+- 2026-10-04 | 🔧 chore(shifts): prepare provisional coverage review
+
+- 2026-09-28 | 🔧 chore(shifts): record HU-084 review checkpoint
+
+- 2026-09-28 | 📦 build(android): update AGP and app libraries
 
 - 2026-09-11 | 📦 build(android): update toolchain and platform BOMs
 

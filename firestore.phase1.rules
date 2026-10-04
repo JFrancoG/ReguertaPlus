@@ -42,6 +42,20 @@ service cloud.firestore {
         "shiftPlanningOperations",
         "shiftPlanningPublicEventLedgers",
         "deliveryCalendarMutationReceipts",
+        "shiftCoverageCreditPlans",
+        "shiftCoverageCreditUnits",
+        "shiftCoverageCases",
+        "shiftCoverageEffects",
+        "shiftCoverageProjectionState",
+        "shiftCoverageReserves",
+        "shiftMembershipState",
+        "shiftMembershipOperations",
+        "shiftCoverageBeaconRounds",
+        "shiftCoverageOperations",
+        "shiftCoverageSlots",
+        "shiftCoverageMemberClaims",
+        "shiftCoverageCredits",
+        "shiftCoverageLedgerState",
       ];
     }
 

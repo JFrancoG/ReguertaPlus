@@ -1,0 +1,94 @@
+{
+  "ok": true,
+  "data": {
+    "schemaVersion": 1,
+    "environment": "develop",
+    "memberId": "member-a",
+    "isAdmin": false,
+    "eligible": true,
+    "serverTimeMillis": 1800000000000,
+    "availableShifts": [
+      {
+        "shiftId": "market-next",
+        "type": "market",
+        "scheduledAtMillis": 1800200000000,
+        "shiftRevision": 7,
+        "writable": true,
+        "assignedUserIds": [
+          "member-a"
+        ]
+      }
+    ],
+    "members": [
+      {
+        "memberId": "member-a",
+        "displayName": "Ana de prueba",
+        "offerCandidate": false
+      },
+      {
+        "memberId": "member-b",
+        "displayName": "Beatriz de prueba",
+        "offerCandidate": false
+      }
+    ],
+    "policyRevision": "hu084-provisional-v1",
+    "policy": {
+      "maximumOfferWindowMillis": 86400000,
+      "volunteerWindowMillis": 3600000,
+      "drawAvailable": false
+    },
+    "cases": [
+      {
+        "caseId": "case-a",
+        "shiftId": "delivery-a",
+        "type": "delivery",
+        "positionIndex": 0,
+        "status": "accepted",
+        "revision": 3,
+        "shiftRevision": 4,
+        "scheduledAtMillis": 1800100000000,
+        "writable": true,
+        "absentUserId": "member-b",
+        "acceptedUserId": null,
+        "offer": {
+          "userId": "member-a",
+          "source": "reserve",
+          "expiresAtMillis": 1800003600000
+        },
+        "selectionPhase": "reserve",
+        "volunteerClosesAtMillis": null,
+        "volunteered": false,
+        "updatedAtMillis": 1800000000000,
+        "administration": null
+      }
+    ],
+    "credits": [
+      {
+        "creditId": "credit-market-a",
+        "shiftId": "market-old",
+        "type": "market",
+        "state": "pending",
+        "earnedAtMillis": 1790000000000,
+        "consumedAtMillis": null
+      }
+    ],
+    "reserves": [
+      {
+        "type": "delivery",
+        "active": true,
+        "enteredAtMillis": 1799000000000
+      }
+    ],
+    "notifications": [
+      {
+        "eventId": "coverage-fixture-event",
+        "sentAtMillis": 1800000000000
+      }
+    ],
+    "notification": {
+      "eventId": "coverage-fixture-event",
+      "caseId": "case-a",
+      "caseRevision": 2
+    }
+  }
+}

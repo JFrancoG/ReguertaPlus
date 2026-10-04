@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">La RegÜerta Dev</string>
+    <string name="coverage_rehearsal_notice_title">Shifts updated</string>
+    <string name="coverage_rehearsal_notice_body">Open the app to view the updated information.</string>
 </resources>

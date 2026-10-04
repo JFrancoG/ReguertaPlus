@@ -1,6 +1,70 @@
 # Tasks - HU-084 (Stable shift coverage and earned credits)
 
-## 0. Hard decision gate
+## Local implementation checkpoint — 2026-09-12
+
+- [x] Maintainer authorized provisional local implementation before ratification.
+- [x] Create `codex/hu-084-stable-shift-coverage-and-credits` from merged HU-083.
+- [x] Implement the administrative lifecycle with transactional assignment,
+  completion/credit, idempotency, membership checks and private Rules.
+- [x] Add unit, emulator race/history/eligibility and client-access tests.
+- [x] Add local frozen reserve FIFO, bounded volunteer registration/withdrawal,
+  deterministic offers, current eligibility/claim checks and exhausted-selection
+  state, reusing acceptance/completion and adding race/Rules tests.
+- [x] Add local committed future-round draw, signed evidence verification, fixed
+  retries, administrative offers and cancellation recovery without reroll.
+- [ ] Select/ratify the real entropy provider and complete live backend integration
+  (outcome group 1).
+- [x] Add pure whole-unit credit/backtracking planning and atomic local
+  preview/stage/consumption rehearsal with full-ledger binding and claim release.
+- [x] Integrate credits into existing complete seasonal planners, including boundary
+  closure, credited carryover, prospective helper changes and exact ledger images.
+- [x] Integrate governed seasonal credit sources and credit/claim/cursor/public
+  writes into existing HU-082 forward/inverse publication, with full-source CAS,
+  before images, shared admission/fences and local emulator evidence.
+- [x] Reconcile observed membership/eligibility changes with versioned audit,
+  both reserve pools and individual published coverage cases atomically locally.
+  Preserve re-entry ordering evidence and block old-position revival, including
+  credit-disabled planning; do not infer reserve exit from cohort inclusion.
+- [x] Admit reconciled membership changes at wholly new round boundaries in both
+  seasonal planners and the governed HU-082 forward/inverse transaction. Preserve
+  retained order, append new/re-entering owners by reserve time/UID, bind complete
+  membership/reserve evidence and keep acknowledgement revisions monotonic.
+- [x] Integrate frozen unpublished departures/ineligibility with whole-unit
+  activation/inverse, reason-preserving re-entry, cross-season carryover and
+  zero-write rejection when a complete valid unit cannot be staffed (local outcome group 2).
+- [x] Add authenticated fixed-emulator command transport and member/admin read
+  models; prove real Auth token checks, transactional UID/member binding, safe
+  projections, revoked/disabled sessions and exact command replay locally.
+- [x] Add equivalent Android/iOS typed local repositories and presentation operation
+  ownership, session revision fences, explicit uncertain-command replay and shared
+  wire-fixture pipeline tests. Keep local adapters outside Release/live composition.
+- [x] Compose isolated emulator Auth sessions and connect member/admin native UI,
+  localized forms/actions, static accessibility, previews and native HTTP journeys.
+- [x] Persist atomic command effects and rehearse HU-083 readable projection plus
+  generic inbox release with exact retries, manual conflict preservation and private Rules.
+- [x] Resolve authenticated notification references to current minimal cases in
+  both native rehearsals; retain refresh scope and restore overview across pending
+  reads/writes without replaying uncertain commands. Drain local effects automatically.
+- [x] Add fixed-demo push submission receipts and authenticated native push routing;
+  verify iOS simulated system taps and Android cold/warm Intents, with draft/session
+  fences and no automatic resend after an uncertain result.
+- [x] Reuse the trusted HU-082 barrier and backend-only operator authorization
+  to recover verified projection/inbox and classify interrupted push submissions
+  locally, retaining conflict reservations, audit history and closed writers.
+- [x] Complete isolated real OS push delivery and native notification opening on
+  both physical platforms in foreground, background and process-closed states.
+- [ ] Complete real multi-service controls/destination admission; the demo worker
+  and the isolated transport rehearsal are not live coverage integration.
+- [x] Add opt-in native role/cancellation acceptance with enlarged text and fresh
+  read-back; validate both Android phone sizes and retain iOS visual evidence.
+- [x] Complete the bounded physical assistive-technology journeys and native device
+  matrix recorded in `review.md`, including API 29 and maximum-text/keyboard rechecks.
+- [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
+
+Detailed tasks below describe the complete live feature. An emulator-only subset
+is not completion of those production tasks. See `plan.md` for the current boundary.
+
+## 0. Live activation decision gate
 
 - [ ] Present normal-round placement/tie order for joins/reactivations, reserve
   lifecycle and exit boundary, volunteer, draw, admin fallback, deadlines,
@@ -12,7 +76,7 @@
 - [ ] Update authoritative English and Spanish requirements/user stories.
 - [ ] Reconcile issue #268 and this spec with any amendments.
 - [ ] Obtain maintainer approval of the reconciled implementation scope.
-- [ ] Only then create the HU-084 implementation branch.
+- [ ] Only then authorize live activation of the reconciled implementation.
 
 ## 1. Threat model and contracts
 

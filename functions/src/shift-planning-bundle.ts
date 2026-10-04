@@ -1,3 +1,8 @@
+import {planShiftMembershipAdmission, buildShiftMembershipAcknowledgements} from
+  "./shift-membership-planning.js";
+import {buildShiftCreditPublication, parseShiftCreditPublicationSources,
+  ShiftCreditPublication, ShiftCreditPublicationSources} from
+  "./shift-credit-publication.js";
 import {
   DeliveryPlan,
   DeliveryPlanningContinuity,
@@ -248,6 +253,7 @@ export type ShiftPlanningActivationManifest = {
   ];
   heldRecipients: readonly RecipientManifest[];
   creditLedgerWriteCount: number;
+  creditPublication?: ShiftCreditPublication;
   releaseLeaseIntents: readonly [
     Omit<
       ShiftPlanningReleaseLeaseIntent,
@@ -440,6 +446,9 @@ type BundleFairnessSnapshot = {
   market: BundleRotationSnapshot;
   deliveryWeekday: BusinessWeekday;
   creditLedgerWriteCount: number;
+  creditSources?: ShiftCreditPublicationSources;
+  membershipAdmission?: ReturnType<typeof planShiftMembershipAdmission>;
+  creditPublication?: ShiftCreditPublication;
   releaseLeaseDurationMillis: number;
   syncLeaseDurationMillis: number;
   workbookPartitions: {
@@ -837,18 +846,36 @@ const parseBundleFairnessSnapshot = (
   ) {
     return failState("Workbook partition identities are inconsistent.");
   }
-  const creditLedgerWriteCount = requireNonNegativeInteger(
-    creditLedger.plannedWriteCount,
-    "creditLedger.plannedWriteCount",
-  );
-  if (creditLedger.enabled !== false || creditLedgerWriteCount !== 0) {
-    return failState(
-      "Coverage-credit transitions remain disabled until HU-084.",
-    );
+  let creditSources: ShiftCreditPublicationSources | undefined;
+  if (creditLedger.enabled === true) {
+    if (Object.keys(creditLedger).sort().join() !==
+        "enabled,policyRevision,sources" ||
+        creditLedger.policyRevision !== "hu084-provisional-v1") {
+      return failState("HU-084 credit policy fields are not exact.");
+    }
+    creditSources = parseShiftCreditPublicationSources(
+      creditLedger.sources, authoritativeState.environment);
+    for (const type of ["delivery", "market"] as const) {
+      const rotation = authoritativeState.rotations[type];
+      if (rotation.cohortFrozen && creditSources[type].frozenThroughRound <
+          rotation.cursor.roundNumber) {
+        return failState("Credit policy cannot thaw an authoritative round.");
+      }
+    }
+  } else if (creditLedger.enabled !== false ||
+      requireNonNegativeInteger(creditLedger.plannedWriteCount,
+        "creditLedger.plannedWriteCount") !== 0) {
+    return failState("Coverage-credit transitions remain disabled.");
   }
+  const membershipAdmission = creditSources?.membership ?
+    planShiftMembershipAdmission({source: creditSources.membership,
+      rotations: {delivery: delivery.cursor, market: market.cursor},
+      frozenThroughRound: {delivery: creditSources.delivery.frozenThroughRound,
+        market: creditSources.market.frozenThroughRound}, roster}) : undefined;
   return {
     normalized,
     authoritativeState,
+    ...(membershipAdmission ? {membershipAdmission} : {}),
     environment: authoritativeState.environment,
     activeRevision: authoritativeState.maintenance.activeRevision,
     activeDigest: authoritativeState.maintenance.activeDigest,
@@ -863,7 +890,8 @@ const parseBundleFairnessSnapshot = (
       "market",
     ),
     deliveryWeekday: config.deliveryWeekday as BusinessWeekday,
-    creditLedgerWriteCount,
+    creditLedgerWriteCount: 0,
+    ...(creditSources ? {creditSources} : {}),
     releaseLeaseDurationMillis,
     syncLeaseDurationMillis,
     workbookPartitions,
@@ -934,13 +962,19 @@ const validateModeGate = (
   validateCohort(
     request.mode,
     "delivery",
-    snapshot.delivery,
+    snapshot.membershipAdmission ? {...snapshot.delivery,
+      cursor: {...snapshot.delivery.cursor,
+        cohortUserIds: snapshot.membershipAdmission.cohorts.delivery}} :
+      snapshot.delivery,
     snapshot.eligibleUserIds,
   );
   validateCohort(
     request.mode,
     "market",
-    snapshot.market,
+    snapshot.membershipAdmission ? {...snapshot.market,
+      cursor: {...snapshot.market.cursor,
+        cohortUserIds: snapshot.membershipAdmission.cohorts.market}} :
+      snapshot.market,
     snapshot.eligibleUserIds,
   );
   if (
@@ -1442,6 +1476,8 @@ const activationManifest = (input: {
   ],
   heldRecipients: input.recipients,
   creditLedgerWriteCount: input.snapshot.creditLedgerWriteCount,
+  ...(input.snapshot.creditPublication ?
+    {creditPublication: input.snapshot.creditPublication} : {}),
   releaseLeaseIntents: input.releaseLeaseIntents,
 });
 
@@ -1489,6 +1525,9 @@ const recoveryManifest = (input: {
       contract: input.snapshot.authoritativeState.maintenance,
     },
   ];
+  for (const change of input.snapshot.creditPublication?.changes ?? []) {
+    beforeImageTargets.push({path: change.targetPath, contract: change.before});
+  }
   if (input.delivery.predecessorHelperUpdate !== null) {
     const predecessorGuard = input.delivery.predecessorGuard;
     if (predecessorGuard === null) {
@@ -2052,13 +2091,33 @@ export const planShiftPlanningBundle = (
     rotation: snapshot.delivery.cursor,
     inheritedTargetPrefix: input.delivery.inheritedTargetPrefix ?? null,
     continuity: input.delivery.continuity,
+    provisionalCredits: snapshot.creditSources ? {
+      ...snapshot.creditSources.delivery,
+      ...(snapshot.membershipAdmission?.policies.delivery ? {membership:
+        snapshot.membershipAdmission.policies.delivery} : {})} : undefined,
   });
   const market = planMarketShifts({
     planningRequestId: request.bundleId,
     targetSeasonStartYear: request.subplans.market.targetSeasonStartYear,
     rotation: snapshot.market.cursor,
     inheritedTargetPrefix: input.market.inheritedTargetPrefix ?? null,
+    provisionalCredits: snapshot.creditSources ? {
+      ...snapshot.creditSources.market,
+      ...(snapshot.membershipAdmission?.policies.market ? {membership:
+        snapshot.membershipAdmission.policies.market} : {})} : undefined,
   });
+  if (snapshot.creditSources && delivery.creditProjection &&
+      market.creditProjection) {
+    snapshot.creditPublication = buildShiftCreditPublication({
+      sources: snapshot.creditSources, delivery: delivery.creditProjection,
+      market: market.creditProjection, planId: request.bundleId,
+      membershipChanges: snapshot.creditSources.membership ?
+        buildShiftMembershipAcknowledgements(
+          snapshot.creditSources.membership, {
+            delivery: delivery.creditProjection.membershipApplied ?? false,
+            market: market.creditProjection.membershipApplied ?? false}) : []});
+    snapshot.creditLedgerWriteCount = snapshot.creditPublication.changes.length;
+  }
   const recipients = recipientManifest(delivery, market, snapshot.roster);
   const frontiers = frontierTransitions({
     snapshot,

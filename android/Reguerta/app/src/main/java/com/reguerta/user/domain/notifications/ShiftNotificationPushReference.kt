@@ -4,6 +4,8 @@ package com.reguerta.user.domain.notifications
 value class ShiftNotificationPushReference private constructor(
     val eventId: String,
 ) {
+    val isCoverage: Boolean get() = Regex("^coverage-[a-f0-9]{64}$").matches(eventId)
+
     companion object {
         private val EventIdPattern = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 

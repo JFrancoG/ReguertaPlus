@@ -637,4 +637,7 @@
     <string name="profile_shared_empty">No hay ningún perfil aún.</string>
     <string name="profile_shared_saved_dialog_title">Perfil guardado</string>
     <string name="profile_shared_saved_dialog_message">Tu perfil de comunidad se ha guardado correctamente.</string>
+    <string name="coverage_notifications">Avisos de cobertura</string>
+    <string name="coverage_no_notifications">No hay avisos de cobertura.</string>
+    <string name="coverage_notification_title">Consultar cobertura actualizada</string>
 </resources>

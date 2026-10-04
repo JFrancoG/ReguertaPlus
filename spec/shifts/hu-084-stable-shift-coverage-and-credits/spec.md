@@ -5,10 +5,63 @@
 - issue_id: #268
 - priority: P1
 - platform: both
-- status: draft
-- blocked_by: assembly ratification
+- status: provisional local implementation reviewed and validated; bounded native manual matrix complete; ratification and live integration remain open
+- blocked_by: assembly ratification for live activation
 - decision_gate: assembly ratification
 - depends_on: HU-082 / #266, HU-083 / #267
+
+## Local implementation authorization — 2026-09-12
+
+The maintainer explicitly authorized implementing this proposal provisionally for
+local tests. This authorizes the implementation branch and emulator-only behavior;
+it does not ratify the proposal or authorize deployment/live activation. The
+administrative lifecycle includes frozen reserve FIFO, bounded volunteers and a
+committed draw using a synthetic signed future-round issuer. The explicit test
+settings are `fifo-signup-v1`, `hu084-local-beacon-v1` and `sha256-rank-v1`. Reserve
+exit, the real entropy provider, proximity preferences, response windows and final
+ordering remain pending business decisions. The tested provisional behavior is not
+the ratified live policy.
+The pure whole-unit credit solver and atomic consumption rehearsal are also
+implemented locally. The rehearsal records private units and does not publish
+seasonal bundles/public shifts. Existing delivery/market planners now also support
+provisional full-season credit traversal, credited carryover and exact ledger
+before/after images. Governed HU-082 source capture, bundle persistence and shared
+forward/inverse credit activation now work in the fixed local emulator, including
+released claims and monotonic ledger generations. Shared-project activation stays
+disabled. Membership/eligibility transitions, both native rehearsal clients,
+readable Sheets projection, generic inbox/push and governed recovery are now
+implemented locally at the later 2026-09-13 checkpoint. The bounded native manual
+matrix is complete as of 2026-10-04, including physical accessibility and isolated
+real push receipt/opening on both platforms. Ratification and live coverage
+integration remain open. See `review.md` for the current criterion matrix and
+`plan.md` for historical evidence and limits.
+
+## Maintainer proposal refinements — pending collective ratification
+
+The member-facing [Spanish proposal](propuesta-turnos-para-socios.md) and the
+[EN](ratification.md)/[ES](ratification-es.md) decision matrices record the latest
+maintainer choices. Earlier pending-choice statements above describe the original
+provisional implementation; they do not supersede these clarifications.
+
+The confirmed proposal uses phase-wide 24-hour-day maxima of 2/7/2/3 for
+reserve/volunteer/draw/administrative handling with at least 14 days remaining,
+1/2/1/1 from 5 to less than 14 days, and exclusive immediate administrative
+handling below 5 days. Deadlines do not restart per candidate; valid acceptance
+closes the search. Reserve exit occurs when the first ordinary same-type shift
+becomes due. The first volunteer has priority, same-type stacking remains blocked,
+and permanent departure cancels pending credits without deleting history.
+
+Ordinary delivery-lead assignments for the same member in different rounds must
+be at least 10 weeks apart. Helper participation and markets are outside this
+rule. Reserve, volunteer, draw and administratively arranged substitutions are
+exempt. Force majeure, including avoiding an unstaffed delivery, permits an
+administratively authorized exception with its reason recorded. This does not
+waive lead/helper incompatibility or move other members' published dates.
+
+These are policy choices for the proposal, not evidence of collective approval
+or completed implementation. Reconcile planner boundaries, deadlines, reserve
+exit and credit cancellation with code/tests before any activation. No live
+rollout authority is added here.
 
 ## Context and problem
 
@@ -160,9 +213,11 @@ At minimum exclude:
 - members with an unconsumed same-type coverage credit;
 - under the safe proposal, members with an accepted but incomplete same-type
   coverage, preventing overlapping acceptances from accumulating later credits;
-- members whose same-type assignments are too close when a less disruptive
-  eligible alternative exists;
 - anyone forbidden by a conflict or policy field approved by the assembly.
+
+The maintainer-refined 10-week rule concerns ordinary delivery-lead assignments
+in different rounds. It does not add a spacing exclusion to coverage candidates;
+the adjacent lead/helper incompatibility above still applies.
 
 The persisted draw record includes the vacancy, candidate snapshot, exclusions
 and reasons, deterministic input/seed and algorithm version, selected member,
@@ -241,6 +296,10 @@ completion interval unbounded.
 
 ## Assembly decisions required
 
+Discussion drafts: [English](ratification.md) / [Español](ratification-es.md).
+These organize the choices below; they do not record an assembly decision or
+change the provisional implementation's authority.
+
 The assembly must ratify or amend, at minimum:
 
 - whether new/reactivated members join the first wholly new still-unfrozen normal
@@ -277,8 +336,9 @@ The assembly must ratify or amend, at minimum:
   the original owner ultimately working;
 - who may open/cancel a vacancy and confirm completion.
 
-No implementation phase starts before the decision is reflected in the English
-and Spanish authoritative requirements.
+No live activation starts before the decision is reflected in the English and
+Spanish authoritative requirements. The dated local authorization above permits
+provisional emulator implementation while this gate remains open.
 
 ## Scope after approval
 
@@ -302,7 +362,7 @@ and Spanish authoritative requirements.
 - Treating a unilateral coverage as an HU-016 reciprocal swap.
 - Opaque or client-side random selection.
 - Consuming a credit by removing an already published assignment.
-- Implementing any unresolved policy before assembly ratification.
+- Activating unresolved policy on shared/live data before assembly ratification.
 
 ## Linked functional requirements
 
@@ -387,20 +447,86 @@ and Spanish authoritative requirements.
 - [ ] Local/emulator acceptance covers all ratified edge cases before a separate
   shared-project activation story is proposed.
 
+## Provisional local-client contract — 2026-09-12
+
+This contract supports the authorized local implementation only. Construct
+`createProvisionalShiftCoverageApp` with an explicit offer window, trusted clock
+and any configured selection/beacon policy. Its `handle` adapter starts no listener.
+The explicit `startProvisionalShiftCoverageServer` wrapper binds only loopback and
+exports no deployable Cloud Function. Auth and Firestore must use
+`demo-reguerta-hu084-coverage` at `127.0.0.1:9098` and `127.0.0.1:8798` respectively.
+Real SDK verification is tested against Auth emulator tokens; this is not proof of
+production token/IAM deployment configuration.
+
+Requests use POST and an Authorization bearer token. They accept no query-string
+fields, actor ID, role, balance, candidate evidence or alternate environment.
+The existing exact `ShiftCoverageCommand` is the mutation body, including case,
+operation and expected case/shift revisions. Queries are:
+
+```json
+{"schemaVersion":1,"environment":"develop","action":"overview"}
+{"schemaVersion":1,"environment":"develop","action":"detail","caseId":"case-id"}
+```
+
+Success is `{ok: true, data: ...}`. A mutation's data contains `schemaVersion`,
+`environment`, `operationId`, `caseId`, `revision` and `replayed`. Retry an uncertain
+mutation with the same operation ID/body; reload current query state afterward.
+A read includes resolved `memberId`, current admin/eligibility flags, server time,
+explicit policy windows/capability, case views and only the caller's credits and
+reserves. Every case includes its public date/type/position, current revisions,
+status, own offer/volunteering and planning-authority availability. Admin-only
+context contains reason, opener and volunteer count; candidate/exclusion/draw
+records are not exposed. A case is visible to its participants/admins, or to an
+eligible member while it is open/offered. Missing and hidden detail share one error.
+
+Auth UID-to-member binding is re-read transactionally, including on replay. Native
+clients must additionally fence asynchronous results to their captured session,
+member and environment. `writable` only reports the planning authority: each command
+still enforces permissions, state, time and physical-unit rules server-side. Valid
+maintenance allows reads but disables mutations. Overview rejects over 250 cases or
+250 caller credits; it never returns a partial board disguised as complete. Detail
+bypasses the overview case-count bound; the same own-account limits still apply.
+
+Errors return `{ok: false, code: ...}` without token, reason, stack or SDK messages:
+401 for token failure, 403 for account-link/member authorization, 400 for malformed
+transport/body, 409 for domain/source conflicts, 405 for unsupported method and
+413 for bodies over 16 KiB, 415 for non-JSON POST bodies and 500 for unexpected
+infrastructure failure. No notification or Sheets execution is implied by the
+local handler alone. The separate local effects worker and native rehearsal now
+exercise those integrations; real deployment is not implied. See `review.md` for
+the separately recorded manual acceptance and current integration boundary.
+
+Run the explicit local server from `functions` after starting Auth/Firestore with
+`firebase.coverage-emulator.json` and the fixed demo project:
+
+```sh
+GCLOUD_PROJECT=demo-reguerta-hu084-coverage \
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8798 \
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9098 \
+npm run serve:shift-coverage:local -- /absolute/path/policy.json 8789
+```
+
+The policy JSON must contain `maximumOfferWindowMillis` and may contain the existing
+`selectionPolicy`/`beaconPolicy` objects. No duration, real beacon or assembly choice
+is inferred by the runner. Tests supply synthetic policy explicitly. The server
+prints only its loopback URL and closes its owned resources on SIGINT/SIGTERM.
+
+
 ## Dependencies
 
 - HU-082 / issue #266 supplies rotation ownership, cohorts, and unpublished-round
   semantics.
 - HU-083 / issue #267 must be integrated and preserve effective assignment
   separately in Sheets.
-- Assembly ratification and bilingual requirements are hard blockers.
+- Assembly ratification and bilingual requirements are hard live-activation blockers.
 - HU-085 production activation for the base planner is independent and need not
   wait for HU-084.
 
 ## Risks and mitigations
 
-- **Policy implemented by accident**: keep issue/spec blocked and all
-  implementation tasks unchecked until assembly evidence is linked.
+- **Policy activated by accident**: keep the provisional adapter demo/loopback-only,
+  without production endpoint imports, and live acceptance tasks unchecked until
+  assembly evidence and the complete integration are verified.
 - **Life disruption**: freeze unaffected published rows and require explicit
   responses.
 - **Gaming volunteers/credits**: issue credits only from completed authoritative
@@ -422,3 +548,29 @@ and Spanish authoritative requirements.
 - [ ] Any live activation remains open in a separately authorized rollout story.
 - [ ] ADR/data documentation is aligned where architecture changed.
 - [ ] Issue, branch, commits, and PR are linked.
+
+
+### Native provisional boundary — 2026-09-12
+
+The native repository accepts a session value containing Auth UID, member ID and
+an authorization revision. Composition must advance the revision for every
+logout/relogin (including the same UID), member/environment/role change. A response
+is usable only if the captured session is still current after token retrieval and
+after HTTP; presentation also fences completion/cleanup against its own generation.
+The fixed local contract always targets `develop`. Release contains no local
+repository, and the live app graph does not construct one.
+
+Only unsigned Auth-emulator JWTs for `demo-reguerta-hu084-coverage`, with the exact
+issuer and captured UID, may be sent to the local host. This is a client credential
+routing guard, **not** token verification; the actual server verifies Auth and
+canonical membership on every request. Token providers must return current emulator
+credentials and must not persist them in presentation state. Native HTTP refuses
+redirects and does not cache the private response.
+
+Retain the full command, operation ID and both revisions on uncertain completion;
+block different mutations until explicit replay resolves it. Do not regenerate an
+ID or infer rollback from cancellation. A valid matching acknowledgement settles
+the write even when subsequent read-back fails. Clear stale displayed state until
+a fresh read succeeds. Definitive 400/409 rejections settle the rejected intent;
+401/403 additionally remove the bound session and private state. These rules are
+shared by both native ViewModels; business authorization remains server-side.
