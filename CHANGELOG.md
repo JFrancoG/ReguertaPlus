@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-04 | 📝 docs(shifts): define coverage ratification proposal
+
 - 2026-09-11 | 📝 docs(shifts): prepare HU-085 evidence handoff
 
 - 2026-09-11 | 📝 docs(shifts): record replacement safety rehearsal

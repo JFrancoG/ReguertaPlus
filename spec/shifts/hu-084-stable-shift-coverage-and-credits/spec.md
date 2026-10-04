@@ -36,6 +36,33 @@ real push receipt/opening on both platforms. Ratification and live coverage
 integration remain open. See `review.md` for the current criterion matrix and
 `plan.md` for historical evidence and limits.
 
+## Maintainer proposal refinements — pending collective ratification
+
+The member-facing [Spanish proposal](propuesta-turnos-para-socios.md) and the
+[EN](ratification.md)/[ES](ratification-es.md) decision matrices record the latest
+maintainer choices. Earlier pending-choice statements above describe the original
+provisional implementation; they do not supersede these clarifications.
+
+The confirmed proposal uses phase-wide 24-hour-day maxima of 2/7/2/3 for
+reserve/volunteer/draw/administrative handling with at least 14 days remaining,
+1/2/1/1 from 5 to less than 14 days, and exclusive immediate administrative
+handling below 5 days. Deadlines do not restart per candidate; valid acceptance
+closes the search. Reserve exit occurs when the first ordinary same-type shift
+becomes due. The first volunteer has priority, same-type stacking remains blocked,
+and permanent departure cancels pending credits without deleting history.
+
+Ordinary delivery-lead assignments for the same member in different rounds must
+be at least 10 weeks apart. Helper participation and markets are outside this
+rule. Reserve, volunteer, draw and administratively arranged substitutions are
+exempt. Force majeure, including avoiding an unstaffed delivery, permits an
+administratively authorized exception with its reason recorded. This does not
+waive lead/helper incompatibility or move other members' published dates.
+
+These are policy choices for the proposal, not evidence of collective approval
+or completed implementation. Reconcile planner boundaries, deadlines, reserve
+exit and credit cancellation with code/tests before any activation. No live
+rollout authority is added here.
+
 ## Context and problem
 
 Continuous generation solves ordinary fairness but not membership changes or an
@@ -186,9 +213,11 @@ At minimum exclude:
 - members with an unconsumed same-type coverage credit;
 - under the safe proposal, members with an accepted but incomplete same-type
   coverage, preventing overlapping acceptances from accumulating later credits;
-- members whose same-type assignments are too close when a less disruptive
-  eligible alternative exists;
 - anyone forbidden by a conflict or policy field approved by the assembly.
+
+The maintainer-refined 10-week rule concerns ordinary delivery-lead assignments
+in different rounds. It does not add a spacing exclusion to coverage candidates;
+the adjacent lead/helper incompatibility above still applies.
 
 The persisted draw record includes the vacancy, candidate snapshot, exclusions
 and reasons, deterministic input/seed and algorithm version, selected member,
@@ -266,6 +295,10 @@ completion interval unbounded.
 - Completion and credit issuance use the authoritative final effective assignee.
 
 ## Assembly decisions required
+
+Discussion drafts: [English](ratification.md) / [Español](ratification-es.md).
+These organize the choices below; they do not record an assembly decision or
+change the provisional implementation's authority.
 
 The assembly must ratify or amend, at minimum:
 
