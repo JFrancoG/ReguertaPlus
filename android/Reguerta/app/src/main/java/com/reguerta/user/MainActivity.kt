@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (routeRemoteCoverageRehearsal(intent)) return
         acceptShiftNotificationPush(intent)
         enableEdgeToEdge()
         requestNotificationsPermissionIfNeeded()
@@ -69,7 +70,16 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (routeRemoteCoverageRehearsal(intent)) return
         acceptShiftNotificationPush(intent)
+    }
+
+    private fun routeRemoteCoverageRehearsal(source: Intent?): Boolean {
+        if (!BuildConfig.COVERAGE_REMOTE_PUSH_REHEARSAL) return false
+        startActivity(Intent().setClassName(packageName, "com.reguerta.user.CoverageRehearsalActivity")
+            .putExtras(source ?: Intent()).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        finish()
+        return true
     }
 
     private fun acceptShiftNotificationPush(intent: Intent?) {

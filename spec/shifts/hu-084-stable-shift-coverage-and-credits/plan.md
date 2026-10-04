@@ -44,7 +44,10 @@ authorization of 2026-09-12 and have passed the bounded final review and validat
 recorded on 2026-09-13, with the documented baseline/toolchain diagnostic residuals.
 `review.md` is the current acceptance matrix. Dated sections below retain their
 historical scope; their old pending statements do not override later checkpoints.
-Manual acceptance, ratification and live integration remain open.
+The bounded native manual matrix is complete as of 2026-10-04, including physical
+accessibility and real push receipt/opening on both platforms. Ratification and
+live integration remain open; the final pre-PR revision still needs its complete
+iOS release gate, with unaffected recent validation reused explicitly.
 
 ### Implemented local administrative lifecycle — 2026-09-12
 
@@ -1286,3 +1289,32 @@ rehearsal transport deliberately accepts only loopback on ports 8799/9098; on a
 physical iPhone those addresses refer to the phone, not this Mac. Therefore a
 physical-device test setup must be prepared before using this local login there.
 Opening the normal app does not validate the provisional coverage UI.
+
+
+## Real transport preparation — 2026-10-04
+
+The maintainer authorizes preparing both Debug clients for real notification
+receipt. Previous notification delivery is a baseline, not a newly failed
+capability. This block verifies the coverage-specific event and tap route using
+a fixed read-only sample case, while keeping business data offline.
+
+- Android: explicit opt-in Debug build; launcher routes to the rehearsal, token
+  callbacks cannot upload business device records, and foreground/background
+  receipts preserve the same fixed coverage reference.
+- iOS: explicit persistent Debug launch opt-in for cold notification launch;
+  real Messaging/APNs with the in-memory graph and a read-only sample case.
+- Export only the opted-in installation destination to private local storage;
+  a one-device sender defaults to an offline plan and verifies exact project/app.
+- Validate routing, unknown-event rejection, command rejection and sender guards
+  locally. Actual registration/delivery and APNs setup remain separate live checks.
+- Use existing Debug app registrations in reguerta-9f27f. No deploys, Auth/Firestore
+  writes, topic sends or notifications to members are included in preparation.
+
+Execution completed on 2026-10-04 under separate, explicit per-device
+authorizations: iPhone 11 and Xiaomi Android 14 each pass foreground, background
+and process-closed receipt/tap/opening. The maintainer configured the missing
+Debug development APNs key before the successful iPhone deliveries. Both devices'
+rehearsal cleanup is verified; the previous Android Debug APK was restored without
+clearing app data. See `review.md` and the bilingual native rehearsal guides for
+receipts, boundaries and physical confirmations. This closes the isolated real
+transport checks, not live business wiring or production activation.

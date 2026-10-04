@@ -16,6 +16,7 @@ struct ReguertaApp: App {
     #if DEBUG
     private let coverageRehearsal: CoverageRehearsalViewModel?
     private let coverageAccessibilityRehearsal: Bool
+    private let coverageRemotePushRehearsal: Bool
     #endif
 
     private let appEnvironment: ReguertaAppEnvironment
@@ -31,7 +32,10 @@ struct ReguertaApp: App {
                 if let coverageRehearsal {
                     CoverageRehearsalView(
                         model: coverageRehearsal,
-                        rehearsalNote: CoverageCopy.text(coverageAccessibilityRehearsal ? "offline_note" : "local_note")
+                        rehearsalNote: CoverageCopy.text(
+                            coverageRemotePushRehearsal ? "remote_note" :
+                                (coverageAccessibilityRehearsal ? "offline_note" : "local_note")
+                        )
                     )
                         .task {
                             if coverageAccessibilityRehearsal {
@@ -61,7 +65,9 @@ extension ReguertaApp {
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         #if DEBUG
-        coverageAccessibilityRehearsal = arguments.contains("-coverageAccessibilityRehearsal")
+        let remotePushRehearsal = CoverageRemotePushRehearsal.isEnabled(arguments: arguments)
+        coverageRemotePushRehearsal = remotePushRehearsal
+        coverageAccessibilityRehearsal = arguments.contains("-coverageAccessibilityRehearsal") || remotePushRehearsal
         #if targetEnvironment(simulator)
         // An explicit simulator preference preserves the isolated route when an OS tap launches without arguments.
         let resumesCoverageRehearsal = UserDefaults.standard.bool(forKey: "coverageColdLaunchRehearsal")
@@ -89,6 +95,9 @@ extension ReguertaApp {
         self.appEnvironment = appEnvironment
         #if DEBUG
         let requestsLocalPush = arguments.contains("-coveragePushRehearsal") || resumesCoverageRehearsal
+        if remotePushRehearsal {
+            appDelegate.enableRemoteCoveragePush()
+        }
         if rehearsesCoverage && requestsLocalPush && !coverageAccessibilityRehearsal {
             appDelegate.enableLocalCoveragePush()
         }

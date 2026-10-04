@@ -45,7 +45,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun CoverageScreen(model: CoverageRehearsalViewModel) {
+internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: String? = null) {
     val state by model.coverage.state.collectAsStateWithLifecycle()
     val caseId = model.selectedCaseId
     var tick by remember { mutableLongStateOf(0L) }
@@ -64,7 +64,7 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel) {
             item {
                 Text(stringResource(R.string.coverage_title), style = MaterialTheme.typography.headlineMedium)
                 Text(stringResource(R.string.coverage_rehearsal), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.coverage_local_note))
+                Text(rehearsalNote ?: stringResource(R.string.coverage_local_note))
             }
             if (state.session == null) {
                 item { CoverageLogin(model) }

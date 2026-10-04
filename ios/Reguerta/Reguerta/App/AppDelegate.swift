@@ -10,6 +10,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private var shiftNotificationPushOpenStore: ShiftNotificationPushOpenStore?
     #if DEBUG
     private var localCoveragePushEnabled = false
+    private var remoteCoveragePushEnabled = false
+    private var remoteCoverageAPNsReady = false
+    func enableRemoteCoveragePush() {
+        remoteCoveragePushEnabled = true
+    }
     func enableLocalCoveragePush() {
         localCoveragePushEnabled = true
     }
@@ -42,6 +47,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         #endif
         guard pushNotificationsEnabled else { return true }
+        #if DEBUG
+        if remoteCoveragePushEnabled {
+            CoverageRemotePushRehearsal.prepareFirebase()
+        }
+        #endif
         FirebaseBootstrapper.configureIfNeeded()
         Messaging.messaging().delegate = self
         requestPushAuthorization()
@@ -51,6 +61,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         guard pushNotificationsEnabled else { return }
         Messaging.messaging().apnsToken = deviceToken
+        #if DEBUG
+        if remoteCoveragePushEnabled {
+            Task { @MainActor in
+                do {
+                    let token = try await Messaging.messaging().token()
+                    remoteCoverageAPNsReady = true
+                    try CoverageRemotePushRehearsal.saveDestination(token, apnsRegistered: true)
+                } catch {
+                    Self.logger.error("Could not prepare the push rehearsal destination after APNs registration")
+                }
+            }
+            return
+        }
+        #endif
         Messaging.messaging().token { _, error in
             if let error {
                 Self.logger.error(
@@ -97,6 +121,11 @@ extension AppDelegate: MessagingDelegate {
     }
 
     var pushNotificationsEnabled: Bool {
+        #if DEBUG
+        if remoteCoveragePushEnabled {
+            return true
+        }
+        #endif
         guard let appConfiguration else {
             preconditionFailure("AppDelegate must receive App configuration before lifecycle callbacks")
         }
@@ -107,6 +136,16 @@ extension AppDelegate: MessagingDelegate {
         _ token: String?,
         to authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
     ) {
+        #if DEBUG
+        if remoteCoveragePushEnabled {
+            do {
+                try CoverageRemotePushRehearsal.saveDestination(token, apnsRegistered: remoteCoverageAPNsReady)
+            } catch {
+                Self.logger.error("Could not save the local push rehearsal destination")
+            }
+            return
+        }
+        #endif
         Task {
             do {
                 try await authorizedDeviceRegistrar.updateRegistrationToken(token)

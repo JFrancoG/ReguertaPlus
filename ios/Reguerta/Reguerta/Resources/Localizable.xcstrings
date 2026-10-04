@@ -1,6 +1,24 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "coverage.remote_note": {
+    "comment": "Explicit real transport rehearsal; business data remains in memory",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Real push rehearsal with sample data. Changes cannot be saved."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ensayo de push real con datos de ejemplo. No se pueden guardar cambios."
+        }
+      }
+    }
+  },
   "coverage.notifications": {
     "comment": "Local coverage rehearsal notification navigation",
     "extractionState": "manual",

@@ -55,8 +55,8 @@ final class CoveragePreviewAccess: CoverageRehearsalAccess, ShiftCoverageReposit
             consumedAtMillis: nil
         )],
         reserves: [.init(type: .delivery, active: true, enteredAtMillis: 1_790_000_000_000)],
-        notifications: [.init(eventId: "preview-notification", sentAtMillis: 1_800_000_000_000)],
-        notification: .init(eventId: "preview-notification", caseId: "preview-case", caseRevision: 2)
+        notifications: [.init(eventId: CoverageRemotePushRehearsal.eventID, sentAtMillis: 1_800_000_000_000)],
+        notification: .init(eventId: CoverageRemotePushRehearsal.eventID, caseId: "preview-case", caseRevision: 2)
     )
 
     func signIn(email: String, password: String) async throws -> ShiftCoverageSession {
@@ -65,7 +65,8 @@ final class CoveragePreviewAccess: CoverageRehearsalAccess, ShiftCoverageReposit
     func signOut() {}
     func read(caseId: String?, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot { snapshot }
     func readNotification(eventId: String, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot {
-        snapshot
+        guard eventId == CoverageRemotePushRehearsal.eventID else { throw ShiftCoverageFailure.unavailable }
+        return snapshot
     }
     func execute(_ command: ShiftCoverageCommand, session: ShiftCoverageSession) async throws {
         throw ShiftCoverageFailure.unavailable

@@ -22,6 +22,31 @@ import org.junit.Test
 
 class CoverageRehearsalTest {
     @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun remoteSampleOpensOnlyKnownEventAndRejectsCommands() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val access = com.reguerta.user.CoverageRemotePushAccess()
+            val model = CoverageRehearsalViewModel(access)
+            val session = com.reguerta.user.CoverageRemotePushAccess.session
+            model.coverage.bind(session)
+            model.acceptPush(ShiftNotificationPushReference.validated("coverage-" + "84".repeat(32), "shift_updated", "users")!!)
+            model.openPendingPush()
+            advanceUntilIdle()
+            assertEquals("preview-case", model.selectedCaseId)
+            model.openNotification("coverage-" + "aa".repeat(32))
+            advanceUntilIdle()
+            assertNull(model.selectedCaseId)
+            try {
+                access.execute(com.reguerta.user.domain.shiftcoverage.ShiftCoverageCommand(
+                    "preview-case", "must-not-save", 2, 1, Action.accept,
+                ), session)
+                fail("Transport sample must reject business writes")
+            } catch (_: ShiftCoverageFailure.Unavailable) { }
+            assertEquals(2, access.read(null, session).cases.single().revision.toInt())
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test fun pushWaitsForLoginAndDraftThenOpensOnceAndLogoutDropsIntent() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

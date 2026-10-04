@@ -26,6 +26,11 @@ class CoverageRehearsalActivity : ComponentActivity() {
     private val model: CoverageRehearsalViewModel by viewModels {
         viewModelFactory {
             initializer {
+                if (BuildConfig.COVERAGE_REMOTE_PUSH_REHEARSAL) {
+                    return@initializer CoverageRehearsalViewModel(CoverageRemotePushAccess()).also {
+                        it.coverage.bind(CoverageRemotePushAccess.session)
+                    }
+                }
                 // adb reverse exposes only the fixed demo ports on a connected physical device.
                 val usesUsb = intent.getBooleanExtra("coverageUsbRehearsal", false)
                 CoverageRehearsalViewModel(LocalCoverageRehearsalAccess(emulatorHost = !usesUsb))
@@ -35,9 +40,20 @@ class CoverageRehearsalActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.COVERAGE_REMOTE_PUSH_REHEARSAL) {
+            CoverageRemotePushAccess.registerDestination(this)
+            if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 84)
+            }
+            model.refresh()
+        }
         acceptPush(intent)
         enableEdgeToEdge()
-        setContent { ReguertaTheme { CoverageScreen(model) } }
+        setContent {
+            ReguertaTheme {
+                CoverageScreen(model, if (BuildConfig.COVERAGE_REMOTE_PUSH_REHEARSAL) getString(R.string.coverage_remote_note) else null)
+            }
+        }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

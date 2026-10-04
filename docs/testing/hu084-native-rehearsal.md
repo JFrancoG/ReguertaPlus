@@ -600,3 +600,279 @@ scale 2.0 remains emulator evidence. Only documentation changed after validation
 Owned demo emulators/API are stopped, the two USB mappings and temporary dependency
 symlink removed. Font settings are reopened so the maintainer can restore XL.
 Real isolated APNs/FCM delivery remains pending.
+
+### Real APNs/FCM transport preparation — 2026-10-04
+
+The maintainer reports notifications worked before the shift remodel. This is a
+regression check of the coverage payload and tap route, using the existing Debug
+registrations, not a replacement notification system. Preparation is local;
+registration and sends below have **not** been executed.
+
+Use Firebase project `reguerta-9f27f`, Android Debug app
+`1:195744802339:android:65308f6405a03baaadb396` (`com.reguerta.user.debug`), and iOS
+Debug app `1:195744802339:ios:3fa2544ff8ed478aadb396`
+(`com.plusprojects.Reguerta.debug`). Real SDK configuration must match exactly;
+synthetic emulator files and Release apps are rejected. Verify existing APNs
+credentials/signing and notification permission before diagnosing reception.
+Obtain explicit authorization for registration and at most three one-device FCM
+sends per phone in this project; do not change APNs/Firebase configuration as an
+implicit part of that authorization.
+
+- Android: build `app:assembleDebug -PcoverageRemotePushRehearsal=true`. The
+  launcher enters the in-memory case; the selected Debug Messaging service never
+  uploads business device records. `register()` requests FCM registration and
+  `onRegistered` exports the confirmed FID, including renewals. The activity and
+  service use the default process so Firebase initialization is available.
+- iOS: first launch Debug with `-coverageRemotePushRehearsal`. The preference
+  persists across OS cold launch without arguments. `-disableCoverageRemotePushRehearsal`
+  clears it; explicit mock/local rehearsal flags also clear it and take precedence.
+  Existing APNs/Messaging delegates remain in use, but the app graph is in-memory
+  and tokens are saved locally instead of forwarded to the live device registrar.
+- Both open only the fixed event `coverage-` followed by `84` repeated 32 times,
+  resolving `preview-case`. Commands cannot save changes. This exercises real
+  transport plus native routing; it does not prove live coverage backend access,
+  authorized-device persistence, business triggers, or deployment readiness.
+
+Export the destination into a private directory outside the repository (directory
+mode 0700, file mode 0600), without printing its contents. On Android use `adb
+exec-out run-as com.reguerta.user.debug cat no_backup/coverage-push-destination.json`
+redirected into the private file. On iOS copy
+`Documents/coverage-push-destination.json` from the Debug app's data container via
+Xcode/devicectl. The iOS rehearsal removes its previous export before Firebase starts. It exports
+only after the successful FCM token fetch following APNs registration in this
+launch; an early cached-token delegate callback cannot mark the device ready.
+
+With Functions dependencies and `npm run build` complete, run from repository root:
+
+```sh
+node functions/scripts/coverage-remote-push.cjs --destination /PRIVATE/destination.json
+```
+
+This default is offline and prints metadata and a destination hash, never the
+FID/token. Only after the concrete authorization, use authenticated ADC for the
+same project and a new receipt path for each planned delivery:
+
+```sh
+node functions/scripts/coverage-remote-push.cjs --destination /PRIVATE/destination.json \
+  --send --confirm-project reguerta-9f27f --receipt /PRIVATE/foreground-receipt.json
+```
+
+The script sends to exactly one exported destination, with no topic/fanout.
+iOS uses one HTTP v1 POST with redirects disabled and no retry (the Admin SDK
+otherwise retries some errors internally); Android retains the existing transport.
+The exclusive receipt prevents accidental reuse; an unknown result must be
+inspected before any retry. Provider acceptance does not prove reception. Record device, state, receipt outcome, actual arrival and tap.
+
+| State | iPhone | Android | Expected result |
+| --- | --- | --- | --- |
+| Foreground | Passed: real receipt and maintainer-confirmed tap | Passed: real receipt and maintainer-confirmed tap | Notice appears; tapping opens the sample coverage |
+| Background | Passed: maintainer confirms receipt and case opening | Passed: maintainer confirms receipt and case opening | System notice appears; tapping opens the same case |
+| Process closed | Passed: process absent before send; maintainer confirms case opening | Passed: process absent before send; maintainer confirms case opening | System tap starts Debug directly in the same sample |
+
+On Android, background the app then terminate its process for the cold check;
+do not use force-stop before sending, because that blocks normal push delivery.
+Clear the previous notification and return to the list between cases.
+
+After the test, clear the iOS opt-in, delete its app-container export, remove the
+Android `no_backup` export and rebuild/install ordinary Debug without the Gradle
+property. Remove host destination files and clear test notifications. Keep only
+redacted receipt evidence; do not delete normal FCM registrations as cleanup.
+
+Local preparation validation: Android 503 unit tests pass, both ordinary and
+opt-in Debug builds compile, lint completes with zero errors and the existing
+135 warnings/two hints. The ordinary API 29 connected run executes 23 checks;
+four opt-in tests exit via `AssumptionViolatedException` (reported as failures by
+the XML wrapper, not assertion failures). iOS selected six Swift Testing cases
+and four UI smoke cases pass on iPhone 17 / iOS 27.2, device
+`0B3A9F32-B9D5-4ED5-A13F-CB66F7917E75`, built with Xcode 27.0. The requested iOS
+26 runtime is absent; the initial iOS 27.0 destination also fails because its
+runtime path is unavailable. No full release gate is claimed. SwiftLint passes;
+two existing AppIntents metadata-extraction warnings remain in test build tasks.
+Functions lint/build and both sender guard tests pass. The independent review's
+iOS local-mode precedence and Android registration-readiness findings are fixed.
+No registration, real delivery, deployment or shared business write was performed.
+
+#### iPhone 11 installation checkpoint — 2026-10-04
+
+The connected iPhone 11 runs iOS 27.2. The Debug app is built and installed, with
+its bundle/project/app identity, `aps-environment=development`, development
+signing and device provisioning verified. The rehearsal has not been launched or
+registered, and no FCM message has been sent. The installed SDK configuration was
+read from the existing Firebase Debug app and is ignored by Git.
+
+A preflight review caught an early cached-token callback that could export a
+stale destination before APNs. The export now clears on launch and waits for the
+explicit token fetch after APNs; later token changes can update it. Nil tokens
+clear the file. The independent reviewer rechecked the correction. Four focused
+Swift Testing cases pass on iPhone 17 / iOS 27.2 (including the destination
+lifecycle regression and existing AppDelegate policy test); physical Debug
+build-for-testing passes. Existing test-target AppIntents metadata warnings
+remain. This checkpoint does not establish APNs/FCM receipt.
+
+#### First authorized iPhone attempt — 2026-10-04
+
+The maintainer authorized registration and at most three notices to this iPhone
+only, and confirmed the sample screen open. Fresh APNs/FCM registration exported
+the private destination. One foreground HTTP v1 POST was submitted and rejected:
+HTTP 401, `UNAUTHENTICATED`, `THIRD_PARTY_AUTH_ERROR`. Zero accepted targets and no
+foreground callback were observed. This points to missing/invalid APNs credentials
+for the Debug app, not to a demonstrated coverage-navigation defect. See the
+[FCM error reference](https://firebase.google.com/docs/cloud-messaging/error-codes).
+The precise missing/invalid credential is not yet identified. Two authorized
+attempts remain unused; no retries or background/cold sends were performed.
+
+A sender preflight found Admin SDK internal retries; the iOS rehearsal now uses
+a single native-fetch POST, redirects disabled and a 15-second timeout. Seven
+sender tests, Functions lint/build, and independent review pass. Android's SDK
+transport remains unchanged; its internal retry behavior must be accounted for
+before promising a strict number of HTTP attempts on that platform.
+
+Firebase Cloud Messaging settings were opened read-only, but the browser requires
+sign-in. No APNs key/certificate, Firebase configuration, production app, or business
+record was changed. Retain the private destination and first redacted receipt
+only for this pending session; clean up after completion as above.
+
+#### APNs configuration diagnosed — 2026-10-04
+
+After the maintainer signed into Firebase, Cloud Messaging settings were inspected
+read-only at `settings/cloudmessaging/ios:com.plusprojects.Reguerta.debug` in
+`reguerta-9f27f`. The selected app is iOS Reguerta Debug. The console explicitly
+reports no development or production APNs authentication key and no development
+or production APNs certificate. The missing Debug configuration explains the
+first `THIRD_PARTY_AUTH_ERROR`; this is not evidence of a shift-routing regression.
+
+Next: check whether an existing retained `.p8` is active in the matching Apple
+team and permits Sandbox plus the Debug bundle. Do not assume a Production-only
+or other-topic key is reusable. Configure only the Debug development key after
+authorization; credential entry requires the maintainer. No key has been located,
+created, uploaded, replaced or revoked in this inspection. No additional send was
+made; two authorized attempts remain. The console stays on the Debug APNs section.
+
+#### Development key uploaded; foreground receipt observed — 2026-10-04
+
+The maintainer reports uploading the retained APNs key. Read-only Firebase UI
+verification confirms a development authentication key in iOS Reguerta Debug,
+with the same Apple team as the signed Debug app. The agent did not upload or
+modify the key. Production APNs configuration was not changed by the agent.
+
+The Debug rehearsal was relaunched on the connected iPhone 11 and a fresh
+post-APNs destination exported; its token hash matches the first attempt.
+Authorized attempt 2: exactly one HTTP v1 POST, accepted for one target. The app
+console records one `Foreground push received` callback and zero APNs registration
+errors. This confirms real foreground receipt after configuring the development
+key. The maintainer's confirmation of banner tapping and case opening is pending.
+One of the three authorized attempts remains; background/cold checks remain pending.
+
+The maintainer confirms that tapping the received foreground notice opens the
+sample coverage detail on the physical iPhone 11. Foreground receipt and tap are
+now confirmed. Next: background receipt/tap, using the last authorized attempt.
+Cold-start delivery remains pending and will require one additional authorized
+attempt because the initial APNs configuration rejection consumed attempt 1.
+
+After the maintainer confirmed the app on the Home Screen in the background,
+authorized attempt 3 submitted one HTTP v1 POST and was accepted for one target.
+Receipt: `/tmp/hu084-iphone-push-0g9rul0r/03-background-receipt.json`. Physical
+arrival and tap remain pending maintainer confirmation. All three authorized
+attempts are now consumed; do not send the cold-start check without additional
+authorization.
+
+The maintainer confirms the background notice worked and opened shift coverage,
+then reports the app closed. Device process inspection no longer lists the
+installed Debug executable. Background receipt/tap is passed; cold launch is
+prepared but no fourth message has been sent. The first rejected attempt counts
+against the explicit three-attempt authorization, so one more is requested.
+
+The maintainer explicitly authorizes one additional attempt for cold launch. Before
+submission, device process inventory confirms the installed Debug executable is
+absent. Attempt 4 makes one HTTP v1 POST and FCM accepts one target. The post-send
+inventory shows a new Debug process (PID 2087); the agent did not launch the app.
+Direct sample-case opening still awaits explicit maintainer confirmation after
+this delivery. Receipt: `/tmp/hu084-iphone-push-0g9rul0r/04-cold-receipt.json`.
+The extra one-attempt authorization is consumed; no further sends are authorized.
+
+#### Final iPhone transport acceptance — 2026-10-04
+
+After attempt 4, the maintainer confirms that the app opened the sample coverage.
+All three real APNs/FCM states pass on the physical iPhone 11: foreground,
+background and process closed. Four single-POST attempts were made in total:
+one rejected for missing Debug APNs configuration, then three accepted deliveries
+with maintainer-confirmed opening after the development key was configured.
+Android's three real-delivery checks remain pending. This acceptance covers
+transport and native opening of the in-memory sample; it does not validate
+authenticated backend commands, business writes or production activation.
+
+Cleanup verified on the same Debug installation: the persisted remote-rehearsal
+preference is absent/false after an offline launch, and the exported destination
+was overwritten with `{}` and read back without a token. Both private host
+destination copies and the temporary preferences copy were removed; redacted
+receipts remain available. Only the verified Debug process was stopped. The
+maintainer's APNs key remains configured; no further notification was sent.
+
+#### Android connection and APK preflight — 2026-10-04
+
+The Xiaomi 21081111RG (Android 14 / API 34) is authorized and visible to ADB
+after moving its cable to another direct Mac port. Before that change macOS
+listed no phone over USB, while Studio connected successfully to ADB; there is
+no evidence that the Android Studio update caused the missing device.
+
+The real Debug SDK configuration was fetched read-only and checked against the
+project/app IDs above. `app:assembleDebug -PcoverageRemotePushRehearsal=true`
+passes. Inspection of the final APK confirms the Debug package/signature, the
+remote rehearsal service (without the business device service), and the rehearsal
+activity in the default process. A private copy of the previously installed
+Debug APK is retained for restoration. Notification permission is currently off.
+The rehearsal APK has not been installed/launched and registration/sends remain
+pending Android-specific authorization. The existing Android transport can retry
+internally (up to five HTTP attempts per logical submission), so three planned
+state checks must not be represented as a strict three-POST limit.
+
+The maintainer subsequently authorized this Android Debug registration and the
+three logical state checks, including normal SDK retries. Installation/update
+and launcher redirection to the isolated rehearsal succeeded. `onRegistered`
+exported the confirmed installation destination; its private host copy passes the
+offline sender plan for exactly this Debug app. No send yet: Android's notification
+permission dialog is still awaiting the maintainer's response.
+
+#### Android foreground transport acceptance — 2026-10-04
+
+On the same Xiaomi 21081111RG / Android 14 / API 34, `POST_NOTIFICATIONS` is now
+granted and `CoverageRehearsalActivity` was resumed before the first logical FCM
+send from `reguerta-9f27f`. The registered destination had already passed the
+offline sender plan. FCM accepted one target (`acceptedTargetCount=1`), and the
+maintainer confirms receiving the notice, tapping it and opening the sample
+coverage. Foreground transport and opening pass. Background and process-closed
+checks remain pending; two authorized logical sends remain. Receipt:
+`/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/hu084-android-push-uyn4qyns/01-foreground-receipt.json`.
+
+The second logical send was accepted for one target. Before sending, activity
+inspection showed the MIUI launcher resumed and Debug PID 15319 still running,
+establishing the background state. The maintainer then confirms receipt and
+opening of the sample coverage, so background transport and opening pass. Only
+the process-closed check remains pending, with one authorized logical send left.
+Evidence in the same private directory: `02-background-preflight.json` and
+`02-background-receipt.json`.
+
+The third logical send was accepted for one target after the maintainer returned
+to Home and the Debug process was terminated with `am kill`. Pre-send inspection
+confirmed the MIUI launcher resumed, no Debug package process or subprocess,
+`stopped=false` and notification permission granted. No force-stop was used.
+The maintainer confirms receipt and opening, then clarifies that only the Recents
+card remained and the app was not reopened manually. Together with the verified
+pre-send process absence, this confirms the process-closed case passes.
+All three authorized logical sends are consumed; no further sends are authorized.
+Evidence in the same directory: `03-cold-preflight.json` and `03-cold-receipt.json`.
+
+Final Android result: all three authorized logical sends were accepted for one
+target each, with receipt, tap and sample-case opening confirmed in foreground,
+background and process-closed states. The real transport matrix now passes 3/3
+on both the physical Xiaomi and iPhone. This verifies transport and native sample
+opening, not authenticated backend commands, business writes or production
+activation.
+
+Android cleanup is complete: after all sends and confirmations, Debug was stopped
+and its private destination export removed. The exact previously installed Debug
+APK was restored and its on-device SHA-256 matched the saved baseline. App data
+was preserved. The host destination and both temporary APK copies were deleted;
+normal Firebase registration was not revoked. Redacted receipts and
+`cleanup-verification.json` remain in the private evidence directory. No further
+send occurred during cleanup.

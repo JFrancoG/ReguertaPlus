@@ -51,11 +51,14 @@
 - [x] Reuse the trusted HU-082 barrier and backend-only operator authorization
   to recover verified projection/inbox and classify interrupted push submissions
   locally, retaining conflict reservations, audit history and closed writers.
-- [ ] Complete real OS push delivery, Android notification-tray acceptance and
-  real multi-service controls/destination admission; the demo worker is not live.
+- [x] Complete isolated real OS push delivery and native notification opening on
+  both physical platforms in foreground, background and process-closed states.
+- [ ] Complete real multi-service controls/destination admission; the demo worker
+  and the isolated transport rehearsal are not live coverage integration.
 - [x] Add opt-in native role/cancellation acceptance with enlarged text and fresh
   read-back; validate both Android phone sizes and retain iOS visual evidence.
-- [ ] Complete physical assistive-technology acceptance and remaining device coverage.
+- [x] Complete the bounded physical assistive-technology journeys and native device
+  matrix recorded in `review.md`, including API 29 and maximum-text/keyboard rechecks.
 - [ ] Complete Android/iOS, Sheets and notification integration (outcome group 3).
 
 Detailed tasks below describe the complete live feature. An emulator-only subset
