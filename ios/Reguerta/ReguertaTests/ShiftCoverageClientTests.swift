@@ -4,6 +4,31 @@ import Testing
 
 @MainActor
 struct ShiftCoverageClientTests {
+    @Test(arguments: [
+        ("pending", "en", "Pending credit"),
+        ("consumed", "en", "Credit used"),
+        ("cancelled", "en", "Credit cancelled after permanent departure"),
+        ("pending", "es", "Crédito pendiente"),
+        ("consumed", "es", "Crédito utilizado"),
+        ("cancelled", "es", "Crédito anulado por baja permanente")
+    ])
+    func creditHistoryRetainsItsMeaningAfterReadingTheServer(
+        _ state: String,
+        language: String,
+        expectedLabel: String
+    ) async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: "\"state\": \"pending\"",
+            with: "\"state\": \"\(state)\""
+        )
+        await harness.model.refresh()
+        let credit = try #require(harness.model.snapshot?.credits.first)
+        var label = CoverageCopy.creditState(credit.state)
+        label.locale = Locale(identifier: language)
+        #expect(String(localized: label) == expectedLabel)
+    }
+
     @Test func timedVolunteersCanBeOfferedImmediatelyWithinTheRemainingPhase() async throws {
         let harness = try CoverageClientHarness()
         harness.transport.overview = harness.transport.overview

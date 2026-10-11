@@ -19,6 +19,7 @@
     <string name="coverage_no_credits">Todavía no tienes créditos ganados.</string>
     <string name="coverage_credit_pending">Crédito pendiente</string>
     <string name="coverage_credit_consumed">Crédito utilizado</string>
+    <string name="coverage_credit_cancelled">Crédito anulado por baja permanente</string>
     <string name="coverage_reserve_active">Reserva activa</string>
     <string name="coverage_reserve_inactive">Reserva finalizada</string>
     <string name="coverage_delivery">Reparto</string>

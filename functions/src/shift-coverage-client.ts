@@ -1,4 +1,6 @@
-import {refreshCoverageSelection} from "./shift-coverage-selection.js";
+import {firstDueOrdinaryShift} from "./shift-membership-lifecycle.js";
+import {CoverageReserve, refreshCoverageSelection} from
+  "./shift-coverage-selection.js";
 import {readCoverageNotificationInbox, readCoverageNotificationReference} from
   "./shift-coverage-notification.js";
 import {readShiftCoverageChoices} from "./shift-coverage-choices.js";
@@ -181,6 +183,15 @@ export const createShiftCoverageClientReader = (
     if (credits.size > 250 || reserves.size > 2) {
       return rejectCoverage("coverage_read_limit");
     }
+    const ordinary = policy.selectionRequired && reserves.docs.some(
+      (document) => document.data().active) ? await transaction.get(
+        db.collection(`${root}/shifts`).limit(1001)) : null;
+    if (ordinary && ordinary.size > 1000) {
+      return rejectCoverage("membership_source_limit");
+    }
+    const ordinaryShifts = ordinary?.docs.map((document) => ({
+      id: document.id, shift: parseShiftPlanningPublicShiftDocument({
+        targetPath: document.ref.path, value: document.data()})})) ?? [];
     const choices = await readShiftCoverageChoices(
       db, transaction, {...actor, visibleMemberIds: projected.flatMap((item) =>
         [item.absentUserId, item.acceptedUserId, item.offer?.userId]
@@ -205,7 +216,7 @@ export const createShiftCoverageClientReader = (
             credit.consumedAtMillis : null};
       }),
       reserves: reserves.docs.map((document) => {
-        const reserve = document.data();
+        const reserve = document.data() as CoverageReserve;
         if (!["delivery", "market"].includes(reserve.type) ||
             document.id !== digest([reserve.type, actor.memberId])
               .split(":").at(-1) || typeof reserve.active !== "boolean" ||
@@ -213,7 +224,9 @@ export const createShiftCoverageClientReader = (
             reserve.enteredAtMillis < 0 || reserve.enteredAtMillis > now) {
           return rejectCoverage("invalid_coverage_reserve");
         }
-        return {type: reserve.type, active: reserve.active,
+        const due = reserve.active && policy.selectionRequired ?
+          firstDueOrdinaryShift(reserve, ordinaryShifts, now) : undefined;
+        return {type: reserve.type, active: reserve.active && !due,
           enteredAtMillis: reserve.enteredAtMillis};
       })};
   });

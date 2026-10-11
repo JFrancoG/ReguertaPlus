@@ -16,6 +16,7 @@ export type CoverageReserve = {
   active: boolean;
   enteredAtMillis: number;
   revision: number;
+  admissionAfterRound?: number;
 };
 
 export type CoverageCandidate = {

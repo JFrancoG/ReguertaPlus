@@ -32,7 +32,7 @@ export const parseShiftCoverageCredit = (
   if (!credit || credit.schemaVersion !== 1 ||
       credit.policyRevision !== SHIFT_COVERAGE_POLICY_REVISION ||
       !["delivery", "market"].includes(credit.type) ||
-      !["pending", "consumed"].includes(credit.state) ||
+      !["pending", "consumed", "cancelled"].includes(credit.state) ||
       !Number.isSafeInteger(credit.earnedAtMillis) ||
       credit.earnedAtMillis < 0 ||
       !Number.isSafeInteger(credit.completionRevision) ||
@@ -43,6 +43,14 @@ export const parseShiftCoverageCredit = (
     "type", "userId", "state", "earnedAtMillis", "completionRevision"];
   if (credit.state === "consumed") {
     keys.push("consumedByPlanId", "consumedAtMillis");
+  }
+  if (credit.state === "cancelled") {
+    keys.push("cancelledByMembershipOperationId", "cancelledAtMillis");
+    coverageId(credit.cancelledByMembershipOperationId);
+    if (!Number.isSafeInteger(credit.cancelledAtMillis) ||
+        credit.cancelledAtMillis < credit.earnedAtMillis) {
+      return rejectCoverage("invalid_coverage_credit");
+    }
   }
   if (Object.keys(credit).sort().join() !== keys.sort().join()) {
     return rejectCoverage("invalid_coverage_credit");

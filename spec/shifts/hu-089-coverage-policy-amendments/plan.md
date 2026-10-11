@@ -25,7 +25,7 @@ The same local server can rehearse the amended policy with an explicit policy JS
 {"maximumOfferWindowMillis":604800000,"selectionPolicy":{"version":"hu089-provisional-v1"}}
 ```
 
-This remains a fixed-emulator opt-in. No migration of old synthetic cases or activation in shared environments is performed. Reserve exit, permanent-departure credit cancellation and 10-week ordinary delivery spacing remain pending.
+This remains a fixed-emulator opt-in. No migration of old synthetic cases or activation in shared environments is performed. At the first checkpoint, reserve exit, permanent-departure credit cancellation and 10-week ordinary delivery spacing were still pending. The lifecycle block below records the next implemented scope.
 
 ## Validation of the connected block
 
@@ -36,3 +36,41 @@ This remains a fixed-emulator opt-in. No migration of old synthetic cases or act
 Two native regression cases per platform exercise the real repository decoding/presentation path: immediate next-volunteer action with a bounded draft, and mandatory selection versus legacy direct-offer behavior. The backend projection test verifies clock-based phase catch-up, unchanged persisted revision/data and absence of private timing/candidate records. Swift source-style review covered the five changed Swift files; its only heuristic candidate belongs to an unchanged tuple fixture.
 
 The previous physical accessibility/push evidence is not claimed as a rerun of HU-089. No shared deploy, real push or business-data write occurred.
+
+
+## Reserve and permanent-departure block — 2026-10-11
+
+Implemented through the existing HU-089 opt-in store. New reserve entries freeze an
+admission round boundary. The first due ordinary owner position after that boundary
+and entry time ends reserve, even with another effective assignee. Helpers,
+substitutions and old frozen positions before re-entry do not count. Future cohort
+publication does not exit early. Reads and selection/acceptance apply the same due
+predicate before administrative reconciliation persists its audited exit.
+
+Permanent departure is an explicit administrative `permanentDepartureReason` on
+`reconcileMembership`, accepted only for inactive/missing members. Inactivity alone
+keeps compensation. Membership, both reserves, pending-credit cancellation, matching
+claim release, type-ledger increments and exact audit images commit together. A
+later completion records historical service with an already cancelled credit;
+reactivation starts a new reserve entry and cannot resurrect cancelled history.
+Cancelled credits pass shared publication parsing but never exempt their ordinary
+owner; source checks prevent older forward/inverse operations restoring that balance.
+
+Both native clients decode and distinctly display cancelled credit history in
+English and Spanish. See [ADR-0015](../../../docs/decisions/0015-record-explicit-coverage-membership-lifecycle.md)
+and its [Spanish version](../../../docs-es/decisions/0015-registrar-ciclo-explicito-de-pertenencia-en-coberturas.md).
+
+The amended reader/selection refuses active legacy reserves without a captured
+entry boundary. It does not invent migration evidence. The administrative native
+command UI, periodic live reconciliation and legacy-data migration belong to the
+pending shared integration/activation, not this local implementation.
+
+Validation completed:
+
+- Functions lint/build and 52 focused pure tests passed. The full Firestore/Rules/workflow run passed 144/144 (129 prior + 15 lifecycle regressions); Auth/HTTP passed 22/22, all without skips/failures. Logs: `/tmp/hu089-lifecycle-functions-final.log`.
+- Two new pure publication tests passed under Node 22; the permanent-cancellation forward/inverse CAS regression passed separately 1/1 in the fixed emulator (`/tmp/hu089-lifecycle-publication-cas.log`). These three tests were added after the full suite had loaded its files and are recorded separately rather than inflating its count.
+- Android: 506 unit tests passed; lint passed with zero errors and the existing 135 warnings/two hints. The standard connected API 29 run passed 23 ordinary tests; four opt-in Coverage/Sheets journeys exited through their existing assumptions (reported as failures in XML while Gradle succeeds). No physical accessibility run is claimed. Logs: `/tmp/hu089-lifecycle-android.log`, `/tmp/hu089-lifecycle-android-connected-standard.log`.
+- iOS: canonical release gate passed on Xcode 27.1 / iPhone 17 iOS 26.5 (`091D93C1-5A53-40D0-887E-83F81A8E0326`): 925 passed, five expected opt-in/conditional skips, zero failures/runtime warnings. Lint 511 files clean; Debug/Release builds passed. Result: `/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/hu089-lifecycle-ios-yogrehp3/release-gate.xcresult`. Synthetic Firebase configurations were restored exactly.
+- Independent backend/native/documentation review completed, including the four Swift source files and EN/ES ADR parity. In-scope findings were fixed and their regressions passed; final `git diff --check` is clean.
+
+The maintainer requested commit and push of the validated lifecycle block on 2026-10-11. This delivery includes backend, both native clients, regression tests and bilingual ADR-0015 on `codex/hu-089-coverage-policy-amendments`, following `1fc072b4`. The tracker records the resulting commit after remote verification. No deployment, live notification or real-data mutation is included. Ten-week spacing and final story review remain pending.

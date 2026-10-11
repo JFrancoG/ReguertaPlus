@@ -64,7 +64,10 @@ export const parseShiftMembershipPlanningSource = (
           .split(":").at(-1) || !Number.isSafeInteger(reserve.revision) ||
         reserve.revision < 1 || reserve.revision >= Number.MAX_SAFE_INTEGER ||
         !Number.isSafeInteger(reserve.enteredAtMillis) ||
-        reserve.enteredAtMillis < 0) {
+        reserve.enteredAtMillis < 0 ||
+        (reserve.admissionAfterRound !== undefined &&
+          (!Number.isSafeInteger(reserve.admissionAfterRound) ||
+            reserve.admissionAfterRound < 0))) {
       return rejectCoverage("invalid_coverage_reserve");
     }
   }

@@ -1,8 +1,9 @@
+import {firstDueOrdinaryShift} from "./shift-membership-lifecycle.js";
 import {buildShiftCoverageEffects} from "./shift-coverage-effects.js";
 import {VerifiedIdentity} from "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {createShiftCoverageClientReader} from "./shift-coverage-client.js";
-import {createShiftMembershipReconciliation} from
+import {createShiftMembershipReconciliation, readShiftMembershipState} from
   "./shift-membership-reconciliation.js";
 import {buildShiftCoverageOpening,
   shiftCoverageOwnershipDigest as ownership} from
@@ -90,7 +91,8 @@ export const createProvisionalShiftCoverageStore = (options: {
 
   return {
     ...createShiftCreditRehearsal(db, nowMillis),
-    ...createShiftMembershipReconciliation(db, nowMillis),
+    ...createShiftMembershipReconciliation(db, nowMillis,
+      selectionPolicy?.version === "hu089-provisional-v1"),
     close: () => db.terminate(),
     readClient: createShiftCoverageClientReader(db, nowMillis, {
       ...(selectionPolicy?.version === "hu089-provisional-v1" ?
@@ -248,6 +250,10 @@ export const createProvisionalShiftCoverageStore = (options: {
           if ([users, reserves, claims].some((items) => items.size > 250)) {
             return rejectCoverage("coverage_selection_source_limit");
           }
+          const ordinaryShifts = selectionPolicy?.version ===
+            "hu089-provisional-v1" ? shifts.docs.map((document) => ({
+              id: document.id, shift: parseShiftPlanningPublicShiftDocument({
+                targetPath: document.ref.path, value: document.data()})})) : [];
           const reserveByUser = new Map<string, CoverageReserve>();
           for (const document of reserves.docs) {
             const value = document.data() as CoverageReserve;
@@ -259,9 +265,15 @@ export const createProvisionalShiftCoverageStore = (options: {
                 !Number.isSafeInteger(value.revision) || value.revision < 1) {
               return rejectCoverage("invalid_coverage_reserve");
             }
-            reserveByUser.set(id, {userId: id, type: shift.type,
-              active: value.active, enteredAtMillis: value.enteredAtMillis,
-              revision: value.revision});
+            if (value.admissionAfterRound !== undefined &&
+                (!Number.isSafeInteger(value.admissionAfterRound) ||
+                  value.admissionAfterRound < 0)) {
+              return rejectCoverage("invalid_coverage_reserve");
+            }
+            const due = value.active && selectionPolicy?.version ===
+              "hu089-provisional-v1" ?
+              firstDueOrdinaryShift(value, ordinaryShifts, now) : undefined;
+            reserveByUser.set(id, {...value, active: value.active && !due});
           }
           const claimed = new Set(claims.docs.filter((item) =>
             !isReleasedShiftCoverageClaim(item.data())).map((item) => {
@@ -372,6 +384,15 @@ export const createProvisionalShiftCoverageStore = (options: {
           "accept"].includes(command.action) ? coverageMember(
             (await transaction.get(ref("users", candidateId))).data(),
           ) : null;
+        const completionMembership = command.action === "complete" &&
+          candidateId ? readShiftMembershipState((await transaction.get(
+            ref("shiftMembershipState", candidateId))).data(), candidateId) :
+          null;
+        if (completionMembership && now <
+            completionMembership.observedAtMillis) {
+          return rejectCoverage("invalid_coverage_clock");
+        }
+        const departure = completionMembership?.permanentDeparture;
         const pending = () => {
           if (shift.completion.state !== "uncompleted" ||
               shift.status === "swap_pending" || shift.date.toMillis() <= now) {
@@ -626,6 +647,11 @@ export const createProvisionalShiftCoverageStore = (options: {
                 type: shift.type,
                 userId: candidateId, state: "pending", earnedAtMillis: now,
                 completionRevision: completion.revision};
+              if (departure) {
+                credit = {...credit, state: "cancelled",
+                  cancelledByMembershipOperationId: departure.operationId,
+                  cancelledAtMillis: now};
+              }
               next.status = "completed";
               next.creditId = credit.id;
               claimAction = "credit";
@@ -661,8 +687,11 @@ export const createProvisionalShiftCoverageStore = (options: {
         if (claimAction === "release" && claimRef) transaction.delete(claimRef);
         if (claimRef && (claimAction === "hold" || claimAction === "credit")) {
           transaction.set(claimRef, {caseId: next.id, userId: candidateId,
-            type: shift.type, state: claimAction === "hold" ?
-              "accepted" : "creditPending"});
+            type: shift.type, ...(credit?.state === "cancelled" ? {
+              state: "released", cancelledAtMillis: credit.cancelledAtMillis,
+              cancelledByMembershipOperationId:
+                credit.cancelledByMembershipOperationId} :
+              {state: claimAction === "hold" ? "accepted" : "creditPending"})});
         }
         if (credit) {
           transaction.create(creditRef, credit);

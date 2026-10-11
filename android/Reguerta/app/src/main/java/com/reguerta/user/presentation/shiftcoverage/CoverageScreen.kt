@@ -179,13 +179,19 @@ private fun CoverageAccounting(snapshot: ShiftCoverageSnapshot) {
         if (snapshot.credits.isEmpty()) Text(stringResource(R.string.coverage_no_credits))
         snapshot.credits.forEach { credit ->
             Text(stringResource(coverageKindLabel(credit.type)))
-            Text(stringResource(if (credit.state == ShiftCoverageSnapshot.CreditState.pending) R.string.coverage_credit_pending else R.string.coverage_credit_consumed))
+            Text(stringResource(coverageCreditStateLabel(credit.state)))
         }
         snapshot.reserves.forEach { reserve ->
             Text(stringResource(coverageKindLabel(reserve.type)))
             Text(stringResource(if (reserve.active) R.string.coverage_reserve_active else R.string.coverage_reserve_inactive))
         }
     }
+}
+
+internal fun coverageCreditStateLabel(state: ShiftCoverageSnapshot.CreditState): Int = when (state) {
+    ShiftCoverageSnapshot.CreditState.pending -> R.string.coverage_credit_pending
+    ShiftCoverageSnapshot.CreditState.consumed -> R.string.coverage_credit_consumed
+    ShiftCoverageSnapshot.CreditState.cancelled -> R.string.coverage_credit_cancelled
 }
 
 internal fun coverageDate(millis: Long): String = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)

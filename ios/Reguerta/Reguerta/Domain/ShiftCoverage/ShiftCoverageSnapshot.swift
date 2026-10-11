@@ -31,7 +31,7 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
     enum Status: String, Decodable { case open, offered, accepted, completed, cancelled, failed }
     enum Phase: String, Decodable { case reserve, volunteers, drawRequired, draw, adminRequired }
     enum OfferSource: String, Decodable { case admin, reserve, volunteer, draw }
-    enum CreditState: String, Decodable { case pending, consumed }
+    enum CreditState: String, Decodable { case pending, consumed, cancelled }
 
     struct Policy: Decodable, Equatable {
         let maximumOfferWindowMillis: Int64

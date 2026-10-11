@@ -19,6 +19,7 @@
     <string name="coverage_no_credits">No earned credits yet.</string>
     <string name="coverage_credit_pending">Pending credit</string>
     <string name="coverage_credit_consumed">Credit used</string>
+    <string name="coverage_credit_cancelled">Credit cancelled after permanent departure</string>
     <string name="coverage_reserve_active">Active reserve</string>
     <string name="coverage_reserve_inactive">Reserve completed</string>
     <string name="coverage_delivery">Delivery</string>

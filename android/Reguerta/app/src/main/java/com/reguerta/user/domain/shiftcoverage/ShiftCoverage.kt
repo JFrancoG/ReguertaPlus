@@ -35,7 +35,7 @@ internal data class ShiftCoverageSnapshot(
     @Serializable
     enum class OfferSource { admin, reserve, volunteer, draw }
     @Serializable
-    enum class CreditState { pending, consumed }
+    enum class CreditState { pending, consumed, cancelled }
 
     @Serializable
     data class Policy(

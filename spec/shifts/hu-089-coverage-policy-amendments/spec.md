@@ -17,3 +17,17 @@ Exit reserves at first ordinary same-type due date. Cancel pending credits on pe
 Require 10 weeks between ordinary delivery-lead assignments in different rounds. Helpers/markets/substitutions are exempt. Record authorized force-majeure exceptions without relaxing lead/helper safety, changing published dates or silently reordering the queue.
 
 No shared deployment, real push, production writes or collective approval is implied. Real entropy and general live integration remain in HU-084. Native parity must be reconciled before completion.
+
+
+## Local lifecycle contract
+
+Permanent departure is recorded explicitly by an administrator in membership
+reconciliation, with `permanentDepartureReason`, against an inactive/missing member.
+Inactivity alone retains credits. Terminal `cancelled` credits retain earned-service
+history and the original departure receipt; active re-entry clears the current
+declaration but does not restore cancelled balances. See [ADR-0015](../../../docs/decisions/0015-record-explicit-coverage-membership-lifecycle.md).
+
+Reserve entries freeze their admission round boundary. Ordinary due-time evaluation
+uses the original rotation owner, not the effective assignee, and excludes old
+positions from an earlier entry generation. Read-only projections and reserve
+offer/acceptance apply the same predicate even before persisted reconciliation.

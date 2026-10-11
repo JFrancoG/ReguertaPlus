@@ -134,10 +134,14 @@ export const parseShiftCreditPublicationSources = (
       coverageId(data.caseId);
       if (data.state === "released") {
         if (!isReleasedShiftCoverageClaim(data) || !credits.some((credit) =>
-          credit.state === "consumed" && credit.id === data.caseId &&
-          credit.userId === data.userId &&
-          credit.consumedByPlanId === data.consumedByPlanId &&
-          credit.consumedAtMillis === data.consumedAtMillis)) {
+          credit.id === data.caseId && credit.userId === data.userId &&
+          (credit.state === "consumed" ?
+            credit.consumedByPlanId === data.consumedByPlanId &&
+            credit.consumedAtMillis === data.consumedAtMillis :
+            credit.state === "cancelled" &&
+            credit.cancelledByMembershipOperationId ===
+              data.cancelledByMembershipOperationId &&
+            credit.cancelledAtMillis === data.cancelledAtMillis))) {
           return rejectCoverage("invalid_coverage_claim");
         }
       } else if (Object.keys(data).sort().join() !==
@@ -159,15 +163,22 @@ export const parseShiftCreditPublicationSources = (
 // Released claims are retained for exact inverse CAS, but no longer block.
 export const isReleasedShiftCoverageClaim = (value: unknown): boolean => {
   const claim = value as Data | undefined;
-  return !!claim && claim.state === "released" &&
-    Object.keys(claim).sort().join() ===
-      "caseId,consumedAtMillis,consumedByPlanId,state,type,userId" &&
-    ["delivery", "market"].includes(String(claim.type)) &&
-    [claim.caseId, claim.userId, claim.consumedByPlanId].every((id) =>
-      typeof id === "string" &&
+  if (!claim || claim.state !== "released" ||
+      !["delivery", "market"].includes(String(claim.type))) return false;
+  const cancelled = Object.keys(claim).sort().join() ===
+    "cancelledAtMillis,cancelledByMembershipOperationId,caseId," +
+    "state,type,userId";
+  if (!cancelled && Object.keys(claim).sort().join() !==
+      "caseId,consumedAtMillis,consumedByPlanId,state,type,userId") {
+    return false;
+  }
+  const operationId = cancelled ? claim.cancelledByMembershipOperationId :
+    claim.consumedByPlanId;
+  const time = cancelled ? claim.cancelledAtMillis : claim.consumedAtMillis;
+  return [claim.caseId, claim.userId, operationId].every((id) =>
+    typeof id === "string" &&
       /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id)) &&
-    Number.isSafeInteger(claim.consumedAtMillis) &&
-    (claim.consumedAtMillis as number) >= 0;
+    Number.isSafeInteger(time) && (time as number) >= 0;
 };
 
 export const buildShiftCreditPublication = (input: {

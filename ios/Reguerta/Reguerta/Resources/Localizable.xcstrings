@@ -393,6 +393,24 @@
       }
     }
   },
+  "coverage.credit_cancelled": {
+    "comment": "Historical earned credit cancelled only on explicit permanent departure; it was not consumed by a shift",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Credit cancelled after permanent departure"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Crédito anulado por baja permanente"
+        }
+      }
+    }
+  },
   "coverage.reserve_active": {
     "localizations": {
       "en": {

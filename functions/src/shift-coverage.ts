@@ -66,7 +66,9 @@ export type ShiftCoverageCredit = {
   earnedAtMillis: number;
   completionRevision: number;
 } & ({state: "pending"} | {state: "consumed";
-  consumedByPlanId: string; consumedAtMillis: number});
+  consumedByPlanId: string; consumedAtMillis: number} |
+  {state: "cancelled"; cancelledByMembershipOperationId: string;
+    cancelledAtMillis: number});
 
 export const rejectCoverage = (code: string): never => {
   throw new HttpRequestError(409, code, "Coverage transition rejected");

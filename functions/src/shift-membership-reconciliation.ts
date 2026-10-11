@@ -1,3 +1,5 @@
+import {readDepartureCreditChanges, firstDueOrdinaryShift} from
+  "./shift-membership-lifecycle.js";
 import {SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT} from
   "./shift-planning-bundle.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
@@ -16,7 +18,7 @@ const root = "develop/plus-collections";
 const types = ["delivery", "market"] as const;
 const hash = (values: string[]) => digest(values).split(":").at(-1) as string;
 type Intent = {schemaVersion: 1; environment: "develop"; operationId: string;
-  userId: string; expectedRevision: number};
+  userId: string; expectedRevision: number; permanentDepartureReason?: string};
 export type MemberSource = {isActive: boolean; roles: string[];
   isCommonPurchaseManager: boolean} | null;
 export type MembershipState = {
@@ -26,6 +28,7 @@ export type MembershipState = {
   admissionAfterRound: {delivery: number; market: number};
   admissionRequired?: {delivery: boolean; market: boolean};
   pendingTypes?: {delivery: boolean; market: boolean};
+  permanentDeparture?: {operationId: string; reason: string; atMillis: number};
   frozenExclusion?: {reason: "excusedDeparture" | "excusedIneligible";
     revision: number};
 };
@@ -59,12 +62,25 @@ export const readShiftMembershipState = (
         !Number.isSafeInteger(state.frozenExclusion.revision) ||
         state.frozenExclusion.revision < 1 ||
         state.frozenExclusion.revision > state.revision)) ||
+      (state.permanentDeparture !== undefined &&
+        (!state.permanentDeparture || state.source?.isActive ||
+        !Number.isSafeInteger(state.permanentDeparture.atMillis) ||
+        state.permanentDeparture.atMillis < 0 ||
+        state.permanentDeparture.atMillis > state.observedAtMillis ||
+        typeof state.permanentDeparture.reason !== "string" ||
+        !state.permanentDeparture.reason.trim() ||
+        state.permanentDeparture.reason.length > 500 ||
+        Object.keys(state.permanentDeparture).sort().join() !==
+          "atMillis,operationId,reason")) ||
       state.eligible !== (state.source ?
         coverageMember(state.source).eligible : false) ||
       !types.every((type) => Number.isSafeInteger(
         state.admissionAfterRound?.[type]) &&
         state.admissionAfterRound[type] >= 0)) {
     return rejectCoverage("invalid_shift_membership_state");
+  }
+  if (state.permanentDeparture) {
+    coverageId(state.permanentDeparture.operationId);
   }
   return state;
 };
@@ -98,17 +114,24 @@ export const assertNoPendingShiftMembership = async (
  * independently. Receipts retain exact source time, actor and changes.
  * @param {Firestore} db Fixed provisional emulator client.
  * @param {Function} clock Trusted clock, reevaluated on transaction retries.
+ * @param {boolean} amendedLifecycle Explicit HU-089 local policy opt-in.
  * @return {object} Administrative reconciliation command.
  */
 export const createShiftMembershipReconciliation = (
-  db: Firestore, clock: () => number,
+  db: Firestore, clock: () => number, amendedLifecycle = false,
 ) => ({
   async reconcileMembership(value: unknown, actorMemberId: string) {
     const intent = value as Intent | undefined;
     if (!intent || intent.schemaVersion !== 1 ||
         intent.environment !== "develop" ||
-        Object.keys(intent).sort().join() !==
-        "environment,expectedRevision,operationId,schemaVersion,userId" ||
+        !["environment,expectedRevision,operationId,schemaVersion,userId",
+          ...(amendedLifecycle ? ["environment,expectedRevision,operationId," +
+            "permanentDepartureReason,schemaVersion,userId"] : [])]
+          .includes(Object.keys(intent).sort().join()) ||
+        (intent.permanentDepartureReason !== undefined &&
+          (typeof intent.permanentDepartureReason !== "string" ||
+            !intent.permanentDepartureReason.trim() ||
+            intent.permanentDepartureReason.length > 500)) ||
         !Number.isSafeInteger(intent.expectedRevision) ||
         intent.expectedRevision < 0 ||
         intent.expectedRevision >= Number.MAX_SAFE_INTEGER) {
@@ -161,7 +184,22 @@ export const createShiftMembershipReconciliation = (
           role.trim().toLowerCase()))].sort(),
         isCommonPurchaseManager: memberValue.isCommonPurchaseManager,
       } : null;
-      const changed = !previous || digest(previous.source) !== digest(source);
+      if (intent.permanentDepartureReason !== undefined && source?.isActive) {
+        return rejectCoverage(
+          "membership_permanent_departure_requires_inactive");
+      }
+      const permanentDeparture = source?.isActive ? undefined :
+        previous?.permanentDeparture ??
+        (intent.permanentDepartureReason !== undefined ? {operationId,
+          reason: intent.permanentDepartureReason.trim(), atMillis: now} :
+          undefined);
+      const changed = !previous ||
+        digest(previous.source) !== digest(source) ||
+        digest(previous.permanentDeparture ?? null) !==
+          digest(permanentDeparture ?? null);
+      const creditChanges = permanentDeparture ?
+        await readDepartureCreditChanges(
+          db, transaction, userId, permanentDeparture.operationId, now) : [];
       const reason = !source ? "member_missing" : !source.isActive ?
         "member_inactive" : !eligible ? "real_producer" :
           previous && !previous.eligible ? "eligibility_restored" :
@@ -183,7 +221,7 @@ export const createShiftMembershipReconciliation = (
       const reserves = await transaction.getAll(...types.map((type) =>
         ref("shiftCoverageReserves", hash([type, userId]))));
       const reserveChanges: {before: CoverageReserve | null;
-        after: CoverageReserve}[] = [];
+        after: CoverageReserve; ordinaryShiftId?: string}[] = [];
       const admissionAfterRound = {delivery: 0, market: 0};
       const admissionRequired = {...previous?.admissionRequired ??
         {delivery: false, market: false}};
@@ -213,16 +251,29 @@ export const createShiftMembershipReconciliation = (
             old.enteredAtMillis < 0 || old.enteredAtMillis > now)) {
           return rejectCoverage("invalid_coverage_reserve");
         }
-        if (entering || (old?.active && !eligible)) {
-          reserveChanges.push({before: old ?? null, after: {userId, type,
-            active: eligible, enteredAtMillis: entering ? now :
-              (old?.enteredAtMillis ?? now),
-            revision: (old?.revision ?? 0) + 1}});
+        if (old?.admissionAfterRound !== undefined &&
+            (!Number.isSafeInteger(old.admissionAfterRound) ||
+              old.admissionAfterRound < 0)) {
+          return rejectCoverage("invalid_coverage_reserve");
+        }
+        const due = amendedLifecycle && !entering && old?.active && eligible ?
+          firstDueOrdinaryShift(old, publicShifts, now) : undefined;
+        if (entering || (old?.active && (!eligible || due))) {
+          reserveChanges.push({before: old ?? null,
+            ...(due ? {ordinaryShiftId: due.id} : {}), after: {userId, type,
+              active: eligible && !due, enteredAtMillis: entering ? now :
+                (old?.enteredAtMillis ?? now),
+              revision: (old?.revision ?? 0) + 1,
+              ...(entering && amendedLifecycle ?
+                {admissionAfterRound: admissionAfterRound[type]} :
+                old?.admissionAfterRound !== undefined ?
+                  {admissionAfterRound: old.admissionAfterRound} : {})}});
         }
       }
       const next: MembershipState = {schemaVersion: 1,
         policyRevision: SHIFT_COVERAGE_POLICY_REVISION, userId,
         revision: (previous?.revision ?? 0) + (changed ? 1 : 0), source,
+        ...(permanentDeparture ? {permanentDeparture} : {}),
         ...(previous?.frozenExclusion ?
           {frozenExclusion: previous.frozenExclusion} : {}),
         ...(changed && !eligible ? {frozenExclusion: {
@@ -287,7 +338,7 @@ export const createShiftMembershipReconciliation = (
       }
       // Reconcile atomically, including unexpectedly large schedules.
       const writeCount = openings.length * 2 + reserveChanges.length + 1 +
-        Number(stateChanged);
+        Number(stateChanged) + creditChanges.length;
       if (writeCount > SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT) {
         return rejectCoverage("membership_transaction_oversize");
       }
@@ -296,7 +347,7 @@ export const createShiftMembershipReconciliation = (
         observedAtMillis: now, sourceUpdateTime: member.updateTime ? {
           seconds: member.updateTime.seconds,
           nanoseconds: member.updateTime.nanoseconds} : null,
-        authority, previous, result, reserveChanges};
+        authority, previous, result, reserveChanges, creditChanges};
       if (Buffer.byteLength(JSON.stringify(audit)) > 900_000) {
         return rejectCoverage("membership_transaction_oversize");
       }
@@ -307,6 +358,9 @@ export const createShiftMembershipReconciliation = (
       for (const {after} of reserveChanges) {
         transaction.set(
           ref("shiftCoverageReserves", hash([after.type, userId])), after);
+      }
+      for (const change of creditChanges) {
+        transaction.set(db.doc(change.targetPath), change.after);
       }
       for (const opening of openings) {
         transaction.create(ref("shiftCoverageCases", opening.caseId),

@@ -32,7 +32,7 @@ const rejectWithoutWrites = async (action, actor, extra, code) => {
   assert.deepEqual(await snapshot(), prior);
 };
 const reserve = async (userId, time = 1) => ref("shiftCoverageReserves", digest(["market", userId]).split(":").at(-1))
-  .set({schemaVersion: 1, userId, type: "market", active: true, enteredAtMillis: time, revision: 1});
+  .set({schemaVersion: 1, userId, type: "market", active: true, enteredAtMillis: time, revision: 1, admissionAfterRound: 0});
 
 before(() => {
   if (!enabled) return;
