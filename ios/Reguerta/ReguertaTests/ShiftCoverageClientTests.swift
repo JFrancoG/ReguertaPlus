@@ -1,0 +1,384 @@
+import Foundation
+import Testing
+@testable import Reguerta
+
+@MainActor
+struct ShiftCoverageClientTests {
+    @Test(arguments: [
+        ("pending", "en", "Pending credit"),
+        ("consumed", "en", "Credit used"),
+        ("cancelled", "en", "Credit cancelled after permanent departure"),
+        ("pending", "es", "Crédito pendiente"),
+        ("consumed", "es", "Crédito utilizado"),
+        ("cancelled", "es", "Crédito anulado por baja permanente")
+    ])
+    func creditHistoryRetainsItsMeaningAfterReadingTheServer(
+        _ state: String,
+        language: String,
+        expectedLabel: String
+    ) async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: "\"state\": \"pending\"",
+            with: "\"state\": \"\(state)\""
+        )
+        await harness.model.refresh()
+        let credit = try #require(harness.model.snapshot?.credits.first)
+        var label = CoverageCopy.creditState(credit.state)
+        label.locale = Locale(identifier: language)
+        #expect(String(localized: label) == expectedLabel)
+    }
+
+    @Test func timedVolunteersCanBeOfferedImmediatelyWithinTheRemainingPhase() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": \"volunteers\"")
+            .replacingOccurrences(
+                of: "\"volunteerClosesAtMillis\": null",
+                with: "\"volunteerClosesAtMillis\": 1800003600000, \"phaseClosesAtMillis\": 1800003600000"
+            )
+        await harness.model.refresh()
+        let snapshot = try #require(harness.model.snapshot)
+        let item = try #require(snapshot.cases.first)
+        #expect(harness.model.actions(for: item).contains(.offerNext))
+        let draft = CoverageCommandDraft(
+            action: .offerNext,
+            item: item,
+            snapshot: snapshot,
+            nowMillis: 1800000000000
+        )
+        #expect(draft.command?.expiresAtMillis == 1800003600000)
+        draft.deadline = Date(timeIntervalSince1970: 1800003601)
+        #expect(draft.command == nil)
+        draft.deadline = Date(timeIntervalSince1970: 1800000000)
+        #expect(draft.command == nil)
+    }
+
+    @Test func mandatorySelectionHidesDirectOfferButLegacyPolicyKeepsIt() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"revision\": 2", with: "\"revision\": 1")
+            .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": null")
+        await harness.model.refresh()
+        #expect(harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.offer))
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: "\"drawAvailable\": false",
+            with: "\"drawAvailable\": false, \"selectionRequired\": true"
+        )
+        await harness.model.refresh()
+        let actions = harness.model.actions(for: try #require(harness.model.snapshot?.cases.first))
+        #expect(actions.contains(.startSelection))
+        #expect(!actions.contains(.offer))
+    }
+
+    @Test(arguments: [false, true])
+    func returningDuringRequestRestoresOverviewWithoutReplayingUncertainCommand(_ command: Bool) async throws {
+        let harness = try CoverageClientHarness()
+        _ = await harness.model.openNotification("coverage-fixture-event")
+        harness.transport.loseFirstCommandResponse = command
+        harness.transport.whileRequestPending = {
+            harness.transport.whileRequestPending = nil
+            await Task.yield()
+            #expect(harness.model.isBusy)
+            await harness.model.refreshOverview()
+        }
+        if command {
+            await harness.model.submit(harness.command)
+        } else {
+            await harness.model.refresh()
+        }
+        #expect(harness.model.snapshot?.notification == nil)
+        #expect(harness.model.snapshot != nil)
+        #expect(!harness.model.isBusy)
+        #expect(harness.model.pendingCommand == (command ? harness.command : nil))
+        #expect(harness.transport.commands.count == (command ? 1 : 0))
+        await harness.model.refresh()
+        #expect(harness.model.snapshot?.notification == nil)
+        #expect(harness.transport.commands.count == (command ? 1 : 0))
+    }
+
+    @Test func notificationRefreshRetainsItsAuthorityUntilReturningToOverview() async throws {
+        let harness = try CoverageClientHarness()
+        #expect(await harness.model.openNotification("coverage-fixture-event") == "case-a")
+        await harness.model.refresh()
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+        await harness.model.refreshOverview()
+        #expect(harness.model.snapshot?.cases.first?.status == .offered)
+        #expect(harness.transport.commands.isEmpty)
+    }
+
+    @Test func notificationLoadsCurrentCaseWithoutReplayingTheOldOffer() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        let caseId = await harness.model.openNotification("coverage-fixture-event")
+        #expect(caseId == "case-a")
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+        #expect(harness.model.snapshot?.cases.first?.revision == 3)
+        #expect(harness.transport.commands.isEmpty)
+    }
+
+    @Test(arguments: ["event", "case", "revision", "member"])
+    func mismatchedNotificationCannotEnableNavigation(_ alteration: String) async throws {
+        let harness = try CoverageClientHarness()
+        let replacements = [
+            "event": ("coverage-fixture-event", "another-event"),
+            "case": (
+                "\"caseId\": \"case-a\",\n      \"caseRevision\"",
+                "\"caseId\": \"wrong-case\",\n      \"caseRevision\""
+            ),
+            "revision": ("\"caseRevision\": 2", "\"caseRevision\": 4"),
+            "member": ("\"memberId\": \"member-a\"", "\"memberId\": \"someone-else\"")
+        ]
+        let replacement = try #require(replacements[alteration])
+        harness.transport.notification = harness.transport.notification.replacingOccurrences(
+            of: replacement.0,
+            with: replacement.1
+        )
+        #expect(await harness.model.openNotification("coverage-fixture-event") == nil)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.model.failure == .invalidResponse)
+    }
+
+    @Test func notificationCompletionAfterSessionChangeCannotNavigateOrRestorePrivateState() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.beforeResponse = { harness.bind(revision: 2) }
+        #expect(await harness.model.openNotification("coverage-fixture-event") == nil)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.model.session?.authorizationRevision == 2)
+    }
+
+    @Test func notificationDoesNotDiscardAnUncertainCommand() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        harness.transport.loseFirstCommandResponse = true
+        await harness.model.submit(harness.command)
+        let requests = harness.transport.requests
+        #expect(await harness.model.openNotification("coverage-fixture-event") == nil)
+        #expect(harness.transport.requests == requests)
+        #expect(harness.model.pendingCommand == harness.command)
+    }
+
+    @Test func inboxAndAcceptanceUseThePrivateProjectionAndReadBack() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        #expect(harness.model.snapshot?.cases.first?.status == .offered)
+        #expect(harness.model.snapshot?.credits.first?.state == .pending)
+        #expect(harness.model.snapshot?.cases.first?.administration == nil)
+        await harness.model.submit(harness.command)
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+        #expect(harness.model.pendingCommand == nil)
+        #expect(harness.transport.commands.count == 1)
+    }
+
+    @Test func uncertainAcceptanceRetriesTheExactIntentAndPreventsAnotherMutation() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        harness.transport.loseFirstCommandResponse = true
+        await harness.model.submit(harness.command)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.model.pendingCommand == harness.command)
+        var other = harness.command
+        other.reason = "another intent"
+        await harness.model.submit(other)
+        #expect(harness.transport.commands.count == 1)
+        await harness.model.retryPending()
+        #expect(harness.transport.commands.count == 2)
+        let first = try JSONDecoder().decode(CoverageSentCommand.self, from: #require(harness.transport.commands.first))
+        let last = try JSONDecoder().decode(CoverageSentCommand.self, from: #require(harness.transport.commands.last))
+        #expect(first == last)
+        #expect(harness.model.pendingCommand == nil)
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+    }
+
+    @Test func successfulWriteWithFailedReadBackIsNotReplayed() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        harness.transport.failReadBack = true
+        await harness.model.submit(harness.command)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.model.pendingCommand == nil)
+        await harness.model.retryPending()
+        #expect(harness.transport.commands.count == 1)
+        harness.transport.failReadBack = false
+        await harness.model.refresh()
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+    }
+
+    @Test func authorizationChangeDuringTokenRefreshPreventsAnyHTTP() async throws {
+        let harness = try CoverageClientHarness()
+        harness.onToken = { harness.bind(revision: 2) }
+        await harness.model.refresh()
+        #expect(harness.transport.requests == 0)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.model.session?.authorizationRevision == 2)
+        harness.onToken = nil
+        await harness.model.refresh()
+        #expect(harness.model.snapshot != nil)
+    }
+
+    @Test func oldSessionHTTPCompletionCannotPopulateTheNewSession() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.beforeResponse = { harness.bind(revision: 2) }
+        await harness.model.refresh()
+        #expect(harness.model.snapshot == nil)
+        #expect(!harness.model.isBusy)
+        harness.transport.beforeResponse = nil
+        await harness.model.refresh()
+        #expect(harness.model.snapshot != nil)
+    }
+
+    @Test(arguments: ["signed", "project", "uid"])
+    func productionAndMismatchedCredentialsNeverReachHTTP(_ alteration: String) async throws {
+        let harness = try CoverageClientHarness()
+        switch alteration {
+        case "signed": harness.token += "signature"
+        case "project": harness.token = CoverageClientHarness.token(project: "reguerta-real", uid: "auth-a")
+        default: harness.token = CoverageClientHarness.token(project: "demo-reguerta-hu084-coverage", uid: "auth-b")
+        }
+        await harness.model.refresh()
+        #expect(harness.model.failure == .localOnly)
+        #expect(harness.transport.requests == 0)
+    }
+
+    @Test(arguments: ["member", "version", "status", "policy"])
+    func incompatibleOrForeignInboxCannotEnableCommands(_ alteration: String) async throws {
+        let harness = try CoverageClientHarness()
+        let replacements = [
+            "member": ("\"memberId\": \"member-a\"", "\"memberId\": \"someone-else\""),
+            "version": ("\"schemaVersion\": 1", "\"schemaVersion\": 2"),
+            "status": ("\"offered\"", "\"unknown\""),
+            "policy": ("hu084-provisional-v1", "unratified-v2")
+        ]
+        let replacement = try #require(replacements[alteration])
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: replacement.0,
+            with: replacement.1
+        )
+        await harness.model.refresh()
+        await harness.model.submit(harness.command)
+        #expect(harness.model.failure == .invalidResponse)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.transport.commands.isEmpty)
+    }
+
+    @Test func mismatchedReceiptStaysUncertainAndRevocationDropsPrivateState() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        harness.transport.wrongReceipt = true
+        await harness.model.submit(harness.command)
+        #expect(harness.model.pendingCommand != nil)
+        harness.transport.rejectionStatus = 401
+        await harness.model.retryPending()
+        #expect(harness.model.session == nil)
+        #expect(harness.model.snapshot == nil)
+        #expect(harness.model.pendingCommand == nil)
+    }
+
+    @Test(arguments: [400, 403, 409])
+    func definitiveRejectionClearsTheIntentAndRequiresFreshAuthority(_ status: Int) async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        harness.transport.rejectionStatus = status
+        await harness.model.submit(harness.command)
+        #expect(harness.model.pendingCommand == nil)
+        #expect(harness.model.snapshot == nil)
+        #expect(!harness.model.isBusy)
+        #expect((harness.model.session == nil) == (status == 403))
+        await harness.model.retryPending()
+        #expect(harness.transport.commands.count == 1)
+    }
+
+    @Test func cancellationAfterSendingKeepsTheIntentForExplicitReplay() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        var running: Task<Void, Never>?
+        harness.transport.beforeResponse = { running?.cancel() }
+        running = Task { await harness.model.submit(harness.command) }
+        await running?.value
+        #expect(harness.model.pendingCommand == harness.command)
+        #expect(harness.model.snapshot == nil)
+        #expect(!harness.model.isBusy)
+        harness.transport.beforeResponse = nil
+        await harness.model.retryPending()
+        #expect(harness.model.pendingCommand == nil)
+        #expect(harness.transport.commands.count == 2)
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+    }
+
+}
+
+extension ShiftCoverageClientTests {
+    @Test func administrativeOffersRemainAvailableAfterTheManagementDeadline() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"offerCandidate\": false", with: "\"offerCandidate\": true")
+            .replacingOccurrences(
+                of: "\"selectionPhase\": \"reserve\"",
+                with: "\"selectionPhase\": \"adminRequired\", \"phaseClosesAtMillis\": 1799996400000"
+            )
+        await harness.model.refresh()
+        let snapshot = try #require(harness.model.snapshot)
+        let item = try #require(snapshot.cases.first)
+        #expect(harness.model.actions(for: item).contains(.offerAdmin))
+        let draft = CoverageCommandDraft(
+            action: .offerAdmin,
+            item: item,
+            snapshot: snapshot,
+            nowMillis: 1800000000000
+        )
+        draft.memberId = "member-b"
+        draft.reason = "La gestión sigue pendiente"
+        #expect(draft.command?.expiresAtMillis == 1800086400000)
+        draft.deadline = Date(timeIntervalSince1970: 1800100000)
+        #expect(draft.command == nil)
+        draft.deadline = Date(timeIntervalSince1970: 1800000000)
+        #expect(draft.command == nil)
+
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: "\"adminRequired\"",
+            with: "\"volunteers\""
+        )
+        await harness.model.refresh()
+        #expect(!harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.offerNext))
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"volunteers\"", with: "\"adminRequired\"")
+            .replacingOccurrences(
+                of: "\"scheduledAtMillis\": 1800100000000",
+                with: "\"scheduledAtMillis\": 1800000000000"
+            )
+        await harness.model.refresh()
+        #expect(!harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.offerAdmin))
+    }
+
+    @Test(arguments: [Int64(1000), 59000])
+    func finalMinuteOffersKeepTheExactPhaseDeadline(_ remainingMillis: Int64) async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": \"volunteers\"")
+            .replacingOccurrences(
+                of: "\"volunteerClosesAtMillis\": null",
+                with: "\"volunteerClosesAtMillis\": 1800000059000, \"phaseClosesAtMillis\": 1800000059000"
+            )
+        await harness.model.refresh()
+        let snapshot = try #require(harness.model.snapshot)
+        let item = try #require(snapshot.cases.first)
+        #expect(harness.model.actions(for: item).contains(.offerNext))
+        let draft = CoverageCommandDraft(
+            action: .offerNext,
+            item: item,
+            snapshot: snapshot,
+            nowMillis: 1800000059000 - remainingMillis
+        )
+        #expect(draft.command?.expiresAtMillis == 1800000059000)
+        draft.deadline = Date(timeIntervalSince1970: 1800000060)
+        #expect(draft.command == nil)
+    }
+}

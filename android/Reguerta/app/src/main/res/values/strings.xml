@@ -637,4 +637,7 @@
     <string name="profile_shared_empty">There are no shared profiles yet.</string>
     <string name="profile_shared_saved_dialog_title">Profile saved</string>
     <string name="profile_shared_saved_dialog_message">Your community profile has been saved successfully.</string>
+    <string name="coverage_notifications">Coverage notifications</string>
+    <string name="coverage_no_notifications">No coverage notifications.</string>
+    <string name="coverage_notification_title">View updated coverage</string>
 </resources>

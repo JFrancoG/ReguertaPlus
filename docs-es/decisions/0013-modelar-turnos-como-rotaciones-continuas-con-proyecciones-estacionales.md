@@ -929,3 +929,185 @@ siendo independiente y no está aprobada.
 - HU-084 / issue #268
 - HU-085 / issue #269
 - ADR-0003: Usar Firebase como backend
+
+## Implementación local provisional de HU-084 — 2026-09-12
+
+El mantenedor autorizó implementar provisionalmente y probar en el emulador local
+antes de la ratificación de la asamblea. Esta excepción permite desarrollar el
+ciclo administrativo de cobertura con documentos canónicos de turnos en un proyecto
+demo fijo. Ningún endpoint productivo importa el adaptador, que exige Firestore en
+loopback; las colecciones privadas de cobertura deniegan lecturas/escrituras de
+clientes en ambas políticas de Rules. Este hito no autoriza cambios en Firebase o
+Sheets compartidos ni despliegues. El planificador productivo sigue rechazando
+créditos habilitados.
+
+La política definitiva de reserva/selección/plazos, las transiciones de membresía
+y la activación real siguen pendientes de ratificación por asamblea. Las pruebas
+locales de cumplimiento/crédito acreditan este alcance limitado, no la aceptación
+de toda la política. El alcance implementado y la integración pendiente de
+identidad, bloqueos de escritura, eventos y planificador figuran en
+`spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md`.
+
+La selección local usa parámetros explícitos de prueba `fifo-signup-v1`: orden de
+entrada en reserva y de inscripción voluntaria, desempate ordinal por ID y plazo
+obligatorio de convocatoria. Fija la lista de candidatos, revalida elegibilidad y
+revisiones de reserva, y termina en `drawRequired` al agotarse. Siguen sin ratificar
+el ciclo de reserva, la proximidad más allá de responsables adyacentes, el orden y
+los plazos definitivos y la entropía futura. No hay altas automáticas reales,
+sorteo ni despliegue.
+
+El siguiente hito local incorpora `hu084-local-beacon-v1` con emisor Ed25519
+sintético y `sha256-rank-v1`. Una transacción fija candidatos y ronda futura antes
+de revelar el orden con evidencia firmada; los reintentos conservan ese orden.
+Cancelar conserva la vacante comprometida para impedir otro sorteo con un caso
+nuevo; la recuperación administrativa motivada conserva el sorteo y exige
+aceptación del socio. La autenticidad de la firma no garantiza entropía imparcial
+o impredecible: siguen pendientes el proveedor real, su autoridad/IAM, los plazos
+de fallo y la política de asamblea. El protocolo sigue confinado al emulador local
+fijo y no se ha desplegado.
+
+El hito local de créditos reutiliza el cursor canónico para resolver unidades
+completas y aplazar créditos en orden inverso. Una transacción del emulador fijo
+vincula el libro completo y sus fuentes, y actualiza créditos consumidos, bloqueos
+y cursor canónico junto a una unidad física privada `localRehearsal`. Previsualizar
+y preparar no consumen créditos. No es la publicación estacional de HU-082: faltan
+turnos/ayudantes públicos, manifiestos de activación y reversión, admisión completa
+y efectos en notificaciones/Sheets. El planificador productivo sigue rechazando
+créditos no nulos.
+
+El siguiente hito local integra el recorrido completo de créditos estacionales en
+los planificadores existentes de reparto y mercado. Los créditos sirven posiciones
+del propietario canónico sin ocupar fechas; cada unidad física y sus posiciones
+compensadas se arrastran juntas entre temporadas. Sin créditos, el resultado
+ordinario sigue siendo idéntico. Reparto valida el ayudante previsto anterior frente
+al cursor previo a los créditos y solo puede actualizar su ayudante prospectivo;
+el ayudante completado permanece histórico. Se preparan imágenes exactas anteriores
+y posteriores del crédito para integrar después los manifiestos HU-082; este cambio
+no implementa activación estacional ni transacción inversa de créditos. La entrada
+productiva del bundle sigue rechazando créditos habilitados o distintos de cero.
+
+El hito de publicación de 2026-09-12 conecta esas imágenes de crédito con la fuente
+gobernada, bundle, materializadores de avance/reversión y admisión/vallas de
+notificaciones existentes de HU-082. Ambos libros completos y sus reservas se
+releen en la transacción, incluidos los créditos diferidos. La fuente deriva las
+rondas congeladas del estado canónico/público y recupera el arrastre compensado del
+bundle activo; la política de fuente no puede proporcionar saldos. Créditos,
+reservas, cursores, filas públicas, imágenes anteriores e intenciones retenidas y
+comandos de sincronización se confirman juntos. El consumo estacional conserva una
+reserva `released` con plan/fecha para que la reversión por CAS pueda restaurar su
+valor anterior exacto. Las reservas liberadas no bloquean la selección ni otra
+aceptación, que las reemplaza. La recuperación rechaza cambios posteriores del
+libro/reservas y restaura créditos/reservas incrementando las generaciones del
+libro y las épocas de escritura. La ejecución con créditos habilitados se limita
+al cliente Firestore construido para el emulador demo/loopback fijo. Esto sustituye
+la carencia de publicación local anterior; no es ratificación de la asamblea,
+activación real ni envío de notificaciones o ejecución en Sheets.
+
+El siguiente bloque local reconcilia una transición observada del usuario, ambas
+reservas y los casos de cobertura de turnos futuros publicados en una transacción,
+con auditoría de origen/fecha/actor y CAS. Los socios elegibles ya presentes en la
+cohorte constituyen la base; las altas y reactivaciones entran en la reserva FIFO
+con la fecha de observación. Perder elegibilidad desactiva la reserva; recuperarla
+incrementa su revisión y lleva al final. Ni agosto ni incorporarse a la cohorte
+implican la salida de reservas aún pendiente de ratificación. Se conservan fechas,
+propietarios, ayudantes reales completados, cursores y créditos. Las permutas
+pendientes y coberturas ocupadas requieren su flujo administrativo existente.
+Las transiciones de cola pendientes bloquean la captura de fuentes y la publicación
+local directa/inversa, incluso sin créditos, para impedir recuperar una posición
+antigua al reactivarse. Quedan por implementar la incorporación a rondas nuevas y
+los saltos de posiciones congeladas no publicadas junto con unidades físicas
+completas; no se escriben tombstones aislados. El adaptador solo funciona en el
+emulador; no observa cambios de usuarios desplegados ni ratifica la política real.
+
+El bloque local de admisión a rondas nuevas permite resolver la incorporación
+pendiente mediante la planificación gobernada del ledger cuando ambos cursores
+están al inicio de rondas nuevas posteriores a toda evidencia publicada/congelada.
+La reconciliación conserva la intención de admisión por tipo; los registros
+pendientes antiguos sin esa evidencia se rechazan. Los socios que permanecen
+conservan su orden y las altas/reactivaciones se añaden por fecha de reserva y UID
+ordinal. Los planificadores validan el arrastre con el cursor anterior antes de
+recorrer la nueva cohorte. Se mantienen unidades completas, aplazamiento de créditos
+e historial del ayudante real. La publicación e inversa vinculan todas las reservas,
+estados de membresía y predicados actuales de los socios. La confirmación de
+admisión comparte la transacción y las imágenes anteriores de calendarios, cursores
+y ledger; la inversa restaura intenciones pendientes y cohortes previas incrementando
+las revisiones de membresía. Entrar en la cohorte no elimina la reserva. Las
+posiciones congeladas no publicadas siguen bloqueadas hasta integrar sus omisiones
+con unidades físicas completas e inversa. La implementación sigue limitada al
+emulador fijo, sin despliegue.
+
+
+El siguiente bloque de unidades congeladas sustituye esa restricción local. Las
+bajas y pérdidas de elegibilidad en posiciones congeladas no publicadas conservan
+propietario, ronda, posición, motivo y revisión de membresía en el recorrido de la
+unidad física completa del bundle activado; no se añade una colección de tombstones
+ni un escritor independiente. La reactivación conserva su evidencia de exclusión y
+solo incorpora al socio en una posición ordinaria nueva. La cohorte cambia en el
+límite de ronda permitido, incluso dentro de un grupo de mercado, y el arrastre
+conserva la transición para reproducirla exactamente. Cada tipo confirma la admisión
+solo tras una unidad completa con la nueva cohorte; alcanzar el siguiente límite
+no fuerza otra ronda ni elimina la intención pendiente. La publicación e inversa
+vinculan todas las fuentes de membresía, reservas y créditos y los predicados
+actuales, y consultan los propietarios publicados dentro de la transacción para
+impedir omitir una posición ya pública. La inversa restaura cursores congelados e
+intenciones pendientes con revisiones superiores. Una unidad imposible se rechaza
+sin cambios parciales de cursor, omisiones o créditos. Se mantienen el historial
+del ayudante y el retroceso de créditos. La integración local de planificación queda
+completa; siguen pendientes los clientes y transporte de coberturas, la integración
+de producto de notificaciones/Sheets, la entropía real, la ratificación y el
+despliegue. La evidencia del emulador fijo no autoriza escrituras en proyectos
+compartidos ni la activación real.
+
+
+El bloque de acceso local desde las apps añade un manejador compuesto explícitamente
+para los emuladores de Auth/Firestore, no un endpoint desplegable. La verificación
+real de Admin Auth comprueba credenciales revocadas en cada petición; los vínculos
+Auth, la actividad y los roles del socio se leen dentro de cada transacción de
+consulta/comando. Los recibos autenticados vinculan además el UID para impedir que
+un cambio de cuenta repita la operación de otra sesión. Las llamadas directas con
+ID de socio quedan en el entorno de pruebas de confianza anterior. Las proyecciones
+para socio/administrador exponen solo ofertas pertinentes, contabilidad propia y
+contexto explícito de gestión; no envían candidatos, exclusiones ni datos internos
+del sorteo. El mantenimiento válido permite consultar con los controles de escritura
+obsoleta deshabilitados. El motor conserva todas las comprobaciones de comandos,
+vecinos y créditos. Queda disponible el contrato local común; siguen pendientes la
+presentación y protección de sesión nativas, los efectos de
+notificaciones/Sheets y la activación real. Ningún punto de entrada de producción
+importa esta composición.
+
+Un ejecutor local explícito conecta el manejador únicamente a loopback, con archivo
+de política/puerto obligatorios y peticiones JSON acotadas. Las pruebas de red usan
+este servidor con Auth y Firestore emulados; importarlo no arranca servicios.
+
+El siguiente hito nativo añade repositorios tipados y propietarios de las operaciones
+equivalentes en Android/iOS. Los adaptadores locales solo compilan en Debug y no
+forman parte de la composición real. UID, socio y revisión de autorización delimitan
+la obtención del token, HTTP y la publicación del resultado. Los resultados inciertos
+conservan el mismo comando para repetirlo explícitamente; un fallo de recarga no
+repite una escritura ya confirmada. Solo las credenciales del emulador Auth del
+proyecto demo fijo pueden llegar a loopback, sin seguir redirecciones. Siguen
+pendientes la composición de sesión/UI nativa, sus pruebas conectadas, los efectos
+de notificaciones/Sheets y la ratificación/activación real.
+
+
+### Autoridad de recuperación local HU-084 — 2026-09-13
+
+La recuperación de coberturas reutiliza la barrera de entradas cerradas HU-082 y su
+registro de fallos. Exige autorización del backend ligada a un administrador activo,
+versiones exactas de las fuentes Firestore, mantenimiento cerrado y el libro demo fijo.
+El controlador inyectado debe bloquear y drenar también los procesos de coberturas,
+además de los escritores inventariados: un timeout o un documento cerrado no lo prueban.
+La inspección HU-083 aporta evidencia de proyección mediante lectura. Solo las filas
+vigentes verificadas permiten liberar el buzón y retirar la reserva atómicamente.
+Los avisos obsoletos se retiran sin repetirse; una proyección ausente o distinta mantiene
+la reserva. No se reescriben recibos de comandos, casos, asignaciones ni créditos.
+
+La conciliación push conserva los resultados aceptado/fallido/incierto y clasifica
+un envío interrumpido como incierto; enumera aparte los destinatarios sin recibo de
+intento. Ninguno de esos estados autoriza un reenvío. El recibo terminal es idempotente,
+pero un fallo de verificación final de la barrera sigue siendo una incidencia aunque
+la transacción haya hecho commit. Los controles permanecen cerrados; reabrirlos y
+admitir entregas bajo una época nueva son operaciones gobernadas independientes.
+No se renueva la autoridad original del efecto. Esta composición local no despliega
+endpoint de recuperación, emisor de autorizaciones ni controlador real. Su conexión
+y evidencia en vivo siguen siendo responsabilidad de HU-085.

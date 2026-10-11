@@ -1,3 +1,8 @@
+import {captureDeliverySpacingSource} from "./shift-delivery-spacing-store.js";
+import {deliverySpacingAuthorityDigest} from "./shift-delivery-spacing.js";
+import {assertProvisionalShiftMembershipSource,
+  captureShiftCreditPublicationSources,
+  requireProvisionalCreditPublication} from "./shift-credit-publication.js";
 import {
   DocumentReference,
   DocumentSnapshot,
@@ -67,6 +72,7 @@ export type ShiftPlanningSourcePolicy = {
   creditLedger: ShiftPlanningCanonicalJsonObject;
   sync: ShiftPlanningCanonicalJsonObject;
   transactionWriteLimit: number;
+  deliverySpacing?: {version: "hu089-delivery-spacing-v1"};
 };
 
 export type ShiftPlanningLiveSourceProductionResult = {
@@ -288,6 +294,7 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
     "creditLedger",
     "sync",
     "transactionWriteLimit",
+    ...(policy.deliverySpacing !== undefined ? ["deliverySpacing"] : []),
   ], "planning source policy");
   if (policy.schemaVersion !== SHIFT_PLANNING_SOURCE_POLICY_SCHEMA_VERSION) {
     return failSource("Planning source policy schema is unsupported.");
@@ -301,24 +308,36 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
   ) {
     return failSource("Planning source policy write limit exceeds Firestore.");
   }
+  if (policy.deliverySpacing !== undefined) {
+    const spacing = requireRecord(policy.deliverySpacing,
+      "delivery spacing policy");
+    requireExactKeys(spacing, ["version"], "delivery spacing policy");
+    if (spacing.version !== "hu089-delivery-spacing-v1") {
+      return failSource("Delivery spacing policy is unsupported.");
+    }
+    requireProvisionalCreditPublication(requireEnvironment(policy.environment));
+  }
   const creditLedger = requireRecord(
     policy.creditLedger,
     "planning source policy creditLedger",
   );
-  requireExactKeys(creditLedger, [
-    "enabled",
-    "revision",
-    "digest",
-    "plannedWriteCount",
-  ], "planning source policy creditLedger");
-  if (
-    creditLedger.enabled !== false ||
-    creditLedger.plannedWriteCount !== 0
-  ) {
-    return failSource("Planning source coverage credits remain disabled.");
+  if (creditLedger.enabled === true) {
+    requireProvisionalCreditPublication(requireEnvironment(policy.environment));
+    requireExactKeys(creditLedger, ["enabled", "policyRevision"],
+      "provisional credit source policy");
+    if (creditLedger.policyRevision !== "hu084-provisional-v1") {
+      return failSource("Unknown provisional credit policy.");
+    }
+  } else {
+    requireExactKeys(creditLedger, ["enabled", "revision", "digest",
+      "plannedWriteCount"], "planning source policy creditLedger");
+    if (creditLedger.enabled !== false ||
+        creditLedger.plannedWriteCount !== 0) {
+      return failSource("Planning source coverage credits remain disabled.");
+    }
+    requireIdentifier(creditLedger.revision, "planning credit revision");
+    requireDigest(creditLedger.digest, "planning credit digest");
   }
-  requireIdentifier(creditLedger.revision, "planning credit revision");
-  requireDigest(creditLedger.digest, "planning credit digest");
   const sync = requireRecord(policy.sync, "planning source policy sync");
   requireExactKeys(sync, [
     "leaseDurationMillis",
@@ -382,6 +401,8 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
       ShiftPlanningCanonicalJsonObject,
     sync: canonicalClone(sync) as ShiftPlanningCanonicalJsonObject,
     transactionWriteLimit,
+    ...(policy.deliverySpacing !== undefined ? {deliverySpacing:
+      {version: "hu089-delivery-spacing-v1" as const}} : {}),
   };
 };
 
@@ -635,6 +656,15 @@ const buildSourceInTransaction = async (input: {
     releaseLeaseDurationMillis: policy.releaseLeaseDurationMillis,
     policyRevision: policy.policyRevision,
   };
+  if (policy.creditLedger.enabled !== true) {
+    await assertProvisionalShiftMembershipSource(input);
+  }
+  const creditLedger = policy.creditLedger.enabled === true ? {
+    enabled: true, policyRevision: "hu084-provisional-v1",
+    sources: await captureShiftCreditPublicationSources({...input, rotations,
+      prefixes: {delivery: policy.delivery.inheritedTargetPrefix,
+        market: policy.market.inheritedTargetPrefix}}),
+  } : policy.creditLedger;
   const fairnessSnapshot = normalizeShiftPlanningFairnessSnapshot({
     snapshotVersion: 1,
     environment,
@@ -668,7 +698,11 @@ const buildSourceInTransaction = async (input: {
       digest: calendarDigest,
       entries: calendarEntries,
     },
-    creditLedger: policy.creditLedger,
+    creditLedger,
+    ...(policy.deliverySpacing ? {deliverySpacing:
+      await captureDeliverySpacingSource({...input, authorityDigest:
+        deliverySpacingAuthorityDigest(maintenance,
+          rotations.delivery)})} : {}),
     sync: policy.sync,
     migrationBaseline: rotations.delivery.migrationBaseline,
   });

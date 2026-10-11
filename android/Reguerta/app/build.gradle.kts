@@ -52,6 +52,9 @@ android {
     }
 
     defaultConfig {
+        buildConfigField("boolean", "COVERAGE_REMOTE_PUSH_REHEARSAL", "false")
+        manifestPlaceholders["coverageRehearsalProcess"] = ":coverage_rehearsal"
+        manifestPlaceholders["messagingService"] = "com.reguerta.user.data.devices.ReguertaFirebaseMessagingService"
         applicationId = MyConfig.APPLICATION_ID
         minSdk {
             version = release(MyConfig.MIN_SDK_VERSION)
@@ -79,6 +82,12 @@ android {
     buildTypes {
         getByName("debug") {
             applicationIdSuffix = ".debug"
+            val remotePushRehearsal = providers.gradleProperty("coverageRemotePushRehearsal").orNull == "true"
+            buildConfigField("boolean", "COVERAGE_REMOTE_PUSH_REHEARSAL", remotePushRehearsal.toString())
+            if (remotePushRehearsal) {
+                manifestPlaceholders["coverageRehearsalProcess"] = "${MyConfig.APPLICATION_ID}.debug"
+                manifestPlaceholders["messagingService"] = "com.reguerta.user.CoverageRemoteMessagingService"
+            }
         }
         release {
             isMinifyEnabled = false
@@ -93,6 +102,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // One wire oracle shared with the iOS repository/presentation pipeline tests.
+    sourceSets.getByName("test").resources.srcDir(
+        "../../../ios/Reguerta/ReguertaTests/Fixtures/ShiftCoverage"
+    )
+
     buildFeatures {
         compose = true
         buildConfig = true
