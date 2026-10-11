@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-11 | 📝 docs(shifts): record HU-089 parent integration
+
 - 2026-10-04 | 📝 docs(shifts): define coverage ratification proposal
 
 - 2026-09-11 | 📝 docs(shifts): prepare HU-085 evidence handoff
@@ -425,6 +427,8 @@ All notable changes to this project will be documented in this file.
 - 2026-03-19 | 📝 docs(orders): define consumer name snapshots
 
 ### Maintenance
+
+- 2026-10-11 | 🔧 chore(shifts): integrate HU-089 policy amendments
 
 - 2026-10-04 | 🔧 chore(shifts): prepare provisional coverage review
 

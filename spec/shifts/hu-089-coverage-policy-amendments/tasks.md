@@ -12,4 +12,9 @@
 - [x] Validate and independently review the deadline/lifecycle blocks.
 - [x] Validate and independently review spacing, exact exceptions, source drift and inverse recovery.
 - [x] Complete final story validation and delivery review after spacing.
+- [x] Merge child PR #280 into HU-084, close issue #279 and remove the fully integrated child branch.
 - [ ] Obtain collective ratification before any activation.
+
+The unchecked integration/ratification items above are HU-084 follow-ups. They do
+not reopen HU-089's completed local amendments. Parent issue #268 and draft
+PR #278 remain open; the parent has not been merged into main or activated.

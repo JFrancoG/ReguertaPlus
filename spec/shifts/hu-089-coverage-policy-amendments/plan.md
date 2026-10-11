@@ -164,3 +164,26 @@ verification. HU-089 local implementation/review is ready for a PR against its
 unmerged HU-084 dependency. PR creation/merge/closure remains a later authorized
 delivery step. Shared integration, administrative forms, authoritative migration,
 provider/observability work and collective ratification/activation remain in HU-084.
+
+## Child PR integration and closeout — 2026-10-11
+
+The maintainer requested PR preparation and conditional issue/branch closure.
+PR [#280](https://github.com/JFrancoG/ReguertaPlus/pull/280) targeted the intended
+HU-084 dependency, with four reviewed implementation commits through `23e085f6`.
+GitHub reported it mergeable and clean, with no configured checks or required
+reviews. The issue's local acceptance criteria were re-read and complete.
+
+PR #280 merged into `codex/hu-084-stable-shift-coverage-and-credits` as
+`3a115ac6ed153e7cc533f48ba12b5b621f7e3f56`, preserving those four commits. Its tree
+is exactly `e830ebc88c7fe1ac00aa45ce1e9a2c6cea64e66c`, identical to the validated
+head `23e085f6`. The recent full validation remains applicable. Only delivery
+documentation/changelog changes follow the merge, so functional gates were not
+repeated under the repository's minimal-change exception.
+
+Issue #279 closed as completed after the merge and remote ancestry verification.
+The child branch had zero unique commits against the parent and was deleted
+locally/remotely. This worktree now continues on HU-084. Parent issue #268 and
+draft PR #278 remain open; main, shared data and activation are unchanged.
+The documentation closeout commit is pushed to the parent and recorded in the
+tracker after verification. Administrative forms, real integration, migration,
+provider/observability and collective ratification remain parent follow-ups.

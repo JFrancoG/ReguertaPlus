@@ -91,3 +91,13 @@ real notification evidence from the parent are not claimed as new HU-089 runs.
 No temporary cross-platform parity gap remains in the implemented local behavior.
 Issues #279/#268 and PR #278 stay open; this review does not create or merge a PR,
 close an issue, delete a branch, deploy, notify real members or mutate real data.
+
+## Definitive child delivery — 2026-10-11
+
+After this review, the maintainer requested PR preparation and conditional
+closeout. [PR #280](https://github.com/JFrancoG/ReguertaPlus/pull/280) merged into
+the HU-084 branch as `3a115ac6ed153e7cc533f48ba12b5b621f7e3f56`; its tree is identical
+to the validated implementation head `23e085f6`. Issue #279 was closed and its
+fully integrated branch removed locally and remotely. Delivery documentation
+records these verified results without changing behavior or repeating full gates.
+The parent remains draft/open and has not reached main or shared activation.
