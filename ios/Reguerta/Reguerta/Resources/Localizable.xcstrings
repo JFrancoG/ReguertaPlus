@@ -393,6 +393,24 @@
       }
     }
   },
+  "coverage.credit_cancelled": {
+    "comment": "Historical earned credit cancelled only on explicit permanent departure; it was not consumed by a shift",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Credit cancelled after permanent departure"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Crédito anulado por baja permanente"
+        }
+      }
+    }
+  },
   "coverage.reserve_active": {
     "localizations": {
       "en": {
@@ -583,6 +601,20 @@
           "value": "La oferta caduca"
         }
       }
+    }
+  },
+  "coverage.phase_deadline": {
+    "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Phase ends" } },
+      "es": { "stringUnit": { "state": "translated", "value": "El plazo de esta fase termina" } }
+    }
+  },
+  "coverage.admin_deadline": {
+    "comment": "Original target deadline for administrative resolution. Passing it does not close an unresolved case; offers remain possible before the shift starts.",
+    "extractionState": "manual",
+    "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Target resolution deadline" } },
+      "es": { "stringUnit": { "state": "translated", "value": "Plazo previsto de gestión" } }
     }
   },
   "coverage.volunteer_deadline": {

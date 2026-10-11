@@ -1,8 +1,11 @@
+import {createDeliverySpacingAdministration} from
+  "./shift-delivery-spacing-store.js";
+import {firstDueOrdinaryShift} from "./shift-membership-lifecycle.js";
 import {buildShiftCoverageEffects} from "./shift-coverage-effects.js";
 import {VerifiedIdentity} from "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {createShiftCoverageClientReader} from "./shift-coverage-client.js";
-import {createShiftMembershipReconciliation} from
+import {createShiftMembershipReconciliation, readShiftMembershipState} from
   "./shift-membership-reconciliation.js";
 import {buildShiftCoverageOpening,
   shiftCoverageOwnershipDigest as ownership} from
@@ -23,7 +26,9 @@ import {
   CoverageReserve,
   CoverageSelectionPolicy,
   createCoverageSelection,
+  enterCoverageSelectionPhase,
   parseCoverageSelectionPolicy,
+  refreshCoverageSelection,
 } from "./shift-coverage-selection.js";
 import {Timestamp} from "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
@@ -87,12 +92,17 @@ export const createProvisionalShiftCoverageStore = (options: {
     db.doc(`${root}/${collection}/${id}`);
 
   return {
+    ...createDeliverySpacingAdministration(db, nowMillis),
     ...createShiftCreditRehearsal(db, nowMillis),
-    ...createShiftMembershipReconciliation(db, nowMillis),
+    ...createShiftMembershipReconciliation(db, nowMillis,
+      selectionPolicy?.version === "hu089-provisional-v1"),
     close: () => db.terminate(),
     readClient: createShiftCoverageClientReader(db, nowMillis, {
+      ...(selectionPolicy?.version === "hu089-provisional-v1" ?
+        {selectionRequired: true} : {}),
       maximumOfferWindowMillis,
-      volunteerWindowMillis: selectionPolicy?.volunteerWindowMillis ?? null,
+      volunteerWindowMillis: selectionPolicy?.version === "fifo-signup-v1" ?
+        selectionPolicy.volunteerWindowMillis : null,
       drawAvailable: Boolean(beaconPolicy)}),
     async execute(value: unknown, actorSource: string | VerifiedIdentity) {
       const command = parseShiftCoverageCommand(value);
@@ -203,7 +213,15 @@ export const createProvisionalShiftCoverageStore = (options: {
           target: context(shift), previous: context(predecessor?.data),
           next: context(successor?.data),
         });
-        let preparedSelection = previous?.selection;
+        let preparedSelection = previous?.selection ?
+          refreshCoverageSelection(previous.selection, now) : undefined;
+        if (preparedSelection?.timing &&
+            (preparedSelection.timing.openedAtMillis !==
+              previous?.createdAtMillis ||
+            preparedSelection.timing.scheduledAtMillis !==
+              shift.date.toMillis())) {
+          return rejectCoverage("coverage_timing_source_changed");
+        }
         let selectedUserId: string | null = null;
         let candidates: CoverageCandidate[] = [];
         const needsSelection = ["startSelection", "offerNext", "volunteer",
@@ -235,6 +253,10 @@ export const createProvisionalShiftCoverageStore = (options: {
           if ([users, reserves, claims].some((items) => items.size > 250)) {
             return rejectCoverage("coverage_selection_source_limit");
           }
+          const ordinaryShifts = selectionPolicy?.version ===
+            "hu089-provisional-v1" ? shifts.docs.map((document) => ({
+              id: document.id, shift: parseShiftPlanningPublicShiftDocument({
+                targetPath: document.ref.path, value: document.data()})})) : [];
           const reserveByUser = new Map<string, CoverageReserve>();
           for (const document of reserves.docs) {
             const value = document.data() as CoverageReserve;
@@ -246,9 +268,15 @@ export const createProvisionalShiftCoverageStore = (options: {
                 !Number.isSafeInteger(value.revision) || value.revision < 1) {
               return rejectCoverage("invalid_coverage_reserve");
             }
-            reserveByUser.set(id, {userId: id, type: shift.type,
-              active: value.active, enteredAtMillis: value.enteredAtMillis,
-              revision: value.revision});
+            if (value.admissionAfterRound !== undefined &&
+                (!Number.isSafeInteger(value.admissionAfterRound) ||
+                  value.admissionAfterRound < 0)) {
+              return rejectCoverage("invalid_coverage_reserve");
+            }
+            const due = value.active && selectionPolicy?.version ===
+              "hu089-provisional-v1" ?
+              firstDueOrdinaryShift(value, ordinaryShifts, now) : undefined;
+            reserveByUser.set(id, {...value, active: value.active && !due});
           }
           const claimed = new Set(claims.docs.filter((item) =>
             !isReleasedShiftCoverageClaim(item.data())).map((item) => {
@@ -279,10 +307,14 @@ export const createProvisionalShiftCoverageStore = (options: {
           if (command.action === "startSelection") {
             preparedSelection = createCoverageSelection({caseId: command.caseId,
               policy: parseCoverageSelectionPolicy(selectionPolicy),
-              candidates});
+              candidates, openedAtMillis: previous.createdAtMillis,
+              scheduledAtMillis: shift.date.toMillis()});
+            preparedSelection = refreshCoverageSelection(
+              preparedSelection, now);
           } else if (command.action === "offerNext" && preparedSelection) {
             const advanced = advanceCoverageSelection({
-              selection: preparedSelection, candidates, now});
+              selection: previous.selection ?? preparedSelection,
+              candidates, now});
             preparedSelection = advanced.selection;
             selectedUserId = advanced.userId;
           }
@@ -307,13 +339,16 @@ export const createProvisionalShiftCoverageStore = (options: {
             item.exclusion ?
               [{userId: item.userId, reason: item.exclusion}] : []);
           if (frozen.every((item) => item.exclusion)) {
-            preparedSelection.phase = "adminRequired";
+            preparedSelection = enterCoverageSelectionPhase(preparedSelection,
+              "adminRequired", now);
           } else {
             preparedDraw = commitCoverageDraw({caseId: command.caseId,
               selectionDigest: preparedSelection.snapshotDigest,
               assignmentContextDigest, candidates: frozen,
               policy: beaconPolicy, now});
-            if (preparedDraw.availableAtMillis >= shift.date.toMillis()) {
+            if (preparedDraw.availableAtMillis >= shift.date.toMillis() ||
+                (preparedSelection.timing && preparedDraw.availableAtMillis >=
+                  preparedSelection.timing.phaseClosesAtMillis)) {
               return rejectCoverage("coverage_draw_too_late");
             }
             const published = await transaction.get(
@@ -352,6 +387,15 @@ export const createProvisionalShiftCoverageStore = (options: {
           "accept"].includes(command.action) ? coverageMember(
             (await transaction.get(ref("users", candidateId))).data(),
           ) : null;
+        const completionMembership = command.action === "complete" &&
+          candidateId ? readShiftMembershipState((await transaction.get(
+            ref("shiftMembershipState", candidateId))).data(), candidateId) :
+          null;
+        if (completionMembership && now <
+            completionMembership.observedAtMillis) {
+          return rejectCoverage("invalid_coverage_clock");
+        }
+        const departure = completionMembership?.permanentDeparture;
         const pending = () => {
           if (shift.completion.state !== "uncompleted" ||
               shift.status === "swap_pending" || shift.date.toMillis() <= now) {
@@ -409,7 +453,7 @@ export const createProvisionalShiftCoverageStore = (options: {
             break;
           case "volunteer": case "withdrawVolunteer": {
             pending();
-            const selection = structuredClone(current.selection) ??
+            const selection = structuredClone(preparedSelection) ??
               rejectCoverage("coverage_selection_missing");
             if (selection.phase !== "volunteers" ||
                 selection.volunteerClosesAtMillis === null ||
@@ -444,7 +488,10 @@ export const createProvisionalShiftCoverageStore = (options: {
               return rejectCoverage("coverage_admin_resume_forbidden");
             }
             next.status = "open";
-            next.selection = {...current.selection, phase: "adminRequired"};
+            next.selection = enterCoverageSelectionPhase(
+              preparedSelection ?? current.selection, "adminRequired",
+              preparedSelection?.phase === "adminRequired" ?
+                preparedSelection.timing?.phaseStartedAtMillis ?? now : now);
             break;
           case "offer": case "offerNext": case "offerAdmin":
             pending();
@@ -464,16 +511,22 @@ export const createProvisionalShiftCoverageStore = (options: {
                 break;
               }
             } else if (command.action === "offerAdmin") {
-              if (current.selection?.phase !== "adminRequired") {
+              if (preparedSelection?.phase !== "adminRequired") {
                 return rejectCoverage("coverage_admin_not_required");
               }
+              next.selection = preparedSelection;
             } else if (current.selection) {
               return rejectCoverage(
                 "coverage_selection_admin_override_blocked");
+            } else if (selectionPolicy?.version === "hu089-provisional-v1") {
+              return rejectCoverage("coverage_selection_missing");
             }
             eligible();
             if (command.expiresAtMillis <= now ||
                 command.expiresAtMillis > now + maximumOfferWindowMillis ||
+                (command.action !== "offerAdmin" &&
+                  preparedSelection?.timing && command.expiresAtMillis >
+                  preparedSelection.timing.phaseClosesAtMillis) ||
                 command.expiresAtMillis >= shift.date.toMillis()) {
               return rejectCoverage("coverage_offer_deadline");
             }
@@ -598,6 +651,11 @@ export const createProvisionalShiftCoverageStore = (options: {
                 type: shift.type,
                 userId: candidateId, state: "pending", earnedAtMillis: now,
                 completionRevision: completion.revision};
+              if (departure) {
+                credit = {...credit, state: "cancelled",
+                  cancelledByMembershipOperationId: departure.operationId,
+                  cancelledAtMillis: now};
+              }
               next.status = "completed";
               next.creditId = credit.id;
               claimAction = "credit";
@@ -633,8 +691,11 @@ export const createProvisionalShiftCoverageStore = (options: {
         if (claimAction === "release" && claimRef) transaction.delete(claimRef);
         if (claimRef && (claimAction === "hold" || claimAction === "credit")) {
           transaction.set(claimRef, {caseId: next.id, userId: candidateId,
-            type: shift.type, state: claimAction === "hold" ?
-              "accepted" : "creditPending"});
+            type: shift.type, ...(credit?.state === "cancelled" ? {
+              state: "released", cancelledAtMillis: credit.cancelledAtMillis,
+              cancelledByMembershipOperationId:
+                credit.cancelledByMembershipOperationId} :
+              {state: claimAction === "hold" ? "accepted" : "creditPending"})});
         }
         if (credit) {
           transaction.create(creditRef, credit);
@@ -648,6 +709,11 @@ export const createProvisionalShiftCoverageStore = (options: {
         transaction.create(receiptRef, {commandDigest, command,
           effectsDigest: effects.effectsDigest,
           actorMemberId: actorId, ...authBinding,
+          ...(command.action === "offerAdmin" && preparedSelection?.timing &&
+            now >= preparedSelection.timing.phaseClosesAtMillis ? {
+              delayedAdministration: {phaseClosesAtMillis:
+                preparedSelection.timing.phaseClosesAtMillis,
+              offeredAtMillis: now}} : {}),
           result: next, previousRevision: previous?.revision ?? 0});
         return {case: next, replayed: false};
       });

@@ -1,3 +1,5 @@
+import {captureDeliverySpacingSource} from "./shift-delivery-spacing-store.js";
+import {deliverySpacingAuthorityDigest} from "./shift-delivery-spacing.js";
 import {assertProvisionalShiftMembershipSource,
   captureShiftCreditPublicationSources,
   requireProvisionalCreditPublication} from "./shift-credit-publication.js";
@@ -70,6 +72,7 @@ export type ShiftPlanningSourcePolicy = {
   creditLedger: ShiftPlanningCanonicalJsonObject;
   sync: ShiftPlanningCanonicalJsonObject;
   transactionWriteLimit: number;
+  deliverySpacing?: {version: "hu089-delivery-spacing-v1"};
 };
 
 export type ShiftPlanningLiveSourceProductionResult = {
@@ -291,6 +294,7 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
     "creditLedger",
     "sync",
     "transactionWriteLimit",
+    ...(policy.deliverySpacing !== undefined ? ["deliverySpacing"] : []),
   ], "planning source policy");
   if (policy.schemaVersion !== SHIFT_PLANNING_SOURCE_POLICY_SCHEMA_VERSION) {
     return failSource("Planning source policy schema is unsupported.");
@@ -303,6 +307,15 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
     transactionWriteLimit > SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT
   ) {
     return failSource("Planning source policy write limit exceeds Firestore.");
+  }
+  if (policy.deliverySpacing !== undefined) {
+    const spacing = requireRecord(policy.deliverySpacing,
+      "delivery spacing policy");
+    requireExactKeys(spacing, ["version"], "delivery spacing policy");
+    if (spacing.version !== "hu089-delivery-spacing-v1") {
+      return failSource("Delivery spacing policy is unsupported.");
+    }
+    requireProvisionalCreditPublication(requireEnvironment(policy.environment));
   }
   const creditLedger = requireRecord(
     policy.creditLedger,
@@ -388,6 +401,8 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
       ShiftPlanningCanonicalJsonObject,
     sync: canonicalClone(sync) as ShiftPlanningCanonicalJsonObject,
     transactionWriteLimit,
+    ...(policy.deliverySpacing !== undefined ? {deliverySpacing:
+      {version: "hu089-delivery-spacing-v1" as const}} : {}),
   };
 };
 
@@ -684,6 +699,10 @@ const buildSourceInTransaction = async (input: {
       entries: calendarEntries,
     },
     creditLedger,
+    ...(policy.deliverySpacing ? {deliverySpacing:
+      await captureDeliverySpacingSource({...input, authorityDigest:
+        deliverySpacingAuthorityDigest(maintenance,
+          rotations.delivery)})} : {}),
     sync: policy.sync,
     migrationBaseline: rotations.delivery.migrationBaseline,
   });

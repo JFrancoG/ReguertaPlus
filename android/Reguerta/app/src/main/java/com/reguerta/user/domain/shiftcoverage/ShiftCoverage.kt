@@ -35,13 +35,14 @@ internal data class ShiftCoverageSnapshot(
     @Serializable
     enum class OfferSource { admin, reserve, volunteer, draw }
     @Serializable
-    enum class CreditState { pending, consumed }
+    enum class CreditState { pending, consumed, cancelled }
 
     @Serializable
     data class Policy(
         val maximumOfferWindowMillis: Long,
         val volunteerWindowMillis: Long?,
         val drawAvailable: Boolean,
+        val selectionRequired: Boolean = false,
     )
 
     @Serializable
@@ -68,6 +69,7 @@ internal data class ShiftCoverageSnapshot(
         val hasVolunteered: Boolean = false,
         val drawCommitted: Boolean = false,
         val drawAvailableAtMillis: Long? = null,
+        val phaseClosesAtMillis: Long? = null,
     )
 
     @Serializable

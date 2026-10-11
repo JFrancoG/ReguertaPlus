@@ -21,6 +21,11 @@ const credit = (userId, type) => ({schemaVersion: 1, policyRevision: "hu084-prov
   shiftId: `previous-${type}`, earnedAtMillis: 1, completionRevision: 1});
 const claim = (c) => ({id: digest([c.type, c.userId]).split(":").at(-1),
   data: {caseId: c.id, userId: c.userId, type: c.type, state: "creditPending"}});
+const cancelledCredit = (c) => ({...c, state: "cancelled", cancelledByMembershipOperationId: "permanent-departure",
+  cancelledAtMillis: 20});
+const cancelledClaim = (c) => ({id: claim(c).id, data: {caseId: c.id, userId: c.userId, type: c.type,
+  state: "released", cancelledByMembershipOperationId: c.cancelledByMembershipOperationId,
+  cancelledAtMillis: c.cancelledAtMillis}});
 const source = (type) => {
   const credits = [credit("member-1", type), credit("outside", type)];
   return {credits, claims: credits.map(claim), ledger: {revision: 4}, frozenThroughRound: 0};
@@ -80,6 +85,43 @@ test("staged before-image forgery rejects and released-claim parsing stays stric
     consumedByPlanId: "plan", consumedAtMillis: 20};
   assert.equal(isReleasedShiftCoverageClaim(released), true);
   assert.equal(isReleasedShiftCoverageClaim({...released, consumedAtMillis: "20"}), false);
+});
+
+test("cancelled balances and matching released claims remain historical source without resting their ordinary owners", () => {
+  const {value, publication} = setup((snapshot) => {
+    for (const type of ["delivery", "market"]) {
+      const source = snapshot.creditLedger.sources[type];
+      const cancelled = cancelledCredit(source.credits[0]);
+      source.credits[0] = cancelled;
+      source.claims[0] = cancelledClaim(cancelled);
+    }
+  });
+  assert.equal(value.liveResult.delivery.creditProjection.units[0].assignments[0].rotationOwnerUserId, "member-1");
+  assert.ok(value.liveResult.market.creditProjection.units[0].assignments.some((owner) => owner.rotationOwnerUserId === "member-1"));
+  for (const type of ["delivery", "market"]) {
+    const cancelled = cancelledCredit(credit("member-1", type));
+    assert.deepEqual(publication.sources[type].credits.find((row) => row.id === cancelled.id), cancelled);
+    assert.deepEqual(publication.sources[type].claims.find((row) => row.id === claim(cancelled).id), cancelledClaim(cancelled));
+    assert.equal(isReleasedShiftCoverageClaim(cancelledClaim(cancelled).data), true);
+    for (const unit of value.liveResult[type].creditProjection.units) {
+      assert.equal(unit.consumedCreditIds.includes(cancelled.id), false);
+      assert.equal(unit.servedPositions.some((position) => position.creditId === cancelled.id), false);
+    }
+    assert.equal(publication.changes.some((change) => change.targetPath === `${root}/shiftCoverageCredits/${cancelled.id}`), false);
+  }
+});
+
+test("a released cancellation claim must bind its historical credit's exact operation and time", () => {
+  for (const forgery of [{cancelledByMembershipOperationId: "forged-operation"}, {cancelledAtMillis: 21},
+    {consumedByPlanId: "chosen-plan", consumedAtMillis: 20}]) {
+    assert.throws(() => setup((snapshot) => {
+      const source = snapshot.creditLedger.sources.delivery;
+      const cancelled = cancelledCredit(source.credits[0]);
+      source.credits[0] = cancelled;
+      source.claims[0] = cancelledClaim(cancelled);
+      Object.assign(source.claims[0].data, forgery);
+    }), {code: "invalid_coverage_claim"});
+  }
 });
 
 const withDatabase = async (body) => {
@@ -154,7 +196,7 @@ test("atomic seasonal publication and canonical inverse restore credits/claims a
     assert.deepEqual(await capture(db), restored);
   }));
 
-for (const drift of ["deferredCredit", "newCredit", "claim", "ledger", "membershipReentry"]) {
+for (const drift of ["deferredCredit", "newCredit", "claim", "ledger", "membershipReentry", "permanentCancellation"]) {
   test(`complete source CAS blocks ${drift} drift before forward and inverse with zero partial writes`, {skip: !emulatorAvailable},
     () => withDatabase(async (db) => {
       const data = setup(); await seed(db, data);
@@ -164,6 +206,20 @@ for (const drift of ["deferredCredit", "newCredit", "claim", "ledger", "membersh
         if (drift === "claim") await db.doc(`${root}/shiftCoverageMemberClaims/${claim(credit("member-1", "delivery")).id}`)
           .update({caseId: "another-case"});
         if (drift === "ledger") await db.doc(`${root}/shiftCoverageLedgerState/delivery`).update({revision: 123});
+        if (drift === "permanentCancellation") {
+          // This seasonal fixture keeps maintenance closed, so it cannot run an
+          // administrative reconciliation. Its valid cancellation images and
+          // ledger increment are an explicit source-drift oracle instead.
+          const cancelled = cancelledCredit(credit("outside", "delivery"));
+          const released = cancelledClaim(cancelled);
+          const ledgerRef = db.doc(`${root}/shiftCoverageLedgerState/delivery`);
+          const revision = (await ledgerRef.get()).data().revision;
+          const batch = db.batch();
+          batch.set(db.doc(`${root}/shiftCoverageCredits/${cancelled.id}`), cancelled);
+          batch.set(db.doc(`${root}/shiftCoverageMemberClaims/${released.id}`), released.data);
+          batch.set(ledgerRef, {revision: revision + 1});
+          await batch.commit();
+        }
         if (drift === "membershipReentry") {
           const value = {schemaVersion: 1, policyRevision: "hu084-provisional-v1", userId: "member-1",
             revision: 3, source: {isActive: true, roles: ["member"], isCommonPurchaseManager: false},
@@ -179,6 +235,12 @@ for (const drift of ["deferredCredit", "newCredit", "claim", "ledger", "membersh
       await change(); const active = await capture(db);
       await assert.rejects(() => inverse(db, data));
       assert.deepEqual(await capture(db), active);
+      if (drift === "permanentCancellation") {
+        assert.deepEqual((await db.doc(`${root}/shiftCoverageCredits/delivery-outside`).get()).data(),
+          cancelledCredit(credit("outside", "delivery")));
+        assert.deepEqual((await db.doc(`${root}/shiftCoverageMemberClaims/${claim(credit("outside", "delivery")).id}`).get()).data(),
+          cancelledClaim(cancelledCredit(credit("outside", "delivery"))).data);
+      }
     }));
 }
 

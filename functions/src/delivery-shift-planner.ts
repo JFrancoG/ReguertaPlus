@@ -1,3 +1,6 @@
+import {DeliverySpacingSource, parseDeliverySpacingSource,
+  validateDeliverySpacing} from
+  "./shift-delivery-spacing.js";
 import {planShiftSeasonCreditUnits, ProvisionalSeasonCredits,
   ShiftSeasonCreditProjection} from "./shift-credit-season.js";
 import {
@@ -73,6 +76,7 @@ export type DeliveryPlannerInput = {
   inheritedTargetPrefix?: RotationProjectionPrefix | null;
   continuity: DeliveryPlanningContinuity;
   provisionalCredits?: ProvisionalSeasonCredits;
+  ordinarySpacing?: DeliverySpacingSource;
 };
 
 export type PlannedDeliveryShift = {
@@ -91,6 +95,8 @@ export type PlannedDeliveryShift = {
 };
 
 export type DeliveryPlan = {
+  spacingEvidence?: {source: DeliverySpacingSource;
+    appliedExceptionIds: string[]};
   creditProjection?: ShiftSeasonCreditProjection;
   targetSeasonShiftCount: number;
   generatedTargetShiftCount: number;
@@ -360,6 +366,27 @@ export const planDeliveryShifts = (
     }
   }
 
+  const spacingSource = input.ordinarySpacing ?
+    parseDeliverySpacingSource(input.ordinarySpacing) : undefined;
+  if (spacingSource && predecessor &&
+      !spacingSource.history.some((entry) =>
+        entry.shiftId === predecessor.shiftId &&
+        entry.date === predecessor.scheduledDate)) {
+    throw new ShiftPlanningError("delivery_spacing_history_required",
+      "Delivery spacing requires the complete published predecessor history.");
+  }
+  if (spacingSource && inheritedTargetPrefix &&
+      inheritedTargetPrefix.dates.some((date, index) =>
+        !spacingSource.history.some((entry) => entry.date === date &&
+          entry.userId === inheritedTargetPrefix.positions[index]
+            .rotationOwnerUserId && entry.roundNumber ===
+              inheritedTargetPrefix.positions[index].roundNumber))) {
+    throw new ShiftPlanningError("delivery_spacing_history_required",
+      "Delivery spacing requires every inherited ordinary owner position.");
+  }
+  const appliedExceptionIds = spacingSource ?
+    validateDeliverySpacing({planningRequestId: input.planningRequestId,
+      shifts, source: spacingSource}) : null;
   const predecessorHelperUpdate = predecessor &&
     predecessor.completion.state === "uncompleted" &&
     predecessor.completion.plannedHelperUserId !== firstOwnerUserId ? {
@@ -392,6 +419,8 @@ export const planDeliveryShifts = (
   } : null;
 
   return {
+    ...(spacingSource && appliedExceptionIds ? {spacingEvidence: {
+      source: spacingSource, appliedExceptionIds}} : {}),
     ...(creditPlan ? {creditProjection: creditPlan.projection} : {}),
     targetSeasonShiftCount: targetDates.length,
     generatedTargetShiftCount: remainingTargetDates.length,

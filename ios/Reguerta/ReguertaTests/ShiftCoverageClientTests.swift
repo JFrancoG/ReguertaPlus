@@ -4,6 +4,77 @@ import Testing
 
 @MainActor
 struct ShiftCoverageClientTests {
+    @Test(arguments: [
+        ("pending", "en", "Pending credit"),
+        ("consumed", "en", "Credit used"),
+        ("cancelled", "en", "Credit cancelled after permanent departure"),
+        ("pending", "es", "Crédito pendiente"),
+        ("consumed", "es", "Crédito utilizado"),
+        ("cancelled", "es", "Crédito anulado por baja permanente")
+    ])
+    func creditHistoryRetainsItsMeaningAfterReadingTheServer(
+        _ state: String,
+        language: String,
+        expectedLabel: String
+    ) async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: "\"state\": \"pending\"",
+            with: "\"state\": \"\(state)\""
+        )
+        await harness.model.refresh()
+        let credit = try #require(harness.model.snapshot?.credits.first)
+        var label = CoverageCopy.creditState(credit.state)
+        label.locale = Locale(identifier: language)
+        #expect(String(localized: label) == expectedLabel)
+    }
+
+    @Test func timedVolunteersCanBeOfferedImmediatelyWithinTheRemainingPhase() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": \"volunteers\"")
+            .replacingOccurrences(
+                of: "\"volunteerClosesAtMillis\": null",
+                with: "\"volunteerClosesAtMillis\": 1800003600000, \"phaseClosesAtMillis\": 1800003600000"
+            )
+        await harness.model.refresh()
+        let snapshot = try #require(harness.model.snapshot)
+        let item = try #require(snapshot.cases.first)
+        #expect(harness.model.actions(for: item).contains(.offerNext))
+        let draft = CoverageCommandDraft(
+            action: .offerNext,
+            item: item,
+            snapshot: snapshot,
+            nowMillis: 1800000000000
+        )
+        #expect(draft.command?.expiresAtMillis == 1800003600000)
+        draft.deadline = Date(timeIntervalSince1970: 1800003601)
+        #expect(draft.command == nil)
+        draft.deadline = Date(timeIntervalSince1970: 1800000000)
+        #expect(draft.command == nil)
+    }
+
+    @Test func mandatorySelectionHidesDirectOfferButLegacyPolicyKeepsIt() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"revision\": 2", with: "\"revision\": 1")
+            .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": null")
+        await harness.model.refresh()
+        #expect(harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.offer))
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: "\"drawAvailable\": false",
+            with: "\"drawAvailable\": false, \"selectionRequired\": true"
+        )
+        await harness.model.refresh()
+        let actions = harness.model.actions(for: try #require(harness.model.snapshot?.cases.first))
+        #expect(actions.contains(.startSelection))
+        #expect(!actions.contains(.offer))
+    }
+
     @Test(arguments: [false, true])
     func returningDuringRequestRestoresOverviewWithoutReplayingUncertainCommand(_ command: Bool) async throws {
         let harness = try CoverageClientHarness()
@@ -238,4 +309,76 @@ struct ShiftCoverageClientTests {
         #expect(harness.model.snapshot?.cases.first?.status == .accepted)
     }
 
+}
+
+extension ShiftCoverageClientTests {
+    @Test func administrativeOffersRemainAvailableAfterTheManagementDeadline() async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"offerCandidate\": false", with: "\"offerCandidate\": true")
+            .replacingOccurrences(
+                of: "\"selectionPhase\": \"reserve\"",
+                with: "\"selectionPhase\": \"adminRequired\", \"phaseClosesAtMillis\": 1799996400000"
+            )
+        await harness.model.refresh()
+        let snapshot = try #require(harness.model.snapshot)
+        let item = try #require(snapshot.cases.first)
+        #expect(harness.model.actions(for: item).contains(.offerAdmin))
+        let draft = CoverageCommandDraft(
+            action: .offerAdmin,
+            item: item,
+            snapshot: snapshot,
+            nowMillis: 1800000000000
+        )
+        draft.memberId = "member-b"
+        draft.reason = "La gestión sigue pendiente"
+        #expect(draft.command?.expiresAtMillis == 1800086400000)
+        draft.deadline = Date(timeIntervalSince1970: 1800100000)
+        #expect(draft.command == nil)
+        draft.deadline = Date(timeIntervalSince1970: 1800000000)
+        #expect(draft.command == nil)
+
+        harness.transport.overview = harness.transport.overview.replacingOccurrences(
+            of: "\"adminRequired\"",
+            with: "\"volunteers\""
+        )
+        await harness.model.refresh()
+        #expect(!harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.offerNext))
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"volunteers\"", with: "\"adminRequired\"")
+            .replacingOccurrences(
+                of: "\"scheduledAtMillis\": 1800100000000",
+                with: "\"scheduledAtMillis\": 1800000000000"
+            )
+        await harness.model.refresh()
+        #expect(!harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.offerAdmin))
+    }
+
+    @Test(arguments: [Int64(1000), 59000])
+    func finalMinuteOffersKeepTheExactPhaseDeadline(_ remainingMillis: Int64) async throws {
+        let harness = try CoverageClientHarness()
+        harness.transport.overview = harness.transport.overview
+            .replacingOccurrences(of: "\"isAdmin\": false", with: "\"isAdmin\": true")
+            .replacingOccurrences(of: "\"offered\"", with: "\"open\"")
+            .replacingOccurrences(of: "\"selectionPhase\": \"reserve\"", with: "\"selectionPhase\": \"volunteers\"")
+            .replacingOccurrences(
+                of: "\"volunteerClosesAtMillis\": null",
+                with: "\"volunteerClosesAtMillis\": 1800000059000, \"phaseClosesAtMillis\": 1800000059000"
+            )
+        await harness.model.refresh()
+        let snapshot = try #require(harness.model.snapshot)
+        let item = try #require(snapshot.cases.first)
+        #expect(harness.model.actions(for: item).contains(.offerNext))
+        let draft = CoverageCommandDraft(
+            action: .offerNext,
+            item: item,
+            snapshot: snapshot,
+            nowMillis: 1800000059000 - remainingMillis
+        )
+        #expect(draft.command?.expiresAtMillis == 1800000059000)
+        draft.deadline = Date(timeIntervalSince1970: 1800000060)
+        #expect(draft.command == nil)
+    }
 }

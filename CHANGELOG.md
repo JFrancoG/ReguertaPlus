@@ -52,6 +52,12 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-11 | ✨ feat(shifts): enforce ordinary delivery spacing
+
+- 2026-10-11 | ✨ feat(shifts): apply reserve and departure lifecycle
+
+- 2026-10-04 | ✨ feat(shifts): connect phased coverage deadlines
+
 - 2026-09-13 | ✨ feat(shifts): reconcile coverage effects behind writer barriers
 
 - 2026-09-13 | ✨ feat(shifts): rehearse coverage push dispatch and routing
@@ -238,6 +244,8 @@ All notable changes to this project will be documented in this file.
 - 2026-03-13 | ✨ feat(app): implement startup remote version gate (HU-021)
 
 ### Fixed
+
+- 2026-10-11 | 🐛 fix(shifts): keep late admin resolution available
 
 - 2026-09-28 | 🐛 fix(android): keep coverage actions above IME
 

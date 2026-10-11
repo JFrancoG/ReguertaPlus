@@ -19,6 +19,7 @@
     <string name="coverage_no_credits">Todavía no tienes créditos ganados.</string>
     <string name="coverage_credit_pending">Crédito pendiente</string>
     <string name="coverage_credit_consumed">Crédito utilizado</string>
+    <string name="coverage_credit_cancelled">Crédito anulado por baja permanente</string>
     <string name="coverage_reserve_active">Reserva activa</string>
     <string name="coverage_reserve_inactive">Reserva finalizada</string>
     <string name="coverage_delivery">Reparto</string>
@@ -31,6 +32,9 @@
     <string name="coverage_status_failed">No realizada</string>
     <string name="coverage_read_only">Esta solicitud es de solo lectura. Actualiza antes de continuar.</string>
     <string name="coverage_offer_deadline">La oferta caduca</string>
+    <string name="coverage_phase_deadline">El plazo de esta fase termina</string>
+    <string name="coverage_admin_deadline">Plazo previsto de gestión</string>
+    <string name="coverage_deadline_bounded">La oferta se ajusta al tiempo disponible.</string>
     <string name="coverage_volunteer_deadline">El plazo de voluntariado termina</string>
     <string name="coverage_reason">Motivo</string>
     <string name="coverage_member">Socio</string>

@@ -160,7 +160,11 @@ private fun CoverageDetail(item: ShiftCoverageSnapshot.Case, model: CoverageRehe
             Text(model.coverage.memberName(it.userId))
             Text("${stringResource(R.string.coverage_offer_deadline)}: ${coverageDate(it.expiresAtMillis)}")
         }
-        item.volunteerClosesAtMillis?.let { Text("${stringResource(R.string.coverage_volunteer_deadline)}: ${coverageDate(it)}") }
+        if (item.status == ShiftCoverageSnapshot.Status.open && item.phaseClosesAtMillis != null) {
+            Text("${stringResource(coveragePhaseDeadlineLabel(item.selectionPhase))}: ${coverageDate(item.phaseClosesAtMillis)}")
+        } else {
+            item.volunteerClosesAtMillis?.let { Text("${stringResource(R.string.coverage_volunteer_deadline)}: ${coverageDate(it)}") }
+        }
         item.administration?.let { Text("${stringResource(R.string.coverage_reason)}: ${it.reason}") }
         if (item.selectionPhase == ShiftCoverageSnapshot.Phase.drawRequired && !drawAvailable) {
             Text(stringResource(R.string.coverage_draw_unavailable))
@@ -175,13 +179,23 @@ private fun CoverageAccounting(snapshot: ShiftCoverageSnapshot) {
         if (snapshot.credits.isEmpty()) Text(stringResource(R.string.coverage_no_credits))
         snapshot.credits.forEach { credit ->
             Text(stringResource(coverageKindLabel(credit.type)))
-            Text(stringResource(if (credit.state == ShiftCoverageSnapshot.CreditState.pending) R.string.coverage_credit_pending else R.string.coverage_credit_consumed))
+            Text(stringResource(coverageCreditStateLabel(credit.state)))
         }
         snapshot.reserves.forEach { reserve ->
             Text(stringResource(coverageKindLabel(reserve.type)))
             Text(stringResource(if (reserve.active) R.string.coverage_reserve_active else R.string.coverage_reserve_inactive))
         }
     }
+}
+
+internal fun coveragePhaseDeadlineLabel(phase: ShiftCoverageSnapshot.Phase?): Int =
+    if (phase == ShiftCoverageSnapshot.Phase.adminRequired) R.string.coverage_admin_deadline
+    else R.string.coverage_phase_deadline
+
+internal fun coverageCreditStateLabel(state: ShiftCoverageSnapshot.CreditState): Int = when (state) {
+    ShiftCoverageSnapshot.CreditState.pending -> R.string.coverage_credit_pending
+    ShiftCoverageSnapshot.CreditState.consumed -> R.string.coverage_credit_consumed
+    ShiftCoverageSnapshot.CreditState.cancelled -> R.string.coverage_credit_cancelled
 }
 
 internal fun coverageDate(millis: Long): String = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)

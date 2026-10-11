@@ -1,3 +1,6 @@
+import {DeliverySpacingSource, deliverySpacingAuthorityDigest,
+  parseDeliverySpacingSource} from
+  "./shift-delivery-spacing.js";
 import {planShiftMembershipAdmission, buildShiftMembershipAcknowledgements} from
   "./shift-membership-planning.js";
 import {buildShiftCreditPublication, parseShiftCreditPublicationSources,
@@ -435,6 +438,7 @@ type BundleRotationSnapshot = {
 };
 
 type BundleFairnessSnapshot = {
+  deliverySpacing?: DeliverySpacingSource;
   normalized: ShiftPlanningFairnessSnapshot;
   authoritativeState: ShiftPlanningAuthoritativeState;
   environment: ShiftPlanningEnvironment;
@@ -867,6 +871,13 @@ const parseBundleFairnessSnapshot = (
         "creditLedger.plannedWriteCount") !== 0) {
     return failState("Coverage-credit transitions remain disabled.");
   }
+  const deliverySpacing = normalized.deliverySpacing !== undefined ?
+    parseDeliverySpacingSource(normalized.deliverySpacing) : undefined;
+  if (deliverySpacing && deliverySpacing.authorityDigest !==
+      deliverySpacingAuthorityDigest(authoritativeState.maintenance,
+        authoritativeState.rotations.delivery)) {
+    return failState("Delivery spacing approvals belong to another authority.");
+  }
   const membershipAdmission = creditSources?.membership ?
     planShiftMembershipAdmission({source: creditSources.membership,
       rotations: {delivery: delivery.cursor, market: market.cursor},
@@ -875,6 +886,7 @@ const parseBundleFairnessSnapshot = (
   return {
     normalized,
     authoritativeState,
+    ...(deliverySpacing ? {deliverySpacing} : {}),
     ...(membershipAdmission ? {membershipAdmission} : {}),
     environment: authoritativeState.environment,
     activeRevision: authoritativeState.maintenance.activeRevision,
@@ -2091,6 +2103,7 @@ export const planShiftPlanningBundle = (
     rotation: snapshot.delivery.cursor,
     inheritedTargetPrefix: input.delivery.inheritedTargetPrefix ?? null,
     continuity: input.delivery.continuity,
+    ordinarySpacing: snapshot.deliverySpacing,
     provisionalCredits: snapshot.creditSources ? {
       ...snapshot.creditSources.delivery,
       ...(snapshot.membershipAdmission?.policies.delivery ? {membership:

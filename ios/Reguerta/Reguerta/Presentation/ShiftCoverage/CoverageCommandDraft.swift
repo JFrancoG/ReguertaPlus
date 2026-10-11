@@ -9,6 +9,7 @@ final class CoverageCommandDraft: Identifiable {
     let item: ShiftCoverageSnapshot.Case?
     let snapshot: ShiftCoverageSnapshot
     let nowMillis: Int64
+    private let phaseDeadlineMillis: Int64
     var shiftId: String
     var memberId = ""
     var reason = ""
@@ -24,10 +25,14 @@ final class CoverageCommandDraft: Identifiable {
         self.item = item
         self.snapshot = snapshot
         self.nowMillis = nowMillis
+        let phaseDeadline = action == .offerAdmin && item?.selectionPhase == .adminRequired
+            ? Int64.max : item?.phaseClosesAtMillis ?? Int64.max
+        phaseDeadlineMillis = phaseDeadline
         shiftId = snapshot.availableShifts?.first(where: \.writable)?.shiftId ?? ""
         deadline = Date(timeIntervalSince1970: Double(min(
             nowMillis + snapshot.policy.maximumOfferWindowMillis,
-            (item?.scheduledAtMillis ?? Int64.max) - 1000
+            (item?.scheduledAtMillis ?? Int64.max) - 1000,
+            phaseDeadline
         )) / 1000)
     }
 
@@ -49,8 +54,13 @@ final class CoverageCommandDraft: Identifiable {
         guard !needsReason || (!trimmed.isEmpty && trimmed.count <= 500) else { return nil }
         guard !needsMember || members.contains(where: { $0.memberId == memberId }) else { return nil }
         let expires = Int64(deadline.timeIntervalSince1970 * 1000)
-        guard !needsDeadline || (expires > nowMillis && expires <= nowMillis + snapshot.policy.maximumOfferWindowMillis
-            && expires < (item?.scheduledAtMillis ?? 0)) else { return nil }
+        guard !needsDeadline || (
+            expires > nowMillis && expires <= nowMillis + snapshot.policy.maximumOfferWindowMillis
+                && expires < (item?.scheduledAtMillis ?? 0)
+                && expires <= phaseDeadlineMillis
+        ) else {
+            return nil
+        }
         guard action != .open || selectedShift != nil else { return nil }
         guard action == .open || item != nil else { return nil }
         return ShiftCoverageCommand(

@@ -11,7 +11,7 @@ struct CoverageAccountingSection: View {
             ForEach(snapshot.credits, id: \.creditId) { credit in
                 VStack(alignment: .leading) {
                     Text(CoverageCopy.text(credit.type.rawValue)).font(.headline)
-                    Text(CoverageCopy.text("credit_\(credit.state.rawValue)"))
+                    Text(CoverageCopy.creditState(credit.state))
                 }
                 .accessibilityElement(children: .combine)
             }

@@ -1,5 +1,6 @@
 package com.reguerta.user.presentation.shiftcoverage
 
+import com.reguerta.user.R
 import com.reguerta.user.data.shiftcoverage.CoverageHttpResponse
 import com.reguerta.user.data.shiftcoverage.CoverageHttpTransport
 import com.reguerta.user.data.shiftcoverage.LocalShiftCoverageRepository
@@ -24,6 +25,23 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShiftCoverageClientTest {
+    @Test fun creditHistoryRetainsItsMeaningAfterReadingTheServer() = runTest {
+        for ((state, expectedLabel) in listOf(
+            "pending" to R.string.coverage_credit_pending,
+            "consumed" to R.string.coverage_credit_consumed,
+            "cancelled" to R.string.coverage_credit_cancelled,
+        )) {
+            val harness = Harness()
+            harness.transport.overview = harness.transport.overview.replace(
+                "\"state\": \"pending\"",
+                "\"state\": \"$state\"",
+            )
+            harness.model.refresh()
+            val credit = checkNotNull(harness.model.state.value.snapshot?.credits?.firstOrNull())
+            assertEquals(expectedLabel, coverageCreditStateLabel(credit.state))
+        }
+    }
+
     @Test fun returningDuringRequestRestoresOverviewWithoutReplayingUncertainCommand() = runTest {
         for (command in listOf(false, true)) {
             val harness = Harness()

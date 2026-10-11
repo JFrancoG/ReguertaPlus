@@ -85,10 +85,11 @@ Los plazos propuestos son:
 El recorrido completo suma 14 días en el caso normal y 5 días en el urgente.
 Son plazos propuestos, todavía pendientes de aprobación.
 
-Los plazos son máximos para cada paso completo y no se reinician con cada nueva
-persona. Cada día cuenta como 24 horas desde el inicio de ese paso. La búsqueda
-termina en cuanto una persona que cumpla las condiciones acepte, sin esperar a
-agotar el plazo.
+Los plazos de reserva, voluntarios y sorteo son máximos para cada paso completo
+y no se reinician con cada nueva persona. El de los responsables es un objetivo
+para resolver el caso, como se explica en el punto 9. Cada día cuenta como
+24 horas desde el inicio de ese paso. La búsqueda termina en cuanto una persona
+que cumpla las condiciones acepte, sin esperar a agotar el plazo.
 
 **Si faltan menos de cinco días, el caso lo gestionarán exclusivamente los
 responsables de turnos desde el primer momento.** No se iniciará el recorrido
@@ -152,6 +153,15 @@ También se aplicará el límite de sustituciones y compensaciones del punto 11.
 
 La persona responsable buscará una solución y dejará anotado qué se ha decidido.
 Cualquier sustituto tendrá que reunir las condiciones y aceptar.
+
+Los tres días —o un día si el caso es urgente— son el tiempo previsto para que
+los responsables lo resuelvan. Si se supera, quedará constancia del retraso y
+seguirán pudiendo buscar una solución mientras no haya empezado el turno.
+No se reiniciarán los pasos anteriores ni se borrará el plazo original.
+
+Cada nueva oferta tendrá una fecha y hora límite para responder, dentro del
+máximo permitido y siempre antes del turno. La persona deberá aceptar dentro
+de ese plazo; una oferta vencida no se dará por aceptada.
 
 Mientras no haya solución, el turno figurará como pendiente de cubrir. No se
 marcará como resuelto ni realizado por el mero hecho de haber enviado avisos.

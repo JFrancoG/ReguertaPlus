@@ -63,6 +63,10 @@ internal fun CoverageCommandDialog(draft: CoverageCommandDraft, model: CoverageR
                 if (draft.needsDeadline) {
                     OutlinedTextField(draft.deadlineMinutes, { draft.deadlineMinutes = it }, label = { Text(stringResource(R.string.coverage_minutes)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    draft.offerExpiresAtMillis?.let {
+                        Text("${stringResource(R.string.coverage_offer_deadline)}: ${coverageDate(it)}")
+                        Text(stringResource(R.string.coverage_deadline_bounded))
+                    }
                 }
                 Button(onClick = model::confirmDraft, enabled = model.canConfirmDraft(now), modifier = Modifier.testTag("coverage.confirm")) { Text(stringResource(R.string.coverage_confirm)) }
                 TextButton(onClick = model::dismissDraft, modifier = Modifier.testTag("coverage.dismiss")) { Text(stringResource(R.string.coverage_dismiss)) }

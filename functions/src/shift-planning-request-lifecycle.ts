@@ -84,6 +84,11 @@ export type ExecuteShiftPlanningRequestInput = {
 
 const deliveryFailureCodes = new Set<ShiftPlanningFailureCode>([
   "adjacent_delivery_lead_conflict",
+  "invalid_delivery_spacing_source",
+  "delivery_spacing_history_required",
+  "delivery_spacing_conflict",
+  "delivery_spacing_exception_unavailable",
+  "delivery_spacing_exception_unused",
   "delivery_helper_cursor_conflict",
   "delivery_helper_evidence_ambiguous",
   "delivery_helper_ineligible",

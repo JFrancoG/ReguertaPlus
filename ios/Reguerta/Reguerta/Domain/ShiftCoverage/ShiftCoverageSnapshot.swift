@@ -31,11 +31,12 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
     enum Status: String, Decodable { case open, offered, accepted, completed, cancelled, failed }
     enum Phase: String, Decodable { case reserve, volunteers, drawRequired, draw, adminRequired }
     enum OfferSource: String, Decodable { case admin, reserve, volunteer, draw }
-    enum CreditState: String, Decodable { case pending, consumed }
+    enum CreditState: String, Decodable { case pending, consumed, cancelled }
 
     struct Policy: Decodable, Equatable {
         let maximumOfferWindowMillis: Int64
         let volunteerWindowMillis: Int64?
+        var selectionRequired: Bool?
         let drawAvailable: Bool
     }
 
@@ -61,6 +62,7 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
         let canResumeAdmin: Bool?
         let hasVolunteered: Bool?
         let drawCommitted: Bool?
+        var phaseClosesAtMillis: Int64?
         let drawAvailableAtMillis: Int64?
 
         var id: String { caseId }

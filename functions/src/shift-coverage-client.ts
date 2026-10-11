@@ -1,3 +1,6 @@
+import {firstDueOrdinaryShift} from "./shift-membership-lifecycle.js";
+import {CoverageReserve, refreshCoverageSelection} from
+  "./shift-coverage-selection.js";
 import {readCoverageNotificationInbox, readCoverageNotificationReference} from
   "./shift-coverage-notification.js";
 import {readShiftCoverageChoices} from "./shift-coverage-choices.js";
@@ -56,8 +59,18 @@ const visibleCase = (
 export const projectShiftCoverageCase = (input: {
   value: ShiftCoverageCase; memberId: string; admin: boolean;
   scheduledAtMillis: number; shiftRevision: number; writable: boolean;
+  nowMillis?: number;
 }) => {
   const {value, memberId, admin} = input;
+  const selection = value.selection && value.status === "open" &&
+    input.nowMillis !== undefined ?
+    refreshCoverageSelection(value.selection, input.nowMillis) :
+    value.selection;
+  if (selection?.timing && (selection.timing.openedAtMillis !==
+      value.createdAtMillis || selection.timing.scheduledAtMillis !==
+      input.scheduledAtMillis)) {
+    return rejectCoverage("invalid_coverage_timing");
+  }
   const offer = value.offer && (admin || value.offer.userId === memberId) ? {
     userId: value.offer.userId, source: value.offer.source,
     expiresAtMillis: value.offer.expiresAtMillis} : null;
@@ -66,8 +79,10 @@ export const projectShiftCoverageCase = (input: {
     revision: value.revision, shiftRevision: input.shiftRevision,
     scheduledAtMillis: input.scheduledAtMillis, writable: input.writable,
     absentUserId: value.absentUserId, acceptedUserId: value.acceptedUserId,
-    offer, selectionPhase: value.selection?.phase ?? null,
-    volunteerClosesAtMillis: value.selection?.volunteerClosesAtMillis ?? null,
+    offer, selectionPhase: selection?.phase ?? null,
+    ...(selection?.timing ? {
+      phaseClosesAtMillis: selection.timing.phaseClosesAtMillis} : {}),
+    volunteerClosesAtMillis: selection?.volunteerClosesAtMillis ?? null,
     volunteered: value.selection?.volunteers.some((item) =>
       item.userId === memberId && !item.withdrawn) ?? false,
     hasVolunteered: value.selection?.volunteers.some((item) =>
@@ -97,7 +112,7 @@ export const createShiftCoverageClientReader = (
   db: Firestore, nowMillis: () => number,
   policy: {maximumOfferWindowMillis: number;
     volunteerWindowMillis: number | null;
-    drawAvailable: boolean},
+    drawAvailable: boolean; selectionRequired?: boolean},
 ) => async (value: unknown, identity: VerifiedIdentity) => {
   requireProvisionalCreditPublication("develop");
   const query = parseShiftCoverageQuery(value);
@@ -152,7 +167,7 @@ export const createShiftCoverageClientReader = (
       const document = shifts[index];
       const shift = parseShiftPlanningPublicShiftDocument({
         targetPath: document.ref.path, value: document.data()});
-      return projectShiftCoverageCase({value: item, ...actor,
+      return projectShiftCoverageCase({value: item, ...actor, nowMillis: now,
         scheduledAtMillis: shift.date.toMillis(),
         shiftRevision: shift.documentRevision,
         writable: Boolean(authority &&
@@ -168,6 +183,15 @@ export const createShiftCoverageClientReader = (
     if (credits.size > 250 || reserves.size > 2) {
       return rejectCoverage("coverage_read_limit");
     }
+    const ordinary = policy.selectionRequired && reserves.docs.some(
+      (document) => document.data().active) ? await transaction.get(
+        db.collection(`${root}/shifts`).limit(1001)) : null;
+    if (ordinary && ordinary.size > 1000) {
+      return rejectCoverage("membership_source_limit");
+    }
+    const ordinaryShifts = ordinary?.docs.map((document) => ({
+      id: document.id, shift: parseShiftPlanningPublicShiftDocument({
+        targetPath: document.ref.path, value: document.data()})})) ?? [];
     const choices = await readShiftCoverageChoices(
       db, transaction, {...actor, visibleMemberIds: projected.flatMap((item) =>
         [item.absentUserId, item.acceptedUserId, item.offer?.userId]
@@ -192,7 +216,7 @@ export const createShiftCoverageClientReader = (
             credit.consumedAtMillis : null};
       }),
       reserves: reserves.docs.map((document) => {
-        const reserve = document.data();
+        const reserve = document.data() as CoverageReserve;
         if (!["delivery", "market"].includes(reserve.type) ||
             document.id !== digest([reserve.type, actor.memberId])
               .split(":").at(-1) || typeof reserve.active !== "boolean" ||
@@ -200,7 +224,9 @@ export const createShiftCoverageClientReader = (
             reserve.enteredAtMillis < 0 || reserve.enteredAtMillis > now) {
           return rejectCoverage("invalid_coverage_reserve");
         }
-        return {type: reserve.type, active: reserve.active,
+        const due = reserve.active && policy.selectionRequired ?
+          firstDueOrdinaryShift(reserve, ordinaryShifts, now) : undefined;
+        return {type: reserve.type, active: reserve.active && !due,
           enteredAtMillis: reserve.enteredAtMillis};
       })};
   });
