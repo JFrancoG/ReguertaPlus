@@ -1,3 +1,4 @@
+import {assertDeliverySpacingSource} from "./shift-delivery-spacing-store.js";
 import {restoreShiftMembershipPlanningRecord} from
   "./shift-membership-planning.js";
 import {assertProvisionalShiftMembershipSource,
@@ -1301,6 +1302,15 @@ export const applyShiftPlanningInverseRecoveryAttempt = async (
 ): Promise<ShiftPlanningInverseRecoveryAttempt> => {
   const materialization = materializeShiftPlanningInverseRecovery(input);
   const artifact = input.bundle.artifact;
+  if (artifact.delivery.spacingEvidence) {
+    const operation = parseShiftPlanningActivationOperationTerminal(
+      input.activationOperationDocument.data);
+    await assertDeliverySpacingSource({...input,
+      source: artifact.delivery.spacingEvidence.source,
+      ownPublishedPaths: operation.publicMutations.filter((mutation) =>
+        mutation.mutationKind === "create").map((mutation) =>
+        mutation.targetPath)});
+  }
   if (artifact.manifests.forward?.creditPublication) {
     const activation = parseShiftPlanningActivationOperationTerminal(
       input.activationOperationDocument.data);

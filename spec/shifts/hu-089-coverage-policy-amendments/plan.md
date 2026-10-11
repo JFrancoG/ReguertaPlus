@@ -74,3 +74,55 @@ Validation completed:
 - Independent backend/native/documentation review completed, including the four Swift source files and EN/ES ADR parity. In-scope findings were fixed and their regressions passed; final `git diff --check` is clean.
 
 The maintainer requested commit and push of the validated lifecycle block on 2026-10-11. This delivery includes backend, both native clients, regression tests and bilingual ADR-0015 on `codex/hu-089-coverage-policy-amendments`, following `1fc072b4`. The tracker records the resulting commit after remote verification. No deployment, live notification or real-data mutation is included. Ten-week spacing and final story review remain pending.
+
+## Ordinary-delivery spacing block — 2026-10-11
+
+The maintainer authorized this next grouped implementation block. Apply 70 calendar
+days to immutable ordinary delivery owners in distinct rounds through the existing
+planner and governed source/bundle/publication path. Preserve published prefixes,
+queue order, credit algorithm and adjacent lead/helper safety. Capture all published
+delivery history and exact reasoned current-authority administrative approvals.
+Validate spacing independently of credit enablement and bind full source evidence
+in both forward and inverse transactions. See bilingual ADR-0016.
+
+Implemented and independently reviewed. A ten-owner weekly cohort passes the exact
+70-day boundary without moving queue, dates or helpers. A nine-owner cohort requires
+each actual short pair to be explicitly authorized. Credit compression cannot
+silently bypass spacing. Cross-season history, inherited prefixes, DST boundaries,
+unused/stale approvals and adjacent lead/helper rejection are covered.
+
+The administrative command writes only immutable approval and actor-bound receipt.
+The producer derives its source from published records and current administrator
+permissions, not supplied history. The bundle binds that source and current
+canonical authority. Full forward/inverse tests apply a real exception, preserve
+published history and reject date/owner/round/new-row/approval/permission drift
+without partial writes. Recovery passes with 991 retained historical rows plus
+60 own newly published deliveries. Strict and phase1 compatibility Rules deny all
+client access to the new private collections, including authenticated admins.
+Stable spacing failure codes retain delivery scope without publishing raw evidence.
+
+Validation completed under Node 22:
+
+- Functions lint/build passed. Planning unit lane: 294 passed, 51 existing
+  emulator-dependent skips, zero failures. Coverage pure lane: 63/63 passed,
+  including 11 new spacing cases. Log: `/tmp/hu089-spacing-unit.log`.
+- Final focused spacing/request-lifecycle rerun: 28/28 passed without skips,
+  including the added public-summary scope/privacy regression.
+  Log: `/tmp/hu089-spacing-final-scope.log`.
+- Focused new spacing emulator file: 14/14 passed, zero skips/failures.
+  Log: `/tmp/hu089-spacing-subagent-emulator-green.log`.
+- Complete coverage Firestore/Rules/publication workflow: 161/161 passed; Auth/HTTP:
+  22/22 passed, both without skips/failures. These runs use only the fixed
+  `demo-reguerta-hu084-coverage` emulator. Final log:
+  `/tmp/hu089-spacing-emulator-final.log`. Owned emulators shut down normally.
+- Independent backend/documentation review and `git diff --check` passed.
+  No native files changed; both planning failure models retain string fields and
+  generic existing failure feedback. Public shift/coverage projection contracts
+  remain compatible. Native runtime gates were not repeated for this backend block.
+
+All three local HU-089 functional blocks are implemented. On 2026-10-11 the
+maintainer requested commit/push of this spacing block after `d7149ab8`, followed
+by final combined story review. The definitive pushed hash is recorded in the
+tracker after remote verification. Administrative native commands, live composition,
+legacy migration and activation remain part of HU-084. Collective ratification is
+still pending. No real data, shared deployment or real notification was used.

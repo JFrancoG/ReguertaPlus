@@ -52,6 +52,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-11 | ✨ feat(shifts): enforce ordinary delivery spacing
+
 - 2026-10-11 | ✨ feat(shifts): apply reserve and departure lifecycle
 
 - 2026-10-04 | ✨ feat(shifts): connect phased coverage deadlines

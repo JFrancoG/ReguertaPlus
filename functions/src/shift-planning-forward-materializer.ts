@@ -1,3 +1,4 @@
+import {assertDeliverySpacingSource} from "./shift-delivery-spacing-store.js";
 import {assertProvisionalShiftMembershipSource,
   assertShiftCreditPublicationSource,
   requireProvisionalCreditPublication, shiftCreditPublicationAfter} from
@@ -823,6 +824,10 @@ export const applyShiftPlanningForwardActivationAttempt = async (
 ): Promise<ShiftPlanningForwardActivationAttempt> => {
   const materialization = materializeShiftPlanningForwardActivation(input);
   const artifact = input.preflight.bundle.artifact;
+  if (artifact.delivery.spacingEvidence) {
+    await assertDeliverySpacingSource({...input,
+      source: artifact.delivery.spacingEvidence.source});
+  }
   if (artifact.manifests.forward.creditPublication) {
     await assertShiftCreditPublicationSource({...input,
       publication: artifact.manifests.forward.creditPublication});

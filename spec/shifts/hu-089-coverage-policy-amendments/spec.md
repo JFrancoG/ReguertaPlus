@@ -31,3 +31,23 @@ Reserve entries freeze their admission round boundary. Ordinary due-time evaluat
 uses the original rotation owner, not the effective assignee, and excludes old
 positions from an earlier entry generation. Read-only projections and reserve
 offer/acceptance apply the same predicate even before persisted reconciliation.
+
+## Local ordinary-delivery spacing contract
+
+The explicit `deliverySpacing: {version: "hu089-delivery-spacing-v1"}` source-policy
+option captures published ordinary delivery owners and exact administrative
+exceptions in the registered fixed emulator, independently of credit enablement.
+Seventy calendar days separate the same owner's dated positions in different
+rounds; effective coverage assignees and helpers do not alter that history.
+Published historical conflicts alone do not trigger retroactive calendar changes.
+
+An administrator records a reasoned exception for one member, two exact dates and
+rounds, and the planning request. Current permission and canonical authority are
+checked again before publication. Forward/inverse transactions bind complete
+source evidence; inverse excludes only its own newly created verified public rows.
+Insufficient spacing, including credit compression, blocks the unchanged plan
+until exact valid exceptions exist. See [ADR-0016](../../../docs/decisions/0016-bind-delivery-spacing-to-ordinary-planning-history.md)
+and its [Spanish version](../../../docs-es/decisions/0016-vincular-separacion-de-repartos-al-historial-ordinario.md).
+
+Administrative native forms and live integration remain in HU-084. This block
+changes neither the public shift schema nor native coverage projections.

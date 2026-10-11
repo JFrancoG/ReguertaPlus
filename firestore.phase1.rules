@@ -50,6 +50,8 @@ service cloud.firestore {
         "shiftCoverageReserves",
         "shiftMembershipState",
         "shiftMembershipOperations",
+        "shiftDeliverySpacingExceptions",
+        "shiftDeliverySpacingOperations",
         "shiftCoverageBeaconRounds",
         "shiftCoverageOperations",
         "shiftCoverageSlots",

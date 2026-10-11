@@ -56,6 +56,12 @@ export const createProvisionalCreditFirestore = (): Firestore => {
   provisionalDatabases.add(db);
   return db;
 };
+export const requireRegisteredProvisionalCreditFirestore = (db: Firestore) => {
+  requireProvisionalCreditPublication("develop");
+  if (!provisionalDatabases.has(db)) {
+    return rejectCoverage("coverage_provisional_emulator_required");
+  }
+};
 /**
  * Local membership transitions also fence ordinary (credit-disabled) plans.
  * Live and legacy test clients keep their existing authority contract.
