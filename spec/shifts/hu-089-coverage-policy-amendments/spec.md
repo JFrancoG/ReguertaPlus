@@ -4,13 +4,24 @@
 - Parent: HU-084 / #268; depends on draft PR #278.
 - Branch: `codex/hu-089-coverage-policy-amendments`.
 - Base: `5f36e041394ada8d3db3949b10691e9974e91669` (HU-084, unmerged).
-- Status: local implementation authorized; collective ratification/activation pending.
+- Status: local implementation and combined review complete; PR delivery and collective ratification/activation pending.
 
 Canonical decisions: [proposal](../hu-084-stable-shift-coverage-and-credits/propuesta-turnos-para-socios.md) and [matrix](../hu-084-stable-shift-coverage-and-credits/ratification.md).
 
 ## Acceptance
 
-Implement phase-wide 2/7/2/3-day maxima when opening at least 14 days before the shift, 1/2/1/1 between 5 and 14 days, and exclusive administrative resolution below 5 days. Days mean 24 hours. The case-opening time fixes the urgency class; a delayed worker cannot restart the timeline or consume the time reserved for later phases. A valid accepted offer closes the search. First volunteer has priority. Preserve existing synthetic fixtures under their original explicit policy version.
+Implement phase-wide reserve/volunteer/draw maxima of 2/7/2 days when opening at
+least 14 days before the shift and 1/2/1 days between 5 and 14 days, with
+administrative management targets of 3 and 1 days respectively. Below 5 days,
+use exclusive administrative resolution. Days mean 24 hours. The case-opening
+time fixes the urgency class; a delayed worker cannot restart the timeline or
+consume the time reserved for later phases. Administration may still resolve a
+future shift after its target: retain the original overdue target, never restart
+the search, and require explicit acceptance of an unexpired offer within the
+configured maximum response window and strictly before the shift. A valid
+accepted offer closes the search. First volunteer has priority. Preserve existing
+synthetic fixtures under their original explicit policy version. See
+[ADR-0017](../../../docs/decisions/0017-keep-administrative-resolution-open-after-its-target-deadline.md).
 
 Exit reserves at first ordinary same-type due date. Cancel pending credits on permanent departure with retained audit history, while temporary ineligibility preserves balance. Preserve publication/inverse and whole-ledger atomicity.
 
@@ -51,3 +62,6 @@ and its [Spanish version](../../../docs-es/decisions/0016-vincular-separacion-de
 
 Administrative native forms and live integration remain in HU-084. This block
 changes neither the public shift schema nor native coverage projections.
+
+Integration note: exception commands use `planningRequestId` for the stable
+`bundleId` shared by preview/stage/activate, not a phase's individual `requestId`.

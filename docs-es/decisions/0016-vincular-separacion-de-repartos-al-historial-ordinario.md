@@ -60,6 +60,10 @@ composición real, la migración del historial anterior y la activación colecti
 siguen en la integración de HU-084. Este bloque no cambia el esquema de turnos
 públicos ni la proyección nativa de coberturas.
 
+Nota de integración: `planningRequestId` en el comando de excepción recibe el
+`bundleId` estable compartido por preview/stage/activate, no el identificador de
+la solicitud individual de cada fase. Aclara el contrato de identidad existente.
+
 ## Trabajo relacionado
 
 - [ADR-0013](0013-modelar-turnos-como-rotaciones-continuas-con-proyecciones-estacionales.md)

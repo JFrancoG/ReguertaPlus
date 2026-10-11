@@ -11,5 +11,5 @@
 - [ ] Connect administrative spacing-exception forms during HU-084 shared integration.
 - [x] Validate and independently review the deadline/lifecycle blocks.
 - [x] Validate and independently review spacing, exact exceptions, source drift and inverse recovery.
-- [ ] Complete final story validation and delivery review after spacing.
+- [x] Complete final story validation and delivery review after spacing.
 - [ ] Obtain collective ratification before any activation.

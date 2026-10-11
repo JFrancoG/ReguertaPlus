@@ -33,6 +33,8 @@
     <string name="coverage_read_only">Esta solicitud es de solo lectura. Actualiza antes de continuar.</string>
     <string name="coverage_offer_deadline">La oferta caduca</string>
     <string name="coverage_phase_deadline">El plazo de esta fase termina</string>
+    <string name="coverage_admin_deadline">Plazo previsto de gestión</string>
+    <string name="coverage_deadline_bounded">La oferta se ajusta al tiempo disponible.</string>
     <string name="coverage_volunteer_deadline">El plazo de voluntariado termina</string>
     <string name="coverage_reason">Motivo</string>
     <string name="coverage_member">Socio</string>

@@ -170,6 +170,63 @@ class CoverageRehearsalTest {
         assertNull(model.draft)
     }
 
+    @Test fun administrativeOffersRemainAvailableAfterTheManagementDeadline() = runTest {
+        val transport = LoginTransport()
+        val access = LocalCoverageRehearsalAccess(transport = transport)
+        val model = ShiftCoverageViewModel(access.repository)
+        model.bind(access.signIn("a@example.test", "fixture"))
+        transport.overview = transport.overview.replace("\"isAdmin\": false", "\"isAdmin\": true")
+            .replace("\"offered\"", "\"open\"")
+            .replace("\"offerCandidate\": false", "\"offerCandidate\": true")
+            .replace("\"selectionPhase\": \"reserve\"",
+                "\"selectionPhase\": \"adminRequired\", \"phaseClosesAtMillis\": 1799996400000")
+        model.refresh()
+        val snapshot = checkNotNull(model.state.value.snapshot)
+        val item = snapshot.cases.first()
+        assertTrue(model.actions(item).contains(Action.offerAdmin))
+        val draft = CoverageCommandDraft(Action.offerAdmin, item, snapshot, 1800000000000)
+        draft.memberId = "member-b"
+        draft.reason = "La gestión sigue pendiente"
+        assertEquals(1800086400000, draft.command?.expiresAtMillis)
+        draft.deadlineMinutes = "1441"
+        assertNull(draft.command)
+        draft.deadlineMinutes = "0"
+        assertNull(draft.command)
+
+        transport.overview = transport.overview.replace("\"adminRequired\"", "\"volunteers\"")
+        model.refresh()
+        assertFalse(model.actions(checkNotNull(model.state.value.snapshot).cases.first()).contains(Action.offerNext))
+        transport.overview = transport.overview.replace("\"volunteers\"", "\"adminRequired\"")
+            .replace("\"scheduledAtMillis\": 1800100000000", "\"scheduledAtMillis\": 1800000000000")
+        model.refresh()
+        assertFalse(model.actions(checkNotNull(model.state.value.snapshot).cases.first()).contains(Action.offerAdmin))
+    }
+
+    @Test fun finalMinuteOffersKeepTheExactPhaseDeadline() = runTest {
+        val transport = LoginTransport()
+        val access = LocalCoverageRehearsalAccess(transport = transport)
+        val model = ShiftCoverageViewModel(access.repository)
+        model.bind(access.signIn("a@example.test", "fixture"))
+        transport.overview = transport.overview.replace("\"isAdmin\": false", "\"isAdmin\": true")
+            .replace("\"offered\"", "\"open\"")
+            .replace("\"selectionPhase\": \"reserve\"", "\"selectionPhase\": \"volunteers\"")
+            .replace("\"volunteerClosesAtMillis\": null",
+                "\"volunteerClosesAtMillis\": 1800000059000, \"phaseClosesAtMillis\": 1800000059000")
+        model.refresh()
+        val snapshot = checkNotNull(model.state.value.snapshot)
+        val item = snapshot.cases.first()
+        assertTrue(model.actions(item).contains(Action.offerNext))
+        for (remainingMillis in listOf(1000L, 59000L)) {
+            val draft = CoverageCommandDraft(Action.offerNext, item, snapshot, 1800000059000 - remainingMillis)
+            assertEquals("1", draft.deadlineMinutes)
+            assertEquals(1800000059000, draft.command?.expiresAtMillis)
+            draft.deadlineMinutes = "2"
+            assertNull(draft.command)
+            draft.deadlineMinutes = "0"
+            assertNull(draft.command)
+        }
+    }
+
     @Test fun timedVolunteersCanBeOfferedImmediatelyWithinTheRemainingPhase() = runTest {
         val transport = LoginTransport()
         val access = LocalCoverageRehearsalAccess(transport = transport)

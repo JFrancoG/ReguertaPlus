@@ -22,7 +22,8 @@ internal fun ShiftCoverageViewModel.actions(item: ShiftCoverageSnapshot.Case): L
     }
     if (snapshot.isAdmin) {
         when (item.status) {
-            Status.open -> if (item.phaseClosesAtMillis == null || now < item.phaseClosesAtMillis) when (item.selectionPhase) {
+            Status.open -> if (now < item.scheduledAtMillis && (item.selectionPhase == Phase.adminRequired ||
+                item.phaseClosesAtMillis == null || now < item.phaseClosesAtMillis)) when (item.selectionPhase) {
                 null -> {
                     if (snapshot.policy.selectionRequired ||
                         (item.revision == 1L && snapshot.policy.volunteerWindowMillis != null)) actions += Action.startSelection

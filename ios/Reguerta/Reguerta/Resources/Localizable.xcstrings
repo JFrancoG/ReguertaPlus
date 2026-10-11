@@ -609,6 +609,14 @@
       "es": { "stringUnit": { "state": "translated", "value": "El plazo de esta fase termina" } }
     }
   },
+  "coverage.admin_deadline": {
+    "comment": "Original target deadline for administrative resolution. Passing it does not close an unresolved case; offers remain possible before the shift starts.",
+    "extractionState": "manual",
+    "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Target resolution deadline" } },
+      "es": { "stringUnit": { "state": "translated", "value": "Plazo previsto de gestión" } }
+    }
+  },
   "coverage.volunteer_deadline": {
     "localizations": {
       "en": {

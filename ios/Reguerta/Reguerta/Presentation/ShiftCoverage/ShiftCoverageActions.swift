@@ -50,7 +50,8 @@ extension ShiftCoverageViewModel {
         _ item: ShiftCoverageSnapshot.Case,
         policy: ShiftCoverageSnapshot.Policy
     ) -> [ShiftCoverageCommand.Action] {
-        if let closes = item.phaseClosesAtMillis, nowMillis >= closes {
+        guard nowMillis < item.scheduledAtMillis else { return [] }
+        if item.selectionPhase != .adminRequired, let closes = item.phaseClosesAtMillis, nowMillis >= closes {
             return []
         }
         switch item.selectionPhase {

@@ -57,6 +57,10 @@ keeps its explicit old policy. Administrative native UI, live source composition
 legacy history migration and collective activation remain in HU-084 integration.
 No public shift schema or native coverage projection changes in this block.
 
+Integration note: the exception command's `planningRequestId` is the stable
+`bundleId` shared by preview/stage/activate, not the individual request ID of a
+phase. This clarifies the existing planning identity contract.
+
 ## Related work
 
 - [ADR-0013](0013-model-shifts-as-continuous-rotations-with-seasonal-projections.md)

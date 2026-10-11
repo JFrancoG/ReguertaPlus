@@ -39,7 +39,11 @@ struct CoverageCaseDetailView: View {
                             )
                         }
                         if item.status == .open, let closes = item.phaseClosesAtMillis {
-                            LabeledContent(CoverageCopy.text("phase_deadline"), value: CoverageCopy.date(closes))
+                            LabeledContent {
+                                Text(CoverageCopy.date(closes))
+                            } label: {
+                                Text(CoverageCopy.phaseDeadline(item.selectionPhase))
+                            }
                         } else if let closes = item.volunteerClosesAtMillis {
                             LabeledContent(CoverageCopy.text("volunteer_deadline"), value: CoverageCopy.date(closes))
                         }

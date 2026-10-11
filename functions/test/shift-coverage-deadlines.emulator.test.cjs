@@ -1,6 +1,7 @@
 "use strict";
 const assert = require("node:assert/strict");
 const {test, before, beforeEach, after} = require("node:test");
+const {generateKeyPairSync, sign} = require("node:crypto");
 const {Firestore} = require("@google-cloud/firestore");
 const {createProvisionalShiftCoverageStore} = require("../lib/shift-coverage-provisional-store.js");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
@@ -171,4 +172,143 @@ run("native reads expose current phase deadlines without writes or private candi
   result = await overview();
   assert.equal(result.cases[0].selectionPhase, "adminRequired");
   assert.equal(result.cases[0].phaseClosesAtMillis, due);
+});
+
+for (const [remainingDays, mode, elapsedDays] of [[30, "normal", 14], [10, "urgent", 5]]) {
+  run(`${mode} administrative resolution remains possible after its original deadline, with private delay evidence and explicit consent`, async () => {
+    now = due - remainingDays * day;
+    const openedAt = now, administrativeDeadline = openedAt + elapsedDays * day;
+    await reserve("d"); await open();
+    // The first selection worker itself is late. Opening time still determines
+    // the timeline, rather than classifying this as a newly opened urgent case.
+    now = administrativeDeadline + 1000;
+    const started = await start();
+    assert.equal(started.case.selection.phase, "adminRequired");
+    assert.equal(started.case.selection.timing.mode, mode);
+    assert.equal(started.case.selection.timing.openedAtMillis, openedAt);
+    assert.equal(started.case.selection.timing.phaseClosesAtMillis, administrativeDeadline);
+    const timing = structuredClone(started.case.selection.timing);
+    await rejectWithoutWrites("offerAdmin", "admin", {userId: "d", reason: "Too long",
+      expiresAtMillis: now + 7 * day + 1}, "coverage_offer_deadline");
+    await rejectWithoutWrites("offerAdmin", "admin", {userId: "d", reason: "At shift start",
+      expiresAtMillis: due}, "coverage_offer_deadline");
+    await rejectWithoutWrites("offerAdmin", "admin", {userId: "d", reason: "Already expired",
+      expiresAtMillis: now}, "coverage_offer_deadline");
+    const offeredAt = now;
+    const input = await command("offerAdmin", {userId: "d", reason: "Documented late resolution",
+      expiresAtMillis: now + 10_000});
+    const offered = await store.execute(input, "admin");
+    assert.equal(offered.case.status, "offered");
+    assert.deepEqual(offered.case.selection.timing, timing, "administrative delay never resets the phase");
+    assert.deepEqual((await read("shifts", shiftId)).assignedUserIds, ["a", "b", "c"],
+      "offering is not acceptance");
+    const receipt = await read("shiftCoverageOperations", input.operationId);
+    assert.deepEqual(receipt.delayedAdministration,
+      {phaseClosesAtMillis: administrativeDeadline, offeredAtMillis: offeredAt});
+    assert.equal(receipt.actorMemberId, "admin");
+    assert.equal(receipt.command.reason, input.reason);
+    now += 1000;
+    const beforeReplay = await snapshot();
+    assert.equal((await store.execute(input, "admin")).replayed, true);
+    assert.deepEqual(await snapshot(), beforeReplay, "replay does not rewrite the original delay evidence");
+    await rejectWithoutWrites("accept", "e", {}, "coverage_actor_forbidden");
+    const accepted = await execute("accept", "d");
+    assert.equal(accepted.case.status, "accepted");
+    assert.deepEqual(accepted.case.selection.timing, timing);
+    assert.deepEqual((await read("shifts", shiftId)).assignedUserIds, ["d", "b", "c"]);
+    assert.equal((await read("shiftCoverageOperations", input.operationId)).delayedAdministration.offeredAtMillis,
+      offeredAt);
+  });
+}
+
+run("a late administrative case remains bounded by shift start after decline", async () => {
+  now = due - 30 * day;
+  await open();
+  now += 15 * day;
+  await start();
+  await execute("offerAdmin", "admin", {userId: "d", reason: "Late solution", expiresAtMillis: now + 10_000});
+  await execute("decline", "d");
+  now = due;
+  await rejectWithoutWrites("offerAdmin", "admin", {userId: "e", reason: "After start",
+    expiresAtMillis: now + 1000}, "coverage_shift_unavailable");
+});
+
+run("committed draw cancellation and late administrative recovery retain the original evidence, order and overdue timeline", async () => {
+  const {publicKey, privateKey} = generateKeyPairSync("ed25519");
+  const drawStore = createProvisionalShiftCoverageStore({nowMillis: () => now, maximumOfferWindowMillis: 7 * day,
+    selectionPolicy: {version: "hu089-provisional-v1"}, beaconPolicy: {sourceId: "hu089-late-recovery-beacon",
+      publicKeyPem: publicKey.export({format: "pem", type: "spki"}), genesisMillis: 0, periodMillis: 1000}});
+  const step = async (action, actor = "admin", extra = {}) => drawStore.execute(await command(action, extra), actor);
+  const rejectDrawWithoutWrites = async (input, actor, code) => {
+    const before = await snapshot();
+    await assert.rejects(drawStore.execute(input, actor), {code});
+    assert.deepEqual(await snapshot(), before);
+  };
+  try {
+    now = due - 30 * day;
+    const openedAt = now;
+    await step("open", "a", {shiftId, absentUserId: "a", reason: "Absence requiring selection"});
+    await step("startSelection");
+    now = openedAt + 2 * day;
+    await step("offerNext", "admin", {expiresAtMillis: now + 1000});
+    now = openedAt + 9 * day;
+    assert.equal((await step("offerNext", "admin", {expiresAtMillis: now + 1000})).case.selection.phase,
+      "drawRequired");
+    const committed = (await step("commitDraw")).case.selection.draw;
+    assert.equal(committed.order, null);
+    assert.equal(committed.evidence, null);
+    assert.ok(committed.availableAtMillis > now);
+    now = committed.availableAtMillis;
+    const payload = {domain: "hu084-local-beacon-v1", sourceId: committed.beacon.sourceId,
+      round: committed.round, publishedAtMillis: committed.availableAtMillis, randomness: "42".repeat(32)};
+    const beaconId = digest([committed.beacon.sourceId, String(committed.round)]).split(":").at(-1);
+    await ref("shiftCoverageBeaconRounds", beaconId).set({...payload,
+      signatureHex: sign(null, Buffer.from(digest(payload)), privateKey).toString("hex")});
+    const revealed = (await step("revealDraw")).case.selection.draw;
+    assert.equal(revealed.commitmentDigest, committed.commitmentDigest);
+    assert.deepEqual(new Set(revealed.order), new Set(["admin", "d", "e"]));
+    assert.ok(revealed.evidence.signatureHex);
+    now = openedAt + 11 * day;
+    const administrative = (await step("offerNext", "admin", {expiresAtMillis: now + 1000})).case.selection;
+    assert.equal(administrative.phase, "adminRequired");
+    assert.equal(administrative.timing.phaseClosesAtMillis, openedAt + 14 * day);
+    const timing = structuredClone(administrative.timing);
+    now = openedAt + 15 * day;
+    const cancelled = (await step("cancel", "a", {reason: "Review of unresolved draw"})).case;
+    assert.equal(cancelled.status, "cancelled");
+    assert.deepEqual(cancelled.selection.draw, revealed);
+    assert.deepEqual(cancelled.selection.timing, timing);
+    const replacement = {...await command("open", {shiftId, absentUserId: "a", reason: "Attempted new draw"}),
+      caseId: "replacement", expectedRevision: 0};
+    await rejectDrawWithoutWrites(replacement, "a", "coverage_slot_occupied");
+    await rejectDrawWithoutWrites(await command("resumeAdmin", {reason: "Untrusted recovery"}),
+      "a", "coverage_actor_forbidden");
+    now += 1000;
+    const resumed = (await step("resumeAdmin", "admin", {reason: "Resolve the existing case without reroll"})).case;
+    assert.equal(resumed.status, "open");
+    assert.equal(resumed.selection.phase, "adminRequired");
+    assert.deepEqual(resumed.selection.timing, timing, "recovery retains the original overdue deadline");
+    assert.deepEqual(resumed.selection.draw, revealed);
+    await rejectDrawWithoutWrites(await command("commitDraw"), "admin", "coverage_draw_state_conflict");
+    const input = await command("offerAdmin", {userId: "d", reason: "Documented late recovery", expiresAtMillis: now + 10_000});
+    const offeredAt = now;
+    const offered = (await drawStore.execute(input, "admin")).case;
+    assert.equal(offered.offer.source, "admin");
+    assert.deepEqual(offered.selection.draw, revealed);
+    assert.deepEqual(offered.selection.timing, timing);
+    assert.deepEqual((await read("shiftCoverageOperations", input.operationId)).delayedAdministration,
+      {phaseClosesAtMillis: timing.phaseClosesAtMillis, offeredAtMillis: offeredAt});
+    assert.deepEqual((await read("shifts", shiftId)).assignedUserIds, ["a", "b", "c"]);
+    const beforeReplay = await snapshot();
+    now += 1000;
+    assert.equal((await drawStore.execute(input, "admin")).replayed, true);
+    assert.deepEqual(await snapshot(), beforeReplay);
+    const accepted = (await step("accept", "d")).case;
+    assert.equal(accepted.status, "accepted");
+    assert.deepEqual(accepted.selection.draw, revealed, "acceptance cannot alter signed evidence or fixed draw order");
+    assert.deepEqual(accepted.selection.timing, timing);
+    assert.deepEqual((await read("shifts", shiftId)).assignedUserIds, ["d", "b", "c"]);
+  } finally {
+    await drawStore.close();
+  }
 });

@@ -161,7 +161,7 @@ private fun CoverageDetail(item: ShiftCoverageSnapshot.Case, model: CoverageRehe
             Text("${stringResource(R.string.coverage_offer_deadline)}: ${coverageDate(it.expiresAtMillis)}")
         }
         if (item.status == ShiftCoverageSnapshot.Status.open && item.phaseClosesAtMillis != null) {
-            Text("${stringResource(R.string.coverage_phase_deadline)}: ${coverageDate(item.phaseClosesAtMillis)}")
+            Text("${stringResource(coveragePhaseDeadlineLabel(item.selectionPhase))}: ${coverageDate(item.phaseClosesAtMillis)}")
         } else {
             item.volunteerClosesAtMillis?.let { Text("${stringResource(R.string.coverage_volunteer_deadline)}: ${coverageDate(it)}") }
         }
@@ -187,6 +187,10 @@ private fun CoverageAccounting(snapshot: ShiftCoverageSnapshot) {
         }
     }
 }
+
+internal fun coveragePhaseDeadlineLabel(phase: ShiftCoverageSnapshot.Phase?): Int =
+    if (phase == ShiftCoverageSnapshot.Phase.adminRequired) R.string.coverage_admin_deadline
+    else R.string.coverage_phase_deadline
 
 internal fun coverageCreditStateLabel(state: ShiftCoverageSnapshot.CreditState): Int = when (state) {
     ShiftCoverageSnapshot.CreditState.pending -> R.string.coverage_credit_pending

@@ -15,6 +15,10 @@ enum CoverageCopy {
         }
     }
 
+    static func phaseDeadline(_ phase: ShiftCoverageSnapshot.Phase?) -> LocalizedStringResource {
+        phase == .adminRequired ? "coverage.admin_deadline" : "coverage.phase_deadline"
+    }
+
     static func shiftLabel(_ shift: ShiftCoverageSnapshot.AvailableShift) -> String {
         "\(text(shift.type.rawValue)) · \(shiftDate(shift.scheduledAtMillis))"
     }

@@ -11,13 +11,13 @@ const projectId = "demo-reguerta-hu084-coverage", root = "develop/plus-collectio
 const enabled = process.env.GCLOUD_PROJECT === projectId && process.env.FIRESTORE_EMULATOR_HOST === "127.0.0.1:8798" &&
   process.env.FIREBASE_AUTH_EMULATOR_HOST === "127.0.0.1:9098";
 const run = (name, fn) => test(name, {skip: !enabled}, fn);
-let app, db, adminApp, auth, now, sequence, tokens;
+let app, amendedApp, db, adminApp, auth, now, sequence, tokens;
 const ref = (collection, id) => db.doc(`${root}/${collection}/${id}`);
 const read = async (collection, id) => (await ref(collection, id).get()).data();
 const overview = {schemaVersion: 1, environment: "develop", action: "overview"};
 const detail = (caseId = "case") => ({...overview, action: "detail", caseId});
-const call = async (actor, body, token = tokens[actor]) => {
-  const response = await fetch(app.url, {method: "POST", headers: {
+const call = async (actor, body, token = tokens[actor], url = app.url) => {
+  const response = await fetch(url, {method: "POST", headers: {
     authorization: `Bearer ${token}`, "Content-Type": "application/json"}, body: JSON.stringify(body)});
   return {status: response.status, value: await response.json(), headers: Object.fromEntries(response.headers)};
 };
@@ -49,8 +49,11 @@ before(async () => {
   adminApp = initializeApp({projectId}, "hu084-auth-fixture"); auth = getAuth(adminApp);
   app = await startProvisionalShiftCoverageServer({nowMillis: () => now, maximumOfferWindowMillis: 60_000,
     selectionPolicy: {version: "fifo-signup-v1", volunteerWindowMillis: 1000}}, 0);
+  amendedApp = await startProvisionalShiftCoverageServer({nowMillis: () => now, maximumOfferWindowMillis: 60_000,
+    selectionPolicy: {version: "hu089-provisional-v1"}}, 0);
 });
-after(async () => { if (app) await app.close(); if (db) await db.terminate(); if (adminApp) await deleteApp(adminApp); });
+after(async () => { if (amendedApp) await amendedApp.close(); if (app) await app.close();
+  if (db) await db.terminate(); if (adminApp) await deleteApp(adminApp); });
 beforeEach(async () => {
   if (!enabled) return;
   await db.recursiveDelete(db.doc(root));
@@ -343,4 +346,142 @@ run("missing, pending and forged notification references cannot reveal a case", 
   assert.equal((await call("d", query)).value.code, "coverage_notification_unavailable", "no completed delivery");
   await ref("shiftCoverageEffects", offered.value.data.operationId).update({state: "completed", deliveredTo: ["e"]});
   assert.equal((await call("d", query)).value.code, "coverage_notification_unavailable", "not a delivered recipient");
+});
+
+const amendedCall = (actor, body) => call(actor, body, tokens[actor], amendedApp.url);
+const amendedExecute = async (actor, action, extra = {}) => {
+  const response = await amendedCall(actor, await command(action, extra));
+  assert.equal(response.status, 200, JSON.stringify(response.value));
+  return response;
+};
+const amendedShiftId = "shift_market_20270930", amendedDue = Date.parse("2027-09-30T00:00:00Z"), day = 86_400_000;
+const seedAmendedCase = async (remainingDays) => {
+  now = amendedDue - remainingDays * day;
+  await ref("shifts", amendedShiftId).set(materialize(amendedShiftId, "market", "2027-09-30", ["a", "b", "c"]));
+  await amendedExecute("a", "open", {shiftId: amendedShiftId, absentUserId: "a", reason: "Private amended-policy absence"});
+};
+const assertAmendedEarnedCredit = async (actor) => {
+  const storedCredit = await read("shiftCoverageCredits", "case");
+  assert.ok(storedCredit, "confirmed service must persist its credit");
+  assert.equal(storedCredit.id, "case");
+  assert.equal(storedCredit.caseId, "case");
+  assert.equal(storedCredit.userId, actor);
+  assert.equal(storedCredit.shiftId, amendedShiftId);
+  assert.equal(storedCredit.type, "market");
+  assert.equal(storedCredit.state, "pending");
+  assert.equal(storedCredit.earnedAtMillis, now);
+  assert.equal((await read("shiftCoverageMemberClaims", digest(["market", actor]).split(":").at(-1))).state,
+    "creditPending");
+  const response = await amendedCall(actor, overview);
+  assert.equal(response.status, 200, JSON.stringify(response.value));
+  assert.deepEqual(response.value.data.credits, [{creditId: "case", shiftId: amendedShiftId, type: "market",
+    state: "pending", earnedAtMillis: now, consumedAtMillis: null}],
+  "the authenticated projection uses the public creditId contract and omits private credit ownership fields");
+};
+
+run("real Auth and HTTP enforce HU089 selection, project its deadlines and offer the first volunteer before close", async () => {
+  await seedAmendedCase(30);
+  const bypass = await command("offer", {userId: "d", reason: "Bypass", expiresAtMillis: now + 10_000});
+  const before = await capture();
+  assert.equal((await amendedCall("admin", bypass)).value.code, "coverage_selection_missing");
+  assert.deepEqual(await capture(), before);
+  await amendedExecute("admin", "startSelection");
+  await amendedExecute("admin", "offerNext", {expiresAtMillis: now + 10_000});
+  const phaseEnd = now + 7 * day;
+  const projected = (await amendedCall("d", overview)).value.data;
+  assert.deepEqual(projected.policy,
+    {maximumOfferWindowMillis: 60_000, volunteerWindowMillis: null, drawAvailable: false, selectionRequired: true});
+  assert.equal(projected.cases[0].selectionPhase, "volunteers");
+  assert.equal(projected.cases[0].phaseClosesAtMillis, phaseEnd);
+  assert.equal(projected.cases[0].volunteerClosesAtMillis, phaseEnd);
+  await amendedExecute("e", "volunteer"); now += 1000; await amendedExecute("d", "volunteer");
+  await amendedExecute("admin", "offerNext", {expiresAtMillis: now + 10_000});
+  const offered = (await amendedCall("e", overview)).value.data.cases[0];
+  assert.equal(offered.offer.userId, "e");
+  assert.equal(offered.offer.source, "volunteer");
+  assert.equal(offered.phaseClosesAtMillis, phaseEnd);
+  assert.ok(now < phaseEnd);
+  assert.deepEqual((await read("shifts", amendedShiftId)).assignedUserIds, ["a", "b", "c"]);
+  await amendedExecute("e", "accept");
+  assert.deepEqual((await read("shifts", amendedShiftId)).assignedUserIds, ["e", "b", "c"]);
+  now = amendedDue;
+  await amendedExecute("admin", "complete");
+  await assertAmendedEarnedCredit("e");
+});
+
+for (const [remainingDays, mode, elapsedDays] of [[30, "normal", 14], [10, "urgent", 5]]) {
+  run(`real Auth and HTTP permit late ${mode} administrative resolution while keeping delay evidence private and replay stable`, async () => {
+    await seedAmendedCase(remainingDays);
+    const openedAt = now, phaseEnd = openedAt + elapsedDays * day;
+    now = phaseEnd + 1000;
+    await amendedExecute("admin", "startSelection");
+    const persisted = (await read("shiftCoverageCases", "case")).value.selection.timing;
+    assert.equal(persisted.mode, mode);
+    assert.equal(persisted.openedAtMillis, openedAt);
+    assert.equal(persisted.phaseClosesAtMillis, phaseEnd);
+    const beforeRead = await capture();
+    const view = await amendedCall("admin", overview);
+    assert.equal(view.status, 200);
+    assert.equal(view.value.data.cases[0].selectionPhase, "adminRequired");
+    assert.equal(view.value.data.cases[0].phaseClosesAtMillis, phaseEnd);
+    assert.equal(view.value.data.cases[0].writable, true);
+    assert.deepEqual(await capture(), beforeRead);
+    const offeredAt = now;
+    const input = await command("offerAdmin", {userId: "d", reason: "Late resolution before the shift",
+      expiresAtMillis: now + 10_000});
+    const beforeOffer = await capture();
+    assert.equal((await amendedCall("e", input)).value.code, "coverage_actor_forbidden");
+    assert.equal((await amendedCall("admin", {...input,
+      delayedAdministration: {phaseClosesAtMillis: phaseEnd, offeredAtMillis: openedAt}})).status, 400);
+    assert.deepEqual(await capture(), beforeOffer, "clients cannot authorize or manufacture delay evidence");
+    const offered = await amendedCall("admin", input);
+    assert.equal(offered.status, 200, JSON.stringify(offered.value));
+    assert.deepEqual(Object.keys(offered.value.data).sort(),
+      ["caseId", "environment", "operationId", "replayed", "revision", "schemaVersion"]);
+    const receipt = await read("shiftCoverageOperations", input.operationId);
+    assert.deepEqual(receipt.delayedAdministration,
+      {phaseClosesAtMillis: phaseEnd, offeredAtMillis: offeredAt});
+    assert.equal(receipt.actorMemberId, "admin");
+    assert.equal(receipt.authUid, "auth-admin");
+    assert.equal(receipt.command.reason, input.reason);
+    assert.deepEqual((await read("shiftCoverageCases", "case")).value.selection.timing, persisted);
+    assert.deepEqual((await read("shifts", amendedShiftId)).assignedUserIds, ["a", "b", "c"]);
+    for (const actor of ["admin", "d", "e"]) {
+      const response = await amendedCall(actor, overview);
+      assert.equal(response.status, 200);
+      for (const key of ["delayedAdministration", "offeredAtMillis", "snapshot", "attemptedUserIds", "authUid"]) {
+        assert.equal(JSON.stringify(response.value).includes(key), false, key);
+      }
+    }
+    now += 1000;
+    const beforeReplay = await capture();
+    assert.equal((await amendedCall("admin", input)).value.data.replayed, true);
+    assert.deepEqual(await capture(), beforeReplay);
+    const accept = await command("accept");
+    assert.equal((await amendedCall("e", accept)).value.code, "coverage_actor_forbidden");
+    assert.deepEqual(await capture(), beforeReplay);
+    assert.equal((await amendedCall("d", accept)).status, 200);
+    assert.deepEqual((await read("shifts", amendedShiftId)).assignedUserIds, ["d", "b", "c"]);
+    assert.deepEqual((await read("shifts", amendedShiftId)).rotationOwnerUserIds, ["a", "b", "c"]);
+    now = amendedDue;
+    await amendedExecute("admin", "complete");
+    await assertAmendedEarnedCredit("d");
+    assert.deepEqual((await read("shiftCoverageOperations", input.operationId)).delayedAdministration,
+      {phaseClosesAtMillis: phaseEnd, offeredAtMillis: offeredAt});
+  });
+}
+
+run("real Auth and HTTP never turn a late administrative solution into an offer after shift start", async () => {
+  await seedAmendedCase(30);
+  now += 15 * day;
+  await amendedExecute("admin", "startSelection");
+  await amendedExecute("admin", "offerAdmin", {userId: "d", reason: "Still before the shift", expiresAtMillis: now + 10_000});
+  await amendedExecute("d", "decline");
+  now = amendedDue;
+  const input = await command("offerAdmin", {userId: "e", reason: "After shift start", expiresAtMillis: now + 10_000});
+  const before = await capture();
+  const rejected = await amendedCall("admin", input);
+  assert.equal(rejected.status, 409);
+  assert.equal(rejected.value.code, "coverage_shift_unavailable");
+  assert.deepEqual(await capture(), before);
 });

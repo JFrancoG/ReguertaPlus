@@ -524,7 +524,8 @@ export const createProvisionalShiftCoverageStore = (options: {
             eligible();
             if (command.expiresAtMillis <= now ||
                 command.expiresAtMillis > now + maximumOfferWindowMillis ||
-                (preparedSelection?.timing && command.expiresAtMillis >
+                (command.action !== "offerAdmin" &&
+                  preparedSelection?.timing && command.expiresAtMillis >
                   preparedSelection.timing.phaseClosesAtMillis) ||
                 command.expiresAtMillis >= shift.date.toMillis()) {
               return rejectCoverage("coverage_offer_deadline");
@@ -708,6 +709,11 @@ export const createProvisionalShiftCoverageStore = (options: {
         transaction.create(receiptRef, {commandDigest, command,
           effectsDigest: effects.effectsDigest,
           actorMemberId: actorId, ...authBinding,
+          ...(command.action === "offerAdmin" && preparedSelection?.timing &&
+            now >= preparedSelection.timing.phaseClosesAtMillis ? {
+              delayedAdministration: {phaseClosesAtMillis:
+                preparedSelection.timing.phaseClosesAtMillis,
+              offeredAtMillis: now}} : {}),
           result: next, previousRevision: previous?.revision ?? 0});
         return {case: next, replayed: false};
       });

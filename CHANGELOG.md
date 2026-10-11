@@ -245,6 +245,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-10-11 | 🐛 fix(shifts): keep late admin resolution available
+
 - 2026-09-28 | 🐛 fix(android): keep coverage actions above IME
 
 - 2026-09-28 | 🐛 fix(ios): keep coverage text readable

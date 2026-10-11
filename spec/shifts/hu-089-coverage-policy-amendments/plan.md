@@ -69,7 +69,7 @@ Validation completed:
 
 - Functions lint/build and 52 focused pure tests passed. The full Firestore/Rules/workflow run passed 144/144 (129 prior + 15 lifecycle regressions); Auth/HTTP passed 22/22, all without skips/failures. Logs: `/tmp/hu089-lifecycle-functions-final.log`.
 - Two new pure publication tests passed under Node 22; the permanent-cancellation forward/inverse CAS regression passed separately 1/1 in the fixed emulator (`/tmp/hu089-lifecycle-publication-cas.log`). These three tests were added after the full suite had loaded its files and are recorded separately rather than inflating its count.
-- Android: 506 unit tests passed; lint passed with zero errors and the existing 135 warnings/two hints. The standard connected API 29 run passed 23 ordinary tests; four opt-in Coverage/Sheets journeys exited through their existing assumptions (reported as failures in XML while Gradle succeeds). No physical accessibility run is claimed. Logs: `/tmp/hu089-lifecycle-android.log`, `/tmp/hu089-lifecycle-android-connected-standard.log`.
+- Android: 506 unit tests passed; lint passed with zero errors and the existing 138 warnings/two hints. The original 135-warning summary was corrected during final review against the retained XML/HTML report, which contains 138 warnings and no coverage-file issue. The standard connected API 29 run passed 23 ordinary tests; four opt-in Coverage/Sheets journeys exited through their existing assumptions (reported as failures in XML while Gradle succeeds). No physical accessibility run is claimed. Logs: `/tmp/hu089-lifecycle-android.log`, `/tmp/hu089-lifecycle-android-connected-standard.log`.
 - iOS: canonical release gate passed on Xcode 27.1 / iPhone 17 iOS 26.5 (`091D93C1-5A53-40D0-887E-83F81A8E0326`): 925 passed, five expected opt-in/conditional skips, zero failures/runtime warnings. Lint 511 files clean; Debug/Release builds passed. Result: `/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/hu089-lifecycle-ios-yogrehp3/release-gate.xcresult`. Synthetic Firebase configurations were restored exactly.
 - Independent backend/native/documentation review completed, including the four Swift source files and EN/ES ADR parity. In-scope findings were fixed and their regressions passed; final `git diff --check` is clean.
 
@@ -126,3 +126,41 @@ by final combined story review. The definitive pushed hash is recorded in the
 tracker after remote verification. Administrative native commands, live composition,
 legacy migration and activation remain part of HU-084. Collective ratification is
 still pending. No real data, shared deployment or real notification was used.
+
+## Final combined review and corrective delivery — 2026-10-11
+
+The maintainer requested spacing commit/push, then a combined HU-089 review.
+Spacing was committed and pushed as `69e2ce276ad7d353780014cb4ef1d184fa2e82bf`;
+the remote hash matched and the worktree was clean before review.
+
+The review found one functional blocker: a future shift could no longer receive
+an administrative solution after its phase deadline. The maintainer explicitly
+selected late resolution with delay evidence. The original administrative 3/1-day
+target is retained; bounded offers and acceptance may occur later before the
+shift, without resetting reserve/volunteer/draw timing or committed randomness.
+The private operation receipt records the original target and trusted late offer
+time. Both native clients distinguish the management target from hard search
+cutoffs. Android now uses the exact remaining expiry when the minute input rounds
+up, including 1/59-second boundaries, and shows its effective deadline.
+
+Three smaller findings were resolved: Android subminute offers, stale D06/D12
+matrix implementation status and the lifecycle lint count (138, not 135).
+Exception integration now explicitly uses the stable `bundleId`. ADR-0017 and
+policy/specification text match in English and Spanish. The design reuses existing
+adapters, transactions and queue algorithms; no new workflow engine is justified.
+
+The full review and bounded evidence are in [review.md](review.md). Final gates:
+Functions lint/build, planning 295 passed/51 existing emulator-dependent skips,
+coverage pure 63/63, Firestore/Rules/publication 165/165, Auth/HTTP 26/26;
+Android 508 unit tests and 23 ordinary API29 cases, with four existing opt-in
+assumptions and baseline lint 138 warnings/two hints; iOS canonical full gate
+927 passed/five expected skips/zero failures/compiler or runtime warnings, clean
+lint/settings and Debug/Release builds. Independent correction/style/accessibility
+reviews passed. No physical accessibility or real notification is newly certified.
+
+The corrective implementation, tests and final review are delivered in a separate
+conventional commit; the definitive pushed hash is recorded in #279 after remote
+verification. HU-089 local implementation/review is ready for a PR against its
+unmerged HU-084 dependency. PR creation/merge/closure remains a later authorized
+delivery step. Shared integration, administrative forms, authoritative migration,
+provider/observability work and collective ratification/activation remain in HU-084.
