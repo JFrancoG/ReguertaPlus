@@ -66,13 +66,13 @@ escritura/explotación. No autoriza a aplicar las Rules del repositorio. Cada
 índice devuelto debe corresponder también al recurso padre y grupo de colección
 solicitados: resultados ajenos no prueban el inventario necesario ni su preparación.
 
-## Fuente de inspección preparada
+## Contrato de inspección desplegado
 
-La exportación preparada `inspectDevelopShiftMigration` está restringida por IAM.
+La exportación desplegada `inspectDevelopShiftMigration` está restringida por IAM.
 La fuente fija las identidades separadas de ejecución e invocación descritas
-abajo; ya no reutiliza el operador de recuperación ni el runtime Compute
-compartido. Siguen pendientes el despliegue y una invocación real correcta. Su
-cuerpo POST exacto es:
+abajo. El despliegue y una invocación real correcta están verificados; estas
+identidades son distintas del operador de recuperación y del runtime Compute
+compartido. Su cuerpo POST exacto es:
 
 ```json
 {"schemaVersion":1,"environment":"develop","operationId":"inspection-example"}
@@ -233,10 +233,10 @@ encontrado las diez APIs necesarias habilitadas y una política existente de
 limpieza de Artifact Registry; no se cambió ninguna. No se inició ninguna sesión
 global de Cloud SDK. Son observaciones anteriores al despliegue.
 
-Aquí el despliegue sigue pendiente. Su aceptación posterior debe verificar la
-identidad real de ejecución, la política privada de invocación, el rechazo de
-una llamada sin autenticar y la respuesta autenticada sin datos sensibles.
-Después, retirar la asignación humana temporal de OIDC. Estos pasos de acceso y
+La aceptación del despliegue verificó la identidad separada de ejecución, la
+política privada de invocación, el rechazo anónimo y la respuesta autenticada sin
+datos sensibles. Se retiró la asignación humana temporal de OIDC; otra petición
+de token se rechazó con 403. Estos pasos de acceso y
 despliegue no cierran escritores, cambian propietarios ni permiten usar la
 inspección como migración.
 
@@ -274,3 +274,5 @@ autoridades separadas, la copia posterior al vaciado, la autoridad real de
 índices/Drive y la autorización exacta de aplicación/reversión siguen en HU-085.
 La inspección debe alimentar ese paquete revisado, no presentar comprobaciones
 simuladas como si los controles estuvieran cerrados.
+
+El siguiente bloque es la [propuesta de controles reversibles de develop](hu084-controles-escritores-develop.md); no cierra escritores ni reutiliza la versión 259 como observación nueva de mantenimiento.

@@ -61,12 +61,12 @@ not authorize applying repository Rules. Returned index rows must also match
 the requested parent and collection group: unrelated results cannot establish
 the required index inventory or readiness.
 
-## Prepared inspection source
+## Deployed inspection contract
 
-The prepared `inspectDevelopShiftMigration` export is IAM-only. Its source fixes
-the dedicated runtime and invoker identities described below; it no longer
-reuses the recovery operator or the shared Compute runtime. Deployment and a
-successful real invocation remain pending. Its exact POST body is:
+The deployed `inspectDevelopShiftMigration` export is IAM-only. Its source fixes
+the dedicated runtime and invoker identities described below. Deployment and a
+successful real invocation are verified; these identities are separate from the
+recovery operator and shared Compute runtime. Its exact POST body is:
 
 ```json
 {"schemaVersion":1,"environment":"develop","operationId":"inspection-example"}
@@ -211,14 +211,14 @@ Registry cleanup policies; `--force` may configure a missing shared policy. If
 the CLI reports a cleanup-policy error after deployment, read the actual Function
 state before retrying because the endpoint may already exist.
 
-The current local gate passed all 58 tests, lint/build and the package filter
+The accepted inspection gate passed all 63 tests, lint/build and the package filter
 check with exactly one target. The predeploy reads found all ten required APIs
 enabled and one existing Artifact Registry cleanup policy; neither was changed.
 No global Cloud SDK login was started. These are predeployment observations.
 
-Deployment is still pending here. Its later acceptance must verify the actual
-runtime, private invoker policy, rejection of an unauthenticated call and a
-sanitized authenticated response, then remove the temporary human OIDC binding.
+Deployment acceptance verified the actual dedicated runtime, private invoker
+policy, anonymous rejection and sanitized authenticated response. The temporary
+human OIDC binding was removed; a subsequent token request was denied with 403.
 None of these access/deployment steps closes a writer, transfers ownership or
 makes the inspection executable as a migration.
 
@@ -253,3 +253,5 @@ The real `closeAndCollect`/`readBackClosed` control-plane bindings, dedicated
 authorities, post-drain backup, measured indexes/Drive authority and exact
 forward/inverse authorization remain HU-085 work. The inspection must feed that
 reviewed packet, not populate simulated checkpoints as though controls were held.
+
+The next preparation is the [reversible develop writer-control proposal](hu084-develop-writer-controls.md); it does not close writers or reuse version 259 as a fresh maintenance observation.

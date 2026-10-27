@@ -13,9 +13,25 @@ is removed and a new token request is denied with 403. The earlier
 real observations identify absent recovery-operator authority,
 unverified Drive version/exclusive writing, undeployed Rules restrictions and
 unproved planning-index readiness. This inspection cannot issue a closed barrier
-checkpoint. Its 58 local backend passes do not complete any live gate below.
+checkpoint. Its 63 local backend passes do not complete any live gate below.
 Develop preparation authorizes no production business-data access, shared deploy,
 IAM/ACL mutation, migration or activation. Both stories remain open.
+
+## Reversible develop controls dependency — 2026-10-27
+
+The [local writer-control preparation](../../../docs/testing/hu084-develop-writer-controls.md)
+adds a captured-baseline all-develop client-write fence and 12 passing emulator
+cases for parity, stored-image preservation and pre-write Rules-only reversal.
+The active Rules release/prior ruleset and six immutable legacy sources were
+inspected read-only. Those deployed handlers have no selective develop or
+in-flight guard and use generic Sheets config fallback; shared shutdown or
+parameter deletion cannot be assumed safe for production.
+
+All 26 writer dispositions and reversal conditions are documented. Workbook
+permission IDs/inheritance, owner-lock copy rehearsal, selective bridge/drain
+and held control-plane authority remain unresolved. The maintainer's declaration
+of no other known automation is retained separately from technical proof. This
+new preparation is local, non-executable and does not complete an activation gate.
 
 ## 1. Delivery strategy
 

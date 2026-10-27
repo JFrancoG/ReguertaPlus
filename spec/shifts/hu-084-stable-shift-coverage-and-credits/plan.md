@@ -1967,3 +1967,49 @@ Actual writer exclusion, maintenance/drain bindings, admission and migration
 remain open. No application-data write, production workbook access, notification
 or change to existing writers/Rules/indexes occurred. No further phone or manual
 sharing action is needed for this completed inspection block.
+
+### Reversible develop writer-control preparation — 2026-10-27
+
+The maintainer authorizes preparation, preserving published dates/order. Reuse
+this branch, #268 and #269. No writer closure, Rules/Functions deployment,
+IAM/Drive permission change, new OIDC grant or migration is authorized here.
+
+Prepared a temporary Rules candidate from the exact deployed 6,712-byte source
+(`bb87cdacc63dc4e285ac24d50b8f2f8c64eff3def1e4fcf24265030059591dfa`).
+The active release and immutable prior ruleset were read back and match it.
+The candidate denies all develop client writes, including private collections,
+users, orders and the legacy tree; reads and production predicates are preserved.
+Twelve isolated Firestore-emulator cases pass without failures/skips, checking
+actual stored date/order/epoch images, production/read parity, Admin bypass and
+Rules-only pre-write restoration. Functions build/lint and focused CJS checks pass.
+No default deployment configuration is changed.
+
+Fresh read-only metadata covers 20 Functions and the two visible workbook service
+writers. Both writers are active and have zero user-managed keys, but their
+shared/broad roles do not constitute a fence. The six relevant legacy handlers
+were audited from immutable GCS sources: one identical 152,987-byte archive,
+SHA-256 `07cd231c91df1e7bd31ab6a9f6a711559536aca3e7de697e641628d6c8216b49`.
+Both executable JS and TS lack develop pause, maintenance/epoch or in-flight
+guards. Sheets config has a generic fallback, so deleting develop parameters is
+not a safe closure. The current branch is not production-equivalent source.
+
+The bilingual [writer-control proposal](../../../docs/testing/hu084-develop-writer-controls.md)
+maps all 26 inventory writers to exact scope, prior state, restoration and
+remaining evidence. The private preparation packet remains `canApply:false` and
+cannot enter maintenance. The compiled v3 client groups/targets still need
+reconciliation with the deployed catch-all's private-state authority before any
+barrier checkpoint; this preparation does not change that inventory. Known workbook ACL changes lack permission IDs and
+inheritance/expiry evidence. A whole-file owner content lock is only a conditional
+copy-rehearsal candidate; it also blocks the intended runtime and does not itself
+solve owner unlocking or held handover. No transfer or Workspace purchase is chosen.
+
+The maintainer declares no other known automation beyond the app and actions here;
+this is operational input, not technical exclusion of every possible writer.
+Drive version 259 and the inspector's 63-case evidence are retained, not renewed.
+Restoring old permissive controls after authoritative writes, epoch advancement
+or uncertainty is forbidden: keep closed and use governed recovery instead.
+
+This coherent preparation is local and pending Git delivery. Next design and
+rehearse a selective bridge against the audited legacy baseline and conditionally
+test the owner lock on an isolated copy, before proposing actual controls. No
+native changes or new parity gap; no further manual action is needed now.

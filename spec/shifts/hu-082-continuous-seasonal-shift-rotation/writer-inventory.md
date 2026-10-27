@@ -46,6 +46,15 @@ authenticated fallback excludes only `orders`. This source inspection involved
 no write/exploit probe. The local candidate denials are not deployed, and this
 inventory update authorizes no Rules change.
 
+The [reversible develop control preparation](../../../docs/testing/hu084-develop-writer-controls.md)
+reconciles these repository references with fresh runtime/source observations.
+The six deployed legacy handlers do not implement the local maintenance/epoch
+checks described below. The deployed client catch-all also admits private
+planning/coverage writes beyond the four public client IDs. The proposed
+all-develop Rules fence covers that larger physical scope; the client group and
+accepted inventory revision/digest still need reconciliation before barrier
+admission. This preparation does not change v3 or claim complete live exclusion.
+
 ## Barrier writers
 
 | Writer ID | Repository evidence / authority to inspect | Affected target | Required disposition |

@@ -380,6 +380,8 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-10-28 | ✅ test(shifts): rehearse reversible develop controls
+
 - 2026-10-27 | ✅ test(shifts): rehearse controlled develop migration
 
 - 2026-10-04 | ✅ test(shifts): validate real coverage push on both platforms

@@ -317,5 +317,18 @@ Accepted local evidence: [rehearsal guide](../../../docs/testing/hu084-develop-m
 - [x] Deploy only `inspectDevelopShiftMigration`; verify dedicated runtime/private invoker and unchanged metadata/revisions for all 19 existing Functions.
 - [x] Validate 63 local tests and real HTTP 403/405/400/400/200; capture six tabs under stable Drive version 259 with unavailable detailed ACL reported as null.
 - [x] Remove the exact temporary OIDC binding; verify empty direct policy, actual token creation denied with 403, zero user-managed keys and unchanged Artifact Registry cleanup policy.
+
+## Reversible develop writer-control preparation — 2026-10-27
+
+- [x] Reuse #268/#269 and the current branch; capture fresh Rules release/source, Function/IAM metadata and visible workbook writers without changing controls.
+- [x] Prepare a temporary all-develop client-write deny from the exact deployed Rules, preserving reads and production predicates.
+- [x] Pass 12 isolated emulator cases with real stored-image comparisons, producer/admin/read parity, explicit Admin bypass and Rules-only pre-write restoration; pass build/lint and focused CJS checks.
+- [x] Audit immutable deployed sources of the six legacy writers; confirm absent develop/epoch/in-flight guards and unsafe generic config fallback.
+- [x] Map the 26 compiled writer IDs, capture prior/reversal conditions and prepare the blocked private packet and bilingual runbook.
+- [x] Record the maintainer's declaration of only app/actions-here writers; keep it distinct from technical exclusion.
+- [ ] Deliver this new preparation through Git; no deployment or closure is included.
+- [ ] Reconcile deployed private client-write authority with the compiled writer groups/targets and accepted revision/digest before barrier admission.
+- [ ] Design/rehearse selective legacy ingress/delivery controls against the exact audited source, preserving production behavior and accepted/in-flight work.
+- [ ] Verify owner lock capability and its reversible isolated-copy canaries, missing ACL details and a held transition to the governed writer before actual application.
 Shared runtime/operator/Drive admission, complete post-drain capture, actual
 application/rollback authorization and full annual preview remain open.
