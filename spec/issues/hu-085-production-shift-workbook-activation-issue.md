@@ -15,6 +15,15 @@ Exact governed migration/inverse and deployment/admission gates remain open.
 See `spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-planner-base-preparation.md`.
 No production read, shared write, deploy or activation is included.
 
+Subsequent authorized local rehearsal is complete after delivered `73001988`:
+203-write migration and 140-write inverse through existing admission/barriers,
+62 lossless legacy archives/restores, 72 unchanged published dates/108 ordered
+places, retained event evidence and closed epoch 2. All 91 local checks pass,
+including actual handlers, source/pointer conflicts and commit uncertainty.
+The 53 helper cells have a separate adapter inverse; no live Drive/atomicity or
+full-season readiness is inferred. Details: `docs/testing/hu084-develop-migration-rehearsal.md`.
+This implementation is local, and every shared runtime/control-plane gate remains open.
+
 ## Accepted HU-083 handoff — 2026-09-12
 
 The maintainer accepted HU-083's explicit zero-write deferral and authorized its

@@ -284,3 +284,16 @@ changes in this backend block.
 - [ ] Establish/review the canonical base-planner state in shared develop before actual initialization: the four current/sourcePolicy/rotation documents are absent in the bounded read-only check.
 - [ ] Resolve the 62 legacy representation, 53 helper projection differences and two missing market months in the governed migration/preview, retaining the published dates and ordered assignments; obtain real Drive/admission authority and rehearse the exact inverse.
 - [ ] Review a real complete per-environment plan, obtain the concrete application/control-plane handoff and verify shared read-back; no live apply is included in local source preparation.
+
+## Controlled develop migration rehearsal — 2026-10-27
+
+- [x] Deliver the content preparation as `73001988` and verify the remote hash.
+- [x] Prepare the exact emulator-only migration and recovery, retaining raw legacy before-images and current published dates/ordered assignments.
+- [x] Reuse trusted barrier/admission/fences; measure and apply the full forward/inverse (203/140 writes), retaining terminal/audit evidence and an advanced closed security epoch.
+- [x] Rehearse actual handler dispositions, replay, stale/extra/ABA source, lost acknowledgement and recovery guards with zero external transports.
+- [x] Rehearse 53 helper projection changes and exact literal reversal through the existing Sheets adapter; report the two missing market months and real-authority gaps.
+- [x] Complete independent review, relevant backend gates, private evidence and secret-safe operational handoff; keep shared activation closed.
+
+Accepted local evidence: [rehearsal guide](../../../docs/testing/hu084-develop-migration-rehearsal.md).
+Shared runtime/operator/Drive admission, complete post-drain capture, actual
+application/rollback authorization and full annual preview remain open.

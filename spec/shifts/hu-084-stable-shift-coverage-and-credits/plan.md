@@ -1823,3 +1823,61 @@ Functions build/lint and 47 focused cases pass. No native source changes or new
 physical checks; no shared write, deploy, FCM send or production access. Continue
 with the exact governed develop migration/inverse preparation under HU-085;
 neither parent is closed and no phone action is currently required.
+
+### Controlled develop migration rehearsal — authorized 2026-10-27
+
+The maintainer requests delivery of the previous preparation, then preparation
+and rehearsal of a controlled develop migration and its inverse, retaining the
+published dates and order. Preparation is delivered as `73001988`; exact remote
+identity is verified. Continue on this branch with HU-084/#268 and the existing
+HU-085/#269 rollout dependency; no new story, shared apply or deployment is opened.
+
+Build one emulator-only acceptance path from the retained private captures and
+semantic proposal. Preserve 62 raw legacy payloads in immutable before-images,
+retire only their exact guarded versions, and promote the 72 reviewed canonical
+rows without regenerating dates, participants or ownership. Use a newly prepared
+activation terminal and retained recovery authority for the 72 canonical rows;
+do not submit the old 139-write fixture or force raw history through the general
+canonical inverse materializer. The thin rehearsal resolver must compose the
+explicit legacy restoration and canonical recovery in one measured transaction.
+Keep the security state closed at an advanced epoch after recovery and retain
+the archive and operation/event evidence.
+
+Reuse the existing trusted closed-intake barrier, transaction admission and
+notification fences, publication/retention contracts and stateful Sheets adapter.
+Measure the materialized forward and inverse separately. Check exact source
+sets and versions again inside each SDK attempt; prove replay, stale/extra source,
+ambiguous acknowledgement and delayed/duplicate event behavior. The raw legacy
+events have an explicit ordinary no-effect disposition by Sheets origin; do not
+claim that they pass the canonical public-event auditor. Exercise the actual
+trigger handlers with external transports trapped.
+
+Project and endpoint guards must run before constructing an SDK client:
+`demo-reguerta-hu084-migration`, loopback Firestore only. All workbook versions,
+control-plane/index authority and retention time in the clone are labeled local
+test evidence; none replaces the unavailable real Drive version or live writer
+containment. Apply/reverse only the 53 proposed helper cells in the Sheets double,
+leaving the two unpublished market months explicit and the annual frontier open.
+No Android/iOS change, new phone task, production read, shared mutation or FCM send
+is part of this rehearsal.
+
+The [completed rehearsal](../../../docs/testing/hu084-develop-migration-rehearsal.md)
+passes locally: 203 forward writes/1,813,600 estimated bytes and 140 inverse
+writes/530,196 bytes under the existing admission adapter; exact 62-document
+restoration, 72 ordered canonical rows/108 places, closed epoch 2 and retained
+archives/terminal/retention. Actual exported handlers record 72 activation and
+72 recovery decisions, including 36 first deliveries after recovery, with no
+external calls. Raw legacy events retain their separate ordinary no-effect
+disposition. The real Sheets reader/adapter separately reverses the 53 helper
+cells without changing the 399 prior literals or completing the market gaps.
+
+Independent review corrects owner-sequence and constructor validation, hashes
+binding private inputs, the actual multicast transport trap, immutable afterimage
+adoption, current roster/workbook-pointer conflicts and workbook revision binding.
+Final gates: build/lint, targeted CJS checks, 8 pure/62 unchanged-contract
+regressions/15 portable SDK/one private SDK/five captured Sheets = 91 passes,
+zero skips/failures. Actual SDK commit acknowledgement loss and a seven-day
+fixture clock advance leave the committed state closed with no resubmission.
+No application source changes or new parity gap. This local prototype supplies
+neither a deployed migration endpoint nor real writer/Drive/index authority;
+both parent stories and the draft PR remain open. No phone action is needed.

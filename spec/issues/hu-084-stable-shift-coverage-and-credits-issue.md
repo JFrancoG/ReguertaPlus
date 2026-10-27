@@ -19,6 +19,15 @@ Activation remains closed. Actual migration, destination/
 provider/operator admission, ratification and authorized rollout remain open.
 Older dated assessments below are historical evidence.
 
+The content preparation is now delivered as `73001988`. The next authorized
+local rehearsal passes its complete 203-write forward/140-write inverse,
+preserving 72 dates/108 ordered places and restoring the 62 legacy payloads while
+retaining closed epoch 2 and audit authority. Actual handlers and the separate
+53-cell Sheets inverse are verified, with 91 backend/acceptance passes and no
+external calls. See `docs/testing/hu084-develop-migration-rehearsal.md` and its
+Spanish counterpart. This newer implementation/evidence remains local after
+`73001988`; live writer/Drive/index/operator admission and application remain open.
+
 ## Pre-PR assessment — 2026-09-13
 
 The next recommended step is one final branch review and validation pass, not more

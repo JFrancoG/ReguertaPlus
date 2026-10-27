@@ -1649,3 +1649,52 @@ rotation and initial-state suites pass **47/47**, zero skips/failures. Detailed
 scope, content/receipt digests and next governed operation are in
 [the preparation report](develop-planner-base-preparation.md). No new platform
 code or parity gap; prior Android/iOS evidence is reused without a new device run.
+
+### Controlled develop migration/inverse rehearsal — 2026-10-27
+
+The preceding preparation is delivered as `73001988`; this rehearsal remains
+local after it. The user authorizes preparation and local rehearsal, preserving
+published dates/order. No shared source/permission/deployment/notification action
+or production read occurs. No new live endpoint or canonical parser exception is
+introduced; the loopback-only resolver reuses the existing trusted barrier,
+public transaction admission and notification writer fences.
+
+Acceptance on `demo-reguerta-hu084-migration`/`127.0.0.1:8798` verifies:
+
+- 203 forward writes archive 62 exact raw legacy images and promote the 72
+  reviewed canonical rows; 140 inverse writes restore every original raw field,
+  retain the operation/archive/retention and leave closed write epoch 2.
+- The captured 48-user projections and four historical calendar sentinels remain
+  unchanged, including service versions. Restored public service versions are
+  newly assigned, while their timestamp field values are preserved.
+- Source query/version/absence guards reject ABA, extra documents, changed
+  eligibility, pending workbook reservation, mismatched scope revision, active
+  notification fence and re-digested afterimage adoption. The immutable manifest
+  and atomic commit version anchor read-back and inverse.
+- Actual handlers persist 72 controlled activation and 72 recovery ledgers,
+  including 36 first activation deliveries after reversal. Raw Sheets-origin
+  retirements/restores are ordinary no-effect events. Google factories and the
+  real FCM methods are trapped; no notification or credit effect occurs.
+- Barrier/journal and real SDK commit-acknowledgement failures stay closed.
+  Advancing the fixture clock seven days does not release the incident or
+  resubmit the already committed forward.
+- The real Sheets reader/adapter separately applies/reverses exactly 53 helper
+  cells and retains technical markers. Its literal oracle does not confuse
+  sparse fixture arrays or stale formatted values with product state.
+
+Final accepted gates under Node 22.23.4: Functions build/lint; scoped CJS syntax
+and undefined/unused checks; **8 pure + 62 existing-contract regressions + 15
+portable SDK + one captured-data SDK + five Sheets = 91 passes**, zero skips or
+failures. Independent review findings are fixed and the accepted run binds the
+private input and runner hashes. Initial failures were fixture/assertion issues:
+sparse-array comparison, replay-result shape and Firestore microsecond precision
+in a synthetic extra-row oracle; no product rule is weakened to make them pass.
+
+Evidence and exact receipt/runner digests are in the
+[English](../../../docs/testing/hu084-develop-migration-rehearsal.md) and
+[Spanish](../../../docs-es/testing/hu084-ensayo-migracion-develop.md) guides.
+The actual Drive version, deployed indexes/admission, writer containment/drain,
+post-drain backup and finite real application handoff remain open. The two
+market gaps remain explicit; no annual readiness or cross-service atomicity is
+claimed. Native sources are unchanged; previous native acceptance is reused
+without a new physical test. Owned emulator/dependency cleanup follows the gate.

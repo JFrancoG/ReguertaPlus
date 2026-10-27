@@ -31,6 +31,22 @@ This bounded prerequisite work runs on the existing HU-084 branch. It does not
 start the production rollout, create a new HU-085 implementation branch or close
 any activation gate below.
 
+## Local develop migration/inverse rehearsal — 2026-10-27
+
+- [x] Compose and rehearse the new complete 203-write forward and 140-write
+  inverse using the existing barrier/admission/fence/publication contracts.
+- [x] Preserve exact 62 raw before-images, all 72 published dates/108 ordered
+  places and original membership/calendar sentinels; retain closed epoch 2.
+- [x] Prove actual canonical handler retention, delayed/duplicate events, raw
+  ordinary no-effect events, source/version/pointer guards and uncertain commit.
+- [x] Rehearse the separate 53-helper-cell adapter inverse and document its limits.
+
+Accepted local gate: 91 passes with no failures/skips. See the
+[rehearsal guide](../../../docs/testing/hu084-develop-migration-rehearsal.md).
+This emulator-only resolver is not a shared operation or live admission packet;
+the control-plane/deploy/backup/Drive/index/activation requirements below remain
+open, as do the two missing market months and complete seasonal preview.
+
 ## 0. Dependency gate
 
 - [ ] Verify HU-082 / #266 and HU-083 / #267 are merged and ADR-0013 plus

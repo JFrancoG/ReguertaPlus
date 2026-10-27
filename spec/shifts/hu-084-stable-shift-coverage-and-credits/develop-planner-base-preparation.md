@@ -1,6 +1,9 @@
 # Develop planner base preparation — 2026-10-27
 
 Status: **content proposal prepared; shared initialization remains closed**.
+The subsequent local migration/inverse is now rehearsed in the
+[acceptance guide](../../../docs/testing/hu084-develop-migration-rehearsal.md).
+The source observations and limits below belong to the earlier preparation.
 The maintainer requests preparation preserving published dates and order after
 delivering the initial-state implementation as `537188bd`. This is read-only
 develop evidence and offline content validation, not an execution of the old
