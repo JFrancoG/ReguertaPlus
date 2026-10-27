@@ -430,6 +430,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-10-27 | 📦 build(android): update library versions
+
 - 2026-10-11 | 🔧 chore(shifts): integrate HU-089 policy amendments
 
 - 2026-10-04 | 🔧 chore(shifts): prepare provisional coverage review

@@ -1291,3 +1291,42 @@ documentation-only recording needs no repeated build or phone action. The
 maintainer authorizes commit/push of the native administration block, plus a
 separately validated commit for their Android library updates. Parent HU-084 and
 its draft PR remain open, with the existing activation/ratification limits.
+
+### Maintainer Android dependency delta — 2026-10-27
+
+The catalog update preserves the existing branch versions and adds the six
+remaining maintainer changes: Kotlin 2.4.20→2.4.21, Firebase BoM 34.19.0→35.1.0,
+DataStore 1.2.1→1.3.0, serialization 1.11.0→1.12.0, ML Kit prompt beta4→beta5 and
+Tink 1.23.0→1.24.0. AGP/Core/Compose/Navigation/Coil were already updated on this
+branch; the resulting catalog matches the maintainer's file exactly. The source
+checkout and its unrelated iOS project edit are preserved.
+
+The build uses `resources.directories.add` with the same shared-fixture path.
+Four instrumented-test `KeysetHandle.generateNew` calls use the supported
+two-argument overload with their existing `RegistryConfiguration.get()` value.
+The deprecated Tink 1.24 overload delegates to that same implementation, as
+verified in the installed source archive. AES256_SIV/AES256_GCM parameters and
+all test assertions stay unchanged.
+
+The first connected invocation fails before running tests because AGP 9.4.1's
+`--serial` selector attempts to remove from an immutable `ListProperty` result.
+The supported `ANDROID_SERIAL` provider filter selects only the isolated API 29
+AVD and avoids that plugin defect without a project workaround. The corrected
+connected run exits successfully; the failed selector attempt is not an app-test
+result. Logs: `/tmp/hu084-library-connected-selector.log` and
+`/tmp/hu084-library-connected-final.log`. No physical phone is installed or
+modified by these checks. Physical accessibility/transport observations above
+predate this dependency refresh and are not presented as repeated physical runs.
+
+Final validation: 518 unit tests pass; API 29 runs 29 instrumented entries with
+25 passes and four pre-existing opt-in assumption exits (encoded as failures by
+the XML wrapper, not assertion failures); Gradle succeeds. Both new native
+administration tests and all encrypted-storage migration tests pass. Final lint
+passes with zero errors, 135 warnings and two informational hints. The
+DSL and four Tink compiler deprecations are resolved without suppression.
+Unit/build/lint evidence: `/tmp/hu084-library-unit-lint.log`,
+`/tmp/hu084-library-final.log` and `/tmp/hu084-library-lint-final.log`;
+instrumented evidence is the corrected connected log above. The initial combined
+log includes the old selector failure and predates the Tink call correction;
+it must not replace the successful final connected/lint results. iOS/Functions
+evidence is reused because this follow-up changes Android only.

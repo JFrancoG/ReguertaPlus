@@ -1607,3 +1607,17 @@ after checking the exact user delta and validating Android on the resulting
 versions. Preserve the unrelated main-checkout iOS project edit. Git delivery
 updates the existing draft #278; parent #268 and all live/ratification gates remain
 open. No merge, closure, branch deletion or shared-service action is authorized.
+
+### Maintainer Android library refresh — 2026-10-27
+
+Native administration is committed as `1ad781d`. Apply the maintainer's Android
+catalog delta in a separate build commit. Five requested versions already exist
+on this branch; the remaining updates are Kotlin 2.4.21, Firebase BoM 35.1.0,
+DataStore 1.3.0, serialization 1.12.0, ML Kit prompt beta5 and Tink 1.24.0. The final
+catalog matches the maintainer's file without reverting prior branch updates.
+
+Use the supported Gradle resources `directories` set instead of deprecated
+`srcDir`. Four existing encrypted-storage migration test calls now pass their
+already-created registry configuration to Tink's supported overload; parameters,
+assertions and cryptographic behavior remain unchanged. No suppression or new
+abstraction is introduced. Preserve the main checkout's original files.

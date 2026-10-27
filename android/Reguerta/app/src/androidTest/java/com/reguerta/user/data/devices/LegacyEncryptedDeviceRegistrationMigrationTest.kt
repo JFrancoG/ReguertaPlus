@@ -216,8 +216,9 @@ class LegacyEncryptedDeviceRegistrationMigrationTest {
         val masterAead = AndroidKeystore.getAead(masterKeyAlias)
         val keyHandle = KeysetHandle.generateNew(
             PredefinedDeterministicAeadParameters.AES256_SIV,
+            configuration,
         )
-        val valueHandle = KeysetHandle.generateNew(PredefinedAeadParameters.AES256_GCM)
+        val valueHandle = KeysetHandle.generateNew(PredefinedAeadParameters.AES256_GCM, configuration)
         val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
         assertTrue(
             preferences.edit()
@@ -264,8 +265,9 @@ class LegacyEncryptedDeviceRegistrationMigrationTest {
         val configuration = RegistryConfiguration.get()
         val keyHandle = KeysetHandle.generateNew(
             PredefinedDeterministicAeadParameters.AES256_SIV,
+            configuration,
         )
-        val valueHandle = KeysetHandle.generateNew(PredefinedAeadParameters.AES256_GCM)
+        val valueHandle = KeysetHandle.generateNew(PredefinedAeadParameters.AES256_GCM, configuration)
         val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
         assertTrue(
             preferences.edit()
