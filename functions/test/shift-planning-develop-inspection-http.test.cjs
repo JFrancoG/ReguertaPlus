@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {test} = require("node:test");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {SHIFT_PLANNING_OPERATOR_SERVICE_ACCOUNT_EMAIL} = require("../lib/shift-planning-operator-http.js");
+const {ShiftSheetsOperationalPreflightError} = require("../lib/shift-sheets-operational-preflight.js");
 const {SHIFT_PLANNING_DEVELOP_INSPECTION_PROJECT_ID,
   SHIFT_PLANNING_DEVELOP_INSPECTION_RUNTIME_SERVICE_ACCOUNT_EMAIL,
   SHIFT_PLANNING_DEVELOP_INSPECTION_INVOKER_SERVICE_ACCOUNT_EMAIL,
@@ -141,6 +142,26 @@ test("keeps unknown owner count as null instead of presenting it as zero", async
   assert.equal(result.state.body.report.canApply, false);
 });
 
+test("accepts unavailable reader permission counts only with the matching unknown-owner blocker", async () => {
+  const unknown = "workbook_permission_inventory_unavailable";
+  const base = report();
+  const result = await invoke({observe: async () => ({...base, permissionCount: null, ownerCount: null,
+    blockers: [...base.blockers, unknown]})});
+  assert.equal(result.state.status, 200);
+  assert.equal(result.state.body.report.permissionCount, null);
+  assert.equal(result.state.body.report.ownerCount, null);
+  assert.equal(result.state.body.canApply, false);
+  for (const invalid of [
+    {...base, permissionCount: null, ownerCount: null},
+    {...base, permissionCount: null, blockers: [...base.blockers, unknown]},
+    {...base, permissionCount: 0, ownerCount: null, blockers: [...base.blockers, unknown]},
+  ]) {
+    const rejected = await invoke({observe: async () => invalid});
+    assert.equal(rejected.state.status, 503);
+    assert.equal(rejected.state.body.error.code, "inspection_unavailable");
+  }
+});
+
 test("rejects invalid summaries or unknown blocker values without reflecting them", async () => {
   for (const fields of [{canApply: true}, {environment: "production"}, {observedAtMillis: NaN},
     {selectedTabCount: 9}, {permissionCount: -1}, {ownerCount: "private-owner"},
@@ -163,4 +184,36 @@ test("provider failures produce a fixed unavailable result and sanitized logs wi
   assert.equal(result.state.body.error.code, "inspection_unavailable");
   assert.equal(result.state.body.canApply, false);
   assert.equal(/owner@example|private-workbook|private-uid|private-provider-code/.test(JSON.stringify(result)), false);
+});
+
+test("logs only fixed observation code and stage while preserving the generic unavailable response", async () => {
+  const result = await invoke({observe: async () => {
+    const error = new ShiftSheetsOperationalPreflightError("workbook_observation_unavailable", "permissions");
+    error.message = "403 owner@example.test token=secret";
+    error.cause = {response: {data: "private-workbook"}};
+    throw error;
+  }});
+  assert.equal(result.state.status, 503);
+  assert.deepEqual(result.state.body, {ok: false, schemaVersion: 1, auditId: "inspection-audit",
+    environment: "develop", canApply: false,
+    error: {code: "inspection_unavailable", message: "Inspection is unavailable."}});
+  assert.deepEqual(result.entries, [{level: "warn", message: "Develop shift inspection rejected", data: {
+    auditSchemaVersion: 1, auditId: "inspection-audit", environment: "develop", failureCode: "inspection_unavailable",
+    observationFailureCode: "workbook_observation_unavailable", observationFailureStage: "permissions",
+  }}]);
+  assert.equal(/403|owner@example|private-workbook|token=secret/.test(JSON.stringify(result)), false);
+});
+
+test("never logs arbitrary constructor diagnostics or evaluates error accessors", async () => {
+  for (const error of [new ShiftSheetsOperationalPreflightError("private-code", "private-stage"),
+    Object.defineProperties(new ShiftSheetsOperationalPreflightError("workbook_observation_unavailable", "permissions"), {
+      code: {get() { throw new Error("secret-code-accessor"); }},
+      stage: {get() { throw new Error("secret-stage-accessor"); }},
+    })]) {
+    const result = await invoke({observe: async () => { throw error; }});
+    assert.equal(result.state.status, 503);
+    assert.equal(Object.hasOwn(result.entries[0].data, "observationFailureCode"), false);
+    assert.equal(Object.hasOwn(result.entries[0].data, "observationFailureStage"), false);
+    assert.equal(/private-|secret-/.test(JSON.stringify(result)), false);
+  }
 });

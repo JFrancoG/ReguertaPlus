@@ -16,8 +16,23 @@ export const SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS = Object.freeze([
   "workbook_owner_inventory_mismatch",
   "observer_cannot_modify_content",
   "managed_tabs_have_protections",
+  "workbook_permission_inventory_unavailable",
 ] as const);
 
+export const SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_STAGES = Object.freeze([
+  "version_before", "file_before", "observer", "permissions", "snapshot",
+  "file_after", "version_after",
+] as const);
+export const SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_FAILURE_CODES = Object.freeze([
+  "workbook_observation_invalid", "workbook_permissions_invalid",
+  "workbook_selected_tabs_invalid", "workbook_observer_identity_unavailable",
+  "workbook_permissions_incomplete", "workbook_observation_unavailable",
+  "workbook_observation_changed", "workbook_selected_tabs_missing",
+  "workbook_content_changed", "workbook_observation_clock_invalid",
+] as const);
+
+type ObservationStage =
+  typeof SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_STAGES[number];
 type Blocker = typeof SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS[number];
 type PrincipalKind = "serviceAccount" | "user" | "unknown";
 type JsonRecord = Record<string, unknown>;
@@ -31,7 +46,7 @@ export type ShiftSheetsOperationalPreflightSummary = {
   workbookVersionAfter: string;
   observationPrincipalKind: PrincipalKind;
   selectedTabCount: number;
-  permissionCount: number;
+  permissionCount: number | null;
   ownerCount: number | null;
   contentDigest: string;
   aclDigest: string;
@@ -44,8 +59,9 @@ export type ShiftSheetsOperationalPreflightSummary = {
 export class ShiftSheetsOperationalPreflightError extends Error {
   /**
    * @param {string} code Stable, non-sensitive rejection category.
+   * @param {string} stage Fixed read stage, without resource diagnostics.
    */
-  constructor(readonly code: string) {
+  constructor(readonly code: string, readonly stage?: ObservationStage) {
     super("Workbook operational observation could not be verified.");
     this.name = "ShiftSheetsOperationalPreflightError";
   }
@@ -200,6 +216,8 @@ const permission = (value: unknown) => {
 /**
  * Captures a version-bound read observation, never an exclusion checkpoint.
  * ACLs describe visible grants and capabilities belong to this observer only.
+ * An observer without sharing authority leaves its permission inventory null;
+ * no permission request is attempted or reported as an empty inventory.
  * Owners, offline edits, scripts, OAuth and inherited authority stay unproven;
  * no caller declaration can turn this result into permission to mutate.
  * Private observations contain identities and cells and must not be returned
@@ -248,10 +266,13 @@ export const observeShiftSheetsWorkbook = async (input: {
   let after: Awaited<ReturnType<typeof readFile>>;
   let principal: ReturnType<typeof user>;
   let snapshot: SheetsV4.Schema$Spreadsheet;
-  const permissions: ReturnType<typeof permission>[] = [];
+  let permissions: ReturnType<typeof permission>[] | null = null;
+  let stage: ObservationStage = "version_before";
   try {
     versionBefore = await readVersion();
+    stage = "file_before";
     before = await readFile();
+    stage = "observer";
     const about = await input.about.get({fields:
       "user(permissionId,emailAddress,me)"}, options);
     principal = user(about.data.user);
@@ -259,40 +280,49 @@ export const observeShiftSheetsWorkbook = async (input: {
       !/^[^\s@]+@[^\s@]+$/.test(principal.emailAddress)) {
       return fail("workbook_observer_identity_unavailable");
     }
-    const seen = new Set<string>();
-    let pageToken: string | undefined;
-    let pages = 0;
-    do {
-      pages++;
-      if (pages > 500) return fail("workbook_permissions_incomplete");
-      const response = await input.permissions.list({fileId: config.workbookId,
-        supportsAllDrives: true, pageSize: 100, pageToken, fields:
-          "nextPageToken,permissions(id,type,role,emailAddress,domain," +
-          "deleted,allowFileDiscovery,expirationTime,pendingOwner," +
-          "permissionDetails(permissionType,role,inherited,inheritedFrom))"},
-      options);
-      permissions.push(...list(response.data.permissions).map(permission));
-      if (permissions.length > 500) {
+    if (before.capabilities.canShare === true) {
+      permissions = [];
+      const seen = new Set<string>();
+      let pageToken: string | undefined;
+      let pages = 0;
+      do {
+        pages++;
+        if (pages > 500) return fail("workbook_permissions_incomplete");
+        stage = "permissions";
+        const response = await input.permissions.list({
+          fileId: config.workbookId,
+          supportsAllDrives: true, pageSize: 100, pageToken, fields:
+            "nextPageToken,permissions(id,type,role,emailAddress,domain," +
+            "deleted,allowFileDiscovery,expirationTime,pendingOwner," +
+            "permissionDetails(permissionType,role,inherited,inheritedFrom))"},
+        options);
+        permissions.push(...list(response.data.permissions).map(permission));
+        if (permissions.length > 500) {
+          return fail("workbook_permissions_incomplete");
+        }
+        const next = text(response.data.nextPageToken);
+        if (next && (seen.has(next) || permissions.length >= 500)) {
+          return fail("workbook_permissions_incomplete");
+        }
+        if (next) seen.add(next);
+        pageToken = next ?? undefined;
+      } while (pageToken);
+      if (new Set(permissions.map((p) => p.id)).size !== permissions.length) {
         return fail("workbook_permissions_incomplete");
       }
-      const next = text(response.data.nextPageToken);
-      if (next && (seen.has(next) || permissions.length >= 500)) {
-        return fail("workbook_permissions_incomplete");
-      }
-      if (next) seen.add(next);
-      pageToken = next ?? undefined;
-    } while (pageToken);
-    if (new Set(permissions.map((p) => p.id)).size !== permissions.length) {
-      return fail("workbook_permissions_incomplete");
+      permissions.sort((a, b) => compare(a.id, b.id));
     }
-    permissions.sort((a, b) => compare(a.id, b.id));
+    stage = "snapshot";
     snapshot = await readShiftSheetsSnapshot({config,
       sheets: input.sheets, titles});
+    stage = "file_after";
     after = await readFile();
+    stage = "version_after";
     versionAfter = await readVersion();
   } catch (error) {
-    if (error instanceof ShiftSheetsOperationalPreflightError) throw error;
-    return fail("workbook_observation_unavailable");
+    throw new ShiftSheetsOperationalPreflightError(
+      error instanceof ShiftSheetsOperationalPreflightError ?
+        error.code : "workbook_observation_unavailable", stage);
   }
   if (before.id !== config.workbookId || after.id !== config.workbookId ||
     before.mimeType !== "application/vnd.google-apps.spreadsheet" ||
@@ -330,20 +360,25 @@ export const observeShiftSheetsWorkbook = async (input: {
   const observationPrincipalKind: PrincipalKind =
     principal.emailAddress?.endsWith(".gserviceaccount.com") ?
       "serviceAccount" : principal.emailAddress ? "user" : "unknown";
-  const ownerPermissions = permissions.filter((p) => p.role === "owner");
+  const ownerPermissions = permissions?.filter((p) => p.role === "owner");
   let ownerCount: number | null = null;
   const blockers: Blocker[] = [...SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS
     .slice(0, 5)];
+  if (permissions === null) {
+    blockers.push("workbook_permission_inventory_unavailable");
+  }
   if (before.driveId) {
     blockers.push("workbook_shared_drive_authority_unverified");
   } else {
     blockers.push("workbook_owner_fence_unverified");
-    if (before.owners.length === 0 || ownerPermissions.length === 0 ||
-      digest(before.owners.map((owner) => owner.permissionId).sort()) !==
-        digest(ownerPermissions.map((owner) => owner.id).sort())) {
-      blockers.push("workbook_owner_inventory_mismatch");
-    } else {
-      ownerCount = ownerPermissions.length;
+    if (ownerPermissions) {
+      if (before.owners.length === 0 || ownerPermissions.length === 0 ||
+        digest(before.owners.map((owner) => owner.permissionId).sort()) !==
+          digest(ownerPermissions.map((owner) => owner.id).sort())) {
+        blockers.push("workbook_owner_inventory_mismatch");
+      } else {
+        ownerCount = ownerPermissions.length;
+      }
     }
   }
   if (before.capabilities.canEdit !== true ||
@@ -363,7 +398,8 @@ export const observeShiftSheetsWorkbook = async (input: {
     schemaVersion: 1, environment: config.environment, canApply: false,
     observedAtMillis, workbookVersionBefore: versionBefore,
     workbookVersionAfter: versionAfter, observationPrincipalKind,
-    selectedTabCount: selected.length, permissionCount: permissions.length,
+    selectedTabCount: selected.length,
+    permissionCount: permissions?.length ?? null,
     ownerCount,
     contentDigest, aclDigest, protectionsDigest, observationDigest, blockers,
   };

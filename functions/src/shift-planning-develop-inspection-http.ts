@@ -4,7 +4,10 @@ import {HttpsFunction, HttpsOptions, Request, onRequest} from
 import {Response} from "express";
 import type {ShiftPlanningOperatorAuditLogger} from
   "./shift-planning-operator-http.js";
-import {SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS} from
+import {SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS,
+  SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_FAILURE_CODES,
+  SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_STAGES,
+  ShiftSheetsOperationalPreflightError} from
   "./shift-sheets-operational-preflight.js";
 import type {ShiftSheetsOperationalPreflightSummary} from
   "./shift-sheets-operational-preflight.js";
@@ -48,6 +51,15 @@ const record = (value: unknown): Data | null => {
 };
 const field = (value: Data, key: string): unknown =>
   Object.getOwnPropertyDescriptor(value, key)?.value;
+const observationDiagnostics = (error: unknown) => {
+  if (!(error instanceof ShiftSheetsOperationalPreflightError)) return {};
+  const code = SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_FAILURE_CODES.find((code) =>
+    Object.getOwnPropertyDescriptor(error, "code")?.value === code);
+  const stage = SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_STAGES.find((stage) =>
+    Object.getOwnPropertyDescriptor(error, "stage")?.value === stage);
+  return {...code ? {observationFailureCode: code} : {},
+    ...stage ? {observationFailureStage: stage} : {}};
+};
 const count = (value: unknown): value is number =>
   Number.isSafeInteger(value) && (value as number) >= 0 &&
     (value as number) <= 100_000;
@@ -97,7 +109,8 @@ const sanitize = (
       !Number.isSafeInteger(at) || (at as number) < 0 ||
       (at as number) > 8_640_000_000_000_000 ||
       !["serviceAccount", "user", "unknown"].includes(principal as string) ||
-      !count(tabs) || tabs > 8 || !count(permissions) ||
+      !count(tabs) || tabs > 8 ||
+      (permissions !== null && !count(permissions)) ||
       (owners !== null && !count(owners)) ||
       !version(before) || !version(after) || !digests.every(digest) ||
       !Array.isArray(blockers) ||
@@ -107,12 +120,16 @@ const sanitize = (
         !SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS.includes(code))) {
     return null;
   }
+  const inventoryUnavailable =
+    blockers.includes("workbook_permission_inventory_unavailable");
+  if ((permissions === null) !== inventoryUnavailable ||
+      (permissions === null && owners !== null)) return null;
   return {schemaVersion: 1, environment: "develop", canApply: false,
     observedAtMillis: at as number, workbookVersionBefore: before,
     workbookVersionAfter: after,
     observationPrincipalKind: principal as
       ShiftSheetsOperationalPreflightSummary["observationPrincipalKind"],
-    selectedTabCount: tabs, permissionCount: permissions,
+    selectedTabCount: tabs, permissionCount: permissions as number | null,
     ownerCount: owners as number | null,
     contentDigest: digests[0] as string, aclDigest: digests[1] as string,
     protectionsDigest: digests[2] as string,
@@ -135,9 +152,12 @@ export const createShiftPlanningDevelopInspectionHttpHandler = (
 ) => async (request: InspectionRequest, response: InspectionResponse) => {
   response.setHeader("Cache-Control", "no-store");
   const auditId = (dependencies.createAuditId ?? randomUUID)();
-  const reject = (status: number, code: string, message: string) => {
+  const reject = (
+    status: number, code: string, message: string, observationError?: unknown,
+  ) => {
     logger.warn("Develop shift inspection rejected", {
       auditSchemaVersion: 1, auditId, environment: "develop", failureCode: code,
+      ...observationDiagnostics(observationError),
     });
     response.status(status).json({ok: false, schemaVersion: 1, auditId,
       environment: "develop", canApply: false, error: {code, message}});
@@ -174,8 +194,8 @@ export const createShiftPlanningDevelopInspectionHttpHandler = (
     });
     response.status(200).json({ok: true, schemaVersion: 1, auditId,
       environment: "develop", canApply: false, report});
-  } catch {
-    reject(503, "inspection_unavailable", "Inspection is unavailable.");
+  } catch (error) {
+    reject(503, "inspection_unavailable", "Inspection is unavailable.", error);
   }
 };
 

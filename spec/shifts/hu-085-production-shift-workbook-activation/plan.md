@@ -6,7 +6,10 @@ HU-084's migration/inverse rehearsal is delivered in `0b5ceabb`; the new
 [read-only operational inspection](../../../docs/testing/hu084-develop-operative-inspection.md)
 is delivered as `4b179d10`. Its isolated identity/deployment preparation now uses
 dedicated inspection accounts and no direct project data roles. The runtime's
-reader grant and actual private deployment/read-back remain pending. The earlier
+reader grant and private deployment/read-back are verified: six tabs, stable
+Drive version 259, 63 local tests and real access/transport checks. Detailed ACL
+visibility remains explicitly unknown for the reader. The temporary OIDC binding
+is removed and a new token request is denied with 403. The earlier
 real observations identify absent recovery-operator authority,
 unverified Drive version/exclusive writing, undeployed Rules restrictions and
 unproved planning-index readiness. This inspection cannot issue a closed barrier

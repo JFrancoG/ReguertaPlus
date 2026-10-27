@@ -1,11 +1,10 @@
 # HU-084: inspección operativa de develop
 
-Estado: el mantenedor ha autorizado las identidades separadas, el acceso mínimo
-y el despliegue únicamente de la inspección privada de develop. Las cuentas se
-han creado; en este punto todavía no se ha desplegado. Quedan pendientes el
-acceso como lector al libro y el despliegue. Esta
-autorización no incluye migración, entrada en mantenimiento, cambios de
-escritores compartidos ni escrituras de datos de la aplicación.
+Estado: la inspección privada de develop está desplegada y verificada con
+identidades separadas. El acceso al libro es de lector; se ha retirado y comprobado
+el permiso humano temporal para generar tokens OIDC. Esta operación no incluye
+migración, mantenimiento, cambios de escritores compartidos ni escrituras de
+datos de la aplicación.
 
 [English version](../../docs/testing/hu084-develop-operative-inspection.md).
 
@@ -143,7 +142,32 @@ de IAM, Workspace o Apps Script. gcloud está instalado, pero su uso sigue
 necesitando una identidad de lectura autenticada y un alcance concreto; tener la
 CLI no demuestra disponer de esos permisos.
 
-## Preparación autorizada de identidades separadas y despliegue
+## Visibilidad del lector y comprobación real
+
+Drive no permite a un lector consultar los permisos detallados del archivo.
+Cuando el observador no puede compartirlo, el proveedor no solicita ese inventario:
+los permisos privados, `permissionCount` y `ownerCount` quedan en `null`, con el
+bloqueo explícito `workbook_permission_inventory_unavailable`. Un inventario
+desconocido no es una lista vacía; su huella sólo identifica esta observación
+incompleta. Se mantienen las lecturas de versión y cuadrículas acotadas. La entrada
+siempre devuelve `canApply:false`. Véanse los [roles de Drive](https://developers.google.com/workspace/drive/api/guides/ref-roles).
+
+La comprobación desplegada leyó las seis pestañas con versión de Drive **259**
+al principio y al final. El acceso anónimo devolvió 403; GET autenticado, 405;
+y las peticiones de producción o con libro elegido por el solicitante, 400.
+La lectura válida de develop devolvió 200, `no-store`, huellas sanitizadas y
+recuentos de permisos desconocidos. Las 19 Functions anteriores conservan sus
+revisiones y los metadatos comparados; al comparar los filtros de eventos se
+normaliza el orden que la API devuelve sin significado. Ninguna de las dos
+cuentas nuevas tiene asignaciones directas de roles del proyecto.
+
+La aceptación local suma 63 pruebas sin fallos ni omisiones, lint/build limpios,
+comprobaciones CJS y filtro de un único destino. Los registros de fallo sólo
+incluyen códigos y etapas locales fijos; no registran ni devuelven mensajes
+originales del SDK, causas, URLs, identidades ni celdas. La primera lectura válida
+devolvió 503; la corrección conserva el acceso de lector sin ampliarlo.
+
+## Identidades separadas y despliegue aislado
 
 La autorización se limita a `reguerta-9f27f`,
 `inspectDevelopShiftMigration` en `europe-west1` y el libro configurado de
@@ -157,10 +181,12 @@ develop. No permite desplegar las demás Functions, Rules ni índices.
   identidad de ejecución; no se añadió otra asignación para ello.
 - La asignación humana temporal de
   `roles/iam.serviceAccountOpenIdTokenCreator` se limita a la cuenta invocadora
-  y caduca en una hora. Se utilizará sólo para obtener un token OIDC con este
+  y se creó con caducidad de una hora. Se utilizó sólo para obtener un token OIDC con este
   servicio como destinatario: no incluye `getAccessToken`, firma ni emisión
-  general de tokens OAuth. Quitar la asignación tras validar y comprobar su retirada; la caducidad
-  por sí sola no acredita la limpieza.
+  general de tokens OAuth. La asignación se retiró tras validar. La política directa queda vacía y otra
+  petición real a `generateIdToken` se rechaza con 403. No se guardaron tokens.
+  La observación de la consulta de permisos se conserva aparte y no se usa como
+  prueba de cierre.
 - El permiso de servicio de la cuenta invocadora se limita a esta nueva
   inspección privada. Es una cuenta distinta del operador de recuperación.
   La identidad de ejecución sólo necesita acceso como lector al libro
@@ -168,9 +194,11 @@ develop. No permite desplegar las demás Functions, Rules ni índices.
   libro de producción.
 
 El intento del conector de Drive de añadir el permiso de lectura devolvió
-`403 appNotAuthorizedToFile`. Se ha pedido al mantenedor que comparta la Sheet
-de develop como **Lector** con la cuenta de ejecución. En este punto todavía no
-se han verificado el permiso ni el acceso efectivo. Este error no autoriza a
+`403 appNotAuthorizedToFile`. El mantenedor compartió la Sheet de develop como **Lector** con la cuenta de
+ejecución y el conector propietario comprobó ese rol. Después pasó la lectura
+real de las seis pestañas. La observación del propietario sobre la compartición
+y el inventario detallado no disponible para el lector siguen siendo evidencias
+distintas. Este error no autoriza a
 sustituir ADC, iniciar otra sesión OAuth o ampliar el acceso del conector.
 
 ### Configuración aislada de CLI y comprobación local del paquete
@@ -186,7 +214,7 @@ fuente. La CLI proporciona las variables reservadas del proyecto.
 El selector exacto es `--only functions:inspectDevelopShiftMigration`, con
 `--project reguerta-9f27f`, el `--config` privado y `--non-interactive`,
 **sin `--force`**. El predeploy ejecuta lint y build. Antes de ejecutarlo,
-terminar los 58 casos sobre la fuente fijada y revisar el manifiesto local del
+terminar los 63 casos sobre la fuente fijada y revisar el manifiesto local del
 SDK con el filtro de la CLI: exigir sólo esta entrada, las identidades fijas de
 ejecución e invocación, ningún secreto y ningún trigger de eventos. Esta
 comprobación del paquete no debe llamar a `firebase deploy --dry-run`: la
@@ -199,7 +227,7 @@ falta. Si la CLI informa de un error de esa política después de desplegar,
 comprobar el estado real de la Function antes de repetir: la entrada puede
 haberse creado ya.
 
-La validación local actual ha aprobado los 58 casos, lint/build y el filtro del
+La validación local actual ha aprobado los 63 casos, lint/build y el filtro del
 paquete con exactamente una entrada. Las lecturas previas al despliegue han
 encontrado las diez APIs necesarias habilitadas y una política existente de
 limpieza de Artifact Registry; no se cambió ninguna. No se inició ninguna sesión
@@ -215,7 +243,7 @@ inspección como migración.
 ## Informe y paso operativo posterior
 
 Validación local desde `functions`: `npm run test:shift-planning:develop-inspection`
-y `npm run lint`. Los 58 casos aprobados cubren el proveedor de lectura, la entrada
+y `npm run lint`. Los 63 casos aprobados cubren el proveedor de lectura, la entrada
 HTTP, la composición HTTP real en loopback con dobles de Google y las regresiones
 de Sheets/configuración/operador. No acreditan IAM desplegado ni acceso a Drive.
 

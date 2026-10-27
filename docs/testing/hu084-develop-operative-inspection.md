@@ -1,10 +1,9 @@
 # HU-084 develop operational inspection
 
-Status: the maintainer has authorized the dedicated identities, minimum access
-and deployment of the private develop inspection only. The accounts have been
-created; deployment has not run at this checkpoint. Workbook reader access and
-deployment remain pending. This authorization includes
-no migration, maintenance transition, shared writer change or business-data write.
+Status: the private develop inspection is deployed and verified under dedicated
+identities. Workbook access is reader-only; the temporary human OIDC creation
+binding has been removed and checked. This operation includes no migration,
+maintenance transition, shared writer change or business-data write.
 
 [Spanish version](../../docs-es/testing/hu084-inspeccion-operativa-develop.md).
 
@@ -133,7 +132,31 @@ prove complete IAM, Workspace or Apps Script visibility. gcloud is installed;
 using it still requires an appropriate authenticated read identity and explicit
 resource scope. Do not infer that an installed CLI has those permissions.
 
-## Authorized dedicated identity and deployment preparation
+## Reader visibility and verified operation
+
+Drive readers cannot inspect detailed file permissions. When the observer cannot
+share the file, the provider does not request that inventory: private permissions,
+`permissionCount` and `ownerCount` remain `null`, with the explicit
+`workbook_permission_inventory_unavailable` blocker. An unknown inventory is not
+an empty ACL, and its digest only fingerprints this incomplete observation.
+Version and bounded grid inspection continue. The endpoint always returns
+`canApply:false`. See [Drive roles](https://developers.google.com/workspace/drive/api/guides/ref-roles).
+
+The deployed check read all six tabs with Drive version **259** before and after.
+Anonymous access returned 403, authenticated GET returned 405, and production or
+caller-selected-workbook commands returned 400. The valid develop read returned
+200 with `no-store`, sanitized fingerprints and the unknown permission counts.
+The 19 pre-existing Functions retain their revisions and selected metadata;
+event-filter order is normalized when comparing the API's unordered entries.
+Both dedicated accounts have no direct project-role bindings.
+
+Local acceptance is 63 passing tests without skips/failures, clean lint/build,
+focused CJS checks and the exact one-endpoint package filter. Failure logs expose
+only fixed local code/stage values; original SDK messages, causes, URLs, account
+identities and cell values are not logged or returned. The initial valid read
+returned 503; this correction preserves reader access instead of raising it.
+
+## Dedicated identities and isolated deployment
 
 The authorization is limited to `reguerta-9f27f`,
 `inspectDevelopShiftMigration` in `europe-west1` and the configured develop
@@ -146,19 +169,22 @@ workbook. It does not permit deploying the other Functions, Rules or indexes.
 - The current human deployer already had inherited `actAs` permission on the
   runtime identity; no additional runtime `actAs` binding was added.
 - The human operator's temporary `roles/iam.serviceAccountOpenIdTokenCreator`
-  binding is limited to the invoker account and expires after one hour. It is
+  binding was limited to the invoker account with a one-hour expiry. It was
   used only to obtain an OIDC invocation token with this service as its audience:
-  no `getAccessToken`, signing or general OAuth-token minting grant is included. Remove this binding after
-  validation and read back its removal; expiry alone is not cleanup evidence.
+  no `getAccessToken`, signing or general OAuth-token minting grant is included. The binding was removed after validation. Direct policy read-back is empty
+  and a subsequent `generateIdToken` request is denied with 403. No tokens were
+  persisted. The permission-test observation is retained separately; it is not
+  the closure proof.
 - The invoker's service permission is limited to invoking this new private
   inspection. Its account is separate from the recovery operator. The runtime
   needs reader access only to the configured develop workbook; it receives no
   writer grant or access to the production workbook from this operation.
 
 The connected Drive app's attempt to add the reader grant returned
-`403 appNotAuthorizedToFile`. The maintainer has been asked to share the develop
-Sheet as **Viewer** with the runtime account. At this checkpoint that grant and
-its effective read access have not been verified. This error does not authorize
+`403 appNotAuthorizedToFile`. The maintainer shared the develop Sheet as **Viewer** with the runtime account,
+and the owner connector verified that role. The six-tab runtime read then passed.
+The owner-side sharing observation and the runtime's unavailable detailed ACL
+remain separate evidence. This error does not authorize
 replacing ADC, starting another OAuth session or widening connector access.
 
 ### Isolated CLI configuration and local package proof
@@ -174,7 +200,7 @@ The CLI supplies the reserved project variables itself.
 The exact deployment selector is `--only functions:inspectDevelopShiftMigration`,
 with explicit `--project reguerta-9f27f`, the private `--config` and
 `--non-interactive`, **without `--force`**. Predeploy runs lint and build. Before
-executing it, finish the 58-case gate on the frozen source and inspect the local
+executing it, finish the 63-case gate on the frozen source and inspect the local
 SDK manifest with the CLI's endpoint filter: require exactly this one endpoint,
 the fixed runtime/invoker, no secrets and no event trigger. This package check
 must not call `firebase deploy --dry-run`: CLI preparation can enable APIs before
@@ -199,7 +225,7 @@ makes the inspection executable as a migration.
 ## Report and operational handoff
 
 Local validation from `functions`: `npm run test:shift-planning:develop-inspection`
-and `npm run lint`. The 58 passing cases cover the read provider, strict HTTP
+and `npm run lint`. The 63 passing cases cover the read provider, strict HTTP
 boundary, actual loopback HTTP composition with Google doubles and relevant
 Sheets/config/operator regressions. They do not prove deployed IAM or Drive access.
 

@@ -16,10 +16,10 @@ const fixture = (changes = {}) => {
   const config = createShiftSheetsConfig({environment: "develop", workbooks: {develop: workbookId}});
   const file = {id: workbookId, mimeType: "application/vnd.google-apps.spreadsheet", trashed: false,
     version: "17", parents: ["private-parent"], owners: [owner],
-    capabilities: {canEdit: true, canModifyContent: true, canShare: false, canReadRevisions: true},
+    capabilities: {canEdit: true, canModifyContent: true, canShare: true, canReadRevisions: true},
     ...changes.file};
   const pages = changes.pages ?? [{permissions: [{id: owner.permissionId, type: "user", role: "owner", emailAddress: owner.emailAddress}],
-    nextPageToken: "next-page"}, {permissions: [{id: principal.permissionId, type: "user", role: "reader", emailAddress: principal.emailAddress}]}];
+    nextPageToken: "next-page"}, {permissions: [{id: principal.permissionId, type: "user", role: "writer", emailAddress: principal.emailAddress}]}];
   const state = {spreadsheetId: workbookId, sheets: [...titles, "histórico reparto", "histórico mercado"].map((title, index) => ({
     properties: {sheetId: index + 1, title, gridProperties: {rowCount: 3, columnCount: 4}},
     protectedRanges: [], merges: [], developerMetadata: [],
@@ -90,9 +90,36 @@ test("observer capabilities are its own and never inferred from the owner's role
   const result = await fixture({principal: {...owner, me: true},
     file: {capabilities: {canEdit: false, canModifyContent: false}}}).observe();
   assert.equal(result.summary.observationPrincipalKind, "user");
-  assert.equal(result.summary.ownerCount, 1);
+  assert.equal(result.summary.ownerCount, null);
+  assert.equal(result.summary.permissionCount, null);
+  assert.ok(result.summary.blockers.includes("workbook_permission_inventory_unavailable"));
   assert.ok(result.summary.blockers.includes("observer_cannot_modify_content"));
   assert.equal(result.summary.canApply, false);
+});
+
+test("a read-only observer captures all six grids without requesting or fabricating a permission inventory", async () => {
+  const allTitles = fixture().state.sheets.map((s) => s.properties.title);
+  const emptyInventory = await fixture({pages: [{permissions: []}]}).observe({titles: allTitles});
+  assert.equal(emptyInventory.summary.permissionCount, 0);
+  assert.equal(emptyInventory.privateObservation.permissions.length, 0);
+  for (const canShare of [false, undefined]) {
+    const f = fixture({file: {capabilities: {canEdit: false, canModifyContent: false, canShare}}});
+    const result = await f.observe({titles: allTitles});
+    assert.equal(f.permissionReads, 0);
+    assert.equal(f.requests.some((call) => call.api === "permissions.list"), false);
+    assert.equal(result.privateObservation.permissions, null);
+    assert.equal(result.summary.permissionCount, null);
+    assert.equal(result.summary.ownerCount, null);
+    assert.equal(result.summary.selectedTabCount, 6);
+    assert.equal(result.privateObservation.snapshot.sheets.every((s) => s.data.length > 0), true);
+    assert.equal(f.requests.find((call) => call.api === "sheets.get" && call.request.ranges).request.ranges.length, 6);
+    assert.ok(result.summary.blockers.includes("workbook_permission_inventory_unavailable"));
+    assert.equal(result.summary.blockers.includes("workbook_owner_inventory_mismatch"), false);
+    assert.notEqual(result.summary.aclDigest, emptyInventory.summary.aclDigest);
+    assert.equal(result.summary.workbookVersionBefore, "17");
+    assert.equal(result.summary.workbookVersionAfter, "17");
+    assert.equal(result.summary.canApply, false);
+  }
 });
 
 test("shared-drive ownership is unknown rather than a fabricated zero-owner count", async () => {
@@ -121,6 +148,32 @@ test("rejects every version or file-identity drift without exposing Google error
     await rejected(fixture({file}).observe(), "workbook_observation_unavailable");
   await rejected(fixture({fileFailure: "https://private.invalid?token=secret"}).observe(), "workbook_observation_unavailable");
   await rejected(fixture({permissionFailure: "403 private owner@example.test"}).observe(), "workbook_observation_unavailable");
+});
+
+test("identifies only the fixed failed read stage without retaining Google diagnostics", async () => {
+  for (const stage of ["version_before", "file_before", "observer", "permissions", "snapshot", "file_after", "version_after"]) {
+    const f = fixture();
+    const failure = Object.assign(new Error("403 owner@example.test https://private.invalid?token=secret"), {
+      code: 403, response: {data: {error: {message: "private-workbook"}}},
+    });
+    const fail = async () => { throw failure; };
+    const fileAt = {version_before: 1, file_before: 2, file_after: 3, version_after: 4}[stage];
+    if (fileAt) {
+      const get = f.input.files.get; let reads = 0;
+      f.input.files.get = async (...args) => ++reads === fileAt ? fail() : get(...args);
+    } else if (stage === "observer") f.input.about.get = fail;
+    else if (stage === "permissions") f.input.permissions.list = fail;
+    else f.input.sheets.get = fail;
+    await assert.rejects(f.observe(), (error) => {
+      assert.ok(error instanceof ShiftSheetsOperationalPreflightError);
+      assert.equal(error.code, "workbook_observation_unavailable");
+      assert.equal(error.stage, stage);
+      assert.equal(error.message, "Workbook operational observation could not be verified.");
+      assert.equal(Object.hasOwn(error, "cause"), false);
+      assert.equal(/403|example.test|private|secret/.test(JSON.stringify(error)), false);
+      return true;
+    });
+  }
 });
 
 test("never presents partial, cyclic, duplicate or oversized permissions as a complete inventory", async () => {

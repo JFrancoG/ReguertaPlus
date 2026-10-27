@@ -1944,7 +1944,26 @@ required/prepared APIs are enabled and the existing Artifact Registry cleanup
 policy is preserved. Local validation: 58 passes, no skips/failures, lint/build,
 package/schema/filter checks and independent source/deployment reviews.
 
-The next action is the isolated deployment and read-back of actual IAM/runtime,
-with anonymous/invalid-input rejection and a bounded observation when reader
-access is confirmed. Deployment results and temporary-binding removal must be
-recorded from live evidence; this pre-deployment source freeze does not claim them.
+The isolated deployment is now verified: the dedicated runtime and sole explicit
+service invoker match source, with no public binding or direct project roles for
+the new accounts. All 19 existing Function revisions and compared metadata remain
+unchanged; unordered Eventarc filter entries are normalized for that comparison.
+The maintainer's reader grant is verified independently by owner-side metadata.
+
+The first valid read returned 503. Reader-aware inspection now omits the detailed
+permission API when sharing authority is unavailable, reports null permission/
+owner counts with an explicit blocker, and retains the bounded version/grid
+reads. Safe logs use fixed local failure codes/stages only. All 63 local tests,
+lint/build and the one-target package gate pass, with independent review.
+Real HTTP checks return 403 anonymously, 405 for authenticated GET, 400 for
+production and workbook selectors, and 200 for the valid read of six tabs under
+unchanged Drive version 259. No raw cells or identities cross the HTTP boundary.
+
+The temporary OIDC binding is removed. Direct policy is empty and a subsequent
+real token-creation request is denied with 403; the permission-test observation
+is retained separately rather than used as the closure proof. Both identities
+still have zero user-managed keys, and Artifact Registry cleanup is unchanged.
+Actual writer exclusion, maintenance/drain bindings, admission and migration
+remain open. No application-data write, production workbook access, notification
+or change to existing writers/Rules/indexes occurred. No further phone or manual
+sharing action is needed for this completed inspection block.

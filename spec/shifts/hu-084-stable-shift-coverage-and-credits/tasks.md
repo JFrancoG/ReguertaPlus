@@ -304,7 +304,7 @@ Accepted local evidence: [rehearsal guide](../../../docs/testing/hu084-develop-m
 - [x] Prepare a private develop-only inspection with read scopes, bounded version/ACL capture and sanitized non-executable results.
 - [x] Validate 58 provider/HTTP/composition/regression tests, lint/build, focused CJS checks and independent reviews.
 - [x] Deliver inspection preparation as `4b179d10` and verify its remote hash.
-- [ ] Authorize and establish the exact read identity/private inspection deployment, without changing unrelated credentials or shared writers.
+- [x] Authorize and establish dedicated private-inspection identities and deployment, without changing unrelated credentials or existing writers.
 - [ ] Establish effective external writer controls and actual closure/drain bindings before any real migration proposal is admitted.
 
 ## Dedicated private inspection identity — 2026-10-27
@@ -313,7 +313,9 @@ Accepted local evidence: [rehearsal guide](../../../docs/testing/hu084-develop-m
 - [x] Create dedicated runtime and invoker identities without user-managed keys or direct project roles; bind source to both exact accounts.
 - [x] Verify inherited deployment `actAs`; add only temporary OIDC creation on the invoker and prepare removal of that exact binding.
 - [x] Validate 58 tests, lint/build and a one-target package with isolated develop environment and no legacy Runtime Config read.
-- [ ] Verify the requested manual reader grant on the develop workbook (connector sharing denied).
-- [ ] Deploy only `inspectDevelopShiftMigration`, verify its private IAM/runtime, run bounded read-only checks and remove temporary OIDC permission.
+- [x] Verify the maintainer's manual reader grant on the develop workbook (connector sharing denied).
+- [x] Deploy only `inspectDevelopShiftMigration`; verify dedicated runtime/private invoker and unchanged metadata/revisions for all 19 existing Functions.
+- [x] Validate 63 local tests and real HTTP 403/405/400/400/200; capture six tabs under stable Drive version 259 with unavailable detailed ACL reported as null.
+- [x] Remove the exact temporary OIDC binding; verify empty direct policy, actual token creation denied with 403, zero user-managed keys and unchanged Artifact Registry cleanup policy.
 Shared runtime/operator/Drive admission, complete post-drain capture, actual
 application/rollback authorization and full annual preview remain open.
