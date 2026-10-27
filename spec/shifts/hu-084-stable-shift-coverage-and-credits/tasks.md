@@ -295,5 +295,16 @@ changes in this backend block.
 - [x] Complete independent review, relevant backend gates, private evidence and secret-safe operational handoff; keep shared activation closed.
 
 Accepted local evidence: [rehearsal guide](../../../docs/testing/hu084-develop-migration-rehearsal.md).
+
+## Develop operational inspection preparation — 2026-10-27
+
+- [x] Deliver the controlled migration/inverse rehearsal as `0b5ceabb` and verify its remote hash.
+- [x] Refresh read-only develop/project observations and document actual Rules, identity, version and index gaps.
+- [x] Align the documented writer inventory with compiled v3 (26 writers).
+- [x] Prepare a private develop-only inspection with read scopes, bounded version/ACL capture and sanitized non-executable results.
+- [x] Validate 58 provider/HTTP/composition/regression tests, lint/build, focused CJS checks and independent reviews.
+- [ ] Deliver this new inspection preparation through Git; source remains local pending commit.
+- [ ] Authorize and establish the exact read identity/private inspection deployment, without changing unrelated credentials or shared writers.
+- [ ] Establish effective external writer controls and actual closure/drain bindings before any real migration proposal is admitted.
 Shared runtime/operator/Drive admission, complete post-drain capture, actual
 application/rollback authorization and full annual preview remain open.

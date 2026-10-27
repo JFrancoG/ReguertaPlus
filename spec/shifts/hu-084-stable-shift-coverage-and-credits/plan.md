@@ -1881,3 +1881,43 @@ fixture clock advance leave the committed state closed with no resubmission.
 No application source changes or new parity gap. This local prototype supplies
 neither a deployed migration endpoint nor real writer/Drive/index authority;
 both parent stories and the draft PR remain open. No phone action is needed.
+
+### Develop operational entry preparation — 2026-10-27
+
+The preceding 91-pass migration/inverse rehearsal is delivered as
+`0b5ceabb581c0649084499e9de60b417eac22bbc`, with the exact remote head verified.
+The maintainer authorizes preparing the develop operational entry and inspecting
+real Sheets/writer controls, preserving published dates and assignment order.
+Continue on this branch and #268/#269; no live apply or deployment is authorized.
+
+Prepared one IAM-only `inspectDevelopShiftMigration` source export: exact develop
+configuration, read-only Sheets/Drive scopes, bounded version-stable grids and
+complete visible ACL pagination. It returns only a sanitized observation with
+`canApply:false` and `Cache-Control:no-store`. Cell fingerprints remain distinct
+from the reviewed migration's semantic digest. No private cells or identities
+cross the HTTP boundary. The demo migration runner remains unchanged.
+
+Fresh read-only observations find 19 active shared-project Functions, one current
+runtime identity, five missing develop state/rotation/submission documents and
+one owner plus two service-account writers on the develop workbook. The connector
+omits numeric Drive version; ADC Drive reads fail with insufficient scopes.
+The planned operator identity does not exist. Live Rules still have authenticated
+generic writes outside orders; local turn/planning restrictions are not deployed.
+Returned index metadata describes five unrelated indexes and does not establish
+the required planning-index readiness. Four bounded develop work-collection reads
+returned no documents; this is not proof of invocation drain or held controls.
+
+The [bilingual inspection runbook](../../../docs/testing/hu084-develop-operative-inspection.md)
+records the exact source contract and observation limits. Writer inventory v3 now
+matches all 26 compiled logical writers (20 barriers and six version rechecks).
+Validation: 58 backend tests pass without skips/failures, including loopback HTTP
+composition with Google read doubles; build/lint and focused CJS checks pass.
+Independent provider, HTTP and composition reviews have no remaining findings.
+
+This new block is local pending Git delivery. Next resolve the reviewed read
+identity/invoker/deployment scope, then renew the actual workbook-version and
+writer observations. Effective owner/editor/automation exclusion, real control-
+plane closure/drain bindings, post-drain backup and exact forward/inverse
+authorization remain open. No shared mutation, credential replacement, IAM/ACL
+change, production business-data read or notification occurred. Native apps are
+unchanged, with no new parity gap; no phone action is needed for this block.

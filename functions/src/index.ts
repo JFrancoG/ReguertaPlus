@@ -67,6 +67,10 @@ import {
 import {
   createShiftPlanningOperatorRecoveryHttpFunction,
 } from "./shift-planning-operator-http.js";
+import {createShiftPlanningDevelopInspectionHttpFunction} from
+  "./shift-planning-develop-inspection-http.js";
+import {observeShiftSheetsWorkbook} from
+  "./shift-sheets-operational-preflight.js";
 import {
   resolveShiftPlanningNotificationDetail,
 } from "./shift-planning-notification-detail.js";
@@ -3396,6 +3400,30 @@ const getPlanningSheetsClients = () => {
     files: google.drive({version: "v3", auth}).files,
   };
 };
+
+export const inspectDevelopShiftMigration =
+  createShiftPlanningDevelopInspectionHttpFunction({
+    projectId: process.env.GCLOUD_PROJECT ?? "",
+    workbookId: process.env.SHEETS_SPREADSHEET_ID_DEVELOP ?? "",
+    inspect: async ({workbookId}) => {
+      const config = readShiftSheetsWorkerConfig("develop", process.env);
+      if (config.workbookId !== workbookId || !config.aliases.length) {
+        throw new Error("Develop inspection configuration is unavailable.");
+      }
+      const auth = new google.auth.GoogleAuth({scopes: [
+        "https://www.googleapis.com/auth/spreadsheets.readonly",
+        "https://www.googleapis.com/auth/drive.metadata.readonly",
+      ]});
+      const drive = google.drive({version: "v3", auth});
+      const observation = await observeShiftSheetsWorkbook({config,
+        titles: config.aliases.map((alias) => alias.title),
+        files: drive.files, permissions: drive.permissions, about: drive.about,
+        sheets: google.sheets({version: "v4", auth}).spreadsheets,
+        nowMillis: Date.now,
+      });
+      return observation.summary;
+    },
+  }, logger);
 
 const withOrdinarySheetWriter = <Result>(
   config: ShiftSheetsConfig,

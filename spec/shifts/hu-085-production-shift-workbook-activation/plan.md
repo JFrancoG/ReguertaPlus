@@ -1,5 +1,16 @@
 # Plan - HU-085 (Controlled production shift workbook activation)
 
+## Develop inspection dependency — 2026-10-27
+
+HU-084's migration/inverse rehearsal is delivered in `0b5ceabb`; the new
+[read-only operational inspection](../../../docs/testing/hu084-develop-operative-inspection.md)
+is prepared locally. Real observations identify absent operator authority,
+unverified Drive version/exclusive writing, undeployed Rules restrictions and
+unproved planning-index readiness. This inspection cannot issue a closed barrier
+checkpoint. Its 58 local backend passes do not complete any live gate below.
+Develop preparation authorizes no production business-data access, shared deploy,
+IAM/ACL mutation, migration or activation. Both stories remain open.
+
 ## 1. Delivery strategy
 
 Use one quiesced shared-project change window with explicit gates before:

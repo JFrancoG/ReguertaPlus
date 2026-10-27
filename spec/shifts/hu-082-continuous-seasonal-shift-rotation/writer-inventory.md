@@ -10,10 +10,27 @@ transaction.
 
 The compiled source of truth is
 `functions/src/shift-planning-writer-inventory.ts`, schema version 1 and revision
-`hu082-affected-writers-v2`. Its canonical digest is part of every intake-barrier
-evidence packet. An unknown, missing, duplicated, or newly introduced writer
+`hu082-affected-writers-v3`. It contains 26 logical writers: 20 intake-barrier
+writers and six activation-version-rechecked fairness writers. Its canonical
+digest is part of every intake-barrier evidence packet. An unknown, missing,
+duplicated, or newly introduced writer
 invalidates that evidence; editing this document alone cannot expand the runtime
 inventory.
+
+The 20 barrier writers comprise four client Rules controls, four HTTP ingress
+controls, six delivery controls after causal drain, one notification-delivery
+isolation control and five external-authority controls. These are logical
+controls, not a count of deployed Functions. The read-only
+`resolveShiftCoverageAccess` resolver is not another mutation ingress.
+
+The inventory covers both `develop` and `production`. Several Functions and the
+project Rules release serve both environment paths: disabling a shared endpoint,
+trigger or identity is not a develop-only operation. A develop inspection must
+record that shared scope without changing production access or data. Repository
+references and the retained September deployment capture are not current
+deployment evidence; each operational packet needs fresh Function, revision,
+identity, ingress/delivery and permission read-backs. See the
+[develop inspection runbook](../../../docs/testing/hu084-develop-operative-inspection.md).
 
 The repository default deployment configuration currently points at
 `firestore.phase1.rules`. Both local Rules candidates now keep their existing
@@ -23,9 +40,15 @@ Other affected public surfaces remain admitted, so neither file yet constitutes
 the complete HU-082 intake barrier. This is repository and emulator evidence,
 not a deployment or fresh read-back of the shared Firebase project.
 
+The separate read-only shared-Rules inspection on 2026-10-27 found no explicit
+`shifts`/`deliveryCalendar` barrier or private-planning collection deny; its
+authenticated fallback excludes only `orders`. This source inspection involved
+no write/exploit probe. The local candidate denials are not deployed, and this
+inventory update authorizes no Rules change.
+
 ## Barrier writers
 
-| Writer ID | Current evidence | Affected target | Required disposition |
+| Writer ID | Repository evidence / authority to inspect | Affected target | Required disposition |
 |---|---|---|---|
 | `firestore-client-shifts` | The unused Android/iOS upsert capability has been removed from Domain, Data, in-memory/chained repositories, and test doubles. Both local Rules candidates retain their intended reads but deny every direct create/update/delete; emulator coverage rejects old admin/authenticated clients in both environments | `shifts` | Keep every real mutation in an authenticated, fenced backend workflow; deploy and read back the exact deny only inside the no-gap activation procedure |
 | `firestore-client-delivery-calendar` | Android/iOS production composition routes every upsert/delete through `resolveDeliveryCalendarMutationContext` + `transitionDeliveryCalendarOverride`; reads remain server-only Firestore reads. Both local Rules candidates now deny every direct create/update/delete, and emulator coverage rejects old creates plus stale/offline updates and deletes in both environments while retaining their intended reads | `deliveryCalendar` | Keep the command as the only mobile mutation path; deploy and read back the exact deny only inside the no-gap activation procedure |
@@ -34,6 +57,9 @@ not a deployment or fresh read-back of the shared Firebase project.
 | `https-sync-shifts-from-google-sheets` | `syncShiftsFromGoogleSheets`; after the read-only Sheets phase it captures the exact open planning authority, then every upsert and stale imported-shift deletion transaction revalidates it, reads the exact shift notification fence, and rechecks stale-delete ownership | Sheets to `shifts` | Keep both guards, but disable ingress before causal capture and drain; authority drift stops remaining writes, while the multi-shift import stays partially applicable and HU-083 replaces this non-atomic writer |
 | `https-export-shifts-to-google-sheets` | `exportShiftsToGoogleSheets`; after its read-only Firestore/member/config phase it captures the exact open planning authority, revalidates immediately before every external `update`/`append`, and checks once more after the final Sheets request | `shifts` to workbook | Keep the compatibility guard, but disable ingress before causal capture and drain; authority drift stops remaining rows, while Sheets stays partially applicable and HU-083 owns the command/lease consumer |
 | `https-transition-shift-swap` | Android/iOS HTTP clients and `transitionShiftSwap`; create captures the exact open planning authority, respond/apply revalidate it transactionally, and apply reads every changed shift's notification-resource fence | `shiftSwapRequests`, assignments, helpers and shift status | Keep both guards; disable ingress before causal capture and drain accepted requests. Missing state remains legacy-compatible only before v2 state exists; any maintenance/epoch/active-lineage transition invalidates the request |
+| `https-shift-coverage` | `shiftCoverage`, the coverage store and membership reconciliation; authenticated commands may change shifts and private coverage state. Admission remains subject to current environment/readiness and mutation authority | `shifts`, private coverage state | Disable mutation ingress before causal capture; include accepted commands and their effects in the drain. A read-only access resolver does not prove this writer closed |
+| `worker-shift-coverage-effects` | Effects worker and coverage inbox; Sheets projection uses the shared workbook submission pointer and retained operation/source bindings before releasing inbox effects | Workbook, private coverage state and notification delivery | Drain only provably runnable work, then disable delivery. Preserve `reconciliationRequired` and any `pending` submission with a possible batch as unresolved recovery work; elapsed leases do not prove that no write occurred |
+| `worker-shift-coverage-push` | Coverage push dispatcher; destination/authority checks and a retained submission receipt prevent automatic duplicate sends | Notification delivery and private coverage state | Drain accepted delivery work, then disable the dispatcher. Keep submitting/unknown outcomes and receipts for governed reconciliation; expiry never authorizes another SDK submission |
 | `trigger-on-shift-planning-request-created` | `onShiftPlanningRequestCreated`, legacy only with v2 excluded and retries disabled; immediately before its workbook write it captures the exact open planning authority, then each `persistPlannedShifts` upsert and its final notification transaction revalidate it; shift upserts also read the exact notification fence | request, workbook, `shifts` and notification | Keep both guards, drain only the causally captured accepted set, then disable the delivery; authority drift stops remaining Firestore effects, while its workbook-first flow stays non-atomic and requires HU-083 replacement |
 | `trigger-on-versioned-shift-planning-request-created` | `onVersionedShiftPlanningRequestCreated`; schema-v2-only idempotent lifecycle/CAS with retry enabled, including transient authorization/source lookup errors and busy leases | requests, private planning state, atomic public activation and held side effects | Deploy only alongside the legacy update that excludes v2; include accepted requests, live/expired worker leases and pending Eventarc redeliveries in causal capture/drain before disabling delivery. Retry configuration alone does not prove queue closure |
 | `trigger-on-shift-written` | Legacy Firestore trigger; after read-only setup it captures the exact open planning authority, revalidates immediately before its Sheets mutation and after the request, then atomically writes `syncMeta` plus the notification only after revalidating authority, the exact shift notification fence, and unchanged source state | `shifts`, workbook and notification delivery | Keep the compatibility guards, drain captured events and cascades, then disable the delivery and prove its queue empty; Sheets remains non-atomic, and HU-083 still owns governed-event suppression plus idempotent ledger integration |
@@ -79,8 +105,8 @@ writer must join the external fence instead of being assumed safe.
    fence every independent Firestore/workbook authority. Take matching initial
    read-backs of Rules and every pre-capture control.
 2. Capture the exact accepted causal set only after those controls read back as
-   closed, then drain that set while its three mutation deliveries remain
-   enabled.
+   closed, then drain that set while only the admitted deliveries assigned to
+   `after-causal-drain` remain enabled.
 3. Disable those post-drain deliveries, take their matching initial read-backs,
    and read every affected work/delivery queue as zero pending and in-flight.
 4. Capture the exact workbook revision/digest after that initial queue read-back

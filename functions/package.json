@@ -89,6 +89,7 @@
     "test:shift-planning:public-event-trigger:emulator": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu083-public-event-trigger --only firestore \"GCLOUD_PROJECT=demo-reguerta-hu083-public-event-trigger METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-public-event-trigger.test.cjs test/shift-planning-public-event-trigger.emulator.test.cjs\"",
     "test:shift-planning:audit": "npm run build && node --test test/audit-shift-planning.test.cjs",
     "test:shift-planning:develop-migration": "npm run build && node --test test/develop-shift-migration.test.cjs",
+    "test:shift-planning:develop-inspection": "npm run build && node --test test/shift-sheets-operational-preflight.test.cjs test/shift-planning-develop-inspection-http.test.cjs test/shift-planning-develop-inspection-composition.test.cjs test/shift-sheets-config.test.cjs test/shift-planning-operator-http.test.cjs test/shift-sheets.test.cjs",
     "test:shift-planning:develop-migration:emulator": "npm run build && firebase emulators:exec --config ../firebase.coverage-emulator.json --project demo-reguerta-hu084-migration --only firestore \"GCLOUD_PROJECT=demo-reguerta-hu084-migration METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/develop-shift-migration.emulator.test.cjs\"",
     "audit:shift-planning": "node scripts/audit-shift-planning.cjs",
     "repair:planned-shifts": "node scripts/repair-planned-shifts.cjs",
