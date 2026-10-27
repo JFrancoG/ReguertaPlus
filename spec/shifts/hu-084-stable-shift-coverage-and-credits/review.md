@@ -1452,3 +1452,88 @@ Final artifacts: `/tmp/hu084-live-ios-corrected-release-gate.log`,
 The earlier `/tmp/hu084-live-ios-final-*` result retains the diagnosed one-failure
 attempt and is not the final accepted gate. The final source change is confined
 to preview injection; Functions and Android evidence above remains unchanged.
+## Shared Sheets/notification coordination — accepted locally, 2026-10-27
+
+The preceding normal-app block is committed/pushed as `be3fde49`; its exact
+remote hash matches. The next maintainer-authorized backend block is complete
+locally and remains uncommitted/unpushed. Issue #268 stays open and PR #278 draft.
+
+Coverage now records each effective public write, including completion without
+a Sheets-cell delta, with immutable private receipt/outbox claims and a sidecar
+bound to the exact server commit. The planner audit remains first; historical
+coverage ownership suppresses ordinary Sheets and generic notices independently
+of today's case/gate/worker state. Partial evidence fails closed. A later manual
+body reapply remains ordinary. Retention is indefinite and backend-only; total
+administrative deletion of all evidence remains outside the admitted contract.
+
+Coverage, HU-083 sync/import and ordinary full/row/calendar exporters now share
+`shiftPlanningState/sheetsSubmission`. Coverage reuses partition claim fencing;
+ordinary sources load under the shared reservation. A public coverage transaction
+cannot cross an active ordinary reservation, and ordinary export cannot overtake
+pending/frozen coverage projection work. An actual SDK interleaving verifies this
+command-to-worker boundary. Ordinary event export also rejects stale snapshots.
+
+Possible Sheets batches are durable before I/O. Competing or expired invocations
+cannot resubmit a recorded batch; matching read-back and a stable advanced Drive
+version are required for coverage inbox release. Ambiguous outcomes freeze for
+governed read-only recovery, keeping their pointer/leases. If readiness, source or
+authority revocation prevents the freeze-state update, `pending` plus the durable
+batch still cannot authorize resubmission; independent controls must account for
+that retained uncertainty before proving drain. Recovery neither writes Sheets
+nor resends push. One per-recipient coverage push owner follows inbox release;
+no duplicate generic `notificationEvents` path is created. Factories inject SDK,
+environment and authority; fixed-demo wrappers preserve their limits.
+
+Ordinary exports preserve SDK-acknowledgement semantics and add stable Drive
+version evidence for the shared chain; this is not exact-cell coverage read-back.
+Their possible-send failures retain the reservation; proven pre-send failures
+restore the predecessor. The first governed reservation also checks the partition
+baseline when no earlier pointer exists. Inventory v3 adds coverage ingress,
+effects and push; closed intake still needs independent actual-in-flight proof.
+ADR-0019 records these contracts and their operational costs in both languages.
+
+Final accepted evidence under Node 22.23.4:
+
+- Functions build and lint: pass, zero diagnostics.
+- Coverage/business/public-event/workbook pure suites: **75 passed**.
+- Planning suite: **297 passed, 51 existing emulator-only skips**.
+- Local Auth/SDK native/backend boundary suites: **47 passed**.
+- Full coverage workflow/publication/Rules/coordination emulator gate: **204 passed**.
+- HU-083 sync/import/consumer and legacy-trigger regression set: **108 passed**.
+  Independent review then splits one helper-update/append fixture into two real
+  initial states; the final trigger file repeats as **28 passed**, retaining the
+  unchanged 81 sync/import/consumer passes. No repeated test is added twice.
+- All accepted results have zero failures; diff-check is clean. New cases cover
+  simultaneous writers, the command-to-worker gap, claim takeover, before/after-I/O
+  crashes, lost Firestore acknowledgement, TTL, unknown outcomes, source/authority
+  drift, manual conflicts, missing/corrupt ownership, environment isolation,
+  closed access, inventory mismatch and Rules isolation.
+
+The first implementation run finds three test setup/paused-snapshot problems
+and one obsolete static fence assertion; these are corrected without weakening
+business invariants. A first HU-083 invocation omits its mandatory demo project
+environment and fails hooks before execution. The corrected invocation exposes
+an old fixture that mocks Sheets but not the new Drive dependency: metadata reads
+of the fictitious workbook identifier are rejected with Insufficient Permission.
+Stop that attempt, add a default-throw Drive guard before importing the export,
+and supply a mutation-driven version model. Review also separates the two helper
+scenarios so an unversioned external edit is not hidden. The corrected gates pass;
+the rejected reads establish no shared workbook access or provider validation.
+
+Logs: `/tmp/hu084-coordination-{build,lint,pure,planning,workflow}-final.log`,
+`/tmp/hu084-coordination-auth.log`, `/tmp/hu084-coordination-hu083-final.log`,
+`/tmp/hu084-coordination-ordinary-trigger-final.log` and
+`/tmp/hu084-coordination-event-final.log`. Summary/freeze:
+`/tmp/hu084-sheets-notifications-coordination-summary.json`.
+
+Android/iOS have no changes against `be3fde49`; accepted Android 542-unit/lint/
+API-29 component evidence and iOS 951-pass/five-skip canonical evidence are reused
+explicitly, without new native builds or physical claims. No parity gap is added.
+Owned emulators and the exact task-created dependency symlink are removed; the
+main checkout's unrelated files and both phones remain untouched.
+
+The exported composition retains `operationalReady:false`. No shared-data write,
+real push send, deployment, merge, issue closure or branch deletion occurs. Next:
+prepare authoritative initial membership/reserve/credit migration and shared
+destination/operator admission before proposing an authenticated shared rehearsal.
+Real entropy, collective ratification and operational rollout remain parent gates.

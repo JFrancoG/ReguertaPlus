@@ -77,13 +77,10 @@ import {
   runShiftPlanningNotificationGuardedShiftWrite,
 } from "./shift-planning-firestore-notification-writer-fence.js";
 import {
-  assertShiftPlanningWriterAuthorityFromReference,
   assertShiftPlanningWriterAuthorityInTransaction,
-  captureShiftPlanningWriterAuthorityFromReference,
   ShiftPlanningWriterAuthority,
 } from "./shift-planning-writer-authority.js";
 import {
-  createShiftPlanningExternalWriterFence,
   runShiftPlanningExternalWriterMutation,
   ShiftPlanningExternalWriterFence,
 } from "./shift-planning-external-writer-fence.js";
@@ -124,6 +121,7 @@ import {
   ShiftSheetsConfig,
   resolveShiftSheetsHumanRange,
 } from "./shift-sheets-config.js";
+import {runShiftSheetsOrdinaryWriter} from "./shift-sheets-ordinary-writer.js";
 import {createShiftSheetsAdapter} from "./shift-sheets.js";
 import {SHIFT_SHEETS_HUMAN_HEADERS, shiftSheetsDateFromCell,
   shiftSheetsLiteralRowsEqual} from
@@ -143,6 +141,8 @@ import {createShiftSheetsImportHttpFunction, readShiftSheetsImportMapping} from
   "./shift-sheets-import-http.js";
 import {createFirestoreShiftCoverageService} from
   "./shift-coverage-live.js";
+import {readCoveragePublicEventOwnership} from
+  "./shift-coverage-public-event.js";
 import {executeShiftCoverageAccessRequest, executeShiftCoverageRequest} from
   "./shift-coverage-live-http.js";
 
@@ -2574,7 +2574,7 @@ const upsertShiftRowInSheet = async (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
   deliveryOverrides: DeliveryCalendarOverrideMap,
-  writerFence: ShiftPlanningExternalWriterFence | null,
+  writerFence: ShiftPlanningExternalWriterFence,
 ): Promise<"updated" | "appended"> => {
   const spreadsheetId = config.workbookId;
   const width = shift.type === "delivery" ? 1 : 3;
@@ -2660,9 +2660,8 @@ const upsertShiftRowInSheet = async (
   }
   const runSheetMutation = <Result>(
     mutation: () => Promise<Result>,
-  ): Promise<Result> => writerFence ?
-      runShiftPlanningExternalWriterMutation(writerFence, mutation) :
-      mutation();
+  ): Promise<Result> =>
+      runShiftPlanningExternalWriterMutation(writerFence, mutation);
 
   if (shift.type === "delivery") {
     const targetWeekKey = timestampToIsoWeekKey(effectiveDate);
@@ -2996,53 +2995,42 @@ const exportAllShiftsToGoogleSheets = async (
 }> => {
   const sheetConfig = readShiftSheetsWorkerConfig(env, process.env);
 
-  const [sheets, membersById, shifts, deliveryOverrides] = await Promise.all([
-    getSheetsClient(),
-    loadMembersById(env),
-    readAllShifts(env),
-    readDeliveryCalendarOverrideMap(env),
-  ]);
-  const planningStateReference = shiftPlanningMaintenanceStateReference(env);
-  const writerFence = await createShiftPlanningExternalWriterFence({
-    capture: () => captureShiftPlanningWriterAuthorityFromReference(
-      planningStateReference,
-    ),
-    revalidate: (captured) =>
-      assertShiftPlanningWriterAuthorityFromReference({
-        stateReference: planningStateReference,
-        capturedValue: captured,
-        changedCode: "shift_export_planning_authority_changed",
-        changedMessage: "Shift export planning authority changed",
-      }),
-  });
-  let deliveryCount = 0;
-  let marketCount = 0;
+  return withOrdinarySheetWriter(sheetConfig, async (writerFence) => {
+    const [sheets, membersById, shifts, deliveryOverrides] = await Promise.all([
+      getSheetsClient(),
+      loadMembersById(env),
+      readAllShifts(env),
+      readDeliveryCalendarOverrideMap(env),
+    ]);
+    let deliveryCount = 0;
+    let marketCount = 0;
 
-  for (const shift of shifts) {
-    await upsertShiftRowInSheet(
-      sheets,
-      sheetConfig,
-      resolveShiftSheetsHumanRange(
-        sheetConfig, shift.type, timestampToSheetDate(shift.date),
-      ),
-      shift,
-      membersById,
-      deliveryOverrides,
-      writerFence,
-    );
-    if (shift.type === "market") {
-      marketCount += 1;
-    } else {
-      deliveryCount += 1;
+    for (const shift of shifts) {
+      await upsertShiftRowInSheet(
+        sheets,
+        sheetConfig,
+        resolveShiftSheetsHumanRange(
+          sheetConfig, shift.type, timestampToSheetDate(shift.date),
+        ),
+        shift,
+        membersById,
+        deliveryOverrides,
+        writerFence,
+      );
+      if (shift.type === "market") {
+        marketCount += 1;
+      } else {
+        deliveryCount += 1;
+      }
     }
-  }
-  await writerFence.finish();
+    await writerFence.finish();
 
-  return {
-    exportedCount: shifts.length,
-    deliveryCount,
-    marketCount,
-  };
+    return {
+      exportedCount: shifts.length,
+      deliveryCount,
+      marketCount,
+    };
+  });
 };
 
 export const sendPendingOrderReminderSunday20 = onSchedule(
@@ -3409,6 +3397,20 @@ const getPlanningSheetsClients = () => {
   };
 };
 
+const withOrdinarySheetWriter = <Result>(
+  config: ShiftSheetsConfig,
+  work: Parameters<typeof runShiftSheetsOrdinaryWriter<Result>>[1],
+): Promise<Result> => {
+  const auth = new google.auth.GoogleAuth({scopes: [
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
+  ]});
+  return runShiftSheetsOrdinaryWriter({firestore, config,
+    readWorkbookVersion: () => createShiftSheetsWorkbookVersionReader({
+      workbookId: config.workbookId,
+      files: google.drive({version: "v3", auth}).files,
+    })()}, work);
+};
+
 export const executeShiftSheetsImport = createShiftSheetsImportHttpFunction({
   importerFor: (environment) => {
     const config = readShiftSheetsWorkerConfig(environment, process.env);
@@ -3489,6 +3491,12 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       before: event.data?.before.exists ? event.data.before.data() : null,
       after: event.data?.after.exists ? event.data.after.data() : null,
     })) return;
+    if (await readCoveragePublicEventOwnership(firestore, {
+      targetPath: `${env}/plus-collections/shifts/${event.params.shiftId}`,
+      before: event.data?.before.exists ? event.data.before.data() : null,
+      after: event.data?.after.exists ? event.data.after.data() : null,
+      afterUpdateTime: event.data?.after.updateTime,
+    }) === "coverage") return;
     const afterSnapshot = event.data?.after;
     if (!afterSnapshot?.exists) {
       return;
@@ -3527,39 +3535,25 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       sheetConfig, after.type, timestampToSheetDate(after.date),
     );
 
-    const [sheets, membersById, deliveryOverrides] = await Promise.all([
-      getSheetsClient(),
-      loadMembersById(env),
-      readDeliveryCalendarOverrideMap(env),
-    ]);
     const environment = parseAppEnvironment(env);
-    const planningStateReference =
-      shiftPlanningMaintenanceStateReference(environment);
-    const planningAuthority =
-      await captureShiftPlanningWriterAuthorityFromReference(
-        planningStateReference,
-      );
-    const writerFence = await createShiftPlanningExternalWriterFence({
-      capture: async () => planningAuthority,
-      revalidate: (captured) =>
-        assertShiftPlanningWriterAuthorityFromReference({
-          stateReference: planningStateReference,
-          capturedValue: captured,
-          changedCode: "shift_export_trigger_planning_authority_changed",
-          changedMessage: "Shift export trigger planning authority changed",
-        }),
-    });
-
-    const result = await upsertShiftRowInSheet(
-      sheets,
-      sheetConfig,
-      targetRange,
-      after,
-      membersById,
-      deliveryOverrides,
-      writerFence,
+    const exported = await withOrdinarySheetWriter(
+      sheetConfig, async (writerFence) => {
+        const current = await afterSnapshot.ref.get();
+        if (!afterSnapshot.updateTime ||
+          !current.updateTime?.isEqual(afterSnapshot.updateTime)) return null;
+        const [sheets, membersById, deliveryOverrides] = await Promise.all([
+          getSheetsClient(), loadMembersById(env),
+          readDeliveryCalendarOverrideMap(env),
+        ]);
+        const result = await upsertShiftRowInSheet(
+          sheets, sheetConfig, targetRange, after, membersById,
+          deliveryOverrides, writerFence,
+        );
+        return {result, planningAuthority: writerFence.authority};
+      },
     );
-    await writerFence.finish();
+    if (!exported) return;
+    const {result, planningAuthority} = exported;
 
     await persistShiftExportEffects(
       environment,
@@ -3610,65 +3604,29 @@ onDocumentWrittenWithAuthContext(
       const environment = parseAppEnvironment(env);
       const sheetConfig = readShiftSheetsWorkerConfig(environment, process.env);
 
-      const [
-        sheets,
-        membersById,
-        shifts,
-        deliveryOverrides,
-      ] = await Promise.all([
-        getSheetsClient(),
-        loadMembersById(env),
-        readAllShifts(env),
-        readDeliveryCalendarOverrideMap(env),
-      ]);
-
-      const matchingDeliveryShifts = shifts.filter((shift) =>
-        shift.type === "delivery" &&
-        timestampToIsoWeekKey(shift.date) === weekKey
+      const exported = await withOrdinarySheetWriter(
+        sheetConfig, async (writerFence) => {
+          const [sheets, membersById, shifts, deliveryOverrides] =
+            await Promise.all([
+              getSheetsClient(), loadMembersById(env), readAllShifts(env),
+              readDeliveryCalendarOverrideMap(env),
+            ]);
+          const matching = shifts.filter((shift) =>
+            shift.type === "delivery" &&
+            timestampToIsoWeekKey(shift.date) === weekKey);
+          for (const shift of matching) {
+            await upsertShiftRowInSheet(
+              sheets, sheetConfig, resolveShiftSheetsHumanRange(
+                sheetConfig, shift.type, timestampToSheetDate(shift.date),
+              ), shift, membersById, deliveryOverrides, writerFence,
+            );
+          }
+          return {updatedCount: matching.length,
+            planningAuthority: writerFence.authority};
+        },
       );
-
-      if (matchingDeliveryShifts.length === 0) {
-        logger.info("✅ Delivery calendar override has no matching shifts", {
-          env,
-          weekKey,
-        });
-        return;
-      }
-
-      const planningStateReference =
-        shiftPlanningMaintenanceStateReference(environment);
-      const planningAuthority =
-        await captureShiftPlanningWriterAuthorityFromReference(
-          planningStateReference,
-        );
-
-      let updatedCount = 0;
-      for (const shift of matchingDeliveryShifts) {
-        await assertShiftPlanningWriterAuthorityFromReference({
-          stateReference: planningStateReference,
-          capturedValue: planningAuthority,
-          changedCode: "delivery_calendar_planning_authority_changed",
-          changedMessage: "Delivery calendar planning authority changed",
-        });
-        await upsertShiftRowInSheet(
-          sheets,
-          sheetConfig,
-          resolveShiftSheetsHumanRange(
-            sheetConfig, shift.type, timestampToSheetDate(shift.date),
-          ),
-          shift,
-          membersById,
-          deliveryOverrides,
-          null,
-        );
-        updatedCount += 1;
-      }
-      await assertShiftPlanningWriterAuthorityFromReference({
-        stateReference: planningStateReference,
-        capturedValue: planningAuthority,
-        changedCode: "delivery_calendar_planning_authority_changed",
-        changedMessage: "Delivery calendar planning authority changed",
-      });
+      const {updatedCount, planningAuthority} = exported;
+      if (updatedCount === 0) return;
 
       logger.info("✅ Delivery calendar override reflected in Google Sheets", {
         env,

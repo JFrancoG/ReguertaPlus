@@ -1,10 +1,14 @@
-import {DocumentSnapshot, Timestamp, Transaction} from
+import {DocumentSnapshot, Firestore, Timestamp, Transaction} from
   "@google-cloud/firestore";
 import type {sheets_v4 as SheetsV4} from "googleapis";
 import {coverageId, coverageMember, rejectCoverage} from "./shift-coverage.js";
 import {coverageSheetRow, ShiftCoverageEffects} from
   "./shift-coverage-effects.js";
-import {CoverageSubmission} from "./shift-coverage-effects-worker.js";
+import {completeCoverageWorkbook, CoverageSubmission,
+  requireCoverageWorkbookOwnership} from "./shift-coverage-effects-worker.js";
+import {parseShiftCoverageSheetsSubmission,
+  requireShiftSheetsWorkbookVersion} from
+  "./shift-planning-sheets-submission.js";
 import {releaseCoverageInbox} from "./shift-coverage-inbox.js";
 import {createProvisionalCreditFirestore} from "./shift-credit-publication.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
@@ -36,22 +40,24 @@ const version = (doc: DocumentSnapshot) => [doc.ref.path,
  * @param {object} input Local workbook, trusted controls, journal and clock.
  * @return {object} Inspect, reconcile an allowlisted operation or close.
  */
-export const createProvisionalCoverageRecovery = (input: {
+type CoverageRecoveryInput = {
   config: ShiftSheetsConfig;
   sheets: Pick<SheetsV4.Resource$Spreadsheets, "get">;
+  readWorkbookVersion(): Promise<string>;
   controlPlane: ShiftPlanningTrustedIntakeBarrierControlPlane;
   failurePersistence: ShiftPlanningIntakeBarrierFailureClosurePersistence;
   nowMillis(): number;
-}) => {
-  if (input.config.environment !== "develop" ||
-    input.config.workbookId !== "coverage-rehearsal-book") {
-    return rejectCoverage("coverage_effects_local_workbook_required");
-  }
-  const db = createProvisionalCreditFirestore();
-  const root = "develop/plus-collections";
+};
+
+export const createFirestoreShiftCoverageRecovery = (
+  input: CoverageRecoveryInput & {firestore: Firestore},
+) => {
+  const db = input.firestore;
+  const environment = input.config.environment;
+  const root = `${environment}/plus-collections`;
   const effectRef = (id: string) =>
     db.doc(`${root}/shiftCoverageEffects/${id}`);
-  const reservation = db.doc(`${root}/shiftCoverageProjectionState/workbook`);
+  const reservation = db.doc(`${root}/shiftPlanningState/sheetsSubmission`);
   const barrier = createTrustedShiftPlanningIntakeBarrierAdapter(input);
   const adapter = createShiftSheetsAdapter({config: input.config,
     sheets: {get: input.sheets.get.bind(input.sheets),
@@ -61,10 +67,11 @@ export const createProvisionalCoverageRecovery = (input: {
   const load = async (
     tx: Transaction, operationId: string, actorId: string,
   ) => {
-    const [effect, receipt, maintenance, lock] = await tx.getAll(
+    const [effect, receipt, maintenance, lock, policy] = await tx.getAll(
       effectRef(operationId),
       db.doc(`${root}/shiftCoverageOperations/${operationId}`),
-      db.doc(`${root}/shiftPlanningState/current`), reservation);
+      db.doc(`${root}/shiftPlanningState/current`), reservation,
+      db.doc(`${root}/shiftPlanningState/sourcePolicy`));
     const [users, shifts, pushes] = await Promise.all([
       tx.get(db.collection(`${root}/users`).limit(501)),
       tx.get(db.collection(`${root}/shifts`).limit(501)),
@@ -81,10 +88,12 @@ export const createProvisionalCoverageRecovery = (input: {
     const value = record?.value as ShiftCoverageEffects | undefined;
     if (!value) return rejectCoverage("coverage_effects_missing");
     const {effectsDigest, ...core} = value;
-    if (value.operationId !== operationId || value.environment !== "develop" ||
+    if (value.operationId !== operationId ||
+      value.environment !== environment ||
       value.schemaVersion !== 1 || digest(core) !== effectsDigest ||
       receipt.data()?.effectsDigest !== effectsDigest ||
-      !["pending", "completed", "retired"].includes(record?.state)) {
+      !["pending", "reconciliationRequired", "completed", "retired"]
+        .includes(record?.state)) {
       return rejectCoverage("coverage_effects_changed");
     }
     const current = await tx.get(db.doc(
@@ -97,6 +106,23 @@ export const createProvisionalCoverageRecovery = (input: {
       digest(submission.rows) !== digest(value.changes.map((c) => c.after)))) {
       return rejectCoverage("coverage_effects_changed");
     }
+    const workbook = record?.workbookSubmission ?
+      parseShiftCoverageSheetsSubmission(record.workbookSubmission) : null;
+    if (workbook && (workbook.environment !== environment ||
+        workbook.workbookId !== input.config.workbookId ||
+        workbook.operationId !== operationId ||
+        workbook.effectsDigest !== value.effectsDigest ||
+        workbook.sourceDigest !== submission?.sourceDigest ||
+        digest(workbook.claim.partitions.map((p) => p.type).sort()) !==
+          digest([...new Set(value.changes.map((c) => c.after.type))]
+            .sort()))) {
+      return rejectCoverage("coverage_effects_changed");
+    }
+    const unresolved = ["pending", "reconciliationRequired"]
+      .includes(record?.state);
+    const owned = unresolved && value.changes.length && workbook ?
+      requireCoverageWorkbookOwnership({policy, pointer: lock,
+        receipt: workbook}) : null;
     for (const push of pushes.docs) {
       const data = push.data();
       const terminal = data.state !== "submitting";
@@ -117,9 +143,10 @@ export const createProvisionalCoverageRecovery = (input: {
         return rejectCoverage("coverage_recovery_push_changed");
       }
     }
-    const snapshots = [effect, receipt, maintenance, lock, current,
+    const snapshots = [effect, receipt, maintenance, lock, policy, current,
       ...users.docs, ...shifts.docs, ...pushes.docs];
     return {effect, record, value, submission, current, users, shifts, pushes,
+      unresolved, workbook, owned,
       maintenance: parseShiftPlanningMaintenanceState(maintenance.data()),
       lock, evidenceDigest: digest(snapshots.map(version))};
   };
@@ -135,7 +162,7 @@ export const createProvisionalCoverageRecovery = (input: {
     }
     const scope = authorization.scope as ShiftPlanningClosedBarrierScope;
     const state = source.maintenance;
-    if (!scope || scope.environment !== "develop" ||
+    if (!scope || scope.environment !== environment ||
       scope.expectedWorkbookFileId !== input.config.workbookId ||
       scope.expectedAuthoritativeDigest !== source.evidenceDigest ||
       state.maintenanceStatus !== "closed" ||
@@ -148,7 +175,6 @@ export const createProvisionalCoverageRecovery = (input: {
     return scope;
   };
   return {
-    close: () => db.terminate(),
     async inspect(operationId: string, actorId: string) {
       const source = await db.runTransaction((tx) =>
         load(tx, coverageId(operationId), coverageId(actorId)));
@@ -183,7 +209,7 @@ export const createProvisionalCoverageRecovery = (input: {
           result: result.data()};
       });
       if (await input.failurePersistence.readExistingFailure({
-        environment: "develop", transitionId: initial.scope.transitionId,
+        environment, transitionId: initial.scope.transitionId,
       })) return rejectCoverage("coverage_recovery_barrier_failed");
       if (initial.result) return {...initial.result, replayed: true};
       return barrier.withClosedIntakeBarrier(initial.scope,
@@ -197,11 +223,24 @@ export const createProvisionalCoverageRecovery = (input: {
             evidence, request, input.nowMillis());
           const verified = verify();
           const source = initial.source;
-          const projection = source.record?.state === "pending" &&
-            source.submission ? await adapter.inspect(source.submission) : null;
-          if (source.record?.state === "pending" &&
+          const beforeRead = source.unresolved && source.value.changes.length ?
+            requireShiftSheetsWorkbookVersion(
+              await input.readWorkbookVersion(),
+            ) : null;
+          const projection = source.unresolved && source.submission ?
+            await adapter.inspect(source.submission) : null;
+          const afterRead = beforeRead ? requireShiftSheetsWorkbookVersion(
+            await input.readWorkbookVersion(),
+          ) : null;
+          if (source.unresolved &&
             source.value.changes.length &&
-            (!source.submission || projection?.kind !== "verified")) {
+            (!source.submission || !source.workbook?.batch ||
+              projection?.kind !== "verified" ||
+              projection.readBackDigest !==
+                source.workbook.batch.projectionDigest ||
+              beforeRead !== afterRead || !afterRead ||
+              BigInt(afterRead) <=
+                BigInt(source.workbook.beforeWorkbookRevision))) {
             return rejectCoverage("coverage_effects_readback_required");
           }
           return db.runTransaction(async (tx) => {
@@ -224,7 +263,7 @@ export const createProvisionalCoverageRecovery = (input: {
             const now = input.nowMillis();
             let state = fresh.record?.state as string;
             let deliveredTo: string[] = fresh.record?.deliveredTo ?? [];
-            if (state === "pending") {
+            if (fresh.unresolved) {
               for (const change of fresh.value.changes) {
                 const doc = fresh.shifts.docs.find((d) =>
                   d.id === change.after.id);
@@ -235,8 +274,9 @@ export const createProvisionalCoverageRecovery = (input: {
                   return rejectCoverage("coverage_effects_source_changed");
                 }
               }
-              if (fresh.value.changes.length &&
-                fresh.lock.data()?.operationId !== operationId) {
+              if (fresh.value.changes.length && (!fresh.workbook ||
+                  !fresh.owned || !afterRead ||
+                  projection?.kind !== "verified")) {
                 return rejectCoverage("coverage_effects_workbook_reserved");
               }
               const obsolete = fresh.current.data()?.digest !==
@@ -246,11 +286,19 @@ export const createProvisionalCoverageRecovery = (input: {
               state = obsolete ? "retired" : "completed";
               deliveredTo = obsolete ? [] : releaseCoverageInbox({db, tx,
                 value: fresh.value, users: fresh.users, now});
+              const verifiedWorkbook = fresh.workbook && fresh.owned &&
+                afterRead && projection?.kind === "verified" ?
+                completeCoverageWorkbook({tx, owned: fresh.owned,
+                  receipt: fresh.workbook, evidence: {
+                    workbookRevision: afterRead,
+                    partitionDigest: digest({
+                      projectionDigest: projection.projectionDigest,
+                    }),
+                  }}) : null;
               tx.update(fresh.effect.ref, {state, projection, deliveredTo,
+                ...(verifiedWorkbook ?
+                  {workbookSubmission: verifiedWorkbook} : {}),
                 completedAt: Timestamp.fromMillis(now), recoveryId});
-              if (fresh.lock.data()?.operationId === operationId) {
-                tx.delete(reservation);
-              }
             }
             const pushes = fresh.pushes.docs.map((doc) => {
               const data = doc.data();
@@ -280,4 +328,21 @@ export const createProvisionalCoverageRecovery = (input: {
         });
     },
   };
+};
+
+/**
+ * Fixed local wrapper; governed shared recovery never owns its SDK client.
+ * @param {object} input Local read-only API, trusted controls and clock.
+ * @return {object} Recovery operations and cleanup for the owned local SDK.
+ */
+export const createProvisionalCoverageRecovery = (
+  input: CoverageRecoveryInput,
+) => {
+  if (input.config.environment !== "develop" ||
+      input.config.workbookId !== "coverage-rehearsal-book") {
+    return rejectCoverage("coverage_effects_local_workbook_required");
+  }
+  const firestore = createProvisionalCreditFirestore();
+  const recovery = createFirestoreShiftCoverageRecovery({...input, firestore});
+  return {...recovery, close: () => firestore.terminate()};
 };

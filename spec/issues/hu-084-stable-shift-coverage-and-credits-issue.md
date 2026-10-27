@@ -1,5 +1,19 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Current checkpoint — 2026-10-27
+
+Normal authenticated Android/iOS composition is validated and pushed as
+`be3fde49b9eddf155e5feb752abcf54e8fd618b2`; exact remote identity is verified.
+Issue #268 remains open and PR #278 remains draft. The maintainer authorizes
+shared Sheets/notification coordination next, implemented locally on the same
+branch: historical public-event ownership, HU-083 workbook/partition authority,
+ordinary-writer exclusion, uncertain-submission retention and one inbox/push
+owner. Current acceptance and validation live in this story's `plan.md`,
+`tasks.md` and `review.md`, and bilingual ADR-0019. New coordination is not part
+of the delivered commit. Shared activation remains closed; authoritative
+migration, destination/provider admission, ratification and authorized rollout
+are still required. Older dated assessments below are historical evidence.
+
 ## Pre-PR assessment — 2026-09-13
 
 The next recommended step is one final branch review and validation pass, not more

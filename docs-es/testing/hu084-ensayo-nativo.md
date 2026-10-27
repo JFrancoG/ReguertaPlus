@@ -1242,3 +1242,18 @@ previews renderizadas. No son recorridos desplegados ni físicos con el backend
 compartido. Consultar la evidencia final fechada de `review.md` antes de elegir una
 prueba de dispositivo. Este paso de preparación no necesita intervención en el
 teléfono del mantenedor.
+## Coordinación de Sheets y notificaciones — 2026-10-27
+
+El siguiente bloque backend comparte el puntero del libro y el cercado de
+particiones de HU-083 entre coberturas, importador y exportadores ordinarios.
+Un posible lote registrado sólo se inspecciona al reintentar; los efectos ambiguos
+conservan su puntero como `reconciliationRequired`. Recuperación sigue exigiendo
+evidencia independiente de entrada cerrada y de invocaciones agotadas. Los avisos
+usan un único propietario de bandeja/push tras verificar la proyección. El libro
+local de ensayo incorpora particiones y versiones simuladas reales, conservando
+los demás namespaces de la política de origen.
+
+La conexión de las apps está subida como `be3fde49`; esta coordinación permanece
+local hasta su propio checkpoint. No cambia código nativo ni la evidencia de
+accesibilidad aceptada. No hace falta actuar en los móviles. ADR-0019 bilingüe y
+`review.md` de HU-084 recogen los gates y límites; la activación sigue cerrada.

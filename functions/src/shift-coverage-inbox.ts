@@ -18,9 +18,17 @@ export const releaseCoverageInbox = (input: {
   users: QuerySnapshot;
   now: number;
 }) => {
+  const environment = input.value.environment;
+  if (environment !== "develop" && environment !== "production") {
+    return rejectCoverage("invalid_coverage_environment");
+  }
+  const root = `${environment}/plus-collections`;
   const deliveredTo: string[] = [];
   for (const intent of input.value.notifications) {
     const user = input.users.docs.find((doc) => doc.id === intent.userId);
+    if (user && user.ref.path !== `${root}/users/${intent.userId}`) {
+      return rejectCoverage("invalid_coverage_environment");
+    }
     if (!user || !coverageMember(user.data()).active) continue;
     const eventId = intent.push.data.eventId;
     const inbox = buildNotificationInboxDocument(eventId, {
@@ -28,7 +36,7 @@ export const releaseCoverageInbox = (input: {
       target: "users", targetPayload: {userIds: [intent.userId]},
       createdBy: "system", sentAt: Timestamp.fromMillis(input.now),
     }, intent.userId) ?? rejectCoverage("coverage_effects_inbox_invalid");
-    input.tx.create(input.db.doc("develop/plus-collections/users/" +
+    input.tx.create(input.db.doc(`${root}/users/` +
       `${intent.userId}/notificationInbox/${eventId}`),
     {...inbox, coverageOperationId: input.value.operationId});
     deliveredTo.push(intent.userId);

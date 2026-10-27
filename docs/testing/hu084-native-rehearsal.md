@@ -1202,3 +1202,17 @@ operation. iOS uses deterministic session/repository compositions and rendered
 previews. These are not deployed or physical shared-backend journeys. See the
 dated final evidence in the story's `review.md` before choosing a device check.
 The maintainer needs no phone action for this preparation step.
+## Shared Sheets/notification coordination checkpoint — 2026-10-27
+
+The next backend block shares HU-083's workbook pointer and partition fences with
+coverage, imports and ordinary exporters. A recorded possible batch is inspect-only
+on retry; ambiguous coverage effects retain their pointer as
+`reconciliationRequired`. Governed recovery still needs independent closed-intake
+and in-flight-drain evidence. Notifications use one inbox/push owner after verified
+projection. The local workbook fixture now seeds partition authority and tracks
+actual simulated workbook versions, preserving other source-policy namespaces.
+
+Normal-app composition is pushed as `be3fde49`; coordination is local implementation
+pending its own source checkpoint. Native code and accepted accessibility evidence
+are unchanged. No new phone action is needed. See bilingual ADR-0019 and the current
+HU-084 `review.md` for final gates and boundaries; shared activation stays closed.

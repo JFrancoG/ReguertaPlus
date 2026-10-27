@@ -213,6 +213,9 @@ test("keeps the complete affected-writer inventory versioned", () => {
       "https-sync-shifts-from-google-sheets",
       "https-export-shifts-to-google-sheets",
       "https-transition-shift-swap",
+      "https-shift-coverage",
+      "worker-shift-coverage-effects",
+      "worker-shift-coverage-push",
       "trigger-on-shift-planning-request-created",
       "trigger-on-versioned-shift-planning-request-created",
       "trigger-on-shift-written",
@@ -235,10 +238,12 @@ test("keeps the complete affected-writer inventory versioned", () => {
     SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
     /^shift-planning:v1:sha256:[a-f0-9]{64}$/,
   );
+  assert.equal(SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
+    "hu082-affected-writers-v3");
   assert.equal(
     SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
     "shift-planning:v1:sha256:" +
-      "dd6dcc606974aa48eaa69d408219e5481989781ffab9be09689c02a3d7e65a66",
+      "df2d29c3f3c496b25f193786cfe44cf078bd4b0d499a9b5aeff33bad646571fa",
   );
   assert.deepEqual(
     SHIFT_PLANNING_AFFECTED_WRITERS.find(
@@ -408,6 +413,37 @@ test("maintenance requires disabled v2 delivery with no pending or in-flight ret
       barrierFailure,
     );
   }
+});
+
+test("coverage ingress and both deliveries must be held and independently drained", () => {
+  for (const writerId of ["https-shift-coverage", "worker-shift-coverage-effects",
+    "worker-shift-coverage-push"]) {
+    const writer = SHIFT_PLANNING_INTAKE_BARRIER_WRITERS.find((entry) => entry.writerId === writerId);
+    assert.equal(writer.requiredState, "disabled");
+    assert.equal(writer.shutdownOrder, writerId === "https-shift-coverage" ?
+      "before-causal-capture" : "after-causal-drain");
+    for (const mutate of [
+      (value) => { value.writerControls = value.writerControls.filter((entry) => entry.writerId !== writerId); },
+      (value) => { value.writerControls.find((entry) => entry.writerId === writerId).state = "enabled"; },
+      (value) => { value.writerControls.find((entry) => entry.writerId === writerId).pendingWorkCount = 1; },
+      (value) => { value.writerControls.find((entry) => entry.writerId === writerId).inFlightWorkCount = 1; },
+    ]) {
+      assert.throws(() => verifyShiftPlanningIntakeBarrierEvidence(
+        mutateAndRehash(mutate), command(), 530), barrierFailure);
+    }
+  }
+  assert.equal(SHIFT_PLANNING_AFFECTED_WRITERS.some((writer) =>
+    writer.sourceReferences.some((reference) => reference.endsWith("#resolveShiftCoverageAccess"))), false);
+});
+
+test("pre-coverage inventory evidence cannot authorize a new maintenance entry", () => {
+  assert.throws(() => verifyShiftPlanningIntakeBarrierEvidence(
+    mutateAndRehash((value) => {
+      value.writerInventory = {revision: "hu082-affected-writers-v2",
+        digest: "shift-planning:v1:sha256:dd6dcc606974aa48eaa69d408219e5481989781ffab9be09689c02a3d7e65a66"};
+      value.writerControls = value.writerControls.filter((entry) =>
+        !["https-shift-coverage", "worker-shift-coverage-effects", "worker-shift-coverage-push"].includes(entry.writerId));
+    }), command(), 530), barrierFailure);
 });
 
 test("rejects incomplete or drifting Rules read-back", () => {

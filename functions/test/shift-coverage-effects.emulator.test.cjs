@@ -4,6 +4,8 @@ const {test, before, beforeEach, after} = require("node:test");
 const {Firestore, Timestamp} = require("@google-cloud/firestore");
 const {createProvisionalShiftCoverageStore} = require("../lib/shift-coverage-provisional-store.js");
 const {createProvisionalCoverageEffectsWorker} = require("../lib/shift-coverage-effects-worker.js");
+const {createFirestoreShiftCoverageEffectsWorker} = require("../lib/shift-coverage-effects-worker.js");
+const {createShiftCoverageStore} = require("../lib/shift-coverage-store.js");
 const {coverageSheetRow} = require("../lib/shift-coverage-effects.js");
 const {createShiftSheetsConfig} = require("../lib/shift-sheets-config.js");
 const {createShiftSheetsAdapter} = require("../lib/shift-sheets.js");
@@ -35,6 +37,62 @@ const accept = async (type = "delivery") => {
 };
 const sheet = (title) => sheets.state.sheets.find((s) => s.properties.title === title);
 const currentRows = async () => (await db.collection(`${root}/shifts`).get()).docs.map((d) => coverageSheetRow(d.id, d.data()));
+const sharedFixture = async (environment) => {
+  const namespace = `${environment}/plus-collections`;
+  await db.recursiveDelete(db.doc(namespace));
+  const scoped = (collection, id) => db.doc(`${namespace}/${collection}/${id}`);
+  const scopedConfig = createShiftSheetsConfig({environment, workbooks: {[environment]: `${environment}-shared-book`}});
+  const api = sheetsService(scopedConfig.workbookId);
+  await scoped("shiftPlanningState", "current").set({schemaVersion: 1, stateRevision: 1, writeEpoch: 1,
+    maintenanceStatus: "open", activeRevision: "active-1", activeDigest, intakeBarrier: null, lastTransitionId: "initial"});
+  for (const member of members) {
+    await scoped("users", member.userId).set({roles: member.userId === "admin" ? ["admin", "member"] : ["member"],
+      isActive: true, isCommonPurchaseManager: false, displayName: member.names[0], phoneNumber: member.phones[0], authUid: `auth-${member.userId}`});
+    await scoped("authLinks", `auth-${member.userId}`).set({memberId: member.userId});
+  }
+  for (const [id, date, assigned, helper] of [
+    ["shift_delivery_20270825", "2027-08-25", ["b"], "a"],
+    ["shift_delivery_20270901", "2027-09-01", ["a"], "c"],
+    ["shift_delivery_20270908", "2027-09-08", ["c"], "e"],
+  ]) await scoped("shifts", id).set(materialize(id, "delivery", date, assigned, helper, 1, environment));
+  for (const [weekKey, date] of [["2027-W34", "2027-08-25"], ["2027-W35", "2027-09-01"], ["2027-W36", "2027-09-08"]]) {
+    await scoped("deliveryCalendar", weekKey).set({deliveryDate: Timestamp.fromDate(new Date(`${date}T00:00:00Z`))});
+  }
+  const rows = (await db.collection(`${namespace}/shifts`).get()).docs.map((d) => coverageSheetRow(d.id, d.data()));
+  await createShiftSheetsAdapter({config: scopedConfig, sheets: api}).reconcile({operationId: "baseline", rows,
+    generationRows: rows.map((r) => ({id: r.id, visibleDate: r.date,
+      assignees: r.assignedUserIds.map((userId) => { const member = members.find((m) => m.userId === userId);
+        return {userId, name: member.names[0], phone: member.phones[0]}; }),
+      helper: r.helperUserId ? {userId: r.helperUserId, name: members.find((m) => m.userId === r.helperUserId).names[0]} : null})),
+    authorizeMutation: async () => {}});
+  const scopedTabs = api.state.sheets.map((sheet) => ({title: sheet.properties.title, type: "delivery",
+    seasonStartYear: sheet.properties.title.includes("2026") ? 2026 : 2027, layout: "delivery_human",
+    decorations: [{rowNumber: 1, cells: sheet.data[0].rowData[0].values.map((cell) => cell.userEnteredValue.stringValue)}]}));
+  await scoped("shiftPlanningState", "sourcePolicy").set({environment, sync: {partitions:
+    Object.fromEntries(["delivery", "market"].map((type) => [type, {workbookId: scopedConfig.workbookId,
+      workbookRevision: "1", partitionKey: type, stateRevision: 1, epoch: 0, lease: null}]))}});
+  await scoped("shiftPlanningState", "fixtureWorkerAdmission").set({enabled: true});
+  const context = {environment, requireReady: async (tx) => {
+    const state = await tx.get(scoped("shiftPlanningState", "fixtureWorkerAdmission"));
+    if (state.data()?.enabled !== true) throw Object.assign(new Error("Fixture closed"), {code: "coverage_unavailable"});
+  }};
+  const sharedStore = createShiftCoverageStore({firestore: db, context, nowMillis: () => now, maximumOfferWindowMillis: 60_000});
+  let next = 0;
+  const execute = async (action, actor, extra = {}) => {
+    const state = (await scoped("shiftCoverageCases", "shared-case").get()).data()?.value;
+    const shift = (await scoped("shifts", "shift_delivery_20270901").get()).data();
+    const command = {schemaVersion: 1, environment, caseId: "shared-case", operationId: `shared-${++next}`,
+      expectedRevision: state?.revision ?? 0, expectedShiftRevision: shift.documentRevision, action, ...extra};
+    await sharedStore.execute(command, {uid: `auth-${actor}`}); return command;
+  };
+  await execute("open", "a", {shiftId: "shift_delivery_20270901", absentUserId: "a", reason: "Private fixture absence"});
+  await execute("offer", "admin", {userId: "d", reason: "Fixture agreement", expiresAtMillis: now + 10_000});
+  const accepted = await execute("accept", "d");
+  const sharedWorker = createFirestoreShiftCoverageEffectsWorker({firestore: db, context, config: scopedConfig,
+    sheets: api, tabs: scopedTabs, readWorkbookVersion: async () => String(api.revision), nowMillis: () => now,
+    leaseDurationMillis: 60_000});
+  return {scoped, api, accepted, sharedWorker, context, config: scopedConfig, tabs: scopedTabs};
+};
 before(() => {
   if (!enabled) return;
   assert.equal(process.env.FIRESTORE_EMULATOR_HOST, "127.0.0.1:8798");
@@ -71,7 +129,11 @@ beforeEach(async () => {
   tabs = sheets.state.sheets.map((s) => { const type = s.properties.title.includes("reparto") ? "delivery" : "market";
     return {title: s.properties.title, type, seasonStartYear: s.properties.title.includes("2026") ? 2026 : 2027,
       layout: `${type}_human`, decorations: [{rowNumber: 1, cells: s.data[0].rowData[0].values.map((c) => c.userEnteredValue.stringValue)}]}; });
-  worker = createProvisionalCoverageEffectsWorker({config, sheets, tabs, readWorkbookVersion: async () => "1", nowMillis: () => now});
+  await ref("shiftPlanningState", "sourcePolicy").set({environment: "develop", sync: {partitions:
+    Object.fromEntries(["delivery", "market"].map((type) => [type, {workbookId: config.workbookId,
+      workbookRevision: "1", partitionKey: type, stateRevision: 1, epoch: 0, lease: null}]))}});
+  worker = createProvisionalCoverageEffectsWorker({config, sheets, tabs,
+    readWorkbookVersion: async () => String(sheets.revision), nowMillis: () => now});
 });
 
 run("atomic acceptance outbox projects cross-season helper and lead before releasing generic inbox exactly once", async () => {
@@ -112,17 +174,19 @@ run("market replacement keeps three ordered distinct members, notes and readable
   assert.deepEqual(observation.missingIds, []);
 });
 
-run("unknown acknowledgement retains submission and reservation, then read-back releases inbox without another mutation", async () => {
+run("unknown acknowledgement freezes its shared submission and never retries I/O after expiry", async () => {
   const value = await accept(); sheets.loseAcknowledgement = true;
   sheets.onMutation = async () => { sheets.failRead = true; assert.deepEqual(await inbox(), []); };
-  assert.deepEqual(await worker.drain(value.operationId), {state: "pending", replayed: false});
+  assert.deepEqual(await worker.drain(value.operationId), {state: "reconciliationRequired", replayed: false});
   const pending = await read("shiftCoverageEffects", value.operationId);
-  assert.ok(pending.submission); assert.equal((await read("shiftCoverageProjectionState", "workbook")).operationId, value.operationId);
-  assert.deepEqual(await inbox(), []); const count = sheets.mutations.length;
-  sheets.failRead = false; sheets.onMutation = null;
-  assert.equal((await worker.drain(value.operationId)).state, "completed");
-  assert.equal(sheets.mutations.length, count);
-  assert.equal(await read("shiftCoverageProjectionState", "workbook"), undefined);
+  const pointer = await read("shiftPlanningState", "sheetsSubmission");
+  assert.ok(pending.submission); assert.ok(pointer.batch);
+  assert.equal(pointer.operationId, value.operationId); assert.equal(pointer.evidence, null);
+  assert.deepEqual(await inbox(), []); const count = sheets.mutations.length, reads = sheets.reads.length;
+  sheets.failRead = false; sheets.onMutation = null; now += 120_000;
+  assert.deepEqual(await worker.drain(value.operationId), {state: "reconciliationRequired", replayed: true});
+  assert.equal(sheets.mutations.length, count); assert.equal(sheets.reads.length, reads);
+  assert.deepEqual(await read("shiftPlanningState", "sheetsSubmission"), pointer);
   assert.deepEqual((await read("shiftCoverageEffects", value.operationId)).submission, pending.submission);
 });
 
@@ -133,7 +197,7 @@ run("manual replacement conflicts preserve workbook and withhold inbox", async (
   const before = clone(sheets.state), count = sheets.mutations.length;
   await assert.rejects(worker.drain(value.operationId), {code: "coverage_effects_manual_conflict"});
   assert.deepEqual(clone(sheets.state), before); assert.equal(sheets.mutations.length, count);
-  assert.deepEqual(await inbox(), []); assert.equal(await read("shiftCoverageProjectionState", "workbook"), undefined);
+  assert.deepEqual(await inbox(), []); assert.equal(await read("shiftPlanningState", "sheetsSubmission"), undefined);
 });
 
 run("source drift after ambiguous submission blocks re-preparation and notifications", async () => {
@@ -141,7 +205,7 @@ run("source drift after ambiguous submission blocks re-preparation and notificat
   await worker.drain(value.operationId); const pending = await read("shiftCoverageEffects", value.operationId);
   sheets.failRead = false; sheets.onMutation = null; const count = sheets.mutations.length;
   await ref("users", "d").update({isActive: false});
-  await assert.rejects(worker.drain(value.operationId), {code: "coverage_effects_source_changed"});
+  assert.equal((await worker.drain(value.operationId)).state, "reconciliationRequired");
   assert.equal(sheets.mutations.length, count); assert.deepEqual(await inbox(), []);
   assert.deepEqual((await read("shiftCoverageEffects", value.operationId)).submission, pending.submission);
 });
@@ -186,12 +250,25 @@ run("concurrent notification-only drains create one generic inbox entry", async 
 
 run("tampered receipt and reserved workbook stop before external effects", async () => {
   const value = await accept();
-  await ref("shiftCoverageProjectionState", "workbook").set({operationId: "other-operation"});
-  await assert.rejects(worker.drain(value.operationId), {code: "coverage_effects_workbook_reserved"});
-  await ref("shiftCoverageProjectionState", "workbook").delete();
+  await ref("shiftPlanningState", "sheetsSubmission").set({operationId: "other-operation"});
+  await assert.rejects(worker.drain(value.operationId), {code: "invalid_planning_sync_command"});
+  await ref("shiftPlanningState", "sheetsSubmission").delete();
   await ref("shiftCoverageOperations", value.operationId).update({effectsDigest: "forged"});
   await assert.rejects(worker.drain(value.operationId), {code: "coverage_effects_changed"});
   assert.equal(sheets.mutations.length, 1); assert.deepEqual(await inbox(), []);
+});
+
+run("an unresolved HU-083 import reservation blocks coverage before Sheets I/O", async () => {
+  const value = await accept();
+  const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
+  const pointer = {schemaVersion: 1, kind: "importWriteBack", environment: "develop", workbookId: config.workbookId,
+    operationId: "sheets-import-prior", resultDigest: digest("result"), planDigest: digest("plan"),
+    beforeWorkbookRevision: "1", batch: null, evidence: null};
+  await ref("shiftPlanningState", "sheetsSubmission").set(pointer);
+  const reads = sheets.reads.length;
+  await assert.rejects(worker.drain(value.operationId), {code: "coverage_effects_workbook_reserved"});
+  assert.equal(sheets.mutations.length, 1); assert.equal(sheets.reads.length, reads);
+  assert.deepEqual(await read("shiftPlanningState", "sheetsSubmission"), pointer);
 });
 
 test("effects worker rejects any workbook outside the fixed local rehearsal", () => {
@@ -210,15 +287,16 @@ run("manual helper edits and ambiguous new labels stop before overwriting human 
   assert.equal(sheets.mutations.length, 1); assert.deepEqual(await inbox(), []);
 });
 
-run("uncertain transport before apply can resume the exact submission", async () => {
+run("uncertain transport before apply retains the possible batch without resubmitting", async () => {
   const value = await accept(); sheets.rejectBeforeApply = true;
-  assert.equal((await worker.drain(value.operationId)).state, "pending");
+  assert.equal((await worker.drain(value.operationId)).state, "reconciliationRequired");
   const pending = await read("shiftCoverageEffects", value.operationId);
-  assert.deepEqual(await inbox(), []);
-  sheets.rejectBeforeApply = false;
-  assert.equal((await worker.drain(value.operationId)).state, "completed");
-  assert.deepEqual((await read("shiftCoverageEffects", value.operationId)).submission, pending.submission);
-  assert.equal(content(sheet("turnos-reparto 2027-28"), 1, 1).stringValue, "Member d");
+  assert.deepEqual(await inbox(), []); const count = sheets.mutations.length;
+  sheets.rejectBeforeApply = false; now += 120_000;
+  assert.equal((await worker.drain(value.operationId)).state, "reconciliationRequired");
+  assert.equal(sheets.mutations.length, count);
+  assert.deepEqual((await read("shiftCoverageEffects", value.operationId)).workbookSubmission, pending.workbookSubmission);
+  assert.equal(content(sheet("turnos-reparto 2027-28"), 1, 1).stringValue, "Member a");
 });
 
 run("concurrent acceptance drains converge on the stored submission and one inbox per recipient", async () => {
@@ -229,6 +307,89 @@ run("concurrent acceptance drains converge on the stored submission and one inbo
   assert.equal((await inbox()).length, 4);
   assert.equal(content(sheet("turnos-reparto 2027-28"), 1, 1).stringValue, "Member d");
   assert.equal(content(sheet("turnos-reparto 2026-27"), 1, 5).stringValue, "Member d");
+});
+
+run("a recorded batch surviving a crash before I/O is inspect-only after TTL", async () => {
+  const value = await accept(); sheets.rejectBeforeApply = true;
+  await worker.drain(value.operationId);
+  const receipt = (await read("shiftCoverageEffects", value.operationId)).workbookSubmission;
+  assert.ok(receipt.batch);
+  // The crash boundary leaves the durable batch but cannot leave a terminal
+  // uncertainty state. Restore precisely that persisted intermediate state.
+  await ref("shiftCoverageEffects", value.operationId).update({state: "pending"});
+  sheets.rejectBeforeApply = false; now += 120_000;
+  const count = sheets.mutations.length;
+  assert.equal((await worker.drain(value.operationId)).state, "reconciliationRequired");
+  assert.equal(sheets.mutations.length, count); assert.deepEqual(await inbox(), []);
+  assert.deepEqual((await read("shiftCoverageEffects", value.operationId)).workbookSubmission, receipt);
+});
+
+run("a recorded batch surviving a crash after apply completes by inspection after TTL", async () => {
+  const value = await accept(); sheets.onMutation = async () => { sheets.failRead = true; };
+  await worker.drain(value.operationId);
+  await ref("shiftCoverageEffects", value.operationId).update({state: "pending"});
+  sheets.onMutation = null; sheets.failRead = false; now += 120_000;
+  const count = sheets.mutations.length;
+  assert.equal((await worker.drain(value.operationId)).state, "completed");
+  assert.equal(sheets.mutations.length, count); assert.equal((await inbox()).length, 4);
+  assert.ok((await read("shiftPlanningState", "sheetsSubmission")).evidence);
+});
+
+run("an expired pre-batch claim fences its paused worker after another drain takes ownership", async () => {
+  const value = await accept(), originalGet = sheets.get;
+  let release, signal;
+  const paused = new Promise((resolve) => { signal = resolve; });
+  const resume = new Promise((resolve) => { release = resolve; });
+  let blocked = false;
+  sheets.get = async (...args) => {
+    const result = await originalGet(...args);
+    const receipt = (await read("shiftCoverageEffects", value.operationId)).workbookSubmission;
+    if (!blocked && args[0].ranges && receipt && !receipt.batch) { blocked = true; signal(); await resume; }
+    return result;
+  };
+  const first = worker.drain(value.operationId);
+  const firstResult = first.then(() => null, (error) => error);
+  await paused;
+  const oldEpoch = (await read("shiftPlanningState", "sourcePolicy")).sync.partitions.delivery.epoch;
+  now += 120_000;
+  assert.equal((await worker.drain(value.operationId)).state, "completed");
+  release();
+  assert.equal((await firstResult).code, "coverage_effects_lease_changed");
+  assert.equal(sheets.mutations.length, 2);
+  const partition = (await read("shiftPlanningState", "sourcePolicy")).sync.partitions.delivery;
+  assert.ok(partition.epoch > oldEpoch); assert.equal(partition.lease, null);
+  assert.equal((await inbox()).length, 4);
+});
+
+run("shared effects isolate real SDK namespaces and retain verified workbook receipts", async () => {
+  for (const environment of ["develop", "production"]) {
+    const fixture = await sharedFixture(environment);
+    assert.equal((await fixture.sharedWorker.drain(fixture.accepted.operationId)).state, "completed");
+    const pointer = (await fixture.scoped("shiftPlanningState", "sheetsSubmission").get()).data();
+    assert.equal(pointer.kind, "coverageWriteBack"); assert.equal(pointer.environment, environment);
+    assert.equal(pointer.workbookId, fixture.config.workbookId); assert.equal(pointer.evidence.workbookRevision, "2");
+    const policy = (await fixture.scoped("shiftPlanningState", "sourcePolicy").get()).data();
+    assert.equal(policy.sync.partitions.delivery.lease, null);
+    assert.equal(policy.sync.partitions.delivery.workbookRevision, "2");
+    assert.equal((await fixture.scoped("users", "d").collection("notificationInbox").get()).size, 1);
+    assert.equal((await fixture.scoped("shiftCoverageProjectionState", "workbook").get()).exists, false);
+  }
+});
+
+run("shared effects close before Sheets reads on readiness loss and reject another partition's lease", async () => {
+  const fixture = await sharedFixture("production"), count = fixture.api.mutations.length, reads = fixture.api.reads.length;
+  await fixture.scoped("shiftPlanningState", "fixtureWorkerAdmission").update({enabled: false});
+  await assert.rejects(fixture.sharedWorker.drain(fixture.accepted.operationId), {code: "coverage_unavailable"});
+  assert.equal(fixture.api.mutations.length, count); assert.equal(fixture.api.reads.length, reads);
+  await fixture.scoped("shiftPlanningState", "fixtureWorkerAdmission").update({enabled: true});
+  const policy = (await fixture.scoped("shiftPlanningState", "sourcePolicy").get()).data();
+  policy.sync.partitions.market.lease = {ownerOperationId: "canonical-sync", leaseEpoch: 1, state: "claimed",
+    acquiredAtMillis: now, deadlineAtMillis: now + 60_000};
+  policy.sync.partitions.market.epoch = 1;
+  await fixture.scoped("shiftPlanningState", "sourcePolicy").set(policy);
+  await assert.rejects(fixture.sharedWorker.drain(fixture.accepted.operationId), {code: "coverage_effects_lease_changed"});
+  assert.equal(fixture.api.mutations.length, count);
+  assert.equal((await fixture.scoped("shiftPlanningState", "sheetsSubmission").get()).exists, false);
 });
 
 for (const type of ["delivery", "market"]) run(`delivered ${type} colleague reference grants only current minimal case projection`, async () => {
@@ -369,6 +530,7 @@ const prepareRecovery = async (operationId, options = {}) => {
     intakeBarrier: {revision: "recovery-closed", digest: recoveryDigest("closed"), verifiedAtMillis: now}});
   let held, failed = null, controls = 0, readBacks = 0;
   const recovery = createProvisionalCoverageRecovery({config, sheets: {get: (...args) => sheets.get(...args)},
+    readWorkbookVersion: async () => String(sheets.revision),
     nowMillis: () => now, controlPlane: {
       closeAndCollect: async () => { controls++; await options.onClose?.(); return held; },
       readBackClosed: async () => { readBacks++; await options.onReadBack?.(readBacks); return held; },
@@ -406,7 +568,7 @@ const prepareRecovery = async (operationId, options = {}) => {
 };
 const ambiguousProjection = async () => {
   const value = await accept(); sheets.onMutation = async () => { sheets.failRead = true; };
-  assert.equal((await worker.drain(value.operationId)).state, "pending");
+  assert.equal((await worker.drain(value.operationId)).state, "reconciliationRequired");
   sheets.onMutation = null; sheets.failRead = false; return value;
 };
 
@@ -421,7 +583,8 @@ run("governed recovery verifies projection after writer and roster drift without
     assert.equal(result.replayed, false); assert.equal((await inbox()).length, 4);
     assert.deepEqual(await currentRows(), rows); assert.equal(sheets.mutations.length, count);
     assert.equal((await db.collection(`${root}/shiftCoverageCredits`).get()).size, 0);
-    assert.equal(await read("shiftCoverageProjectionState", "workbook"), undefined);
+    assert.ok((await read("shiftPlanningState", "sheetsSubmission")).evidence);
+    assert.equal((await read("shiftPlanningState", "sourcePolicy")).sync.partitions.delivery.lease, null);
     assert.deepEqual((await read("shiftCoverageEffects", value.operationId)).submission, pending.submission);
     assert.equal((await read("shiftPlanningState", "current")).maintenanceStatus, "closed");
     now += 1000;
@@ -439,7 +602,7 @@ run("recovery preserves conflicting workbook and reservation and journals the cl
   try {
     await assert.rejects(recovery.run(), {code: "coverage_effects_readback_required"});
     assert.deepEqual(sheets.state, before); assert.deepEqual(await read("shiftCoverageEffects", value.operationId), pending);
-    assert.equal((await read("shiftCoverageProjectionState", "workbook")).operationId, value.operationId);
+    assert.equal((await read("shiftPlanningState", "sheetsSubmission")).operationId, value.operationId);
     assert.deepEqual(await inbox(), []); assert.equal(recovery.failed.phase, "operation");
     await assert.rejects(recovery.run(), {code: "coverage_recovery_barrier_failed"});
   } finally { await recovery.recovery.close(); }
@@ -508,7 +671,7 @@ for (const [name, mutateEvidence] of [
   try {
     await assert.rejects(async () => { recovery = await prepareRecovery(value.operationId, {mutateEvidence}); await recovery.run(); });
     assert.deepEqual(await inbox(), []);
-    assert.equal((await read("shiftCoverageProjectionState", "workbook")).operationId, value.operationId);
+    assert.equal((await read("shiftPlanningState", "sheetsSubmission")).operationId, value.operationId);
   } finally { if (recovery) await recovery.recovery.close(); }
 });
 
@@ -521,7 +684,7 @@ run("recovery rejects stale barrier evidence and source drift during inspection"
   sheets.get = async (...args) => { const result = await get(...args); await ref("users", "d").update({isActive: false}); return result; };
   try {
     await assert.rejects(recovery.run(), {code: "coverage_recovery_authorization_changed"});
-    assert.deepEqual(await inbox(), []); assert.equal((await read("shiftCoverageEffects", value.operationId)).state, "pending");
+    assert.deepEqual(await inbox(), []); assert.equal((await read("shiftCoverageEffects", value.operationId)).state, "reconciliationRequired");
   } finally { sheets.get = get; await recovery.recovery.close(); }
 });
 
@@ -556,7 +719,7 @@ run("recovery never releases a projection reservation when canonical assignments
   try {
     await assert.rejects(recovery.run(), {code: "coverage_effects_source_changed"});
     assert.equal(sheets.mutations.length, count); assert.deepEqual(await inbox(), []);
-    assert.equal((await read("shiftCoverageProjectionState", "workbook")).operationId, value.operationId);
+    assert.equal((await read("shiftPlanningState", "sheetsSubmission")).operationId, value.operationId);
   } finally { await recovery.recovery.close(); }
 });
 

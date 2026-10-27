@@ -30,6 +30,10 @@ module.exports.createCoverageWorkbookFixture = async (db, nowMillis) => {
       layout: `${type}_human`, decorations: [{rowNumber: 1,
         cells: s.data[0].rowData[0].values.map((c) => c.userEnteredValue.stringValue)}]};
   });
-  const worker = createProvisionalCoverageEffectsWorker({config, sheets, tabs, nowMillis, readWorkbookVersion: async () => "1"});
+  await db.doc(`${root}/shiftPlanningState/sourcePolicy`).set({environment: "develop", sync: {partitions:
+    Object.fromEntries(["delivery", "market"].map((type) => [type, {workbookId: config.workbookId,
+      workbookRevision: String(sheets.revision), partitionKey: type, stateRevision: 1, epoch: 0, lease: null}]))}}, {merge: true});
+  const worker = createProvisionalCoverageEffectsWorker({config, sheets, tabs, nowMillis,
+    readWorkbookVersion: async () => String(sheets.revision)});
   return {worker, sheets};
 };

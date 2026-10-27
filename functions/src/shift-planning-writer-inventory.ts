@@ -5,7 +5,7 @@ import {
 
 export const SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION = 1 as const;
 export const SHIFT_PLANNING_WRITER_INVENTORY_REVISION =
-  "hu082-affected-writers-v2" as const;
+  "hu082-affected-writers-v3" as const;
 
 export type ShiftPlanningWriterControl =
   | "rules-deny"
@@ -33,6 +33,7 @@ export type ShiftPlanningWriterTarget =
   | "firestore.config"
   | "firestore.shiftPlanningRequests"
   | "firestore.shiftSwapRequests"
+  | "firestore.shiftCoverage"
   | "firestore.shifts"
   | "firestore.users"
   | "notification.delivery"
@@ -54,6 +55,10 @@ export type ShiftPlanningAffectedWriter = {
  * HU-083 retires legacy code locally, but this conservative HU-082 inventory
  * retains its original references/identity until deployed drain is proven.
  * Removing local helpers is not evidence that an external writer disappeared.
+ * Coverage artifacts frozen for reconciliation are not runnable queue work;
+ * that distinction is valid only while dispatch rejects those exact records.
+ * Controls must still prove invocation drain independently: a persisted
+ * submitting receipt or a closed maintenance state is not an in-flight count.
  */
 const affectedWriters = [
   {
@@ -140,6 +145,40 @@ const affectedWriters = [
       "ios/Reguerta/Reguerta/Data/ShiftSwapRequests/" +
         "FirestoreShiftSwapRequestRepository.swift#transition",
       "functions/src/index.ts#transitionShiftSwap",
+    ],
+  },
+  {
+    writerId: "https-shift-coverage",
+    control: "disable-ingress",
+    requiredState: "disabled",
+    shutdownOrder: "before-causal-capture",
+    targets: ["firestore.shifts", "firestore.shiftCoverage"],
+    sourceReferences: [
+      "functions/src/index.ts#shiftCoverage",
+      "functions/src/shift-coverage-store.ts",
+      "functions/src/shift-membership-reconciliation.ts",
+    ],
+  },
+  {
+    writerId: "worker-shift-coverage-effects",
+    control: "disable-delivery-after-drain",
+    requiredState: "disabled",
+    shutdownOrder: "after-causal-drain",
+    targets: ["workbook.shifts", "firestore.shiftCoverage",
+      "notification.delivery"],
+    sourceReferences: [
+      "functions/src/shift-coverage-effects-worker.ts",
+      "functions/src/shift-coverage-inbox.ts",
+    ],
+  },
+  {
+    writerId: "worker-shift-coverage-push",
+    control: "disable-delivery-after-drain",
+    requiredState: "disabled",
+    shutdownOrder: "after-causal-drain",
+    targets: ["notification.delivery", "firestore.shiftCoverage"],
+    sourceReferences: [
+      "functions/src/shift-coverage-push.ts",
     ],
   },
   {

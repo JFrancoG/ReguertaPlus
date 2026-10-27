@@ -251,3 +251,20 @@ is not completion of those production tasks. See `plan.md` for the current bound
 - [x] Verify token/session/account/environment drift, disabled access and immutable retry intents.
 - [x] Complete Functions/Android/iOS validation and independent review with bounded evidence.
 - [ ] Complete the separate operational dependencies before enabling shared coverage.
+
+## Shared Sheets/notification coordination — 2026-10-27
+
+- [x] Commit/push the validated normal-app composition as `be3fde49` and verify exact remote identity.
+- [x] Bind every public coverage write to its atomic private receipt/outbox and exact commit metadata; preserve planner audit first and ordinary manual edits.
+- [x] Reuse the global HU-083 submission pointer and partition fencing for coverage, planner/import and all ordinary export entrypoints.
+- [x] Close the public-command-to-worker gap and reject stale ordinary event snapshots before export.
+- [x] Persist possible batches before I/O; retain unknown outcomes without automatic resend or TTL release, using existing governed read-only recovery.
+- [x] Inject environment-bound effects/recovery/push authority, retain demo wrappers and release one inbox/push path only after verified coverage projection.
+- [x] Version the affected-writer inventory with coverage ingress/effects/push and retain independent proof of in-flight drain.
+- [x] Add race, crash, corruption, read-back, Rules and HU-083 regression tests, including a real ordinary-writer/coverage transaction interleaving.
+- [x] Record final grouped gate/cleanup evidence in `review.md`; new coordination remains local after the delivered normal-app checkpoint.
+
+Shared activation, authoritative source/credit migration, real destination/provider
+admission, collective ratification and deployment/operator controls remain open.
+The exported composition remains operationally closed; neither native platform
+changes in this backend block.

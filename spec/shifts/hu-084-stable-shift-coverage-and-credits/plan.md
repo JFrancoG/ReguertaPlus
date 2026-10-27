@@ -1698,3 +1698,43 @@ worktree's intended implementation and matching changelog, and retain the existi
 draft PR and open parent issue. Preserve unrelated main-checkout edits. Definitive
 Git delivery is recorded in the canonical issue/PR after remote verification.
 Begin the next implementation only after this source checkpoint is pushed.
+
+### Shared projection and notification coordination — 2026-10-27
+
+The normal-app source checkpoint is delivered as `be3fde49`; exact remote hash
+matches and issue #268/draft PR #278 reflect that delivery. The maintainer
+authorizes the next grouped backend implementation on this branch:
+
+1. Give coverage public events one historical effects owner without changing
+   planner provenance; bind receipt/outbox and exact server commit metadata.
+2. Share HU-083 workbook submission and partition authority with coverage,
+   imports and ordinary export entrypoints. Close the command-to-worker gap and
+   reject stale ordinary events before external writes.
+3. Persist possible submission identity before I/O. Inspect-only retries and
+   governed recovery retain uncertain outcomes; release inbox only after exact
+   verified coverage projection. Keep the existing per-recipient push owner.
+4. Generalize backend workers through injected SDK/environment authority while
+   retaining fixed-demo wrappers; version the affected-writer inventory.
+5. Run local SDK/Rules race/failure checks and HU-082/HU-083 regressions, independent
+   review and Functions gates. Reuse accepted native evidence because no native
+   code changes. Record actual findings/results below and in review/tasks.
+
+ADR-0019 records the alternatives, retention and acknowledged ordinary-export
+limits. This block does not enable `operationalReady`, deploy, send real push,
+modify shared workbooks/data, merge or close the parent story. The maintainer
+does not need to connect or operate either phone during this backend validation.
+
+### Coordination validation and handoff — 2026-10-27
+
+The grouped block passes Functions lint/build, 75 pure, 297 planning (51 existing
+emulator skips), 47 Auth/SDK and 204 workflow/Rules cases. HU-083's combined
+108-pass regression gate and the final 28-pass isolated trigger fixture retain
+81 unchanged sync/import/consumer cases; review.md avoids double-counting.
+Independent review closes ownership, batch/fencing, first-governed-Drive-base,
+lost-Firestore-ack and fixture-isolation findings. No native source changes; reuse
+the accepted Android/iOS gates. Owned emulator processes and dependency symlink
+are removed; no phone action is required. The new block remains local after
+pushed be3fde49 and is ready for its next source checkpoint. Shared activation
+remains false. Next recommended work is authoritative initial source/credit
+migration and shared destination/operator admission before a bounded shared
+rehearsal; deployment/data changes require their concrete authorized handoff.

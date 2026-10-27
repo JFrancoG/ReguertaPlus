@@ -458,7 +458,9 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       );
       if (workbook.exists) {
         const current = parseShiftSheetsWorkbookSubmission(workbook.data());
-        if (current.importOperationId && current.evidence === null) {
+        if ((current.importOperationId || current.coverageOperationId ||
+            current.ordinaryOperationId) &&
+          current.evidence === null) {
           return failSync("Workbook is reserved by an unfinished import.");
         }
       }

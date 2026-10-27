@@ -6,6 +6,10 @@ import {createShiftCoverageAdministration} from
   "./shift-coverage-administration.js";
 import {firstDueOrdinaryShift} from "./shift-membership-lifecycle.js";
 import {buildShiftCoverageEffects} from "./shift-coverage-effects.js";
+import {coveragePublicEventBindingId, describeCoveragePublicEvent} from
+  "./shift-coverage-public-event.js";
+import {parseShiftSheetsWorkbookSubmission} from
+  "./shift-planning-sheets-submission.js";
 import {VerifiedIdentity} from "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {createShiftCoverageClientReader} from "./shift-coverage-client.js";
@@ -695,6 +699,28 @@ export const createShiftCoverageStore = (options: {
         const effects = buildShiftCoverageEffects({operationId:
           command.operationId, action: command.action, previous, next,
         before, writes});
+        const publicEvents = [...writes].map(([targetPath, after]) => {
+          const descriptor = describeCoveragePublicEvent({targetPath,
+            before: before.get(targetPath) ?? null, after});
+          if (!descriptor) {
+            return rejectCoverage("invalid_coverage_public_write");
+          }
+          return descriptor;
+        });
+        const publicEventDigests = publicEvents.map((item) => item.eventDigest)
+          .sort();
+        if (writes.size) {
+          const pointer = await transaction.get(
+            ref("shiftPlanningState", "sheetsSubmission"));
+          if (pointer.exists) {
+            const reservation = parseShiftSheetsWorkbookSubmission(
+              pointer.data());
+            if (reservation.ordinaryOperationId &&
+                reservation.evidence === null) {
+              return rejectCoverage("coverage_effects_workbook_reserved");
+            }
+          }
+        }
         // Every read and validation precedes all writes. Firestore retries the
         // entire source/claim/ledger observation on concurrent modifications.
         if (command.action === "open") {
@@ -716,11 +742,18 @@ export const createShiftCoverageStore = (options: {
           transaction.set(ledgerRef, {revision: ledgerRevision + 1});
         }
         writes.forEach((data, path) => transaction.set(db.doc(path), data));
+        for (const descriptor of publicEvents) {
+          transaction.create(ref("shiftCoveragePublicWrites",
+            coveragePublicEventBindingId(descriptor)), {...descriptor,
+            operationId: command.operationId,
+            effectsDigest: effects.effectsDigest});
+        }
         transaction.set(caseRef, {value: next, digest: digest(next),
           authority});
         transaction.create(ref("shiftCoverageEffects", command.operationId),
-          {value: effects, state: "pending", authority});
+          {value: effects, state: "pending", authority, publicEventDigests});
         transaction.create(receiptRef, {commandDigest, command,
+          publicEventDigests,
           effectsDigest: effects.effectsDigest,
           actorMemberId: actorId, ...authBinding,
           ...(command.action === "offerAdmin" && preparedSelection?.timing &&

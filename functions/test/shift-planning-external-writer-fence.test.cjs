@@ -92,9 +92,9 @@ test("legacy shift trigger fences Sheets and Firestore effects", () => {
   const effectsEnd = source.indexOf("const formatNotificationDate", effectsStart);
   const effects = source.slice(effectsStart, effectsEnd);
 
-  assert.match(trigger, /createShiftPlanningExternalWriterFence/);
+  assert.match(trigger, /withOrdinarySheetWriter/);
   assert.match(trigger, /upsertShiftRowInSheet\([\s\S]*?writerFence,\s*\)/);
-  assert.match(trigger, /await writerFence\.finish\(\)/);
+  assert.match(trigger, /current\.updateTime\?\.isEqual/);
   assert.match(trigger, /persistShiftExportEffects/);
   assert.doesNotMatch(trigger, /afterSnapshot\.ref\.set/);
   assert.doesNotMatch(trigger, /dispatchShiftUpdatedNotification/);
