@@ -10,6 +10,7 @@ import com.reguerta.user.domain.shiftcoverage.CoverageRehearsalAccess
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageCommand
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSession
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageAdministration
 import kotlinx.coroutines.launch
 
 internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalAccess) : ViewModel() {
@@ -22,6 +23,8 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
     var loginFailed by mutableStateOf(false)
         private set
     var draft by mutableStateOf<CoverageCommandDraft?>(null)
+        private set
+    var administrationDraft by mutableStateOf<CoverageAdministrationDraft?>(null)
         private set
     private var draftSession: ShiftCoverageSession? = null
     private var revision = 0L
@@ -59,15 +62,17 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
         selectedCaseId = null
         password = ""
         draft = null
+        administrationDraft = null
         isSigningIn = false
         loginFailed = false
     }
 
-    val canOpen: Boolean get() = !coverage.state.value.isBusy && coverage.state.value.pendingCommand == null &&
+    val canOpen: Boolean get() = !coverage.state.value.isBusy && !coverage.state.value.hasPendingMutation &&
+        !coverage.state.value.isAdministration &&
         coverage.state.value.snapshot?.availableShifts?.any { it.writable } == true
 
     fun present(action: ShiftCoverageCommand.Action, item: ShiftCoverageSnapshot.Case? = null) {
-        if (coverage.state.value.isBusy || coverage.state.value.pendingCommand != null) return
+        if (coverage.state.value.isBusy || coverage.state.value.hasPendingMutation || administrationDraft != null) return
         val snapshot = coverage.state.value.snapshot ?: return
         draftSession = coverage.state.value.session
         draft = CoverageCommandDraft(action, item, snapshot, coverage.nowMillis)
@@ -78,7 +83,7 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
         val command = draft?.command ?: return false
         val state = coverage.state.value
         val snapshot = state.snapshot ?: return false
-        if (draftSession != state.session || state.isBusy || state.pendingCommand != null) return false
+        if (draftSession != state.session || state.isBusy || state.hasPendingMutation) return false
         if (command.expiresAtMillis?.let { it <= now } == true) return false
         if (command.action == ShiftCoverageCommand.Action.open) {
             return snapshot.availableShifts.any { it.shiftId == command.shiftId &&
@@ -95,6 +100,56 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
         draft = null
         viewModelScope.launch { coverage.submit(command) }
     }
+
+    fun openAdministration() {
+        if (draft != null || administrationDraft != null) return
+        selectedCaseId = null
+        viewModelScope.launch { coverage.openAdministration() }
+    }
+
+    fun presentMembership(member: ShiftCoverageAdministration.Member, permanentDeparture: Boolean = false) {
+        presentAdministration(CoverageAdministrationDraft(member = member, permanentDeparture = permanentDeparture))
+    }
+
+    fun presentSpacing(candidate: ShiftCoverageAdministration.SpacingCandidate) {
+        presentAdministration(CoverageAdministrationDraft(spacing = candidate))
+    }
+
+    private fun presentAdministration(value: CoverageAdministrationDraft) {
+        val state = coverage.state.value
+        val snapshot = state.administration ?: return
+        if (state.isBusy || state.hasPendingMutation || draft != null || administrationDraft != null ||
+            !state.isAdministration || !snapshot.isAdmin) return
+        if (value.member != null && (!snapshot.membershipWritable || value.member !in snapshot.members)) return
+        if (value.spacing != null && value.spacing !in snapshot.spacingCandidates) return
+        draftSession = state.session
+        administrationDraft = value
+    }
+
+    fun dismissAdministrationDraft() { administrationDraft = null }
+
+    fun discardDraftsAfterSessionChange() {
+        selectedCaseId = null
+        if (draftSession != coverage.state.value.session) {
+            draft = null
+            administrationDraft = null
+            draftSession = null
+        }
+    }
+
+    fun canConfirmAdministrationDraft(now: Long = coverage.nowMillis): Boolean {
+        val state = coverage.state.value
+        val snapshot = state.administration ?: return false
+        return draftSession == state.session && !state.isBusy && !state.hasPendingMutation && state.isAdministration &&
+            administrationDraft?.isCurrent(snapshot, now) == true
+    }
+
+    fun confirmAdministrationDraft() {
+        if (!canConfirmAdministrationDraft()) return
+        val command = administrationDraft?.command ?: return
+        administrationDraft = null
+        viewModelScope.launch { coverage.submitAdministration(command) }
+    }
     fun acceptPush(reference: ShiftNotificationPushReference) {
         if (reference.isCoverage) pendingPushEventId = reference.eventId
     }
@@ -102,7 +157,8 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
     val readyPushEventId: String? get() {
         val state = coverage.state.value
         return pendingPushEventId.takeIf {
-            state.session != null && !isSigningIn && !state.isBusy && state.pendingCommand == null && draft == null
+            state.session != null && !isSigningIn && !state.isBusy && !state.hasPendingMutation && draft == null &&
+                administrationDraft == null && !state.isAdministration
         }
     }
 
@@ -113,7 +169,7 @@ internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalA
     }
 
     fun openNotification(eventId: String) {
-        if (draft != null) return
+        if (draft != null || administrationDraft != null || coverage.state.value.hasPendingMutation) return
         selectedCaseId = null
         val owner = revision
         viewModelScope.launch {

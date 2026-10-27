@@ -53,6 +53,40 @@ struct LocalShiftCoverageRepository: ShiftCoverageRepository {
         }
     }
 
+    func readAdministration(session: ShiftCoverageSession) async throws -> ShiftCoverageAdministrationSnapshot {
+        let result: ShiftCoverageAdministrationSnapshot = try await post(
+            Query(action: "administration", caseId: nil), session: session
+        )
+        guard result.schemaVersion == 1, result.environment == "develop", result.isAdmin,
+              result.memberId == session.memberId, result.policyRevision == "hu084-provisional-v1" else {
+            throw ShiftCoverageFailure.invalidResponse
+        }
+        return result
+    }
+
+    func executeAdministration(
+        _ command: ShiftCoverageAdministrationCommand,
+        session: ShiftCoverageSession
+    ) async throws {
+        let result: AdministrationReceipt = try await post(command, session: session)
+        guard result.schemaVersion == 1, result.environment == "develop", result.operationId == command.operationId,
+              result.action == command.action, result.userId == command.userId else {
+            throw ShiftCoverageFailure.invalidResponse
+        }
+        switch command.intent {
+        case let .membership(expectedRevision, _, _):
+            guard let revision = result.membershipRevision, revision >= expectedRevision,
+                  revision < 9_007_199_254_740_991, result.exceptionId == nil else {
+                throw ShiftCoverageFailure.invalidResponse
+            }
+        case .spacing:
+            guard result.membershipRevision == nil, let exceptionId = result.exceptionId,
+                  !exceptionId.isEmpty, !exceptionId.contains("/") else {
+                throw ShiftCoverageFailure.invalidResponse
+            }
+        }
+    }
+
     private func post<Body: Encodable, Value: Decodable>(
         _ body: Body,
         session: ShiftCoverageSession
@@ -131,6 +165,17 @@ struct LocalShiftCoverageRepository: ShiftCoverageRepository {
         let operationId: String
         let revision: Int64
         let replayed: Bool
+    }
+
+    private struct AdministrationReceipt: Decodable {
+        let schemaVersion: Int
+        let environment: String
+        let operationId: String
+        let action: String
+        let userId: String
+        let replayed: Bool
+        let membershipRevision: Int64?
+        let exceptionId: String?
     }
 
     private struct TokenHeader: Decodable { let alg: String }

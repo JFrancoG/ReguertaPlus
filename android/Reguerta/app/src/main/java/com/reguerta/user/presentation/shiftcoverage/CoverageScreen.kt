@@ -49,10 +49,10 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: St
     val state by model.coverage.state.collectAsStateWithLifecycle()
     val caseId = model.selectedCaseId
     var tick by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(state.session) { model.selectedCaseId = null }
+    LaunchedEffect(state.session) { model.discardDraftsAfterSessionChange() }
     LaunchedEffect(model.readyPushEventId) { model.openPendingPush() }
     LaunchedEffect(Unit) { while (true) { delay(1000); tick++ } }
-    BackHandler(enabled = caseId != null && model.draft == null) { model.showOverview() }
+    BackHandler(enabled = (caseId != null || state.isAdministration) && model.draft == null && model.administrationDraft == null) { model.showOverview() }
     val selected = state.snapshot?.cases?.firstOrNull { it.caseId == caseId }
     val actions = remember(state, selected, tick) { selected?.let { model.coverage.actions(it) }.orEmpty() }
     Scaffold { padding ->
@@ -70,9 +70,15 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: St
                 item { CoverageLogin(model) }
             } else {
                 item {
-                    if (caseId != null) TextButton(onClick = model::showOverview) { Text(stringResource(R.string.coverage_dismiss)) }
-                    Button(onClick = { model.present(Action.open) }, enabled = model.canOpen, modifier = Modifier.testTag("coverage.open")) {
-                        Text(stringResource(R.string.coverage_action_open))
+                    if (caseId != null || state.isAdministration) TextButton(onClick = model::showOverview) { Text(stringResource(R.string.coverage_dismiss)) }
+                    if (!state.isAdministration) {
+                        Button(onClick = { model.present(Action.open) }, enabled = model.canOpen, modifier = Modifier.testTag("coverage.open")) {
+                            Text(stringResource(R.string.coverage_action_open))
+                        }
+                        if (caseId == null && state.snapshot?.isAdmin == true) {
+                            Button(onClick = model::openAdministration, enabled = !state.isBusy && !state.hasPendingMutation,
+                                modifier = Modifier.testTag("coverage.administration")) { Text(stringResource(R.string.coverage_admin_title)) }
+                        }
                     }
                     TextButton(onClick = model::refresh, enabled = !state.isBusy) { Text(stringResource(R.string.coverage_refresh)) }
                     TextButton(onClick = model::signOut, modifier = Modifier.testTag("coverage.signOut")) { Text(stringResource(R.string.coverage_sign_out)) }
@@ -80,19 +86,21 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: St
                 item {
                     if (state.isBusy) CircularProgressIndicator()
                     state.failure?.let { Text(stringResource(coverageFailureLabel(it)), Modifier.testTag("coverage.failure")) }
-                    if (state.pendingCommand != null) {
+                    if (state.hasPendingMutation) {
                         Text(stringResource(R.string.coverage_uncertain))
                         Button(onClick = model::retryPending, enabled = !state.isBusy, modifier = Modifier.testTag("coverage.retry")) {
                             Text(stringResource(R.string.coverage_retry))
                         }
                     }
                 }
-                if (caseId == null) {
+                if (state.isAdministration) {
+                    state.administration?.let { coverageAdministration(it, model, !state.isBusy && !state.hasPendingMutation) }
+                } else if (caseId == null) {
                     item { Text(stringResource(R.string.coverage_notifications), style = MaterialTheme.typography.titleLarge) }
                     if (state.snapshot?.notifications?.isEmpty() == true) item { Text(stringResource(R.string.coverage_no_notifications)) }
                     items(state.snapshot?.notifications.orEmpty(), key = { it.eventId }) { notification ->
                         TextButton(onClick = { model.openNotification(notification.eventId) },
-                            enabled = !state.isBusy && state.pendingCommand == null,
+                            enabled = !state.isBusy && !state.hasPendingMutation,
                             modifier = Modifier.testTag("coverage.notification.${notification.eventId}")) {
                             Column {
                                 Text(stringResource(R.string.coverage_notification_title))
@@ -127,6 +135,7 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: St
         }
     }
     model.draft?.let { CoverageCommandDialog(it, model) }
+    if (state.session != null) model.administrationDraft?.let { CoverageAdministrationDialog(it, model) }
 }
 
 @Composable

@@ -8,7 +8,7 @@ import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot.Status
 internal fun ShiftCoverageViewModel.actions(item: ShiftCoverageSnapshot.Case): List<Action> {
     val current = state.value
     val snapshot = current.snapshot ?: return emptyList()
-    if (current.isBusy || current.pendingCommand != null || !item.writable) return emptyList()
+    if (current.isBusy || current.hasPendingMutation || current.isAdministration || !item.writable) return emptyList()
     val actions = mutableListOf<Action>()
     val now = nowMillis
     if (item.status == Status.offered && item.offer?.userId == snapshot.memberId && now < item.offer.expiresAtMillis) {

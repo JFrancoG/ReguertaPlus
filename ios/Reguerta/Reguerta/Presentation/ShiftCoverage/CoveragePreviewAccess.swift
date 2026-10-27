@@ -72,6 +72,54 @@ final class CoveragePreviewAccess: CoverageRehearsalAccess, ShiftCoverageReposit
         throw ShiftCoverageFailure.unavailable
     }
 
+    func readAdministration(session: ShiftCoverageSession) async throws -> ShiftCoverageAdministrationSnapshot {
+        Self.administration
+    }
+
+    static let administration = ShiftCoverageAdministrationSnapshot(
+        schemaVersion: 1,
+        environment: "develop",
+        memberId: "ana",
+        isAdmin: true,
+        serverTimeMillis: 1_800_000_000_000,
+        policyRevision: "hu084-provisional-v1",
+        membershipWritable: true,
+        members: [.init(
+            userId: "beatriz",
+            displayName: "Beatriz de prueba",
+            membershipRevision: 2,
+            sourceActive: false,
+            eligible: false,
+            permanentDeparture: false,
+            pendingQueueTransition: false,
+            contextDigest: "preview-member-context",
+            reserves: [.init(
+                type: .delivery,
+                active: false,
+                enteredAtMillis: 1_790_000_000_000,
+                admissionAfterRound: 3
+            )],
+            credits: [.init(
+                type: .delivery,
+                pendingCount: 1,
+                consumedCount: 0,
+                cancelledCount: 0
+            )]
+        )],
+        spacingCandidates: [.init(
+            id: "preview-spacing",
+            userId: "ana",
+            displayName: "Ana de prueba",
+            planningRequestId: "preview-plan",
+            previousDate: "2027-01-06",
+            previousRoundNumber: 3,
+            date: "2027-02-17",
+            roundNumber: 4,
+            contextDigest: "preview-spacing-context"
+        )],
+        spacingUnavailableReason: nil
+    )
+
     static func model() -> CoverageRehearsalViewModel {
         let model = CoverageRehearsalViewModel(access: CoveragePreviewAccess())
         model.coverage.bind(ShiftCoverageSession(uid: "preview", memberId: "ana", authorizationRevision: 1))

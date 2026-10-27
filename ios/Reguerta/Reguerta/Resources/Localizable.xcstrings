@@ -1,6 +1,510 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "coverage.hide_keyboard": {
+    "comment": "Ends editing the administrative reason without cancelling or submitting the form.",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Hide keyboard"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ocultar teclado"
+        }
+      }
+    }
+  },
+  "coverage.admin_plan": {
+  "comment": "The stable proposal identifier distinguishes the exact force-majeure authorization.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Rotation proposal"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Propuesta de reparto"
+      }
+    }
+  }
+},
+  "coverage.admin_cancelled_credits": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Cancelled credits"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Compensaciones anuladas"
+      }
+    }
+  }
+},
+  "coverage.admin_departure": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Record permanent departure"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Registrar baja permanente"
+      }
+    }
+  }
+},
+  "coverage.admin_departure_acknowledgement": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "I confirm the permanent departure and cancellation of pending credits."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Confirmo la baja permanente y la anulación de las compensaciones pendientes."
+      }
+    }
+  }
+},
+  "coverage.admin_departure_note": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "The member account must already be inactive or absent. Recording permanent departure cancels pending credits and ends reserves. Cancelled credits remain in history and will not return if the member rejoins."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "La cuenta del socio debe estar ya inactiva o no existir. Registrar la baja permanente anula las compensaciones pendientes y termina las reservas. Las compensaciones anuladas quedan en el historial y no se recuperan si el socio vuelve."
+      }
+    }
+  }
+},
+  "coverage.admin_departure_recorded": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Permanent departure recorded"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Baja permanente registrada"
+      }
+    }
+  }
+},
+  "coverage.admin_member_eligible": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Active member eligible for shifts"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Socio activo que puede participar en los turnos"
+      }
+    }
+  }
+},
+  "coverage.admin_member_inactive": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Inactive account; pending credits remain until permanent departure is confirmed"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Cuenta inactiva; las compensaciones pendientes se conservan hasta confirmar la baja permanente"
+      }
+    }
+  }
+},
+  "coverage.admin_member_ineligible": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Active account currently outside the shift rotation"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Cuenta activa que ahora no participa en la rueda de turnos"
+      }
+    }
+  }
+},
+  "coverage.admin_member_missing": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Member account no longer present"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "La cuenta del socio ya no consta"
+      }
+    }
+  }
+},
+  "coverage.admin_members": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Member situation"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Situación de los socios"
+      }
+    }
+  }
+},
+  "coverage.admin_no_members": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "No members to review."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "No hay socios que revisar."
+      }
+    }
+  }
+},
+  "coverage.admin_no_spacing": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "No exact spacing exceptions await authorization."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "No hay excepciones concretas pendientes de autorización."
+      }
+    }
+  }
+},
+  "coverage.admin_note": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Review the current member data before confirming. Updating the situation applies the reserve rules; it does not change the member account or manually set reserve status."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Revisa los datos actuales del socio antes de confirmar. Actualizar la situación aplica las reglas de reserva; no modifica la cuenta ni permite activar o desactivar la reserva manualmente."
+      }
+    }
+  }
+},
+  "coverage.admin_pending_credits": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Pending credits"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Compensaciones pendientes"
+      }
+    }
+  }
+},
+  "coverage.admin_previous_turn": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Previous ordinary lead turn"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Turno ordinario anterior de responsable"
+      }
+    }
+  }
+},
+  "coverage.admin_proposed_turn": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Proposed ordinary lead turn"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Turno ordinario propuesto de responsable"
+      }
+    }
+  }
+},
+  "coverage.admin_queue_pending": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "The rotation update is pending the next eligible publication."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "El cambio en la rueda está pendiente de la próxima publicación que corresponda."
+      }
+    }
+  }
+},
+  "coverage.admin_read_only": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Member changes are unavailable during maintenance. You can still review the information."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Los cambios de situación no están disponibles durante el mantenimiento. Puedes consultar la información."
+      }
+    }
+  }
+},
+  "coverage.admin_reconcile": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Update situation"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Actualizar situación"
+      }
+    }
+  }
+},
+  "coverage.admin_round": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Round"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Vuelta"
+      }
+    }
+  }
+},
+  "coverage.admin_spacing": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Ten-week exception"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Excepción a las diez semanas"
+      }
+    }
+  }
+},
+  "coverage.admin_spacing_confirmation": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "This authorizes only the two turns shown in this proposal. It does not publish or change any shift. Explain the force majeure, such as a turn that would otherwise remain empty."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Se autoriza únicamente la pareja de turnos mostrada en esta propuesta. No publica ni modifica ningún turno. Explica la fuerza mayor, como que de otro modo un turno quedaría vacío."
+      }
+    }
+  }
+},
+  "coverage.admin_spacing_note": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Only ordinary delivery lead turns in different rounds need ten weeks between them. For force majeure, review and justify one exact pair in the proposed rotation."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Solo los turnos ordinarios de responsable de reparto en vueltas distintas necesitan diez semanas de separación. Por fuerza mayor, revisa y justifica una pareja concreta de turnos del reparto propuesto."
+      }
+    }
+  }
+},
+  "coverage.admin_spacing_unavailable": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Spacing proposals are unavailable. Refresh after the planning data is ready."
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Las propuestas de separación no están disponibles. Actualiza cuando estén preparados los datos del reparto."
+      }
+    }
+  }
+},
+  "coverage.admin_title": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Reserves and exceptions"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Reservas y excepciones"
+      }
+    }
+  }
+},
+  "coverage.admin_used_credits": {
+  "comment": "Provisional local shift administration; no live activation.",
+  "extractionState": "manual",
+  "localizations": {
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Credits used"
+      }
+    },
+    "es": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Compensaciones utilizadas"
+      }
+    }
+  }
+},
   "coverage.remote_note": {
     "comment": "Explicit real transport rehearsal; business data remains in memory",
     "extractionState": "manual",

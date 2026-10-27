@@ -51,3 +51,20 @@ local no añade un escritor público, proceso programado ni migración de produc
 - [ADR-0013](0013-modelar-turnos-como-rotaciones-continuas-con-proyecciones-estacionales.md)
 - [Especificación HU-089](../../spec/shifts/hu-089-coverage-policy-amendments/spec.md)
 - GitHub issues [#279](https://github.com/JFrancoG/ReguertaPlus/issues/279) y [#268](https://github.com/JFrancoG/ReguertaPlus/issues/268)
+
+
+## Integración administrativa nativa — 2026-10-26
+
+HU-084 expone esta política existente mediante proyecciones solo para
+administradores y comandos tipados separados en ambas apps Debug de ensayo. La
+escritura local autenticada resuelve el vínculo UID/socio y los permisos dentro
+de la transacción, también al repetir una operación. Un token de confirmación
+vincula las versiones de la ficha, las compensaciones y la planificación; una
+confirmación desactualizada se rechaza sin cambios. La repetición exacta devuelve
+el resultado original manteniendo la comprobación de permisos actuales.
+
+Los formularios observan la actividad de la cuenta sin modificarla. Actualizar
+la situación deriva los cambios de reserva; la baja permanente exige una
+confirmación separada y un motivo. Las lecturas muestran cantidades y estado,
+nunca motivos privados ni documentos de compensaciones o bloqueos. La integración
+sigue siendo local y provisional; quedan la ratificación y la activación compartida.

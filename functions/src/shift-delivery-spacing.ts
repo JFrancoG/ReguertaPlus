@@ -18,6 +18,11 @@ export type DeliverySpacingSource = {
   history: DeliverySpacingHistory[]; exceptions: DeliverySpacingException[];
 };
 
+export type DeliverySpacingConflict = {
+  userId: string; previousDate: string; previousRoundNumber: number;
+  date: string; roundNumber: number;
+};
+
 const fail = (
   code: ShiftPlanningFailureCode = "invalid_delivery_spacing_source",
 ): never => {
@@ -99,9 +104,49 @@ export const parseDeliverySpacingSource = (
  * immutable rotation owner counts even if a substitute does its published turn;
  * helper work and additional coverage do not introduce ordinary positions.
  * Compare calendar dates so daylight-saving hours cannot shorten ten weeks.
- * Exact current-request exceptions authorize only their actual violating pair.
+ * This diagnostic enumerates conflicts without applying or granting approvals.
  * @param {object} input Complete governed history and generated ordinary leads.
- * @return {string[]} Applied exception IDs for the private audited artifact.
+ * @return {object[]} Exact chronological pairs requiring approval.
+ */
+export const deliverySpacingConflicts = (input: {
+  shifts: readonly {date: string; rotationOwnerUserId: string;
+    roundNumber: number}[];
+  source: DeliverySpacingSource;
+}): DeliverySpacingConflict[] => {
+  const source = parseDeliverySpacingSource(input.source);
+  const entries = source.history.map((entry) => ({...entry, generated: false}));
+  for (const shift of input.shifts) {
+    const existing = entries.find((entry) => entry.date === shift.date);
+    if (existing) return fail();
+    entries.push({shiftId: `shift_delivery_${shift.date.replace(/-/g, "")}`,
+      userId: shift.rotationOwnerUserId, date: shift.date,
+      roundNumber: shift.roundNumber, generated: true});
+  }
+  entries.sort((a, b) => a.date.localeCompare(b.date));
+  const conflicts: DeliverySpacingConflict[] = [];
+  for (let index = 0; index < entries.length; index++) {
+    const current = entries[index];
+    for (let prior = index - 1; prior >= 0; prior--) {
+      const previous = entries[prior];
+      if (addBusinessDays(previous.date, 70) <= current.date) break;
+      if (current.userId !== previous.userId ||
+          current.roundNumber === previous.roundNumber ||
+          (!current.generated && !previous.generated)) continue;
+      const violation = {userId: current.userId, date: current.date,
+        roundNumber: current.roundNumber, previousDate: previous.date,
+        previousRoundNumber: previous.roundNumber};
+      conflicts.push(violation);
+    }
+  }
+  return conflicts;
+};
+
+/**
+ * Require current exact approvals for every ordinary cross-round conflict.
+ * Native diagnostics reuse the same conflict calculation; they cannot grant
+ * approval or publish their diagnostic plan.
+ * @param {object} input Current request, history and generated ordinary leads.
+ * @return {string[]} Applied approvals for the private audited artifact.
  */
 export const validateDeliverySpacing = (input: {
   planningRequestId: string;
@@ -116,32 +161,12 @@ export const validateDeliverySpacing = (input: {
       entry.authorityDigest !== source.authorityDigest)) {
     return fail("delivery_spacing_exception_unavailable");
   }
-  const entries = source.history.map((entry) => ({...entry, generated: false}));
-  for (const shift of input.shifts) {
-    const existing = entries.find((entry) => entry.date === shift.date);
-    if (existing) return fail();
-    entries.push({shiftId: `shift_delivery_${shift.date.replace(/-/g, "")}`,
-      userId: shift.rotationOwnerUserId, date: shift.date,
-      roundNumber: shift.roundNumber, generated: true});
-  }
-  entries.sort((a, b) => a.date.localeCompare(b.date));
   const used = new Set<string>();
-  for (let index = 0; index < entries.length; index++) {
-    const current = entries[index];
-    for (let prior = index - 1; prior >= 0; prior--) {
-      const previous = entries[prior];
-      if (addBusinessDays(previous.date, 70) <= current.date) break;
-      if (current.userId !== previous.userId ||
-          current.roundNumber === previous.roundNumber ||
-          (!current.generated && !previous.generated)) continue;
-      const violation = {userId: current.userId, date: current.date,
-        roundNumber: current.roundNumber, previousDate: previous.date,
-        previousRoundNumber: previous.roundNumber};
-      const exception = exceptions.find((entry) => pair(entry) ===
-        pair(violation));
-      if (!exception) return fail("delivery_spacing_conflict");
-      used.add(exception.id);
-    }
+  for (const violation of deliverySpacingConflicts(input)) {
+    const exception = exceptions.find((entry) => pair(entry) ===
+      pair(violation));
+    if (!exception) return fail("delivery_spacing_conflict");
+    used.add(exception.id);
   }
   if (exceptions.some((entry) => !used.has(entry.id))) {
     return fail("delivery_spacing_exception_unused");

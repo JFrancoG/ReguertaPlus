@@ -35,6 +35,10 @@ export const createProvisionalShiftCoverageApp = (
       verifyToken: (token, checkRevoked) =>
         auth.verifyIdToken(token, checkRevoked),
       execute: (command, identity) => store.execute(command, identity),
+      executeAdministration: (command, identity) =>
+        store.executeAdministration(command, identity),
+      readAdministration: (query, identity) =>
+        store.readAdministration(query, identity),
       read: (query, identity) => store.readClient(query, identity)}),
     close: async () => {
       try {

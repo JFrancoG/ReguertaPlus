@@ -900,3 +900,311 @@ guardada. Se conservaron los datos de la app. Se borraron el destino del Mac y
 las dos copias temporales de APK; no se revocó el registro Firebase normal. Los
 recibos sin credenciales y `cleanup-verification.json` permanecen en el directorio
 privado de evidencias. No hubo más envíos durante la limpieza.
+
+
+## Ensayo de formularios administrativos — 2026-10-26
+
+La preparación usa exclusivamente el proyecto demo fijo y reinicia sus datos
+locales; detén antes otros ensayos de coberturas. No utiliza Firebase compartido,
+Sheets ni notificaciones reales. Con Node 22 y Java compatible, desde `functions`:
+
+```sh
+npm run build
+firebase emulators:exec --config ../firebase.coverage-emulator.json \
+  --project demo-reguerta-hu084-coverage --only firestore,auth \
+  'GCLOUD_PROJECT=demo-reguerta-hu084-coverage METADATA_SERVER_DETECTION=none node test/shift-coverage-administration-native-rehearsal.cjs membership'
+```
+
+Abre la entrada de ensayo de la app Debug actual y entra con
+`admin@example.test` / `local-fixture-password`. La fecha virtual es 01/06/2026 UTC.
+Abre la administración de reservas y excepciones.
+
+1. En **Socio de ensayo: reserva**, aplica la situación actual y confirma. Deben
+   activarse ambas reservas. Repite: no debe cambiar la fecha de entrada.
+2. **Socio de ensayo: baja permanente** ya está inactivo y tiene una compensación
+   de reparto pendiente. Aplicar su situación conserva esa compensación. Abre la
+   baja permanente y vuelve sin confirmar: no cambia nada. Después escribe un
+   motivo y confirma la cancelación permanente; debe conservarse en el historial
+   una compensación cancelada. La app nunca desactiva la cuenta del socio.
+3. Comprueba volver, escribir el motivo con teclado, texto máximo y VoiceOver o
+   TalkBack. Actualizar no repite silenciosamente una operación incierta: el
+   reintento es explícito y conserva la operación original. Cambiar de sesión
+   elimina formularios y datos privados de la sesión anterior.
+4. Detén y reinicia el mismo comando cambiando `membership` por `spacing`, y
+   vuelve a entrar. En esta preparación el mantenimiento está cerrado: no se
+   pueden modificar reservas o bajas, pero sí autorizar una pareja concreta.
+   Revisa sus fechas y vueltas, escribe el motivo de fuerza mayor y confirma.
+   Al actualizar desaparece esa pareja pendiente; no se publica ni cambia un turno.
+
+Cada modo reinicia intencionadamente los ejemplos. Añadir `--smoke` después del
+modo verifica la preparación con Auth/HTTP emulados y termina. Esto no acredita
+accesibilidad física. Las nuevas comprobaciones manuales están pendientes; la
+matriz anterior de coberturas y notificaciones no valida estos nuevos formularios.
+
+En el iPhone físico se conserva la entrada `-coverageAccessibilityRehearsal`,
+con ejemplos en memoria que ahora incluyen la lista y los formularios de
+administración. Sirve para lector, texto, teclado, navegación y cancelación;
+intencionadamente no guarda comandos y no acredita una escritura al backend.
+El ensayo autenticado anterior se utiliza en Simulator (o en emulador Android/
+USB reverse verificado), donde las direcciones locales resuelven correctamente.
+No se añade un nuevo puente de red para el iPhone físico.
+
+
+### Preparación administrativa física — 2026-10-26
+
+App Debug actual instalada en el iPhone 11/iOS 27.2 conectado y desbloqueado.
+La compilación/apertura física con Xcode 27.1 pasó sin avisos ni errores del
+compilador. Tras restaurar el estado temporal de Xcode, devicectl abrió de nuevo
+el ensayo de accesibilidad sin conexión. Primera comprobación nueva: en
+«Reservas y excepciones», leer «Beatriz de prueba», inactividad, una compensación
+de reparto pendiente y los botones «Actualizar situación» / «Registrar baja permanente».
+La preparación está verificada; lectura, foco, texto y teclado aún requieren
+observación del mantenedor. Abrir, escribir y cancelar; no enviar comandos offline.
+
+
+### VoiceOver: ficha administrativa confirmada — 2026-10-26
+
+El mantenedor confirma en el iPhone 11 preparado que se lee toda la ficha de
+«Beatriz de prueba», incluido el estado inactivo, una compensación pendiente y
+los botones «Actualizar situación» y «Registrar baja permanente». Esta lectura
+queda superada. Siguen pendientes los formularios, volver y recuperar el foco,
+la pareja de la excepción, texto máximo y teclado. No se ha enviado ningún comando.
+
+
+### Actualizar situación: lectura y retorno corregido — 2026-10-26
+
+La explicación completa se lee correctamente. El mantenedor detectó que, al
+volver, el foco iba a «Atrás» en la parte superior. Se corrigió el retorno en la
+vista que presenta el formulario con el foco accesible de SwiftUI, una sola vez
+al terminar el cierre y comprobando sesión y disponibilidad del botón. La versión
+corregida está compilada, instalada y abierta en el iPhone; el mantenedor confirma
+que «Volver» ahora devuelve el foco a «Actualizar situación». No se envió ningún
+comando. Los retornos de baja/excepción y texto/teclado siguen pendientes.
+
+
+### VoiceOver: baja permanente confirmada — 2026-10-26
+
+El mantenedor confirma la lectura completa del aviso, «Motivo», confirmación de
+anulación y «Confirmar» inicialmente deshabilitado. Al pulsar «Volver», el foco
+regresa a «Registrar baja permanente». No se confirmó ni guardó la operación.
+Sigue la comprobación de la pareja de excepción y los casos de texto/teclado.
+
+
+### VoiceOver: pareja de excepción y retorno confirmados — 2026-10-26
+
+El mantenedor confirma la lectura completa de la propuesta de Ana de prueba,
+con 06/01/2027 (vuelta 3) y 17/02/2027 (vuelta 4), y el retorno del foco al
+botón de excepción tras «Volver». Quedan comprobados físicamente los tres
+retornos administrativos del binario corregido. No se envió ningún comando;
+siguen pendientes edición de motivo/confirmación, texto máximo y teclado.
+
+
+### Motivo y casilla de baja comprobados; cierre de teclado — 2026-10-26
+
+El mantenedor confirma que escribir «Prueba» mantiene «Confirmar» deshabilitado
+hasta marcar la casilla; entonces se habilita. Volvió sin confirmar. Observa
+que el teclado sigue abierto al mover el foco de lectura de VoiceOver fuera del
+campo: esto no implica finalizar la edición. El formulario administrativo añade
+un botón nativo «Ocultar teclado» que conserva motivo y casilla. «Volver» también
+termina la edición antes de cerrar. Quedan pendientes la comprobación física de
+este cierre y el tamaño máximo de texto.
+
+
+### Ocultar teclado confirmado en iPhone — 2026-10-26
+
+Tras instalar el ajuste, el mantenedor confirma que «Ocultar teclado» cierra
+el teclado de software y conserva «Prueba» en la baja permanente. La compilación
+física no presenta avisos ni errores. No se ha enviado la operación. Sigue la
+comprobación de tamaño máximo de texto.
+
+
+### Texto máximo de baja y selección táctil — 2026-10-26
+
+Con tamaño máximo de accesibilidad, el mantenedor confirma que el título, aviso
+y casilla de baja se leen completos y que Motivo/Volver son accesibles mediante
+desplazamiento. Sigue la excepción y el teclado con ese tamaño. Los nuevos tests
+detectan además que el toque físico de un botón de socio podía abrir la primera
+acción de su fila. Se separa cada botón con estilo explícito y objetivo táctil
+propio; se repiten los tests sin modificar sus expectativas. La lectura y
+activación mediante VoiceOver ya comprobadas no equivalen a esta selección táctil.
+
+
+Los tests de teclado originales pasan 2/2 tras separar los objetivos táctiles:
+comprueban ambos formularios, teclado de software real, ocultación sin perder
+el motivo y cancelación mientras se escribe. Las cuatro comprobaciones UI-smoke
+previas pasaron por separado. La baja con texto máximo está confirmada; siguen
+la excepción y el teclado con ese tamaño. El último ajuste táctil se instalará
+y comprobará físicamente después de la revisión actual de pantalla.
+
+
+### Excepción con texto máximo confirmada — 2026-10-26
+
+El mantenedor confirma, con texto máximo de accesibilidad en iPhone 11, la
+lectura completa de propuesta, fechas y vueltas, y el acceso a Motivo/Volver
+mediante desplazamiento. Sigue el teclado con ese tamaño y la actualización/
+comprobación táctil final. No se envió ninguna operación.
+
+
+### Teclado con texto máximo confirmado — 2026-10-26
+
+El mantenedor confirma que «Volver» sigue accesible con teclado abierto y texto
+máximo, «Ocultar teclado» conserva lo escrito y se puede volver sin confirmar.
+Quedan cubiertas las comprobaciones acotadas de lectura, retorno, motivo/casilla,
+texto y teclado del ensayo en iPhone. Sigue la instalación y comprobación táctil
+de la última separación de botones; Android físico y la validación final son
+comprobaciones independientes.
+
+
+### Último ajuste táctil instalado en iPhone — 2026-10-26
+
+La app Debug con los botones independientes está instalada y abierta en iPhone
+11/iOS 27.2. Compilación física sin avisos/errores; esquema, proyecto y catálogo
+temporales restaurados. Falta el toque directo, con VoiceOver desactivado y texto
+habitual: abrir/cancelar Actualizar situación, Baja permanente y Excepción,
+verificando sus contenidos distintos sin confirmar. Los nuevos formularios
+Android aún requieren su propia prueba física.
+
+
+### Aceptación física acotada del bloque administrativo iOS — 2026-10-26
+
+El mantenedor confirma en el último binario que cada uno de los tres botones abre
+su formulario correspondiente mediante toque directo y que puede volver sin
+confirmar. Queda completada la matriz acotada en iPhone 11/iOS 27.2: lectura
+VoiceOver, retorno a cada botón, motivo/casilla, texto máximo, teclado y selección
+táctil independiente. El ensayo sin conexión no envía operaciones al backend.
+La prueba física de los nuevos formularios Android queda pendiente por separado;
+se está renovando el gate completo de iOS con todas las correcciones.
+
+### Administración física de pertenencia Android — 2026-10-27
+
+El mantenedor confirma lo siguiente en el Xiaomi físico / Android 14, usando
+el ensayo autenticado `membership` del proyecto demo fijo:
+
+- TalkBack lee el formulario de situación de reserva y, al cancelar, el foco
+  vuelve al botón que lo abrió. Se leen el aviso de baja permanente y Motivo;
+  Confirmar está deshabilitado con el motivo vacío. Escribir `Prueba` habilita
+  Confirmar, el gesto Atrás del sistema oculta el teclado conservando el motivo
+  y cancelar devuelve el foco al botón de baja.
+- Está seleccionado el XXL nativo de Xiaomi y la escala informada es 1.5. El
+  texto se lee, el contenido se desplaza y Volver queda accesible con el teclado
+  de software abierto. El intento de ajuste a 2.0 por shell fue rechazado por
+  `WRITE_SETTINGS`; la escala no cambió ni se concedió ningún permiso adicional.
+- Confirmar la situación activa ambas reservas, Reparto y Mercado. Repetir la
+  operación mantiene sus fechas de entrada y la revisión de pertenencia, según
+  la lectura posterior local. Aplicar la situación del ejemplo inactivo conserva
+  su única compensación de reparto pendiente. La baja permanente explícita deja
+  después cero pendientes y una compensación cancelada en el historial.
+
+El backend usa la fecha virtual fija de la preparación, 01/06/2026 UTC. Estas
+escrituras se limitan al demo local; no activan HU-084 ni afectan a Firebase
+compartido, Sheets de producción o notificaciones reales. Siguen pendientes la
+lectura, retorno de foco, texto grande/teclado de la excepción y la selección
+independiente mediante toque directo. Las pruebas físicas anteriores de
+coberturas y push constituyen evidencia separada.
+
+### Aceptación física acotada de administración Android completada — 2026-10-27
+
+En la preparación independiente `spacing`, el mantenedor confirma mantenimiento
+cerrado y acciones de pertenencia deshabilitadas. TalkBack lee la propuesta de
+Ana y la pareja exacta 03/09/2026/vuelta 1 a 15/10/2026/vuelta 2; el motivo vacío
+deshabilita Confirmar, `Prueba` lo habilita y cancelar devuelve el foco al botón
+de esa pareja. Con XXL nativo de Xiaomi/1.5, texto y controles se leen y desplazan
+con el teclado abierto; ocultarlo conserva el motivo y Volver cancela.
+
+Tras cancelar y desactivar TalkBack, el mantenedor abre esa misma pareja desde
+su botón de la lista mediante toque directo y la autoriza. La lectura posterior
+retira únicamente esa pareja, de 48 propuestas a 47. Se añaden exactamente una
+excepción y una operación, vinculadas al actor `member-1`, `bundle-2026`, las
+fechas/vueltas observadas y el motivo enviado. Los registros anteriores, incluidos
+solicitud/configuración y vueltas, se mantienen iguales; siguen sin existir turnos
+públicos ni candidatos de planificación persistidos. Tras reiniciar `membership`,
+el toque directo abre correctamente los formularios de situación y baja permanente;
+cancelar ambos conserva íntegra la lectura posterior local.
+
+Junto con las observaciones de pertenencia anteriores, queda completada la matriz
+acotada Android de estos formularios: lectura/foco/motivo/texto máximo nativo/
+teclado/toque directo. Este resultado sustituye sus pendientes anteriores. La
+escala es 1.5 y el reloj del backend sigue fijo en 01/06/2026 UTC. Todos los envíos
+se limitan al demo local. Este checkpoint no cierra HU-084 ni acredita activación
+compartida, cambios en producción o un gate iOS sin avisos; sus diagnósticos siguen
+separados.
+
+La limpieza restaura el APK Debug anterior sin borrar los datos de la app; la
+lectura del APK instalado coincide con su SHA-256 original. TalkBack queda
+desactivado y tamaño/densidad de pantalla se mantienen. La escala final del texto
+es normal, 1.0, distinta del XXL/1.5 verificado al principio; se conserva ese ajuste
+actual. Se detienen los servicios demo y se retiran los mapeos USB y el enlace
+temporal de dependencias. La revisión de la historia enlaza las lecturas y la
+evidencia de limpieza.
+
+### Corrección de ubicación de la acción de teclado iOS validada — 2026-10-27
+
+Los dos tests UI de teclado sin modificar reprodujeron los avisos de dimensiones
+inválidas. El primer experimento con una condición inmutable del toolbar no los
+eliminó y se revirtió exactamente. El log unificado, la simbolicación con `atos`
+y los registros de una parada antes de la llamada identifican el emisor en el
+runtime SwiftUI 26.5 probado: el `InputAccessoryBar.body` nativo entrega un ancho
+fijo de infinito positivo a `FrameLayout`; ningún cálculo geométrico de la app
+proporciona ese ancho.
+
+La misma acción Ocultar teclado pasa a `topBarTrailing`, arriba del formulario
+mientras Motivo tiene foco de edición, conservando texto, identificador, cierre
+del foco y validaciones de motivo/casilla. Un encabezado de Form que admite varias
+líneas y título de navegación vacío con tamaños de accesibilidad siguen el patrón
+del otro formulario de coberturas y sustituyen el título de navegación truncado.
+
+El resultado focalizado supera 6/6 tests UI sin modificar (dos de teclado y cuatro
+smoke), con cero avisos runtime, de compilador o de analizador. Se refrescan dos
+previews AX5 en el renderizador real iPhone 18 Pro Max/iOS 27.2. Cuatro capturas
+runtime en iPhone 17/iOS 26.5 muestran ambos encabezados completos y los botones
+Volver/Ocultar teclado legibles durante la edición. Son entornos distintos de
+preview/runtime y evidencia visual, no aceptación física de VoiceOver. El manifiesto
+es `/tmp/hu084-warning-final-focused-evidence.json`; el hash del código actual
+`8877b7c3…` solo cambia un comentario respecto al `43ed5623…` probado que registra.
+
+El gate completo canónico del código final `8877b7c3…` pasa en iPhone 17/iOS 26.5:
+943 tests totales, 938 superados, cinco omisiones previstas y cero fallos. Los
+resultados cerrados raíz/build/acción contienen cero avisos de compilador,
+analizador o runtime. SwiftLint comprueba 521 archivos sin infracciones. Se
+restauran exactamente cinco archivos originales, los 531 hashes de código y
+configuración no cambian, se conservan las 28 claves administrativas de
+localización previstas y se retiran las configuraciones demo temporales.
+Evidencia: `/tmp/hu084-warning-corrected-summary.json`,
+`/tmp/hu084-warning-corrected-result-object.json`,
+`/tmp/hu084-warning-corrected-issue-counts.json`,
+`/tmp/hu084-warning-corrected-cleanup.json` y
+`/tmp/hu084-warning-corrected-release-gate.log`.
+
+El mantenedor confirma ahora la comprobación física solicitada en iPhone 11/iOS
+27.2 con el mismo código `8877b7c3…`: el ensayo sin conexión se ve con texto muy
+grande, VoiceOver lee el encabezado completo de baja permanente de Beatriz y
+Ocultar teclado arriba a la derecha, activarlo cierra el teclado conservando
+`Prueba` y Volver devuelve el foco a Registrar baja permanente. No se pulsa
+Confirmar ni se envía ningún comando al backend. Queda cerrada la comprobación
+física solicitada del encabezado y control compartido mediante el formulario
+de baja. La matriz física del 26/10 usaba la ubicación anterior; la excepción
+posterior a esta corrección cuenta con runtime AX5 de Simulator y tests UI,
+sin atribuirle otra observación física. El gate completo anterior sigue vigente
+porque el código no cambia. Se registra por separado un aviso de extracción de
+metadatos AppIntents de la herramienta de compilación física, distinto de los
+diagnósticos de código y del resultado Simulator sin avisos. La revisión de la
+historia conserva las rutas del diagnóstico y sus resultados. Este checkpoint
+no acredita producción ni entrega por Git.
+
+### Investigación del aviso de la herramienta AppIntents — 2026-10-27
+
+El target no implementa AppIntents. En la especificación instalada de Xcode 27.1,
+`LM_ENABLE_LINK_GENERATION=NO` se traduce a `-d`/`--disable`. Una prueba aislada
+de la invocación física del procesador de metadatos, con salida temporal, termina
+con código 0 pero sigue emitiendo un aviso: `Metadata extraction disabled by
+--disable`. Sustituye el aviso anterior, sin resolverlo; las salidas originales
+no cambian. Evidencia: `/tmp/hu084-appintents-disable-probe-summary.json`.
+
+`LM_FILTER_WARNINGS` solo oculta diagnósticos y se descarta. La condición real
+`LM_SKIP_METADATA_EXTRACTION` es interna de SwiftBuild; no se encontró un contrato
+público y no se adopta. No cambian ajustes de compilación, imports ni código de
+la app. Se reutilizan el gate corregido (938 superados, cinco omisiones previstas,
+cero fallos/avisos) y las observaciones físicas acotadas anteriores porque esta
+investigación/documentación no modifica código. El aviso externo de la herramienta
+y los gates de activación real de la historia padre siguen abiertos; no se
+atribuye entrega por Git.

@@ -31,6 +31,13 @@ struct CoverageRehearsalView: View {
                         Button(CoverageCopy.text("sign_out")) { model.signOut() }
                             .accessibilityIdentifier("coverage.signOut")
                     }
+                    if model.coverage.snapshot?.isAdmin == true {
+                        Section {
+                            Button(CoverageCopy.text("admin_title")) { model.openAdministration() }
+                                .disabled(!model.canAdminister)
+                                .accessibilityIdentifier("coverage.administration")
+                        }
+                    }
                     CoverageFeedbackSection(model: model.coverage)
                     if let snapshot = model.coverage.snapshot {
                         Section(CoverageCopy.text("notifications")) {
@@ -46,7 +53,7 @@ struct CoverageRehearsalView: View {
                                         Text(CoverageCopy.date(notification.sentAtMillis))
                                     }
                                 }
-                                .disabled(model.coverage.isBusy || model.coverage.pendingCommand != nil)
+                                .disabled(model.coverage.isBusy || model.coverage.hasPendingCommand)
                                 .accessibilityIdentifier("coverage.notification.\(notification.eventId)")
                             }
                         }
@@ -73,9 +80,15 @@ struct CoverageRehearsalView: View {
             .navigationDestination(for: String.self) { caseId in
                 CoverageCaseDetailView(model: model, caseId: caseId)
             }
+            .navigationDestination(isPresented: $model.showsAdministration) {
+                CoverageAdministrationView(model: model)
+            }
             .onChange(of: model.readyPushEventID, initial: true) { Task { await model.openPendingPush() } }
             .onChange(of: model.casePath) { Task { await model.reloadOverviewAfterNavigation() } }
-            .onChange(of: model.coverage.session) { model.casePath = [] }
+            .onChange(of: model.coverage.session) {
+                model.casePath = []
+                model.clearAdministrationPresentation()
+            }
             .navigationTitle(dynamicTypeSize.isAccessibilitySize ? "" : CoverageCopy.text("title"))
             .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
             .sheet(item: $model.draft) { draft in

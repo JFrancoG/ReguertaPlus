@@ -5,7 +5,7 @@
 - issue_id: #268
 - priority: P1
 - platform: both
-- status: provisional local implementation reviewed and validated; bounded native manual matrix complete; ratification and live integration remain open
+- status: provisional local administrative integration implemented on both apps; previous coverage manual matrix complete; new administrative physical checks, ratification and live integration remain open
 - blocked_by: assembly ratification for live activation
 - decision_gate: assembly ratification
 - depends_on: HU-082 / #266, HU-083 / #267
@@ -35,6 +35,21 @@ matrix is complete as of 2026-10-04, including physical accessibility and isolat
 real push receipt/opening on both platforms. Ratification and live coverage
 integration remain open. See `review.md` for the current criterion matrix and
 `plan.md` for historical evidence and limits.
+
+## Native administrative integration — 2026-10-26
+
+The maintainer authorized the complete reserve/permanent-departure/ten-week
+exception block in both apps and the existing authenticated local API. Native
+forms now observe account activity, derive reserve transitions through the existing
+reconciler, require an explicit reasoned permanent departure, and select an exact
+backend-derived spacing pair. They cannot toggle membership activity, freely edit
+plan identifiers/dates or publish a plan. Context and current authorization are
+rechecked inside the writer transaction; uncertain commands retain exact retry.
+
+This completes the local native administrative connection of HU-089 under HU-084,
+with current validation in `review.md`. Its new physical accessibility/text/keyboard
+checks are separate from the earlier completed coverage matrix. Collective
+ratification, live composition/migration and activation remain open.
 
 ## Maintainer proposal refinements — pending collective ratification
 

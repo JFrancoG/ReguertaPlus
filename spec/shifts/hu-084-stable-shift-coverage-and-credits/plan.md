@@ -1343,3 +1343,267 @@ and retain the outstanding ratification, real entropy, observability and live
 composition/admission/recovery gates. HU-085 owns only its explicit planner/workbook
 rollout scope. Merge, issue closure, branch deletion and activation are outside
 this delivery checkpoint.
+
+
+## Grouped native administration — 2026-10-26
+
+Approved by the maintainer: implement reserves, explicit permanent departures and
+exact ten-week force-majeure exceptions together in Android/iOS and the existing
+authenticated local HTTP adapter. Reuse #268 / draft #278 and the current HU-084
+branch. HU-089 remains closed; its backend policy is the authority.
+
+1. Add administrator-only minimal membership/accounting projections and separate
+   typed administrative commands/receipts, preserving current coverage wire. Bind
+   confirmation to current transactional source, accounting and authority. Resolve
+   UID/member links and current roles inside each write transaction, including replay.
+2. Reuse reconciliation to persist derived reserve entry/exit. Inactivity alone
+   retains credits; explicit permanent departure requires inactive/missing source
+   and cancels pending credits without restoring them on re-entry. Never edit user
+   activation or offer a manual reserve toggle in these forms.
+3. Derive exact spacing choices from current governed source and persisted preview
+   intents using the same planner solely for diagnosis. Never store, stage or publish
+   the diagnostic plan. Native clients select a bound pair and provide a reason;
+   the approval transaction rechecks the original pair and context.
+4. Add equivalent localized native forms with confirmation, shared mutation/session
+   fences, exact uncertain retry and stale-state rejection. Validate backend pure,
+   Auth/Firestore workflows, Android unit/lint/connected and the canonical iOS gate;
+   independently review source and accessibility before handoff.
+
+This block remains fixed-demo/emulator-only. Real Firebase/Sheets composition,
+migration, provider selection, collective ratification, activation, main merge and
+HU-084 closure remain separate. Existing main-checkout dependency edits are untouched.
+Maintainer action: later guided native form validation; none needed to implement.
+
+
+### Validated local outcome — 2026-10-26
+
+The grouped administrative implementation is complete locally, with Android/iOS
+parity and independent review closed. Functions: lint/build, 65 pure, 174 workflow
+and 39 real emulator Auth/HTTP passes; planning regressions 295 passes/51 existing
+skips. Both manual fixture modes pass their Auth/HTTP preparation smoke. Android
+518 unit passes, 25 connected passes/four existing opt-in assumption exits, zero
+lint errors (142 unrelated warnings/two hints). iOS canonical release gate passes
+936 tests/five expected skips/zero failures and app/compiler/runtime warnings,
+with 520-file lint and all concurrency/build checks clean. Detailed result paths,
+preview evidence and incidental cleanup are recorded in `review.md`.
+
+Next gate: guided physical accessibility/text/keyboard checks of these new forms,
+starting with the iPhone offline sample. These are not equivalent to authenticated
+business writes. The implementation remains local/uncommitted at this checkpoint;
+#268 and draft #278 stay open. No new live-service activation is inferred.
+
+
+### Guided focus correction — 2026-10-26
+
+Physical testing found cancellation returning VoiceOver to navigation Back.
+A two-View, one-shot typed SwiftUI focus return fixes the invoking administrative
+button, guarded by current session and rendered/enabled state. The maintainer
+confirms Update situation now returns correctly. Physical build and 19 focused
+regression/UI-smoke results pass; independent source/style review is clean.
+Permanent departure, spacing and text/keyboard manual checks remain in progress.
+The prior full 936-pass gate predates this correction; no later full-gate run is
+implied by the focused result. No new issue, commit, push or activation is created.
+
+
+### Keyboard and independent touch actions — 2026-10-26
+
+Physical editing confirms the permanent-departure reason/acknowledgement guard.
+An explicit native Hide keyboard control now closes editing without losing the
+reason; the maintainer confirms this on iPhone 11. Maximum-text departure reads
+and controls are confirmed; spacing and maximum-text keyboard remain in progress.
+New unchanged UI tests identify/fix automatic multi-button List-row activation
+through independent borderless/scaled touch targets. Their corrected 2/2 run
+checks both modal forms and actual software-keyboard behavior. Four prior UI-smoke
+results remain valid separately. Independent reviews are clean. Next: finish
+physical maximum-text checks, install/spot-check latest touch correction, then
+refresh the final gate when all in-scope corrections are frozen. No delivery or
+activation is implied; all changes remain local.
+
+
+### iPhone administrative acceptance closed — 2026-10-26
+
+The maintainer confirms direct-touch routing and cancellation of all three latest
+forms. This completes the bounded iPhone 11 reader/focus/reason/acknowledgement/
+text/keyboard/touch matrix. Freeze current source and refresh the canonical iOS
+release gate; prepare the separate Android physical matrix. Parent story/PR remain
+open and local changes uncommitted. No offline sample observation authorizes live
+activation or establishes authenticated physical backend writes.
+
+
+### Android physical continuation deferred by maintainer — 2026-10-26
+
+The Android phone has no battery. The maintainer will charge it and continue the
+new-form physical checks the next morning. Do not begin Android installation or
+start its demo services until that continuation. No Android device is currently
+connected; current ordinary Debug APK is already built and remote-push rehearsal
+is disabled. Preserve this preparation, not an assumption of device acceptance.
+
+Resume with exact device discovery/USB debugging, preserve installed Debug app
+data, install the prepared ordinary Debug APK and prepare only the fixed local
+Auth/Firestore administration fixture. Bind USB reverse 8799/9098 to that exact
+device and launch CoverageRehearsalActivity with coverageUsbRehearsal=true. Start
+with membership mode/admin example session, then new-form TalkBack, reason/guard,
+text/keyboard and cancellation checks. Spacing mode remains the second fixture.
+The iPhone bounded physical matrix is complete and need not be repeated. Current
+iOS final release-gate execution continues independently; no commit/push or
+shared-service activation is authorized by this deferral.
+
+### Final iOS gate closed with an explicit diagnostic follow-up — 2026-10-26
+
+The refreshed canonical gate covers the frozen current iOS source: 943 total,
+938 passes, five expected skips and zero failures; lint (521 files), settings and
+Debug/Release builds pass. Source/configuration restoration is verified. Its
+closed result also records two `Invalid frame dimension (negative or non-finite)`
+runtime warnings in the new keyboard UI tests. Preserve those diagnostics and
+their result bundle in `review.md`; test success is not a zero-warning handoff.
+Diagnose the exact source before claiming a clean gate or applying any fix.
+
+The maintainer need not perform more iPhone steps tonight. Android new-form
+TalkBack/text/keyboard acceptance resumes when the charged phone is connected the
+next morning. Existing local changes remain uncommitted, #268 and draft #278 stay
+open, and no activation or production action is inferred.
+
+### Android physical preparation resumed — 2026-10-27
+
+The maintainer connects/unlocks the charged Xiaomi 21081111RG, Android 14.
+The ordinary Debug APK still matches the prepared SHA-256 recorded in review;
+its remote-push flag is false. Preserve the installed APK and original device
+settings privately before replacement; installation succeeds with existing app
+data retained. Initial font scale is 1.5 and TalkBack is not enabled.
+
+Functions build passes. Only fixed-demo Auth/Firestore and the local membership
+fixture are started; its authenticated administration read-back is HTTP 200,
+membership writable, eight synthetic members and no spacing candidates. USB
+reverse binds only 8799/9098 to this device, and the explicit rehearsal Activity
+opens. Xiaomi rejects shell input injection, so the maintainer must enter the
+local example credentials manually. No physical acceptance or business command
+has yet been recorded. Resume with the local login, then guided TalkBack checks;
+keep the separate iOS runtime diagnostics open.
+
+### Android membership observations and spacing preparation — 2026-10-27
+
+The maintainer confirms the new membership forms with TalkBack: complete reading,
+cancellation returning to each invoking button, reason validation, keyboard
+dismissal preserving text, and Back reachable with the keyboard open. The native
+font control already has its largest option XXL selected, measured scale 1.5;
+do not claim a 200-percent physical run. Both reserve activations, unchanged
+entries/revision on repetition, retained pending compensation for inactivity, and
+explicit permanent-departure cancellation are observed physically and checked
+through authenticated local read-back. Evidence is recorded in review and both
+native rehearsal guides. Direct-touch checks remain pending.
+
+After preserving membership read-back, stop the owned rehearsal and restart the
+same fixed demo in spacing mode. Preparation confirms maintenance closed and
+48 exact exception pairs; Ana's first pair is 03/09/2026 round 1 to 15/10/2026
+round 2. Dates remain future relative to the fixture's virtual 01/06/2026 clock.
+No public shifts or persisted planning candidates exist before the new physical
+checks. The phone is reopened at local login; request fresh authentication and
+verification of the disabled membership actions before the spacing form.
+
+### Android physical matrix complete; next local gate — 2026-10-27
+
+The maintainer completes spacing TalkBack reading, reason/disabled-confirm guard,
+return focus, XXL/1.5 readability and keyboard handling, then reopens the exact
+Ana pair by direct touch with TalkBack disabled and authorizes it. Read-back moves
+48 pairs to 47, removes only the chosen dates/rounds, and records one exception
+and operation with the expected member, bundle, reason and actor. Existing source,
+request, configuration and rotations remain unchanged; no public shift or
+persisted planning candidate is created.
+
+After a deliberate membership-fixture reset, the maintainer opens/cancels both
+membership forms by direct touch without submitting. The full administrative
+snapshot remains unchanged. The bounded Android physical matrix is complete.
+The exact original APK is restored and verified; TalkBack is off and display
+size/density are unchanged. Preserve the final normal font scale 1.0 (initial
+XXL/1.5); no shell font write succeeded. Demo services and owned USB reverse/
+dependency links are removed. Definitive cleanup is recorded in review.
+Both native physical matrices are now accepted
+within their documented offline/emulator boundaries.
+
+Next: diagnose and resolve or explicitly attribute the two invalid-frame runtime
+warnings in the latest iOS keyboard UI tests before claiming a clean validation
+handoff. No new Git delivery is performed: all grouped administration changes
+remain local/uncommitted, and parent #268/draft #278 stay open. No production
+activation is implied by completion of these physical checks.
+
+### iOS keyboard runtime correction authorized — 2026-10-27
+
+The maintainer authorizes correcting the two invalid-frame runtime warnings
+before Git delivery. Reuse the current HU-084 branch/worktree and open parent
+issue; preserve all pending feature and unrelated main-checkout changes. One
+operator owns stable-Xcode runtime sessions and temporary configuration, while
+independent source review remains read-only.
+
+The same two keyboard UI tests reproduce exactly two runtime warnings without
+changing their expectations. The focus-condition experiment does not fix them
+and is reverted exactly. Unified logs retain usable backtraces; symbolication and
+a live breakpoint identify InputAccessoryBar.body in native SwiftUI 26.5 passing
+fixed width +infinity to FrameLayout. No application geometry supplies that value.
+The next scoped candidate moves the existing dismiss-keyboard action from the
+keyboard accessory to the trailing navigation bar, preserving its focus condition,
+action, text and identifier. Check the same tests and maximum-text presentation.
+Do not suppress diagnostics, clamp unrelated geometry or remove deadline refresh.
+The placement comparison passes both unchanged keyboard tests with zero issue
+summaries. Interactive AX5 shows complete Back/Hide keyboard actions but elided
+central titles. Reuse the other command sheet's established accessibility-title
+pattern: a wrapping header in Form and empty navigation title for accessibility
+sizes. Independent source/style review is clean; six focused UI tests pass with
+zero issues, and updated AX5 runtime/preview checks confirm complete headers and
+reachable Back/Hide keyboard actions. The physical iPhone spot check is now
+confirmed in the follow-up below.
+
+The canonical gate on final freeze 8877b7c316e1658e4ea4297f76ec2785ccb13859357fffcbabe7c47ad4afaa04
+is now closed: 938 passed, five expected skips, zero failures and zero compiler,
+analyzer or runtime issue summaries. SwiftLint (521 files), all six settings
+checks and Debug/Release builds pass. Five original configuration/resource files
+and 531 hashes are restored exactly; no Git delivery is performed. Keep previous
+physical observations distinct from acceptance of the new navigation-bar
+placement. That targeted physical check is now confirmed below; parent HU-084's
+live/ratification gates remain separate.
+
+### Physical follow-up connected and prepared — 2026-10-27
+
+The maintainer confirms the connected/unlocked iPhone 11. Current device discovery
+confirms the expected phone on iOS 27.2. The frozen corrected Debug source is
+built, installed and launched with the explicit offline sample, Spanish and
+process-only AX5 arguments. Five configuration/resource originals and 531 hashes
+are restored exactly; no global phone setting is changed. The physical build has
+zero source compiler diagnostics and one Apple AppIntents metadata-extraction
+tool warning (no framework dependency), recorded separately from the clean
+canonical Simulator gate. No suppression or unrelated configuration fix is made.
+
+The attached-run screenshot shows text and maximum size. Two detached screenshots
+omit text despite the expected process/arguments remaining alive. The maintainer
+confirms that the actual phone displays the offline text with very large letters;
+the capture omission is not evidence that the visible app is blank.
+
+With VoiceOver, the maintainer reads the complete departure title and the
+navigation-bar Hide keyboard action, enters Prueba, hides the keyboard retaining
+the reason and cancels. Focus returns to Register permanent departure; no command
+is confirmed. This closes the targeted physical regression for the shared control
+and accessibility header. Post-fix spacing layout evidence remains the documented
+Simulator check. Source still matches the accepted full gate; recording this
+observation needs no new build/test. Git delivery remains pending. The separate
+Apple AppIntents metadata warning is recorded in review without suppression or
+an unrelated dependency/configuration change.
+
+### Administration delivery preparation and AppIntents investigation — 2026-10-27
+
+The maintainer now explicitly authorizes commit and push of the grouped native
+administration block and requests a supported correction of the separate
+AppIntents warning if possible. Inspection of the installed Xcode 27.1 extractor
+specification and a bounded processor probe find no suitable correction:
+`LM_ENABLE_LINK_GENERATION=NO` supplies `-d` and replaces the original warning
+with `Metadata extraction disabled by --disable`. The probe exits zero and keeps
+the original app/resources unchanged. Warning filtering and the undocumented
+internal metadata-skipping macro are not adopted. No framework import, build
+setting or product source changes for this investigation.
+
+Reuse the corrected canonical gate, both physical acceptance records and the
+unchanged Functions/Android checks for the feature commit. The Apple tool warning
+remains an explicit physical-build limitation. The maintainer additionally
+authorizes their Android library updates; carry those into a separate commit
+after checking the exact user delta and validating Android on the resulting
+versions. Preserve the unrelated main-checkout iOS project edit. Git delivery
+updates the existing draft #278; parent #268 and all live/ratification gates remain
+open. No merge, closure, branch deletion or shared-service action is authorized.

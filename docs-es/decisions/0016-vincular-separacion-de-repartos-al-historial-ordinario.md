@@ -70,3 +70,22 @@ la solicitud individual de cada fase. Aclara el contrato de identidad existente.
 - [ADR-0015](0015-registrar-ciclo-explicito-de-pertenencia-en-coberturas.md)
 - [Especificación HU-089](../../spec/shifts/hu-089-coverage-policy-amendments/spec.md)
 - Issues GitHub [#279](https://github.com/JFrancoG/ReguertaPlus/issues/279) y [#268](https://github.com/JFrancoG/ReguertaPlus/issues/268)
+
+
+## Propuestas nativas de parejas exactas — 2026-10-26
+
+Ambas apps Debug eligen una pareja calculada por el backend a partir de una
+solicitud de vista previa persistida, conservando la identidad estable del lote.
+Se reconstruye la fuente gobernada y se reutiliza el planificador de temporada
+sin separación solo para diagnosticar conflictos; el cálculo puro de parejas se
+comparte con la validación ordinaria. Nunca se guarda, prepara para publicación
+ni publica ese diagnóstico. Se mantienen las compensaciones, la pertenencia y
+las demás reglas. Se elige la última vista previa válida de cada lote, se rechazan
+evidencias malformadas y se limitan las lecturas (20 vistas, 250 propuestas).
+Si falta solicitud o fuente se muestra una lista vacía con motivo explícito.
+
+La transacción de autorización vuelve a calcular la propuesta y comprueba la
+pareja exacta y su contexto completo de fuente y solicitud. Las apps no permiten
+escribir identidades, fechas, vueltas ni IDs de lote arbitrarios. Solo cambian el
+registro privado y su recibo, con repetición vinculada al UID y permisos actuales.
+La aprobación colectiva, la conexión real de fuentes y la activación siguen pendientes.

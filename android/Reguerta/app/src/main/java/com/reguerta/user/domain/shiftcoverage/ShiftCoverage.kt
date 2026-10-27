@@ -145,6 +145,11 @@ internal interface ShiftCoverageRepository {
     suspend fun readNotification(eventId: String, session: ShiftCoverageSession): ShiftCoverageSnapshot =
         throw ShiftCoverageFailure.Unavailable
     suspend fun execute(command: ShiftCoverageCommand, session: ShiftCoverageSession)
+    suspend fun readAdministration(session: ShiftCoverageSession): ShiftCoverageAdministration =
+        throw ShiftCoverageFailure.Unavailable
+    suspend fun executeAdministration(command: ShiftCoverageAdministrationCommand, session: ShiftCoverageSession) {
+        throw ShiftCoverageFailure.Unavailable
+    }
 }
 
 

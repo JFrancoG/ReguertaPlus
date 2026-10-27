@@ -11,7 +11,7 @@ struct CoverageFeedbackSection: View {
             if let failure = model.failure {
                 Text(CoverageCopy.failure(failure)).accessibilityIdentifier("coverage.failure")
             }
-            if model.pendingCommand != nil {
+            if model.hasPendingCommand {
                 Text(CoverageCopy.text("uncertain"))
                 Button(CoverageCopy.text("retry")) { Task { await model.retryPending() } }
                     .disabled(model.isBusy)

@@ -5,14 +5,14 @@ const {buildShiftPlanningPublicShiftMaterialization, createShiftPlanningActivati
   attachShiftPlanningBackendMutationMarker} = require("../lib/shift-planning-publication-contract.js");
 const initialTime = Date.parse("2027-08-25T00:00:00Z");
 const activeDigest = digest({fixture: "coverage"});
-const materialize = (id, type, date, assigned, helper = null) => {
+const materialize = (id, type, date, assigned, helper = null, round = 1) => {
   const item = buildShiftPlanningPublicShiftMaterialization({environment: "develop",
     attemptedAt: Timestamp.fromMillis(initialTime - 1_000_000), position: {
       schemaVersion: 1, positionId: id, shiftId: id, type, scheduledDate: date,
       candidateId: "candidate", projectionSeasonStartYear: Number(date.slice(0, 4)) - (Number(date.slice(5, 7)) < 9 ? 1 : 0),
       rotationOwnerUserIds: assigned, assignedUserIds: assigned,
       rotationPositions: assigned.map((uid, i) => ({rotationOwnerUserId: uid,
-        effectiveAssigneeUserId: uid, roundNumber: 1, positionInRound: i + 1, planningReason: "target"})),
+        effectiveAssigneeUserId: uid, roundNumber: round, positionInRound: i + 1, planningReason: "target"})),
       helperUserId: helper, source: "app", origin: "planner", planningRequestId: "initial",
       bundleRevision: "active-1", bundleDigest: activeDigest, writeEpoch: 1,
     }});

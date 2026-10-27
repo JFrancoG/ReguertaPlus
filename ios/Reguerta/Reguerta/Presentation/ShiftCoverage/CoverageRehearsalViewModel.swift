@@ -9,11 +9,14 @@ final class CoverageRehearsalViewModel {
     var password = ""
     var casePath: [String] = []
     var draft: CoverageCommandDraft?
+    var showsAdministration = false
+    var administrationDraft: CoverageAdministrationDraft?
     private(set) var isSigningIn = false
     private(set) var loginFailed = false
     private(set) var pendingPushEventID: String?
     @ObservationIgnored private let access: any CoverageRehearsalAccess
     @ObservationIgnored private var draftSession: ShiftCoverageSession?
+    @ObservationIgnored private var administrationDraftSession: ShiftCoverageSession?
     @ObservationIgnored private var revision: UInt64 = 0
 
     init(access: any CoverageRehearsalAccess) {
@@ -52,6 +55,8 @@ final class CoverageRehearsalViewModel {
         casePath = []
         password = ""
         draft = nil
+        administrationDraft = nil
+        showsAdministration = false
         isSigningIn = false
         loginFailed = false
     }
@@ -64,7 +69,8 @@ final class CoverageRehearsalViewModel {
 
     var readyPushEventID: String? {
         guard coverage.session != nil, !isSigningIn, !coverage.isBusy,
-              coverage.pendingCommand == nil, draft == nil else { return nil }
+              !coverage.hasPendingCommand, draft == nil, administrationDraft == nil,
+              !showsAdministration else { return nil }
         return pendingPushEventID
     }
 
@@ -75,7 +81,7 @@ final class CoverageRehearsalViewModel {
     }
 
     func openNotification(_ eventId: String) async {
-        guard draft == nil else { return }
+        guard draft == nil, administrationDraft == nil, !showsAdministration else { return }
         if let caseId = await coverage.openNotification(eventId) {
             casePath = [caseId]
         }
@@ -87,12 +93,13 @@ final class CoverageRehearsalViewModel {
     }
 
     var canOpen: Bool {
-        !coverage.isBusy && coverage.pendingCommand == nil &&
+        !coverage.isBusy && !coverage.hasPendingCommand &&
             coverage.snapshot?.availableShifts?.contains(where: \.writable) == true
     }
 
     func present(_ action: ShiftCoverageCommand.Action, item: ShiftCoverageSnapshot.Case? = nil) {
-        guard let snapshot = coverage.snapshot, !coverage.isBusy, coverage.pendingCommand == nil else { return }
+        guard let snapshot = coverage.snapshot, !coverage.isBusy, !coverage.hasPendingCommand,
+              administrationDraft == nil else { return }
         draftSession = coverage.session
         draft = CoverageCommandDraft(
             action: action,
@@ -104,7 +111,7 @@ final class CoverageRehearsalViewModel {
 
     var canConfirmDraft: Bool {
         guard let draft, let command = draft.command, let snapshot = coverage.snapshot,
-              draftSession == coverage.session, !coverage.isBusy, coverage.pendingCommand == nil else { return false }
+              draftSession == coverage.session, !coverage.isBusy, !coverage.hasPendingCommand else { return false }
         if let expires = command.expiresAtMillis, expires <= coverage.nowMillis {
             return false
         }
@@ -123,5 +130,41 @@ final class CoverageRehearsalViewModel {
         guard canConfirmDraft, let draft, let command = draft.command else { return }
         self.draft = nil
         await coverage.submit(command)
+    }
+
+    var canAdminister: Bool {
+        coverage.snapshot?.isAdmin == true && !coverage.isBusy && !coverage.hasPendingCommand && draft == nil
+    }
+
+    func openAdministration() {
+        guard canAdminister else { return }
+        showsAdministration = true
+    }
+
+    func presentAdministration(_ subject: CoverageAdministrationDraft.Subject) {
+        guard canAdminister, administrationDraft == nil, let snapshot = coverage.administration else { return }
+        let candidate = CoverageAdministrationDraft(subject: subject)
+        guard candidate.isCurrent(in: snapshot, nowMillis: coverage.nowMillis) else { return }
+        administrationDraftSession = coverage.session
+        administrationDraft = candidate
+    }
+
+    var canConfirmAdministration: Bool {
+        guard let administrationDraft, administrationDraft.command != nil, canAdminister,
+              administrationDraftSession == coverage.session,
+              let snapshot = coverage.administration else { return false }
+        return administrationDraft.isCurrent(in: snapshot, nowMillis: coverage.nowMillis)
+    }
+
+    func confirmAdministration() async {
+        guard canConfirmAdministration, let command = administrationDraft?.command else { return }
+        administrationDraft = nil
+        await coverage.submitAdministration(command)
+    }
+
+    func clearAdministrationPresentation() {
+        administrationDraft = nil
+        administrationDraftSession = nil
+        showsAdministration = false
     }
 }

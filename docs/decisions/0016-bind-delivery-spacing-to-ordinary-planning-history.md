@@ -67,3 +67,21 @@ phase. This clarifies the existing planning identity contract.
 - [ADR-0015](0015-record-explicit-coverage-membership-lifecycle.md)
 - [HU-089 spec](../../spec/shifts/hu-089-coverage-policy-amendments/spec.md)
 - GitHub issues [#279](https://github.com/JFrancoG/ReguertaPlus/issues/279) and [#268](https://github.com/JFrancoG/ReguertaPlus/issues/268)
+
+
+## Native exact-pair proposals — 2026-10-26
+
+Both Debug apps select a backend-derived pair from a persisted preview request,
+retaining its stable bundle identity. Rebuild the governed source and reuse the
+existing whole seasonal planner without spacing solely to diagnose its conflicts;
+share the pure conflict enumerator with the production spacing validator. Never
+persist, stage or publish this diagnostic output. Credits, membership and all
+other planning rules remain in effect. Prefer the latest valid preview per bundle,
+reject malformed stored evidence, and bound reads explicitly (20 previews,
+250 proposals). Absence of a request/source yields an explicit empty state.
+
+The approval transaction rederives the proposal and checks its exact pair and
+complete source/request context. Clients cannot enter arbitrary identities,
+dates, rounds or bundle IDs. Approval changes only its private record/receipt,
+with authenticated UID-bound replay and current role checks. Collective approval,
+real source composition and production activation remain separate gates.

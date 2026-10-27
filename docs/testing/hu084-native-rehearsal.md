@@ -877,3 +877,297 @@ was preserved. The host destination and both temporary APK copies were deleted;
 normal Firebase registration was not revoked. Redacted receipts and
 `cleanup-verification.json` remain in the private evidence directory. No further
 send occurred during cleanup.
+
+
+## Administrative forms rehearsal — 2026-10-26
+
+This is a separate fixed-demo fixture; stop other coverage test services first.
+It resets only the known demo Firestore root and Auth emulator accounts. No shared
+Firebase project, Sheet or OS notification is used. Node 22 and compatible Java
+are required. Build the current Debug apps and use their existing rehearsal entry.
+
+```sh
+npm run build
+firebase emulators:exec --config ../firebase.coverage-emulator.json \
+  --project demo-reguerta-hu084-coverage --only firestore,auth \
+  'GCLOUD_PROJECT=demo-reguerta-hu084-coverage METADATA_SERVER_DETECTION=none node test/shift-coverage-administration-native-rehearsal.cjs membership'
+```
+
+Sign in as `admin@example.test` / `local-fixture-password`, then open the
+administrative reserves/exceptions entry. Virtual time is 2026-06-01 UTC.
+
+1. Inspect **Socio de ensayo: reserva**, apply the current situation and confirm.
+   Both reserve pools become active. Repeat: FIFO entry time must stay unchanged.
+2. Inspect **Socio de ensayo: baja permanente**. Its account is already inactive
+   and has one pending delivery credit. Applying its current situation alone keeps
+   that credit. Open permanent departure, cancel/back without confirming, and
+   verify that no state changes. Then enter a reason and confirm the permanent
+   cancellation; one cancelled credit remains visible in history.
+3. Check navigation, reason editing/keyboard, maximum text and VoiceOver/TalkBack.
+   Refresh does not silently resend an uncertain command; retry is explicit and
+   retains the original operation. Session change clears private forms/data.
+4. Stop and restart the command with `spacing` instead of `membership`, then
+   sign in again. Membership writes are read-only in this closed-maintenance
+   fixture, while exact spacing proposals are available. Select a pair, inspect
+   both dates/rounds, provide a force-majeure reason and confirm. Refresh removes
+   the approved pair; no public assignment is created or changed.
+
+Each mode reset is deliberate test isolation. `--smoke` after the mode verifies
+the fixture through real emulator Auth/HTTP and exits. This validates fixture
+preparation, not physical accessibility. New native physical checks are pending;
+the earlier coverage/notification matrix does not establish these new forms.
+
+Physical iOS keeps the existing `-coverageAccessibilityRehearsal` offline sample
+route, now including the administrative list and forms. It supports reader/text/
+keyboard/navigation checks and cancellation; its commands deliberately remain
+unavailable and cannot prove a successful backend write. The authenticated local
+fixture above runs on Simulator (or Android emulator/verified USB reverse), where
+its loopback addresses resolve correctly. No new physical network bridge is added.
+
+
+### Physical administration preparation — 2026-10-26
+
+Current Debug app is installed on the connected/unlocked iPhone 11/iOS 27.2.
+Xcode 27.1 physical build/run passed without compiler warnings/errors; devicectl
+then relaunched the offline accessibility argument after Xcode-state cleanup.
+First new VoiceOver check is the administrative member “Beatriz de prueba”: inactive,
+one pending delivery credit, update-situation and permanent-departure buttons.
+Preparation is verified; actual reading/focus/text/keyboard outcomes are pending.
+Open, edit and cancel forms; do not submit offline commands.
+
+
+### VoiceOver: administrative member row confirmed — 2026-10-26
+
+The maintainer confirms complete reading of Beatriz de prueba on the prepared
+iPhone 11, including inactive status, one pending credit and both update-situation
+and permanent-departure buttons. This bounded row-reading check passes. Forms,
+cancellation/focus return, exact spacing pair and large-text/keyboard checks remain
+pending; no command was submitted.
+
+
+### Update-situation reading and corrected return focus — 2026-10-26
+
+The maintainer confirms complete explanation reading. Original cancellation
+returned focus to the top navigation Back control. A narrow presenting-view
+SwiftUI accessibility-focus correction now restores the eligible invoking action
+once after dismissal, with session/availability fences. After the corrected
+physical build/install, the maintainer confirms that Back returns VoiceOver to
+Update situation. No command was submitted; departure/spacing returns and
+text/keyboard remain pending.
+
+
+### VoiceOver: permanent-departure form confirmed — 2026-10-26
+
+The maintainer confirms full reading of the cancellation notice, reason, explicit
+acknowledgement and initially disabled Confirm. Back returns focus to the invoking
+permanent-departure button. No command was submitted. Spacing-pair and text/keyboard
+checks remain pending.
+
+
+### VoiceOver: exact spacing pair and return confirmed — 2026-10-26
+
+The maintainer confirms complete reading of Ana de prueba's proposal, the
+2027-01-06/round 3 and 2027-02-17/round 4 pair, and focus returning to its
+exception button after Back. All three administrative open/cancel return paths
+are physically confirmed on the corrected binary. No command was submitted;
+reason/acknowledgement editing, maximum text and keyboard remain pending.
+
+
+### Reason/acknowledgement guard confirmed; keyboard dismissal — 2026-10-26
+
+The maintainer confirms that typing “Prueba” alone leaves Confirm disabled,
+checking the explicit departure acknowledgement enables it, and Back cancels
+without submitting. VoiceOver reading outside the field leaves text editing
+active, so the admin sheet adds a native localized Hide keyboard control which
+preserves reason/acknowledgement. Back also ends editing before dismissal.
+Actual keyboard dismissal/preservation and maximum text remain pending recheck.
+
+
+### Physical Hide keyboard confirmed — 2026-10-26
+
+After the updated warning/error-free physical build, the maintainer confirms
+Hide keyboard closes the software keyboard and preserves “Prueba” in the
+permanent-departure reason. No command is submitted; maximum text remains pending.
+
+
+### Maximum-text departure and touch selection — 2026-10-26
+
+At maximum accessibility text the maintainer confirms the departure title, notice
+and acknowledgement are complete, with reason/Back reachable by scrolling.
+Spacing and keyboard at that size remain pending. New UI regressions additionally
+find finger taps on a member-row action can select its first automatic List
+action. Separate explicit button styles and scaled touch targets correct routing;
+the unchanged tests are rerun. Prior physical VoiceOver activation is distinct
+from this finger-tap evidence.
+
+
+The unchanged keyboard regressions pass 2/2 after the independent button-target
+correction, covering both admin forms, actual software-keyboard hiding/text
+preservation and cancellation while editing. The preceding four UI-smoke checks
+passed separately. Physical maximum-text departure is confirmed; spacing and
+maximum-text keyboard checks continue. The latest touch-style change still needs
+the physical app update/spot check after the current screen review.
+
+
+### Maximum-text exception form confirmed — 2026-10-26
+
+On iPhone 11 at maximum accessibility text, the maintainer confirms complete
+proposal/date/round reading and scroll access to reason/Back. Maximum-text
+keyboard interaction and the final physical touch-style update/spot check remain
+pending; no command was submitted.
+
+
+### Maximum-text keyboard confirmed — 2026-10-26
+
+The maintainer confirms Back is reachable with the keyboard open at maximum text,
+Hide keyboard preserves the reason, and Back cancels without submission. This
+closes the bounded new-form reader/focus/reason/acknowledgement/text/keyboard
+checks on iPhone. Latest independent touch-style installation/spot check, physical
+Android new-form checks and final validation remain separate.
+
+
+### Latest touch correction installed on iPhone — 2026-10-26
+
+Current independent-button Debug source is installed and open on iPhone 11/iOS
+27.2, with a clean physical build and original scheme/project/catalog restored.
+Pending direct touch at ordinary text with VoiceOver off: open/cancel update,
+permanent departure and spacing, checking each distinct form without submission.
+Physical acceptance of the new Android forms remains separate and unperformed.
+
+
+### Bounded physical iOS administration acceptance complete — 2026-10-26
+
+The maintainer confirms direct-touch opening of each corresponding latest form
+and cancellation without submission. The bounded iPhone 11/iOS 27.2 matrix now
+covers VoiceOver reading, invoking-button return, reason/acknowledgement, maximum
+text, keyboard and independent touch. This offline rehearsal performs no backend
+commands. New-form physical Android acceptance remains separate and pending;
+the full iOS gate is being refreshed with all corrections.
+
+### Physical Android membership administration — 2026-10-27
+
+The maintainer confirms the following on the physical Xiaomi / Android 14,
+using the authenticated fixed-demo `membership` rehearsal:
+
+- TalkBack reads the reserve reconciliation form, and cancelling returns focus
+  to its opening button. The permanent-departure warning and reason are read;
+  Confirm is disabled with an empty reason. Entering `Prueba` enables Confirm,
+  the system Back gesture hides the keyboard without losing the reason, and
+  cancelling returns focus to the departure button.
+- Native Xiaomi XXL is selected and the reported font scale is 1.5. Text remains
+  readable, content scrolls, and Back is reachable with the software keyboard
+  open. An attempted shell adjustment to 2.0 was rejected by `WRITE_SETTINGS`;
+  the scale did not change and no additional permission was granted.
+- Confirming reconciliation activates both delivery and market reserves. A
+  repeated reconciliation preserves their entry timestamps and membership
+  revision, as verified by local read-back. Reconciling the inactive example
+  retains its one pending delivery credit. Explicit permanent departure then
+  leaves zero pending credits and one cancelled credit in history.
+
+The backend uses the fixture's fixed virtual date, 2026-06-01 UTC. These writes
+are confined to the local demo; they do not activate HU-084 or affect shared
+Firebase, production Sheets or real notifications. The spacing-form reader,
+focus-return, large-text/keyboard checks and independent direct-touch selection
+remain pending. Earlier physical coverage/push checks are separate evidence.
+
+### Bounded physical Android administration acceptance complete — 2026-10-27
+
+In the independent `spacing` fixture, the maintainer confirms closed maintenance
+and disabled membership actions. TalkBack reads Ana's proposal and the exact
+2026-09-03/round 1 to 2026-10-15/round 2 pair; empty reason disables Confirm,
+`Prueba` enables it, and cancellation returns focus to the same pair's button.
+At native Xiaomi XXL/1.5, text and controls remain legible and scrollable with
+the keyboard open; hiding the keyboard preserves the reason and Back cancels.
+
+After cancelling and disabling TalkBack, the maintainer opens that same pair
+from its list button by direct touch and authorizes it. Read-back removes only
+that pair, from 48 proposals to 47. Exactly one exception and one operation are
+added, bound to actor `member-1`, `bundle-2026`, the observed dates/rounds and
+submitted reason. All pre-existing records, including request/configuration and
+rotations, compare unchanged; public shifts and persisted planning candidates
+remain absent. After a fresh `membership` reset, direct touches open the correct
+reconciliation and permanent-departure forms; cancelling both leaves the complete
+local read-back unchanged.
+
+Together with the membership observations above, this completes the bounded
+new-form Android reader/focus/reason/native-maximum-text/keyboard/direct-touch
+matrix and supersedes its earlier pending notes. The scale is 1.5 and the backend
+clock remains fixed at 2026-06-01 UTC. All submissions are confined to the local
+demo. This checkpoint does not close HU-084 or establish shared-service activation,
+production changes or a warning-free iOS gate; iOS diagnostics remain separate.
+
+Cleanup restores the original installed Debug APK without clearing app data;
+installed read-back matches the original SHA-256. TalkBack is off and display
+size/density are unchanged. Final font scale is normal 1.0, different from the
+initial verified XXL/1.5; the current setting is preserved. Demo services, owned
+USB mappings and the temporary backend dependency link are removed. Detailed
+snapshots and cleanup evidence are linked from the story review.
+
+### iOS keyboard-action placement correction validated — 2026-10-27
+
+The two unchanged keyboard UI tests reproduced the invalid-frame diagnostics.
+An initial experiment using an immutable toolbar condition did not remove them
+and was reverted exactly. Unified logs, `atos` symbolication and live pre-call
+registers identify the emitter in the tested SwiftUI 26.5 runtime: native
+`InputAccessoryBar.body` supplies a fixed width of positive infinity to
+`FrameLayout`; no application geometry calculation supplies that width.
+
+The existing Hide keyboard action now uses `topBarTrailing`, at the top of the
+form while its reason field has editing focus, preserving its text, identifier,
+focus-dismissal action and reason/acknowledgement guards. A wrapping Form header
+and an empty navigation title at accessibility text sizes follow the existing
+coverage command sheet's pattern and replace the truncated navigation title.
+
+The focused result passes 6/6 unchanged UI tests (two keyboard and four smoke),
+with zero runtime, compiler or analyzer issue summaries. Two AX5 previews were
+refreshed on the actual iPhone 18 Pro Max/iOS 27.2 renderer. Four runtime captures
+on iPhone 17/iOS 26.5 show both complete headers and legible Back/Hide keyboard
+actions while editing. These are separate preview/runtime environments and
+visible-layout evidence, not physical VoiceOver acceptance. The evidence manifest
+is `/tmp/hu084-warning-final-focused-evidence.json`; the current source hash
+`8877b7c3…` differs from its tested `43ed5623…` source only by a comment.
+
+The canonical full gate on final source `8877b7c3…` now passes on iPhone 17/iOS
+26.5: 943 total tests, 938 passed, five expected skips and zero failures. The
+closed root/build/action results contain zero compiler, analyzer or runtime
+issue summaries. SwiftLint checks 521 files with zero violations. Five original
+files are restored exactly, all 531 source/configuration hashes remain unchanged,
+the 28 intended administrative localization keys are retained, and temporary
+demo configurations are removed. Evidence: `/tmp/hu084-warning-corrected-summary.json`,
+`/tmp/hu084-warning-corrected-result-object.json`,
+`/tmp/hu084-warning-corrected-issue-counts.json`,
+`/tmp/hu084-warning-corrected-cleanup.json` and
+`/tmp/hu084-warning-corrected-release-gate.log`.
+
+The maintainer now confirms the targeted physical spot check on iPhone 11/iOS
+27.2 with unchanged source `8877b7c3…`: the offline rehearsal is visible at very
+large text, VoiceOver reads Beatriz's complete permanent-departure header and
+Hide keyboard at the upper right, activating that action hides the keyboard while
+preserving `Prueba`, and Back returns focus to Register permanent departure.
+No confirmation or backend command is submitted. This closes the requested
+physical check of the new header and shared action through the departure form.
+The 2026-10-26 physical matrix used the earlier location; spacing after this
+correction has AX5 Simulator/runtime and UI-test evidence, without a new physical
+spacing observation. The full gate above remains applicable because source is
+unchanged. One AppIntents metadata-extraction warning from the physical-build
+tool is recorded separately from source diagnostics and the zero-issue Simulator
+result. Diagnosis and result paths remain in the story review. No production or
+Git delivery is established by this checkpoint.
+
+### AppIntents tooling-warning investigation — 2026-10-27
+
+The target has no AppIntents implementation. In the installed Xcode 27.1 tool
+specification, `LM_ENABLE_LINK_GENERATION=NO` maps to `-d`/`--disable`. An isolated
+probe of the physical metadata-processor invocation, with output redirected to
+temporary storage, exits 0 but still emits one warning: `Metadata extraction
+disabled by --disable`. It replaces the earlier warning rather than resolving it;
+original outputs remain unchanged. Evidence:
+`/tmp/hu084-appintents-disable-probe-summary.json`.
+
+`LM_FILTER_WARNINGS` only hides diagnostics and is rejected. The real
+`LM_SKIP_METADATA_EXTRACTION` guard is internal to SwiftBuild; no public contract
+was found, so it is not adopted. No build setting, import or application source
+changes are made. The corrected gate (938 passed, five expected skips, zero
+failures/issues) and prior bounded physical observations are reused because this
+investigation/documentation changes no source. The external tooling warning and
+the parent story's live activation gates remain open; no Git delivery is claimed.

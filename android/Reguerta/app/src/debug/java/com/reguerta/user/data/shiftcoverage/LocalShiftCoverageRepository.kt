@@ -6,6 +6,8 @@ import com.reguerta.user.domain.shiftcoverage.ShiftCoverageFailure
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageRepository
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSession
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageAdministration
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageAdministrationCommand
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Base64
@@ -74,6 +76,43 @@ internal class LocalShiftCoverageRepository(
         ) throw ShiftCoverageFailure.InvalidResponse
     }
 
+    override suspend fun readAdministration(session: ShiftCoverageSession): ShiftCoverageAdministration {
+        val result: ShiftCoverageAdministration = post(json.encodeToString(Query(action = "administration")), session)
+        if (result.schemaVersion != 1 || result.environment != "develop" || !result.isAdmin ||
+            result.memberId != session.memberId || result.policyRevision != "hu084-provisional-v1" ||
+            result.members.map { it.userId }.distinct().size != result.members.size ||
+            result.members.any { !validId(it.userId) || it.contextDigest.isBlank() ||
+                it.membershipRevision !in 0 until MAXIMUM_REVISION ||
+                it.credits.any { count -> count.pendingCount < 0 || count.consumedCount < 0 || count.cancelledCount < 0 } } ||
+            result.spacingCandidates.map { it.id }.distinct().size != result.spacingCandidates.size ||
+            result.spacingCandidates.any { !validId(it.id) || !validId(it.userId) || !validId(it.planningRequestId) ||
+                it.contextDigest.isBlank() || it.previousRoundNumber < 1 || it.roundNumber <= it.previousRoundNumber ||
+                !validSpacingDates(it.previousDate, it.date) }
+        ) throw ShiftCoverageFailure.InvalidResponse
+        return result
+    }
+
+    override suspend fun executeAdministration(command: ShiftCoverageAdministrationCommand, session: ShiftCoverageSession) {
+        val result: AdministrationReceipt = post(json.encodeToString(command), session)
+        val correctResult = when (command.action) {
+            ShiftCoverageAdministrationCommand.Action.reconcileMembership -> command.expectedRevision?.let {
+                result.membershipRevision != null && result.membershipRevision in it until MAXIMUM_REVISION && result.exceptionId == null
+            } == true
+            ShiftCoverageAdministrationCommand.Action.authorizeDeliverySpacingException ->
+                result.membershipRevision == null && result.exceptionId?.let(::validId) == true
+        }
+        if (result.schemaVersion != 1 || result.environment != "develop" || result.operationId != command.operationId ||
+            result.action != command.action || result.userId != command.userId || !correctResult
+        ) throw ShiftCoverageFailure.InvalidResponse
+    }
+
+    private fun validId(value: String): Boolean = value.matches(Regex("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}"))
+
+    private fun validSpacingDates(previous: String, date: String): Boolean = runCatching {
+        val gap = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(previous), java.time.LocalDate.parse(date))
+        gap in 1..69
+    }.getOrDefault(false)
+
     private suspend inline fun <reified Value> post(body: String, session: ShiftCoverageSession): Value {
         requireCurrent(session)
         val token = tokenProvider()
@@ -135,9 +174,22 @@ internal class LocalShiftCoverageRepository(
         val replayed: Boolean,
     )
     @Serializable
+    private data class AdministrationReceipt(
+        val schemaVersion: Int,
+        val environment: String,
+        val operationId: String,
+        val action: ShiftCoverageAdministrationCommand.Action,
+        val userId: String,
+        val replayed: Boolean,
+        val membershipRevision: Long?,
+        val exceptionId: String?,
+    )
+    @Serializable
     private data class TokenHeader(val alg: String)
     @Serializable
     private data class TokenClaims(val aud: String, val iss: String, val sub: String)
+
+    private companion object { const val MAXIMUM_REVISION = 9_007_199_254_740_991L }
 }
 
 internal class LocalCoverageHttpTransport : CoverageHttpTransport {

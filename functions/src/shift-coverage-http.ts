@@ -3,6 +3,8 @@ import {HttpRequestError, IdentityTokenVerifier, VerifiedIdentity,
   verifyBearerIdentity} from "./backend-security.js";
 import {parseShiftCoverageCommand} from "./shift-coverage.js";
 import {parseShiftCoverageQuery} from "./shift-coverage-client.js";
+import {parseShiftAdministrationCommand, parseShiftAdministrationQuery} from
+  "./shift-coverage-administration.js";
 
 type HttpResponse = {
   setHeader: (name: string, value: string) => unknown;
@@ -15,6 +17,10 @@ type Dependencies = {
   execute: (command: unknown, identity: VerifiedIdentity) => Promise<{
     case: {id: string; revision: number}; replayed: boolean}>;
   read: (query: unknown, identity: VerifiedIdentity) => Promise<unknown>;
+  executeAdministration?: (command: unknown,
+    identity: VerifiedIdentity) => Promise<unknown>;
+  readAdministration?: (query: unknown,
+    identity: VerifiedIdentity) => Promise<unknown>;
 };
 
 /**
@@ -42,6 +48,30 @@ export const createShiftCoverageHttpHandler = (dependencies: Dependencies) =>
       dependencies.requireLocalEnvironment();
       if (Object.keys(request.query).length) {
         throw new HttpRequestError(400, "invalid_coverage_request", "Invalid");
+      }
+      const administrativeQuery = request.body?.action === "administration";
+      const administrativeCommand = ["reconcileMembership",
+        "authorizeDeliverySpacingException"].includes(request.body?.action);
+      if (administrativeQuery || administrativeCommand) {
+        let parsed;
+        try {
+          parsed = administrativeQuery ?
+            parseShiftAdministrationQuery(request.body) :
+            parseShiftAdministrationCommand(request.body);
+        } catch {
+          throw new HttpRequestError(400,
+            "invalid_coverage_request", "Invalid");
+        }
+        const execute = administrativeQuery ?
+          dependencies.readAdministration :
+          dependencies.executeAdministration;
+        if (!execute) {
+          throw new HttpRequestError(400,
+            "invalid_coverage_request", "Invalid");
+        }
+        response.status(200).json({ok: true,
+          data: await execute(parsed, identity)});
+        return;
       }
       const query = ["overview", "detail", "notification"]
         .includes(request.body?.action);

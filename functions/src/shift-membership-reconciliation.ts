@@ -3,6 +3,8 @@ import {readDepartureCreditChanges, firstDueOrdinaryShift} from
 import {SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT} from
   "./shift-planning-bundle.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
+import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
+import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {coverageId, coverageMember, rejectCoverage,
   SHIFT_COVERAGE_POLICY_REVISION} from "./shift-coverage.js";
@@ -120,7 +122,10 @@ export const assertNoPendingShiftMembership = async (
 export const createShiftMembershipReconciliation = (
   db: Firestore, clock: () => number, amendedLifecycle = false,
 ) => ({
-  async reconcileMembership(value: unknown, actorMemberId: string) {
+  async reconcileMembership(value: unknown,
+    actorSource: string | VerifiedIdentity,
+    guard?: {contextDigest: string;
+      verify: (transaction: Transaction) => Promise<void>}) {
     const intent = value as Intent | undefined;
     if (!intent || intent.schemaVersion !== 1 ||
         intent.environment !== "develop" ||
@@ -137,13 +142,17 @@ export const createShiftMembershipReconciliation = (
         intent.expectedRevision >= Number.MAX_SAFE_INTEGER) {
       return rejectCoverage("invalid_membership_command");
     }
-    const actorId = coverageId(actorMemberId);
     const userId = coverageId(intent.userId);
     const operationId = coverageId(intent.operationId);
-    const commandDigest = digest({intent, actorId});
     const ref = (collection: string, id: string) =>
       db.doc(`${root}/${collection}/${id}`);
     return db.runTransaction(async (transaction) => {
+      const actorId = typeof actorSource === "string" ?
+        coverageId(actorSource) : (await readShiftCoverageActor(
+          db, transaction, actorSource)).memberId;
+      const commandDigest = digest({intent, actorId,
+        ...(typeof actorSource === "string" ? {} : {authUid: actorSource.uid}),
+        ...(guard ? {contextDigest: guard.contextDigest} : {})});
       const now = clock();
       if (!Number.isSafeInteger(now) || now < 0) {
         return rejectCoverage("invalid_coverage_clock");
@@ -155,6 +164,9 @@ export const createShiftMembershipReconciliation = (
           stateRef, receiptRef, ref("shiftPlanningState", "current"),
           ...types.map((type) => ref("shiftRotations", type)));
       if (!coverageMember(actor.data()).admin) {
+        if (typeof actorSource !== "string") {
+          throw new HttpRequestError(403, "coverage_actor_forbidden", "Denied");
+        }
         return rejectCoverage("coverage_actor_forbidden");
       }
       const authority = captureShiftPlanningWriterAuthority(maintenance.data());
@@ -165,6 +177,7 @@ export const createShiftMembershipReconciliation = (
         }
         return {result: receipt.data()?.result, replayed: true};
       }
+      await guard?.verify(transaction);
       const previous = readShiftMembershipState(stateDoc.data(), userId);
       if ((previous?.revision ?? 0) !== intent.expectedRevision) {
         return rejectCoverage("membership_revision_conflict");

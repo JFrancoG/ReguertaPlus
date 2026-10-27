@@ -227,3 +227,18 @@ is not completion of those production tasks. See `plan.md` for the current bound
 - [ ] Do not infer production deploy or live mutation authority from closure.
 - [ ] Record a separate HU-085-equivalent activation story as the remaining live
   gate after assembly-approved implementation evidence.
+
+
+## Grouped native administration — 2026-10-26
+
+- [x] Add authenticated administrative projections and atomic stale-context guards.
+- [x] Connect derived reserves and explicit permanent departure on both native apps.
+- [x] Connect exact planner-derived ten-week exception choices on both native apps.
+- [x] Verify replay/session/security boundaries and native behavior in local gates.
+- [x] Independently review and record concrete manual checks for the maintainer.
+
+- [x] Finish the original bounded iOS new-form physical acceptance on iPhone 11 (2026-10-26, before the keyboard-placement correction): reader/focus/reason/acknowledgement/maximum-text/keyboard and independent-button direct touch.
+- [x] Resolve the two invalid-frame runtime warnings: verified native iOS 26.5 accessory passes fixed width +infinity; navigation-bar dismissal avoids it and preserves behavior. Corrected full gate on frozen source: 938 passes/five expected skips/zero failures and zero compiler/analyzer/runtime issues; temporary configuration restored.
+- [x] Confirm the corrected navigation-bar Hide keyboard action and full accessibility-size header on iPhone 11/iOS 27.2 with VoiceOver (2026-10-27, frozen 8877 source): departure title/action read fully, keyboard hides retaining Prueba, Back returns focus to Register permanent departure; no submission.
+- [x] Complete the bounded Android new-form physical matrix on Xiaomi/Android 14: TalkBack reading/return focus, native XXL/1.5 text, reason/keyboard/cancellation, all three direct-touch actions, and authenticated local reserve/departure/exact-spacing writes and read-back. Original APK restored; TalkBack off, final normal font 1.0 preserved, demo services stopped. Earlier coverage/push results remain separate evidence.
+- [x] Investigate the separate Xcode 27.1 AppIntents warning: the supported disable option emits a replacement warning; preserve the explicit limitation without warning filters, unused imports or an undocumented project setting. Application/build configuration remains unchanged.

@@ -134,9 +134,25 @@ protocol ShiftCoverageRepository {
     func read(caseId: String?, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot
     func readNotification(eventId: String, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot
     func execute(_ command: ShiftCoverageCommand, session: ShiftCoverageSession) async throws
+    func readAdministration(session: ShiftCoverageSession) async throws -> ShiftCoverageAdministrationSnapshot
+    func executeAdministration(
+        _ command: ShiftCoverageAdministrationCommand,
+        session: ShiftCoverageSession
+    ) async throws
 }
 
 extension ShiftCoverageRepository {
+    func readAdministration(session: ShiftCoverageSession) async throws -> ShiftCoverageAdministrationSnapshot {
+        throw ShiftCoverageFailure.unavailable
+    }
+
+    func executeAdministration(
+        _ command: ShiftCoverageAdministrationCommand,
+        session: ShiftCoverageSession
+    ) async throws {
+        throw ShiftCoverageFailure.unavailable
+    }
+
     func readNotification(eventId: String, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot {
         throw ShiftCoverageFailure.unavailable
     }

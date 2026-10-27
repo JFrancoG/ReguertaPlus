@@ -6,7 +6,7 @@ extension ShiftCoverageViewModel {
 
     /// Controls are hints from the current projection; the server remains the authority for every command.
     func actions(for item: ShiftCoverageSnapshot.Case) -> [ShiftCoverageCommand.Action] {
-        guard let snapshot, !isBusy, pendingCommand == nil, item.writable else { return [] }
+        guard let snapshot, !isBusy, !hasPendingCommand, item.writable else { return [] }
         var actions = memberActions(item, snapshot: snapshot)
         if snapshot.isAdmin {
             actions += adminActions(item, policy: snapshot.policy)

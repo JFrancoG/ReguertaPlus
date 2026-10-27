@@ -48,3 +48,19 @@ local contract introduces no public writer, scheduler or production migration.
 - [ADR-0013](0013-model-shifts-as-continuous-rotations-with-seasonal-projections.md)
 - [HU-089 spec](../../spec/shifts/hu-089-coverage-policy-amendments/spec.md)
 - GitHub issues [#279](https://github.com/JFrancoG/ReguertaPlus/issues/279) and [#268](https://github.com/JFrancoG/ReguertaPlus/issues/268)
+
+
+## Native administrative integration — 2026-10-26
+
+HU-084 exposes this existing policy through administrator-only projections and
+separate typed commands on both Debug rehearsal apps. The authenticated local
+writer resolves UID/member links and roles inside its transaction, including
+replays. A confirmation token binds source document versions, accounting and
+planning evidence; stale confirmation rejects without mutation. Exact replay
+returns the original result while retaining current authorization checks.
+
+Native forms observe existing account activity rather than editing it. Updating
+the situation derives reserve transitions; permanent departure is a separate
+reasoned confirmation. Read models expose counts and status, never private
+departure reasons or raw credit/claim documents. This remains provisional local
+integration; collective ratification and shared activation are still pending.

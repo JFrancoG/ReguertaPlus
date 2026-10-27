@@ -28,7 +28,7 @@ Exit reserves at first ordinary same-type due date. Cancel pending credits on pe
 
 Require 10 weeks between ordinary delivery-lead assignments in different rounds. Helpers/markets/substitutions are exempt. Record authorized force-majeure exceptions without relaxing lead/helper safety, changing published dates or silently reordering the queue.
 
-No shared deployment, real push, production writes or collective approval is implied. Real entropy and general live integration remain in HU-084. Native parity must be reconciled before completion.
+No shared deployment, real push, production writes or collective approval is implied. Real entropy and general live integration remain in HU-084. Native policy parity was validated in this local delivery; administrative forms were connected under HU-084 on 2026-10-26.
 
 
 ## Local lifecycle contract
@@ -61,8 +61,10 @@ Insufficient spacing, including credit compression, blocks the unchanged plan
 until exact valid exceptions exist. See [ADR-0016](../../../docs/decisions/0016-bind-delivery-spacing-to-ordinary-planning-history.md)
 and its [Spanish version](../../../docs-es/decisions/0016-vincular-separacion-de-repartos-al-historial-ordinario.md).
 
-Administrative native forms and live integration remain in HU-084. This block
-changes neither the public shift schema nor native coverage projections.
+Administrative native forms were connected locally under HU-084 on 2026-10-26;
+shared live integration remains there. The spacing policy changes neither the
+public shift schema nor existing native coverage projections. See the current
+HU-084 review for the new administrative transport and physical-check boundaries.
 
 Integration note: exception commands use `planningRequestId` for the stable
 `bundleId` shared by preview/stage/activate, not a phase's individual `requestId`.

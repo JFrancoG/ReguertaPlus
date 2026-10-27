@@ -1,5 +1,7 @@
 import {createDeliverySpacingAdministration} from
   "./shift-delivery-spacing-store.js";
+import {createShiftCoverageAdministration} from
+  "./shift-coverage-administration.js";
 import {firstDueOrdinaryShift} from "./shift-membership-lifecycle.js";
 import {buildShiftCoverageEffects} from "./shift-coverage-effects.js";
 import {VerifiedIdentity} from "./backend-security.js";
@@ -88,10 +90,14 @@ export const createProvisionalShiftCoverageStore = (options: {
   const beaconPolicy = options.beaconPolicy ?
     parseCoverageBeaconPolicy(options.beaconPolicy) : undefined;
   const db = createProvisionalCreditFirestore();
+  const administration = createShiftCoverageAdministration(db, nowMillis,
+    selectionPolicy?.version === "hu089-provisional-v1");
   const ref = (collection: string, id: string) =>
     db.doc(`${root}/${collection}/${id}`);
 
   return {
+    readAdministration: administration.read,
+    executeAdministration: administration.execute,
     ...createDeliverySpacingAdministration(db, nowMillis),
     ...createShiftCreditRehearsal(db, nowMillis),
     ...createShiftMembershipReconciliation(db, nowMillis,

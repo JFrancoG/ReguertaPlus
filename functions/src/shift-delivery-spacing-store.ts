@@ -1,4 +1,6 @@
 import {Firestore, Transaction} from "@google-cloud/firestore";
+import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
+import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {coverageId, coverageMember, rejectCoverage} from "./shift-coverage.js";
 import {requireRegisteredProvisionalCreditFirestore} from
   "./shift-credit-publication.js";
@@ -22,6 +24,9 @@ type Intent = {schemaVersion: 1; environment: "develop"; operationId: string;
   planningRequestId: string; userId: string; previousDate: string;
   previousRoundNumber: number; date: string; roundNumber: number;
   reason: string};
+
+type AdministrationGuard = {contextDigest: string;
+  verify: (transaction: Transaction) => Promise<void>};
 
 const pairId = (value: Pick<Intent, "planningRequestId" | "userId" |
   "previousDate" | "previousRoundNumber" | "date" | "roundNumber">) =>
@@ -209,13 +214,22 @@ export const createDeliverySpacingAdministration = (
     db.doc(`${root}/${collection}/${id}`);
   return {
     async authorizeDeliverySpacingException(value: unknown,
-      actorMemberId: string) {
+      actorSource: string | VerifiedIdentity, guard?: AdministrationGuard) {
       const intent = parseIntent(value);
-      const actorId = coverageId(actorMemberId);
-      const commandDigest = digest({intent, actorId});
+      if (guard && (!/^shift-planning:v1:sha256:[a-f0-9]{64}$/
+        .test(guard.contextDigest) || typeof guard.verify !== "function")) {
+        return rejectCoverage("invalid_delivery_spacing_command");
+      }
       const id = pairId(intent);
       return db.runTransaction(async (transaction) => {
         requireRegisteredProvisionalCreditFirestore(db);
+        const actorId = typeof actorSource === "string" ?
+          coverageId(actorSource) : (await readShiftCoverageActor(
+            db, transaction, actorSource)).memberId;
+        const commandDigest = digest({intent, actorId,
+          ...(typeof actorSource === "string" ? {} :
+            {authUid: actorSource.uid}),
+          ...(guard ? {contextDigest: guard.contextDigest} : {})});
         const now = clock();
         if (!Number.isSafeInteger(now) || now < 0) {
           return rejectCoverage("invalid_coverage_clock");
@@ -228,6 +242,10 @@ export const createDeliverySpacingAdministration = (
             ref("users", intent.userId), ref("shiftPlanningState", "current"),
             ref("shiftRotations", "delivery"), approvalRef, receiptRef);
         if (!actor.exists || !coverageMember(actor.data()).admin) {
+          if (typeof actorSource !== "string") {
+            throw new HttpRequestError(403, "coverage_actor_forbidden",
+              "Forbidden");
+          }
           return rejectCoverage("coverage_actor_forbidden");
         }
         if (!member.exists || !coverageMember(member.data()).eligible) {
@@ -257,6 +275,7 @@ export const createDeliverySpacingAdministration = (
           }
           return {result, replayed: true};
         }
+        if (guard) await guard.verify(transaction);
         if (approval.exists) {
           readApproval(approval.id, approval.data());
           return rejectCoverage("delivery_spacing_pair_already_authorized");
