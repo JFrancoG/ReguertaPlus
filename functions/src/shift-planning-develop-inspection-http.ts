@@ -2,8 +2,6 @@ import {randomUUID} from "node:crypto";
 import {HttpsFunction, HttpsOptions, Request, onRequest} from
   "firebase-functions/v2/https";
 import {Response} from "express";
-import {SHIFT_PLANNING_OPERATOR_SERVICE_ACCOUNT_EMAIL} from
-  "./shift-planning-operator-http.js";
 import type {ShiftPlanningOperatorAuditLogger} from
   "./shift-planning-operator-http.js";
 import {SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS} from
@@ -13,9 +11,15 @@ import type {ShiftSheetsOperationalPreflightSummary} from
 
 export const SHIFT_PLANNING_DEVELOP_INSPECTION_PROJECT_ID =
   "reguerta-9f27f" as const;
+export const SHIFT_PLANNING_DEVELOP_INSPECTION_RUNTIME_SERVICE_ACCOUNT_EMAIL =
+  "reguerta-shifts-inspector@reguerta-9f27f.iam.gserviceaccount.com";
+export const SHIFT_PLANNING_DEVELOP_INSPECTION_INVOKER_SERVICE_ACCOUNT_EMAIL =
+  "reguerta-inspect-invoker@reguerta-9f27f.iam.gserviceaccount.com";
 export const SHIFT_PLANNING_DEVELOP_INSPECTION_HTTPS_OPTIONS = {
   cors: false,
-  invoker: SHIFT_PLANNING_OPERATOR_SERVICE_ACCOUNT_EMAIL,
+  serviceAccount:
+    SHIFT_PLANNING_DEVELOP_INSPECTION_RUNTIME_SERVICE_ACCOUNT_EMAIL,
+  invoker: SHIFT_PLANNING_DEVELOP_INSPECTION_INVOKER_SERVICE_ACCOUNT_EMAIL,
 } as const satisfies HttpsOptions;
 
 type Data = Record<string, unknown>;
@@ -177,7 +181,7 @@ export const createShiftPlanningDevelopInspectionHttpHandler = (
 
 /**
  * Declares one IAM-only inspection entry. Creating this source declaration does
- * not provision its invoker, select a runtime identity or deploy a Function.
+ * not provision either dedicated identity or deploy a Function.
  * @param {object} dependencies Server-owned read-only provider composition.
  * @param {object} logger Sanitized operator audit sink.
  * @return {HttpsFunction} Inspection-only Function declaration.

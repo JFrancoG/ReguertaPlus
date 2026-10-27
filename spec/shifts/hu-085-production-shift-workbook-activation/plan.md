@@ -4,7 +4,10 @@
 
 HU-084's migration/inverse rehearsal is delivered in `0b5ceabb`; the new
 [read-only operational inspection](../../../docs/testing/hu084-develop-operative-inspection.md)
-is prepared locally. Real observations identify absent operator authority,
+is delivered as `4b179d10`. Its isolated identity/deployment preparation now uses
+dedicated inspection accounts and no direct project data roles. The runtime's
+reader grant and actual private deployment/read-back remain pending. The earlier
+real observations identify absent recovery-operator authority,
 unverified Drive version/exclusive writing, undeployed Rules restrictions and
 unproved planning-index readiness. This inspection cannot issue a closed barrier
 checkpoint. Its 58 local backend passes do not complete any live gate below.

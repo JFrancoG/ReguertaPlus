@@ -1921,3 +1921,30 @@ plane closure/drain bindings, post-drain backup and exact forward/inverse
 authorization remain open. No shared mutation, credential replacement, IAM/ACL
 change, production business-data read or notification occurred. Native apps are
 unchanged, with no new parity gap; no phone action is needed for this block.
+
+### Dedicated inspection identity and isolated deployment — 2026-10-27
+
+Inspection source is delivered as `4b179d10`. The maintainer now authorizes the
+identities/permissions for deploying only the private develop inspection in
+`reguerta-9f27f`. This does not authorize changing existing Functions, Rules,
+indexes, writer permissions or production configuration, or applying migration.
+
+The runtime and inspection invoker use separate dedicated accounts; neither has
+user-managed keys or direct project roles. The runtime requires reader access
+only to the develop workbook. Deployment `actAs` is inherited; no new binding is
+added for it. A one-hour conditional OIDC-only binding on the invoker permits the
+bounded verification and is removed afterward. OAuth token creation and signing
+are not granted. The connector's `appNotAuthorizedToFile` denial leaves reader
+sharing to the maintainer; never promote the runtime to writer for inspection.
+
+Source explicitly fixes both identities. The private deployment configuration
+isolates the two develop parameters, disables legacy Runtime Config loading and
+selects exactly one HTTPS endpoint, with no event trigger or secret. All ten
+required/prepared APIs are enabled and the existing Artifact Registry cleanup
+policy is preserved. Local validation: 58 passes, no skips/failures, lint/build,
+package/schema/filter checks and independent source/deployment reviews.
+
+The next action is the isolated deployment and read-back of actual IAM/runtime,
+with anonymous/invalid-input rejection and a bounded observation when reader
+access is confirmed. Deployment results and temporary-binding removal must be
+recorded from live evidence; this pre-deployment source freeze does not claim them.

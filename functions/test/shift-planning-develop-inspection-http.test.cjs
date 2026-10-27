@@ -5,6 +5,8 @@ const {test} = require("node:test");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {SHIFT_PLANNING_OPERATOR_SERVICE_ACCOUNT_EMAIL} = require("../lib/shift-planning-operator-http.js");
 const {SHIFT_PLANNING_DEVELOP_INSPECTION_PROJECT_ID,
+  SHIFT_PLANNING_DEVELOP_INSPECTION_RUNTIME_SERVICE_ACCOUNT_EMAIL,
+  SHIFT_PLANNING_DEVELOP_INSPECTION_INVOKER_SERVICE_ACCOUNT_EMAIL,
   SHIFT_PLANNING_DEVELOP_INSPECTION_HTTPS_OPTIONS,
   createShiftPlanningDevelopInspectionHttpHandler,
   createShiftPlanningDevelopInspectionHttpFunction} = require("../lib/shift-planning-develop-inspection-http.js");
@@ -33,14 +35,24 @@ const invoke = async ({method = "POST", body = command(), query = {}, configurat
   return {state, entries, calls};
 };
 
-test("declares inspection only behind the existing exact IAM operator, without selecting runtime identity", () => {
+test("declares dedicated inspection runtime and invoker identities, separate from recovery authority", () => {
   const logger = {info() {}, warn() {}, error() {}};
   const fn = createShiftPlanningDevelopInspectionHttpFunction({projectId: SHIFT_PLANNING_DEVELOP_INSPECTION_PROJECT_ID,
     workbookId: "server_owned_workbook",
     inspect: async () => report()}, logger);
-  assert.deepEqual(fn.__endpoint.httpsTrigger.invoker, [SHIFT_PLANNING_OPERATOR_SERVICE_ACCOUNT_EMAIL]);
+  assert.deepEqual(fn.__endpoint.httpsTrigger.invoker, [SHIFT_PLANNING_DEVELOP_INSPECTION_INVOKER_SERVICE_ACCOUNT_EMAIL]);
+  assert.notEqual(SHIFT_PLANNING_DEVELOP_INSPECTION_INVOKER_SERVICE_ACCOUNT_EMAIL, SHIFT_PLANNING_OPERATOR_SERVICE_ACCOUNT_EMAIL);
+  assert.equal(SHIFT_PLANNING_DEVELOP_INSPECTION_RUNTIME_SERVICE_ACCOUNT_EMAIL,
+    "reguerta-shifts-inspector@reguerta-9f27f.iam.gserviceaccount.com");
+  assert.equal(SHIFT_PLANNING_DEVELOP_INSPECTION_INVOKER_SERVICE_ACCOUNT_EMAIL,
+    "reguerta-inspect-invoker@reguerta-9f27f.iam.gserviceaccount.com");
   assert.equal(SHIFT_PLANNING_DEVELOP_INSPECTION_HTTPS_OPTIONS.cors, false);
-  assert.equal(Object.hasOwn(SHIFT_PLANNING_DEVELOP_INSPECTION_HTTPS_OPTIONS, "serviceAccount"), false);
+  for (const account of [SHIFT_PLANNING_DEVELOP_INSPECTION_RUNTIME_SERVICE_ACCOUNT_EMAIL,
+    SHIFT_PLANNING_DEVELOP_INSPECTION_INVOKER_SERVICE_ACCOUNT_EMAIL])
+    assert.match(account.split("@")[0], /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/);
+  assert.equal(SHIFT_PLANNING_DEVELOP_INSPECTION_HTTPS_OPTIONS.serviceAccount,
+    SHIFT_PLANNING_DEVELOP_INSPECTION_RUNTIME_SERVICE_ACCOUNT_EMAIL);
+  assert.equal(fn.__endpoint.serviceAccountEmail, SHIFT_PLANNING_DEVELOP_INSPECTION_RUNTIME_SERVICE_ACCOUNT_EMAIL);
 });
 
 test("passes only the operation and server workbook to the observer, returning a detached non-executable summary", async () => {

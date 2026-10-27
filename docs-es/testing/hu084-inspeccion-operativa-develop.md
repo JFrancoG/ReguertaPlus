@@ -1,10 +1,11 @@
 # HU-084: inspección operativa de develop
 
-Estado: borrador de procedimiento de sólo lectura. La fuente de inspección está
-preparada y no desplegada. La entrada y el proveedor, con su forma concreta de
-invocarlos, deben revisarse antes de usarlos.
-Este documento no autoriza despliegues, cambios de permisos, entrada en
-mantenimiento ni escrituras de datos.
+Estado: el mantenedor ha autorizado las identidades separadas, el acceso mínimo
+y el despliegue únicamente de la inspección privada de develop. Las cuentas se
+han creado; en este punto todavía no se ha desplegado. Quedan pendientes el
+acceso como lector al libro y el despliegue. Esta
+autorización no incluye migración, entrada en mantenimiento, cambios de
+escritores compartidos ni escrituras de datos de la aplicación.
 
 [English version](../../docs/testing/hu084-develop-operative-inspection.md).
 
@@ -30,8 +31,9 @@ de una ruta demuestra aislamiento de develop.
 
 ## Acceso observado el 27/10/2026
 
-La inspección actual del operador acredita únicamente estos hechos, que deben
-renovarse y no constituyen una comprobación de mantenimiento:
+La inspección inicial de sólo lectura acreditó estos hechos antes de preparar
+las identidades separadas que se describen abajo. Son observaciones previas
+que deben renovarse, no una comprobación de mantenimiento:
 
 | Superficie | Resultado observado | Lo que sigue sin acreditar |
 | --- | --- | --- |
@@ -44,13 +46,15 @@ renovarse y no constituyen una comprobación de mantenimiento:
 | Versión de Drive | El conector omite la versión numérica `version` | Versión real; la fecha de modificación o los IDs del historial no la sustituyen |
 | ADC local existente | Hay credenciales, pero las lecturas intentadas de archivo/about de Drive devolvieron `403 insufficientPermissions` | Una credencial con los ámbitos de lectura revisados y acceso al archivo |
 | Cuentas de gcloud | No aparecen cuentas con sesión iniciada en la CLI | Esto no significa que no exista ADC ni justifica sobrescribirlo |
-| Permisos de tokens del runtime | La prueba de `getAccessToken` y `getOpenIdToken` no devolvió permisos concedidos | Suplantar al runtime; esa prueba de dos acciones no describe todos los permisos efectivos de IAM ni de escritura |
-| Cuenta de operador configurada | IAM GET sobre la cuenta declarada por la fuente HTTP devolvió `404` | La identidad no está disponible hoy; siguen pendientes crear la cuenta, conceder invocación y cualquier despliegue |
+| Permisos de tokens del Compute compartido (lectura inicial) | La prueba de `getAccessToken` y `getOpenIdToken` no devolvió permisos concedidos | Suplantar al runtime; esa prueba de dos acciones no describe todos los permisos efectivos de IAM ni de escritura |
+| Cuenta de operador propuesta inicialmente | IAM GET sobre la cuenta del operador de recuperación reutilizada por la primera fuente HTTP devolvió `404` | Esa observación previa no describe el estado de las identidades de inspección separadas creadas abajo |
 | Índice de solicitudes de planificación | La API directa devolvió cinco índices de `orders`, `orderLines` y `products`, incluso al pedir el grupo concreto, sin continuación de página | No se observó el índice de `shiftPlanningRequests` definido localmente; esta respuesta aparentemente sin filtrar no demuestra ni su ausencia ni su preparación |
 
 No sobrescribir ADC, iniciar o cerrar otras sesiones, reactivar el auditor
-retirado de HU-083, suplantar al runtime, conceder permisos ni mostrar tokens para
-resolver estas carencias. La revocación del auditor y la restauración de permisos de septiembre
+retirado de HU-083, suplantar al runtime Compute compartido ni mostrar tokens
+para resolver estas carencias. Sólo se autorizan los cambios acotados de
+identidad y acceso que se describen abajo. La revocación del auditor y la
+restauración de permisos de septiembre
 son pruebas históricas; no se puede asumir que aquella ventana de acceso o su
 copia conservada sigan disponibles hoy.
 
@@ -65,11 +69,11 @@ solicitados: resultados ajenos no prueban el inventario necesario ni su preparac
 
 ## Fuente de inspección preparada
 
-La exportación preparada `inspectDevelopShiftMigration` está restringida por IAM
-y reutiliza la constante de identidad del operador en la fuente. Esa cuenta
-devuelve actualmente `404` en IAM; no se puede asumir una invocación disponible.
-Siguen pendientes crear la cuenta, conceder invocación y desplegar. Su cuerpo
-POST exacto es:
+La exportación preparada `inspectDevelopShiftMigration` está restringida por IAM.
+La fuente fija las identidades separadas de ejecución e invocación descritas
+abajo; ya no reutiliza el operador de recuperación ni el runtime Compute
+compartido. Siguen pendientes el despliegue y una invocación real correcta. Su
+cuerpo POST exacto es:
 
 ```json
 {"schemaVersion":1,"environment":"develop","operationId":"inspection-example"}
@@ -139,23 +143,74 @@ de IAM, Workspace o Apps Script. gcloud está instalado, pero su uso sigue
 necesitando una identidad de lectura autenticada y un alcance concreto; tener la
 CLI no demuestra disponer de esos permisos.
 
-## Resolver la autoridad de lectura pendiente
+## Preparación autorizada de identidades separadas y despliegue
 
-Quedan dos alternativas propuestas, pendientes de revisar fuente y alcance:
+La autorización se limita a `reguerta-9f27f`,
+`inspectDevelopShiftMigration` en `europe-west1` y el libro configurado de
+develop. No permite desplegar las demás Functions, Rules ni índices.
 
-- Una sesión OAuth autorizada por el usuario: enumerar primero los ámbitos
-  exactos y el acceso más amplio que conceden sobre su cuenta; limitar el
-  recolector al archivo y recursos de develop revisados, conservando ADC y las
-  sesiones ajenas. Un token que falla no autoriza a emitir o reutilizar otro.
-- Una entrada privada de inspección: revisar primero fuente, listas permitidas
-  de develop/archivo, identidad que invoca y ejecuta, llamadas de sólo lectura,
-  salida sin datos sensibles y pruebas. Su despliegue es una acción concreta
-  posterior de infraestructura. No debe tener modo aplicar/reabrir, y existir
-  no demuestra que su cuenta sea la única que puede escribir en el libro.
+- Ejecución: `reguerta-shifts-inspector`. Invocación: `reguerta-inspect-invoker`.
+  Se han creado ambas cuentas. Su comprobación posterior devolvió cero claves y
+  cero asignaciones directas de roles del proyecto. Esto no acredita la ausencia
+  de todo permiso heredado. No se ha generado una clave para esta operación.
+- La cuenta humana que despliega ya tenía permiso `actAs` heredado sobre la
+  identidad de ejecución; no se añadió otra asignación para ello.
+- La asignación humana temporal de
+  `roles/iam.serviceAccountOpenIdTokenCreator` se limita a la cuenta invocadora
+  y caduca en una hora. Se utilizará sólo para obtener un token OIDC con este
+  servicio como destinatario: no incluye `getAccessToken`, firma ni emisión
+  general de tokens OAuth. Quitar la asignación tras validar y comprobar su retirada; la caducidad
+  por sí sola no acredita la limpieza.
+- El permiso de servicio de la cuenta invocadora se limita a esta nueva
+  inspección privada. Es una cuenta distinta del operador de recuperación.
+  La identidad de ejecución sólo necesita acceso como lector al libro
+  configurado de develop; esta operación no le concede escritura ni acceso al
+  libro de producción.
 
-Ninguna alternativa cierra escritores, cambia propietarios o habilita coberturas.
-El nombre anterior describe fuente preparada; no se proporciona una URL ni una
-invocación real antes de revisar su despliegue concreto y la identidad de lectura.
+El intento del conector de Drive de añadir el permiso de lectura devolvió
+`403 appNotAuthorizedToFile`. Se ha pedido al mantenedor que comparta la Sheet
+de develop como **Lector** con la cuenta de ejecución. En este punto todavía no
+se han verificado el permiso ni el acceso efectivo. Este error no autoriza a
+sustituir ADC, iniciar otra sesión OAuth o ampliar el acceso del conector.
+
+### Configuración aislada de CLI y comprobación local del paquete
+
+Usar una configuración privada de Firebase con la base de código `default` existente,
+la ruta absoluta de `functions`, un `configDir` privado y
+`disallowLegacyRuntimeConfig:true`. El directorio privado sólo contiene los
+valores dotenv revisados de develop: `SHEETS_SPREADSHEET_ID_DEVELOP` y
+`SHIFT_SHEETS_ALIASES_DEVELOP`. No copiar el dotenv global, valores de producción
+ni el Runtime Config antiguo. Excluir `.env*` y `.secret*` al empaquetar la
+fuente. La CLI proporciona las variables reservadas del proyecto.
+
+El selector exacto es `--only functions:inspectDevelopShiftMigration`, con
+`--project reguerta-9f27f`, el `--config` privado y `--non-interactive`,
+**sin `--force`**. El predeploy ejecuta lint y build. Antes de ejecutarlo,
+terminar los 58 casos sobre la fuente fijada y revisar el manifiesto local del
+SDK con el filtro de la CLI: exigir sólo esta entrada, las identidades fijas de
+ejecución e invocación, ningún secreto y ningún trigger de eventos. Esta
+comprobación del paquete no debe llamar a `firebase deploy --dry-run`: la
+preparación de la CLI puede habilitar APIs antes de aplicar el filtro de
+funciones, incluso durante ese ensayo.
+
+Comprobar las APIs necesarias antes del despliegue. Conservar las políticas de
+limpieza compartidas de Artifact Registry; `--force` puede configurar una si
+falta. Si la CLI informa de un error de esa política después de desplegar,
+comprobar el estado real de la Function antes de repetir: la entrada puede
+haberse creado ya.
+
+La validación local actual ha aprobado los 58 casos, lint/build y el filtro del
+paquete con exactamente una entrada. Las lecturas previas al despliegue han
+encontrado las diez APIs necesarias habilitadas y una política existente de
+limpieza de Artifact Registry; no se cambió ninguna. No se inició ninguna sesión
+global de Cloud SDK. Son observaciones anteriores al despliegue.
+
+Aquí el despliegue sigue pendiente. Su aceptación posterior debe verificar la
+identidad real de ejecución, la política privada de invocación, el rechazo de
+una llamada sin autenticar y la respuesta autenticada sin datos sensibles.
+Después, retirar la asignación humana temporal de OIDC. Estos pasos de acceso y
+despliegue no cierran escritores, cambian propietarios ni permiten usar la
+inspección como migración.
 
 ## Informe y paso operativo posterior
 

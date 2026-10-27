@@ -1,9 +1,10 @@
 # HU-084 develop operational inspection
 
-Status: draft read-only runbook. Inspection source is prepared but not deployed;
-the entrypoint/provider and their concrete invocation must be reviewed before
-use. This document authorizes no
-deployment, permission change, maintenance transition or data write.
+Status: the maintainer has authorized the dedicated identities, minimum access
+and deployment of the private develop inspection only. The accounts have been
+created; deployment has not run at this checkpoint. Workbook reader access and
+deployment remain pending. This authorization includes
+no migration, maintenance transition, shared writer change or business-data write.
 
 [Spanish version](../../docs-es/testing/hu084-inspeccion-operativa-develop.md).
 
@@ -26,8 +27,9 @@ its workbook, change shared controls, or infer develop isolation from a path nam
 
 ## Observed access boundary — 2026-10-27
 
-The operator's current inspection established the following limited facts. They
-are observations to renew, not a maintenance checkpoint:
+The initial read-only inspection established the following limited facts before
+the dedicated identity preparation recorded below. They are historical
+observations to renew, not a maintenance checkpoint:
 
 | Surface | Observed result | Still unproved |
 | --- | --- | --- |
@@ -40,13 +42,14 @@ are observations to renew, not a maintenance checkpoint:
 | Drive version | The connector omits the numeric file `version` | The actual version; modification time or revision-history IDs cannot substitute for it |
 | Existing local ADC | Credentials exist, but the attempted Drive file/about reads returned `403 insufficientPermissions` | A credential with the reviewed read scopes and file access |
 | gcloud account list | No signed-in CLI accounts were listed | This does not mean ADC is absent and does not justify overwriting it |
-| Runtime token permissions | Testing `getAccessToken` and `getOpenIdToken` returned no granted permissions | Runtime impersonation; this two-action result does not describe all effective IAM or write authority |
-| Configured operator account | IAM GET for the account declared by the HTTP source returned `404` | The operator identity is not available today; account/invoker provisioning and any deployment remain pending |
+| Shared Compute token permissions (initial observation) | Testing `getAccessToken` and `getOpenIdToken` returned no granted permissions | Runtime impersonation; this two-action result does not describe all effective IAM or write authority |
+| Previously proposed operator account | IAM GET for the recovery-operator account reused by the initial HTTP source returned `404` | That earlier observation is not the status of the dedicated inspection identities created below |
 | Planning request index | The direct API returned five indexes for `orders`, `orderLines` and `products`, even with the specific group requested, and no page continuation | The one `shiftPlanningRequests` index declared locally was not observed; this apparently unfiltered response proves neither its absence nor readiness |
 
 Do not overwrite existing ADC, log another account in or out, reactivate the
-retired HU-083 auditor, impersonate the runtime, grant permissions, or expose
-tokens to resolve these gaps.
+retired HU-083 auditor, impersonate the shared Compute runtime or expose tokens
+to resolve these gaps. Only the bounded identity/access changes recorded below
+are authorized.
 The September auditor's revocation and restored ACL are historical evidence; the
 old access window and its retained backup cannot be assumed usable today.
 
@@ -61,10 +64,10 @@ the required index inventory or readiness.
 
 ## Prepared inspection source
 
-The prepared `inspectDevelopShiftMigration` export is IAM-only and reuses the
-operator identity constant in source. The configured account currently returns
-IAM `404`; there is no available operator invocation to assume. Account/invoker
-provisioning and deployment remain pending. Its exact POST body is:
+The prepared `inspectDevelopShiftMigration` export is IAM-only. Its source fixes
+the dedicated runtime and invoker identities described below; it no longer
+reuses the recovery operator or the shared Compute runtime. Deployment and a
+successful real invocation remain pending. Its exact POST body is:
 
 ```json
 {"schemaVersion":1,"environment":"develop","operationId":"inspection-example"}
@@ -130,23 +133,68 @@ prove complete IAM, Workspace or Apps Script visibility. gcloud is installed;
 using it still requires an appropriate authenticated read identity and explicit
 resource scope. Do not infer that an installed CLI has those permissions.
 
-## Resolve the missing read authority
+## Authorized dedicated identity and deployment preparation
 
-Two alternatives remain proposals, pending concrete source and scope review:
+The authorization is limited to `reguerta-9f27f`,
+`inspectDevelopShiftMigration` in `europe-west1` and the configured develop
+workbook. It does not permit deploying the other Functions, Rules or indexes.
 
-- A user-authorized OAuth read session: enumerate the exact scopes and their
-  wider account-level access before requesting them; restrict the collector to
-  the reviewed develop file/resources and preserve existing ADC and unrelated
-  sessions. A failed existing token is not permission to mint or reuse another.
-- One private inspection endpoint: first review its source, develop/file
-  allowlists, authenticated invoker, runtime identity, read-only provider calls,
-  output redaction and tests. Deployment is a separate concrete infrastructure
-  action. The endpoint must expose no apply/reopen mode, and its existence does
-  not prove that its runtime identity is the sole workbook writer.
+- Runtime: `reguerta-shifts-inspector`. Invoker: `reguerta-inspect-invoker`.
+  Both accounts have been created. Their read-backs returned zero keys and zero
+  direct project-role bindings. This does not establish absence of every
+  inherited permission. No account key was generated for this operation.
+- The current human deployer already had inherited `actAs` permission on the
+  runtime identity; no additional runtime `actAs` binding was added.
+- The human operator's temporary `roles/iam.serviceAccountOpenIdTokenCreator`
+  binding is limited to the invoker account and expires after one hour. It is
+  used only to obtain an OIDC invocation token with this service as its audience:
+  no `getAccessToken`, signing or general OAuth-token minting grant is included. Remove this binding after
+  validation and read back its removal; expiry alone is not cleanup evidence.
+- The invoker's service permission is limited to invoking this new private
+  inspection. Its account is separate from the recovery operator. The runtime
+  needs reader access only to the configured develop workbook; it receives no
+  writer grant or access to the production workbook from this operation.
 
-Neither alternative closes a writer, transfers ownership or enables coverage.
-The export name above describes prepared source; no live URL or invocation is
-provided before its exact deployment and read identity are reviewed.
+The connected Drive app's attempt to add the reader grant returned
+`403 appNotAuthorizedToFile`. The maintainer has been asked to share the develop
+Sheet as **Viewer** with the runtime account. At this checkpoint that grant and
+its effective read access have not been verified. This error does not authorize
+replacing ADC, starting another OAuth session or widening connector access.
+
+### Isolated CLI configuration and local package proof
+
+Use a private Firebase configuration with the existing `default` codebase, an
+absolute `functions` source, a private `configDir` and
+`disallowLegacyRuntimeConfig:true`. The private directory contains only the
+reviewed develop dotenv values: `SHEETS_SPREADSHEET_ID_DEVELOP` and
+`SHIFT_SHEETS_ALIASES_DEVELOP`. Do not copy the global dotenv, production values
+or legacy Runtime Config. Ignore `.env*` and `.secret*` when packaging source.
+The CLI supplies the reserved project variables itself.
+
+The exact deployment selector is `--only functions:inspectDevelopShiftMigration`,
+with explicit `--project reguerta-9f27f`, the private `--config` and
+`--non-interactive`, **without `--force`**. Predeploy runs lint and build. Before
+executing it, finish the 58-case gate on the frozen source and inspect the local
+SDK manifest with the CLI's endpoint filter: require exactly this one endpoint,
+the fixed runtime/invoker, no secrets and no event trigger. This package check
+must not call `firebase deploy --dry-run`: CLI preparation can enable APIs before
+applying the function filter, including during a dry run.
+
+Read back required API availability before deploy. Preserve shared Artifact
+Registry cleanup policies; `--force` may configure a missing shared policy. If
+the CLI reports a cleanup-policy error after deployment, read the actual Function
+state before retrying because the endpoint may already exist.
+
+The current local gate passed all 58 tests, lint/build and the package filter
+check with exactly one target. The predeploy reads found all ten required APIs
+enabled and one existing Artifact Registry cleanup policy; neither was changed.
+No global Cloud SDK login was started. These are predeployment observations.
+
+Deployment is still pending here. Its later acceptance must verify the actual
+runtime, private invoker policy, rejection of an unauthenticated call and a
+sanitized authenticated response, then remove the temporary human OIDC binding.
+None of these access/deployment steps closes a writer, transfers ownership or
+makes the inspection executable as a migration.
 
 ## Report and operational handoff
 

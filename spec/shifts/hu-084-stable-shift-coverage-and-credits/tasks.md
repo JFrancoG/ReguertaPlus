@@ -303,8 +303,17 @@ Accepted local evidence: [rehearsal guide](../../../docs/testing/hu084-develop-m
 - [x] Align the documented writer inventory with compiled v3 (26 writers).
 - [x] Prepare a private develop-only inspection with read scopes, bounded version/ACL capture and sanitized non-executable results.
 - [x] Validate 58 provider/HTTP/composition/regression tests, lint/build, focused CJS checks and independent reviews.
-- [ ] Deliver this new inspection preparation through Git; source remains local pending commit.
+- [x] Deliver inspection preparation as `4b179d10` and verify its remote hash.
 - [ ] Authorize and establish the exact read identity/private inspection deployment, without changing unrelated credentials or shared writers.
 - [ ] Establish effective external writer controls and actual closure/drain bindings before any real migration proposal is admitted.
+
+## Dedicated private inspection identity — 2026-10-27
+
+- [x] Authorize the identities/permissions for only the private develop inspector; preserve existing writers and production configuration.
+- [x] Create dedicated runtime and invoker identities without user-managed keys or direct project roles; bind source to both exact accounts.
+- [x] Verify inherited deployment `actAs`; add only temporary OIDC creation on the invoker and prepare removal of that exact binding.
+- [x] Validate 58 tests, lint/build and a one-target package with isolated develop environment and no legacy Runtime Config read.
+- [ ] Verify the requested manual reader grant on the develop workbook (connector sharing denied).
+- [ ] Deploy only `inspectDevelopShiftMigration`, verify its private IAM/runtime, run bounded read-only checks and remove temporary OIDC permission.
 Shared runtime/operator/Drive admission, complete post-drain capture, actual
 application/rollback authorization and full annual preview remain open.
