@@ -6,6 +6,8 @@ import Observation
 final class CoverageAdministrationDraft: Identifiable {
     let id = UUID()
     let subject: Subject
+    let environment: SessionEnvironment
+    let expectedPolicyRevision: String
     var reason = ""
     var confirmsCreditCancellation = false
 
@@ -15,8 +17,10 @@ final class CoverageAdministrationDraft: Identifiable {
         case spacing(ShiftCoverageAdministrationSnapshot.SpacingCandidate)
     }
 
-    init(subject: Subject) {
+    init(subject: Subject, environment: SessionEnvironment, expectedPolicyRevision: String) {
         self.subject = subject
+        self.environment = environment
+        self.expectedPolicyRevision = expectedPolicyRevision
     }
 
     var titleKey: String {
@@ -74,6 +78,8 @@ final class CoverageAdministrationDraft: Identifiable {
             return membershipCommand(member, reason: reason)
         case .spacing(let candidate):
             return ShiftCoverageAdministrationCommand(
+                expectedPolicyRevision: expectedPolicyRevision,
+                environment: environment,
                 operationId: id.uuidString,
                 userId: candidate.userId,
                 intent: .spacing(candidate: candidate, reason: reason)
@@ -82,6 +88,7 @@ final class CoverageAdministrationDraft: Identifiable {
     }
 
     func isCurrent(in snapshot: ShiftCoverageAdministrationSnapshot, nowMillis: Int64) -> Bool {
+        guard snapshot.environment == environment.rawValue else { return false }
         switch subject {
         case .reconcile(let member), .permanentDeparture(let member):
             return snapshot.membershipWritable && snapshot.members.contains(member)
@@ -97,6 +104,8 @@ final class CoverageAdministrationDraft: Identifiable {
         reason: String?
     ) -> ShiftCoverageAdministrationCommand {
         ShiftCoverageAdministrationCommand(
+            expectedPolicyRevision: expectedPolicyRevision,
+            environment: environment,
             operationId: id.uuidString,
             userId: member.userId,
             intent: .membership(

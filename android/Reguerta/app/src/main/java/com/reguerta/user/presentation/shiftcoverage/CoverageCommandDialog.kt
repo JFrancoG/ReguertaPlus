@@ -29,7 +29,7 @@ import com.reguerta.user.R
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageCommand.Action
 
 @Composable
-internal fun CoverageCommandDialog(draft: CoverageCommandDraft, model: CoverageRehearsalViewModel) {
+internal fun CoverageCommandDialog(draft: CoverageCommandDraft, model: CoverageRouteViewModel) {
     val now by produceState(model.coverage.nowMillis) {
         while (true) { delay(1000); value = model.coverage.nowMillis }
     }

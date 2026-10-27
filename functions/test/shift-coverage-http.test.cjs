@@ -57,7 +57,7 @@ test("overview and detail have exact read-only envelopes and cannot supply anoth
     assert.deepEqual(parseShiftCoverageQuery(body), body);
     const result = await call({}, {body}); assert.equal(result.status, 200); assert.equal(result.calls[1][0], "read");
   }
-  for (const value of [null, [], {schemaVersion: 1, environment: "production", action: "overview"},
+  for (const value of [null, [], {schemaVersion: 1, environment: "staging", action: "overview"},
     {schemaVersion: 1, environment: "develop", action: "detail", caseId: "../other"}]) {
     assert.throws(() => parseShiftCoverageQuery(value));
   }

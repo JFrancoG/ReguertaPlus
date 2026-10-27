@@ -1,3 +1,4 @@
+import type {AppEnvironment} from "./backend-security.js";
 import {DocumentSnapshot, Firestore, Transaction} from
   "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
@@ -12,7 +13,6 @@ import {captureShiftPlanningWriterAuthority} from
   "./shift-planning-writer-authority.js";
 import {HttpRequestError} from "./backend-security.js";
 
-const root = "develop/plus-collections";
 const types = ["delivery", "market"] as const;
 const version = (doc: DocumentSnapshot) => ({path: doc.ref.path,
   updateTime: doc.updateTime ?
@@ -27,11 +27,14 @@ const version = (doc: DocumentSnapshot) => ({path: doc.ref.path,
  * @param {Firestore} db Fixed local database.
  * @param {Transaction} transaction Shared read/write transaction.
  * @param {number} now Trusted time.
+ * @param {string} environment Same bound environment as the caller transaction.
  * @return {Promise<object>} Minimal rows and membership-writer capability.
  */
 export const readMembershipAdministration = async (
   db: Firestore, transaction: Transaction, now: number,
+  environment: AppEnvironment = "develop",
 ) => {
+  const root = `${environment}/plus-collections`;
   const snapshots = [];
   for (const [collection, limit] of [["users", 500],
     ["shiftMembershipState", 250], ["shiftCoverageReserves", 1000],

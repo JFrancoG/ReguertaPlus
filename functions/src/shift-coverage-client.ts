@@ -1,3 +1,4 @@
+import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
 import {firstDueOrdinaryShift} from "./shift-membership-lifecycle.js";
 import {CoverageReserve, refreshCoverageSelection} from
   "./shift-coverage-selection.js";
@@ -5,7 +6,8 @@ import {readCoverageNotificationInbox, readCoverageNotificationReference} from
   "./shift-coverage-notification.js";
 import {readShiftCoverageChoices} from "./shift-coverage-choices.js";
 import {Firestore} from "@google-cloud/firestore";
-import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
+import {AppEnvironment, HttpRequestError, VerifiedIdentity} from
+  "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {coverageId, rejectCoverage, ShiftCoverageCase,
@@ -18,7 +20,8 @@ import {captureShiftPlanningWriterAuthority} from
 import {requireProvisionalCreditPublication} from
   "./shift-credit-publication.js";
 
-export type ShiftCoverageQuery = {schemaVersion: 1; environment: "develop"} &
+export type ShiftCoverageQuery = {schemaVersion: 1;
+  environment: AppEnvironment} &
   ({action: "overview"} | {action: "detail"; caseId: string} |
     {action: "notification"; eventId: string});
 
@@ -26,7 +29,8 @@ export const parseShiftCoverageQuery = (value: unknown): ShiftCoverageQuery => {
   const body = value as ShiftCoverageQuery;
   if (!body || typeof body !== "object" ||
       Object.getPrototypeOf(body) !== Object.prototype ||
-      body.schemaVersion !== 1 || body.environment !== "develop" ||
+      body.schemaVersion !== 1 ||
+      !["develop", "production"].includes(body.environment) ||
       !["overview", "detail", "notification"].includes(body.action) ||
       Object.keys(body).sort().join() !== (body.action === "overview" ?
         "action,environment,schemaVersion" :
@@ -106,6 +110,7 @@ export const projectShiftCoverageCase = (input: {
  * @param {Firestore} db The fixed-emulator store's client.
  * @param {Function} nowMillis Trusted clock, evaluated on every retry.
  * @param {object} policy Explicit local deadlines and configured capability.
+ * @param {object} context Shared environment and transactional readiness fence.
  * @return {Function} Query adapter; no internal records escape its projections.
  */
 export const createShiftCoverageClientReader = (
@@ -113,12 +118,19 @@ export const createShiftCoverageClientReader = (
   policy: {maximumOfferWindowMillis: number;
     volunteerWindowMillis: number | null;
     drawAvailable: boolean; selectionRequired?: boolean},
+  context?: ShiftCoverageStoreContext,
 ) => async (value: unknown, identity: VerifiedIdentity) => {
-  requireProvisionalCreditPublication("develop");
+  if (!context) requireProvisionalCreditPublication("develop");
   const query = parseShiftCoverageQuery(value);
-  const root = "develop/plus-collections";
+  const environment = context?.environment ?? "develop";
+  if (query.environment !== environment) {
+    return rejectCoverage("invalid_coverage_environment");
+  }
+  const root = `${environment}/plus-collections`;
   return db.runTransaction(async (transaction) => {
-    const actor = await readShiftCoverageActor(db, transaction, identity);
+    await context?.requireReady(transaction);
+    const actor = await readShiftCoverageActor(
+      db, transaction, identity, environment);
     const now = nowMillis();
     if (!Number.isSafeInteger(now) || now < 0) {
       return rejectCoverage("invalid_coverage_clock");
@@ -134,7 +146,7 @@ export const createShiftCoverageClientReader = (
     }
     const notification = query.action === "notification" ?
       await readCoverageNotificationReference(
-        db, transaction, actor.memberId, query.eventId) : null;
+        db, transaction, actor.memberId, query.eventId, environment) : null;
     const caseId = query.action === "detail" ? query.caseId :
       notification?.caseId;
     const cases = caseId ? [await transaction.get(
@@ -147,7 +159,7 @@ export const createShiftCoverageClientReader = (
       const stored = document.data();
       const item = stored?.value as ShiftCoverageCase;
       if (!item || stored?.digest !== digest(item) ||
-          item.id !== document.id || item.environment !== "develop" ||
+          item.id !== document.id || item.environment !== environment ||
           item.policyRevision !== SHIFT_COVERAGE_POLICY_REVISION) {
         return rejectCoverage("invalid_coverage_case");
       }
@@ -196,11 +208,11 @@ export const createShiftCoverageClientReader = (
       db, transaction, {...actor, visibleMemberIds: projected.flatMap((item) =>
         [item.absentUserId, item.acceptedUserId, item.offer?.userId]
           .filter((id): id is string => Boolean(id)))},
-      now, Boolean(authority));
+      now, Boolean(authority), environment);
     const notifications = await readCoverageNotificationInbox(
-      db, transaction, actor.memberId);
+      db, transaction, actor.memberId, environment);
     return {...choices, notifications, notification, schemaVersion: 1,
-      environment: "develop",
+      environment,
       memberId: actor.memberId,
       isAdmin: actor.admin, eligible: actor.eligible, serverTimeMillis: now,
       policyRevision: SHIFT_COVERAGE_POLICY_REVISION, policy: {...policy},

@@ -70,4 +70,6 @@
     <string name="coverage_action_resumeadmin">Retomar resolución administrativa</string>
     <string name="coverage_action_cancel">Cancelar solicitud</string>
     <string name="coverage_action_fail">Marcar como no realizada</string>
+    <string name="coverage_feature_disabled">Las coberturas de turnos aún no están disponibles.</string>
+    <string name="coverage_personal_session_required">Usa tu propia sesión autorizada para gestionar coberturas.</string>
 </resources>

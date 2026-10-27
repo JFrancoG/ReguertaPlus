@@ -70,4 +70,6 @@
     <string name="coverage_action_resumeadmin">Resume administrative resolution</string>
     <string name="coverage_action_cancel">Cancel request</string>
     <string name="coverage_action_fail">Mark as not completed</string>
+    <string name="coverage_feature_disabled">Shift coverage is not available yet.</string>
+    <string name="coverage_personal_session_required">Use your own authorized session to manage shift coverage.</string>
 </resources>

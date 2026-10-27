@@ -1,12 +1,12 @@
 import type {CoverageSelection} from "./shift-coverage-selection.js";
-import {HttpRequestError} from "./backend-security.js";
+import {HttpRequestError, AppEnvironment} from "./backend-security.js";
 import {isEligibleForShiftRotation} from "./shift-eligibility.js";
 
 export const SHIFT_COVERAGE_POLICY_REVISION = "hu084-provisional-v1" as const;
 
 type CommandBase = {
   schemaVersion: 1;
-  environment: "develop";
+  environment: AppEnvironment;
   caseId: string;
   operationId: string;
   expectedRevision: number;
@@ -29,7 +29,7 @@ export type ShiftCoverageCommand = CommandBase & (
 export type ShiftCoverageCase = {
   schemaVersion: 1;
   policyRevision: typeof SHIFT_COVERAGE_POLICY_REVISION;
-  environment: "develop";
+  environment: AppEnvironment;
   id: string;
   shiftId: string;
   type: "delivery" | "market";
@@ -98,7 +98,7 @@ const reason = (value: unknown): string => {
 };
 
 /**
- * Provisional develop command; actor identity is never accepted from this body.
+ * Environment-bound command; actor identity is never accepted from this body.
  * Unknown fields reject so callers cannot smuggle completion or credit values.
  * @param {unknown} value Untrusted command body.
  * @return {ShiftCoverageCommand} Detached, exact command.
@@ -113,7 +113,7 @@ export const parseShiftCoverageCommand = (
   const body = value as Record<string, unknown>;
   const base = {
     schemaVersion: 1 as const,
-    environment: "develop" as const,
+    environment: body.environment as AppEnvironment,
     caseId: coverageId(body.caseId),
     operationId: coverageId(body.operationId),
     expectedRevision: revision(body.expectedRevision),
@@ -145,7 +145,8 @@ export const parseShiftCoverageCommand = (
   default:
     return rejectCoverage("invalid_coverage_action");
   }
-  if (body.schemaVersion !== 1 || body.environment !== "develop" ||
+  if (body.schemaVersion !== 1 ||
+      !["develop", "production"].includes(body.environment as string) ||
       Object.keys(body).length !== Object.keys(command).length ||
       Object.keys(body).some((key) => !(key in command)) ||
       (command.action === "open" && command.expectedRevision !== 0)) {

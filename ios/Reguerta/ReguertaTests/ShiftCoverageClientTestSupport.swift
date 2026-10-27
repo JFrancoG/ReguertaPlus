@@ -10,6 +10,8 @@ final class CoverageClientHarness {
     var onToken: (@MainActor () -> Void)?
     private(set) var model: ShiftCoverageViewModel!
     let command = ShiftCoverageCommand(
+        expectedPolicyRevision: "hu084-provisional-v1",
+        environment: .develop,
         caseId: "case-a",
         operationId: "accept-once",
         expectedRevision: 2,
@@ -21,7 +23,12 @@ final class CoverageClientHarness {
         let url = try #require(Bundle(for: CoverageClientBundle.self)
             .url(forResource: "shift-coverage-overview", withExtension: "json"))
         transport = CoverageClientTransport(overview: try String(contentsOf: url, encoding: .utf8))
-        current = ShiftCoverageSession(uid: "auth-a", memberId: "member-a", authorizationRevision: 1)
+        current = ShiftCoverageSession(
+            environment: .develop,
+            uid: "auth-a",
+            memberId: "member-a",
+            authorizationRevision: 1
+        )
         let repository = try LocalShiftCoverageRepository(
             port: 8799,
             currentSession: { [weak self] in self?.current },
@@ -37,7 +44,12 @@ final class CoverageClientHarness {
     }
 
     func bind(revision: UInt64) {
-        current = ShiftCoverageSession(uid: "auth-a", memberId: "member-a", authorizationRevision: revision)
+        current = ShiftCoverageSession(
+            environment: .develop,
+            uid: "auth-a",
+            memberId: "member-a",
+            authorizationRevision: revision
+        )
         model.bind(current)
     }
 

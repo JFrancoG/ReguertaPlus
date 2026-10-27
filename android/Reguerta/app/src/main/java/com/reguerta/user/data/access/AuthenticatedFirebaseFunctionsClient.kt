@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -47,6 +48,17 @@ internal fun interface FirebaseJsonPostTransport {
         bearerToken: String,
         body: JsonObject,
     ): JsonObject
+
+    /** Async transports recheck this fence at their final request-body write boundary. */
+    suspend fun postAuthorized(
+        url: String,
+        bearerToken: String,
+        body: JsonObject,
+        validateAuthorization: () -> Unit,
+    ): JsonObject {
+        validateAuthorization()
+        return post(url, bearerToken, body).also { validateAuthorization() }
+    }
 }
 
 internal class AuthenticatedFirebaseFunctionsClient(
@@ -55,10 +67,22 @@ internal class AuthenticatedFirebaseFunctionsClient(
     private val transport: FirebaseJsonPostTransport = HttpUrlConnectionJsonPostTransport(),
 ) : AuthenticatedFunctionCaller {
     override suspend fun post(functionName: String, body: JsonObject): JsonObject {
+        return postAuthorized(functionName, body, {}, { _, _ -> })
+    }
+
+    suspend fun postAuthorized(
+        functionName: String,
+        body: JsonObject,
+        validateAuthorization: () -> Unit,
+        validateCredential: (projectId: String, token: String) -> Unit,
+    ): JsonObject {
+        validateAuthorization()
         val projectId = projectIdProvider.projectId()
         val token = idTokenProvider.currentIdToken()
+        validateAuthorization()
+        validateCredential(projectId, token)
         val url = "https://europe-west1-$projectId.cloudfunctions.net/$functionName"
-        return transport.post(url = url, bearerToken = token, body = body)
+        return transport.postAuthorized(url, token, body, validateAuthorization).also { validateAuthorization() }
     }
 
     companion object {
@@ -86,16 +110,28 @@ private class HttpUrlConnectionJsonPostTransport : FirebaseJsonPostTransport {
         url: String,
         bearerToken: String,
         body: JsonObject,
+    ): JsonObject = postAuthorized(url, bearerToken, body, {})
+
+    override suspend fun postAuthorized(
+        url: String,
+        bearerToken: String,
+        body: JsonObject,
+        validateAuthorization: () -> Unit,
     ): JsonObject = withContext(Dispatchers.IO) {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
+            connection.instanceFollowRedirects = false
             connection.requestMethod = "POST"
             connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
             connection.readTimeout = READ_TIMEOUT_MILLIS
             connection.doOutput = true
             connection.setRequestProperty("Authorization", "Bearer $bearerToken")
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            validateAuthorization()
             connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                validateAuthorization()
                 writer.write(body.toString())
             }
 

@@ -63,7 +63,10 @@ final class CoverageCommandDraft: Identifiable {
         }
         guard action != .open || selectedShift != nil else { return nil }
         guard action == .open || item != nil else { return nil }
+        guard let environment = SessionEnvironment(rawValue: snapshot.environment) else { return nil }
         return ShiftCoverageCommand(
+            expectedPolicyRevision: snapshot.policyRevision,
+            environment: environment,
             caseId: item?.caseId ?? id.uuidString,
             operationId: id.uuidString,
             expectedRevision: item?.revision ?? 0,

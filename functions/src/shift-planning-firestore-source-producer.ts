@@ -1,3 +1,5 @@
+import {parseShiftCoverageActivation, ShiftCoverageActivation} from
+  "./shift-coverage-store-context.js";
 import {captureDeliverySpacingSource} from "./shift-delivery-spacing-store.js";
 import {deliverySpacingAuthorityDigest} from "./shift-delivery-spacing.js";
 import {assertProvisionalShiftMembershipSource,
@@ -73,6 +75,7 @@ export type ShiftPlanningSourcePolicy = {
   sync: ShiftPlanningCanonicalJsonObject;
   transactionWriteLimit: number;
   deliverySpacing?: {version: "hu089-delivery-spacing-v1"};
+  coverage?: ShiftCoverageActivation;
 };
 
 export type ShiftPlanningLiveSourceProductionResult = {
@@ -295,6 +298,7 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
     "sync",
     "transactionWriteLimit",
     ...(policy.deliverySpacing !== undefined ? ["deliverySpacing"] : []),
+    ...(policy.coverage !== undefined ? ["coverage"] : []),
   ], "planning source policy");
   if (policy.schemaVersion !== SHIFT_PLANNING_SOURCE_POLICY_SCHEMA_VERSION) {
     return failSource("Planning source policy schema is unsupported.");
@@ -316,6 +320,12 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
       return failSource("Delivery spacing policy is unsupported.");
     }
     requireProvisionalCreditPublication(requireEnvironment(policy.environment));
+  }
+  const coverage = policy.coverage === undefined ? undefined :
+    parseShiftCoverageActivation(policy.coverage,
+      requireEnvironment(policy.environment));
+  if (coverage === null) {
+    return failSource("Coverage activation policy is invalid.");
   }
   const creditLedger = requireRecord(
     policy.creditLedger,
@@ -401,6 +411,7 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
       ShiftPlanningCanonicalJsonObject,
     sync: canonicalClone(sync) as ShiftPlanningCanonicalJsonObject,
     transactionWriteLimit,
+    ...(coverage !== undefined ? {coverage} : {}),
     ...(policy.deliverySpacing !== undefined ? {deliverySpacing:
       {version: "hu089-delivery-spacing-v1" as const}} : {}),
   };

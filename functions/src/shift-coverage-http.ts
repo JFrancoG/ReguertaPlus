@@ -46,7 +46,8 @@ export const createShiftCoverageHttpHandler = (dependencies: Dependencies) =>
       const identity = await verifyBearerIdentity(
         request.headers.authorization, dependencies.verifyToken);
       dependencies.requireLocalEnvironment();
-      if (Object.keys(request.query).length) {
+      if (Object.keys(request.query).length ||
+          request.body?.environment !== "develop") {
         throw new HttpRequestError(400, "invalid_coverage_request", "Invalid");
       }
       const administrativeQuery = request.body?.action === "administration";

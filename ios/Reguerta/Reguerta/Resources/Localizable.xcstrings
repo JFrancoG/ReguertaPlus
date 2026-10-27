@@ -1,6 +1,24 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "coverage.access_disabled": {
+    "comment": "Shown when authenticated coverage admission is unavailable or disabled.",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Shift coverage is not available for this session."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Las coberturas de turnos no están disponibles para esta sesión."
+        }
+      }
+    }
+  },
   "coverage.hide_keyboard": {
     "comment": "Ends editing the administrative reason without cancelling or submitting the form.",
     "extractionState": "manual",

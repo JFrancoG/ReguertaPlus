@@ -1,6 +1,9 @@
 /// An immutable administrative intent survives an uncertain response unchanged. The actor comes only from
 /// authentication. Spacing authorizes the exact backend proposal; it never edits an assignment or member account.
+/// Its expected policy remains local evidence so a changed admission cannot silently reinterpret an uncertain intent.
 struct ShiftCoverageAdministrationCommand: Encodable, Equatable {
+    let expectedPolicyRevision: String
+    let environment: SessionEnvironment
     let operationId: String
     let userId: String
     let intent: Intent
@@ -26,7 +29,7 @@ struct ShiftCoverageAdministrationCommand: Encodable, Equatable {
     func encode(to encoder: any Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encode(1, forKey: .schemaVersion)
-        try values.encode("develop", forKey: .environment)
+        try values.encode(environment, forKey: .environment)
         try values.encode(action, forKey: .action)
         try values.encode(operationId, forKey: .operationId)
         try values.encode(userId, forKey: .userId)

@@ -3,190 +3,51 @@ package com.reguerta.user.presentation.shiftcoverage
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.reguerta.user.domain.notifications.ShiftNotificationPushReference
 import com.reguerta.user.domain.shiftcoverage.CoverageRehearsalAccess
-import com.reguerta.user.domain.shiftcoverage.ShiftCoverageCommand
-import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSession
-import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot
-import com.reguerta.user.domain.shiftcoverage.ShiftCoverageAdministration
 import kotlinx.coroutines.launch
 
-internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalAccess) : ViewModel() {
-    val coverage = ShiftCoverageViewModel(access.repository)
-    var selectedCaseId by mutableStateOf<String?>(null)
+/** Local Auth owner used only by the isolated Debug rehearsal. */
+internal class CoverageRehearsalViewModel(private val access: CoverageRehearsalAccess) : CoverageRouteViewModel(access.repository) {
+    override val isRehearsal: Boolean get() = true
+    override val authenticationInFlight: Boolean get() = isSigningIn
     var email by mutableStateOf("")
     var password by mutableStateOf("")
     var isSigningIn by mutableStateOf(false)
         private set
     var loginFailed by mutableStateOf(false)
         private set
-    var draft by mutableStateOf<CoverageCommandDraft?>(null)
-        private set
-    var administrationDraft by mutableStateOf<CoverageAdministrationDraft?>(null)
-        private set
-    private var draftSession: ShiftCoverageSession? = null
-    private var revision = 0L
-    var pendingPushEventId by mutableStateOf<String?>(null)
-        private set
+    private var loginGeneration = 0L
     val canSignIn: Boolean get() = !isSigningIn && email.isNotBlank() && password.isNotEmpty()
 
     fun signIn() {
         if (!canSignIn) return
-        revision++
-        val owner = revision
+        val owner = ++loginGeneration
         val secret = password
         password = ""
         isSigningIn = true
         loginFailed = false
-        viewModelScope.launch {
+        routeScope.launch {
             try {
                 val session = access.signIn(email.trim(), secret)
-                if (revision != owner) return@launch
-                coverage.bind(session)
+                if (owner != loginGeneration) return@launch
+                bindSession(session, preservePendingPush = true)
                 coverage.refresh()
             } catch (_: Exception) {
-                if (revision == owner) loginFailed = true
+                if (owner == loginGeneration) loginFailed = true
             } finally {
-                if (revision == owner) isSigningIn = false
+                if (owner == loginGeneration) isSigningIn = false
             }
         }
     }
 
     fun signOut() {
-        pendingPushEventId = null
-        revision++
+        loginGeneration++
         access.signOut()
-        coverage.bind(null)
-        selectedCaseId = null
+        bindSession(null)
         password = ""
-        draft = null
-        administrationDraft = null
         isSigningIn = false
         loginFailed = false
     }
 
-    val canOpen: Boolean get() = !coverage.state.value.isBusy && !coverage.state.value.hasPendingMutation &&
-        !coverage.state.value.isAdministration &&
-        coverage.state.value.snapshot?.availableShifts?.any { it.writable } == true
-
-    fun present(action: ShiftCoverageCommand.Action, item: ShiftCoverageSnapshot.Case? = null) {
-        if (coverage.state.value.isBusy || coverage.state.value.hasPendingMutation || administrationDraft != null) return
-        val snapshot = coverage.state.value.snapshot ?: return
-        draftSession = coverage.state.value.session
-        draft = CoverageCommandDraft(action, item, snapshot, coverage.nowMillis)
-    }
-
-    fun dismissDraft() { draft = null }
-    fun canConfirmDraft(now: Long = coverage.nowMillis): Boolean {
-        val command = draft?.command ?: return false
-        val state = coverage.state.value
-        val snapshot = state.snapshot ?: return false
-        if (draftSession != state.session || state.isBusy || state.hasPendingMutation) return false
-        if (command.expiresAtMillis?.let { it <= now } == true) return false
-        if (command.action == ShiftCoverageCommand.Action.open) {
-            return snapshot.availableShifts.any { it.shiftId == command.shiftId &&
-                it.shiftRevision == command.expectedShiftRevision && it.writable && it.scheduledAtMillis > now }
-        }
-        val item = snapshot.cases.firstOrNull { it.caseId == command.caseId } ?: return false
-        return item.revision == command.expectedRevision && item.shiftRevision == command.expectedShiftRevision &&
-            coverage.actions(item).contains(command.action)
-    }
-
-    fun confirmDraft() {
-        if (!canConfirmDraft()) return
-        val command = draft?.command ?: return
-        draft = null
-        viewModelScope.launch { coverage.submit(command) }
-    }
-
-    fun openAdministration() {
-        if (draft != null || administrationDraft != null) return
-        selectedCaseId = null
-        viewModelScope.launch { coverage.openAdministration() }
-    }
-
-    fun presentMembership(member: ShiftCoverageAdministration.Member, permanentDeparture: Boolean = false) {
-        presentAdministration(CoverageAdministrationDraft(member = member, permanentDeparture = permanentDeparture))
-    }
-
-    fun presentSpacing(candidate: ShiftCoverageAdministration.SpacingCandidate) {
-        presentAdministration(CoverageAdministrationDraft(spacing = candidate))
-    }
-
-    private fun presentAdministration(value: CoverageAdministrationDraft) {
-        val state = coverage.state.value
-        val snapshot = state.administration ?: return
-        if (state.isBusy || state.hasPendingMutation || draft != null || administrationDraft != null ||
-            !state.isAdministration || !snapshot.isAdmin) return
-        if (value.member != null && (!snapshot.membershipWritable || value.member !in snapshot.members)) return
-        if (value.spacing != null && value.spacing !in snapshot.spacingCandidates) return
-        draftSession = state.session
-        administrationDraft = value
-    }
-
-    fun dismissAdministrationDraft() { administrationDraft = null }
-
-    fun discardDraftsAfterSessionChange() {
-        selectedCaseId = null
-        if (draftSession != coverage.state.value.session) {
-            draft = null
-            administrationDraft = null
-            draftSession = null
-        }
-    }
-
-    fun canConfirmAdministrationDraft(now: Long = coverage.nowMillis): Boolean {
-        val state = coverage.state.value
-        val snapshot = state.administration ?: return false
-        return draftSession == state.session && !state.isBusy && !state.hasPendingMutation && state.isAdministration &&
-            administrationDraft?.isCurrent(snapshot, now) == true
-    }
-
-    fun confirmAdministrationDraft() {
-        if (!canConfirmAdministrationDraft()) return
-        val command = administrationDraft?.command ?: return
-        administrationDraft = null
-        viewModelScope.launch { coverage.submitAdministration(command) }
-    }
-    fun acceptPush(reference: ShiftNotificationPushReference) {
-        if (reference.isCoverage) pendingPushEventId = reference.eventId
-    }
-
-    val readyPushEventId: String? get() {
-        val state = coverage.state.value
-        return pendingPushEventId.takeIf {
-            state.session != null && !isSigningIn && !state.isBusy && !state.hasPendingMutation && draft == null &&
-                administrationDraft == null && !state.isAdministration
-        }
-    }
-
-    fun openPendingPush() {
-        val eventId = readyPushEventId ?: return
-        pendingPushEventId = null
-        openNotification(eventId)
-    }
-
-    fun openNotification(eventId: String) {
-        if (draft != null || administrationDraft != null || coverage.state.value.hasPendingMutation) return
-        selectedCaseId = null
-        val owner = revision
-        viewModelScope.launch {
-            if (owner != revision) return@launch
-            coverage.openNotification(eventId)?.let { selectedCaseId = it }
-        }
-    }
-
-    fun showOverview() {
-        selectedCaseId = null
-        viewModelScope.launch { coverage.refreshOverview() }
-    }
-
-    fun refresh() { viewModelScope.launch { coverage.refresh() } }
-    fun retryPending() { viewModelScope.launch { coverage.retryPending() } }
-
-    override fun onCleared() {
-        signOut()
-    }
+    override fun onCleared() { signOut(); super.onCleared() }
 }

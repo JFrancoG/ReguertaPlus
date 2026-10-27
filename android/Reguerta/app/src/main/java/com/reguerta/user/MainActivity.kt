@@ -89,8 +89,8 @@ class MainActivity : ComponentActivity() {
             type = sourceIntent.getStringExtra(PUSH_TYPE_KEY),
             target = sourceIntent.getStringExtra(PUSH_TARGET_KEY),
         ) ?: return
-        // Coverage opens only in its isolated Debug activity until live composition is approved.
-        if (!reference.isCoverage) rootStateViewModel.acceptShiftNotificationPush(reference)
+        // The normal route resolves canonical access before reading a case or enabling a command.
+        rootStateViewModel.acceptShiftNotificationPush(reference)
         sourceIntent.removeExtra(PUSH_EVENT_ID_KEY)
         sourceIntent.removeExtra(PUSH_TYPE_KEY)
         sourceIntent.removeExtra(PUSH_TARGET_KEY)

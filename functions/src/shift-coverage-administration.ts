@@ -1,5 +1,7 @@
+import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
 import {Firestore} from "@google-cloud/firestore";
-import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
+import {AppEnvironment, HttpRequestError, VerifiedIdentity} from
+  "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {coverageId, rejectCoverage,
   SHIFT_COVERAGE_POLICY_REVISION} from "./shift-coverage.js";
@@ -15,7 +17,8 @@ import {requireProvisionalCreditPublication} from
   "./shift-credit-publication.js";
 import {addBusinessDays} from "./shift-planning-calendar.js";
 
-type Base = {schemaVersion: 1; environment: "develop"; operationId: string;
+type Base = {schemaVersion: 1; environment: AppEnvironment;
+  operationId: string;
   userId: string; expectedContextDigest: string};
 export type ShiftAdministrationCommand = Base & (
   {action: "reconcileMembership"; expectedRevision: number;
@@ -36,21 +39,26 @@ const reason = (value: unknown) => {
   return value;
 };
 
-export const parseShiftAdministrationQuery = (value: unknown) => {
+export const parseShiftAdministrationQuery = (value: unknown): {
+  schemaVersion: 1; environment: AppEnvironment; action: "administration";
+} => {
   const body = value as Record<string, unknown>;
   if (!exact(body, "action,environment,schemaVersion") ||
-      body.schemaVersion !== 1 || body.environment !== "develop" ||
+      body.schemaVersion !== 1 ||
+      !["develop", "production"].includes(body.environment as string) ||
       body.action !== "administration") {
     return rejectCoverage("invalid_administration_query");
   }
-  return {schemaVersion: 1, environment: "develop", action: "administration"};
+  return {schemaVersion: 1, environment: body.environment as AppEnvironment,
+    action: "administration"};
 };
 
 export const parseShiftAdministrationCommand = (
   value: unknown,
 ): ShiftAdministrationCommand => {
   const body = value as ShiftAdministrationCommand;
-  if (!body || body.schemaVersion !== 1 || body.environment !== "develop" ||
+  if (!body || body.schemaVersion !== 1 ||
+      !["develop", "production"].includes(body.environment) ||
       typeof body.expectedContextDigest !== "string" ||
       !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(
         body.expectedContextDigest)) {
@@ -100,13 +108,16 @@ export const parseShiftAdministrationCommand = (
  * @param {Firestore} db Registered fixed-demo database.
  * @param {Function} clock Trusted clock.
  * @param {boolean} enabled Explicit HU-089 policy selection.
+ * @param {object} context Shared environment and transactional readiness fence.
  * @return {object} Actor-bound projections and minimal acknowledgements.
  */
 export const createShiftCoverageAdministration = (
   db: Firestore, clock: () => number, enabled: boolean,
+  context?: ShiftCoverageStoreContext,
 ) => {
+  const environment = context?.environment ?? "develop";
   const requireEnvironment = () => {
-    requireProvisionalCreditPublication("develop");
+    if (!context) requireProvisionalCreditPublication("develop");
     if (!enabled) return rejectCoverage("administration_policy_unavailable");
   };
   const now = () => {
@@ -119,35 +130,42 @@ export const createShiftCoverageAdministration = (
   return {
     async read(value: unknown, identity: VerifiedIdentity) {
       requireEnvironment();
-      parseShiftAdministrationQuery(value);
+      if (parseShiftAdministrationQuery(value).environment !== environment) {
+        return rejectCoverage("invalid_coverage_environment");
+      }
       return db.runTransaction(async (transaction) => {
-        const actor = await readShiftCoverageActor(db, transaction, identity);
+        await context?.requireReady(transaction);
+        const actor = await readShiftCoverageActor(
+          db, transaction, identity, environment);
         if (!actor.admin) {
           throw new HttpRequestError(403, "coverage_actor_forbidden", "Denied");
         }
         const serverTimeMillis = now();
-        return {schemaVersion: 1, environment: "develop",
+        return {schemaVersion: 1, environment,
           memberId: actor.memberId, isAdmin: true, serverTimeMillis,
           policyRevision: SHIFT_COVERAGE_POLICY_REVISION,
           ...await readMembershipAdministration(db, transaction,
-            serverTimeMillis),
+            serverTimeMillis, environment),
           ...await readSpacingAdministration(db, transaction,
-            serverTimeMillis)};
+            serverTimeMillis, context)};
       });
     },
     async execute(value: unknown, identity: VerifiedIdentity) {
       requireEnvironment();
       const command = parseShiftAdministrationCommand(value);
+      if (command.environment !== environment) {
+        return rejectCoverage("invalid_coverage_environment");
+      }
       const {action, expectedContextDigest, ...intent} = command;
-      const base = {schemaVersion: 1, environment: "develop",
+      const base = {schemaVersion: 1, environment,
         operationId: command.operationId, action, userId: command.userId};
       if (command.action === "reconcileMembership") {
         const result = await createShiftMembershipReconciliation(db,
-          clock, true).reconcileMembership(intent, identity, {
+          clock, true, context).reconcileMembership(intent, identity, {
           contextDigest: expectedContextDigest,
           verify: async (transaction) => {
             const current = await readMembershipAdministration(db,
-              transaction, now());
+              transaction, now(), environment);
             const member = current.members.find((item) =>
               item.userId === command.userId);
             if (!member || member.contextDigest !== expectedContextDigest) {
@@ -167,11 +185,12 @@ export const createShiftCoverageAdministration = (
         date: command.date, roundNumber: command.roundNumber,
         reason: command.reason};
       const result = await createDeliverySpacingAdministration(db,
-        clock).authorizeDeliverySpacingException(spacingIntent, identity, {
-        contextDigest: expectedContextDigest,
-        verify: (transaction) => assertSpacingAdministrationContext(db,
-          transaction, now(), command),
-      });
+        clock, context).authorizeDeliverySpacingException(
+        spacingIntent, identity, {
+          contextDigest: expectedContextDigest,
+          verify: (transaction) => assertSpacingAdministrationContext(db,
+            transaction, now(), command, context),
+        });
       return {...base, replayed: result.replayed,
         membershipRevision: null, exceptionId: result.result.id};
     },

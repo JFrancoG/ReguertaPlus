@@ -65,7 +65,7 @@ export const buildShiftCoverageEffects = (input: {
     return {userId, caseId: next.id, caseRevision: next.revision,
       push: genericShiftPlanningPush(eventId)};
   });
-  const value = {schemaVersion: 1, environment: "develop", operationId,
+  const value = {schemaVersion: 1, environment: next.environment, operationId,
     caseId: next.id, caseRevision: next.revision, caseDigest: digest(next),
     action, changes, notifications};
   return {...value, effectsDigest: digest(value)};

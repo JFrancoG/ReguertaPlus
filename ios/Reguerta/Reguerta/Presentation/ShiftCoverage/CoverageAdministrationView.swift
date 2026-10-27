@@ -6,7 +6,7 @@ struct CoverageAdministrationView: View {
     @State private var returnFocus: (target: ActionFocus, session: ShiftCoverageSession)?
     @ScaledMetric(relativeTo: .body) private var contentSpacing: CGFloat = 12
     @ScaledMetric(relativeTo: .body) private var minimumActionHeight: CGFloat = 44
-    @Bindable var model: CoverageRehearsalViewModel
+    @Bindable var model: CoverageRouteViewModel
 
     enum ActionFocus: Hashable {
         case reconcile(String)
@@ -23,7 +23,8 @@ struct CoverageAdministrationView: View {
                     .accessibilityIdentifier("coverage.admin.refresh")
             }
             CoverageFeedbackSection(model: model.coverage)
-            if let snapshot = model.coverage.administration, model.coverage.snapshot?.isAdmin == true {
+            if model.hasCurrentSession, let snapshot = model.coverage.administration,
+               model.coverage.snapshot?.isAdmin == true {
                 Section(CoverageCopy.text("admin_members")) {
                     if !snapshot.membershipWritable {
                         Text(CoverageCopy.text("admin_read_only"))
@@ -115,7 +116,7 @@ struct CoverageAdministrationView: View {
 
 #if DEBUG
 #Preview("Administración", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    @Previewable @State var model = CoveragePreviewAccess.model()
+    @Previewable @State var model = CoveragePreviewAccess.model().route
     NavigationStack { CoverageAdministrationView(model: model) }
         .task {
             await model.coverage.refresh()

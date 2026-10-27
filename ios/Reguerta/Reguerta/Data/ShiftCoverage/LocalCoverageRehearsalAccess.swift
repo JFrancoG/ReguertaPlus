@@ -52,6 +52,7 @@ final class LocalCoverageRehearsalAccess: CoverageRehearsalAccess {
                 throw ShiftCoverageFailure.rejected(status: 401, code: "coverage_sign_in_failed")
             }
             let provisional = ShiftCoverageSession(
+                environment: .develop,
                 uid: login.localId,
                 memberId: "resolving",
                 authorizationRevision: owner
@@ -61,6 +62,7 @@ final class LocalCoverageRehearsalAccess: CoverageRehearsalAccess {
             let snapshot = try await localRepository.resolveMember(session: provisional)
             guard owner == credentials.revision else { throw ShiftCoverageFailure.sessionChanged }
             let session = ShiftCoverageSession(
+                environment: .develop,
                 uid: login.localId,
                 memberId: snapshot.memberId,
                 authorizationRevision: owner

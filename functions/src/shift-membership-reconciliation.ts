@@ -1,9 +1,13 @@
+import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
+import {requireRegisteredProvisionalCreditFirestore} from
+  "./shift-credit-publication.js";
 import {readDepartureCreditChanges, firstDueOrdinaryShift} from
   "./shift-membership-lifecycle.js";
 import {SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT} from
   "./shift-planning-bundle.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
-import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
+import {AppEnvironment, HttpRequestError, VerifiedIdentity} from
+  "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {coverageId, coverageMember, rejectCoverage,
@@ -19,7 +23,8 @@ import {captureShiftPlanningWriterAuthority} from
 const root = "develop/plus-collections";
 const types = ["delivery", "market"] as const;
 const hash = (values: string[]) => digest(values).split(":").at(-1) as string;
-type Intent = {schemaVersion: 1; environment: "develop"; operationId: string;
+type Intent = {schemaVersion: 1; environment: AppEnvironment;
+  operationId: string;
   userId: string; expectedRevision: number; permanentDepartureReason?: string};
 export type MemberSource = {isActive: boolean; roles: string[];
   isCommonPurchaseManager: boolean} | null;
@@ -117,18 +122,24 @@ export const assertNoPendingShiftMembership = async (
  * @param {Firestore} db Fixed provisional emulator client.
  * @param {Function} clock Trusted clock, reevaluated on transaction retries.
  * @param {boolean} amendedLifecycle Explicit HU-089 local policy opt-in.
+ * @param {object} context Shared environment and transactional readiness fence.
  * @return {object} Administrative reconciliation command.
  */
 export const createShiftMembershipReconciliation = (
   db: Firestore, clock: () => number, amendedLifecycle = false,
-) => ({
-  async reconcileMembership(value: unknown,
-    actorSource: string | VerifiedIdentity,
-    guard?: {contextDigest: string;
+  context?: ShiftCoverageStoreContext,
+) => {
+  if (!context) requireRegisteredProvisionalCreditFirestore(db);
+  const environment = context?.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
+  return {
+    async reconcileMembership(value: unknown,
+      actorSource: string | VerifiedIdentity,
+      guard?: {contextDigest: string;
       verify: (transaction: Transaction) => Promise<void>}) {
-    const intent = value as Intent | undefined;
-    if (!intent || intent.schemaVersion !== 1 ||
-        intent.environment !== "develop" ||
+      const intent = value as Intent | undefined;
+      if (!intent || intent.schemaVersion !== 1 ||
+        intent.environment !== environment ||
         !["environment,expectedRevision,operationId,schemaVersion,userId",
           ...(amendedLifecycle ? ["environment,expectedRevision,operationId," +
             "permanentDepartureReason,schemaVersion,userId"] : [])]
@@ -140,248 +151,264 @@ export const createShiftMembershipReconciliation = (
         !Number.isSafeInteger(intent.expectedRevision) ||
         intent.expectedRevision < 0 ||
         intent.expectedRevision >= Number.MAX_SAFE_INTEGER) {
-      return rejectCoverage("invalid_membership_command");
-    }
-    const userId = coverageId(intent.userId);
-    const operationId = coverageId(intent.operationId);
-    const ref = (collection: string, id: string) =>
-      db.doc(`${root}/${collection}/${id}`);
-    return db.runTransaction(async (transaction) => {
-      const actorId = typeof actorSource === "string" ?
-        coverageId(actorSource) : (await readShiftCoverageActor(
-          db, transaction, actorSource)).memberId;
-      const commandDigest = digest({intent, actorId,
-        ...(typeof actorSource === "string" ? {} : {authUid: actorSource.uid}),
-        ...(guard ? {contextDigest: guard.contextDigest} : {})});
-      const now = clock();
-      if (!Number.isSafeInteger(now) || now < 0) {
-        return rejectCoverage("invalid_coverage_clock");
+        return rejectCoverage("invalid_membership_command");
       }
-      const stateRef = ref("shiftMembershipState", userId);
-      const receiptRef = ref("shiftMembershipOperations", operationId);
-      const [actor, member, stateDoc, receipt, maintenance, ...rotationDocs] =
+      const userId = coverageId(intent.userId);
+      const operationId = coverageId(intent.operationId);
+      const ref = (collection: string, id: string) =>
+        db.doc(`${root}/${collection}/${id}`);
+      if (context && typeof actorSource === "string") {
+        return rejectCoverage("coverage_actor_forbidden");
+      }
+      return db.runTransaction(async (transaction) => {
+        await context?.requireReady(transaction);
+        const actorId = typeof actorSource === "string" ?
+          coverageId(actorSource) : (await readShiftCoverageActor(
+            db, transaction, actorSource, environment)).memberId;
+        const commandDigest = digest({intent, actorId,
+          ...(typeof actorSource === "string" ? {} :
+            {authUid: actorSource.uid}),
+          ...(guard ? {contextDigest: guard.contextDigest} : {})});
+        const now = clock();
+        if (!Number.isSafeInteger(now) || now < 0) {
+          return rejectCoverage("invalid_coverage_clock");
+        }
+        const stateRef = ref("shiftMembershipState", userId);
+        const receiptRef = ref("shiftMembershipOperations", operationId);
+        const [actor, member, stateDoc, receipt, maintenance, ...rotationDocs] =
         await transaction.getAll(ref("users", actorId), ref("users", userId),
           stateRef, receiptRef, ref("shiftPlanningState", "current"),
           ...types.map((type) => ref("shiftRotations", type)));
-      if (!coverageMember(actor.data()).admin) {
-        if (typeof actorSource !== "string") {
-          throw new HttpRequestError(403, "coverage_actor_forbidden", "Denied");
+        if (!coverageMember(actor.data()).admin) {
+          if (typeof actorSource !== "string") {
+            throw new HttpRequestError(403, "coverage_actor_forbidden",
+              "Denied");
+          }
+          return rejectCoverage("coverage_actor_forbidden");
         }
-        return rejectCoverage("coverage_actor_forbidden");
-      }
-      const authority = captureShiftPlanningWriterAuthority(maintenance.data());
-      if (!authority) return rejectCoverage("coverage_authority_required");
-      if (receipt.exists) {
-        if (receipt.data()?.commandDigest !== commandDigest) {
-          return rejectCoverage("membership_operation_conflict");
+        const authority =
+          captureShiftPlanningWriterAuthority(maintenance.data());
+        if (!authority) return rejectCoverage("coverage_authority_required");
+        if (receipt.exists) {
+          if (receipt.data()?.commandDigest !== commandDigest) {
+            return rejectCoverage("membership_operation_conflict");
+          }
+          return {result: receipt.data()?.result, replayed: true};
         }
-        return {result: receipt.data()?.result, replayed: true};
-      }
-      await guard?.verify(transaction);
-      const previous = readShiftMembershipState(stateDoc.data(), userId);
-      if ((previous?.revision ?? 0) !== intent.expectedRevision) {
-        return rejectCoverage("membership_revision_conflict");
-      }
-      if (previous?.pendingQueueTransition && !previous.admissionRequired) {
-        return rejectCoverage("membership_admission_evidence_required");
-      }
-      if (previous && now < previous.observedAtMillis) {
-        return rejectCoverage("invalid_coverage_clock");
-      }
-      const memberValue = member.data();
-      const eligible = member.exists ? coverageMember(memberValue).eligible :
-        false;
-      const source: MemberSource = memberValue ? {
-        isActive: memberValue.isActive,
-        roles: [...new Set<string>(memberValue.roles.map((role: string) =>
-          role.trim().toLowerCase()))].sort(),
-        isCommonPurchaseManager: memberValue.isCommonPurchaseManager,
-      } : null;
-      if (intent.permanentDepartureReason !== undefined && source?.isActive) {
-        return rejectCoverage(
-          "membership_permanent_departure_requires_inactive");
-      }
-      const permanentDeparture = source?.isActive ? undefined :
-        previous?.permanentDeparture ??
+        await guard?.verify(transaction);
+        const previous = readShiftMembershipState(stateDoc.data(), userId);
+        if ((previous?.revision ?? 0) !== intent.expectedRevision) {
+          return rejectCoverage("membership_revision_conflict");
+        }
+        if (previous?.pendingQueueTransition && !previous.admissionRequired) {
+          return rejectCoverage("membership_admission_evidence_required");
+        }
+        if (previous && now < previous.observedAtMillis) {
+          return rejectCoverage("invalid_coverage_clock");
+        }
+        const memberValue = member.data();
+        const eligible = member.exists ? coverageMember(memberValue).eligible :
+          false;
+        const source: MemberSource = memberValue ? {
+          isActive: memberValue.isActive,
+          roles: [...new Set<string>(memberValue.roles.map((role: string) =>
+            role.trim().toLowerCase()))].sort(),
+          isCommonPurchaseManager: memberValue.isCommonPurchaseManager,
+        } : null;
+        if (intent.permanentDepartureReason !== undefined && source?.isActive) {
+          return rejectCoverage(
+            "membership_permanent_departure_requires_inactive");
+        }
+        const permanentDeparture = source?.isActive ? undefined :
+          previous?.permanentDeparture ??
         (intent.permanentDepartureReason !== undefined ? {operationId,
           reason: intent.permanentDepartureReason.trim(), atMillis: now} :
           undefined);
-      const changed = !previous ||
+        const changed = !previous ||
         digest(previous.source) !== digest(source) ||
         digest(previous.permanentDeparture ?? null) !==
           digest(permanentDeparture ?? null);
-      const creditChanges = permanentDeparture ?
-        await readDepartureCreditChanges(
-          db, transaction, userId, permanentDeparture.operationId, now) : [];
-      const reason = !source ? "member_missing" : !source.isActive ?
-        "member_inactive" : !eligible ? "real_producer" :
-          previous && !previous.eligible ? "eligibility_restored" :
-            !previous ? "initial_observation" : "eligibility_source_changed";
-      const rotations = rotationDocs.map((doc, index) =>
-        parseShiftRotationAggregateWire(doc.data(), types[index]));
-      if (rotations.some((rotation) =>
-        rotation.activeRevision !== authority.activeRevision ||
+        const creditChanges = permanentDeparture ?
+          await readDepartureCreditChanges(
+            db, transaction, userId, permanentDeparture.operationId, now,
+            environment) : [];
+        const reason = !source ? "member_missing" : !source.isActive ?
+          "member_inactive" : !eligible ? "real_producer" :
+            previous && !previous.eligible ? "eligibility_restored" :
+              !previous ? "initial_observation" : "eligibility_source_changed";
+        const rotations = rotationDocs.map((doc, index) =>
+          parseShiftRotationAggregateWire(doc.data(), types[index]));
+        if (rotations.some((rotation) =>
+          rotation.activeRevision !== authority.activeRevision ||
         rotation.activeDigest !== authority.activeDigest)) {
-        return rejectCoverage("membership_rotation_changed");
-      }
-      const shifts = await transaction.get(db.collection(`${root}/shifts`)
-        .limit(1001));
-      if (shifts.size > 1000) return rejectCoverage("membership_source_limit");
-      const publicShifts = shifts.docs.map((doc) => ({id: doc.id,
-        shift: parseShiftPlanningPublicShiftDocument({
-          targetPath: doc.ref.path, value: doc.data()}),
-      }));
-      const reserves = await transaction.getAll(...types.map((type) =>
-        ref("shiftCoverageReserves", hash([type, userId]))));
-      const reserveChanges: {before: CoverageReserve | null;
+          return rejectCoverage("membership_rotation_changed");
+        }
+        const shifts = await transaction.get(db.collection(`${root}/shifts`)
+          .limit(1001));
+        if (shifts.size > 1000) {
+          return rejectCoverage("membership_source_limit");
+        }
+        const publicShifts = shifts.docs.map((doc) => ({id: doc.id,
+          shift: parseShiftPlanningPublicShiftDocument({
+            targetPath: doc.ref.path, value: doc.data()}),
+        }));
+        const reserves = await transaction.getAll(...types.map((type) =>
+          ref("shiftCoverageReserves", hash([type, userId]))));
+        const reserveChanges: {before: CoverageReserve | null;
         after: CoverageReserve; ordinaryShiftId?: string}[] = [];
-      const admissionAfterRound = {delivery: 0, market: 0};
-      const admissionRequired = {...previous?.admissionRequired ??
+        const admissionAfterRound = {delivery: 0, market: 0};
+        const admissionRequired = {...previous?.admissionRequired ??
         {delivery: false, market: false}};
-      const pendingTypes = {...previous?.pendingTypes ?? {
-        delivery: previous?.pendingQueueTransition ?? false,
-        market: previous?.pendingQueueTransition ?? false}};
-      for (const [index, type] of types.entries()) {
-        const rotation = rotations[index];
-        const inCohort = rotation.cursor.cohortUserIds.includes(userId);
-        const entering = eligible &&
+        const pendingTypes = {...previous?.pendingTypes ?? {
+          delivery: previous?.pendingQueueTransition ?? false,
+          market: previous?.pendingQueueTransition ?? false}};
+        for (const [index, type] of types.entries()) {
+          const rotation = rotations[index];
+          const inCohort = rotation.cursor.cohortUserIds.includes(userId);
+          const entering = eligible &&
           (previous ? !previous.eligible : !inCohort);
-        admissionRequired[type] ||= entering;
-        pendingTypes[type] ||= entering || (!eligible && inCohort) ||
+          admissionRequired[type] ||= entering;
+          pendingTypes[type] ||= entering || (!eligible && inCohort) ||
           Boolean(previous?.eligible && !eligible);
-        admissionAfterRound[type] = Math.max(
-          previous?.admissionAfterRound[type] ?? 0,
-          rotation.cursor.roundNumber - (rotation.cohortFrozen ? 0 : 1),
-          ...publicShifts.filter((item) => item.shift.type === type)
-            .flatMap(({shift}) => shift.rotationPositions?.map((position) =>
-              position.roundNumber) ?? [shift.roundNumber ?? 0]));
-        const old = reserves[index].data() as CoverageReserve | undefined;
-        if (old && (old.userId !== userId || old.type !== type ||
+          admissionAfterRound[type] = Math.max(
+            previous?.admissionAfterRound[type] ?? 0,
+            rotation.cursor.roundNumber - (rotation.cohortFrozen ? 0 : 1),
+            ...publicShifts.filter((item) => item.shift.type === type)
+              .flatMap(({shift}) => shift.rotationPositions?.map((position) =>
+                position.roundNumber) ?? [shift.roundNumber ?? 0]));
+          const old = reserves[index].data() as CoverageReserve | undefined;
+          if (old && (old.userId !== userId || old.type !== type ||
             typeof old.active !== "boolean" ||
             !Number.isSafeInteger(old.revision) || old.revision < 1 ||
             old.revision >= Number.MAX_SAFE_INTEGER ||
             !Number.isSafeInteger(old.enteredAtMillis) ||
             old.enteredAtMillis < 0 || old.enteredAtMillis > now)) {
-          return rejectCoverage("invalid_coverage_reserve");
-        }
-        if (old?.admissionAfterRound !== undefined &&
+            return rejectCoverage("invalid_coverage_reserve");
+          }
+          if (old?.admissionAfterRound !== undefined &&
             (!Number.isSafeInteger(old.admissionAfterRound) ||
               old.admissionAfterRound < 0)) {
-          return rejectCoverage("invalid_coverage_reserve");
+            return rejectCoverage("invalid_coverage_reserve");
+          }
+          const due = amendedLifecycle && !entering && old?.active && eligible ?
+            firstDueOrdinaryShift(old, publicShifts, now) : undefined;
+          if (entering || (old?.active && (!eligible || due))) {
+            reserveChanges.push({before: old ?? null,
+              ...(due ? {ordinaryShiftId: due.id} : {}), after: {userId, type,
+                active: eligible && !due, enteredAtMillis: entering ? now :
+                  (old?.enteredAtMillis ?? now),
+                revision: (old?.revision ?? 0) + 1,
+                ...(entering && amendedLifecycle ?
+                  {admissionAfterRound: admissionAfterRound[type]} :
+                  old?.admissionAfterRound !== undefined ?
+                    {admissionAfterRound: old.admissionAfterRound} : {})}});
+          }
         }
-        const due = amendedLifecycle && !entering && old?.active && eligible ?
-          firstDueOrdinaryShift(old, publicShifts, now) : undefined;
-        if (entering || (old?.active && (!eligible || due))) {
-          reserveChanges.push({before: old ?? null,
-            ...(due ? {ordinaryShiftId: due.id} : {}), after: {userId, type,
-              active: eligible && !due, enteredAtMillis: entering ? now :
-                (old?.enteredAtMillis ?? now),
-              revision: (old?.revision ?? 0) + 1,
-              ...(entering && amendedLifecycle ?
-                {admissionAfterRound: admissionAfterRound[type]} :
-                old?.admissionAfterRound !== undefined ?
-                  {admissionAfterRound: old.admissionAfterRound} : {})}});
-        }
-      }
-      const next: MembershipState = {schemaVersion: 1,
-        policyRevision: SHIFT_COVERAGE_POLICY_REVISION, userId,
-        revision: (previous?.revision ?? 0) + (changed ? 1 : 0), source,
-        ...(permanentDeparture ? {permanentDeparture} : {}),
-        ...(previous?.frozenExclusion ?
-          {frozenExclusion: previous.frozenExclusion} : {}),
-        ...(changed && !eligible ? {frozenExclusion: {
-          reason: (!source || !source.isActive ? "excusedDeparture" :
-            "excusedIneligible") as "excusedDeparture" | "excusedIneligible",
-          revision: (previous?.revision ?? 0) + 1}} : {}),
-        eligible, observedAtMillis: changed ? now :
-          (previous?.observedAtMillis ?? now),
-        pendingQueueTransition: types.some((type) => pendingTypes[type]),
-        admissionAfterRound, admissionRequired, pendingTypes};
-      const affected = eligible ? [] : publicShifts.filter(({shift}) =>
-        shift.assignedUserIds.includes(userId) && shift.date.toMillis() > now &&
-        shift.completion.state === "uncompleted");
-      const slots = affected.length ? await transaction.getAll(
-        ...affected.map(({id, shift}) => ref("shiftCoverageSlots", hash([id,
-          String(shift.assignedUserIds.indexOf(userId))])))) : [];
-      const occupied = slots.filter((slot) => slot.exists);
-      const existingCases = occupied.length ? await transaction.getAll(
-        ...occupied.map((slot) => ref("shiftCoverageCases",
-          coverageId(slot.data()?.caseId)))) : [];
-      const openings = [];
-      const coverage = [];
-      for (const [index, item] of affected.entries()) {
-        const {id, shift} = item;
-        const positionIndex = shift.assignedUserIds.indexOf(userId);
-        if (shift.status === "swap_pending") {
-          coverage.push({shiftId: id, status: "swap_pending", caseId: null});
-          continue;
-        }
-        if (shift.writeEpoch !== authority.writeEpoch ||
+        const next: MembershipState = {schemaVersion: 1,
+          policyRevision: SHIFT_COVERAGE_POLICY_REVISION, userId,
+          revision: (previous?.revision ?? 0) + (changed ? 1 : 0), source,
+          ...(permanentDeparture ? {permanentDeparture} : {}),
+          ...(previous?.frozenExclusion ?
+            {frozenExclusion: previous.frozenExclusion} : {}),
+          ...(changed && !eligible ? {frozenExclusion: {
+            reason: (!source || !source.isActive ? "excusedDeparture" :
+              "excusedIneligible") as "excusedDeparture" | "excusedIneligible",
+            revision: (previous?.revision ?? 0) + 1}} : {}),
+          eligible, observedAtMillis: changed ? now :
+            (previous?.observedAtMillis ?? now),
+          pendingQueueTransition: types.some((type) => pendingTypes[type]),
+          admissionAfterRound, admissionRequired, pendingTypes};
+        const affected = eligible ? [] : publicShifts.filter(({shift}) =>
+          shift.assignedUserIds.includes(userId) &&
+          shift.date.toMillis() > now &&
+          shift.completion.state === "uncompleted");
+        const slots = affected.length ? await transaction.getAll(
+          ...affected.map(({id, shift}) => ref("shiftCoverageSlots", hash([id,
+            String(shift.assignedUserIds.indexOf(userId))])))) : [];
+        const occupied = slots.filter((slot) => slot.exists);
+        const existingCases = occupied.length ? await transaction.getAll(
+          ...occupied.map((slot) => ref("shiftCoverageCases",
+            coverageId(slot.data()?.caseId)))) : [];
+        const openings = [];
+        const coverage = [];
+        for (const [index, item] of affected.entries()) {
+          const {id, shift} = item;
+          const positionIndex = shift.assignedUserIds.indexOf(userId);
+          if (shift.status === "swap_pending") {
+            coverage.push({shiftId: id, status: "swap_pending", caseId: null});
+            continue;
+          }
+          if (shift.writeEpoch !== authority.writeEpoch ||
             shift.bundleRevision !== authority.activeRevision ||
             shift.bundleDigest !== authority.activeDigest) {
-          return rejectCoverage("coverage_shift_changed");
-        }
-        if (slots[index].exists) {
-          const existing = existingCases.find((doc) =>
-            doc.id === slots[index].data()?.caseId)?.data();
-          if (!existing || existing.digest !== digest(existing.value) ||
+            return rejectCoverage("coverage_shift_changed");
+          }
+          if (slots[index].exists) {
+            const existing = existingCases.find((doc) =>
+              doc.id === slots[index].data()?.caseId)?.data();
+            if (!existing || existing.digest !== digest(existing.value) ||
+              existing.value.environment !== environment ||
+              existing.value.policyRevision !==
+                SHIFT_COVERAGE_POLICY_REVISION ||
               existing.value.shiftId !== id ||
               existing.value.positionIndex !== positionIndex ||
               digest(existing.authority) !== digest(authority)) {
-            return rejectCoverage("invalid_coverage_case");
+              return rejectCoverage("invalid_coverage_case");
+            }
+            coverage.push({shiftId: id, status: "existing_case",
+              caseId: coverageId(slots[index].data()?.caseId)});
+            continue;
           }
-          coverage.push({shiftId: id, status: "existing_case",
-            caseId: coverageId(slots[index].data()?.caseId)});
-          continue;
+          const caseId = hash(["membership", operationId, id,
+            String(positionIndex)]);
+          const value = buildShiftCoverageOpening({environment, caseId,
+            shiftId: id, shift,
+            positionIndex, actorId, reason, now});
+          openings.push({caseId, value, slotRef: slots[index].ref});
+          coverage.push({shiftId: id, status: "opened", caseId});
         }
-        const caseId = hash(["membership", operationId, id,
-          String(positionIndex)]);
-        const value = buildShiftCoverageOpening({caseId, shiftId: id, shift,
-          positionIndex, actorId, reason, now});
-        openings.push({caseId, value, slotRef: slots[index].ref});
-        coverage.push({shiftId: id, status: "opened", caseId});
-      }
-      const stateChanged = !previous || digest(previous) !== digest(next);
-      if (stateChanged && !changed) {
-        next.revision += 1;
-        next.observedAtMillis = now;
-      }
-      if (next.revision >= Number.MAX_SAFE_INTEGER) {
-        return rejectCoverage("invalid_shift_membership_state");
-      }
-      // Reconcile atomically, including unexpectedly large schedules.
-      const writeCount = openings.length * 2 + reserveChanges.length + 1 +
+        const stateChanged = !previous || digest(previous) !== digest(next);
+        if (stateChanged && !changed) {
+          next.revision += 1;
+          next.observedAtMillis = now;
+        }
+        if (next.revision >= Number.MAX_SAFE_INTEGER) {
+          return rejectCoverage("invalid_shift_membership_state");
+        }
+        // Reconcile atomically, including unexpectedly large schedules.
+        const writeCount = openings.length * 2 + reserveChanges.length + 1 +
         Number(stateChanged) + creditChanges.length;
-      if (writeCount > SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT) {
-        return rejectCoverage("membership_transaction_oversize");
-      }
-      const result = {state: next, coverage};
-      const audit = {commandDigest, intent, actorMemberId: actorId, reason,
-        observedAtMillis: now, sourceUpdateTime: member.updateTime ? {
-          seconds: member.updateTime.seconds,
-          nanoseconds: member.updateTime.nanoseconds} : null,
-        authority, previous, result, reserveChanges, creditChanges};
-      if (Buffer.byteLength(JSON.stringify(audit)) > 900_000) {
-        return rejectCoverage("membership_transaction_oversize");
-      }
-      if (stateChanged) {
-        transaction.set(stateRef,
-          {value: next, digest: digest(next)});
-      }
-      for (const {after} of reserveChanges) {
-        transaction.set(
-          ref("shiftCoverageReserves", hash([after.type, userId])), after);
-      }
-      for (const change of creditChanges) {
-        transaction.set(db.doc(change.targetPath), change.after);
-      }
-      for (const opening of openings) {
-        transaction.create(ref("shiftCoverageCases", opening.caseId),
-          {value: opening.value, digest: digest(opening.value), authority});
-        transaction.create(opening.slotRef, {caseId: opening.caseId});
-      }
-      transaction.create(receiptRef, audit);
-      return {result, replayed: false};
-    });
-  },
-});
+        if (writeCount > SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT) {
+          return rejectCoverage("membership_transaction_oversize");
+        }
+        const result = {state: next, coverage};
+        const audit = {commandDigest, intent, actorMemberId: actorId, reason,
+          observedAtMillis: now, sourceUpdateTime: member.updateTime ? {
+            seconds: member.updateTime.seconds,
+            nanoseconds: member.updateTime.nanoseconds} : null,
+          authority, previous, result, reserveChanges, creditChanges};
+        if (Buffer.byteLength(JSON.stringify(audit)) > 900_000) {
+          return rejectCoverage("membership_transaction_oversize");
+        }
+        if (stateChanged) {
+          transaction.set(stateRef,
+            {value: next, digest: digest(next)});
+        }
+        for (const {after} of reserveChanges) {
+          transaction.set(
+            ref("shiftCoverageReserves", hash([after.type, userId])), after);
+        }
+        for (const change of creditChanges) {
+          transaction.set(db.doc(change.targetPath), change.after);
+        }
+        for (const opening of openings) {
+          transaction.create(ref("shiftCoverageCases", opening.caseId),
+            {value: opening.value, digest: digest(opening.value), authority});
+          transaction.create(opening.slotRef, {caseId: opening.caseId});
+        }
+        transaction.create(receiptRef, audit);
+        return {result, replayed: false};
+      });
+    },
+  };
+};

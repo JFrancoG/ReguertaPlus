@@ -141,6 +141,10 @@ import {createFirestoreShiftSheetsImport} from
   "./shift-sheets-firestore-import.js";
 import {createShiftSheetsImportHttpFunction, readShiftSheetsImportMapping} from
   "./shift-sheets-import-http.js";
+import {createFirestoreShiftCoverageService} from
+  "./shift-coverage-live.js";
+import {executeShiftCoverageAccessRequest, executeShiftCoverageRequest} from
+  "./shift-coverage-live-http.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
@@ -3203,6 +3207,45 @@ export const resolveDeliveryCalendarMutationContext = onRequest(
     }
   },
 );
+
+const liveShiftCoverageServiceFor = (environment: AppEnvironment) =>
+  createFirestoreShiftCoverageService({firestore, environment,
+    // Live effect ownership, workbook leases, intake and entropy are pending.
+    operationalReady: false, nowMillis: Date.now});
+
+export const resolveShiftCoverageAccess = onRequest(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "POST") res.setHeader("Allow", "POST");
+  try {
+    const context = await executeShiftCoverageAccessRequest({
+      method: req.method, query: req.query, body: req.body,
+    }, {
+      verifyIdentity: () => verifyRequestIdentity(req),
+      resolveEnvironment: resolveRequestEnvironmentForIdentity,
+      serviceFor: liveShiftCoverageServiceFor,
+    });
+    res.status(200).json(context);
+  } catch (error) {
+    sendHttpError(res, error);
+  }
+});
+
+export const shiftCoverage = onRequest(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "POST") res.setHeader("Allow", "POST");
+  try {
+    const data = await executeShiftCoverageRequest({
+      method: req.method, query: req.query, body: req.body,
+    }, {
+      verifyIdentity: () => verifyRequestIdentity(req),
+      resolveEnvironment: resolveRequestEnvironmentForIdentity,
+      serviceFor: liveShiftCoverageServiceFor,
+    });
+    res.status(200).json({ok: true, data});
+  } catch (error) {
+    sendHttpError(res, error);
+  }
+});
 
 export const resolveShiftPlanningRequestContext = onRequest(
   async (req, res) => {

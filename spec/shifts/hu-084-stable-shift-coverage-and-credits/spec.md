@@ -5,7 +5,7 @@
 - issue_id: #268
 - priority: P1
 - platform: both
-- status: provisional local administrative integration implemented on both apps; previous coverage manual matrix complete; new administrative physical checks, ratification and live integration remain open
+- status: local native administration and bounded physical matrix accepted; normal-app authenticated backend composition implemented and locally validated; operational integration, ratification and shared activation remain open
 - blocked_by: assembly ratification for live activation
 - decision_gate: assembly ratification
 - depends_on: HU-082 / #266, HU-083 / #267
@@ -50,6 +50,32 @@ This completes the local native administrative connection of HU-089 under HU-084
 with current validation in `review.md`. Its new physical accessibility/text/keyboard
 checks are separate from the earlier completed coverage matrix. Collective
 ratification, live composition/migration and activation remain open.
+
+## Normal-app authenticated composition — authorized 2026-10-27
+
+The maintainer authorizes reusing the coverage implementation in both normal
+session graphs and the authenticated backend composition. The shared contract
+accepts `develop` or `production` explicitly; the fixed-demo wrapper remains
+develop-only. `resolveShiftCoverageAccess` accepts exactly `schemaVersion: 1`
+and `environment`, returning schema/environment/member plus `enabled` and nullable
+`policyRevision`. Disabled access has a null revision and grants no normal entry
+or business operation. `shiftCoverage` retains the existing exact action bodies
+and success envelope; shared errors use the normal backend error contract.
+
+Bind drafts and requests to the canonical authenticated UID/member/environment
+and session revision, reject impersonation and fence token acquisition, transport
+and response handling. Resolve current account links and permissions in the
+server transaction; receipt replay does not bypass current readiness. No caller
+can choose a backend actor or silently reroute a production intent to develop.
+
+The optional private `sourcePolicy.coverage` record contains exact activation
+inputs: enabled, environment, supported policy revision, ratification reference
+and an explicit maximum offer window. Missing or invalid policy stays closed.
+Exported services additionally remain operationally closed in code pending
+effect ownership, shared workbook leases, writer intake, real entropy and
+authoritative credit/membership migration. This composition does not remove the
+existing provisional planner/publication guards, ratify policy or activate any
+shared service. See [ADR-0018](../../../docs/decisions/0018-bind-native-coverage-to-authenticated-backend-readiness.md).
 
 ## Maintainer proposal refinements — pending collective ratification
 

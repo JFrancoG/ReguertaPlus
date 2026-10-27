@@ -1,5 +1,7 @@
+import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
-import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
+import {AppEnvironment, HttpRequestError, VerifiedIdentity} from
+  "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {coverageId, coverageMember, rejectCoverage} from "./shift-coverage.js";
 import {requireRegisteredProvisionalCreditFirestore} from
@@ -20,7 +22,8 @@ const root = "develop/plus-collections";
 const version = "hu089-delivery-spacing-v1" as const;
 type Data = Record<string, unknown>;
 type Approval = Omit<DeliverySpacingSource["exceptions"][number], "authorized">;
-type Intent = {schemaVersion: 1; environment: "develop"; operationId: string;
+type Intent = {schemaVersion: 1; environment: AppEnvironment;
+  operationId: string;
   planningRequestId: string; userId: string; previousDate: string;
   previousRoundNumber: number; date: string; roundNumber: number;
   reason: string};
@@ -34,13 +37,16 @@ const pairId = (value: Pick<Intent, "planningRequestId" | "userId" |
     value.previousRoundNumber, value.date, value.roundNumber])
     .slice("shift-planning:v1:sha256:".length);
 
-const parseIntent = (value: unknown): Intent => {
+const parseIntent = (
+  value: unknown, environment: AppEnvironment = "develop",
+): Intent => {
   const body = value as Intent | undefined;
   if (!body || Object.getPrototypeOf(body) !== Object.prototype ||
       Object.keys(body).sort().join() !== "date,environment,operationId," +
         "planningRequestId,previousDate,previousRoundNumber,reason," +
         "roundNumber,schemaVersion,userId" || body.schemaVersion !== 1 ||
-      body.environment !== "develop" || typeof body.previousDate !== "string" ||
+      body.environment !== environment ||
+      typeof body.previousDate !== "string" ||
       typeof body.date !== "string" || typeof body.reason !== "string" ||
       !body.reason.trim() || body.reason.length > 500 ||
       !Number.isSafeInteger(body.previousRoundNumber) ||
@@ -204,28 +210,36 @@ export const assertDeliverySpacingSource = async (input: {
  * public assignment, queue position, date, credit or maintenance state.
  * @param {Firestore} db Registered fixed-emulator client.
  * @param {Function} clock Trusted clock, reevaluated on transaction retries.
+ * @param {object} context Shared environment and transactional readiness fence.
  * @return {object} Actor-bound administrative command with immutable receipts.
  */
 export const createDeliverySpacingAdministration = (
   db: Firestore, clock: () => number,
+  context?: ShiftCoverageStoreContext,
 ) => {
-  requireRegisteredProvisionalCreditFirestore(db);
+  if (!context) requireRegisteredProvisionalCreditFirestore(db);
+  const environment = context?.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
   const ref = (collection: string, id: string) =>
     db.doc(`${root}/${collection}/${id}`);
   return {
     async authorizeDeliverySpacingException(value: unknown,
       actorSource: string | VerifiedIdentity, guard?: AdministrationGuard) {
-      const intent = parseIntent(value);
+      const intent = parseIntent(value, environment);
+      if (context && typeof actorSource === "string") {
+        return rejectCoverage("coverage_actor_forbidden");
+      }
       if (guard && (!/^shift-planning:v1:sha256:[a-f0-9]{64}$/
         .test(guard.contextDigest) || typeof guard.verify !== "function")) {
         return rejectCoverage("invalid_delivery_spacing_command");
       }
       const id = pairId(intent);
       return db.runTransaction(async (transaction) => {
-        requireRegisteredProvisionalCreditFirestore(db);
+        if (context) await context.requireReady(transaction);
+        else requireRegisteredProvisionalCreditFirestore(db);
         const actorId = typeof actorSource === "string" ?
           coverageId(actorSource) : (await readShiftCoverageActor(
-            db, transaction, actorSource)).memberId;
+            db, transaction, actorSource, environment)).memberId;
         const commandDigest = digest({intent, actorId,
           ...(typeof actorSource === "string" ? {} :
             {authUid: actorSource.uid}),

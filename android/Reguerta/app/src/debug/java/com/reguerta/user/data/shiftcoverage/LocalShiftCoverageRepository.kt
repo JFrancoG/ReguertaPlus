@@ -69,6 +69,7 @@ internal class LocalShiftCoverageRepository(
     }
 
     override suspend fun execute(command: ShiftCoverageCommand, session: ShiftCoverageSession) {
+        if (command.environment != "develop") throw ShiftCoverageFailure.LocalOnly
         if (command.expectedRevision !in 0 until 9_007_199_254_740_991L) throw ShiftCoverageFailure.InvalidResponse
         val result: Receipt = post(json.encodeToString(command), session)
         if (result.schemaVersion != 1 || result.environment != "develop" || result.caseId != command.caseId ||
@@ -93,6 +94,7 @@ internal class LocalShiftCoverageRepository(
     }
 
     override suspend fun executeAdministration(command: ShiftCoverageAdministrationCommand, session: ShiftCoverageSession) {
+        if (command.environment != "develop") throw ShiftCoverageFailure.LocalOnly
         val result: AdministrationReceipt = post(json.encodeToString(command), session)
         val correctResult = when (command.action) {
             ShiftCoverageAdministrationCommand.Action.reconcileMembership -> command.expectedRevision?.let {
@@ -137,6 +139,7 @@ internal class LocalShiftCoverageRepository(
     }
 
     private suspend fun requireCurrent(session: ShiftCoverageSession) {
+        if (session.environment != "develop") throw ShiftCoverageFailure.LocalOnly
         if (currentSession() != session) throw ShiftCoverageFailure.SessionChanged
         currentCoroutineContext().ensureActive()
     }

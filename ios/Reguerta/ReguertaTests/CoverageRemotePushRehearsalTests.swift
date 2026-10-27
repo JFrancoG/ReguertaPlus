@@ -38,12 +38,12 @@ struct CoverageRemotePushRehearsalTests {
             type: "shift_updated",
             target: "users"
         ))
-        model.acceptPush(reference)
-        await model.openPendingPush()
-        #expect(model.casePath == ["preview-case"])
-        #expect(model.pendingPushEventID == nil)
-        model.casePath = []
-        await model.openNotification("coverage-" + String(repeating: "aa", count: 32))
-        #expect(model.casePath.isEmpty)
+        model.route.acceptPush(reference)
+        await model.route.openPendingPush()
+        #expect(model.route.casePath == ["preview-case"])
+        #expect(model.route.pendingPushEventID == nil)
+        model.route.casePath = []
+        await model.route.openNotification("coverage-" + String(repeating: "aa", count: 32))
+        #expect(model.route.casePath.isEmpty)
     }
 }

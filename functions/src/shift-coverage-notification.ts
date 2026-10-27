@@ -1,9 +1,9 @@
+import type {AppEnvironment} from "./backend-security.js";
 import {Firestore, Transaction, Timestamp} from "@google-cloud/firestore";
 import {rejectCoverage} from "./shift-coverage.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {ShiftCoverageEffects} from "./shift-coverage-effects.js";
 
-const root = "develop/plus-collections";
 const unavailable = () => rejectCoverage("coverage_notification_unavailable");
 
 /**
@@ -14,11 +14,14 @@ const unavailable = () => rejectCoverage("coverage_notification_unavailable");
  * @param {Transaction} tx Owning authorized read transaction.
  * @param {string} memberId Canonical authenticated member.
  * @param {string} eventId Opaque client reference.
+ * @param {string} environment Authenticated notification environment.
  * @return {Promise<object>} Verified case and minimum delivered revision.
  */
 export const readCoverageNotificationReference = async (
   db: Firestore, tx: Transaction, memberId: string, eventId: string,
+  environment: AppEnvironment = "develop",
 ) => {
+  const root = `${environment}/plus-collections`;
   const inbox = await tx.get(db.doc(
     `${root}/users/${memberId}/notificationInbox/${eventId}`));
   const operationId = inbox.data()?.coverageOperationId;
@@ -34,7 +37,7 @@ export const readCoverageNotificationReference = async (
   const {effectsDigest, ...core} = value;
   if (record?.state !== "completed" ||
     !record?.deliveredTo?.includes(memberId) ||
-    value.operationId !== operationId || value.environment !== "develop" ||
+    value.operationId !== operationId || value.environment !== environment ||
     value.schemaVersion !== 1 || digest(core) !== effectsDigest ||
     receipt.data()?.effectsDigest !== effectsDigest ||
     !value.notifications.some((intent) => intent.userId === memberId &&
@@ -44,7 +47,9 @@ export const readCoverageNotificationReference = async (
 
 export const readCoverageNotificationInbox = async (
   db: Firestore, tx: Transaction, memberId: string,
+  environment: AppEnvironment = "develop",
 ) => {
+  const root = `${environment}/plus-collections`;
   const records = await tx.get(db.collection(
     `${root}/users/${memberId}/notificationInbox`)
     .where("coverageOperationId", "!=", null).limit(251));

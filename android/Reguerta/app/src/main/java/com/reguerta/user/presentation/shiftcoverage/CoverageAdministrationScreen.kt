@@ -24,7 +24,7 @@ import java.util.Locale
 
 internal fun LazyListScope.coverageAdministration(
     snapshot: ShiftCoverageAdministration,
-    model: CoverageRehearsalViewModel,
+    model: CoverageRouteViewModel,
     enabled: Boolean,
 ) {
     item {

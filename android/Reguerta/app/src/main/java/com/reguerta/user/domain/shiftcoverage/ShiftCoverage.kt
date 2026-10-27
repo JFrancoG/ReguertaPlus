@@ -1,6 +1,8 @@
 package com.reguerta.user.domain.shiftcoverage
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import com.reguerta.user.domain.access.MemberRole
 
 @Serializable
 internal data class ShiftCoverageSnapshot(
@@ -105,8 +107,16 @@ internal data class ShiftCoverageSnapshot(
     data class Reserve(val type: Kind, val active: Boolean, val enteredAtMillis: Long)
 }
 
-/** Change the revision on logout/relogin, UID, member, environment or authorization changes. */
-internal data class ShiftCoverageSession(val uid: String, val memberId: String, val authorizationRevision: Long)
+/** The epoch fences session replacement; metadata also fences member authorization refreshes within that epoch. */
+internal data class ShiftCoverageSession(
+    val uid: String,
+    val memberId: String,
+    val authorizationRevision: Long,
+    val environment: String = "develop",
+    val authorization: Authorization? = null,
+) {
+    data class Authorization(val roles: Set<MemberRole>, val isCommonPurchaseManager: Boolean)
+}
 
 /** Preserve this complete value for explicit replay after an uncertain response. Never put actor identity here. */
 @Serializable
@@ -121,9 +131,10 @@ internal data class ShiftCoverageCommand(
     val reason: String? = null,
     val userId: String? = null,
     val expiresAtMillis: Long? = null,
+    val environment: String = "develop",
+    @Transient val expectedPolicyRevision: String? = null,
 ) {
     val schemaVersion: Int = 1
-    val environment: String = "develop"
 
     @Serializable
     enum class Action {
@@ -135,12 +146,14 @@ internal data class ShiftCoverageCommand(
 internal sealed class ShiftCoverageFailure : Exception() {
     data object SessionChanged : ShiftCoverageFailure()
     data object LocalOnly : ShiftCoverageFailure()
+    data object Disabled : ShiftCoverageFailure()
     data object InvalidResponse : ShiftCoverageFailure()
     data object Unavailable : ShiftCoverageFailure()
     data class Rejected(val status: Int, val code: String) : ShiftCoverageFailure()
 }
 
 internal interface ShiftCoverageRepository {
+    suspend fun resolveAccess(session: ShiftCoverageSession): ShiftCoverageAccess = throw ShiftCoverageFailure.Unavailable
     suspend fun read(caseId: String?, session: ShiftCoverageSession): ShiftCoverageSnapshot
     suspend fun readNotification(eventId: String, session: ShiftCoverageSession): ShiftCoverageSnapshot =
         throw ShiftCoverageFailure.Unavailable

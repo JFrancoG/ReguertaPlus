@@ -8,7 +8,9 @@ struct ShiftCoverageAdministrationTests {
         let harness = try CoverageAdministrationHarness()
         await harness.prepare()
         let member = try #require(harness.model.administration?.members.first)
-        let draft = CoverageAdministrationDraft(subject: .permanentDeparture(member))
+        let draft = CoverageAdministrationDraft(
+            subject: .permanentDeparture(member), environment: .develop, expectedPolicyRevision: "hu084-provisional-v1"
+        )
         #expect(draft.command == nil)
         draft.reason = "Permanent departure confirmed by member"
         #expect(draft.command == nil)
@@ -34,7 +36,9 @@ struct ShiftCoverageAdministrationTests {
         let harness = try CoverageAdministrationHarness()
         await harness.prepare()
         let member = try #require(harness.model.administration?.members.first)
-        let draft = CoverageAdministrationDraft(subject: .reconcile(member))
+        let draft = CoverageAdministrationDraft(
+            subject: .reconcile(member), environment: .develop, expectedPolicyRevision: "hu084-provisional-v1"
+        )
         await harness.model.submitAdministration(try #require(draft.command))
         let body = try #require(harness.transport.sent.first)
         let sent = try JSONDecoder().decode(AdministrationSentCommand.self, from: body)
@@ -48,7 +52,9 @@ struct ShiftCoverageAdministrationTests {
         let harness = try CoverageAdministrationHarness()
         await harness.prepare()
         let candidate = try #require(harness.model.administration?.spacingCandidates.first)
-        let draft = CoverageAdministrationDraft(subject: .spacing(candidate))
+        let draft = CoverageAdministrationDraft(
+            subject: .spacing(candidate), environment: .develop, expectedPolicyRevision: "hu084-provisional-v1"
+        )
         #expect(draft.command == nil)
         draft.reason = "Otherwise this delivery would remain empty"
         await harness.model.submitAdministration(try #require(draft.command))
@@ -67,7 +73,9 @@ struct ShiftCoverageAdministrationTests {
         let harness = try CoverageAdministrationHarness()
         await harness.prepare()
         let member = try #require(harness.model.administration?.members.first)
-        let draft = CoverageAdministrationDraft(subject: .reconcile(member))
+        let draft = CoverageAdministrationDraft(
+            subject: .reconcile(member), environment: .develop, expectedPolicyRevision: "hu084-provisional-v1"
+        )
         let command = try #require(draft.command)
         harness.transport.loseFirstResponse = true
         await harness.model.submitAdministration(command)
@@ -75,6 +83,8 @@ struct ShiftCoverageAdministrationTests {
         await harness.model.refresh()
         await harness.model.refreshAdministration()
         await harness.model.submit(ShiftCoverageCommand(
+            expectedPolicyRevision: "hu084-provisional-v1",
+            environment: .develop,
             caseId: "case-a",
             operationId: "must-not-send",
             expectedRevision: 2,
@@ -97,7 +107,9 @@ struct ShiftCoverageAdministrationTests {
         let harness = try CoverageAdministrationHarness()
         await harness.prepare()
         let member = try #require(harness.model.administration?.members.first)
-        let draft = CoverageAdministrationDraft(subject: .reconcile(member))
+        let draft = CoverageAdministrationDraft(
+            subject: .reconcile(member), environment: .develop, expectedPolicyRevision: "hu084-provisional-v1"
+        )
         harness.transport.failReadBack = true
         await harness.model.submitAdministration(try #require(draft.command))
         #expect(!harness.model.hasPendingCommand)
@@ -115,7 +127,9 @@ struct ShiftCoverageAdministrationTests {
         let harness = try CoverageAdministrationHarness()
         await harness.prepare()
         let member = try #require(harness.model.administration?.members.first)
-        let draft = CoverageAdministrationDraft(subject: .reconcile(member))
+        let draft = CoverageAdministrationDraft(
+            subject: .reconcile(member), environment: .develop, expectedPolicyRevision: "hu084-provisional-v1"
+        )
         harness.transport.receiptAlteration = alteration
         await harness.model.submitAdministration(try #require(draft.command))
         #expect(harness.model.failure == .invalidResponse)
@@ -134,12 +148,12 @@ struct ShiftCoverageAdministrationTests {
         await screen.coverage.refreshAdministration()
         if alteration == "pair" {
             let candidate = try #require(screen.coverage.administration?.spacingCandidates.first)
-            screen.presentAdministration(.spacing(candidate))
-            screen.administrationDraft?.reason = "Avoid an empty shift"
+            screen.route.presentAdministration(.spacing(candidate))
+            screen.route.administrationDraft?.reason = "Avoid an empty shift"
         } else {
-            screen.presentAdministration(.reconcile(try #require(screen.coverage.administration?.members.first)))
+            screen.route.presentAdministration(.reconcile(try #require(screen.coverage.administration?.members.first)))
         }
-        #expect(screen.canConfirmAdministration)
+        #expect(screen.route.canConfirmAdministration)
         if alteration == "session" {
             screen.coverage.bind(nil)
         } else {
@@ -155,8 +169,8 @@ struct ShiftCoverageAdministrationTests {
             )
             await screen.coverage.refreshAdministration()
         }
-        #expect(!screen.canConfirmAdministration)
-        await screen.confirmAdministration()
+        #expect(!screen.route.canConfirmAdministration)
+        await screen.route.confirmAdministration()
         #expect(harness.transport.sent.isEmpty)
     }
 
@@ -197,7 +211,12 @@ private final class CoverageAdministrationHarness {
             ),
             administration: try Self.fixture("shift-coverage-administration")
         )
-        current = ShiftCoverageSession(uid: "auth-a", memberId: "member-a", authorizationRevision: 1)
+        current = ShiftCoverageSession(
+            environment: .develop,
+            uid: "auth-a",
+            memberId: "member-a",
+            authorizationRevision: 1
+        )
         repository = try LocalShiftCoverageRepository(
             port: 8799,
             currentSession: { [weak self] in self?.current },

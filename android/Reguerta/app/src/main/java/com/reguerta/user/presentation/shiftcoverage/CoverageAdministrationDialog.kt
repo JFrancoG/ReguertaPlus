@@ -26,7 +26,7 @@ import com.reguerta.user.R
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun CoverageAdministrationDialog(draft: CoverageAdministrationDraft, model: CoverageRehearsalViewModel) {
+internal fun CoverageAdministrationDialog(draft: CoverageAdministrationDraft, model: CoverageRouteViewModel) {
     val now by produceState(model.coverage.nowMillis) {
         while (true) { delay(1000); value = model.coverage.nowMillis }
     }

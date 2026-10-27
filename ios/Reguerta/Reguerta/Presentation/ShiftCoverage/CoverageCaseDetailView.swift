@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CoverageCaseDetailView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    let model: CoverageRehearsalViewModel
+    let model: CoverageRouteViewModel
     let caseId: String
 
     var body: some View {
@@ -15,7 +15,7 @@ struct CoverageCaseDetailView: View {
                         .accessibilityAddTraits(.isHeader)
                 }
                 CoverageFeedbackSection(model: model.coverage)
-                if let item = model.coverage.caseItem(caseId) {
+                if model.hasCurrentSession, let item = model.coverage.caseItem(caseId) {
                     Section {
                         Text(CoverageCopy.text(item.type.rawValue)).font(.headline)
                         Text(CoverageCopy.shiftDate(item.scheduledAtMillis))
@@ -72,7 +72,7 @@ struct CoverageCaseDetailView: View {
 
 #if DEBUG
 #Preview("Ensayo local", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    @Previewable @State var model = CoveragePreviewAccess.model()
+    @Previewable @State var model = CoveragePreviewAccess.model().route
     NavigationStack { CoverageCaseDetailView(model: model, caseId: "preview-case") }
         .task { await model.coverage.refresh() }
 }

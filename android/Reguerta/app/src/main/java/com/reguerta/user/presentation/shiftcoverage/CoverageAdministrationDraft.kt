@@ -13,6 +13,8 @@ internal class CoverageAdministrationDraft(
     val member: ShiftCoverageAdministration.Member? = null,
     val permanentDeparture: Boolean = false,
     val spacing: ShiftCoverageAdministration.SpacingCandidate? = null,
+    val environment: String = "develop",
+    val expectedPolicyRevision: String? = null,
 ) {
     private val operationId = UUID.randomUUID().toString()
     var reason by mutableStateOf("")
@@ -31,6 +33,8 @@ internal class CoverageAdministrationDraft(
                     expectedContextDigest = member.contextDigest,
                     expectedRevision = member.membershipRevision,
                     permanentDepartureReason = trimmed.takeIf { permanentDeparture },
+                    environment = environment,
+                    expectedPolicyRevision = expectedPolicyRevision,
                 )
             }
             val pair = spacing ?: return null
@@ -46,11 +50,14 @@ internal class CoverageAdministrationDraft(
                 date = pair.date,
                 roundNumber = pair.roundNumber,
                 reason = trimmed,
+                environment = environment,
+                expectedPolicyRevision = expectedPolicyRevision,
             )
         }
 
     fun isCurrent(snapshot: ShiftCoverageAdministration, now: Long): Boolean {
-        if (!snapshot.isAdmin || command == null) return false
+        if (!snapshot.isAdmin || command == null || snapshot.environment != environment ||
+            expectedPolicyRevision != null && expectedPolicyRevision != snapshot.policyRevision) return false
         member?.let { original ->
             return snapshot.membershipWritable && snapshot.members.any { it == original }
         }

@@ -8,6 +8,9 @@ func makeShiftsViewModel(
     shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
     shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
     deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
+    coverageRepositoryFactory: @escaping @MainActor (
+        @escaping @MainActor () -> ShiftCoverageSession?
+    ) -> any ShiftCoverageRepository = { _ in InactiveShiftCoverageRepository() },
     nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
     shiftsRetrySleeper: @escaping @MainActor (Duration) async throws -> Void = {
         try await ContinuousClock().sleep(for: $0)
@@ -27,6 +30,7 @@ func makeShiftsViewModel(
         shiftSwapRequestRepository: shiftSwapRequestRepository,
         shiftPlanningRequestRepository: shiftPlanningRequestRepository,
         deliveryCalendarRepository: deliveryCalendarRepository,
+        coverageRepositoryFactory: coverageRepositoryFactory,
         nowMillisProvider: nowMillisProvider,
         shiftsRetrySleeper: shiftsRetrySleeper,
         environmentProvider: environmentProvider
@@ -40,6 +44,9 @@ func makeShiftsViewModel(
     shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
     shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
     deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
+    coverageRepositoryFactory: @escaping @MainActor (
+        @escaping @MainActor () -> ShiftCoverageSession?
+    ) -> any ShiftCoverageRepository = { _ in InactiveShiftCoverageRepository() },
     nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
     shiftsRetrySleeper: @escaping @MainActor (Duration) async throws -> Void = {
         try await ContinuousClock().sleep(for: $0)
@@ -54,6 +61,7 @@ func makeShiftsViewModel(
         shiftSwapRequestRepository: shiftSwapRequestRepository ?? InMemoryShiftSwapRequestRepository(),
         shiftPlanningRequestRepository: shiftPlanningRequestRepository ?? RecordingShiftPlanningRequestRepository(),
         deliveryCalendarRepository: deliveryCalendarRepository ?? InMemoryDeliveryCalendarRepository(),
+        coverageRepositoryFactory: coverageRepositoryFactory,
         nowMillisProvider: nowMillisProvider,
         shiftsRetrySleeper: shiftsRetrySleeper,
         environmentProvider: environmentProvider

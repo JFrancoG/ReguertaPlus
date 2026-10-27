@@ -59,6 +59,8 @@ internal class CoverageCommandDraft(
                 reason = if (needsReason) trimmed else null,
                 userId = if (action in listOf(Action.offer, Action.offerAdmin)) memberId else null,
                 expiresAtMillis = expires,
+                environment = snapshot.environment,
+                expectedPolicyRevision = snapshot.policyRevision,
             )
         }
 }

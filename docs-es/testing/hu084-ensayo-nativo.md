@@ -1208,3 +1208,37 @@ cero fallos/avisos) y las observaciones físicas acotadas anteriores porque esta
 investigación/documentación no modifica código. El aviso externo de la herramienta
 y los gates de activación real de la historia padre siguen abiertos; no se
 atribuye entrega por Git.
+
+## Composición autenticada de la app normal — 27/10/2026
+
+Las rutas normales de Android/iOS usan el transporte HTTPS autenticado existente
+y la sesión canónica de la cuenta. Reutilizan formularios y operaciones del ensayo,
+sin otro login, credenciales de emulador ni otro motor de coberturas. La entrada
+de Turnos permanece oculta hasta disponer de acceso para esa sesión exacta;
+una respuesta antigua no puede habilitar otra cuenta, entorno o rol.
+
+`resolveShiftCoverageAccess` acepta exactamente `{schemaVersion: 1, environment}`.
+Su respuesta plana contiene versión de esquema, entorno, ID del socio, estado de
+activación y revisión de política opcional. `shiftCoverage` acepta la consulta u
+orden exacta existente y devuelve `{ok: true, data: ...}`; los errores usan el
+contrato HTTP canónico normal. Ambos entornos comparten el store respaldado por
+SDK. La app HTTP local conserva su restricción a develop y a tokens del emulador
+fijo.
+
+El nuevo registro privado `sourcePolicy.coverage` no concede permisos al cliente.
+Una política ausente, deshabilitada o incorrecta mantiene cerrado el acceso, y la
+composición exportada también permanece cerrada operativamente en el código.
+Añadir ese registro no basta para activarla. Siguen pendientes el dueño de efectos,
+los leases del archivo, el inventario de escritores, la entropía real, la migración
+autorizada y la ratificación colectiva; se conservan las barreras provisionales
+del planificador y de publicación.
+
+Las pruebas actuales verifican aislamiento de cuenta/entorno y tokens revocados
+con SDK en el backend local, además de admisión nativa, reintentos exactos y cambios
+de sesión. La nueva aceptación Compose de Android usa repositorio/cliente reales
+con transporte sustituido; no realiza operaciones compartidas de datos de negocio
+ni notificaciones. iOS usa composiciones de sesión/repositorio deterministas y
+previews renderizadas. No son recorridos desplegados ni físicos con el backend
+compartido. Consultar la evidencia final fechada de `review.md` antes de elegir una
+prueba de dispositivo. Este paso de preparación no necesita intervención en el
+teléfono del mantenedor.

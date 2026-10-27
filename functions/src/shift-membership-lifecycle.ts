@@ -1,3 +1,4 @@
+import type {AppEnvironment} from "./backend-security.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {parseShiftCoverageCredit} from "./shift-credit-unit.js";
@@ -8,7 +9,6 @@ import {ShiftPlanningPublicShiftDocument} from
 
 type Change = {targetPath: string; before: Record<string, unknown>;
   after: Record<string, unknown>};
-const root = "develop/plus-collections";
 
 /**
  * Match the ordinary owner in this reserve entry, never the effective
@@ -48,6 +48,7 @@ export const firstDueOrdinaryShift = (
  * @param {string} userId Departed beneficiary.
  * @param {string} operationId Original explicit permanent-departure receipt.
  * @param {number} now Trusted cancellation time.
+ * @param {string} environment Same bound environment as the caller transaction.
  * @return {Promise<Change[]>} Bounded changes, preserving historical rows.
  */
 export const readDepartureCreditChanges = async (
@@ -56,7 +57,9 @@ export const readDepartureCreditChanges = async (
   userId: string,
   operationId: string,
   now: number,
+  environment: AppEnvironment = "develop",
 ): Promise<Change[]> => {
+  const root = `${environment}/plus-collections`;
   const documents = await transaction.get(db.collection(
     `${root}/shiftCoverageCredits`).where("userId", "==", userId).limit(251));
   if (documents.size > 250) return rejectCoverage("membership_source_limit");

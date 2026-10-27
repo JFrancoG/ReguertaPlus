@@ -1,3 +1,4 @@
+import type {AppEnvironment} from "./backend-security.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
 import {coverageMember, rejectCoverage} from "./shift-coverage.js";
 import {parseShiftPlanningPublicShiftDocument} from
@@ -11,14 +12,16 @@ import {parseShiftPlanningPublicShiftDocument} from
  * @param {object} actor Canonical actor.
  * @param {number} now Authoritative time.
  * @param {boolean} writable Current writer authority.
+ * @param {string} environment Same bound environment as the caller transaction.
  * @return {object} Future owned slots and administrator member labels only.
  */
 export const readShiftCoverageChoices = async (
   db: Firestore, transaction: Transaction,
   actor: {memberId: string; admin: boolean; visibleMemberIds: string[]},
   now: number, writable: boolean,
+  environment: AppEnvironment = "develop",
 ) => {
-  const root = "develop/plus-collections";
+  const root = `${environment}/plus-collections`;
   const shifts = await transaction.get(db.collection(`${root}/shifts`)
     .where("date", ">", new Date(now)).limit(501));
   if (shifts.size > 500) return rejectCoverage("coverage_read_limit");

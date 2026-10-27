@@ -46,7 +46,7 @@ struct ReguertaApp: App {
                             guard let reference = appEnvironment.shiftNotificationPushOpenStore.pendingReference else {
                                 return
                             }
-                            coverageRehearsal.acceptPush(reference)
+                            coverageRehearsal.route.acceptPush(reference)
                             appEnvironment.shiftNotificationPushOpenStore.consume(reference)
                         }
                 } else {

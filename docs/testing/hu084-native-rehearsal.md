@@ -1171,3 +1171,34 @@ changes are made. The corrected gate (938 passed, five expected skips, zero
 failures/issues) and prior bounded physical observations are reused because this
 investigation/documentation changes no source. The external tooling warning and
 the parent story's live activation gates remain open; no Git delivery is claimed.
+
+## Normal-app authenticated composition — 2026-10-27
+
+Normal Android/iOS routes now use the existing authenticated HTTPS transport and
+the canonical account session. They reuse the rehearsal's forms and operations,
+without another login, emulator credentials or a second coverage engine. The
+Turnos entry is hidden until access is enabled for that exact session; an old
+availability response cannot re-enable a different account, environment or role.
+
+`resolveShiftCoverageAccess` accepts exactly `{schemaVersion: 1, environment}`.
+Its flat result contains schema version, environment, member ID, enabled state
+and nullable policy revision. `shiftCoverage` accepts the existing exact query or
+command body and returns `{ok: true, data: ...}`; errors use the normal canonical
+HTTP error envelope. Both environment namespaces use the same SDK-backed store.
+The fixed local HTTP app still accepts only develop and fixed emulator tokens.
+
+The new private `sourcePolicy.coverage` record is not a client permission grant.
+Missing/disabled/malformed policy stays closed, and the exported composition is
+also operationally closed in code. No shared activation is possible merely by
+adding that record. Effect ownership, workbook leases, writer intake, real
+entropy, authoritative migration and collective ratification remain separate
+requirements; provisional planner/publication guards are preserved.
+
+Current tests cover SDK account/environment isolation and revoked tokens on the
+local backend, plus native admission, immutable retries and session changes.
+The new Android Compose acceptance uses the real repository/shared client with
+an injected transport; it performs no shared business-data or notification
+operation. iOS uses deterministic session/repository compositions and rendered
+previews. These are not deployed or physical shared-backend journeys. See the
+dated final evidence in the story's `review.md` before choosing a device check.
+The maintainer needs no phone action for this preparation step.

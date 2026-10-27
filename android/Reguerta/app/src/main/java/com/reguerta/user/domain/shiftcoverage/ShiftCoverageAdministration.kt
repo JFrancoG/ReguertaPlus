@@ -1,6 +1,7 @@
 package com.reguerta.user.domain.shiftcoverage
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 @Serializable
 internal data class ShiftCoverageAdministration(
@@ -77,9 +78,10 @@ internal data class ShiftCoverageAdministrationCommand(
     val date: String? = null,
     val roundNumber: Long? = null,
     val reason: String? = null,
+    val environment: String = "develop",
+    @Transient val expectedPolicyRevision: String? = null,
 ) {
     val schemaVersion: Int = 1
-    val environment: String = "develop"
 
     @Serializable
     enum class Action { reconcileMembership, authorizeDeliverySpacingException }

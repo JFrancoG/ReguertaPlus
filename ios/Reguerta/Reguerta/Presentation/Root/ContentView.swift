@@ -16,7 +16,8 @@ struct MainView: View {
         let pushOpenTaskID = ShiftNotificationPushOpenTaskID(
             eventID: pendingPushReference?.eventID,
             route: rootViewModel.shellState.currentRoute,
-            sessionIdentityEpoch: rootViewModel.newsNotificationsViewModel.sessionIdentityEpoch
+            sessionIdentityEpoch: rootViewModel.newsNotificationsViewModel.sessionIdentityEpoch,
+            coverageEnabled: rootViewModel.shiftsViewModel.coverage.isEnabled
         )
 
         NavigationStack {
@@ -62,11 +63,6 @@ struct MainView: View {
         }
         .task(id: pushOpenTaskID) {
             guard let pendingPushReference else { return }
-            // Coverage remains in the isolated rehearsal until live composition is approved.
-            if pendingPushReference.isCoverage {
-                appEnvironment.shiftNotificationPushOpenStore.consume(pendingPushReference)
-                return
-            }
             guard await rootViewModel.openShiftNotificationPush(eventID: pendingPushReference.eventID) else {
                 return
             }
@@ -100,6 +96,7 @@ private struct ShiftNotificationPushOpenTaskID: Equatable {
     let eventID: String?
     let route: AuthShellRoute
     let sessionIdentityEpoch: UInt64
+    let coverageEnabled: Bool
 }
 
 #Preview("Main shell", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {

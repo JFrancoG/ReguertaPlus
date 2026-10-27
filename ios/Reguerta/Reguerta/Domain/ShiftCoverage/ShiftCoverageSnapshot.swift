@@ -116,6 +116,7 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
 /// Authorization revisions must change on logout/relogin, UID, member, environment or role changes.
 /// Tokens belong to the Data adapter and are never retained by presentation state.
 struct ShiftCoverageSession: Equatable {
+    let environment: SessionEnvironment
     let uid: String
     let memberId: String
     let authorizationRevision: UInt64
@@ -131,6 +132,7 @@ enum ShiftCoverageFailure: Error, Equatable {
 
 @MainActor
 protocol ShiftCoverageRepository {
+    func resolveAccess(session: ShiftCoverageSession) async throws -> ShiftCoverageAccess
     func read(caseId: String?, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot
     func readNotification(eventId: String, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot
     func execute(_ command: ShiftCoverageCommand, session: ShiftCoverageSession) async throws
@@ -142,6 +144,16 @@ protocol ShiftCoverageRepository {
 }
 
 extension ShiftCoverageRepository {
+    func resolveAccess(session: ShiftCoverageSession) async throws -> ShiftCoverageAccess {
+        ShiftCoverageAccess(
+            schemaVersion: 1,
+            environment: session.environment,
+            memberId: session.memberId,
+            enabled: false,
+            policyRevision: nil
+        )
+    }
+
     func readAdministration(session: ShiftCoverageSession) async throws -> ShiftCoverageAdministrationSnapshot {
         throw ShiftCoverageFailure.unavailable
     }

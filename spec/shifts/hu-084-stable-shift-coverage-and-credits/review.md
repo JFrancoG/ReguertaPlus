@@ -1330,3 +1330,125 @@ instrumented evidence is the corrected connected log above. The initial combined
 log includes the old selector failure and predates the Tink call correction;
 it must not replace the successful final connected/lint results. iOS/Functions
 evidence is reused because this follow-up changes Android only.
+
+### Normal-app backend composition — 2026-10-27
+
+The maintainer authorizes this grouped integration after pushed `c56031f9`.
+The existing coverage algorithm moves to one shared store with injected SDK
+client and environment. Its fixed-demo wrapper retains project/port/registration
+guards and owns its client cleanup. Shared composition rejects direct actor IDs;
+queries, cases, effects, membership, credit-cancellation and spacing paths bind
+the same environment. Independent review finds no reachable cross-environment
+escape; remaining develop-only planner/publication helpers retain their guards.
+
+New HTTP boundaries validate exact transport before Auth and reuse the existing
+Admin clients and canonical error envelope. Access is a minimal projection, not
+a future write permission. Every transaction, including replay, rechecks current
+readiness and reciprocal account linkage. The private activation namespace is
+bound to environment and supported policy, with an explicit offer bound and
+ratification reference. Changing its digest or rebinding the account between
+preflight and the transaction rejects without writing.
+
+Both normal apps reuse their authenticated transport, existing coverage forms
+and operation owner. UID, canonical member, environment and session authorization
+are fenced before/after token acquisition, before transport and after response.
+Normal routes reject impersonation and hide the entry until admission matches
+that exact session. A closed gate or changed policy during an uncertain retry
+preserves the original operation ID; it is not proof that the previous request
+failed. `coverage_unavailable` remains uncertain, while the exact backend
+`coverage_session_changed` / `coverage_environment_changed` codes invalidate
+private context. No actor, roles or expected local policy field enters the wire.
+
+Review additionally finds an Android legacy metadata-refresh path that replaces
+the authenticated member without advancing its epoch. The coverage session now
+copies typed roles and common-purchase responsibility; a same-epoch change clears
+admission/forms/private state and rejects suspended old responses. No historical
+Auth pipeline refactor is needed. iOS already increments its central revision on
+the corresponding Member value changes; its SDK UID check also protects the gap
+before UI Auth observers update. The new adapters retain no extra mutable policy
+cache. Shared preview/form extraction avoids duplicating a workflow engine.
+
+Functions final evidence (Node 22.23.4): full lint/build pass; **68 pure passes,
+47 real local Auth/SDK passes, 174 workflows/Rules/publication passes** and
+**295 planning passes/51 existing emulator-only skips**, all zero failures.
+The SDK tests use the ordinary Admin Firestore client, not the registered local
+store client, and isolate both namespace roots in the fixed demo project. They
+cover exact commands/receipts, disabled/malformed policy, operational closure,
+configuration drift, real Auth revocation and reciprocal rebinding during a
+request. Logs: `/tmp/hu084-live-functions-{lint,build}-final.log` and
+`/tmp/hu084-live-final-{pure,auth,workflow,planning}.log`. Owned emulators stop
+cleanly and the task-owned dependency link is removed.
+
+Android final evidence: **542 unit passes**, zero failures; final lint **zero
+errors, 135 warnings and two hints**, with no findings in touched files and zero
+Kotlin compiler warnings. On isolated Android 10/API 29, **27 instrumented passes
+plus four existing opt-in assumption exits** (AGP XML encodes them as failures;
+no assertion failures), Gradle successful. The final typed metadata equality
+change repeats unit/lint and reuses that immediately preceding native run because
+UI composition, layout, input and transport are unchanged. Two new Compose
+acceptances exercise normal Turnos entry and forms through the real repository
+and common client with an injected transport; they are not shared-cloud E2E.
+`assembleDebugAndroidTest` additionally recompiles production/instrumentation and
+packages the test APK against the final Session.Authorization constructor ABI,
+with zero warnings or errors; no new device run is implied.
+Evidence: `/tmp/hu084-live-android-summary.json`,
+`/tmp/hu084-live-android-verified-final.log` and
+`/tmp/hu084-live-android-metadata-final.log`, plus
+`/tmp/hu084-live-android-test-apk-final.log`. Only task-created AVDs are removed;
+the physical phone and main checkout remain untouched.
+
+Independent iOS review closes session/policy/retry/SDK ownership, SwiftUI and
+changed-source style findings. Four deterministic previews cover admitted/closed
+states in Large/AX5; root visually checks all four. The actual renderer is iPhone
+18 Pro Max/iOS 27.2, not the canonical test simulator. Six focused UI tests (four
+smoke, two shared keyboard) pass. Catalogue cleanup preserves every previous key
+and adds only `coverage.access_disabled`; project and scheme originals are
+restored. The 47-file freeze (46 Swift plus catalogue) matches exactly. Final
+canonical results and restoration are recorded below once that runner closes.
+Preview/freeze manifests: `/tmp/hu084-live-ios-previews.json` and
+`/tmp/hu084-live-ios-source-freeze.json`.
+
+Read-only Firebase metadata inspection in `reguerta-9f27f` finds 19 deployed
+functions and neither new endpoint. No shared Auth record, business document,
+configuration, notification or deployment is changed. The exported composition
+remains operationally closed in code: effect ownership versus ordinary events,
+workbook leases, writer intake, real entropy and authoritative credit/membership
+migration remain prerequisites. Existing provisional planner/publication guards
+are not lifted. This prepares normal authenticated composition; it does not
+establish deployed/physical shared coverage or parent HU-084 completion.
+
+### Corrected canonical iOS result — 2026-10-27
+
+The first definitive attempt records 956 total: 950 passed, five expected skips
+and one architecture-test failure, with zero warning issues. The boundary test
+correctly detects an `InactiveShiftCoverageRepository` construction inside
+Presentation's closed preview. Replace that single unused dependency with the
+existing `CoveragePreviewAccess` double; the nil-session preview does not read
+either repository. Do not weaken the test or add another composition factory.
+The existing closed-state renders remain applicable to that one-line substitution.
+
+The corrected full runner then exits zero on stable Xcode 27.1 and iPhone 17/iOS
+26.5, exact destination `091D93C1-5A53-40D0-887E-83F81A8E0326`: **956 total,
+951 passed, five expected skips, zero failures**. Root, buildResult and
+actionResult all contain zero compiler/analyzer warnings, runtime/test warnings,
+errors and test failures; runtimeWarnings is empty. SwiftLint checks 528 files
+with zero violations, all six target/configuration checks pass and both canonical
+Debug/Release builds succeed. Parameterized executions are not added again to
+the summary's test count. Skips remain the three rehearsal opt-ins, the conditional
+launch/performance template and the Sheets-emulator opt-in.
+
+All 538 protected inputs, five original configurations/resources and the updated
+47-file freeze match exactly after restoration. The catalogue contains only the
+new `coverage.access_disabled` key; no prior key changes. Private backups and owned
+workspaces/processes are removed, while the three unrelated GUI workspaces remain
+intact. No physical phone or shared service is modified.
+
+Final artifacts: `/tmp/hu084-live-ios-corrected-release-gate.log`,
+`/tmp/hu084-live-ios-corrected-release-gate.xcresult`,
+`/tmp/hu084-live-ios-corrected-summary.json`,
+`/tmp/hu084-live-ios-corrected-result-object.json`,
+`/tmp/hu084-live-ios-corrected-issue-counts.json`, and
+`/tmp/hu084-live-ios-corrected-cleanup.json`.
+The earlier `/tmp/hu084-live-ios-final-*` result retains the diagnosed one-failure
+attempt and is not the final accepted gate. The final source change is confined
+to preview injection; Functions and Android evidence above remains unchanged.

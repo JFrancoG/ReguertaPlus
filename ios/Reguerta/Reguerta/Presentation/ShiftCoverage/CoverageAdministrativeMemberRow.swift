@@ -5,7 +5,7 @@ struct CoverageAdministrativeMemberRow: View {
     @ScaledMetric(relativeTo: .body) private var minimumActionHeight: CGFloat = 44
     let member: ShiftCoverageAdministrationSnapshot.Member
     let writable: Bool
-    let model: CoverageRehearsalViewModel
+    let model: CoverageRouteViewModel
     let focus: AccessibilityFocusState<CoverageAdministrationView.ActionFocus?>.Binding
     let present: (CoverageAdministrationDraft.Subject) -> Void
 
@@ -63,7 +63,7 @@ struct CoverageAdministrativeMemberRow: View {
 
 #if DEBUG
 #Preview("Socio inactivo", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    @Previewable @State var model = CoveragePreviewAccess.model()
+    @Previewable @State var model = CoveragePreviewAccess.model().route
     @Previewable @AccessibilityFocusState var focusedAction: CoverageAdministrationView.ActionFocus?
     List {
         CoverageAdministrativeMemberRow(

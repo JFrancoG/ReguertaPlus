@@ -6,6 +6,9 @@ struct ShiftsFeatureDependencies {
     let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
     let deliveryCalendarRepository: any DeliveryCalendarRepository
+    let coverageRepositoryFactory: @MainActor (
+        @escaping @MainActor () -> ShiftCoverageSession?
+    ) -> any ShiftCoverageRepository
     let nowMillisProvider: @MainActor () -> Int64
     let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
 
@@ -29,6 +32,9 @@ struct ShiftsFeatureDependencies {
                 firebaseAppName: db.app.name,
                 functionsClient: functionsClient
             ),
+            coverageRepositoryFactory: { currentSession in
+                FirebaseShiftCoverageRepository(client: functionsClient, currentSession: currentSession)
+            },
             nowMillisProvider: nowMillisProvider,
             environmentProvider: { environmentProvider.snapshot().environment }
         )
@@ -40,6 +46,9 @@ struct ShiftsFeatureDependencies {
         shiftPlanningRequestRepository: InMemoryShiftPlanningRequestRepository = InMemoryShiftPlanningRequestRepository(
         ),
         deliveryCalendarRepository: InMemoryDeliveryCalendarRepository = InMemoryDeliveryCalendarRepository(),
+        coverageRepositoryFactory: @escaping @MainActor (
+            @escaping @MainActor () -> ShiftCoverageSession?
+        ) -> any ShiftCoverageRepository = { _ in InactiveShiftCoverageRepository() },
         nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
         environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
     ) -> ShiftsFeatureDependencies {
@@ -48,6 +57,7 @@ struct ShiftsFeatureDependencies {
             shiftSwapRequestRepository: shiftSwapRequestRepository,
             shiftPlanningRequestRepository: shiftPlanningRequestRepository,
             deliveryCalendarRepository: deliveryCalendarRepository,
+            coverageRepositoryFactory: coverageRepositoryFactory,
             nowMillisProvider: nowMillisProvider,
             environmentProvider: environmentProvider
         )

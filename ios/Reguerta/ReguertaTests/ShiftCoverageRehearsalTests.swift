@@ -14,24 +14,24 @@ struct ShiftCoverageRehearsalTests {
             type: "shift_updated",
             target: "users"
         ))
-        model.acceptPush(reference)
-        await model.openPendingPush()
+        model.route.acceptPush(reference)
+        await model.route.openPendingPush()
         #expect(loader.urls.isEmpty)
         model.email = "a@example.test"
         model.password = "fixture"
         await model.signIn()
-        model.present(.accept, item: try #require(model.coverage.snapshot?.cases.first))
-        await model.openPendingPush()
-        #expect(model.pendingPushEventID == eventID)
+        model.route.present(.accept, item: try #require(model.coverage.snapshot?.cases.first))
+        await model.route.openPendingPush()
+        #expect(model.route.pendingPushEventID == eventID)
         #expect(loader.notificationReads == 0)
-        model.draft = nil
-        model.casePath = ["case-a"]
-        loader.beforeNotificationResponse = { #expect(model.casePath == ["case-a"]) }
-        await model.openPendingPush()
-        #expect(model.casePath == ["case-a"])
-        #expect(model.pendingPushEventID == nil)
+        model.route.draft = nil
+        model.route.casePath = ["case-a"]
+        loader.beforeNotificationResponse = { #expect(model.route.casePath == ["case-a"]) }
+        await model.route.openPendingPush()
+        #expect(model.route.casePath == ["case-a"])
+        #expect(model.route.pendingPushEventID == nil)
         #expect(loader.notificationReads == 1)
-        await model.openPendingPush()
+        await model.route.openPendingPush()
         #expect(loader.notificationReads == 1)
     }
 
@@ -46,22 +46,22 @@ struct ShiftCoverageRehearsalTests {
             type: "shift_updated",
             target: "users"
         ))
-        model.acceptPush(reference)
+        model.route.acceptPush(reference)
         loader.beforeNotificationResponse = { model.signOut() }
-        await model.openPendingPush()
-        #expect(model.casePath.isEmpty)
+        await model.route.openPendingPush()
+        #expect(model.route.casePath.isEmpty)
         #expect(model.coverage.session == nil)
-        #expect(model.pendingPushEventID == nil)
-        model.acceptPush(reference)
+        #expect(model.route.pendingPushEventID == nil)
+        model.route.acceptPush(reference)
         model.signOut()
-        #expect(model.pendingPushEventID == nil)
+        #expect(model.route.pendingPushEventID == nil)
         let planning = try #require(ShiftNotificationPushReference.validated(
             eventID: "planning-event",
             type: "shift_updated",
             target: "users"
         ))
-        model.acceptPush(planning)
-        #expect(model.pendingPushEventID == nil)
+        model.route.acceptPush(planning)
+        #expect(model.route.pendingPushEventID == nil)
     }
 
     @Test func localLoginResolvesCanonicalMemberAndLogoutInvalidatesRepository() async throws {
@@ -169,15 +169,15 @@ struct ShiftCoverageRehearsalTests {
         let session = try await access.signIn(email: "a@example.test", password: "fixture")
         model.coverage.bind(session)
         await model.coverage.refresh()
-        model.present(.accept, item: try #require(model.coverage.snapshot?.cases.first))
-        #expect(model.canConfirmDraft)
+        model.route.present(.accept, item: try #require(model.coverage.snapshot?.cases.first))
+        #expect(model.route.canConfirmDraft)
         loader.overview = loader.overview.replacingOccurrences(of: "1800003600000", with: "1799999999999")
         await model.coverage.refresh()
-        #expect(!model.canConfirmDraft)
-        await model.confirmDraft()
+        #expect(!model.route.canConfirmDraft)
+        await model.route.confirmDraft()
         #expect(loader.urls.count == 4)
         model.signOut()
-        #expect(model.draft == nil)
+        #expect(model.route.draft == nil)
     }
 
     @Test func pendingOperationBlocksNewDraftEvenAfterReadRefresh() async throws {
@@ -186,13 +186,13 @@ struct ShiftCoverageRehearsalTests {
         let model = CoverageRehearsalViewModel(access: access)
         model.coverage.bind(harness.current)
         await model.coverage.refresh()
-        #expect(model.canOpen)
+        #expect(model.route.canOpen)
         harness.transport.loseFirstCommandResponse = true
         await model.coverage.submit(harness.command)
         await model.coverage.refresh()
-        #expect(!model.canOpen)
-        model.present(.open)
-        #expect(model.draft == nil)
+        #expect(!model.route.canOpen)
+        model.route.present(.open)
+        #expect(model.route.draft == nil)
     }
 }
 

@@ -9,8 +9,10 @@ const command = {schemaVersion: 1, environment: "develop", caseId: "case-1",
 
 test("coverage input rejects caller-supplied identity, credit, completion and wrong environment", () => {
   assert.deepEqual(parseShiftCoverageCommand(command), command);
+  const production = {...command, environment: "production"};
+  assert.deepEqual(parseShiftCoverageCommand(production), production);
   for (const extra of [{actorId: "admin"}, {credit: 1}, {completed: true},
-    {environment: "production"}, {schemaVersion: 2}, {expectedRevision: 1},
+    {environment: "staging"}, {schemaVersion: 2}, {expectedRevision: 1},
     {expectedShiftRevision: NaN}, {caseId: "../users"}, {reason: " "}]) {
     assert.throws(() => parseShiftCoverageCommand({...command, ...extra}));
   }

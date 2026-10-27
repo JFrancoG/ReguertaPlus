@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CoverageCommandSheet: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    let model: CoverageRehearsalViewModel
+    let model: CoverageRouteViewModel
     @Bindable var draft: CoverageCommandDraft
 
     var body: some View {
@@ -68,7 +68,7 @@ struct CoverageCommandSheet: View {
 
 #if DEBUG
 #Preview("Ensayo local", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    @Previewable @State var model = CoveragePreviewAccess.model()
+    @Previewable @State var model = CoveragePreviewAccess.model().route
     if let draft = model.draft {
         CoverageCommandSheet(model: model, draft: draft)
     } else {

@@ -1621,3 +1621,80 @@ Use the supported Gradle resources `directories` set instead of deprecated
 already-created registry configuration to Tink's supported overload; parameters,
 assertions and cryptographic behavior remain unchanged. No suppression or new
 abstraction is introduced. Preserve the main checkout's original files.
+
+### Authenticated normal-app composition — approved 2026-10-27
+
+The maintainer authorizes integrating both normal apps with the real backend
+composition. Continue in the existing HU-084 branch and issue; no duplicate story
+or branch is needed. Preserve the two local edits in the separate main checkout.
+
+Implement one grouped result:
+
+1. Reuse the coverage state machine with an injected Firestore client and explicit
+   environment. Keep the existing demo wrapper fixed to its project/ports and
+   prohibit direct actor IDs in shared composition. Bind case, effects, reads and
+   administrative receipts to the selected environment.
+2. Add authenticated `resolveShiftCoverageAccess` and `shiftCoverage` HTTP
+   boundaries using the already-owned Admin SDK clients. Validate transport before
+   Auth, resolve current account links and roles, reject environment rerouting and
+   recheck readiness inside each transaction, including replay.
+3. Add equivalent Android/iOS normal-session repositories and navigation, reusing
+   the existing forms/controllers. Bind UID, canonical member, environment and
+   session revision; reject impersonation and late token/read/write continuations.
+   Keep emulator credentials and login UI confined to rehearsals.
+4. Validate shared environment isolation, disabled access, role/session changes,
+   mutation/replay and native navigation. Run platform checks and independent
+   review; record actual results and limitations without substituting them for a
+   deployed or physical shared-backend journey.
+
+The private optional `sourcePolicy.coverage` namespace supplies an exact
+environment-bound activation record, supported policy revision, ratification
+reference and explicit maximum offer window. Missing/invalid/disabled policy
+stays closed. The exported composition additionally remains operationally closed
+by construction: coverage effect ownership versus the ordinary write trigger,
+HU-083 workbook leases, writer-intake inventory, real entropy and authoritative
+credit/membership migration are not completed by this transport/UI integration.
+Do not lift the existing provisional planner/publication guards to make the
+endpoint appear usable. No shared configuration write, deployment, notification,
+production mutation, merge or issue closure is authorized by this implementation
+step. When a deployment or real-device shared journey is concrete and validated,
+present its exact scope to the maintainer as the next external-action gate.
+
+### Normal-app composition validated — 2026-10-27
+
+The grouped source implementation and independent reviews are complete locally.
+Functions pass lint/build, 68 pure, 47 Auth/SDK and 174 workflow/Rules/publication
+tests; planning passes 295 with 51 existing emulator-only skips. Android passes
+542 units and final lint with no findings in touched files; 27 API 29 instrumented
+passes and four known opt-in exits remain bounded component/transport evidence.
+The final metadata-scope change repeats unit/lint and test-APK compilation.
+
+iOS completes a corrected canonical gate on Xcode 27.1/iPhone 17/iOS 26.5:
+951 passed, five expected skips, zero failures and zero compiler/analyzer/runtime
+issues. The first full attempt caught one preview's forbidden Data-type reference;
+replace only that unused dependency with its existing preview double, then rerun
+the complete canonical gate successfully. Keep the failed attempt as historical
+diagnostic evidence. All 538 protected inputs, five originals and the updated
+47-file freeze restore exactly; the catalogue adds one key and changes no prior
+key. No validation is represented as new physical shared-backend acceptance.
+
+Normal UID/member/environment/authorization and SDK token fences, immutable
+uncertain retries, exact-session admission, and typed Android metadata scope are
+reviewed. No workflow duplication or global Auth-pipeline refactor is introduced.
+Read-only inspection confirms that the shared Firebase project still lacks the
+two new endpoints. The source is not deployed or activated, and this implementation
+step performs no commit/push. Next: checkpoint the coherent change, then complete
+one owner for coverage versus ordinary Sheets/notification effects and their
+shared workbook/intake controls before a rollout can be considered. Collective
+ratification, real entropy and authoritative migration remain explicit parent
+requirements; the maintainer needs no phone action at this checkpoint.
+
+### Git checkpoint authorized — 2026-10-27
+
+The maintainer explicitly authorizes commit/push of the validated normal-app
+composition and then the grouped Sheets/notification writing-coordination work.
+Reuse the unchanged accepted platform/backend evidence above, stage only this
+worktree's intended implementation and matching changelog, and retain the existing
+draft PR and open parent issue. Preserve unrelated main-checkout edits. Definitive
+Git delivery is recorded in the canonical issue/PR after remote verification.
+Begin the next implementation only after this source checkpoint is pushed.

@@ -42,6 +42,9 @@ struct LocalShiftCoverageRepository: ShiftCoverageRepository {
     }
 
     func execute(_ command: ShiftCoverageCommand, session: ShiftCoverageSession) async throws {
+        guard command.expectedPolicyRevision == "hu084-provisional-v1" else {
+            throw ShiftCoverageFailure.unavailable
+        }
         guard (0..<9_007_199_254_740_991).contains(command.expectedRevision) else {
             throw ShiftCoverageFailure.invalidResponse
         }
@@ -68,6 +71,9 @@ struct LocalShiftCoverageRepository: ShiftCoverageRepository {
         _ command: ShiftCoverageAdministrationCommand,
         session: ShiftCoverageSession
     ) async throws {
+        guard command.expectedPolicyRevision == "hu084-provisional-v1" else {
+            throw ShiftCoverageFailure.unavailable
+        }
         let result: AdministrationReceipt = try await post(command, session: session)
         guard result.schemaVersion == 1, result.environment == "develop", result.operationId == command.operationId,
               result.action == command.action, result.userId == command.userId else {
@@ -119,7 +125,9 @@ struct LocalShiftCoverageRepository: ShiftCoverageRepository {
     }
 
     private func requireCurrent(_ session: ShiftCoverageSession) throws {
-        guard currentSession() == session else { throw ShiftCoverageFailure.sessionChanged }
+        guard session.environment == .develop, currentSession() == session else {
+            throw ShiftCoverageFailure.sessionChanged
+        }
         try Task.checkCancellation()
     }
 

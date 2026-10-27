@@ -1,3 +1,4 @@
+import type {AppEnvironment} from "./backend-security.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import type {ShiftPlanningPublicShiftDocument} from
   "./shift-planning-publication-contract.js";
@@ -24,9 +25,11 @@ export const shiftCoverageOwnershipDigest = (
 export const buildShiftCoverageOpening = (input: {
   caseId: string; shiftId: string; shift: ShiftPlanningPublicShiftDocument;
   positionIndex: number; actorId: string; reason: string; now: number;
+  environment?: AppEnvironment;
 }): ShiftCoverageCase => ({
   schemaVersion: 1, policyRevision: SHIFT_COVERAGE_POLICY_REVISION,
-  environment: "develop", id: input.caseId, shiftId: input.shiftId,
+  environment: input.environment ?? "develop", id: input.caseId,
+  shiftId: input.shiftId,
   type: input.shift.type,
   absentUserId: input.shift.assignedUserIds[input.positionIndex],
   positionIndex: input.positionIndex,

@@ -37,6 +37,7 @@ import com.reguerta.user.R
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageCommand.Action
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageFailure
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSession
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -45,8 +46,16 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: String? = null) {
-    val state by model.coverage.state.collectAsStateWithLifecycle()
+internal fun CoverageScreen(
+    model: CoverageRouteViewModel,
+    rehearsalNote: String? = null,
+    expectedSession: ShiftCoverageSession? = null,
+) {
+    val currentState by model.coverage.state.collectAsStateWithLifecycle()
+    val state = if (!model.isRehearsal && currentState.session != expectedSession) currentState.copy(
+        snapshot = null, administration = null, pendingCommand = null, pendingAdministration = null,
+    ) else currentState
+    val rehearsal = model as? CoverageRehearsalViewModel
     val caseId = model.selectedCaseId
     var tick by remember { mutableLongStateOf(0L) }
     LaunchedEffect(state.session) { model.discardDraftsAfterSessionChange() }
@@ -63,16 +72,18 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: St
         ) {
             item {
                 Text(stringResource(R.string.coverage_title), style = MaterialTheme.typography.headlineMedium)
-                Text(stringResource(R.string.coverage_rehearsal), style = MaterialTheme.typography.titleMedium)
-                Text(rehearsalNote ?: stringResource(R.string.coverage_local_note))
+                if (model.isRehearsal) {
+                    Text(stringResource(R.string.coverage_rehearsal), style = MaterialTheme.typography.titleMedium)
+                    Text(rehearsalNote ?: stringResource(R.string.coverage_local_note))
+                } else if (expectedSession == null) Text(stringResource(R.string.coverage_personal_session_required))
             }
-            if (state.session == null) {
-                item { CoverageLogin(model) }
+            if (state.session == null && rehearsal != null) {
+                item { CoverageLogin(rehearsal) }
             } else {
                 item {
                     if (caseId != null || state.isAdministration) TextButton(onClick = model::showOverview) { Text(stringResource(R.string.coverage_dismiss)) }
                     if (!state.isAdministration) {
-                        Button(onClick = { model.present(Action.open) }, enabled = model.canOpen, modifier = Modifier.testTag("coverage.open")) {
+                        Button(onClick = { model.present(Action.open) }, enabled = state.snapshot != null && model.canOpen, modifier = Modifier.testTag("coverage.open")) {
                             Text(stringResource(R.string.coverage_action_open))
                         }
                         if (caseId == null && state.snapshot?.isAdmin == true) {
@@ -81,7 +92,9 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: St
                         }
                     }
                     TextButton(onClick = model::refresh, enabled = !state.isBusy) { Text(stringResource(R.string.coverage_refresh)) }
-                    TextButton(onClick = model::signOut, modifier = Modifier.testTag("coverage.signOut")) { Text(stringResource(R.string.coverage_sign_out)) }
+                    if (rehearsal != null) TextButton(onClick = rehearsal::signOut, modifier = Modifier.testTag("coverage.signOut")) {
+                        Text(stringResource(R.string.coverage_sign_out))
+                    }
                 }
                 item {
                     if (state.isBusy) CircularProgressIndicator()
@@ -123,7 +136,7 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: St
                     state.snapshot?.let { snapshot -> item { CoverageAccounting(snapshot) } }
                 } else if (selected != null) {
                     item {
-                        CoverageDetail(selected, model, state.snapshot?.policy?.drawAvailable == true)
+                        CoverageDetail(selected, model, state.snapshot.policy.drawAvailable)
                         actions.forEach { action ->
                             Button(onClick = { model.present(action, selected) }, modifier = Modifier.fillMaxWidth().testTag("coverage.action.${action.name}")) {
                                 Text(stringResource(coverageActionLabel(action)))
@@ -134,8 +147,10 @@ internal fun CoverageScreen(model: CoverageRehearsalViewModel, rehearsalNote: St
             }
         }
     }
-    model.draft?.let { CoverageCommandDialog(it, model) }
-    if (state.session != null) model.administrationDraft?.let { CoverageAdministrationDialog(it, model) }
+    if (model.isRehearsal || state.session == expectedSession && expectedSession != null) {
+        model.draft?.let { CoverageCommandDialog(it, model) }
+        if (state.session != null) model.administrationDraft?.let { CoverageAdministrationDialog(it, model) }
+    }
 }
 
 @Composable
@@ -156,7 +171,7 @@ private fun CoverageLogin(model: CoverageRehearsalViewModel) {
 }
 
 @Composable
-private fun CoverageDetail(item: ShiftCoverageSnapshot.Case, model: CoverageRehearsalViewModel, drawAvailable: Boolean) {
+private fun CoverageDetail(item: ShiftCoverageSnapshot.Case, model: CoverageRouteViewModel, drawAvailable: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(coverageKindLabel(item.type)), style = MaterialTheme.typography.titleLarge)
         Text(coverageShiftDate(item.scheduledAtMillis))
@@ -214,6 +229,7 @@ internal fun coverageFailureLabel(failure: ShiftCoverageFailure): Int = when (fa
     ShiftCoverageFailure.SessionChanged -> R.string.coverage_access_lost
     is ShiftCoverageFailure.Rejected -> if (failure.status in listOf(401, 403)) R.string.coverage_access_lost else R.string.coverage_conflict
     ShiftCoverageFailure.LocalOnly -> R.string.coverage_local_note
+    ShiftCoverageFailure.Disabled -> R.string.coverage_feature_disabled
     ShiftCoverageFailure.InvalidResponse, ShiftCoverageFailure.Unavailable -> R.string.coverage_unavailable
 }
 

@@ -1,3 +1,4 @@
+import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
 import {coverageId, coverageMember, rejectCoverage} from "./shift-coverage.js";
 import {requireRegisteredProvisionalCreditFirestore} from
@@ -14,7 +15,6 @@ import {buildShiftPlanningAuthoritativeState} from
   "./shift-planning-state-persistence.js";
 import {serializeShiftPlanningRequestV2} from "./shift-planning-wire.js";
 
-const root = "develop/plus-collections";
 export type SpacingAdministrationCandidate = {
   id: string; userId: string; displayName: string; planningRequestId: string;
   previousDate: string; previousRoundNumber: number;
@@ -35,12 +35,16 @@ type ContextCommand = Omit<SpacingAdministrationCandidate,
  * @param {Firestore} db Registered fixed-emulator database.
  * @param {Transaction} transaction Caller-owned authenticated transaction.
  * @param {number} now Trusted server time for future-pair admission.
+ * @param {object} context Shared environment of the authorized transaction.
  * @return {Promise<object>} Minimal choices, or an explicit empty-state reason.
  */
 export const readSpacingAdministration = async (
   db: Firestore, transaction: Transaction, now: number,
+  context?: ShiftCoverageStoreContext,
 ) => {
-  requireRegisteredProvisionalCreditFirestore(db);
+  if (!context) requireRegisteredProvisionalCreditFirestore(db);
+  const environment = context?.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
   if (!Number.isSafeInteger(now) || now < 0) {
     return rejectCoverage("invalid_coverage_clock");
   }
@@ -49,7 +53,7 @@ export const readSpacingAdministration = async (
     .limit(21));
   if (requests.size > 20) return rejectCoverage("coverage_read_limit");
   const parsed = requests.docs.map((document) =>
-    parseShiftPlanningRequestEnvelope(document, "develop"));
+    parseShiftPlanningRequestEnvelope(document, environment));
   const previews = parsed.filter(({request, lifecycle}) =>
     request.mode === "preview" && (!lifecycle ||
       (lifecycle.state === "failed" &&
@@ -64,7 +68,7 @@ export const readSpacingAdministration = async (
     `${root}/shiftPlanningState/sourcePolicy`));
   if (!policy.exists) return empty("no_planning_request");
   const source = await rebuildShiftPlanningLiveSourceInTransaction({
-    firestore: db, transaction, environment: "develop"});
+    firestore: db, transaction, environment});
   if (source.inputs.fairnessSnapshot.deliverySpacing === undefined) {
     return empty("spacing_policy_unavailable");
   }
@@ -74,7 +78,7 @@ export const readSpacingAdministration = async (
     db.doc(`${root}/shiftPlanningState/current`),
     db.doc(`${root}/shiftRotations/delivery`),
     db.doc(`${root}/shiftRotations/market`));
-  const state = buildShiftPlanningAuthoritativeState({environment: "develop",
+  const state = buildShiftPlanningAuthoritativeState({environment,
     maintenance: maintenance.data(), rotations: {
       delivery: delivery.data(), market: market.data()}});
   const candidates = new Map<string, SpacingAdministrationCandidate>();
@@ -167,13 +171,15 @@ export const readSpacingAdministration = async (
  * @param {Transaction} transaction Approval writer's transaction.
  * @param {number} now Trusted server time.
  * @param {object} command Exact immutable native proposal binding.
+ * @param {object} context Shared environment of the authorized transaction.
  */
 export const assertSpacingAdministrationContext = async (
   db: Firestore, transaction: Transaction, now: number,
   command: ContextCommand,
+  context?: ShiftCoverageStoreContext,
 ): Promise<void> => {
   const {spacingCandidates} = await readSpacingAdministration(
-    db, transaction, now);
+    db, transaction, now, context);
   const candidate = spacingCandidates.find((item) =>
     item.id === command.proposalId);
   if (!candidate || candidate.contextDigest !==

@@ -3,7 +3,7 @@ import SwiftUI
 struct CoverageAdministrationCommandSheet: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var isReasonFocused: Bool
-    let model: CoverageRehearsalViewModel
+    let model: CoverageRouteViewModel
     @Bindable var draft: CoverageAdministrationDraft
 
     var body: some View {
@@ -67,9 +67,11 @@ struct CoverageAdministrationCommandSheet: View {
 
 #if DEBUG
 #Preview("Baja permanente", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    @Previewable @State var model = CoveragePreviewAccess.model()
+    @Previewable @State var model = CoveragePreviewAccess.model().route
     @Previewable @State var draft = CoverageAdministrationDraft(
-        subject: .permanentDeparture(CoveragePreviewAccess.administration.members[0])
+        subject: .permanentDeparture(CoveragePreviewAccess.administration.members[0]),
+        environment: .develop,
+        expectedPolicyRevision: CoveragePreviewAccess.administration.policyRevision
     )
     CoverageAdministrationCommandSheet(model: model, draft: draft)
         .task {
@@ -81,9 +83,11 @@ struct CoverageAdministrationCommandSheet: View {
 }
 
 #Preview("Excepción de separación", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    @Previewable @State var model = CoveragePreviewAccess.model()
+    @Previewable @State var model = CoveragePreviewAccess.model().route
     @Previewable @State var draft = CoverageAdministrationDraft(
-        subject: .spacing(CoveragePreviewAccess.administration.spacingCandidates[0])
+        subject: .spacing(CoveragePreviewAccess.administration.spacingCandidates[0]),
+        environment: .develop,
+        expectedPolicyRevision: CoveragePreviewAccess.administration.policyRevision
     )
     CoverageAdministrationCommandSheet(model: model, draft: draft)
         .task {

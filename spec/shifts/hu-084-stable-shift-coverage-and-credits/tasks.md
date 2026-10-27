@@ -242,3 +242,12 @@ is not completion of those production tasks. See `plan.md` for the current bound
 - [x] Confirm the corrected navigation-bar Hide keyboard action and full accessibility-size header on iPhone 11/iOS 27.2 with VoiceOver (2026-10-27, frozen 8877 source): departure title/action read fully, keyboard hides retaining Prueba, Back returns focus to Register permanent departure; no submission.
 - [x] Complete the bounded Android new-form physical matrix on Xiaomi/Android 14: TalkBack reading/return focus, native XXL/1.5 text, reason/keyboard/cancellation, all three direct-touch actions, and authenticated local reserve/departure/exact-spacing writes and read-back. Original APK restored; TalkBack off, final normal font 1.0 preserved, demo services stopped. Earlier coverage/push results remain separate evidence.
 - [x] Investigate the separate Xcode 27.1 AppIntents warning: the supported disable option emits a replacement warning; preserve the explicit limitation without warning filters, unused imports or an undocumented project setting. Application/build configuration remains unchanged.
+
+## Authenticated normal-app composition — 2026-10-27
+
+- [x] Reuse one environment-bound Firestore coverage implementation and preserve fixed-demo guards.
+- [x] Add exact authenticated access/action endpoints and transactional readiness/identity checks.
+- [x] Connect normal Android/iOS sessions, forms, navigation and coverage notification routing.
+- [x] Verify token/session/account/environment drift, disabled access and immutable retry intents.
+- [x] Complete Functions/Android/iOS validation and independent review with bounded evidence.
+- [ ] Complete the separate operational dependencies before enabling shared coverage.

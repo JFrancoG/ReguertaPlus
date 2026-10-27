@@ -60,7 +60,12 @@ final class CoveragePreviewAccess: CoverageRehearsalAccess, ShiftCoverageReposit
     )
 
     func signIn(email: String, password: String) async throws -> ShiftCoverageSession {
-        ShiftCoverageSession(uid: "preview", memberId: "ana", authorizationRevision: 1)
+        ShiftCoverageSession(
+            environment: .develop,
+            uid: "preview",
+            memberId: "ana",
+            authorizationRevision: 1
+        )
     }
     func signOut() {}
     func read(caseId: String?, session: ShiftCoverageSession) async throws -> ShiftCoverageSnapshot { snapshot }
@@ -122,8 +127,17 @@ final class CoveragePreviewAccess: CoverageRehearsalAccess, ShiftCoverageReposit
 
     static func model() -> CoverageRehearsalViewModel {
         let model = CoverageRehearsalViewModel(access: CoveragePreviewAccess())
-        model.coverage.bind(ShiftCoverageSession(uid: "preview", memberId: "ana", authorizationRevision: 1))
+        model.coverage.bind(ShiftCoverageSession(
+            environment: .develop,
+            uid: "preview",
+            memberId: "ana",
+            authorizationRevision: 1
+        ))
         return model
+    }
+
+    static func closedRoute() -> CoverageRouteViewModel {
+        CoverageRouteViewModel(repository: CoveragePreviewAccess())
     }
 }
 #endif

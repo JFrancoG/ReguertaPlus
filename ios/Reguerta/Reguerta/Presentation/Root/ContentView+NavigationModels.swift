@@ -3,6 +3,7 @@ enum HomeDestination: String, Sendable {
     case myOrder
     case myOrders
     case shifts
+    case shiftCoverage
     case bylaws
     case shiftSwapRequest
     case news
@@ -24,6 +25,7 @@ extension HomeDestination {
         case .myOrder: AccessL10nKey.myOrderListTitle
         case .myOrders: AccessL10nKey.myOrders
         case .shifts: AccessL10nKey.shifts
+        case .shiftCoverage: "coverage.title"
         case .bylaws: AccessL10nKey.homeShellActionBylaws
         case .shiftSwapRequest: AccessL10nKey.shifts
         case .news: AccessL10nKey.homeShellActionNews
@@ -45,6 +47,7 @@ extension HomeDestination {
         case .myOrder: AccessL10nKey.homePlaceholderMyOrder
         case .myOrders: AccessL10nKey.homePlaceholderMyOrders
         case .shifts: AccessL10nKey.homePlaceholderShifts
+        case .shiftCoverage: AccessL10nKey.homePlaceholderShifts
         case .bylaws: AccessL10nKey.bylawsSubtitle
         case .shiftSwapRequest: AccessL10nKey.homePlaceholderShifts
         case .news: AccessL10nKey.newsListSubtitle
