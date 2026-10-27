@@ -5,7 +5,7 @@ const {test} = require("node:test");
 const {initializeTestEnvironment, assertFails} = require("@firebase/rules-unit-testing");
 const collections = ["shiftDeliverySpacingExceptions", "shiftDeliverySpacingOperations",
   "shiftCoverageEffects", "shiftCoverageProjectionState", "shiftMembershipState", "shiftMembershipOperations", "shiftCoverageBeaconRounds", "shiftCoverageReserves", "shiftCoverageCreditPlans", "shiftCoverageCreditUnits",
-  "shiftCoverageCases", "shiftCoverageOperations", "shiftCoveragePublicWrites", "shiftSheetsOrdinaryOperations", "shiftCoverageSlots",
+  "shiftCoverageCases", "shiftCoverageOperations", "shiftCoverageMigrations", "shiftCoveragePublicWrites", "shiftSheetsOrdinaryOperations", "shiftCoverageSlots",
   "shiftCoverageMemberClaims", "shiftCoverageCredits", "shiftCoverageLedgerState"];
 
 for (const policy of ["strict", "phase1"]) {

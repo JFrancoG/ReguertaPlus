@@ -429,22 +429,26 @@ export const parseShiftSheetsWorkbookSubmission = (value: unknown) => {
     if (value.kind === "ordinaryWriteBack") {
       const receipt = parseShiftSheetsOrdinarySubmission(value);
       return {workbookId: receipt.workbookId, evidence: receipt.evidence,
+        environment: receipt.environment,
         importOperationId: null, coverageOperationId: null,
         ordinaryOperationId: receipt.operationId};
     }
     if (value.kind === "coverageWriteBack") {
       const receipt = parseShiftCoverageSheetsSubmission(value);
       return {workbookId: receipt.workbookId, evidence: receipt.evidence,
+        environment: receipt.environment,
         importOperationId: null, coverageOperationId: receipt.operationId,
         ordinaryOperationId: null};
     }
     const receipt = parseShiftSheetsImportSubmission(value);
     return {workbookId: receipt.workbookId, evidence: receipt.evidence,
+      environment: receipt.environment,
       importOperationId: receipt.operationId, coverageOperationId: null,
       ordinaryOperationId: null};
   }
   const receipt = parseShiftPlanningSheetsSubmission(value);
   return {workbookId: receipt.command.workbookId, evidence: receipt.evidence,
+    environment: receipt.readable?.environment ?? null,
     importOperationId: null, coverageOperationId: null,
     ordinaryOperationId: null};
 };

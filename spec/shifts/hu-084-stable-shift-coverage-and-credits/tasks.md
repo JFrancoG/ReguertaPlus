@@ -268,3 +268,16 @@ Shared activation, authoritative source/credit migration, real destination/provi
 admission, collective ratification and deployment/operator controls remain open.
 The exported composition remains operationally closed; neither native platform
 changes in this backend block.
+## Initial coverage-state bootstrap — 2026-10-27
+
+- [x] Deliver coordination as `fd225f35`; verify exact remote hash and retain draft PR/open parent.
+- [x] Confirm canonical per-environment sources and maintainer declarations: zero pending credits, no known prior active reserves.
+- [x] Add deterministic review plan with complete versioned source sets, explicit declarations and conservative blockers.
+- [x] Validate existing credit/claim/ledger history and initialize only consistent missing ledgers.
+- [x] Add create-only administrative initialization under the existing trusted closed barrier, with source CAS, receipt and safe replay.
+- [x] Require the verified initial receipt in normal backend availability without opening operational readiness.
+- [x] Provide an offline review command and bilingual operator/user explanation.
+- [x] Complete local pure/SDK/Rules gates, independent review and cleanup; preserve native validation boundaries.
+
+- [ ] Establish/review the canonical base-planner state in shared develop before actual initialization: the four current/sourcePolicy/rotation documents are absent in the bounded read-only check.
+- [ ] Review a real complete per-environment plan, obtain the concrete application/control-plane handoff and verify shared read-back; no live apply is included in local source preparation.

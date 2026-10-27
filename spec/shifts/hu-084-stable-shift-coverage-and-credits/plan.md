@@ -1738,3 +1738,59 @@ pushed be3fde49 and is ready for its next source checkpoint. Shared activation
 remains false. Next recommended work is authoritative initial source/credit
 migration and shared destination/operator admission before a bounded shared
 rehearsal; deployment/data changes require their concrete authorized handoff.
+### Initial coverage-state bootstrap — authorized 2026-10-27
+
+The coordination block is committed/pushed as `fd225f35`; exact remote identity
+matches and the delivery worktree was clean. The maintainer authorizes initial
+membership/reserve/credit preparation next and explicitly declares zero initial
+outstanding credits and no known prior active reserves.
+
+Reuse each environment's canonical Firestore `users`, current rotation aggregates
+and ordinary public ownership evidence. Initialize missing private coverage state
+only; retain users/Auth, rotation order, published dates/assignments and valid
+existing private history. A missing collection does not itself prove a zero
+balance. Contradictory pending credit/reserve, source/roster ambiguity or malformed
+legacy evidence blocks application and produces a reviewable report.
+
+Implement one grouped result on the existing HU-084 branch/issue:
+
+1. A deterministic read-only plan binds complete bounded source sets/versions,
+   explicit zero declarations, cutoff, proposed creates and blockers to a digest.
+   Existing cohort members start as baseline members, without joining the reserve
+   at migration time. Do not bulk-run the ordinary reconciler or recreate queues.
+2. An injected Firestore adapter rechecks reciprocal current administrator identity,
+   exact source sets and absence preconditions in one create-only transaction
+   under the existing trusted closed-intake barrier. Respect transaction budgets,
+   persist one immutable receipt/current pointer and retain incident evidence on
+   uncertain final acknowledgement. Exact replay never reinitializes live state.
+3. The normal backend additionally requires a verified bootstrap receipt for
+   admission; preserve `operationalReady:false` and all ratification/provider gates.
+4. Supply an offline JSON review tool, concise bilingual operator/user guidance,
+   pure/SDK/Rules denial, drift, race and replay checks. No new native wire shape
+   or UI behavior; accepted Android/iOS evidence remains applicable if unchanged.
+
+No live migration, shared-data write, deployment, notification, merge or closure
+is authorized by this preparation. The CLI first version has no cloud SDK or
+apply mode; the injected apply adapter is exercised only in fixed-demo tests.
+The maintainer has answered the two initial-balance questions; no phone action
+is needed. Actual shared snapshot review/application will require its concrete
+bounded operational handoff after the source implementation is ready.
+
+### Initial-state validation and real develop readiness — 2026-10-27
+
+The initial-state implementation and independent review pass locally: Functions
+build/lint, 103 pure, 297 planning (51 existing skips), 215 workflow/Rules, 50
+Auth/SDK and 109 HU-083 regressions. The 28 focused pure/CLI and 22 focused SDK
+cases are included in the full gates; do not count them again. No native source
+changes, so accepted Android/iOS evidence is reused. Review records fixture/type
+corrections and all actual scope limits. The code remains local after fd225f35.
+
+A bounded Firebase MCP read in reguerta-9f27f finds exactly the four masked develop
+configuration documents absent (current, sourcePolicy and both rotations). No
+users, production or workbook is accessed, and no shared write occurs. Shared
+application therefore needs the base-planner rotation/state preparation from
+existing published history before this create-only initializer can run. Retain
+published dates/order; do not invent a baseline inside this migration. This is
+the established HU-082/HU-083/HU-085 rollout boundary. No additional member-input
+or phone action is currently required; real source review and bounded application
+will have their concrete operational handoff.

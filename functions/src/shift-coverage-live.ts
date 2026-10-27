@@ -7,6 +7,8 @@ import {parseShiftCoverageActivation} from "./shift-coverage-store-context.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {captureShiftPlanningWriterAuthority} from
   "./shift-planning-writer-authority.js";
+import {readVerifiedShiftCoverageBootstrap} from
+  "./shift-coverage-bootstrap-firestore.js";
 
 export type ShiftCoverageAccess = {
   schemaVersion: 1;
@@ -61,7 +63,11 @@ export const createFirestoreShiftCoverageService = (input: {
       if (!(error instanceof HttpRequestError)) throw error;
       return null;
     }
-    return {policy, digest: digest(policy)};
+    const initialization = await readVerifiedShiftCoverageBootstrap(
+      firestore, transaction, environment);
+    if (!initialization) return null;
+    return {policy, digest: digest({policy,
+      initializationReceiptDigest: initialization.receiptDigest})};
   };
   const readContext = (identity: VerifiedIdentity) =>
     firestore.runTransaction(async (transaction) => {

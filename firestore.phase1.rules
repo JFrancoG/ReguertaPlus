@@ -54,6 +54,7 @@ service cloud.firestore {
         "shiftDeliverySpacingOperations",
         "shiftCoverageBeaconRounds",
         "shiftCoverageOperations",
+        "shiftCoverageMigrations",
         "shiftCoveragePublicWrites",
         "shiftSheetsOrdinaryOperations",
         "shiftCoverageSlots",

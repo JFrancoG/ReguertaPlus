@@ -2,17 +2,18 @@
 
 ## Current checkpoint — 2026-10-27
 
-Normal authenticated Android/iOS composition is validated and pushed as
-`be3fde49b9eddf155e5feb752abcf54e8fd618b2`; exact remote identity is verified.
-Issue #268 remains open and PR #278 remains draft. The maintainer authorizes
-shared Sheets/notification coordination next, implemented locally on the same
-branch: historical public-event ownership, HU-083 workbook/partition authority,
-ordinary-writer exclusion, uncertain-submission retention and one inbox/push
-owner. Current acceptance and validation live in this story's `plan.md`,
-`tasks.md` and `review.md`, and bilingual ADR-0019. New coordination is not part
-of the delivered commit. Shared activation remains closed; authoritative
-migration, destination/provider admission, ratification and authorized rollout
-are still required. Older dated assessments below are historical evidence.
+Normal authenticated Android/iOS composition and shared effect coordination are
+validated and pushed through `fd225f35fd7260d5a29ef0af8edad98b04d80b59`; exact
+remote identity is verified. Issue #268 remains open and PR #278 remains draft.
+The maintainer now authorizes initial private membership/reserve/credit bootstrap,
+prepared locally with explicit zero pending credits and no known active reserves.
+This new bootstrap work is outside the delivered commit. Current acceptance and
+validation live in the story's plan/tasks/review, bilingual ADR-0020 and initial
+state operator guides. A bounded read-only check finds develop current/sourcePolicy
+and both canonical rotations absent; base-planner readiness is required before
+shared application. Activation remains closed. Actual migration, destination/
+provider/operator admission, ratification and authorized rollout remain open.
+Older dated assessments below are historical evidence.
 
 ## Pre-PR assessment — 2026-09-13
 

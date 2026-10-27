@@ -8,6 +8,7 @@ const {verifyBearerIdentity, resolveReviewerEnvironment} = require("../lib/backe
 const {createFirestoreShiftCoverageService} = require("../lib/shift-coverage-live.js");
 const {executeShiftCoverageAccessRequest, executeShiftCoverageRequest} = require("../lib/shift-coverage-live-http.js");
 const {SHIFT_COVERAGE_POLICY_REVISION} = require("../lib/shift-coverage.js");
+const {writeProof, proof} = require("./shift-coverage-bootstrap-proof-fixture.cjs");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {buildShiftPlanningPublicShiftMaterialization, createShiftPlanningActivationOperationTerminal,
   attachShiftPlanningBackendMutationMarker} = require("../lib/shift-planning-publication-contract.js");
@@ -105,7 +106,63 @@ beforeEach(async () => {
         migrationBaseline: null, releaseLease: null});
     }
     await ref(environment, "shifts", shiftId).set(materialize(environment));
+    await writeProof(db, environment, {now});
   }
+});
+
+run("normal coverage admission requires an immutable matching initialization proof", async () => {
+  const current = ref("production", "shiftCoverageMigrations", "current");
+  const receipt = ref("production", "shiftCoverageMigrations", "fixture-initialization");
+  const assertClosed = async () => {
+    const beforeCall = await capture();
+    assert.equal((await access("production")).enabled, false);
+    await assert.rejects(call("production", open("production")), {status: 409, code: "coverage_unavailable"});
+    assert.deepEqual(await capture(), beforeCall);
+  };
+  await current.delete(); await assertClosed();
+  await current.set(proof("production", {now}).marker);
+  await assertClosed(); // Recreated marker is not the receipt's original commit.
+  await receipt.delete(); await assertClosed();
+  await current.delete();
+  await writeProof(db, "production", {now});
+  assert.equal((await access("production")).enabled, true);
+  await receipt.update({receiptDigest: digest("forged")}); await assertClosed();
+});
+
+run("a proof copied from develop cannot initialize production and later ledger writes preserve readiness", async () => {
+  const current = ref("production", "shiftCoverageMigrations", "current");
+  const receipt = ref("production", "shiftCoverageMigrations", "fixture-initialization");
+  await current.delete(); await receipt.delete();
+  const copied = proof("develop", {now}), batch = db.batch();
+  batch.create(current, copied.marker); batch.create(receipt, copied.receipt); await batch.commit();
+  assert.equal((await access("production")).enabled, false);
+  await current.delete(); await receipt.delete();
+  await writeProof(db, "production", {now});
+  await ref("production", "shiftCoverageLedgerState", "delivery").set({revision: 8});
+  assert.equal((await access("production")).enabled, true);
+});
+
+run("replacing initialization proof between admission and mutation invalidates the captured command", async () => {
+  let transactions = 0;
+  const guarded = new Proxy(db, {get(target, key) {
+    if (key === "runTransaction") return async (...args) => {
+      const number = ++transactions, value = await target.runTransaction(...args);
+      if (number === 1) {
+        await ref("production", "shiftCoverageMigrations", "current").delete();
+        await ref("production", "shiftCoverageMigrations", "fixture-initialization").delete();
+        await writeProof(db, "production", {now: now + 1000});
+      }
+      return value;
+    };
+    const value = Reflect.get(target, key, target);
+    return typeof value === "function" ? value.bind(target) : value;
+  }});
+  const original = (await ref("production", "shifts", shiftId).get()).data();
+  await assert.rejects(call("production", open("production"), dependencies(guarded)),
+    {status: 409, code: "coverage_unavailable"});
+  assert.deepEqual((await ref("production", "shifts", shiftId).get()).data(), original);
+  assert.equal((await db.collection(`${rootFor("production")}/shiftCoverageOperations`).get()).size, 0);
+  assert.equal((await db.collection(`${rootFor("production")}/shiftCoverageCases`).get()).size, 0);
 });
 
 run("shared Admin SDK composition isolates production and develop identities, commands, receipts and projections", async () => {

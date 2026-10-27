@@ -1537,3 +1537,86 @@ real push send, deployment, merge, issue closure or branch deletion occurs. Next
 prepare authoritative initial membership/reserve/credit migration and shared
 destination/operator admission before proposing an authenticated shared rehearsal.
 Real entropy, collective ratification and operational rollout remain parent gates.
+## Initial coverage-state bootstrap — prepared and validated, 2026-10-27
+
+Coordination is delivered as `fd225f35` with exact remote identity confirmed.
+The maintainer authorizes the next initial-state preparation and explicitly
+confirms zero outstanding initial credits and no known prior active reserves.
+The new bootstrap source is implemented and validated locally, uncommitted and
+unapplied to shared environments. Issue #268 remains open and PR #278 draft.
+
+Canonical users and ordinary rotation/public-owner evidence in each environment
+feed one deterministic bounded review plan. Complete encoded source sets and
+update versions are digest-bound to the explicit decision. Missing private
+membership observations and consistent missing ledger generations are create-only;
+existing accounts, user flags, order, published dates/assignments and valid private
+history remain unchanged. Current cohort members do not become new reserves.
+Inactive legacy reserve history can remain without a fabricated admission frontier;
+active or contradictory reserve evidence blocks instead. No manual-credit variant,
+fake completion or inferred entitlement is introduced for the confirmed zero start.
+
+The injected apply adapter reuses the existing trusted closed-intake barrier,
+current reciprocal administrator, full source-set recapture/CAS and transaction
+admission, including the two receipt writes. A source change or phantom, active
+lease/work, conflicting plan/identity/environment/workbook, future cutoff or
+existing initializer prevents a partial commit. One immutable receipt/current
+pointer binds the atomic initialization; exact replay preserves later legitimate
+membership and ledger changes. An uncertain Firestore acknowledgement resolves
+only through its exact historical receipt. A failed final barrier read-back keeps
+the committed baseline and proven incident; it cannot claim a clean retry.
+
+Normal backend availability now additionally requires that matching immutable
+bootstrap proof and includes its digest in the captured command fence. Missing,
+rewritten, forged, cross-environment or replaced proof closes access; later ledger
+changes do not invalidate historical initialization. The shared workbook summary
+exposes its persisted environment for exact checks; legacy canonical schema-v1
+has no such field and returns null rather than inventing it. Persisted/native wire
+schemas remain unchanged and `operationalReady:false` remains explicit in index.
+
+The offline CLI reads local snapshot/decision JSON, has no apply/project flag,
+constructs no cloud client and produces a private create-only review artifact.
+It refuses input/output replacement and returns a blocked plan with zero creates
+for contradictions. English/Spanish ADR-0020 and operator guides explain the
+same source, accounting and operational boundaries.
+
+Accepted validation under Node 22.23.4:
+
+- Functions final build/lint pass, zero diagnostics.
+- Coverage/business/bootstrap pure suites: **103 passed**, including 28 focused
+  planner/credit/CLI cases. CLI subprocess tests work with no credentials or server.
+- Planning regressions: **297 passed, 51 existing emulator-only skips**.
+- Full coverage workflows/publication/Rules/bootstrap SDK: **215 passed**.
+- Full Auth/SDK native/backend boundary: **50 passed**.
+- HU-083 sync/import/consumer/ordinary-trigger regressions: **109 passed**.
+- Final focused bootstrap/live readiness SDK: **22 passed**, included in the
+  corresponding full gates rather than added again. All accepted failures: zero.
+
+Independent reviews close workbook/environment, authority, budget, immutable-proof
+and stale-readiness findings. A focused valid release-lease vector covers both
+rotations and all three states even after expiry. Initial type-narrowing diagnostics
+and fixture errors are corrected before the final gates: a completed-helper fixture
+needs canonical timestamp/helper evidence; an identical Firestore set can preserve
+updateTime, so rewrite testing changes/restores actual data; in-flight rejection
+requires a valid retained hold and later closed read-back to journal the incident.
+No production barrier or business rule is weakened to satisfy these tests.
+
+Evidence: `/tmp/hu084-bootstrap-{build,lint,pure,planning,workflow,auth,hu083}-final.log`,
+`/tmp/hu084-bootstrap-focused-{pure,sdk}.log` and summary/source freeze
+`/tmp/hu084-initial-state-bootstrap-summary.json`.
+
+A separate **bounded read-only live check** through Firebase MCP verifies project
+`reguerta-9f27f` and requests masked configuration fields at exactly four develop
+paths: current/sourcePolicy under shiftPlanningState and delivery/market under
+shiftRotations. All four return document-not-found. No user collection, production
+path, workbook or Auth/business write is accessed. This proves a base-planner
+readiness gap; it does not prove missing users or missing legacy published shifts.
+Before shared application, prepare/review the canonical rotation baseline from
+existing published history while retaining dates and order, then establish its
+governed state through the existing HU-082/HU-083/HU-085 rollout boundary.
+
+No Android/iOS source changes: reuse the accepted native gates (Android 542 units
+and API 29/lint evidence, iOS 951 passes/five expected skips), without a new physical
+or deployed claim and with no new parity gap. Owned emulators and the task dependency
+symlink are removed after validation; main-checkout user changes remain intact.
+No new deployment, notification, shared-data mutation, merge or parent closure.
+The maintainer's two initial-state answers are recorded; no phone action is needed.
