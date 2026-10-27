@@ -1794,3 +1794,32 @@ published dates/order; do not invent a baseline inside this migration. This is
 the established HU-082/HU-083/HU-085 rollout boundary. No additional member-input
 or phone action is currently required; real source review and bounded application
 will have their concrete operational handoff.
+
+### Develop planner base preparation — 2026-10-27
+
+The maintainer requests commit/push followed by base preparation retaining the
+published dates and order. Initial-state source is delivered as `537188bd`, with
+the exact remote hash verified. No new live application is requested by this step.
+
+Fresh bounded develop reads and metadata-first workbook inspection identify the
+same 72 published turns/108 ordered places and corrected 48-user/32-eligible
+scenario retained by HU-083. Reuse that explicitly approved synthetic ownership
+lineage and both continuation cursors (54 consumed positions each; round 2/index
+22), without creating a new roster order or generating another season. A private
+semantic proposal and offline contract validation bind the preserved content.
+
+The [preparation report](develop-planner-base-preparation.md) distinguishes three
+unresolved content concerns: 53 blank visible helper cells against the canonical
+helper proposal, July/August 2027 absent from Market, and the 62 legacy Firestore
+rows that still fail the canonical contract. Business fields of those legacy rows
+are unchanged, but their import/update metadata and server versions have changed;
+the September inverse/CAS guards cannot be reused. Do not execute the old reset.
+
+The Drive connector provides no numeric version, and all five planning-state
+paths remain absent. No full v2 cross-store audit, post-drain capture, live
+initializer or ready-for-activation claim is made. Reuse existing HU-082/HU-083
+contracts; no new planner/parser/live writer is needed for this preparation.
+Functions build/lint and 47 focused cases pass. No native source changes or new
+physical checks; no shared write, deploy, FCM send or production access. Continue
+with the exact governed develop migration/inverse preparation under HU-085;
+neither parent is closed and no phone action is currently required.

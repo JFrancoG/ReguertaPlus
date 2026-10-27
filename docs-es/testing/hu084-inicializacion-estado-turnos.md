@@ -82,3 +82,13 @@ hay que preparar y revisar esa base a partir del historial existente, conservand
 fechas y orden, y establecer el estado controlado necesario. Es la preparación
 del planificador base de HU-082/HU-083/HU-085; esta herramienta no adivina una cola
 ni activa la funcionalidad para suplir esa ausencia.
+
+## Preparación posterior de develop
+
+El [informe de preparación del 2026-10-27](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-planner-base-preparation.md)
+recoge las lecturas posteriores y acotadas de usuarios, turnos y hojas, y la
+propuesta privada de contenido. Coinciden las 72 fechas y las 108 plazas ordenadas
+con el escenario de develop aprobado y conservado. Quedan explícitos los ayudantes
+(53 celdas vacías), julio/agosto de 2027 ausentes en Mercado, los 62 turnos antiguos
+de Firestore y la falta de versión real de Drive y autoridad operativa. Esto no
+amplía retroactivamente la consulta anterior ni aplica la inicialización.

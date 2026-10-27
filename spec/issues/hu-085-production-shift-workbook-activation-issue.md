@@ -1,5 +1,20 @@
 # [HU-085] Controlled production shift workbook activation
 
+## Current develop prerequisite — 2026-10-27
+
+HU-084 initial private-state source is delivered through `537188bd`. The maintainer
+next authorizes develop base preparation preserving published dates/order. Fresh
+read-only captures match the retained approved synthetic 72-turn/108-place
+scenario and corrected 32-member cohort. Its private semantic proposal carries
+no live operation authority. Preserve the 62 legacy source rows in the inventory;
+the old 139-write delete/recreate reset is not a current execution plan.
+
+There are 53 helper projection differences and two missing market months; all
+five planning-state paths and a real numeric Drive version remain absent.
+Exact governed migration/inverse and deployment/admission gates remain open.
+See `spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-planner-base-preparation.md`.
+No production read, shared write, deploy or activation is included.
+
 ## Accepted HU-083 handoff — 2026-09-12
 
 The maintainer accepted HU-083's explicit zero-write deferral and authorized its

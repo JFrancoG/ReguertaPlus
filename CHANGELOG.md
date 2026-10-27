@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-27 | 📝 docs(shifts): prepare preserved develop baseline
+
 - 2026-10-11 | 📝 docs(shifts): record HU-089 parent integration
 
 - 2026-10-04 | 📝 docs(shifts): define coverage ratification proposal

@@ -278,6 +278,9 @@ changes in this backend block.
 - [x] Require the verified initial receipt in normal backend availability without opening operational readiness.
 - [x] Provide an offline review command and bilingual operator/user explanation.
 - [x] Complete local pure/SDK/Rules gates, independent review and cleanup; preserve native validation boundaries.
+- [x] Deliver initial-state implementation as `537188bd` and verify the exact remote hash.
+- [x] Prepare a private content-only develop baseline against fresh source reads, retaining the 72 published dates/108 ordered places and approved synthetic lineage; report helper/horizon/legacy differences explicitly.
 
 - [ ] Establish/review the canonical base-planner state in shared develop before actual initialization: the four current/sourcePolicy/rotation documents are absent in the bounded read-only check.
+- [ ] Resolve the 62 legacy representation, 53 helper projection differences and two missing market months in the governed migration/preview, retaining the published dates and ordered assignments; obtain real Drive/admission authority and rehearse the exact inverse.
 - [ ] Review a real complete per-environment plan, obtain the concrete application/control-plane handoff and verify shared read-back; no live apply is included in local source preparation.

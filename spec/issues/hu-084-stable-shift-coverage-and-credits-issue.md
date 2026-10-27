@@ -2,16 +2,20 @@
 
 ## Current checkpoint — 2026-10-27
 
-Normal authenticated Android/iOS composition and shared effect coordination are
-validated and pushed through `fd225f35fd7260d5a29ef0af8edad98b04d80b59`; exact
+Normal authenticated Android/iOS composition, shared effect coordination and the
+initial private-state bootstrap are validated and pushed through
+`537188bdbab03c0e6fd81f9ef370068545711a3d`; exact
 remote identity is verified. Issue #268 remains open and PR #278 remains draft.
-The maintainer now authorizes initial private membership/reserve/credit bootstrap,
-prepared locally with explicit zero pending credits and no known active reserves.
-This new bootstrap work is outside the delivered commit. Current acceptance and
+The maintainer confirms zero pending credits and no known active reserves.
+Current acceptance and
 validation live in the story's plan/tasks/review, bilingual ADR-0020 and initial
-state operator guides. A bounded read-only check finds develop current/sourcePolicy
-and both canonical rotations absent; base-planner readiness is required before
-shared application. Activation remains closed. Actual migration, destination/
+state operator guides. The next authorized preparation preserves the 72 published
+develop dates/108 ordered places against fresh read-only evidence and the retained
+approved synthetic lineage. Its private semantic proposal is not a live command.
+The 53 helper projection differences, two missing market months, 62 legacy rows
+and missing real Drive/runtime authority remain explicit; all five planning-state
+paths are absent. See the story's `develop-planner-base-preparation.md`.
+Activation remains closed. Actual migration, destination/
 provider/operator admission, ratification and authorized rollout remain open.
 Older dated assessments below are historical evidence.
 

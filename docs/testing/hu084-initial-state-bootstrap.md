@@ -78,3 +78,12 @@ prepare/review the canonical rotation baseline from the existing published
 history, retaining dates and order, and establish the required governed state.
 That is the existing HU-082/HU-083/HU-085 base-planner rollout boundary, not a
 reason for this initializer to guess queues or silently enable the feature.
+
+## Subsequent develop preparation
+
+The [2026-10-27 preparation report](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-planner-base-preparation.md)
+records the later bounded user/shift/workbook reads and private semantic proposal.
+All 72 published dates and 108 ordered places match the retained approved develop
+scenario. Helpers (53 blank cells), missing July/August 2027 market dates, the 62
+legacy Firestore rows and missing real Drive/runtime authority remain explicit.
+This does not supersede the earlier check's scope or apply the initial state.

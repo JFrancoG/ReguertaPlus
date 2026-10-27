@@ -1620,3 +1620,32 @@ or deployed claim and with no new parity gap. Owned emulators and the task depen
 symlink are removed after validation; main-checkout user changes remain intact.
 No new deployment, notification, shared-data mutation, merge or parent closure.
 The maintainer's two initial-state answers are recorded; no phone action is needed.
+
+### Develop base content preparation — 2026-10-27
+
+Initial-state source is committed/pushed as `537188bd`; remote HEAD is verified.
+The next authorized preparation uses fresh bounded develop Firebase reads and
+metadata-first, full bounded seasonal-grid reads through Google Drive. No shared
+write, production access, permission change, deployment or notification occurs.
+
+All 399 populated literal cells, 72 dates/108 ordered places and the corrected
+48-user/32-eligible scenario match retained HU-083 evidence. Its approved synthetic
+queue is reused without sorting or inferring original owners from assignees.
+The private semantic proposal passes current validators for 72 canonical public
+templates, coherent authority-template shape and 54-position consumption per
+rotation (round 2/index 22). Runtime metadata is excluded from that proposal;
+repeated preparation is byte-identical. The helper draft changes only 53 `F`
+cells; the terminal helper stays null. Existing published assignments are retained.
+
+Readiness remains explicitly blocked: 62 legacy payloads are not canonical,
+all their server versions differ from September (only import/update metadata
+changed), the 53 helpers are not yet visible, July/August 2027 market dates are
+absent, all five planning-state paths are absent, and no real Drive version or
+deployed writer/admission authority is available. The old 139-write reset is not
+the new execution proposal. No full v2 cross-store audit is reported as passed.
+
+Functions build/lint pass under Node 22.23.4; focused eligibility, contract/wire,
+rotation and initial-state suites pass **47/47**, zero skips/failures. Detailed
+scope, content/receipt digests and next governed operation are in
+[the preparation report](develop-planner-base-preparation.md). No new platform
+code or parity gap; prior Android/iOS evidence is reused without a new device run.

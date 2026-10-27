@@ -9,10 +9,27 @@ acceptance and the exact content baseline/inverse; it is not a runtime command.
 - [ ] Implement the bounded runtime-owned develop reset and recovery, binding fresh
   post-drain source/Drive/index authority and closed maintenance. Include forward
   retention and retain inverse operation/audit evidence plus advanced security epoch.
+  The October 27 preservation request requires a fresh migration proposal; the
+  old 139-write delete/recreate fixture is not that proposal.
 - [ ] Recompute and rehearse the full forward/inverse budgets and delayed-event
   behavior; the content-only 139-write fixture rejects under real event auditing.
 - [ ] Complete the coordinated production adaptation/backend activation below,
   preserving the current manually prepared season. This handoff starts no rollout.
+
+## Develop content preparation — 2026-10-27
+
+- [x] Recapture bounded develop evidence and compare the current 72 published
+  turns/108 ordered places with the retained corrected HU-083 scenario.
+- [x] Reuse its approved synthetic cohort/owner mapping as a content proposal,
+  without reordering published assignments or inferring legacy ownership.
+- [ ] Resolve legacy representation, helper projection and market horizon gaps
+  with a fresh governed forward/inverse and real Drive/index/runtime authority;
+  no shared state is initialized by the content preparation.
+
+See [the current preparation report](../hu-084-stable-shift-coverage-and-credits/develop-planner-base-preparation.md).
+This bounded prerequisite work runs on the existing HU-084 branch. It does not
+start the production rollout, create a new HU-085 implementation branch or close
+any activation gate below.
 
 ## 0. Dependency gate
 
