@@ -13,14 +13,16 @@ export type ShiftPlanningWriterControl =
   | "disable-delivery-after-drain"
   | "isolate-causal-delivery"
   | "fence-external-authority"
-  | "activation-version-check";
+  | "activation-version-check"
+  | "cooperative-owner-agreement";
 
 export type ShiftPlanningWriterControlState =
   | "denied"
   | "disabled"
   | "fenced"
   | "isolated"
-  | "version-bound";
+  | "version-bound"
+  | "agreement-recorded";
 
 export type ShiftPlanningWriterShutdownOrder =
   | "before-causal-capture"
@@ -392,3 +394,43 @@ export const SHIFT_PLANNING_WRITER_INVENTORY = Object.freeze({
 
 export const SHIFT_PLANNING_WRITER_INVENTORY_DIGEST: ShiftPlanningDigest =
   createShiftPlanningDigest(SHIFT_PLANNING_WRITER_INVENTORY);
+
+
+export const SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION =
+  "hu085-owner-agreement-writers-v1" as const;
+export const SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID =
+  "workbook-owner-retained-capability" as const;
+
+/**
+ * ADR-0021 separates the named manual owner from every other human/offline
+ * writer. Owner credentials, scripts, API and privileged paths remain under
+ * their original technical controls. The v3 strict inventory is unchanged.
+ */
+export const SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS:
+  readonly ShiftPlanningAffectedWriter[] = Object.freeze([
+    ...SHIFT_PLANNING_AFFECTED_WRITERS.map((writer) =>
+      writer.writerId !== "workbook-human-and-offline-editors" ? writer :
+        Object.freeze({...writer, sourceReferences: Object.freeze([
+          "Non-owner Drive editors and their pending offline edits",
+        ])})),
+    Object.freeze({
+      writerId: SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID,
+      control: "cooperative-owner-agreement" as const,
+      requiredState: "agreement-recorded" as const,
+      shutdownOrder: "before-causal-capture" as const,
+      targets: Object.freeze(["workbook.shifts" as const]),
+      sourceReferences: Object.freeze([
+        "ADR-0021 named manual owner; technical capability remains retained",
+      ]),
+    }),
+  ]);
+export const SHIFT_PLANNING_OWNER_AGREEMENT_INTAKE_WRITERS = Object.freeze(
+  SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS.filter((writer) =>
+    writer.shutdownOrder !== "activation-recheck"),
+);
+export const SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST =
+  createShiftPlanningDigest({
+    schemaVersion: SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION,
+    revision: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
+    writers: SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS,
+  });

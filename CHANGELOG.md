@@ -56,6 +56,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-28 | ✨ feat(shifts): bind owner maintenance entry
+
 - 2026-10-27 | ✨ feat(shifts): add private develop inspection
 
 - 2026-10-27 | ✨ feat(shifts): initialize reviewed coverage state

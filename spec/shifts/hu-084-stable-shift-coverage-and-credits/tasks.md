@@ -362,10 +362,25 @@ application/rollback authorization and full annual preview remain open.
   fabricating closure or authorizing a live migration; all local outputs retain `canApply:false`.
 - [x] Record the provisional personal-account assumption and accepted bounded
   owner-cooperation policy in bilingual ADR/spec/runbook documentation.
-- [ ] Implement and locally rehearse the explicitly bound maintenance packet/
-  adapter for owner/file/window/confirmations, other-writer controls, expiry,
-  drift and uncertain-write recovery; do not relabel cooperation as technical fencing.
+- [x] Implement and locally rehearse version 2 maintenance entry with bound
+  owner/file/window/confirmations, other-writer controls, expiry, drift and
+  uncertain outcomes; keep real provider/Sheets procedure integration pending.
 
 The group was validated against `f5c3b5db`. Durable live intake, complete
 old-work control/reconciliation, writer authority and the revised maintenance procedure remain
 open; the local suite cannot close them. No native source or shared resource changed.
+
+## Owner maintenance contract adaptation and local rehearsal — 2026-10-28
+
+- [x] Deliver the preceding handoff/policy group as `3aafe4e8`; verify exact remote HEAD and reuse #268/#269/current branch.
+- [x] Record the approved local-only scope and choose an explicit versioned variant in the existing barrier/retention/CAS architecture.
+- [x] Implement bounded agreement parsing and bindings without treating owner cooperation as technical `fenced` evidence.
+- [x] Integrate the variant through exact writer inventory, trusted checkpoint, immutable evidence retention/replay and maintenance CAS; preserve default strict behavior and other-writer/drain controls.
+- [x] Rehearse stale/expired/wrong agreement, editor/authority/content drift, reported edits and uncertain operation outcomes through guarded local effects and actual emulator persistence.
+- [x] Pass 438 joint emulator/regression tests with zero failures/skips, Functions build/lint and independent source review; update bilingual guidance and private evidence with exact results.
+- [x] Record remaining provider/copy/live-admission gates and keep production, native apps and shared permissions unchanged.
+
+The group was validated against `3aafe4e8`. Version 2 covers maintenance
+entry with an unchanged workbook baseline and historical CAS receipt reads;
+later Sheets batches still need their expected-postimage guard and actual
+provider composition before any safe-copy or live window is authorized.

@@ -303,6 +303,8 @@ const fixture = () => {
     activationWriteEpoch,
     expectedActiveRevision: maintenance.activeRevision,
     expectedState,
+    // This inverse-only case has no delivery spacing source to revalidate.
+    delivery: {spacingEvidence: null},
     manifests: {inverse: inverseManifest},
     budgets: {
       inverse: {

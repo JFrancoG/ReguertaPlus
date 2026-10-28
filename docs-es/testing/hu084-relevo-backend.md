@@ -32,7 +32,7 @@ sustituye a ninguna de las otras.
 | --- | --- | --- |
 | Entregas nuevas | Guardar la identidad del evento, su contenido original completo y su vinculación antes de confirmar la retención; conservar duplicados exactos y rechazar los distintos | Ensayar la captura duradera y la pérdida de confirmación; falta demostrar la entrega duradera del proveedor |
 | Operaciones y efectos anteriores | Conciliar cada operación admitida, efecto externo enviado y consecuencia causal con un resultado demostrado | El trabajo pendiente, incierto o desconocido impide cerrar; el tiempo transcurrido no lo resuelve |
-| Admisión del mantenimiento de la hoja | Cerrar las demás vías, vincular el acuerdo acotado del propietario y admitir solo los comandos revisados del backend | No se ejecuta un relevo físico ni la admisión operativa revisada; cada evaluación local conserva `physicalHandoffReady:false` |
+| Admisión del mantenimiento de la hoja | Cerrar las demás vías, vincular el acuerdo acotado del propietario y admitir solo los comandos revisados del backend | La entrada de versión 2 se ensaya localmente más abajo; no demuestra relevo físico ni admisión real; la evaluación anterior conserva `physicalHandoffReady:false` |
 
 La inspección de configuración de solo lectura confirma las mismas seis
 Functions/revisiones antiguas auditadas: timeout de 60 segundos, máximo de 20
@@ -78,11 +78,10 @@ versión no producen exclusión física. La política aceptada registra esa carr
 residual con el propietario en lugar de afirmar exclusión. Un envío incierto sigue
 permitiendo solo lecturas de recuperación.
 
-El inventario y la barrera actuales aún exigen pruebas técnicas `fenced` para el
-grupo de editores humanos/sin conexión. Antes de usar el nuevo modelo hay que
-vincular expresamente modo, propietario, archivo, plazo, confirmaciones, controles
-de los demás escritores y abortos al paquete/adaptador revisado. No se traduce la
-colaboración al recibo técnico antiguo, una bandera incondicional ni una prueba local.
+La versión 1 conserva la exclusión técnica de editores humanos/sin conexión y el
+adaptador predeterminado. El contrato explícito de versión 2 descrito más abajo
+representa la colaboración por separado; no sustituye la versión 1 ni se deduce
+de una bandera o de una prueba local.
 
 ## Ensayo local finito
 
@@ -144,7 +143,7 @@ de escritores/efectos; no permite sustituir el archivo de forma silenciosa.
 | Conservar el ID y la exclusión absoluta del propietario | No seleccionado; exigiría un control real mantenido del propietario, hoy desconocido |
 | Custodia gobernada, traslado o transferencia | Decisión separada y prueba real en un archivo de ensayo que conserve ID/enlace, contenido e integraciones; aquí no se elige destino ni transferencia |
 | Nueva proyección controlada | Cambia expresamente el destino/enlace y la custodia; el archivo anterior se conserva según lo acordado, sin sustitución automática |
-| Ventana operativa sobre el archivo personal actual | Aceptada en ADR-0021 y la especificación de HU-085; pendientes el adaptador operativo y el ensayo del procedimiento |
+| Ventana operativa sobre el archivo personal actual | Aceptada en ADR-0021/HU-085; entrada de versión 2 probada localmente; pendientes proveedor real, operaciones de Sheets y ensayo del procedimiento en copia |
 
 No se presupone que una cuenta de servicio pueda ser propietaria del archivo.
 Hay que verificar aparte la custodia, el almacenamiento, los permisos y la
@@ -178,14 +177,72 @@ escritura incierta.
 exclusión del propietario de HU-085.** Se mantienen las demás condiciones de
 admisión, conciliación de eventos/efectos, época/revisión y notificaciones. La
 especificación y el ADR alineados registran la política, no la disponibilidad
-operativa. Hay que vincular y ensayar localmente el paquete/adaptador revisado;
-después se autoriza aparte el ensayo del procedimiento en copia antes de pedir
-permisos de mantenimiento real.
+operativa. La adaptación local del contrato descrita más abajo precede al ensayo
+del procedimiento en copia, autorizado aparte, y a cualquier petición de permisos
+de mantenimiento real.
 
 Google documenta que [proteger rangos no permite retirar permisos al propietario](https://support.google.com/docs/answer/1218656?hl=es),
 que [el bloqueo de contenido es global y modificable](https://developers.google.com/workspace/drive/api/guides/content-restrictions)
 y que [no se puede transferir la propiedad a una cuenta de servicio](https://developers.google.com/workspace/drive/api/guides/transfer-file).
 Cambiar a otro propietario personal solo traslada esa misma capacidad.
+
+## Contrato de entrada operativa y ensayo local — 28-10-2026
+
+La factoría explícita del propietario en el [adaptador existente](../../functions/src/shift-planning-trusted-intake-barrier-adapter.ts)
+usa el [contrato de acuerdo](../../functions/src/shift-planning-owner-maintenance.ts),
+el almacén de evidencias y el CAS de mantenimiento actuales. No añade otro
+controlador, registro de operaciones, Function exportada ni ajuste de despliegue.
+
+- El inventario estricto conserva 26 grupos y 20 controles de entrada. La variante
+  del propietario tiene 27 grupos y 21 controles: mantiene la exclusión técnica
+  de los demás editores y sus cambios sin conexión, y registra al propietario
+  como `agreement-recorded`, con capacidad técnica retenida. Se conservan los
+  otros 25 grupos y las seis comprobaciones de activación.
+- La versión 2 vincula entorno, archivo, propietario, participantes, ventana/plazo,
+  operación/manifiesto, autoridad, origen y época/revisión a las confirmaciones,
+  ámbito, estado retenido, evidencia y recibo CAS. Propietario=controlador solo
+  admite la acción exacta de permisos/protección sellada por separado y el cierre
+  de sus credenciales; el operador con solo invocación no puede usar esa identidad.
+- Antes y después del callback se consulta una observación nueva del propietario
+  y el reloj real. El estado técnico inmutable conserva el acuerdo histórico;
+  no afirma una exclusión ni vigencia actual del propietario. Su retirada,
+  actividad comunicada aunque el contenido no cambie, escrituras inciertas,
+  cambios de autoridad/participantes o vencimiento detienen el avance.
+- El fallo vuelve a comprobar el cierre técnico y conserva un incidente tipado
+  en el registro existente, vinculando acuerdo, fase, motivo y digest observado.
+  Si no puede demostrar cierre o retención duradera, falla de forma cerrada sin
+  afirmar que guardó el incidente. No reintenta, revierte ni reabre automáticamente.
+- Repetir una entrada terminada de versión 2 lee el recibo CAS exacto, comprueba
+  su pertenencia actual y el registro de fallos antes y después, y no llama al CAS
+  ni a los controles. Puede consultarse tras vencer; no renueva la admisión ni
+  certifica que terminara la comprobación final de la llamada original. Las
+  escrituras y avisos posteriores necesitan otra admisión vigente; el recibo no la da.
+
+La [nueva suite de emulador](../../functions/test/shift-planning-owner-maintenance.emulator.test.cjs)
+usa evidencias, recibos, imágenes finales y testigos reales de Firestore en
+proyectos demo fijos. Los puertos locales representan cierre técnico y avisos del
+propietario; no demuestran IAM/Drive reales, entrega desplegada ni vaciado del
+proveedor. Este contrato cubre la entrada a mantenimiento con la hoja inmutable.
+No es el escritor de lotes de Sheets: las operaciones posteriores aún necesitan
+su imagen final prevista y protección revisadas, además de autorización en copia/real.
+
+Aceptación sobre la base entregada `3aafe4e8`: Node 22.23.4, build de Functions
+y lint completo correctos. La ejecución conjunta con emulador aislado pasa
+**438 pruebas, cero fallos ni saltos**, incluidos seis casos nuevos de contrato,
+18 de entrada/persistencia, los repositorios anteriores de barrera/estado, todos
+los casos del planificador y los 28 de pausa/relevo previos. Las 51 pruebas que
+se omitían sin emulador se ejecutan en esta pasada final. La revisión independiente
+de fuente no encontró bloqueantes pendientes.
+
+La primera pasada ampliada se conserva como diagnóstico: detectó una expectativa
+21/27 incorrecta, un dato antiguo de prueba inversa sin su apartado explícito de
+espaciado y un error de política de compensaciones que escapaba al rechazo duradero
+del origen. Se corrigen esas causas: el bloqueo de publicación de compensaciones
+sigue cerrado; solo su indisponibilidad tipada concreta pasa al fallo existente
+`fairness_input_drift`. Los errores de red/programación siguen propagándose.
+Los comandos exactos, hashes, TAP y registros inicial/final están en el paquete
+privado `2026-10-28-owner-maintenance`. El contrato se validó sobre `3aafe4e8`;
+no cambia recursos compartidos, código nativo ni ajustes de despliegue.
 
 ## Validación y condición pendiente
 

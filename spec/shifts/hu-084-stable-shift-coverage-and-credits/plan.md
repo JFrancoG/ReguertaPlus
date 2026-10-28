@@ -2148,3 +2148,55 @@ Admin SDK writers and their submitted/causal effects, complete writer-authority
 bindings and the accepted workbook maintenance procedure/adapter. Selective isolation or the existing
 separately authorized bounded shared-project window must be demonstrated; Rules,
 traffic metadata and quiet intervals cannot substitute. No live operation is authorized.
+
+## Owner maintenance contract adaptation and local rehearsal — 2026-10-28
+
+The preceding handoff/policy group is delivered as `3aafe4e8`, with exact remote
+HEAD verified. The maintainer authorizes adaptation and local rehearsal of the
+accepted ADR-0021 policy on this branch under #268/#269. Shared deployment,
+permissions, workbook writes, migration and notification release remain outside
+this group; no action is required from the maintainer during the local work.
+
+Integrate an explicit versioned owner-agreement variant into the existing
+inventory, barrier, trusted adapter and evidence/CAS path. Keep the original
+strict version exact by default. Separate the retained named-owner capability
+from technically controlled non-owner/offline editors; preserve every other
+writer, Rules, causal-drain, epoch/revision and notification requirement. Use
+the existing external-operation guard rather than a parallel controller or ledger.
+
+Acceptance covers exact file/environment/owner/window/operation/authority
+bindings and recorded confirmations; rejection of missing, stale or expired
+agreement and editor/authority/content drift; reported owner edits; uncertain
+external results; immutable retention/replay; and the same maintenance CAS.
+Failures keep technical controls closed and retain incidents without claiming an
+expired agreement remains valid, automatically retrying, reversing or sending push.
+Use deterministic local ports and the fixed demo Firestore emulator, then run
+relevant regression, Functions build/lint and independent source/evidence review.
+No local result establishes provider control or live operational readiness.
+
+Accepted local implementation: version 1 keeps its exact inventory/digest and
+strict default factory; the explicit version 2 has 27 inventory groups/21 intake
+controls, splitting retained owner capability from non-owner/offline controls.
+It reuses the current evidence repository and maintenance CAS, adds fresh owner
+observations around the callback, and retains typed incidents in the same journal.
+Historical CAS replay checks the retained intent, current ownership and failure
+records without control-plane calls or another CAS; it does not renew admission
+or prove completion of the original final read-back. No new controller/ledger or
+state migration is added, and no Function/deployment export changes.
+
+Final acceptance: Node 22.23.4, Functions build/full lint, 438 joint emulator
+passes with zero failures/skips, focused CJS syntax and independent source review.
+The full planning list, existing state/barrier repositories and earlier 28 cases
+run together, enabling all 51 cases skipped without an emulator. Six contract and
+18 real-persistence entry cases exercise the new mode. Private initial/final TAP,
+commands, hashes and unchanged strict/deployment-surface comparisons are retained.
+The first run exposed a 21/27 test-count error, an incomplete inverse-only fixture
+and a typed provisional-credit source error escaping durable fairness rejection.
+Their narrow corrections preserve the provisional credit guard and unrelated
+error propagation; the final source-producer/inverse cases pass.
+
+This group was validated against `3aafe4e8`. The remaining concrete work
+is composition of the real control-plane/owner observation sources and reviewed
+per-batch Sheets postimage guards, followed by separately authorized safe-copy
+procedure and live operations. Durable event delivery, actual old-work control,
+complete deployed authority bindings and all notification gates remain open.

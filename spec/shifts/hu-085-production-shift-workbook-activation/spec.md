@@ -291,12 +291,15 @@ transfer must first prove on a safe fixture and then by read-back
 that the same production file ID/link, bound scripts, permissions, and content
 remain valid. Creating a replacement workbook is not silently substituted.
 
-This accepted policy is not yet an operational adapter. Existing strict
-barrier/control-plane contracts must not be satisfied with fabricated owner-fence
-receipts, a relabelled local fixture or an unconditional cooperation flag. Bind
-the revised packet/adapter and rehearse expiry, drift, uncertain writes and
-recovery before any real admission. All pending-event, old-work/effect, write
-epoch/revision, Firestore authority and notification controls remain unchanged.
+The accepted policy has an explicit version 2 maintenance-entry contract and
+local rehearsal; version 1 remains strict by default. The existing evidence
+store/CAS retains its bound receipt, while fresh owner observations and typed
+incidents distinguish historical agreement from current admission. Neither
+factory accepts fabricated owner-fence receipts, a relabelled fixture or an
+unconditional cooperation flag. Real provider composition, per-batch Sheets
+postimage guards and the safe-copy procedure remain prerequisites to any real
+admission. All pending-event, old-work/effect, write epoch/revision, Firestore
+authority and notification controls remain unchanged.
 
 Only exact change-window operation IDs are allowlisted. The packet assigns a
 maximum duration and recovery outcome to every fenced phase. The fence normally

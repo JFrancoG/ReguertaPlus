@@ -72,8 +72,14 @@ bounded no-edit agreement. Keep the same file/link, dates and order; record the
 owner's retained technical capability and the limits of revision/digest checks.
 All other writer, admission/effect/notification gates remain intact. No Workspace
 purchase, custody move, permission change or real maintenance is authorized.
-The revised operational packet/adapter and safe-copy rehearsal remain pending;
-do not label cooperation as the existing inventory's technical `fenced` evidence.
+Version 2 maintenance entry is now implemented and locally rehearsed on the same
+evidence/maintenance CAS path: 438 joint emulator passes, zero failures/skips,
+build/lint and independent source review. Version 1's strict default and digest
+remain exact. This group was validated against `3aafe4e8`.
+Historical receipts grant no renewed admission; fresh owner reports surround the
+callback and typed failure incidents retain the technical closure separately.
+Real provider composition, Sheets batch postimage guards and safe-copy procedure
+rehearsal remain pending. No live activation criterion is completed by this run.
 
 ## 1. Delivery strategy
 

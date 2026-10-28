@@ -132,9 +132,12 @@ open, as do the two missing market months and complete seasonal preview.
 - [ ] Bind the named owner's online/closed/no-pending-offline/no-edit confirmation
   to the exact file, start/deadline and operator contact; invalidate it on expiry
   or owner/editor/authority change.
-- [ ] Implement and rehearse the revised packet/adapter mode without presenting
-  cooperation as the current technical `fenced` receipt or bypassing event/effect,
-  epoch/revision, Admin SDK, or notification controls; retain `canApply:false` meanwhile.
+- [x] Implement and locally rehearse version 2 maintenance entry without fake
+  owner fencing or event/effect/epoch/revision bypass: 438 joint passes, build/lint
+  and independent source review; this does not establish live readiness.
+- [ ] Compose real provider/owner-observation ports and per-batch Sheets
+  postimage guards, then separately authorize/rehearse the safe-copy procedure
+  before a real maintenance packet can be admitted.
 - [ ] If the owner cannot confirm the procedure, stop for a separate custody
   decision. Any optional move/transfer must preserve file ID/link, bindings,
   permissions and content on a fixture and by read-back.
