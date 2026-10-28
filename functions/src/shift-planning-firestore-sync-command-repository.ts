@@ -425,6 +425,11 @@ const requireOwnerAuthorization = async (
       authorization.controlIncident || report.agreementStatus !== "confirmed" ||
       report.ownerActivity !== "none-reported" ||
       report.unresolvedWriteCount !== 0 ||
+      (authorization.administratorReport && (
+        authorization.administratorReport.agreementStatus !== "confirmed" ||
+        authorization.administratorReport.administratorActivity !==
+          "none-reported" ||
+        authorization.administratorReport.unresolvedWriteCount !== 0)) ||
       report.permissionWorkflowClosed !== true) {
     return failSync("Owner authorization changed before the repository CAS.");
   }

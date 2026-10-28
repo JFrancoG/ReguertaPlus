@@ -23,6 +23,9 @@ const {SHIFT_PLANNING_COPY_TOKEN_SCOPES, createShiftPlanningOwnerSheetsCopyAgree
 const {SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID: OWNER_WRITER} =
   require("../lib/shift-planning-writer-inventory.js");
 const {ownerFixture} = require("./shift-planning-owner-maintenance-fixture.cjs");
+const {administratorFixture, agreement: administratorAgreementFor,
+  observation: administratorObservationFor, ADMIN} =
+  require("./shift-planning-administrator-maintenance-fixture.cjs");
 const {createShiftPlanningOwnerSheetsComposition} = require("../lib/shift-planning-owner-sheets-composition.js");
 const {createShiftPlanningSyncCommandToken} = require("../lib/shift-planning-sync-command.js");
 const {sheetsService, clone, setCell, content} = require("./shift-sheets-api-fixture.cjs");
@@ -171,10 +174,10 @@ function offsetTimes(value, amount) {
     else offsetTimes(item, amount);
   }
 }
-async function retainTechnicalEvidence(base, workbook, maximumEvidenceAgeMillis = 1000) {
+async function retainTechnicalEvidence(base, workbook, maximumEvidenceAgeMillis = 1000, administrators = false) {
   const current = await createFirestoreShiftPlanningStateRepository(db)
     .loadAuthoritativeState({environment: "develop"});
-  const source = ownerFixture({expectedAuthoritativeDigest: current.authoritativeDigest,
+  const source = (administrators ? administratorFixture : ownerFixture)({expectedAuthoritativeDigest: current.authoritativeDigest,
     expectedStateRevision: current.maintenance.stateRevision,
     expectedWriteEpoch: current.maintenance.writeEpoch,
     expectedActiveRevision: current.maintenance.activeRevision,
@@ -192,6 +195,15 @@ async function retainTechnicalEvidence(base, workbook, maximumEvidenceAgeMillis 
   payload.ownerAgreement = agreement;
   const owner = payload.writerControls.find((control) => control.writerId === OWNER_WRITER);
   for (const field of ["controlDigest", "initialReadBackDigest", "finalReadBackDigest"]) owner[field] = agreement.digest;
+  if (administrators) {
+    const admin = payload.administratorAgreement;
+    admin.payload.intent.ownerAgreementDigest = agreement.digest;
+    admin.payload.confirmations.forEach((item) => {item.intentDigest = digest(admin.payload.intent);});
+    admin.digest = digest(admin.payload);
+    payload.administratorObservation.agreementDigest = admin.digest;
+    const control = payload.writerControls.find((item) => item.writerId === ADMIN);
+    for (const field of ["controlDigest", "initialReadBackDigest", "finalReadBackDigest"]) control[field] = admin.digest;
+  }
   const evidence = {payload, digest: digest(payload)};
   const repository = createFirestoreShiftPlanningIntakeBarrierRepository(db, () => Timestamp.fromMillis(now));
   await repository.retainAndReadBack({environment: "develop",
@@ -220,13 +232,17 @@ async function authorizeCopy(base, {windowMillis = 500, evidenceAgeMillis = 1000
     technicalEvidenceDigest: technical.evidence.digest, technicalTransitionId: technical.transitionId});
 }
 async function approvePreparedCopy(base, prepared, {windowMillis, evidenceAgeMillis,
-  technicalEvidenceDigest, technicalTransitionId, copyAuthority}) {
+  technicalEvidenceDigest, technicalTransitionId, copyAuthority, administratorTechnical}) {
   const workbook = prepared.privateObservation;
   const planned = prepared.planned.batch;
   const preservation = prepared.planned.preservationManifest;
   const command = base.command();
-  const batchIntent = {schemaVersion: copyAuthority ? 2 : 1,
+  const adminIntent = administratorTechnical?.payload.administratorAgreement.payload.intent;
+  const batchIntent = {schemaVersion: adminIntent ? 3 : copyAuthority ? 2 : 1,
     ...(copyAuthority ? {technicalControlKind: "isolated-copy-runtime"} : {}),
+    ...(adminIntent ? {technicalControlKind: "develop-administrator-agreement",
+      administratorSourceRevision: adminIntent.sourceRevision, administratorSourceDigest: adminIntent.sourceDigest,
+      effectiveIamDigest: adminIntent.effectiveIamDigest} : {}),
     kind: "owner-sheets-batch", environment: "develop",
     workbookId: COPY, commandId: command.commandId, commandDigest: digest(command),
     operationId: command.idempotencyKey, writeEpoch: command.writeEpoch,
@@ -263,6 +279,17 @@ async function approvePreparedCopy(base, prepared, {windowMillis, evidenceAgeMil
       unresolvedWriteCount: 0, participantsDigest: digest({revision: intent.participantsRevision, participants}),
       effectiveAuthorityDigest: intent.effectiveAuthorityDigest, permissionWorkflowClosed: true,
       permissionControlEvidenceDigest: null}};
+  if (adminIntent) {
+    authorization.administratorAgreement = administratorAgreementFor({...adminIntent,
+      agreementId: "administrator-sheets-batch", ownerAgreementDigest: agreement.digest,
+      affectedScopeDigest: digest(batchIntent), writeEpoch: batchIntent.writeEpoch,
+      activeRevision: batchIntent.activeRevision, activeDigest: batchIntent.activeDigest,
+      operations: [{operationId: batchIntent.operationId, kind: "sheets-batch", manifestDigest: digest(batchIntent)}],
+      startsAtMillis: now - 100, endsAtMillis: now + windowMillis, recoveryDeadlineMillis: now + 120_000}, now);
+    authorization.administratorReport = {agreementDigest: authorization.administratorAgreement.digest,
+      agreementStatus: "confirmed", administratorActivity: "none-reported", unresolvedWriteCount: 0,
+      reportRevision: "admin-report-1"};
+  }
   await db.doc(`${ROOT}/shiftPlanningOperations/${AUTHORIZATION}`).create(authorization);
   return {authorization, expectedAuthorizationDigest: shiftPlanningOwnerSheetsAuthorizationDigest(authorization),
     technicalTransitionId, planned, workbook, preservation};
@@ -286,6 +313,27 @@ async function setup(options) {
   const execute = (extra = {}) => runtime.execute({commandId: base.command().commandId,
     workerId: "owner-sheets-worker", attemptId: "owner-sheets-attempt", ...extra});
   return {...base, approval, runtime, execute};
+}
+async function setupAdministrators() {
+  const base = await setupBase();
+  const preview = await composition(base, {expectedAuthorizationDigest: digest({unconfirmed: true}),
+    technicalTransitionId: "maintenance-entry-7"}, {copyRehearsal: copyScope()});
+  const prepared = await preview.prepareCopyRehearsal({commandId: base.command().commandId,
+    proposedWindow: {startsAtMillis: now - 100, endsAtMillis: now + 500, recoveryDeadlineMillis: now + 120_000}});
+  const technical = await retainTechnicalEvidence(base, prepared.privateObservation, 1000, true);
+  const approval = await approvePreparedCopy(base, prepared, {windowMillis: 500, evidenceAgeMillis: 1000,
+    technicalEvidenceDigest: technical.evidence.digest, technicalTransitionId: technical.transitionId,
+    administratorTechnical: technical.evidence});
+  const observationReference = db.doc("ownerSheetsControlsRehearsal/administrator");
+  await observationReference.create(administratorObservationFor(approval.authorization.administratorAgreement, now));
+  let reads = 0;
+  const administratorMaintenance = {readCurrentObservation: async () => {
+    reads += 1; return {...(await observationReference.get()).data(), observedAtMillis: now};
+  }};
+  const runtime = await composition(base, approval, {administratorMaintenance});
+  return {...base, approval, runtime, observationReference, get administratorReads() {return reads;},
+    execute: () => runtime.execute({commandId: base.command().commandId,
+      workerId: "administrator-sheets-worker", attemptId: "administrator-sheets-attempt"})};
 }
 function isolatedAuthority({tokenMillis = 120_000, evidenceAgeMillis = 1000} = {}) {
   const {runId, protectedWorkbookIds} = copyScope();
@@ -1050,6 +1098,74 @@ test("isolated-copy does not reuse a verified cached receipt after a new owner r
   assert.deepEqual((await f.receipt()).guardIncident, retained.guardIncident);
   await assert.rejects(f.repository.complete({token: claim.token, evidence}));
   await unchangedBusiness(f);
+});
+
+test("develop administrator v3 reaches the existing guarded Sheets consumer and Firestore completion", async () => {
+  const f = await setupAdministrators();
+  assert.equal((await f.execute()).kind, "completed");
+  assert.equal(f.service.mutations.length, 1);
+  const receipt = await f.receipt();
+  assert.equal(receipt.ownerMaintenance.batchIntent.schemaVersion, 3);
+  assert.equal(receipt.ownerMaintenance.administratorAgreement.digest,
+    f.approval.authorization.administratorAgreement.digest);
+  assert.ok(receipt.ownerMaintenance.administratorObservationDigest);
+  assert.ok(f.administratorReads >= 4);
+  assert.deepEqual(await f.protectedData(), f.publishedBefore);
+  assert.equal((await db.collection(`${ROOT}/notificationEvents`).get()).empty, true);
+});
+
+test("a v3 Sheets registry cannot enter the default owner-only composition without its fresh administrator port", async () => {
+  const f = await setupAdministrators();
+  const strict = await composition(f, f.approval);
+  await rejectedOrHeld(() => strict.execute({commandId: f.command().commandId,
+    workerId: "default-worker", attemptId: "default-attempt"}));
+  assert.equal(f.service.mutations.length, 0);
+  assert.notEqual((await f.reference().get()).get("state"), "completed");
+});
+
+test("a fresh adverse administrator report blocks Sheets before submission and latches the existing registry incident", async () => {
+  const f = await setupAdministrators();
+  await f.observationReference.update({administratorActivity: "reported"});
+  await rejectedOrHeld(() => f.execute());
+  assert.equal(f.service.mutations.length, 0);
+  const registry = await db.doc(`${ROOT}/shiftPlanningOperations/${AUTHORIZATION}`).get();
+  assert.ok(registry.get("controlIncident"));
+  assert.equal(registry.get("controlIncident.observationDigest"),
+    digest({administrator: (await f.observationReference.get()).data()}));
+  await f.observationReference.update({administratorActivity: "none-reported"});
+  await rejectedOrHeld(() => f.execute());
+  assert.equal(f.service.mutations.length, 0);
+});
+
+test("an administrator withdrawal restored during a Google read still changes the registry version and admits zero batches", async () => {
+  const f = await setupAdministrators();
+  const injected = reportDuringLastGoogleRead(f, 2, async () => {
+    const reference = db.doc(`${ROOT}/shiftPlanningOperations/${AUTHORIZATION}`);
+    await reference.update({"administratorReport.agreementStatus": "withdrawn"});
+    await reference.update({"administratorReport.agreementStatus": "confirmed"});
+  });
+  await rejectedOrHeld(() => f.execute());
+  assert.equal(injected(), true); assert.equal(f.service.mutations.length, 0);
+  assert.ok((await db.doc(`${ROOT}/shiftPlanningOperations/${AUTHORIZATION}`).get()).get("controlIncident"));
+});
+
+test("administrator withdrawal after an accepted Sheets batch retains the actual afterimage and forbids resubmission", async () => {
+  const f = await setupAdministrators();
+  const submit = f.service.batchUpdate;
+  f.service.batchUpdate = async (...args) => {
+    const result = await submit(...args);
+    await f.observationReference.update({agreementStatus: "withdrawn"});
+    return result;
+  };
+  await rejectedOrHeld(() => f.execute());
+  assert.equal(f.service.mutations.length, 1);
+  const image = clone(f.service.state), receipt = await f.receipt();
+  assert.ok(receipt.guardIncident);
+  assert.notEqual((await f.reference().get()).get("state"), "completed");
+  await f.observationReference.update({agreementStatus: "confirmed"});
+  await rejectedOrHeld(() => f.execute());
+  assert.equal(f.service.mutations.length, 1);
+  assert.deepEqual(clone(f.service.state), image);
 });
 
 test("isolated-copy retains an unknown acknowledgement and never resubmits its physical batch", async () => {

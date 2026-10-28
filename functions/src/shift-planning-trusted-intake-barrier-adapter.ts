@@ -9,13 +9,18 @@ import {
 import {
   parseShiftPlanningIntakeBarrierEvidenceEnvelope,
   parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope,
+  parseShiftPlanningAdministratorAgreementIntakeBarrierEvidence,
+  parseShiftPlanningMaintenanceBarrierEvidenceEnvelope,
   verifyShiftPlanningOwnerAgreementIntakeBarrierEvidence,
+  verifyShiftPlanningAdministratorAgreementIntakeBarrierEvidence,
   ShiftPlanningClosedBarrierScope,
   ShiftPlanningIntakeBarrierAdapter,
 } from "./shift-planning-intake-barrier.js";
 import {
   SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
   SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_DIGEST,
   SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
   SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
 } from "./shift-planning-writer-inventory.js";
@@ -26,10 +31,21 @@ import {
 import {
   assertShiftPlanningOwnerMaintenanceObservation,
 } from "./shift-planning-owner-maintenance.js";
+import {assertShiftPlanningAdministratorMaintenanceObservation} from
+  "./shift-planning-administrator-maintenance.js";
 
 export const SHIFT_PLANNING_TRUSTED_BARRIER_ADAPTER_SCHEMA_VERSION = 1 as const;
 
 type UnknownRecord = Record<string, unknown>;
+type PolicyVersion = 1 | 2 | 3;
+const inventoryFor = (version: PolicyVersion) => version === 3 ? {
+  revision: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_DIGEST,
+} : version === 2 ? {
+  revision: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST,
+} : {revision: SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_WRITER_INVENTORY_DIGEST};
 
 const scopeKeys = [
   "environment",
@@ -78,7 +94,7 @@ const failureRecordKeys = [
 ] as const;
 
 export type ShiftPlanningTrustedIntakeBarrierCheckpoint = {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   scope: ShiftPlanningClosedBarrierScope;
   scopeDigest: ShiftPlanningDigest;
   holdRevision: string;
@@ -100,6 +116,11 @@ export type ShiftPlanningOwnerMaintenanceIncident = {
     "operation_failed";
   observationDigest: ShiftPlanningDigest | null;
 };
+export type ShiftPlanningAdministratorMaintenanceIncident = Omit<
+  ShiftPlanningOwnerMaintenanceIncident, "reason"
+> & {reason: "agreement_expired" | "administrator_reported_activity" |
+  "administrator_withdrawn" | "authority_drift" | "uncertain_write" |
+  "readback_unavailable" | "operation_failed"};
 
 export type ShiftPlanningIntakeBarrierFailureClosureRequest = {
   environment: ShiftPlanningEnvironment;
@@ -109,11 +130,12 @@ export type ShiftPlanningIntakeBarrierFailureClosureRequest = {
   checkpointDigest: ShiftPlanningDigest;
   phase: ShiftPlanningIntakeBarrierFailurePhase;
   ownerIncident?: ShiftPlanningOwnerMaintenanceIncident;
+  administratorIncident?: ShiftPlanningAdministratorMaintenanceIncident;
 };
 
 export type ShiftPlanningIntakeBarrierFailureClosureRecord =
   ShiftPlanningIntakeBarrierFailureClosureRequest & {
-    schemaVersion: 1 | 2;
+    schemaVersion: 1 | 2 | 3;
     operationKind: "intakeBarrierFailureClosure";
     failedAtMillis: number;
     failureDigest: ShiftPlanningDigest;
@@ -131,6 +153,9 @@ export interface ShiftPlanningTrustedIntakeBarrierControlPlane {
   readBackClosed(scope: ShiftPlanningClosedBarrierScope): Promise<unknown>;
   /** Fresh owner facts, separate from the immutable technical checkpoint. */
   readBackOwnerObservation?(scope: ShiftPlanningClosedBarrierScope):
+    Promise<unknown>;
+  /** Separate current human-admin facts; retained evidence is insufficient. */
+  readBackAdministratorObservation?(scope: ShiftPlanningClosedBarrierScope):
     Promise<unknown>;
 }
 
@@ -240,18 +265,25 @@ const deepFreeze = <Value>(value: Value): Value => {
 
 const parseScope = (
   value: unknown,
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningClosedBarrierScope => {
   const scope = requireRecord(
     detachedCanonicalValue(value, "closed barrier scope"),
     "closed barrier scope",
   );
+  const cooperative = version !== 1;
   requireExactKeys(scope, cooperative ? [...scopeKeys, "schemaVersion",
     "maintenanceMode", "expectedOwnerAgreementDigest",
-    "expectedTechnicalControlManifestDigest"] : scopeKeys,
+    "expectedTechnicalControlManifestDigest", ...(version === 3 ?
+      ["expectedAdministratorAgreementDigest",
+        "expectedAdministratorSourceRevision",
+        "expectedAdministratorSourceDigest",
+        "expectedEffectiveIamDigest"] : [])] : scopeKeys,
   "closed barrier scope");
-  if (cooperative && (scope.schemaVersion !== 2 ||
-      scope.maintenanceMode !== "owner-agreement")) {
+  if (cooperative && (scope.schemaVersion !== version ||
+      scope.maintenanceMode !== (version === 3 ?
+        "develop-administrator-agreement" : "owner-agreement")) ||
+      (version === 3 && scope.environment !== "develop")) {
     return failAdapter("Owner maintenance must be explicitly versioned.");
   }
   const activeRevision = requireNullableRevision(scope.expectedActiveRevision);
@@ -267,11 +299,8 @@ const parseScope = (
     scope.writerInventoryDigest,
     "writer inventory digest",
   );
-  if (writerInventoryRevision !== (cooperative ?
-    SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION :
-    SHIFT_PLANNING_WRITER_INVENTORY_REVISION) || writerInventoryDigest !==
-    (cooperative ? SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST :
-      SHIFT_PLANNING_WRITER_INVENTORY_DIGEST)) {
+  if (writerInventoryRevision !== inventoryFor(version).revision ||
+      writerInventoryDigest !== inventoryFor(version).digest) {
     return failAdapter("Closed barrier scope uses another writer inventory.");
   }
   const common = {
@@ -335,15 +364,22 @@ const parseScope = (
       scope.maximumEvidenceAgeMillis,
       "maximum evidence age",
     ),
-    writerInventoryRevision: cooperative ?
-      SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION :
-      SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
-    writerInventoryDigest: cooperative ?
-      SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST :
-      SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
+    writerInventoryRevision: inventoryFor(version).revision,
+    writerInventoryDigest: inventoryFor(version).digest,
   };
   return cooperative ? {
-    ...common, schemaVersion: 2, maintenanceMode: "owner-agreement",
+    ...common, ...(version === 3 ? {schemaVersion: 3 as const,
+      maintenanceMode: "develop-administrator-agreement" as const,
+      expectedAdministratorAgreementDigest: requireDigest(
+        scope.expectedAdministratorAgreementDigest, "administrator agreement"),
+      expectedAdministratorSourceRevision: requireIdentifier(
+        scope.expectedAdministratorSourceRevision, "administrator source"),
+      expectedAdministratorSourceDigest: requireDigest(
+        scope.expectedAdministratorSourceDigest, "administrator source digest"),
+      expectedEffectiveIamDigest: requireDigest(
+        scope.expectedEffectiveIamDigest, "effective IAM digest"),
+    } : {schemaVersion: 2 as const,
+      maintenanceMode: "owner-agreement" as const}),
     expectedOwnerAgreementDigest: requireDigest(
       scope.expectedOwnerAgreementDigest, "owner agreement digest",
     ),
@@ -360,22 +396,25 @@ const sameCanonicalValue = (left: unknown, right: unknown): boolean =>
  * Builds the exact checkpoint a trusted control-plane driver must persist and
  * return while every manifested fence remains held.
  * @param {object} input Exact scope, hold revision, and verified evidence.
- * @param {boolean} cooperative Whether this is explicit owner agreement mode.
+ * @param {number} version Explicit policy version.
  * @return {ShiftPlanningTrustedIntakeBarrierCheckpoint} Detached checkpoint.
  */
 const createCheckpoint = (input: {
   scope: ShiftPlanningClosedBarrierScope;
   holdRevision: string;
   evidence: unknown;
-}, cooperative = false): ShiftPlanningTrustedIntakeBarrierCheckpoint => {
-  const scope = parseScope(input.scope, cooperative);
-  const evidence = cooperative ?
-    parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope(
-      input.evidence,
-    ) :
-    parseShiftPlanningIntakeBarrierEvidenceEnvelope(input.evidence);
+}, version: PolicyVersion = 1): ShiftPlanningTrustedIntakeBarrierCheckpoint => {
+  const scope = parseScope(input.scope, version);
+  const evidence = version === 3 ?
+    parseShiftPlanningAdministratorAgreementIntakeBarrierEvidence(
+      input.evidence) :
+    version === 2 ?
+      parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope(
+        input.evidence,
+      ) :
+      parseShiftPlanningIntakeBarrierEvidenceEnvelope(input.evidence);
   const payload = {
-    schemaVersion: cooperative ? 2 as const : 1 as const,
+    schemaVersion: version,
     scope,
     scopeDigest: createShiftPlanningDigest(scope),
     holdRevision: requireIdentifier(input.holdRevision, "hold revision"),
@@ -391,12 +430,12 @@ const createCheckpoint = (input: {
 /**
  * Revalidates one untrusted durable checkpoint from the control plane.
  * @param {unknown} value Untrusted control-plane checkpoint.
- * @param {boolean} cooperative Whether explicit v2 is required.
+ * @param {number} version Explicit policy version.
  * @return {ShiftPlanningTrustedIntakeBarrierCheckpoint} Exact checkpoint.
  */
 const parseCheckpoint = (
   value: unknown,
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningTrustedIntakeBarrierCheckpoint => {
   const checkpoint = requireRecord(
     detachedCanonicalValue(value, "trusted barrier checkpoint"),
@@ -404,7 +443,7 @@ const parseCheckpoint = (
   );
   requireExactKeys(checkpoint, checkpointKeys, "trusted barrier checkpoint");
   if (
-    checkpoint.schemaVersion !== (cooperative ? 2 : 1)
+    checkpoint.schemaVersion !== version
   ) {
     return failAdapter("Trusted barrier checkpoint version is unsupported.");
   }
@@ -415,7 +454,7 @@ const parseCheckpoint = (
       "hold revision",
     ),
     evidence: checkpoint.evidence,
-  }, cooperative);
+  }, version);
   if (
     requireDigest(checkpoint.scopeDigest, "scope digest") !==
       expected.scopeDigest ||
@@ -432,9 +471,9 @@ const parseCheckpoint = (
 const requireCheckpointForScope = (
   value: unknown,
   scope: ShiftPlanningClosedBarrierScope,
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningTrustedIntakeBarrierCheckpoint => {
-  const checkpoint = parseCheckpoint(value, cooperative);
+  const checkpoint = parseCheckpoint(value, version);
   const expectedScopeDigest = createShiftPlanningDigest(scope);
   if (
     checkpoint.scopeDigest !== expectedScopeDigest ||
@@ -478,27 +517,52 @@ ShiftPlanningOwnerMaintenanceIncident => {
       requireDigest(incident.observationDigest, "owner observation digest"),
   };
 };
+const parseAdministratorIncident = (value: unknown):
+ShiftPlanningAdministratorMaintenanceIncident => {
+  const incident = requireRecord(value, "administrator maintenance incident");
+  if (!["agreement_expired", "administrator_reported_activity",
+    "administrator_withdrawn", "authority_drift", "uncertain_write",
+    "readback_unavailable", "operation_failed"].includes(
+    incident.reason as string)) return failAdapter("Invalid admin incident.");
+  const mapped = parseOwnerIncident({...incident,
+    reason: incident.reason === "administrator_reported_activity" ?
+      "owner_reported_activity" :
+      incident.reason === "administrator_withdrawn" ?
+        "owner_withdrawn" : incident.reason});
+  return {...mapped, reason: incident.reason as
+    ShiftPlanningAdministratorMaintenanceIncident["reason"]};
+};
 
 const failurePayload = (
   request: ShiftPlanningIntakeBarrierFailureClosureRequest,
   failedAtMillis: number,
-) => ({
-  schemaVersion: request.ownerIncident !== undefined ? 2 as const : 1 as const,
-  ...(request.ownerIncident !== undefined ? {
-    ownerIncident: parseOwnerIncident(request.ownerIncident),
-  } : {}),
-  operationKind: "intakeBarrierFailureClosure" as const,
-  environment: requireEnvironment(request.environment),
-  transitionId: requireIdentifier(request.transitionId, "transitionId"),
-  scopeDigest: requireDigest(request.scopeDigest, "scope digest"),
-  holdRevision: requireIdentifier(request.holdRevision, "hold revision"),
-  checkpointDigest: requireDigest(
-    request.checkpointDigest,
-    "checkpoint digest",
-  ),
-  phase: requireFailurePhase(request.phase),
-  failedAtMillis: requireNonNegativeInteger(failedAtMillis, "failure instant"),
-});
+) => {
+  if (request.ownerIncident && request.administratorIncident ||
+      request.administratorIncident && request.environment !== "develop") {
+    return failAdapter("Administrator incident is explicit develop-only.");
+  }
+  return {
+    schemaVersion: request.administratorIncident ? 3 as const :
+      request.ownerIncident !== undefined ? 2 as const : 1 as const,
+    ...(request.ownerIncident !== undefined ? {
+      ownerIncident: parseOwnerIncident(request.ownerIncident),
+    } : {}),
+    ...(request.administratorIncident ? {administratorIncident:
+    parseAdministratorIncident(request.administratorIncident)} : {}),
+    operationKind: "intakeBarrierFailureClosure" as const,
+    environment: requireEnvironment(request.environment),
+    transitionId: requireIdentifier(request.transitionId, "transitionId"),
+    scopeDigest: requireDigest(request.scopeDigest, "scope digest"),
+    holdRevision: requireIdentifier(request.holdRevision, "hold revision"),
+    checkpointDigest: requireDigest(
+      request.checkpointDigest,
+      "checkpoint digest",
+    ),
+    phase: requireFailurePhase(request.phase),
+    failedAtMillis: requireNonNegativeInteger(
+      failedAtMillis, "failure instant"),
+  };
+};
 
 export const createShiftPlanningIntakeBarrierFailureClosureRecord = (
   request: ShiftPlanningIntakeBarrierFailureClosureRequest,
@@ -518,11 +582,13 @@ export const parseShiftPlanningIntakeBarrierFailureClosureRecord = (
     detachedCanonicalValue(value, "barrier failure closure"),
     "barrier failure closure",
   );
-  requireExactKeys(record, record.schemaVersion === 2 ?
-    [...failureRecordKeys, "ownerIncident"] : failureRecordKeys,
+  requireExactKeys(record, record.schemaVersion === 3 ?
+    [...failureRecordKeys, "administratorIncident"] :
+    record.schemaVersion === 2 ?
+      [...failureRecordKeys, "ownerIncident"] : failureRecordKeys,
   "barrier failure closure");
   if (
-    ![1, 2].includes(record.schemaVersion as number) ||
+    ![1, 2, 3].includes(record.schemaVersion as number) ||
     record.operationKind !== "intakeBarrierFailureClosure"
   ) {
     return failAdapter("Barrier failure closure discriminator is invalid.");
@@ -541,6 +607,8 @@ export const parseShiftPlanningIntakeBarrierFailureClosureRecord = (
       ...(record.schemaVersion === 2 ? {
         ownerIncident: parseOwnerIncident(record.ownerIncident),
       } : {}),
+      ...(record.schemaVersion === 3 ? {administratorIncident:
+        parseAdministratorIncident(record.administratorIncident)} : {}),
     },
     requireNonNegativeInteger(record.failedAtMillis, "failure instant"),
   );
@@ -567,6 +635,9 @@ const requireFailureRecordMatches = (
     record.phase !== request.phase ||
     !sameCanonicalValue(
       record.ownerIncident ?? null, request.ownerIncident ?? null,
+    ) || !sameCanonicalValue(
+      record.administratorIncident ?? null,
+      request.administratorIncident ?? null,
     )
   ) {
     return failAdapter("Retained barrier failure closure does not match.");
@@ -582,13 +653,14 @@ const retainFailureClosure = async (
   scope: ShiftPlanningClosedBarrierScope,
   phase: ShiftPlanningIntakeBarrierFailurePhase,
   previousCheckpoint: ShiftPlanningTrustedIntakeBarrierCheckpoint | null,
-  cooperative = false,
+  version: PolicyVersion = 1,
   ownerIncident?: ShiftPlanningOwnerMaintenanceIncident,
+  administratorIncident?: ShiftPlanningAdministratorMaintenanceIncident,
 ): Promise<void> => {
   try {
     const checkpoint = requireCheckpointForScope(
       await dependencies.controlPlane.readBackClosed(scope),
-      scope, cooperative,
+      scope, version,
     );
     if (
       previousCheckpoint !== null &&
@@ -604,6 +676,7 @@ const retainFailureClosure = async (
       checkpointDigest: checkpoint.checkpointDigest,
       phase,
       ...(ownerIncident ? {ownerIncident} : {}),
+      ...(administratorIncident ? {administratorIncident} : {}),
     };
     const retained = await dependencies.failurePersistence
       .retainFailureAndReadBack(request);
@@ -623,7 +696,7 @@ const retainFailureClosure = async (
  * it masks the original with a stable fail-closed conflict. It never exposes or
  * invokes reopen behavior.
  * @param {object} dependencies Trusted control plane and failure journal.
- * @param {boolean} cooperative Whether explicit v2 is required.
+ * @param {number} version Explicit policy version.
  * @return {ShiftPlanningIntakeBarrierAdapter} No-reopen barrier adapter.
  */
 const createBarrierAdapter = (
@@ -632,10 +705,10 @@ const createBarrierAdapter = (
     failurePersistence: ShiftPlanningIntakeBarrierFailureClosurePersistence;
     readClockMillis?: () => number;
   },
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningIntakeBarrierAdapter => ({
   async assertReadOnlyReplayAllowed(scopeValue): Promise<void> {
-    const scope = parseScope(scopeValue, cooperative);
+    const scope = parseScope(scopeValue, version);
     const failure = await dependencies.failurePersistence.readExistingFailure({
       environment: scope.environment, transitionId: scope.transitionId,
     });
@@ -648,7 +721,7 @@ const createBarrierAdapter = (
     scopeValue: ShiftPlanningClosedBarrierScope,
     operation: (evidence: unknown) => Promise<Result>,
   ): Promise<Result> {
-    const scope = deepFreeze(parseScope(scopeValue, cooperative));
+    const scope = deepFreeze(parseScope(scopeValue, version));
     const scopeDigest = createShiftPlanningDigest(scope);
     const existingFailure = await dependencies.failurePersistence
       .readExistingFailure({
@@ -673,15 +746,22 @@ const createBarrierAdapter = (
     let observationDigest: ShiftPlanningDigest | null = null;
     let reason: ShiftPlanningOwnerMaintenanceIncident["reason"] =
       "operation_failed";
+    let administratorReason:
+      ShiftPlanningAdministratorMaintenanceIncident["reason"] =
+        "operation_failed";
+    let incidentKind = version === 3 ? "administrator" : "owner";
+    let administratorIdentity: ShiftPlanningDigest | undefined;
     const freshOwner = async (
       value: ShiftPlanningTrustedIntakeBarrierCheckpoint,
     ): Promise<void> => {
-      if (!cooperative) return;
+      if (version === 1) return;
+      incidentKind = "owner";
       const command = {...scope};
       Reflect.deleteProperty(command, "writerInventoryRevision");
       Reflect.deleteProperty(command, "writerInventoryDigest");
       if (!dependencies.controlPlane.readBackOwnerObservation ||
-          !dependencies.readClockMillis || command.schemaVersion !== 2) {
+          !dependencies.readClockMillis ||
+          command.schemaVersion === undefined) {
         return failAdapter("A fresh owner observation and clock are required.");
       }
       let observation: unknown;
@@ -696,10 +776,10 @@ const createBarrierAdapter = (
       }
       const now = dependencies.readClockMillis();
       const payload =
-        parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope(
+        parseShiftPlanningMaintenanceBarrierEvidenceEnvelope(
           value.evidence,
         ).payload;
-      if (payload.schemaVersion !== 2) {
+      if (payload.schemaVersion === 1) {
         return failAdapter("Owner evidence missing.");
       }
       const observed = typeof observation === "object" && observation !== null ?
@@ -709,9 +789,10 @@ const createBarrierAdapter = (
           "owner_reported_activity" : observed.agreementStatus !== "confirmed" ?
             "owner_withdrawn" : observed.unresolvedWriteCount !== 0 ?
               "uncertain_write" : "authority_drift";
-      verifyShiftPlanningOwnerAgreementIntakeBarrierEvidence(
-        value.evidence, command, now,
-      );
+      if (command.schemaVersion === 2) {
+        verifyShiftPlanningOwnerAgreementIntakeBarrierEvidence(
+          value.evidence, command, now);
+      }
       assertShiftPlanningOwnerMaintenanceObservation({
         agreement: payload.ownerAgreement, observation,
         environment: command.environment, operationId: command.transitionId,
@@ -729,45 +810,119 @@ const createBarrierAdapter = (
         requireFreshWindow: true,
       });
       reason = "operation_failed";
+      incidentKind = version === 3 ? "administrator" : "owner";
+    };
+    const freshAdministrator = async (
+      value: ShiftPlanningTrustedIntakeBarrierCheckpoint,
+    ): Promise<void> => {
+      if (version !== 3 || scope.schemaVersion !== 3) return;
+      incidentKind = "administrator";
+      administratorReason = "readback_unavailable";
+      observationDigest = null;
+      if (!dependencies.controlPlane.readBackAdministratorObservation ||
+          !dependencies.readClockMillis) {
+        return failAdapter("Fresh administrator facts and clock are required.");
+      }
+      let observation: unknown;
+      try {
+        observation = await dependencies.controlPlane
+          .readBackAdministratorObservation(scope);
+        observationDigest = createShiftPlanningDigest(observation);
+      } catch (error) {
+        administratorReason = "readback_unavailable";
+        observationDigest = null; throw error;
+      }
+      const payload =
+        parseShiftPlanningAdministratorAgreementIntakeBarrierEvidence(
+          value.evidence).payload;
+      if (payload.schemaVersion !== 3) {
+        return failAdapter("Administrator facts missing.");
+      }
+      const now = dependencies.readClockMillis();
+      const observed = requireRecord(observation, "administrator observation");
+      administratorReason = now >= payload.administratorAgreement.payload.intent
+        .endsAtMillis ? "agreement_expired" :
+        observed.administratorActivity !== "none-reported" ?
+          "administrator_reported_activity" :
+          observed.agreementStatus !== "confirmed" ? "administrator_withdrawn" :
+            observed.unresolvedWriteCount !== 0 ? "uncertain_write" :
+              "authority_drift";
+      const command = {...scope};
+      Reflect.deleteProperty(command, "writerInventoryRevision");
+      Reflect.deleteProperty(command, "writerInventoryDigest");
+      verifyShiftPlanningAdministratorAgreementIntakeBarrierEvidence(
+        value.evidence, command, now);
+      const identity = assertShiftPlanningAdministratorMaintenanceObservation({
+        agreement: payload.administratorAgreement, observation,
+        environment: scope.environment,
+        ownerAgreementDigest: scope.expectedOwnerAgreementDigest,
+        affectedScopeDigest: scope.expectedAuthoritativeDigest,
+        writeEpoch: scope.expectedWriteEpoch,
+        activeRevision: scope.expectedActiveRevision,
+        activeDigest: scope.expectedActiveDigest,
+        technicalControlManifestDigest:
+          scope.expectedTechnicalControlManifestDigest,
+        sourceRevision: scope.expectedAdministratorSourceRevision,
+        sourceDigest: scope.expectedAdministratorSourceDigest,
+        effectiveIamDigest: scope.expectedEffectiveIamDigest,
+        operationId: scope.transitionId, operationKind: "maintenance-entry",
+        operationManifestDigest: scope.expectedTechnicalControlManifestDigest,
+        nowMillis: now,
+        maximumEvidenceAgeMillis: scope.maximumEvidenceAgeMillis,
+        requireFreshWindow: true,
+      });
+      if (administratorIdentity && administratorIdentity !== identity) {
+        return failAdapter("Administrator report changed during hold.");
+      }
+      administratorIdentity = identity;
+      administratorReason = "operation_failed";
     };
     let checkpoint: ShiftPlanningTrustedIntakeBarrierCheckpoint | null = null;
     try {
       checkpoint = requireCheckpointForScope(
         await dependencies.controlPlane.closeAndCollect(scope),
-        scope, cooperative,
+        scope, version,
       );
       phase = "initialReadBack";
       const initialReadBack = requireCheckpointForScope(
         await dependencies.controlPlane.readBackClosed(scope),
-        scope, cooperative,
+        scope, version,
       );
       if (initialReadBack.checkpointDigest !== checkpoint.checkpointDigest) {
         return failAdapter("Initial closed barrier read-back drifted.");
       }
       checkpoint = initialReadBack;
       await freshOwner(checkpoint);
+      await freshAdministrator(checkpoint);
       phase = "operation";
       const result = await operation(checkpoint.evidence);
       phase = "finalReadBack";
       const finalReadBack = requireCheckpointForScope(
         await dependencies.controlPlane.readBackClosed(scope),
-        scope, cooperative,
+        scope, version,
       );
       if (finalReadBack.checkpointDigest !== checkpoint.checkpointDigest) {
         return failAdapter("Final closed barrier read-back drifted.");
       }
       await freshOwner(finalReadBack);
+      await freshAdministrator(finalReadBack);
       return result;
     } catch (error) {
       await retainFailureClosure(
         dependencies,
         scope,
         phase,
-        checkpoint, cooperative,
-        cooperative && scope.schemaVersion === 2 ? {
-          agreementDigest: scope.expectedOwnerAgreementDigest,
-          reason, observationDigest,
-        } : undefined,
+        checkpoint, version,
+        version !== 1 && scope.schemaVersion !== undefined &&
+          incidentKind === "owner" ? {
+            agreementDigest: scope.expectedOwnerAgreementDigest,
+            reason, observationDigest,
+          } : undefined,
+        version === 3 && scope.schemaVersion === 3 &&
+          incidentKind === "administrator" ? {
+            agreementDigest: scope.expectedAdministratorAgreementDigest,
+            reason: administratorReason, observationDigest,
+          } : undefined,
       );
       throw error;
     }
@@ -807,7 +962,7 @@ export const createShiftPlanningOwnerAgreementIntakeBarrierCheckpoint = (
   holdRevision: string;
   evidence: unknown;
   },
-): ShiftPlanningTrustedIntakeBarrierCheckpoint => createCheckpoint(input, true);
+): ShiftPlanningTrustedIntakeBarrierCheckpoint => createCheckpoint(input, 2);
 
 /**
  * Preserves the original strict control-plane contract.
@@ -837,4 +992,33 @@ export const createTrustedShiftPlanningOwnerAgreementIntakeBarrierAdapter = (
     readClockMillis: () => number;
   },
 ): ShiftPlanningIntakeBarrierAdapter =>
-  createBarrierAdapter(dependencies, true);
+  createBarrierAdapter(dependencies, 2);
+
+/**
+ * Creates an explicitly versioned develop-only administrative checkpoint.
+ * @param {object} input Exact v3 scope and held technical evidence.
+ * @return {ShiftPlanningTrustedIntakeBarrierCheckpoint} Version 3 checkpoint.
+ */
+export const createShiftPlanningAdministratorBarrierCheckpoint = (
+  input: {scope: ShiftPlanningClosedBarrierScope; holdRevision: string;
+    evidence: unknown},
+): ShiftPlanningTrustedIntakeBarrierCheckpoint => createCheckpoint(input, 3);
+
+/**
+ * Reuses closure/CAS/incidents with both independent fresh cooperation readers.
+ * No administrator agreement can fence a workload or reopen expired intake.
+ * @param {object} dependencies Explicit v3 readers, journal and trusted clock.
+ * @return {ShiftPlanningIntakeBarrierAdapter} Develop-only opt-in adapter.
+ */
+export const createTrustedShiftPlanningAdministratorBarrierAdapter = (
+  dependencies: {
+    controlPlane: ShiftPlanningTrustedIntakeBarrierControlPlane & {
+      readBackOwnerObservation(scope: ShiftPlanningClosedBarrierScope):
+        Promise<unknown>;
+      readBackAdministratorObservation(scope: ShiftPlanningClosedBarrierScope):
+        Promise<unknown>;
+    };
+    failurePersistence: ShiftPlanningIntakeBarrierFailureClosurePersistence;
+    readClockMillis: () => number;
+  },
+): ShiftPlanningIntakeBarrierAdapter => createBarrierAdapter(dependencies, 3);

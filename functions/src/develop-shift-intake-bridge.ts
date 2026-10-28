@@ -22,6 +22,9 @@ const eventEntries: readonly DevelopShiftBridgeEventEntry[] = [
 const httpEntries = [
   "syncShiftsFromGoogleSheets", "exportShiftsToGoogleSheets",
 ];
+const administrativeEntries = ["onProductWrite", "onContainerWrite",
+  "onMeasureWrite", "onUserWrite", "onOrderWrite", "upsertMemberByAdmin",
+  "validateGlobalVersionPolicy", "validateGlobalFreshnessConfig"];
 let captureReady: Promise<DevelopShiftBridgeCapture> | undefined;
 const capture: DevelopShiftBridgeCapture = async (entryPoint, event) => {
   captureReady ??= (async () => {
@@ -63,6 +66,74 @@ export const wrapDevelopLegacyHttp = <Request extends HttpRequest, Result>(
     });
   };
 };
+
+/**
+ * Resolves the original target set without filtering a mixed/default request.
+ * A request including develop is rejected before any original callback work.
+ * @param {string} entryPoint Audited administrative HTTP identity.
+ * @param {Function} original Original callback and response contract.
+ * @param {Function} resolveTargets Original lexical target resolver.
+ * @return {Function} Unmodified non-develop callback or maintenance response.
+ */
+export const wrapDevelopAdministrativeHttp = <
+  Request extends HttpRequest, Result,
+>(
+    entryPoint: string,
+    original: (request: Request, response: HttpResponse) => Result,
+    resolveTargets: (request: Request) => unknown,
+  ) => {
+  if (!administrativeEntries.includes(entryPoint)) {
+    throw new Error("develop_bridge_entry_invalid");
+  }
+  return (request: Request, response: HttpResponse): Result | unknown => {
+    const resolved = resolveTargets(request);
+    const targets = Array.isArray(resolved) ? resolved : [resolved];
+    if (!targets.length || targets.some((value) =>
+      typeof value !== "string" ||
+      !["local", "develop", "production"].includes(value))) {
+      return rejectEnvironment();
+    }
+    if (targets.includes("develop")) {
+      return response.status(503).json({
+        ok: false, error: "develop_legacy_intake_closed",
+      });
+    }
+    return original(request, response);
+  };
+};
+
+const requireProductionResolution = (
+  value: unknown, createError: () => Error,
+): unknown => {
+  if (value !== "production") throw createError();
+  return value;
+};
+
+/**
+ * Keeps the modern callback's method/parser/error ordering. Its own error type
+ * handles direct develop requests before authentication or member reads.
+ * @param {Function} original Audited synchronous environment parser.
+ * @param {Function} createError Original module's safe HTTP error constructor.
+ * @return {Function} Parser preserving the original production result/errors.
+ */
+export const wrapDevelopEnvironmentResolver = <Args extends unknown[]>(
+  original: (...args: Args) => unknown, createError: () => Error,
+) => (...args: Args): unknown => requireProductionResolution(
+    original(...args), createError,
+  );
+
+/**
+ * Rejects a reviewer routed from production to develop before member lookup or
+ * linking. The original identity/config reads determining that route remain.
+ * @param {Function} original Audited asynchronous effective-target resolver.
+ * @param {Function} createError Original module's safe HTTP error constructor.
+ * @return {Function} Original production resolution or maintenance rejection.
+ */
+export const wrapDevelopEffectiveEnvironmentResolver = <Args extends unknown[]>(
+  original: (...args: Args) => Promise<unknown>, createError: () => Error,
+) => async (...args: Args): Promise<unknown> => requireProductionResolution(
+    await original(...args), createError,
+  );
 
 /**
  * Retains develop delivery before ACK without running legacy side effects.

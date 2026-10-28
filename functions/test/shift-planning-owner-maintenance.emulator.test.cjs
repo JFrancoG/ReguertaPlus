@@ -19,6 +19,10 @@ const {createShiftPlanningOwnerMaintenanceAgreement} =
 const {SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID: OWNER_ID} =
   require("../lib/shift-planning-writer-inventory.js");
 const {ownerFixture} = require("./shift-planning-owner-maintenance-fixture.cjs");
+const {administratorFixture} = require("./shift-planning-administrator-maintenance-fixture.cjs");
+const {createShiftPlanningAdministratorBarrierCheckpoint,
+  createTrustedShiftPlanningAdministratorBarrierAdapter} =
+  require("../lib/shift-planning-trusted-intake-barrier-adapter.js");
 
 // This suite uses a separate emulator database so the earlier develop fixtures
 // cannot accidentally supply authority or retained evidence to these cases.
@@ -164,6 +168,16 @@ async function controls(value, rawCheckpoint) {
   return {calls, port, held, adapter: ownerAdapter({controlPlane: port,
     failurePersistence: evidenceRepository, readClockMillis: () => now})};
 }
+async function administratorControls(value) {
+  const control = await controls(value, createShiftPlanningAdministratorBarrierCheckpoint({
+    scope: value.scope, holdRevision: "administrator-demo-hold", evidence: value.evidence}));
+  await db.doc(CONTROL).update({administratorObservation: value.evidence.payload.administratorObservation});
+  control.port.readBackAdministratorObservation = async () =>
+    (await db.doc(CONTROL).get()).get("administratorObservation");
+  control.adapter = createTrustedShiftPlanningAdministratorBarrierAdapter({controlPlane: control.port,
+    failurePersistence: evidenceRepository, readClockMillis: () => now});
+  return control;
+}
 const run = (value, control, repository = stateRepository) => enter({
   barrierAdapter: control.adapter, evidencePersistence: evidenceRepository,
   statePersistence: repository, readClockMillis: () => now,
@@ -227,6 +241,43 @@ test("explicit owner mode enters through the existing CAS and immutable evidence
   assert.deepEqual(control.calls, callSnapshot);
   assert.deepEqual(await snapshots([STATE, evidencePath(), operationPath()]), afterCommit);
   assert.equal((await db.collection(`${ROOT}/shiftPlanningOperations`).get()).size, 2);
+  await noBusinessSideEffects(beforeCanaries);
+});
+
+test("develop administrator v3 uses the same Firestore CAS and immutable receipts without changing production", async () => {
+  const source = await seed(), value = administratorFixture({expectedAuthoritativeDigest: source.authoritativeDigest});
+  const beforeCanaries = await snapshots(protectedPaths), control = await administratorControls(value);
+  assert.equal((await run(value, control)).kind, "committed");
+  const state = (await db.doc(STATE).get()).data();
+  assert.equal(state.maintenanceStatus, "closed"); assert.equal(state.writeEpoch, 12);
+  const retained = await evidenceRepository.readExisting({environment: "develop", transitionId: TRANSITION});
+  assert.equal(retained.payload.schemaVersion, 3);
+  assert.deepEqual(retained.payload.administratorAgreement, value.administratorAgreement);
+  const after = await snapshots([STATE, evidencePath(), operationPath()]);
+  now = value.administratorAgreement.payload.intent.endsAtMillis;
+  assert.equal((await run(value, control)).kind, "replayed");
+  assert.deepEqual(await snapshots([STATE, evidencePath(), operationPath()]), after);
+  assert.equal(control.calls.reopen, 0);
+  await noBusinessSideEffects(beforeCanaries);
+});
+
+test("withdrawal after the actual v3 maintenance CAS persists a typed administrative incident and closed state", async () => {
+  const source = await seed(), value = administratorFixture({expectedAuthoritativeDigest: source.authoritativeDigest});
+  const beforeCanaries = await snapshots(protectedPaths), control = await administratorControls(value);
+  const repository = {...stateRepository, async enterMaintenanceWithBarrierEvidence(command) {
+    const result = await stateRepository.enterMaintenanceWithBarrierEvidence(command);
+    await db.doc(CONTROL).update({"administratorObservation.agreementStatus": "withdrawn"});
+    return result;
+  }};
+  await assert.rejects(run(value, control, repository));
+  assert.equal((await db.doc(STATE).get()).get("maintenanceStatus"), "closed");
+  assert.equal((await db.doc(operationPath()).get()).exists, true);
+  const failure = await evidenceRepository.readExistingFailure({environment: "develop", transitionId: TRANSITION});
+  assert.equal(failure.schemaVersion, 3);
+  assert.equal(failure.administratorIncident.reason, "administrator_withdrawn");
+  await db.doc(CONTROL).update({"administratorObservation.agreementStatus": "confirmed"});
+  await assert.rejects(run(value, control));
+  assert.equal(control.calls.reopen, 0);
   await noBusinessSideEffects(beforeCanaries);
 });
 

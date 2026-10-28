@@ -7,6 +7,8 @@ import {ShiftPlanningError} from "./shift-planning-contract.js";
 import {parseShiftPlanningMaintenanceState} from "./shift-planning-wire.js";
 import {assertShiftPlanningOwnerMaintenanceWindow} from
   "./shift-planning-owner-maintenance.js";
+import {assertShiftPlanningAdministratorMaintenanceObservation} from
+  "./shift-planning-administrator-maintenance.js";
 import {verifyShiftPlanningOwnerSheetsTechnicalEvidence} from
   "./shift-planning-intake-barrier.js";
 import {observeShiftSheetsWorkbook} from
@@ -48,6 +50,7 @@ export type ShiftPlanningOwnerSheetsControls = {
   externalEvidence: unknown | null;
   failure: unknown | null;
   copyControls?: unknown;
+  administratorObservation?: unknown;
 };
 /** A blocked phase retains only a stable reason and observation digest. */
 export class ShiftPlanningOwnerSheetsGuardError extends ShiftPlanningError {
@@ -109,6 +112,7 @@ export const createShiftPlanningOwnerSheetsGuard = (input: {
   ): Promise<ShiftPlanningOwnerSheetsControls>;
   nowMillis(): number;
   copyAuthority?: ShiftPlanningOwnerSheetsCopyAuthority;
+  administratorMaintenance?: true;
   environment: "develop" | "production";
   retainAuthorizationIncident(
     command: ShiftPlanningProcessingSyncCommand,
@@ -128,6 +132,7 @@ export const createShiftPlanningOwnerSheetsGuard = (input: {
     observationDigest: string;
     now: number;
     controlsValidUntilMillis: number;
+    administratorObservationDigest?: string;
   };
   const controls = async (
     command: ShiftPlanningProcessingSyncCommand,
@@ -158,6 +163,7 @@ export const createShiftPlanningOwnerSheetsGuard = (input: {
       );
       const now = input.nowMillis();
       let technicalExpiresAtMillis: number;
+      let administratorObservationDigest: string | undefined;
       if (input.copyAuthority) {
         const authority = parseShiftPlanningOwnerSheetsCopyAuthority(
           input.copyAuthority,
@@ -178,20 +184,63 @@ export const createShiftPlanningOwnerSheetsGuard = (input: {
           return reject("owner_controls_rejected", observationDigest);
         }
       } else {
-        if (batch.schemaVersion !== 1 || observed.externalEvidence === null ||
+        if ((batch.schemaVersion !== 1 && !(batch.schemaVersion === 3 &&
+            input.administratorMaintenance &&
+            input.environment === "develop")) ||
+            observed.externalEvidence === null ||
             observed.failure !== null) {
           return reject("owner_controls_unavailable", observationDigest);
         }
+        const administrator = batch.schemaVersion === 3 ? {
+          sourceRevision: batch.administratorSourceRevision as string,
+          sourceDigest: batch.administratorSourceDigest as string,
+          effectiveIamDigest: batch.effectiveIamDigest as string,
+        } : undefined;
         const retained = verifyShiftPlanningOwnerSheetsTechnicalEvidence(
           observed.retainedEvidence, batch.technicalEvidenceDigest,
-          batch.environment, batch.workbookId, now,
+          batch.environment, batch.workbookId, now, administrator,
         );
         const current = verifyShiftPlanningOwnerSheetsTechnicalEvidence(
           observed.externalEvidence, batch.technicalEvidenceDigest,
-          batch.environment, batch.workbookId, now,
+          batch.environment, batch.workbookId, now, administrator,
         );
         technicalExpiresAtMillis = Math.min(retained.technicalExpiresAtMillis,
           current.technicalExpiresAtMillis);
+        if (administrator) {
+          const agreement = authorization.administratorAgreement;
+          const report = authorization.administratorReport;
+          const observedAdmin = observed.administratorObservation as
+            Record<string, unknown> | undefined;
+          if (!agreement || !report || !observedAdmin ||
+              Object.entries(report).some(([key, value]) =>
+                observedAdmin[key] !== value) ||
+              current.evidence.payload.schemaVersion !== 3 ||
+              agreement.payload.intent.technicalControlManifestDigest !==
+                current.evidence.payload.administratorAgreement.payload.intent
+                  .technicalControlManifestDigest) {
+            return reject("owner_controls_rejected", observationDigest);
+          }
+          administratorObservationDigest =
+            assertShiftPlanningAdministratorMaintenanceObservation({
+              agreement, observation: observedAdmin,
+              environment: batch.environment,
+              ownerAgreementDigest: authorization.agreement.digest,
+              affectedScopeDigest: digest(batch), writeEpoch: batch.writeEpoch,
+              activeRevision: batch.activeRevision,
+              activeDigest: batch.activeDigest,
+              technicalControlManifestDigest:
+                agreement.payload.intent.technicalControlManifestDigest,
+              ...administrator,
+              operationId: batch.operationId, operationKind: "sheets-batch",
+              operationManifestDigest: digest(batch), nowMillis: now,
+              maximumEvidenceAgeMillis: batch.maximumEvidenceAgeMillis,
+              requireFreshWindow: true,
+            });
+          technicalExpiresAtMillis = Math.min(technicalExpiresAtMillis,
+            agreement.payload.intent.endsAtMillis,
+            (observedAdmin.observedAtMillis as number) +
+              batch.maximumEvidenceAgeMillis);
+        }
       }
       if (
         authorization.commandId !== command.commandId ||
@@ -282,6 +331,8 @@ export const createShiftPlanningOwnerSheetsGuard = (input: {
         workbook,
         observationDigest,
         now,
+        ...(administratorObservationDigest ?
+          {administratorObservationDigest} : {}),
       };
       humanWindow(value);
       return value;
@@ -395,6 +446,8 @@ export const createShiftPlanningOwnerSheetsGuard = (input: {
           shiftPlanningOwnerSheetsAuthorizationDigest(
             value.authorization,
           ) ||
+        binding.administratorObservationDigest !==
+          value.administratorObservationDigest ||
         digest(binding.batchIntent) !==
           digest(value.authorization.batchIntent) ||
         binding.claim.workerId !== request.command.claim.workerId ||
@@ -471,6 +524,11 @@ export const createShiftPlanningOwnerSheetsGuard = (input: {
           ),
           authorizationSnapshot: value.authorizationSnapshot,
           agreement: value.authorization.agreement,
+          ...(value.authorization.administratorAgreement ? {
+            administratorAgreement: value.authorization.administratorAgreement,
+            administratorObservationDigest:
+              value.administratorObservationDigest,
+          } : {}),
           batchIntent: approved,
           preservationManifest: preservation,
           ...(value.authorization.copyAuthority ?
@@ -508,6 +566,8 @@ export const createShiftPlanningOwnerSheetsGuard = (input: {
           shiftPlanningOwnerSheetsAuthorizationDigest(
             value.authorization,
           ) ||
+        binding.administratorObservationDigest !==
+          value.administratorObservationDigest ||
         value.workbook.workbookVersionAfter !==
           binding.batchIntent.beforeWorkbookRevision ||
         value.workbook.contentDigest !==

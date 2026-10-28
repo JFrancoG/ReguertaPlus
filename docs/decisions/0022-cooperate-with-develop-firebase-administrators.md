@@ -68,6 +68,19 @@ the risk of an administrator breaking the agreement or making an undetected
 transient change. It does not authorize migration or remove the other activation
 conditions. Implementation and each real maintenance window remain separate gates.
 
+## Implementation checkpoint
+
+Explicit schema v3 composes this agreement with the existing owner-only intake
+and Sheets controls; strict v1 and owner-only v2 remain unchanged. Named human
+confirmations are bound to the exact source, effective IAM, technical controls,
+operations and window. The observation reader must be supplied explicitly and
+revalidated around governed effects. Rejected observations remain bound to the
+existing incident receipt. This local contract is not a real signed agreement,
+provider authority adapter, migration admission or production authorization.
+
+See the [selective develop pause guide](../testing/hu084-selective-develop-pause.md)
+for the grouped implementation and acceptance boundary.
+
 ## References
 
 - [ADR-0021](0021-use-cooperative-owner-maintenance-for-shift-workbooks.md)

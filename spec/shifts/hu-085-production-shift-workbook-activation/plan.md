@@ -884,3 +884,26 @@ Server admission, Scheduler containment and historical-effect proof stay pending
 shared maintenance and production activation remain closed. The maintainer
 authorizes this source delivery; exact Git/remote verification is recorded in the
 canonical issues/PR. Unchanged executable hashes preserve build/lint and 394/155 runs.
+
+### Grouped administrator/server closure — 2026-10-28
+
+Delivered `e29b6bdd` before starting the next grouped work. Implement explicit
+ADR-0022 v3 through the existing intake/Sheets paths while preserving v1/v2.
+Prepare exact-source HTTP packs (legacy eight/newer member resolver one), with
+both direct/effective develop routing closed and original production callbacks.
+Pause only the three actual develop-only reminders; retain receipts, source/config/
+authority comparisons and earlier-work uncertainty. All three pause operations are accepted (one attempt each), with fresh
+semantic config/source/IAM read-back and preserved earlier-work uncertainty. No native changes,
+production activation, replay or maintenance admission is implied. Detailed
+acceptance is maintained in the bilingual selective-pause guide.
+
+The maintainer separately authorizes the existing nine HTTP updates. Both scoped
+packs deploy and all nine immutable archives match reviewed files. Runtime/IAM/
+identity/environment/secrets/traffic and the other fifteen Function configurations
+are preserved. Seven real develop requests return application503; two existing
+private endpoints return IAM403 before the callback (no permission relaxation).
+Final reads preserve all three PAUSED jobs, accepted Rules and the complete
+183-document/twelve-event captured payloads. The maintainer authorizes this source delivery; exact commit/remote evidence is
+recorded in #268/#269 and draft PR #278. No maintenance/migration admission, old-work drain or production
+business/Sheets/FCM action is implied. Actual complete participant commitments,
+automated authority and earlier effects are the remaining operational boundary.

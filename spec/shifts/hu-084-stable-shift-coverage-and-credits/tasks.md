@@ -541,8 +541,9 @@ delivery-only wording/changelog edits, so the build/lint/16-test gate is reused.
   missing/enabled/pending/in-flight jobs and incomplete v3 evidence before any CAS.
 - [x] Revalidate after the core correction: 394 planning tests and a separate
   155-case controls/regression run, zero failures/skips; build/full lint pass.
-- [ ] Review/authorize the exact three-job pause separately; preserve their
-  current develop-only configuration and reconcile prior invocations independently.
+- [x] Separately authorize/read back the exact three-job pause, preserving the
+  actual develop-only configuration and one attempt per job.
+- [ ] Reconcile prior invocations independently; pause does not prove drain.
 
 The approved Rules-only attempt completes inside the twenty-minute window.
 Source/release read-back matches baseline/candidate; the real authenticated client
@@ -556,3 +557,19 @@ contract/confirmations, server admission, job containment and earlier effects st
 block maintenance. Executable hashes are unchanged, so build/lint and the 394/155
 runs are reused. Native apps are unchanged. The maintainer authorizes this source
 delivery; definitive commit/remote verification is recorded in #268/#269 and PR #278.
+
+## Grouped administrator/server closure — 2026-10-28
+
+- [x] Commit/push the accepted client Rules/policy checkpoint as `e29b6bdd`.
+- [x] Implement explicit develop administrator v3 using existing intake/Sheets
+  evidence, CAS, incidents and receipts, preserving strict v1/owner v2.
+- [x] Prepare exact-source eight/one HTTP packs with pinned locks, preserved
+  callbacks and explicit direct/effective develop denial.
+- [x] Complete independent review, Functions build/full lint, 400 planning and
+  separate 228-control emulator cases, zero failures/skips.
+- [x] Accept exactly three PAUSED reminder jobs with unchanged semantic config
+  and no invented prior-operation drain.
+- [x] Separately authorize/update/read back the nine scoped HTTP handlers:
+  exact deployed archives, preserved controls and seven 503/two existing IAM403.
+- [ ] Bind actual complete participant confirmations, technical authority and
+  earlier-effect reconciliation before shared maintenance admission.

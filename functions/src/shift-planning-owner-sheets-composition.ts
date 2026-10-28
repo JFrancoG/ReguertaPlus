@@ -6,6 +6,8 @@ import type {drive_v3 as DriveV3, sheets_v4 as SheetsV4} from "googleapis";
 import {Firestore, Timestamp} from "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
+import {assertShiftPlanningAdministratorMaintenanceObservation} from
+  "./shift-planning-administrator-maintenance.js";
 import {ShiftSheetsConfig} from "./shift-sheets-config.js";
 import {observeShiftSheetsWorkbook} from
   "./shift-sheets-operational-preflight.js";
@@ -84,6 +86,10 @@ export const createShiftPlanningOwnerSheetsComposition = (input: {
   ): Promise<unknown | null>;
   readCurrentCopyControls?(command: ShiftPlanningProcessingSyncCommand):
     Promise<unknown | null>;
+  administratorMaintenance?: {
+    readCurrentObservation(command: ShiftPlanningProcessingSyncCommand):
+      Promise<unknown>;
+  };
   copyRehearsal?: {
     copyWorkbookId: string;
     protectedWorkbookIds: readonly string[];
@@ -100,6 +106,12 @@ export const createShiftPlanningOwnerSheetsComposition = (input: {
   const runtimePrincipalId = input.runtimePrincipalId;
   const externalReader = input.readCurrentExternalControls;
   const generationTabsReader = input.readGenerationTabs;
+  const administratorReader = input.administratorMaintenance
+    ?.readCurrentObservation;
+  if (input.administratorMaintenance && (config.environment !== "develop" ||
+      typeof administratorReader !== "function" || input.copyRehearsal)) {
+    return fail();
+  }
   if (
     !identifier(authorizationDocumentId) ||
     !identifier(technicalTransitionId) ||
@@ -218,6 +230,9 @@ export const createShiftPlanningOwnerSheetsComposition = (input: {
     const initial = await readAuthorization();
     const {authorization} = initial;
     if (authorization.commandId !== command.commandId) return fail();
+    if (authorization.batchIntent.schemaVersion === 3 && !administratorReader) {
+      return fail();
+    }
     const rejectObservedReport = async (
       observation: unknown,
     ): Promise<never> => {
@@ -246,9 +261,52 @@ export const createShiftPlanningOwnerSheetsComposition = (input: {
       authorization.controlIncident ||
       authorization.ownerReport.agreementStatus !== "confirmed" ||
       authorization.ownerReport.ownerActivity !== "none-reported" ||
-      authorization.ownerReport.unresolvedWriteCount !== 0
+      authorization.ownerReport.unresolvedWriteCount !== 0 ||
+      (authorization.administratorReport && (
+        authorization.administratorReport.agreementStatus !== "confirmed" ||
+        authorization.administratorReport.administratorActivity !==
+          "none-reported" ||
+        authorization.administratorReport.unresolvedWriteCount !== 0))
     ) {
       return rejectObservedReport(initial);
+    }
+    let administratorObserved: unknown;
+    const readAdministrator = async () => {
+      administratorObserved = undefined;
+      const agreement = authorization.administratorAgreement;
+      if (authorization.batchIntent.schemaVersion !== 3) return undefined;
+      if (!agreement || !administratorReader) return fail();
+      const observation = await administratorReader(command);
+      administratorObserved = observation;
+      const intent = agreement.payload.intent;
+      const identity = assertShiftPlanningAdministratorMaintenanceObservation({
+        agreement, observation, environment: config.environment,
+        ownerAgreementDigest: authorization.agreement.digest,
+        affectedScopeDigest: digest(authorization.batchIntent),
+        writeEpoch: command.writeEpoch,
+        activeRevision: command.expectedActiveRevision,
+        activeDigest: command.expectedActiveDigest,
+        technicalControlManifestDigest: intent.technicalControlManifestDigest,
+        sourceRevision: authorization.batchIntent
+          .administratorSourceRevision as string,
+        sourceDigest: authorization.batchIntent
+          .administratorSourceDigest as string,
+        effectiveIamDigest: authorization.batchIntent
+          .effectiveIamDigest as string,
+        operationId: command.idempotencyKey, operationKind: "sheets-batch",
+        operationManifestDigest: digest(authorization.batchIntent),
+        nowMillis: nowMillis(), maximumEvidenceAgeMillis:
+          authorization.batchIntent.maximumEvidenceAgeMillis,
+        requireFreshWindow: true,
+      });
+      return {observation, identity};
+    };
+    let administrator;
+    try {
+      administrator = await readAdministrator();
+    } catch {
+      return rejectObservedReport({administrator:
+        administratorObserved ?? "unavailable"});
     }
     const missing = authorization.preservationManifest.policy.additions.map(
       (value) => {
@@ -277,13 +335,21 @@ export const createShiftPlanningOwnerSheetsComposition = (input: {
           externalReader?.(command) ?? Promise.resolve(null),
       ]);
     const fresh = await readAuthorization();
+    let freshAdministrator;
+    try {
+      freshAdministrator = await readAdministrator();
+    } catch {
+      return rejectObservedReport({administrator:
+        administratorObserved ?? "unavailable"});
+    }
     if (
       fresh.authorizationSnapshot.ownerReportDigest !==
         initial.authorizationSnapshot.ownerReportDigest ||
       fresh.authorizationSnapshot.updateTime.seconds !==
         initial.authorizationSnapshot.updateTime.seconds ||
       fresh.authorizationSnapshot.updateTime.nanoseconds !==
-        initial.authorizationSnapshot.updateTime.nanoseconds
+        initial.authorizationSnapshot.updateTime.nanoseconds ||
+      administrator?.identity !== freshAdministrator?.identity
     ) {
       return rejectObservedReport({initial, fresh});
     }
@@ -295,6 +361,8 @@ export const createShiftPlanningOwnerSheetsComposition = (input: {
       failure,
       externalEvidence: copyAuthority ? null : externalEvidence,
       ...(copyAuthority ? {copyControls: externalEvidence} : {}),
+      ...(freshAdministrator ? {
+        administratorObservation: freshAdministrator.observation} : {}),
     };
   };
   const retainAuthorizationIncident = async (
@@ -325,6 +393,7 @@ export const createShiftPlanningOwnerSheetsComposition = (input: {
     environment: config.environment,
     readControls,
     ...(copyAuthority ? {copyAuthority} : {}),
+    ...(administratorReader ? {administratorMaintenance: true as const} : {}),
     retainAuthorizationIncident,
     nowMillis,
   });

@@ -141,3 +141,80 @@ The mechanism and its reversal pass on the copy. `canApply:false` remains: the
 owner can still remove a restriction, and a whole-file lock also blocks the
 intended runtime. This does not prove a held owner fence or a gap-free handoff to
 the governed writer, and does not authorize applying the control to the real file.
+
+## Administrator contract and remaining server ingress — 2026-10-28
+
+Source delivery `e29b6bdd` contains the accepted live develop client Rules and
+ADR-0022 policy. The next grouped implementation keeps the strict v1 and
+owner-only v2 contracts unchanged. Explicit v3 adds the named human administrator
+agreement to the existing intake CAS, immutable evidence/incident paths and Sheets
+batch receipts. It requires every named confirmation, exact operation/source/IAM/
+technical-control digests and fresh reports; withdrawal, activity, expiry or drift
+blocks progression. Retained human capability is recorded as cooperative, never
+as a technical IAM fence. Automated credentials/workloads still need technical
+controls. No real participant agreement or maintenance window is manufactured.
+
+The remaining nine deployed HTTP handlers are prepared as two exact-source packs:
+eight legacy handlers and the newer `resolveAuthorizedMember` separately. The
+reviewed existing HTTP targets are `onProductWrite`, `onContainerWrite`,
+`onMeasureWrite`, `onUserWrite`, `onOrderWrite`, `upsertMemberByAdmin`,
+`validateGlobalVersionPolicy`, `validateGlobalFreshnessConfig` and
+`resolveAuthorizedMember`, all in `europe-west1` of `reguerta-9f27f`. There are
+zero new/deleted Functions and no permission change in this package. Both
+preserve their archived lock, original callback bodies, runtime identity/options
+and environment. Direct develop requests stop before business I/O; effective
+reviewer routing to develop stops after existing auth/config resolution but before
+member work. The two global validators reject an entire default/mixed request
+containing develop; explicit production requests retain the original path.
+The actual legacy SDKs load both packs with exactly eight/one exports, no reset
+sentinels, and config/source hashes bind the reviewed selectors. The branch's
+application index must never replace these shared deployments.
+
+The maintainer authorizes pausing exactly the three develop-only Sunday reminder
+jobs. The first pause succeeds; Cloud Scheduler also changes `userUpdateTime`,
+which the original guard treated as configuration drift, so the runner correctly
+stops before attempting the other two. Read-only reconciliation preserves the
+first receipt and confirms unchanged semantic config/Functions/IAM and two
+untouched enabled jobs. A separately sealed continuation permits one attempt per
+remaining job, retains the first PAUSED state and compares non-target revision
+stamps plus the target response/postimage. Neither job pause nor HTTP closure
+certifies earlier invocations or external outcomes as drained.
+
+The final joint gate passes Functions build/full lint, 400 planning tests and a
+separate 228-case controls/regression run, with zero failures/skips. The emulator
+is stopped. The latter includes v3 admission/Sheets incidents, older modes, exact
+HTTP production equivalence and develop denial, Rules and intake regression.
+
+**Accepted Scheduler result:** all three jobs are PAUSED with three total pause
+attempts (one original and two continuation calls). Fresh before/after reads
+verify unchanged semantic job configuration, Function sources/options and IAM.
+The continuation passes independent review and 9 local tests/28 scenarios,
+including snapshot expiry after journaling and missing/invalid token expiry.
+No automatic retry/resume occurs; the first job is never resubmitted.
+
+**Accepted HTTP result:** the maintainer separately authorizes the nine existing
+updates in `reguerta-9f27f`. Exact eight/one selectors deploy successfully; all
+nine immutable deployed archives match their reviewed runtime file sets/hashes.
+Source references, runtime options, identity, environment/secrets, IAM and latest
+traffic are read back; the other fifteen Functions preserve their configurations.
+The first eight leave sixteen Functions unchanged; the final one leaves twenty-
+three unchanged, including those eight accepted revisions. No Function is created
+or deleted and no permission is changed.
+
+The real negatives return seven application 503s. `onContainerWrite` and
+`onMeasureWrite` retain their existing private IAM policy and return gateway 403
+before entering the callback. The initial probe expected all 503 and stops at
+that existing 403; its receipt is preserved. A bounded continuation accepts only
+those two pre-existing IAM denials, does not repeat either completed request and
+checks the remaining seven endpoints. No IAM grant or credential impersonation
+is introduced to force a callback test. Those two callbacks are verified through
+exact deployed bytes and emulator behavior, not a live authorized invocation.
+
+Final read-only inspection confirms the three PAUSED jobs, their unchanged source/
+configuration/IAM, the accepted client Rules hash, and identical captured payloads
+for all 183 business documents/twelve journal events. Shared maintenance/migration
+remains closed with `legacyUntracked:true`: real complete participant commitments,
+automated authority and earlier effects still need their own evidence. No
+production business, Sheets or FCM operation occurs. Native apps are unchanged;
+the maintainer authorizes this source delivery; exact commit/remote evidence is
+recorded in #268/#269 and draft PR #278.

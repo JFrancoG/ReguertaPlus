@@ -3,6 +3,9 @@
 const fs = require("node:fs");
 const vm = require("node:vm");
 const {createHash} = require("node:crypto");
+const path = require("node:path");
+const {execFileSync} = require("node:child_process");
+const {RESOLVE_PROFILE} = require("../scripts/prepare-develop-intake-bridge.cjs");
 const {
   Timestamp, FieldValue,
 } = require("@google-cloud/firestore");
@@ -32,14 +35,20 @@ function loadExactLegacy(db, options = {}) {
       db.projectId !== "demo-reguerta-writer-controls") {
     throw Error("local_emulator_required");
   }
-  const sourcePath = process.env.HU084_DEPLOYED_LEGACY_JS;
+  const modern = options.authorizedMember === true;
+  const directory = process.env.HU084_REMAINING_LEGACY_SOURCES;
+  const sourcePath = modern && directory ? path.join(directory, "resolveAuthorizedMember.main.js") :
+    process.env.HU084_DEPLOYED_LEGACY_JS;
   if (!sourcePath) throw Error("HU084_DEPLOYED_LEGACY_JS_required");
   const source = fs.readFileSync(sourcePath);
   if (createHash("sha256").update(source).digest("hex") !==
-      DEPLOYED_LEGACY_SOURCE_SHA256) throw Error("source_digest_mismatch");
+      (modern ? RESOLVE_PROFILE.main : DEPLOYED_LEGACY_SOURCE_SHA256)) throw Error("source_digest_mismatch");
   // Only the audited builder's fixed six callback insertions may transform this
   // already pinned source. No arbitrary source/transform override is accepted.
-  const evaluatedSource = options.bridgeWrappers ?
+  const evaluatedSource = options.administrativeBridgeWrappers ?
+    require("../scripts/prepare-develop-intake-bridge.cjs").wrapAdministrativeSource(
+      source, modern ? "authorized-member1" : "legacy-http8",
+    ).source : options.bridgeWrappers ?
     require("../scripts/prepare-develop-intake-bridge.cjs")
       .wrapLegacySource(source).source : source.toString("utf8");
   const trace = [];
@@ -128,9 +137,32 @@ function loadExactLegacy(db, options = {}) {
         () => batch.commit());
       return facade;
     },
+    runTransaction: async (callback) => {
+      record("firestore.runTransaction", {});
+      return db.runTransaction(async (transaction) => {
+        const facade = {get: async (reference) => {
+          record("firestore.transaction.get", {path: reference.path || "query"});
+          return snapshot(await transaction.get(unwrap(reference)));
+        }};
+        for (const method of ["set", "create", "update", "delete"]) {
+          facade[method] = (reference, ...args) => {
+            record(`firestore.transaction.${method}`, {path: reference.path, args});
+            mutations.push(`firestore.transaction.${method}`);
+            transaction[method](unwrap(reference), ...args);
+            return facade;
+          };
+        }
+        return callback(facade);
+      });
+    },
   };
   const firestoreFactory = () => firestore;
-  firestoreFactory.Timestamp = Timestamp;
+  const clockTimestamp = options.fixedTimestampMillis === undefined ? Timestamp :
+    new Proxy(Timestamp, {get(target, property) {
+      return property === "now" ? () => Timestamp.fromMillis(options.fixedTimestampMillis) :
+        Reflect.get(target, property, target);
+    }});
+  firestoreFactory.Timestamp = clockTimestamp;
   firestoreFactory.FieldValue = FieldValue;
   const sheets = {spreadsheets: {values: {}}};
   for (const method of ["get", "batchUpdate"]) {
@@ -174,8 +206,39 @@ function loadExactLegacy(db, options = {}) {
       sheets: () => sheets,
     }},
   };
+  if (modern) {
+    modules["firebase-functions/v2/firestore"].onDocumentCreatedWithAuthContext = capture;
+    modules["firebase-functions/v2/firestore"].onDocumentWrittenWithAuthContext = capture;
+    modules["firebase-functions/v2/scheduler"] = {onSchedule: capture};
+    modules["firebase-admin/app"] = {initializeApp() { return {}; }};
+    modules["firebase-admin/auth"] = {getAuth: () => ({verifyIdToken: async (token, checkRevoked) => {
+      record("auth.verifyIdToken", {token, checkRevoked});
+      if (options.identityError) throw Error("synthetic_identity_rejected");
+      return options.identity || {uid: "fixture-uid", email: "member@example.test", email_verified: true};
+    }})};
+    modules["firebase-admin/firestore"] = {getFirestore: () => firestore, Timestamp: clockTimestamp, FieldValue};
+    modules["firebase-admin/messaging"] = {getMessaging: admin.messaging};
+    modules["node:crypto"] = require("node:crypto");
+    const archive = path.join(directory, "resolveAuthorizedMember.zip");
+    if (createHash("sha256").update(fs.readFileSync(archive)).digest("hex") !== RESOLVE_PROFILE.zip) {
+      throw Error("source_archive_digest_mismatch");
+    }
+    for (const [entry, expected] of Object.entries(RESOLVE_PROFILE.helpers)) {
+      const bytes = execFileSync("unzip", ["-p", archive, entry]);
+      if (createHash("sha256").update(bytes).digest("hex") !== expected) throw Error("helper_source_digest_mismatch");
+      const exports = {};
+      vm.runInNewContext(bytes.toString("utf8"), {exports, require(name) {
+        if (!(name in modules)) throw Error("undeclared_dependency_port");
+        return modules[name];
+      }, Error, Map, Set, Buffer}, {filename: `byte-pinned-${entry}`, timeout: 5000});
+      modules[`./${path.basename(entry)}`] = exports;
+    }
+  }
   if (options.bridgeWrappers) {
     modules["./develop-shift-intake-bridge.js"] = options.bridgeWrappers;
+  }
+  if (options.administrativeBridgeWrappers) {
+    modules["./develop-shift-intake-bridge.js"] = options.administrativeBridgeWrappers;
   }
   const exports = {};
   class FixedDate extends Date {

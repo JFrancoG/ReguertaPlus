@@ -1,5 +1,19 @@
 # [HU-085] Controlled production shift workbook activation
 
+## Latest grouped server checkpoint — 2026-10-28
+
+Delivered `e29b6bdd` and verified the remote/draft PR head. The explicit ADR-0022
+administrator v3 contract and two exact-source HTTP packs are implemented locally;
+Functions build/full lint, 400 planning tests and a separate 228-control run pass
+without failures/skips. Three develop-only reminder jobs are now PAUSED, with
+one attempt each and unchanged semantic configuration/Function sources/IAM.
+The nine shared HTTP updates are separately authorized, deployed and read back
+with exact source archives/controls: seven application503 and two existing IAM403. Actual complete participant confirmations, automated authority and
+prior-effect reconciliation still block maintenance; keep `legacyUntracked:true`
+and migration closed. Both issues and draft PR remain open. See the current
+story plan/tasks and bilingual selective-pause guides for acceptance details.
+
+
 ## Current develop prerequisite — 2026-10-27
 
 HU-084 initial private-state source is delivered through `537188bd`. The maintainer

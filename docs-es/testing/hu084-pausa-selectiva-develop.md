@@ -156,3 +156,85 @@ propietario puede retirar la restricción y el bloqueo completo también impide
 escribir al runtime previsto. No demuestra un control sostenido del propietario
 ni una transferencia sin huecos al escritor gobernado, ni autoriza a aplicar el
 control sobre el archivo real.
+
+## Contrato administrativo y entradas restantes del servidor — 2026-10-28
+
+El commit `e29b6bdd` entrega las Rules cliente de develop ya aceptadas y la
+política ADR-0022. El bloque siguiente conserva los contratos estricto v1 y de
+propietario v2. El v3 explícito incorpora el acuerdo con los administradores
+identificados al CAS de admisión, los registros de evidencia/incidentes y los
+recibos de lotes de Sheets existentes. Exige todas las confirmaciones, las
+operaciones y huellas exactas de fuentes/IAM/controles y observaciones recientes;
+retirada, actividad, caducidad o cambios impiden continuar. La capacidad humana
+retenida se registra como cooperación, nunca como un bloqueo técnico de IAM.
+Las credenciales y cargas automáticas siguen necesitando controles técnicos.
+No se inventan confirmaciones reales ni una ventana de mantenimiento.
+
+Las nueve entradas HTTP desplegadas restantes se preparan en dos paquetes de
+fuente exacta: ocho antiguas y `resolveAuthorizedMember`, más reciente, por
+separado. Los objetivos HTTP existentes revisados son `onProductWrite`,
+`onContainerWrite`, `onMeasureWrite`, `onUserWrite`, `onOrderWrite`,
+`upsertMemberByAdmin`, `validateGlobalVersionPolicy`,
+`validateGlobalFreshnessConfig` y `resolveAuthorizedMember`, todos en
+`europe-west1` de `reguerta-9f27f`. El paquete no crea/elimina Functions ni
+cambia permisos. Se conservan sus locks, cuerpos de callback, identidad, opciones y
+entorno. Las peticiones directas a develop se detienen antes de acceder a datos;
+el acceso de revisores que acaba en develop se detiene después de la resolución
+original de autenticación/configuración y antes de consultar o enlazar socios.
+Las dos comprobaciones globales rechazan entera cualquier petición por defecto o
+mixta que incluya develop; las peticiones solo a producción conservan su camino.
+Ambos paquetes cargan con sus SDK originales, exportan exactamente ocho/una
+funciones y enlazan las huellas de configuración/fuentes con los selectores
+revisados. No se debe desplegar el índice de la app de esta rama sobre ellas.
+
+El mantenedor autoriza pausar exactamente los tres jobs de recordatorio dominical,
+que actualmente solo actúan en develop. La primera pausa funciona; Scheduler
+cambia también `userUpdateTime`, que la comprobación original interpretaba como
+cambio de configuración, y el ejecutor se detiene antes de los otros dos. La
+conciliación conserva ese recibo y confirma la misma configuración funcional,
+Functions/IAM y dos jobs habilitados sin tocar. Una continuación sellada permite
+un único intento por job pendiente, mantiene el primero pausado y contrasta las
+revisiones ajenas y la respuesta/imagen final del objetivo. Pausar jobs o cerrar
+HTTP no demuestra que hayan terminado las operaciones anteriores ni sus efectos.
+
+El gate final pasa build/lint completos de Functions, 400 pruebas de planificación
+y una ejecución separada de 228 controles/regresiones, sin fallos ni omitidas. El
+emulador está detenido. La segunda incluye admisión/Sheets/incidentes v3, modos
+anteriores, equivalencia HTTP de producción y denegación de develop, Rules y
+regresiones de admisión.
+
+**Resultado aceptado de Scheduler:** los tres jobs están PAUSED, con tres intentos
+en total (uno original y dos de continuación). Las lecturas anteriores/posteriores
+verifican la misma configuración funcional, fuentes/opciones de Functions e IAM.
+La continuación pasa revisión independiente y 9 pruebas locales/28 escenarios,
+incluida la caducidad tras escribir el recibo y la expiración ausente/inválida de
+credenciales. No hay reintentos/reanudación automáticos ni un segundo envío para
+el primer job.
+
+**Resultado HTTP aceptado:** el mantenedor autoriza por separado las nueve
+actualizaciones existentes en `reguerta-9f27f`. Los selectores exactos de ocho/una
+funciones se publican correctamente; los nueve archivos desplegados coinciden con
+los conjuntos y huellas revisados. Se comprueban sus referencias de fuente,
+opciones de ejecución, identidad, entorno/secretos, IAM y tráfico a la última
+revisión. Las otras quince Functions conservan su configuración. El primer lote
+conserva dieciséis Functions; el segundo conserva veintitrés, incluidas las ocho
+revisiones ya aceptadas. No se crea/elimina ninguna Function ni se cambian permisos.
+
+Las negativas reales devuelven siete 503 del código. `onContainerWrite` y
+`onMeasureWrite` conservan su IAM privado anterior y devuelven 403 antes del
+callback. La primera comprobación esperaba nueve 503 y se detiene en ese 403;
+su recibo se conserva. La continuación acotada acepta únicamente esas dos
+denegaciones anteriores de IAM, conserva las dos peticiones ya completadas sin
+repetirlas y comprueba las otras siete entradas. No se conceden permisos ni se
+suplantan identidades para forzar la prueba del callback. Esos dos callbacks se
+verifican mediante bytes desplegados exactos y emulador, sin invocación real
+autorizada del código.
+
+La inspección final de lectura confirma los tres jobs PAUSED, sus fuentes/
+configuración/IAM sin cambios, la huella aceptada de Rules y las mismas imágenes
+de los 183 documentos y doce eventos retenidos. El mantenimiento y la migración
+compartidos siguen cerrados, con `legacyUntracked:true`: faltan confirmaciones
+reales de todos los participantes y evidencia de autoridad automática y efectos
+anteriores. No hay operaciones de datos de producción, Sheets o FCM. Las apps no
+cambian; el mantenedor autoriza entregar este código y documentación; la evidencia exacta
+de commit/remoto queda registrada en #268/#269 y la PR en borrador #278.

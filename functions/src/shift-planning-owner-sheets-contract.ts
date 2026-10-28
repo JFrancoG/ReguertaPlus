@@ -10,15 +10,22 @@ import {
   parseShiftPlanningOwnerMaintenanceAgreement,
   ShiftPlanningOwnerMaintenanceAgreement,
 } from "./shift-planning-owner-maintenance.js";
+import {parseShiftPlanningAdministratorMaintenanceAgreement,
+  ShiftPlanningAdministratorMaintenanceAgreement} from
+  "./shift-planning-administrator-maintenance.js";
 import {
   parseShiftSheetsOwnerPreservationManifest,
   ShiftSheetsOwnerPreservationManifest,
 } from "./shift-sheets-owner-manifest.js";
 
 export type ShiftPlanningOwnerSheetsBatchIntent = {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   kind: "owner-sheets-batch";
-  technicalControlKind?: "isolated-copy-runtime";
+  technicalControlKind?: "isolated-copy-runtime" |
+    "develop-administrator-agreement";
+  administratorSourceRevision?: string;
+  administratorSourceDigest?: string;
+  effectiveIamDigest?: string;
   environment: "develop" | "production";
   workbookId: string;
   commandId: string;
@@ -46,6 +53,14 @@ export type ShiftPlanningOwnerSheetsAuthorization = {
   commandId: string;
   technicalTransitionId: string;
   agreement: ShiftPlanningOwnerMaintenanceAgreement;
+  administratorAgreement?: ShiftPlanningAdministratorMaintenanceAgreement;
+  administratorReport?: {
+    agreementDigest: string;
+    agreementStatus: "confirmed" | "withdrawn";
+    administratorActivity: "none-reported" | "reported";
+    unresolvedWriteCount: number;
+    reportRevision: string;
+  };
   batchIntent: ShiftPlanningOwnerSheetsBatchIntent;
   preservationManifest: ShiftSheetsOwnerPreservationManifest;
   copyAuthority?: ShiftPlanningOwnerSheetsCopyAuthority;
@@ -71,6 +86,8 @@ export type ShiftPlanningOwnerSheetsBinding = {
   authorizationDigest: string;
   authorizationSnapshot: ShiftPlanningOwnerSheetsAuthorizationSnapshot;
   agreement: ShiftPlanningOwnerMaintenanceAgreement;
+  administratorAgreement?: ShiftPlanningAdministratorMaintenanceAgreement;
+  administratorObservationDigest?: string;
   batchIntent: ShiftPlanningOwnerSheetsBatchIntent;
   preservationManifest: ShiftSheetsOwnerPreservationManifest;
   copyAuthority?: ShiftPlanningOwnerSheetsCopyAuthority;
@@ -204,13 +221,17 @@ export const parseShiftPlanningOwnerSheetsBatchIntent = (
     "preservationManifestDigest",
     "technicalEvidenceDigest",
     "maximumEvidenceAgeMillis",
-    ...(input.schemaVersion === 2 ? ["technicalControlKind"] : []),
+    ...(input.schemaVersion !== 1 ? ["technicalControlKind"] : []),
+    ...(input.schemaVersion === 3 ? ["administratorSourceRevision",
+      "administratorSourceDigest", "effectiveIamDigest"] : []),
   ]);
   if (
-    ![1, 2].includes(input.schemaVersion as number) ||
+    ![1, 2, 3].includes(input.schemaVersion as number) ||
     (input.schemaVersion === 2 &&
       (input.technicalControlKind !== "isolated-copy-runtime" ||
         input.environment !== "develop")) ||
+    (input.schemaVersion === 3 && (input.technicalControlKind !==
+      "develop-administrator-agreement" || input.environment !== "develop")) ||
     input.kind !== "owner-sheets-batch" ||
     !["develop", "production"].includes(input.environment as string) ||
     typeof input.beforeWorkbookRevision !== "string" ||
@@ -243,6 +264,10 @@ export const parseShiftPlanningOwnerSheetsBatchIntent = (
   }
   count(input.writeEpoch);
   count(input.maximumEvidenceAgeMillis);
+  if (input.schemaVersion === 3) {
+    id(input.administratorSourceRevision);
+    hash(input.administratorSourceDigest); hash(input.effectiveIamDigest);
+  }
   if (input.maximumEvidenceAgeMillis === 0) fail();
   return input as ShiftPlanningOwnerSheetsBatchIntent;
 };
@@ -267,6 +292,8 @@ export const parseShiftPlanningOwnerSheetsAuthorization = (
     "batchIntent",
     "preservationManifest",
     "ownerReport",
+    ...((input.batchIntent as RecordValue)?.schemaVersion === 3 ?
+      ["administratorAgreement", "administratorReport"] : []),
     ...(Object.prototype.hasOwnProperty.call(input, "copyAuthority") ?
       ["copyAuthority"] : []),
     ...(Object.prototype.hasOwnProperty.call(input, "controlIncident") ?
@@ -278,6 +305,9 @@ export const parseShiftPlanningOwnerSheetsAuthorization = (
     input.agreement, batch.schemaVersion === 2,
   );
   validateCopyAuthority(input.copyAuthority, batch, agreement);
+  const administratorAgreement = validateAdministratorAgreement(
+    input.administratorAgreement, batch, agreement,
+  );
   const preservation = parseShiftSheetsOwnerPreservationManifest(
     input.preservationManifest,
   );
@@ -343,9 +373,21 @@ export const parseShiftPlanningOwnerSheetsAuthorization = (
   if (report.permissionControlEvidenceDigest !== null) {
     hash(report.permissionControlEvidenceDigest);
   }
+  if (administratorAgreement) {
+    const adminReport = record(input.administratorReport);
+    exact(adminReport, ["agreementDigest", "agreementStatus",
+      "administratorActivity", "unresolvedWriteCount", "reportRevision"]);
+    if (adminReport.agreementDigest !== administratorAgreement.digest ||
+        !["confirmed", "withdrawn"].includes(
+          adminReport.agreementStatus as string) ||
+        !["none-reported", "reported"].includes(
+          adminReport.administratorActivity as string)) fail();
+    count(adminReport.unresolvedWriteCount); id(adminReport.reportRevision);
+  }
   const result = {
     ...input,
     agreement,
+    ...(administratorAgreement ? {administratorAgreement} : {}),
     batchIntent: batch,
     preservationManifest: preservation,
   } as ShiftPlanningOwnerSheetsAuthorization;
@@ -374,6 +416,7 @@ export const shiftPlanningOwnerSheetsAuthorizationDigest = (
 ): string => {
   const core = {...value};
   Reflect.deleteProperty(core, "ownerReport");
+  Reflect.deleteProperty(core, "administratorReport");
   Reflect.deleteProperty(core, "controlIncident");
   return digest(core);
 };
@@ -398,6 +441,8 @@ export const parseShiftPlanningOwnerSheetsBinding = (
     "controlsValidUntilMillis",
     "preparedAtMillis",
     "bindingDigest",
+    ...((input.batchIntent as RecordValue)?.schemaVersion === 3 ?
+      ["administratorAgreement", "administratorObservationDigest"] : []),
     ...(Object.prototype.hasOwnProperty.call(input, "copyAuthority") ?
       ["copyAuthority"] : []),
   ]);
@@ -417,6 +462,17 @@ export const parseShiftPlanningOwnerSheetsBinding = (
     input.agreement, batch.schemaVersion === 2,
   );
   validateCopyAuthority(input.copyAuthority, batch, agreement);
+  const administratorAgreement = validateAdministratorAgreement(
+    input.administratorAgreement, batch, agreement,
+  );
+  if (administratorAgreement) hash(input.administratorObservationDigest);
+  if (administratorAgreement && (
+    (input.preparedAtMillis as number) <
+      administratorAgreement.payload.intent.startsAtMillis ||
+    (input.preparedAtMillis as number) >=
+      administratorAgreement.payload.intent.endsAtMillis ||
+    (input.controlsValidUntilMillis as number) >
+      administratorAgreement.payload.intent.endsAtMillis)) fail();
   const authorizationSnapshot =
     parseShiftPlanningOwnerSheetsAuthorizationSnapshot(
       input.authorizationSnapshot,
@@ -474,6 +530,7 @@ export const parseShiftPlanningOwnerSheetsBinding = (
   return {
     ...input,
     agreement,
+    ...(administratorAgreement ? {administratorAgreement} : {}),
     authorizationSnapshot,
     batchIntent: batch,
     preservationManifest: preservation,
@@ -576,6 +633,7 @@ export const assertShiftPlanningOwnerSheetsProof = (input: {
   count(input.nowMillis);
   const proof = parseShiftPlanningOwnerSheetsProof(input.proof);
   const window = input.binding.agreement.payload.intent;
+  const administrator = input.binding.administratorAgreement?.payload.intent;
   if (
     proof.bindingDigest !== input.binding.bindingDigest ||
     proof.phase !== input.phase ||
@@ -587,7 +645,10 @@ export const assertShiftPlanningOwnerSheetsProof = (input: {
     input.nowMillis >= proof.controlsValidUntilMillis ||
     proof.verifiedAtMillis > input.nowMillis ||
     input.nowMillis - proof.verifiedAtMillis >
-      input.binding.batchIntent.maximumEvidenceAgeMillis
+      input.binding.batchIntent.maximumEvidenceAgeMillis ||
+    (administrator && (input.nowMillis < administrator.startsAtMillis ||
+      input.nowMillis >= administrator.endsAtMillis ||
+      proof.controlsValidUntilMillis > administrator.endsAtMillis))
   ) {
     fail();
   }
@@ -667,6 +728,30 @@ export const parseShiftPlanningOwnerSheetsAuthorizationSnapshot = (
     fail();
   }
   return input as ShiftPlanningOwnerSheetsAuthorizationSnapshot;
+};
+
+const validateAdministratorAgreement = (value: unknown,
+  batch: ShiftPlanningOwnerSheetsBatchIntent,
+  owner: ShiftPlanningOwnerMaintenanceAgreement) => {
+  if (batch.schemaVersion !== 3) {
+    if (value !== undefined) fail();
+    return undefined;
+  }
+  const agreement = parseShiftPlanningAdministratorMaintenanceAgreement(value);
+  const {intent} = agreement.payload;
+  if (intent.ownerAgreementDigest !== owner.digest ||
+      intent.affectedScopeDigest !== digest(batch) ||
+      intent.writeEpoch !== batch.writeEpoch ||
+      intent.activeRevision !== batch.activeRevision ||
+      intent.activeDigest !== batch.activeDigest ||
+      intent.sourceRevision !== batch.administratorSourceRevision ||
+      intent.sourceDigest !== batch.administratorSourceDigest ||
+      intent.effectiveIamDigest !== batch.effectiveIamDigest ||
+      !intent.operations.some((operation) =>
+        operation.kind === "sheets-batch" &&
+        operation.operationId === batch.operationId &&
+        operation.manifestDigest === digest(batch))) fail();
+  return agreement;
 };
 
 const validateCopyAuthority = (value: unknown,

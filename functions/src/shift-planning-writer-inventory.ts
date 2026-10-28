@@ -14,7 +14,8 @@ export type ShiftPlanningWriterControl =
   | "isolate-causal-delivery"
   | "fence-external-authority"
   | "activation-version-check"
-  | "cooperative-owner-agreement";
+  | "cooperative-owner-agreement"
+  | "cooperative-administrator-agreement";
 
 export type ShiftPlanningWriterControlState =
   | "denied"
@@ -467,4 +468,44 @@ export const SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST =
     schemaVersion: SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION,
     revision: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
     writers: SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS,
+  });
+
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION =
+  "hu085-develop-administrator-agreement-writers-v1" as const;
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID =
+  "develop-firebase-administrator-retained-capability" as const;
+/** ADR-0022 retains technical fencing of every automated IAM use. */
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS:
+  readonly ShiftPlanningAffectedWriter[] = Object.freeze([
+    ...SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS.map((writer) =>
+      writer.writerId !== "iam-firestore-admin-and-server-writers" ? writer :
+        Object.freeze({...writer, sourceReferences: Object.freeze([
+          "Effective IAM ancestry/conditions/deny policies; only " +
+            "individually confirmed human capability is recorded separately " +
+            "by ADR-0022",
+          "Unmanifested Admin SDK, CI, scripts, jobs, keys and workloads " +
+            "outside separately controlled runtime writers; unknown " +
+            "principals and automated human credentials remain technically " +
+            "controlled",
+        ])})),
+    Object.freeze({
+      writerId: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID,
+      control: "cooperative-administrator-agreement" as const,
+      requiredState: "agreement-recorded" as const,
+      shutdownOrder: "before-causal-capture" as const,
+      targets: Object.freeze(["firestore.database-wide" as const]),
+      sourceReferences: Object.freeze([
+        "ADR-0022 named develop human administrators; capability retained",
+      ]),
+    }),
+  ]);
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INTAKE_WRITERS =
+  Object.freeze(SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS.filter(
+    (writer) => writer.shutdownOrder !== "activation-recheck",
+  ));
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_DIGEST =
+  createShiftPlanningDigest({
+    schemaVersion: SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION,
+    revision: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION,
+    writers: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS,
   });

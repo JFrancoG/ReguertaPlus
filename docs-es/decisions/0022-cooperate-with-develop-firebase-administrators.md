@@ -75,6 +75,20 @@ no detectado. No autoriza una migración ni elimina las demás condiciones de
 activación. La implementación y cada ventana real mantienen sus autorizaciones
 separadas.
 
+## Punto de implementación
+
+El esquema v3 explícito incorpora este acuerdo a los controles de admisión y
+Sheets existentes; el v1 estricto y el v2 de propietario no cambian. Las
+confirmaciones humanas identificadas quedan vinculadas a fuentes, IAM efectivo,
+controles técnicos, operaciones y ventana exactos. El lector de observaciones se
+aporta explícitamente y se vuelve a comprobar alrededor de los efectos regulados.
+Las observaciones rechazadas quedan vinculadas al recibo de incidente existente.
+Este contrato local no equivale a un acuerdo real firmado, un adaptador de
+autoridad del proveedor, la admisión de una migración ni autorización de producción.
+
+Consulta la [guía de pausa selectiva](../testing/hu084-pausa-selectiva-develop.md)
+para el bloque implementado y su límite de aceptación.
+
 ## Referencias
 
 - [ADR-0021](0021-usar-mantenimiento-acordado-con-el-propietario-en-hojas-de-turnos.md)

@@ -21,9 +21,13 @@ import {
   SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
   SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST,
   SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INTAKE_WRITERS,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_DIGEST,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID,
   SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
   SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
-  ShiftPlanningAffectedWriter,
   ShiftPlanningWriterControlState,
 } from "./shift-planning-writer-inventory.js";
 import {
@@ -36,12 +40,27 @@ import {
   assertShiftPlanningOwnerMaintenanceObservation,
   ShiftPlanningOwnerMaintenanceAgreement,
 } from "./shift-planning-owner-maintenance.js";
+import {
+  parseShiftPlanningAdministratorMaintenanceAgreement,
+  assertShiftPlanningAdministratorMaintenanceObservation,
+  ShiftPlanningAdministratorMaintenanceAgreement,
+} from "./shift-planning-administrator-maintenance.js";
 
 export type ShiftPlanningOwnerAgreementMode = {
   schemaVersion: 2;
   maintenanceMode: "owner-agreement";
   expectedOwnerAgreementDigest: ShiftPlanningDigest;
   expectedTechnicalControlManifestDigest: ShiftPlanningDigest;
+};
+export type ShiftPlanningAdministratorAgreementMode = Omit<
+  ShiftPlanningOwnerAgreementMode, "schemaVersion" | "maintenanceMode"
+> & {
+  schemaVersion: 3;
+  maintenanceMode: "develop-administrator-agreement";
+  expectedAdministratorAgreementDigest: ShiftPlanningDigest;
+  expectedAdministratorSourceRevision: string;
+  expectedAdministratorSourceDigest: ShiftPlanningDigest;
+  expectedEffectiveIamDigest: ShiftPlanningDigest;
 };
 type ShiftPlanningStrictMode = {
   schemaVersion?: never;
@@ -50,7 +69,25 @@ type ShiftPlanningStrictMode = {
   expectedTechnicalControlManifestDigest?: never;
 };
 type MaintenanceMode =
-  ShiftPlanningStrictMode | ShiftPlanningOwnerAgreementMode;
+  ShiftPlanningStrictMode | ShiftPlanningOwnerAgreementMode |
+  ShiftPlanningAdministratorAgreementMode;
+type PolicyVersion = 1 | 2 | 3;
+const inventoryFor = (version: PolicyVersion) => version === 3 ? {
+  revision: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_DIGEST,
+  writers: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS,
+  intake: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INTAKE_WRITERS,
+} : version === 2 ? {
+  revision: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST,
+  writers: SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS,
+  intake: SHIFT_PLANNING_OWNER_AGREEMENT_INTAKE_WRITERS,
+} : {revision: SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
+  writers: SHIFT_PLANNING_AFFECTED_WRITERS,
+  intake: SHIFT_PLANNING_INTAKE_BARRIER_WRITERS};
+const versionOf = (value: {schemaVersion?: number}): PolicyVersion =>
+  value.schemaVersion === 3 ? 3 : value.schemaVersion === 2 ? 2 : 1;
 
 export const SHIFT_PLANNING_INTAKE_BARRIER_SCHEMA_VERSION = 1 as const;
 
@@ -67,7 +104,8 @@ export type ShiftPlanningBarrierTransitionBinding = {
 
 export type ShiftPlanningBarrierInventoryBinding = {
   revision: typeof SHIFT_PLANNING_WRITER_INVENTORY_REVISION |
-    typeof SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION;
+    typeof SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION |
+    typeof SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION;
   digest: ShiftPlanningDigest;
 };
 
@@ -165,6 +203,13 @@ export type ShiftPlanningIntakeBarrierEvidencePayload =
     maintenanceMode: "owner-agreement";
     ownerAgreement: ShiftPlanningOwnerMaintenanceAgreement;
     ownerObservation: unknown;
+  } | {
+    schemaVersion: 3;
+    maintenanceMode: "develop-administrator-agreement";
+    ownerAgreement: ShiftPlanningOwnerMaintenanceAgreement;
+    ownerObservation: unknown;
+    administratorAgreement: ShiftPlanningAdministratorMaintenanceAgreement;
+    administratorObservation: unknown;
   });
 
 export type ShiftPlanningIntakeBarrierEvidenceEnvelope = {
@@ -223,7 +268,8 @@ export type ShiftPlanningClosedBarrierScope = MaintenanceMode & {
   minimumQuietHorizonMillis: number;
   maximumEvidenceAgeMillis: number;
   writerInventoryRevision: typeof SHIFT_PLANNING_WRITER_INVENTORY_REVISION |
-    typeof SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION;
+    typeof SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION |
+    typeof SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION;
   writerInventoryDigest: ShiftPlanningDigest;
 };
 
@@ -413,6 +459,30 @@ const ownerMode = (value: UnknownRecord): ShiftPlanningOwnerAgreementMode => {
     ),
   };
 };
+const administratorMode = (
+  value: UnknownRecord,
+): ShiftPlanningAdministratorAgreementMode => {
+  if (value.schemaVersion !== 3 || value.maintenanceMode !==
+      "develop-administrator-agreement" || value.environment !== "develop") {
+    return failBarrier("Administrator cooperation is explicit develop-only.");
+  }
+  return {...ownerMode({...value, schemaVersion: 2,
+    maintenanceMode: "owner-agreement"}), schemaVersion: 3,
+  maintenanceMode: "develop-administrator-agreement",
+  expectedAdministratorAgreementDigest: requireDigest(
+    value.expectedAdministratorAgreementDigest, "administrator agreement"),
+  expectedAdministratorSourceRevision: requireIdentifier(
+    value.expectedAdministratorSourceRevision, "administrator source revision"),
+  expectedAdministratorSourceDigest: requireDigest(
+    value.expectedAdministratorSourceDigest, "administrator source digest"),
+  expectedEffectiveIamDigest: requireDigest(
+    value.expectedEffectiveIamDigest, "effective IAM digest")};
+};
+const cooperativeKeys = ["schemaVersion", "maintenanceMode",
+  "expectedOwnerAgreementDigest", "expectedTechnicalControlManifestDigest"];
+const administratorKeys = ["expectedAdministratorAgreementDigest",
+  "expectedAdministratorSourceRevision", "expectedAdministratorSourceDigest",
+  "expectedEffectiveIamDigest"];
 
 const normalizeMaintenanceEntryRequest = (
   value: ShiftPlanningMaintenanceEntryRequest,
@@ -423,9 +493,10 @@ const normalizeMaintenanceEntryRequest = (
   );
   requireExactKeys(
     command,
-    command.schemaVersion === 2 ? [...maintenanceEntryRequestKeys,
-      "schemaVersion", "maintenanceMode", "expectedOwnerAgreementDigest",
-      "expectedTechnicalControlManifestDigest"] : maintenanceEntryRequestKeys,
+    command.schemaVersion === 3 ? [...maintenanceEntryRequestKeys,
+      ...cooperativeKeys, ...administratorKeys] : command.schemaVersion === 2 ?
+      [...maintenanceEntryRequestKeys, ...cooperativeKeys] :
+      maintenanceEntryRequestKeys,
     "maintenance entry request",
   );
   const expectedActiveRevision = requireNullableIdentifier(
@@ -439,7 +510,8 @@ const normalizeMaintenanceEntryRequest = (
   if ((expectedActiveRevision === null) !== (expectedActiveDigest === null)) {
     return failBarrier("Expected active lineage must change together.");
   }
-  const mode = command.schemaVersion === 2 ? ownerMode(command) : {};
+  const mode = command.schemaVersion === 3 ? administratorMode(command) :
+    command.schemaVersion === 2 ? ownerMode(command) : {};
   return Object.freeze({
     ...mode,
     environment: requireEnvironment(command.environment),
@@ -552,7 +624,7 @@ const parseTransition = (
 
 const parseInventory = (
   value: unknown,
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningBarrierInventoryBinding => {
   const inventory = requireRecord(value, "writer inventory binding");
   requireExactKeys(
@@ -565,12 +637,8 @@ const parseInventory = (
     "writer inventory revision",
   );
   const digest = requireDigest(inventory.digest, "writer inventory digest");
-  const expectedRevision = cooperative ?
-    SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION :
-    SHIFT_PLANNING_WRITER_INVENTORY_REVISION;
-  const expectedDigest = cooperative ?
-    SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST :
-    SHIFT_PLANNING_WRITER_INVENTORY_DIGEST;
+  const {revision: expectedRevision, digest: expectedDigest} =
+    inventoryFor(version);
   if (revision !== expectedRevision || digest !== expectedDigest) {
     return failBarrier("Writer inventory binding does not match the runtime.");
   }
@@ -697,13 +765,9 @@ const parseRules = (value: unknown): ShiftPlanningRulesBarrierEvidence => {
   };
 };
 
-const writerById = new Map<string, ShiftPlanningAffectedWriter>(
-  SHIFT_PLANNING_AFFECTED_WRITERS.map((writer) => [writer.writerId, writer]),
-);
-
 const parseWriterControl = (
   value: unknown,
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningWriterControlEvidence => {
   const control = requireRecord(value, "writer control evidence");
   requireExactKeys(control, [
@@ -722,9 +786,8 @@ const parseWriterControl = (
     "inFlightWorkCount",
   ], "writer control evidence");
   const writerId = requireIdentifier(control.writerId, "writerId");
-  const writer = cooperative ? SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS.find(
-    (item) => item.writerId === writerId,
-  ) : writerById.get(writerId);
+  const writer = inventoryFor(version).writers.find(
+    (item) => item.writerId === writerId);
   if (!writer || writer.shutdownOrder === "activation-recheck") {
     return failBarrier(`Writer ${writerId} is not an intake-barrier writer.`);
   }
@@ -798,14 +861,12 @@ const parseWriterControl = (
 const parseWriterControls = (
   value: unknown,
   rules: ShiftPlanningRulesBarrierEvidence,
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningWriterControlEvidence[] => {
   const controls = requireArray(value, "writer controls")
-    .map((control) => parseWriterControl(control, cooperative))
+    .map((control) => parseWriterControl(control, version))
     .sort((left, right) => compareIdentifiers(left.writerId, right.writerId));
-  const expectedWriterIds = (cooperative ?
-    SHIFT_PLANNING_OWNER_AGREEMENT_INTAKE_WRITERS :
-    SHIFT_PLANNING_INTAKE_BARRIER_WRITERS)
+  const expectedWriterIds = inventoryFor(version).intake
     .map((writer) => writer.writerId)
     .sort();
   const actualWriterIds = controls.map((control) => control.writerId);
@@ -839,12 +900,12 @@ const parseWriterControls = (
  */
 export const createShiftPlanningControlManifestDigest = (
   controls: readonly ShiftPlanningWriterControlEvidence[],
-  mode?: "owner-agreement",
+  mode?: "owner-agreement" | "develop-administrator-agreement",
 ): ShiftPlanningDigest => createShiftPlanningDigest({
   schemaVersion: SHIFT_PLANNING_INTAKE_BARRIER_SCHEMA_VERSION,
-  writerInventoryRevision: mode === "owner-agreement" ?
-    SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION :
-    SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
+  writerInventoryRevision: inventoryFor(mode ===
+    "develop-administrator-agreement" ? 3 : mode === "owner-agreement" ? 2 : 1)
+    .revision,
   controls: controls
     .map((control) => ({
       writerId: control.writerId,
@@ -1054,21 +1115,44 @@ const validateCommandBinding = (
   command: ShiftPlanningMaintenanceEntryRequest,
 ): void => {
   const transition = payload.transition;
-  if (payload.schemaVersion === 2) {
-    if (command.schemaVersion !== 2 ||
+  if (payload.schemaVersion !== 1) {
+    if (command.schemaVersion !== payload.schemaVersion ||
         payload.ownerAgreement.digest !==
           command.expectedOwnerAgreementDigest ||
         createShiftPlanningControlManifestDigest(payload.writerControls.filter(
           (control) => control.writerId !==
-            SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID,
-        ), "owner-agreement") !==
+            SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID &&
+            control.writerId !==
+              SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID,
+        ), payload.maintenanceMode) !==
           command.expectedTechnicalControlManifestDigest ||
         payload.writerControls.find((control) => control.writerId ===
           SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID)?.controlDigest !==
           payload.ownerAgreement.digest) {
       failBarrier("Owner agreement does not bind its operation controls.");
     }
-  } else if (command.schemaVersion === 2) {
+    if (payload.schemaVersion === 3 && (command.schemaVersion !== 3 ||
+        payload.administratorAgreement.digest !==
+          command.expectedAdministratorAgreementDigest ||
+        payload.writerControls.find((control) => control.writerId ===
+          SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID)?.controlDigest !==
+          payload.administratorAgreement.digest)) {
+      failBarrier("Administrator agreement does not bind its controls.");
+    }
+    if (payload.schemaVersion === 3) {
+      const administrator = payload.writerControls.find((control) =>
+        control.writerId === SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID);
+      const observed = requireRecord(payload.administratorObservation,
+        "historical administrator observation");
+      if (!administrator || payload.administratorAgreement.payload.confirmations
+        .some((confirmation) => confirmation.confirmedAtMillis >
+          administrator.closedAtMillis) ||
+        requireNonNegativeInteger(observed.observedAtMillis,
+          "administrator observation time") > payload.verifiedAtMillis) {
+        failBarrier("Administrator agreement was not recorded before capture.");
+      }
+    }
+  } else if (command.schemaVersion !== undefined) {
     failBarrier("Strict evidence cannot authorize cooperative maintenance.");
   }
   if (
@@ -1090,7 +1174,7 @@ const validateCommandBinding = (
     payload.rules.finalReadBackRevision !== command.expectedRulesRevision ||
     payload.rules.finalReadBackDigest !== command.expectedRulesDigest ||
     createShiftPlanningControlManifestDigest(payload.writerControls,
-      payload.schemaVersion === 2 ? "owner-agreement" : undefined) !==
+      payload.maintenanceMode) !==
       command.expectedControlManifestDigest ||
     payload.workbook.fileId !== command.expectedWorkbookFileId ||
     payload.workbook.revision !== command.expectedWorkbookRevision ||
@@ -1148,9 +1232,8 @@ const validateChronology = (
     failBarrier("Barrier evidence chronology is invalid or stale.");
   }
   for (const control of payload.writerControls) {
-    const writer = payload.schemaVersion === 2 ?
-      SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS.find((item) =>
-        item.writerId === control.writerId) : writerById.get(control.writerId);
+    const writer = inventoryFor(versionOf(payload)).writers.find((item) =>
+      item.writerId === control.writerId);
     if (!writer) {
       return failBarrier("Barrier writer disappeared from inventory.");
     }
@@ -1189,27 +1272,43 @@ const barrierEvidenceExpiresAtMillis = (
 ): number => Math.min(
   oldestBarrierObservationMillis(payload) +
     payload.policy.maximumEvidenceAgeMillis,
-  payload.schemaVersion === 2 ?
+  payload.schemaVersion !== 1 ?
     payload.ownerAgreement.payload.intent.endsAtMillis :
+    Number.MAX_SAFE_INTEGER,
+  payload.schemaVersion === 3 ?
+    payload.administratorAgreement.payload.intent.endsAtMillis :
     Number.MAX_SAFE_INTEGER,
 );
 
 const parsePayload = (
   value: unknown,
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningIntakeBarrierEvidencePayload => {
   const payload = requireRecord(value, "intake barrier payload");
+  const cooperative = version !== 1;
   requireExactKeys(payload, cooperative ? [...payloadKeys, "maintenanceMode",
-    "ownerAgreement", "ownerObservation"] : payloadKeys,
+    "ownerAgreement", "ownerObservation", ...(version === 3 ?
+      ["administratorAgreement", "administratorObservation"] : [])] :
+    payloadKeys,
   "intake barrier payload");
-  if (payload.schemaVersion !== (cooperative ? 2 : 1) ||
-      (cooperative && payload.maintenanceMode !== "owner-agreement")) {
+  if (payload.schemaVersion !== version ||
+      (cooperative && payload.maintenanceMode !== (version === 3 ?
+        "develop-administrator-agreement" : "owner-agreement")) ||
+      (version === 3 && payload.environment !== "develop")) {
     return failBarrier("Intake barrier schema version is unsupported.");
   }
   const rules = parseRules(payload.rules);
   return {
     ...(cooperative ? {
-      schemaVersion: 2 as const, maintenanceMode: "owner-agreement" as const,
+      ...(version === 3 ? {schemaVersion: 3 as const,
+        maintenanceMode: "develop-administrator-agreement" as const,
+        administratorAgreement:
+          parseShiftPlanningAdministratorMaintenanceAgreement(
+            payload.administratorAgreement),
+        administratorObservation: detachedCanonicalValue(
+          payload.administratorObservation, "administrator observation"),
+      } : {schemaVersion: 2 as const,
+        maintenanceMode: "owner-agreement" as const}),
       ownerAgreement: parseShiftPlanningOwnerMaintenanceAgreement(
         payload.ownerAgreement,
       ),
@@ -1223,11 +1322,11 @@ const parsePayload = (
       "barrier revision",
     ),
     transition: parseTransition(payload.transition),
-    writerInventory: parseInventory(payload.writerInventory, cooperative),
+    writerInventory: parseInventory(payload.writerInventory, version),
     policy: parsePolicy(payload.policy),
     rules,
     writerControls: parseWriterControls(
-      payload.writerControls, rules, cooperative,
+      payload.writerControls, rules, version,
     ),
     causalDrain: parseCausalDrain(payload.causalDrain),
     workbook: parseWorkbook(payload.workbook),
@@ -1246,12 +1345,12 @@ const parsePayload = (
  * to maintenance admission, while immutable evidence storage must also read
  * terminal packets after their admission window has elapsed.
  * @param {unknown} value Untrusted evidence envelope.
- * @param {boolean} cooperative Whether explicit v2 is required.
+ * @param {number} version Explicit policy version.
  * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Normalized envelope.
  */
 const parseEvidenceEnvelope = (
   value: unknown,
-  cooperative = false,
+  version: PolicyVersion = 1,
 ): ShiftPlanningIntakeBarrierEvidenceEnvelope => {
   const canonicalEnvelope = detachedCanonicalValue(
     value,
@@ -1262,7 +1361,7 @@ const parseEvidenceEnvelope = (
     "intake barrier envelope",
   );
   requireExactKeys(envelope, ["payload", "digest"], "intake barrier envelope");
-  const payload = parsePayload(envelope.payload, cooperative);
+  const payload = parsePayload(envelope.payload, version);
   const digest = requireDigest(
     envelope.digest,
     "intake barrier evidence digest",
@@ -1290,7 +1389,17 @@ export const parseShiftPlanningIntakeBarrierEvidenceEnvelope = (
 export const parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope = (
   value: unknown,
 ): ShiftPlanningIntakeBarrierEvidenceEnvelope =>
-  parseEvidenceEnvelope(value, true);
+  parseEvidenceEnvelope(value, 2);
+
+/**
+ * Parses ADR-0022 only through its explicit develop-only policy version.
+ * @param {unknown} value Version 3 evidence.
+ * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Exact evidence.
+ */
+export const parseShiftPlanningAdministratorAgreementIntakeBarrierEvidence = (
+  value: unknown,
+): ShiftPlanningIntakeBarrierEvidenceEnvelope =>
+  parseEvidenceEnvelope(value, 3);
 
 /**
  * Reads immutable retained evidence of either explicit version.
@@ -1302,7 +1411,7 @@ export const parseShiftPlanningMaintenanceBarrierEvidenceEnvelope = (
 ): ShiftPlanningIntakeBarrierEvidenceEnvelope => {
   const envelope = requireRecord(value, "maintenance evidence");
   const payload = requireRecord(envelope.payload, "maintenance payload");
-  return parseEvidenceEnvelope(value, payload.schemaVersion === 2);
+  return parseEvidenceEnvelope(value, versionOf(payload));
 };
 
 /**
@@ -1323,9 +1432,7 @@ const verifyIntakeBarrierEvidence = (
   requireFreshness: boolean,
 ): VerifiedShiftPlanningIntakeBarrier => {
   const {payload, digest} =
-    command.schemaVersion === 2 ?
-      parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope(value) :
-      parseShiftPlanningIntakeBarrierEvidenceEnvelope(value);
+    parseEvidenceEnvelope(value, versionOf(command));
   const normalizedNow = requireNonNegativeInteger(
     nowMillis,
     "verification clock",
@@ -1333,7 +1440,7 @@ const verifyIntakeBarrierEvidence = (
   const normalizedCommand = normalizeMaintenanceEntryRequest(command);
   validateCommandBinding(payload, normalizedCommand);
   validateChronology(payload, normalizedNow, requireFreshness);
-  if (payload.schemaVersion === 2) {
+  if (payload.schemaVersion !== 1) {
     assertShiftPlanningOwnerMaintenanceObservation({
       agreement: payload.ownerAgreement, observation: payload.ownerObservation,
       environment: command.environment, operationId: command.transitionId,
@@ -1346,6 +1453,28 @@ const verifyIntakeBarrierEvidence = (
       authoritativeDigest: command.expectedAuthoritativeDigest,
       technicalControlManifestDigest:
         command.expectedTechnicalControlManifestDigest as ShiftPlanningDigest,
+      nowMillis: normalizedNow,
+      maximumEvidenceAgeMillis: command.maximumEvidenceAgeMillis,
+      requireFreshWindow: requireFreshness,
+    });
+  }
+  if (payload.schemaVersion === 3 && command.schemaVersion === 3) {
+    assertShiftPlanningAdministratorMaintenanceObservation({
+      agreement: payload.administratorAgreement,
+      observation: payload.administratorObservation,
+      environment: command.environment,
+      ownerAgreementDigest: command.expectedOwnerAgreementDigest,
+      affectedScopeDigest: command.expectedAuthoritativeDigest,
+      writeEpoch: command.expectedWriteEpoch,
+      activeRevision: command.expectedActiveRevision,
+      activeDigest: command.expectedActiveDigest,
+      technicalControlManifestDigest:
+        command.expectedTechnicalControlManifestDigest,
+      sourceRevision: command.expectedAdministratorSourceRevision,
+      sourceDigest: command.expectedAdministratorSourceDigest,
+      effectiveIamDigest: command.expectedEffectiveIamDigest,
+      operationId: command.transitionId, operationKind: "maintenance-entry",
+      operationManifestDigest: command.expectedTechnicalControlManifestDigest,
       nowMillis: normalizedNow,
       maximumEvidenceAgeMillis: command.maximumEvidenceAgeMillis,
       requireFreshWindow: requireFreshness,
@@ -1374,7 +1503,7 @@ export const verifyShiftPlanningIntakeBarrierEvidence = (
   command: ShiftPlanningMaintenanceEntryRequest,
   nowMillis: number,
 ): VerifiedShiftPlanningIntakeBarrier => {
-  if (command.schemaVersion === 2) {
+  if (command.schemaVersion !== undefined) {
     return failBarrier("Strict admission cannot accept owner-agreement mode.");
   }
   return verifyIntakeBarrierEvidence(value, command, nowMillis, true);
@@ -1398,6 +1527,23 @@ export const verifyShiftPlanningOwnerAgreementIntakeBarrierEvidence = (
   return verifyIntakeBarrierEvidence(value, command, nowMillis, true);
 };
 
+/**
+ * Admits explicit develop administration while preserving all technical gates.
+ * @param {unknown} value Version 3 evidence.
+ * @param {ShiftPlanningMaintenanceEntryRequest} command Version 3 command.
+ * @param {number} nowMillis Trusted current clock.
+ * @return {VerifiedShiftPlanningIntakeBarrier} Bound evidence.
+ */
+export const verifyShiftPlanningAdministratorAgreementIntakeBarrierEvidence = (
+  value: unknown, command: ShiftPlanningMaintenanceEntryRequest,
+  nowMillis: number,
+): VerifiedShiftPlanningIntakeBarrier => {
+  if (command.schemaVersion !== 3) {
+    return failBarrier("Administrator admission requires explicit version 3.");
+  }
+  return verifyIntakeBarrierEvidence(value, command, nowMillis, true);
+};
+
 const requireFreshBarrierEvidence = (
   verified: VerifiedShiftPlanningIntakeBarrier,
   nowMillis: number,
@@ -1406,7 +1552,7 @@ const requireFreshBarrierEvidence = (
   if (
     verified.barrier.verifiedAtMillis > now ||
     now > verified.expiresAtMillis ||
-    (verified.evidence.payload.schemaVersion === 2 &&
+    (verified.evidence.payload.schemaVersion !== 1 &&
       now >= verified.evidence.payload.ownerAgreement.payload.intent
         .endsAtMillis)
   ) {
@@ -1498,13 +1644,11 @@ const maintenanceScope = (
     expectedCausalSetDigest: command.expectedCausalSetDigest,
     minimumQuietHorizonMillis: command.minimumQuietHorizonMillis,
     maximumEvidenceAgeMillis: command.maximumEvidenceAgeMillis,
-    writerInventoryRevision: command.schemaVersion === 2 ?
-      SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION :
-      SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
-    writerInventoryDigest: command.schemaVersion === 2 ?
-      SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST :
-      SHIFT_PLANNING_WRITER_INVENTORY_DIGEST};
-  return command.schemaVersion === 2 ? {
+    writerInventoryRevision: inventoryFor(versionOf(command)).revision,
+    writerInventoryDigest: inventoryFor(versionOf(command)).digest};
+  return command.schemaVersion === 3 ? {
+    ...common, ...administratorMode(command as unknown as UnknownRecord),
+  } : command.schemaVersion === 2 ? {
     ...common, ...ownerMode(command as unknown as UnknownRecord),
   } : common;
 };
@@ -1528,7 +1672,7 @@ export const enterShiftPlanningMaintenanceBehindIntakeBarrier = async (
 ): Promise<ShiftPlanningMaintenanceTransitionResult> => {
   const stableCommand = normalizeMaintenanceEntryRequest(command);
   const scope = maintenanceScope(stableCommand);
-  if (stableCommand.schemaVersion === 2) {
+  if (stableCommand.schemaVersion !== undefined) {
     const terminal = await dependencies.statePersistence
       .loadMaintenanceTransition({
         environment: stableCommand.environment,
@@ -1686,6 +1830,7 @@ export const enterShiftPlanningMaintenanceBehindIntakeBarrier = async (
  * @param {string} environment Exact phase environment.
  * @param {string} workbookId Exact phase workbook.
  * @param {number} nowMillis Current trusted clock.
+ * @param {object} administrator Explicit develop source and IAM binding.
  * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Verified technical data.
  */
 export const verifyShiftPlanningOwnerSheetsTechnicalEvidence = (
@@ -1694,14 +1839,55 @@ export const verifyShiftPlanningOwnerSheetsTechnicalEvidence = (
   environment: ShiftPlanningEnvironment,
   workbookId: string,
   nowMillis: number,
+  administrator?: {sourceRevision: string; sourceDigest: string;
+    effectiveIamDigest: string},
 ): {evidence: ShiftPlanningIntakeBarrierEvidenceEnvelope;
   technicalExpiresAtMillis: number} => {
-  const evidence =
+  const evidence = administrator ?
+    parseShiftPlanningAdministratorAgreementIntakeBarrierEvidence(value) :
     parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope(value);
   if (evidence.digest !== expectedDigest ||
       evidence.payload.environment !== environment ||
       evidence.payload.workbook.fileId !== workbookId) {
     return failBarrier("Sheets technical control scope changed.");
+  }
+  if (administrator && (environment !== "develop" ||
+      evidence.payload.schemaVersion !== 3 ||
+      evidence.payload.administratorAgreement.payload.intent.sourceRevision !==
+        administrator.sourceRevision ||
+      evidence.payload.administratorAgreement.payload.intent.sourceDigest !==
+        administrator.sourceDigest ||
+      evidence.payload.administratorAgreement.payload.intent
+        .effectiveIamDigest !==
+        administrator.effectiveIamDigest)) {
+    return failBarrier("Sheets administrator source or IAM authority changed.");
+  }
+  if (evidence.payload.schemaVersion === 3) {
+    const payload = evidence.payload;
+    const intent = payload.administratorAgreement.payload.intent;
+    verifyIntakeBarrierEvidence(evidence, {
+      ...payload.transition, ...payload.policy,
+      environment: payload.environment, schemaVersion: 3,
+      maintenanceMode: "develop-administrator-agreement",
+      expectedBarrierRevision: payload.barrierRevision,
+      expectedRulesRevision: payload.rules.finalReadBackRevision,
+      expectedRulesDigest: payload.rules.finalReadBackDigest,
+      expectedControlManifestDigest: createShiftPlanningControlManifestDigest(
+        payload.writerControls, payload.maintenanceMode),
+      expectedWorkbookFileId: payload.workbook.fileId,
+      expectedWorkbookRevision: payload.workbook.revision,
+      expectedWorkbookDigest: payload.workbook.digest,
+      expectedCausalSetRevision: payload.causalDrain.acceptedSetRevision,
+      expectedCausalSetDigest: payload.causalDrain.acceptedSetDigest,
+      expectedOwnerAgreementDigest: payload.ownerAgreement.digest,
+      expectedTechnicalControlManifestDigest:
+        intent.technicalControlManifestDigest,
+      expectedAdministratorAgreementDigest:
+        payload.administratorAgreement.digest,
+      expectedAdministratorSourceRevision: intent.sourceRevision,
+      expectedAdministratorSourceDigest: intent.sourceDigest,
+      expectedEffectiveIamDigest: intent.effectiveIamDigest,
+    }, nowMillis, false);
   }
   validateChronology(evidence.payload, nowMillis, true);
   return {evidence, technicalExpiresAtMillis:

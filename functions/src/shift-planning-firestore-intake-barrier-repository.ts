@@ -290,12 +290,14 @@ const parseFailureRecord = (
   );
   requireExactKeys(
     persisted,
-    persisted.schemaVersion === 2 ?
-      [...failureRecordKeys, "ownerIncident"] : failureRecordKeys,
+    persisted.schemaVersion === 3 ?
+      [...failureRecordKeys, "administratorIncident"] :
+      persisted.schemaVersion === 2 ?
+        [...failureRecordKeys, "ownerIncident"] : failureRecordKeys,
     "intake barrier failure closure",
   );
   if (
-    ![1, 2].includes(persisted.schemaVersion as number) ||
+    ![1, 2, 3].includes(persisted.schemaVersion as number) ||
     persisted.operationKind !== "intakeBarrierFailureClosure"
   ) {
     return failState("Barrier failure closure discriminator is invalid.");
@@ -332,6 +334,10 @@ const parseFailureRecord = (
           ownerIncident: persisted.ownerIncident as
             ShiftPlanningIntakeBarrierFailureClosureRequest["ownerIncident"],
         } : {}),
+        ...(persisted.schemaVersion === 3 ? {administratorIncident:
+          persisted.administratorIncident as
+            ShiftPlanningIntakeBarrierFailureClosureRequest[
+              "administratorIncident"]} : {}),
       },
       timestampMillis(requireTimestamp(persisted.failedAt, "failure instant")),
     );
@@ -364,6 +370,8 @@ const normalizedFailureRequest = (
       checkpointDigest: probe.checkpointDigest,
       phase: probe.phase,
       ...(probe.ownerIncident ? {ownerIncident: probe.ownerIncident} : {}),
+      ...(probe.administratorIncident ? {
+        administratorIncident: probe.administratorIncident} : {}),
     };
   } catch {
     return failState("Intake barrier failure closure request is invalid.");
@@ -380,7 +388,8 @@ const failureMatchesRequest = (
   record.checkpointDigest === request.checkpointDigest &&
   record.phase === request.phase && sameCanonicalValue(
   record.ownerIncident ?? null, request.ownerIncident ?? null,
-);
+) && sameCanonicalValue(record.administratorIncident ?? null,
+  request.administratorIncident ?? null);
 
 const requireExactFailureReplay = (
   record: ShiftPlanningIntakeBarrierFailureClosureRecord,
@@ -521,6 +530,9 @@ export const createFirestoreShiftPlanningIntakeBarrierRepository = (
           phase: record.phase,
           ...(record.ownerIncident ? {
             ownerIncident: record.ownerIncident,
+          } : {}),
+          ...(record.administratorIncident ? {
+            administratorIncident: record.administratorIncident,
           } : {}),
           failedAt: Timestamp.fromMillis(failedAtMillis),
           failureDigest: record.failureDigest,

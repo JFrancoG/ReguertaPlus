@@ -487,8 +487,9 @@ open, as do the two missing market months and complete seasonal preview.
   reject incomplete v3 evidence and missing/enabled/undrained jobs before entry.
 - [x] Pass build/full lint, 394 planning tests and a separate 155-case control/
   regression run without failures/skips after the inventory correction.
-- [ ] Authorize/read back the exact three-job pause and reconcile old execution;
-  do not activate production reminders by changing their environment configuration.
+- [x] Authorize/read back the exact three-job pause, without activating production
+  reminders or changing their environment configuration.
+- [ ] Reconcile old execution separately; pause does not prove drain.
 
 The approved client-only phase is accepted: exact candidate Rules, genuine ID-token
 before/after behavior, conditional source/Auth cleanup and unchanged 183 business
@@ -496,3 +497,19 @@ documents/twelve captures. All 24 Functions, IAM/service-account controls and th
 enabled jobs preserve their prior configuration. ADR-0022 is accepted for develop
 human capability only; implementation/admission remains pending. No production
 business/Sheet/FCM operation occurred, and shared maintenance stays closed.
+
+## Grouped administrator/server closure — 2026-10-28
+
+- [x] Commit/push the accepted client Rules/policy checkpoint as `e29b6bdd`.
+- [x] Implement explicit develop administrator v3 using existing intake/Sheets
+  evidence, CAS, incidents and receipts, preserving strict v1/owner v2.
+- [x] Prepare exact-source eight/one HTTP packs with pinned locks, preserved
+  callbacks and explicit direct/effective develop denial.
+- [x] Complete independent review, Functions build/full lint, 400 planning and
+  separate 228-control emulator cases, zero failures/skips.
+- [x] Accept exactly three PAUSED reminder jobs with unchanged semantic config
+  and no invented prior-operation drain.
+- [x] Separately authorize/update/read back the nine scoped HTTP handlers:
+  exact deployed archives, preserved controls and seven 503/two existing IAM403.
+- [ ] Bind actual complete participant confirmations, technical authority and
+  earlier-effect reconciliation before shared maintenance admission.
