@@ -135,9 +135,19 @@ open, as do the two missing market months and complete seasonal preview.
 - [x] Implement and locally rehearse version 2 maintenance entry without fake
   owner fencing or event/effect/epoch/revision bypass: 438 joint passes, build/lint
   and independent source review; this does not establish live readiness.
-- [ ] Compose real provider/owner-observation ports and per-batch Sheets
-  postimage guards, then separately authorize/rehearse the safe-copy procedure
-  before a real maintenance packet can be admitted.
+- [x] Compose the raw Google SDK owner/Drive/Sheets observations and per-batch
+  postimage guards through the existing consumer/receipts; prepare the copy-only
+  packet. Missing current technical-control evidence still blocks progression.
+- [x] Separately authorize and execute the isolated-copy provider procedure:
+  schema 2 owner/local-runner authority, one actual 45-request batch/ten synthetic
+  market rows, seven raw tab images preserved before completion, released demo
+  lease, zero notices and verified temporary-access/identity cleanup; Functions
+  build/full lint and 661 joint regression/emulator tests pass without failures/skips.
+- [x] Include the reviewed implementation and copy evidence in the authorized
+  delivery checkpoint; retain exact Git/remote verification in #268/#269.
+- [ ] Collect a fresh shared owner window, effective authority, durable intake
+  and actual old-writer/effect control before admitting a shared maintenance
+  packet. The successful copy and local SDK-protocol tests do not close this gate.
 - [ ] If the owner cannot confirm the procedure, stop for a separate custody
   decision. Any optional move/transfer must preserve file ID/link, bindings,
   permissions and content on a fixture and by read-back.

@@ -1,3 +1,5 @@
+import type {ShiftPlanningOwnerSheetsProof} from
+  "./shift-planning-owner-sheets-contract.js";
 import {
   ShiftPlanningCompletedSyncCommand,
   ShiftPlanningProcessingSyncCommand,
@@ -20,6 +22,14 @@ export type ShiftPlanningSheetsSyncConsumer = {
   inspect?(
     command: ShiftPlanningProcessingSyncCommand,
   ): Promise<ShiftPlanningSheetsConsumerResult>;
+  authorizeCompletion?(
+    command: ShiftPlanningProcessingSyncCommand,
+    evidence: ShiftPlanningSyncReadBackEvidence,
+  ): Promise<ShiftPlanningOwnerSheetsProof | undefined>;
+  completionFailed?(
+    command: ShiftPlanningProcessingSyncCommand,
+    error: unknown,
+  ): Promise<void>;
 };
 
 export type ShiftPlanningSyncExecutionResult =
@@ -82,10 +92,18 @@ export const executeShiftPlanningSyncCommand = async (input: {
   if ("kind" in evidence) {
     return {kind: "reconciliationRequired", commandId: claim.command.commandId};
   }
-  const completion = await input.repository.complete({
-    token: claim.token,
-    evidence,
-  });
+  const ownerProof = await input.consumer.authorizeCompletion?.(
+    claim.command, evidence,
+  );
+  let completion;
+  try {
+    completion = await input.repository.complete({
+      token: claim.token, evidence, ...(ownerProof ? {ownerProof} : {}),
+    });
+  } catch (error) {
+    await input.consumer.completionFailed?.(claim.command, error);
+    throw error;
+  }
   return {
     kind: completion.kind === "committed" ? "completed" : "terminalReplay",
     command: completion.command,

@@ -228,6 +228,102 @@ Exact commands, hashes, full TAP and initial/final logs remain private in
 `2026-10-28-owner-maintenance`. This contract was validated against `3aafe4e8`;
 no shared resource, native source or deployment setting changed.
 
+## Real controls and protected Sheets batches — 2026-10-28
+
+The entry contract is delivered as `2690528e`. The current local group connects
+[the concrete composition](../../functions/src/shift-planning-owner-sheets-composition.ts)
+to the public Google SDK and existing Firestore command, authorization, submission
+and workbook-exclusion records. It adds no Function export, deployment switch,
+parallel ledger or retry controller.
+
+The raw reader pins workbook/runtime permission identity, paginates permissions
+and observes owner, capabilities, restrictions, protections, metadata and bounded
+selected grids. Missing/denied/incomplete authority stays unknown. Metadata-only
+tabs do not imply cell coverage. Omitted empty `contentRestrictions` is normalized
+only by the explicit trusted raw collector; connector summaries are not that
+proof. The deprecated capability is replaced by the
+[current editor/owner/removal fields](https://developers.google.com/workspace/drive/api/reference/rest/v3/files).
+
+The reviewed authorization binds the complete preservation manifest and exact
+request/projection digests to agreement, command, lineage, epoch and claim.
+The [preservation compiler](../../functions/src/shift-sheets-owner-manifest.ts)
+accepts only the five shapes emitted by the adapter: `addSheet`, growing
+`updateSheetProperties`, bounded `updateCells` using only `userEnteredValue`,
+and creation/update of its developer marker. It checks expected values/clears,
+preserves observed untouched values, formats, notes, rich text and validations,
+and rejects unreviewed tab/control changes. Only completely observed grids can
+change. Existing request, read-cell, dimension and persistence budgets apply.
+
+Fresh controls precede submission, verification and completion, including cached
+physical evidence. The final Firestore transaction compares the pinned approval's
+update time, owner-report digest, immutable core and absence of incident alongside
+current command/epoch/deadline. A synchronous deadline check precedes the SDK call.
+Observed withdrawal/drift is retained in the same authorization/receipt path;
+restoring content or permissions does not clear it. Workbook serialization lasts
+until command completion across partitions; old consumers reject these receipts.
+
+The physical call remains one `batchUpdate` without SDK retries. Lost
+acknowledgement permits inspection only: exact postimage plus current controls
+can resolve it; uncertainty retains the incident and lease.
+[Google batch atomicity](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate)
+is not compare-and-swap against collaborators. This does not eliminate owner
+races, prove cancellation or guarantee server commit before the local deadline.
+Historical technical evidence is not a current hold: the independent fresh
+control reader is mandatory and defaults to blocked. Real old-writer drain and
+effective authority remain operational prerequisites.
+
+### Copy rehearsal packet
+
+Read-only preparation located the previous isolated native copy and seven tabs.
+The connector omitted requested raw Drive version/capabilities/restrictions;
+those facts remain unknown. No cells, permissions, identities or original files
+were changed. Exact identity, observations and access/window proposal remain in
+the private `2026-10-28-sheets-maintenance-controls` packet.
+
+`prepareCopyRehearsal` derives the batch/manifest through the actual adapter,
+demo source rows and SDK observations. It has no physical batch path, claims
+no command, writes no receipt/incident and always returns `canApply:false`.
+Its local test is not a real-provider rehearsal. The prepared copy scenario is
+one uniquely named canonical delivery tab with synthetic rows, preserving the
+seven existing tabs and leaving the canary for review. Blind tab deletion is
+not supported recovery.
+
+Before separately authorized execution:
+
+1. Review the exact copy, protected original IDs, synthetic manifest, before/after
+   images and window (maximum proposed duration: 20 minutes). No start/end or
+   owner confirmation has been collected.
+2. Authorize a new keyless test identity and exact temporary token/copy grants;
+   verify effective authority and raw SDK readability. Share only this copy.
+   The old test identity stays disabled; do not reuse revoked OAuth or real
+   business data. Firestore stays on the fixed localhost emulator/`demo-` project.
+3. Confirm the owner is online, has closed the copy, has no pending offline edits
+   and will not edit during the window. Collect fresh actual technical controls;
+   a demo hold cannot authorize shared develop activation.
+4. Execute only the reviewed single batch. On ambiguity retain the receipt and
+   inspect; do not resend, delete tabs, restore sharing or disable the worker
+   until outcome and containment are reconciled.
+5. After known terminal reconciliation, read back preservation/permissions,
+   revoke/read back exact temporary token-mint and copy grants, disable the test
+   identity and retain sanitized results privately.
+
+This packet does not authorize those actions. No user action is needed for local
+implementation. Copy execution, shared deployment, original/develop/production
+changes, migration and notification release remain separate gates.
+
+Local acceptance against delivered `2690528e`: Node 22.23.4, Functions build/full
+lint and five CJS syntax checks pass. The joint isolated Firestore-emulator run
+passes **622 tests, zero failures/skips**, including 29 new concrete-composition
+cases, the full planning list, existing barrier/state/Sheets repositories and
+prior handoff/pause cases. Recording Google protocol exercises the actual Sheets
+adapter; it does not prove provider IAM, actual delivery/drain or physical writes.
+Independent source review found no remaining blockers for this local scope.
+The first run's five sparse-array versus JSON-null comparison failures were
+corrected without relaxing cell/content assertions; diagnostic and final logs,
+commands, hashes and copy observations remain private. The emulator is stopped.
+This group remains local/uncommitted; native sources and deployment exports are
+unchanged, so no new Android/iOS run is required and no platform parity gap arises.
+
 ## Validation and remaining gate
 
 This rehearsal was validated against baseline `f5c3b5db`. Node 22.23.4,
@@ -253,3 +349,58 @@ runtime drain, other-writer controls or a valid operational owner agreement.
 The next live packet still needs fresh
 provider evidence, exact source/authority bindings and separately authorized
 forward/recovery operations; **`canApply:false` remains mandatory**.
+
+
+## Authorized real-copy rehearsal — 2026-10-28
+
+This checkpoint supersedes the earlier prepared-only copy status; the historical
+622-case local result above remains unchanged. The separately authorized run used
+the existing isolated copy, synthetic market data and an actual Google SDK token.
+It sent **one physical `batchUpdate`: 45 requests for ten market rows in one new
+tab**. The seven pre-existing tabs had identical complete raw before/after
+digests, checked before command completion. The new tab remains for review.
+
+The explicit `isolated-copy-runtime` branch uses a schema 2 copy agreement and
+copy-bound authority. Its operator is the actual local runner instance, not an
+invented second human or an invoker-only IAM principal. Fresh identity, exact
+grants/scopes, token deadline, owned process lock, SDK counters and the existing
+submission receipt/pointer bound the run to this copy and its localhost demo
+Firestore project. No fictitious 27-group develop barrier was constructed. The
+shared/default barrier and its real old-writer prerequisites remain unchanged.
+
+The keyless copy identity received a bounded temporary grant and one 300-second
+token with only Sheets and Drive-metadata-read scopes. The token-only SDK client
+uses an explicit 1 ms eager-refresh threshold and `forceRefreshOnFailure:false`: in
+the installed SDK, zero selects its five-minute default and rejects a valid short
+token by attempting refresh. Focused tests and the real provider call verified
+this configuration; no ADC or automatic token renewal is used by the writer.
+A separate real-provider mismatch was corrected only in copy mode: the exact
+file/agreement owner may also inherit a writer grant, since that adds no actor to
+the already retained owner capability. Inherited runtime writers, groups with
+write access and additional writers remain rejected.
+
+The runner checked lock ownership/content/inode and deadlines at submission,
+counted the actual SDK call and retained its durable intent before sending. Fresh
+provider controls and complete raw preservation checks preceded verification and
+completion. The actual emulator command reached `completed`, released its market
+lease and created zero notification events; final counters were one submitted,
+zero in flight and zero unknown. Earlier blocked attempts sent zero SDK batches;
+their incidents were retained rather than cleared to reuse an authorization.
+
+After an initially stale IAM read, repeated idempotent cleanup and fresh
+read-back confirmed: copy ACL owner-only, fresh test identity disabled, no
+user-managed keys, project roles or temporary bindings, denial with the original
+still-valid bearer and denial of a new token request (both observed as 404).
+Private receipts, raw images, diagnostics and cleanup evidence remain in
+`2026-10-28-isolated-copy-rehearsal`; no account/file identifiers, credentials or
+business content are included here.
+
+This proves the bounded physical copy path. It does not establish shared develop
+durable intake, effective old-writer/effect control or operational authority, and
+it performed no original/production workbook I/O, shared Firebase data operation,
+notification release or deployment. Shared admission remains `canApply:false`.
+Final validation passes Functions build/full lint and **661 joint
+emulator/regression tests, zero failures/skips**. Both reviewed groups are included
+in this delivery checkpoint. Their exact commit and remote verification are
+recorded in #268/#269 and draft PR #278. Next is the shared develop
+intake/old-writer/authority work; HU-084 and HU-085 stay open.

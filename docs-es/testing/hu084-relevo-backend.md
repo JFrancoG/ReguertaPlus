@@ -244,6 +244,107 @@ Los comandos exactos, hashes, TAP y registros inicial/final están en el paquete
 privado `2026-10-28-owner-maintenance`. El contrato se validó sobre `3aafe4e8`;
 no cambia recursos compartidos, código nativo ni ajustes de despliegue.
 
+## Lecturas reales y lotes de Sheets protegidos — 28-10-2026
+
+El contrato de entrada está entregado en `2690528e`. El bloque local actual
+conecta [la composición concreta](../../functions/src/shift-planning-owner-sheets-composition.ts)
+con el SDK público de Google y los registros existentes de comando, autorización,
+envío y exclusión del archivo en Firestore. No añade una Function, un cambio de
+despliegue, un registro paralelo ni otro controlador de reintentos.
+
+El lector directo fija archivo e identidad de permisos del proceso, pagina los
+permisos y observa propietario, capacidades, restricciones, protecciones,
+metadatos y cuadrículas seleccionadas con límites. Los datos ausentes, denegados
+o incompletos siguen siendo desconocidos. Leer solo metadatos de una pestaña no
+demuestra sus celdas. La omisión de `contentRestrictions` vacío se normaliza solo
+en el colector directo de confianza; el resumen del conector no es esa prueba.
+Se sustituye la capacidad obsoleta por los
+[campos actuales de editor, propietario y retirada](https://developers.google.com/workspace/drive/api/reference/rest/v3/files).
+
+La autorización revisada vincula el manifiesto completo de preservación y los
+digests del lote y proyección con acuerdo, comando, linaje, época y reclamación.
+El [compilador de preservación](../../functions/src/shift-sheets-owner-manifest.ts)
+solo admite las cinco peticiones del adaptador: `addSheet`, ampliaciones con
+`updateSheetProperties`, `updateCells` acotado a `userEnteredValue` y creación o
+actualización de su marcador. Comprueba valores y borrados esperados, conserva
+valores no afectados, formatos, notas, texto enriquecido y validaciones observados
+y rechaza cambios de pestañas o controles no revisados. Solo se modifican
+cuadrículas observadas completamente. Siguen vigentes los presupuestos de
+peticiones, lectura, dimensiones y persistencia.
+
+Se leen controles frescos antes de enviar, verificar y completar, incluso si ya
+hay prueba física guardada. La última transacción de Firestore compara versión
+exacta de la autorización fijada, digest del informe del propietario, acuerdo
+inmutable y ausencia de incidencia, además de comando, época y plazo actuales.
+Justo antes de llamar al SDK se comprueba el plazo sin suspensión. Una retirada
+o deriva observada se conserva en la misma autorización o recibo; restaurar
+contenido o permisos no borra la incidencia. La exclusión del archivo dura hasta
+completar el comando entre particiones; los consumidores antiguos lo rechazan.
+
+La llamada física sigue siendo un único `batchUpdate` sin reintentos del SDK.
+Si se pierde la respuesta solo se inspecciona: la imagen final exacta y controles
+vigentes pueden resolver el resultado; la incertidumbre conserva incidencia y
+exclusión. La [atomicidad de Google](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate)
+no ofrece compare-and-swap frente a colaboradores. No elimina carreras del
+propietario, prueba cancelación ni garantiza que el servidor termine antes del
+plazo local. La evidencia técnica histórica no acredita una pausa actual: el
+lector independiente de controles vigentes es obligatorio y, si falta, bloquea.
+El drenaje real de escritores antiguos y su autoridad efectiva siguen pendientes.
+
+### Paquete del ensayo en copia
+
+La preparación de solo lectura encontró la copia nativa aislada anterior y sus
+siete pestañas. El conector omitió versión, capacidades y restricciones directas
+de Drive; siguen siendo desconocidas. No se cambiaron celdas, permisos,
+identidades ni originales. Identidad, lecturas y propuesta de acceso y ventana
+quedan en el paquete privado `2026-10-28-sheets-maintenance-controls`.
+
+`prepareCopyRehearsal` deriva lote y manifiesto mediante el adaptador real, filas
+sintéticas del emulador y lecturas del SDK. No tiene vía de envío físico, no
+reclama comandos ni escribe recibos o incidencias y siempre devuelve
+`canApply:false`. Su prueba local no es un ensayo con el proveedor real.
+El escenario preparado es una pestaña canónica de reparto con nombre único y
+filas sintéticas, conservando las siete existentes y dejándola para revisión.
+Borrar pestañas a ciegas no es una recuperación admitida.
+
+Antes de una ejecución autorizada por separado:
+
+1. Revisar copia exacta, identificadores protegidos de originales, manifiesto
+   sintético, imágenes anterior/final y ventana (máximo propuesto: 20 minutos).
+   Aún no se han recogido fechas ni confirmación del propietario.
+2. Autorizar nueva identidad sin claves y permisos temporales exactos de token
+   y copia; comprobar autoridad efectiva y lectura directa. Compartir solo esta
+   copia. La identidad anterior sigue deshabilitada; no se reutiliza OAuth
+   revocado ni datos reales. Firestore permanece en el emulador local y `demo-`.
+3. Confirmar que el propietario está en línea, ha cerrado la copia, no tiene
+   cambios sin conexión pendientes y no editará durante la ventana. Recoger
+   controles reales frescos; una pausa del emulador no autoriza activar develop.
+4. Ejecutar solo el lote revisado. Ante ambigüedad, conservar recibo e inspeccionar;
+   no reenviar, borrar pestañas, restaurar permisos ni deshabilitar el proceso
+   hasta reconciliar resultado y contención.
+5. Tras un resultado terminal conocido, comprobar preservación y permisos,
+   retirar y comprobar los permisos temporales exactos de token y copia,
+   deshabilitar la identidad y conservar resultados sin secretos en privado.
+
+Este paquete no autoriza esas acciones. No hace falta una acción del usuario
+para la implementación local. El ensayo en copia, despliegue compartido, cambios
+en originales/develop/producción, migración y notificaciones siguen separados.
+
+Aceptación local sobre `2690528e` entregado: Node 22.23.4, build y lint completo
+de Functions y cinco comprobaciones de sintaxis CJS correctos. La ejecución
+conjunta en Firestore aislado pasa **622 pruebas, cero fallos/omisiones**,
+incluidos 29 casos nuevos de composición concreta, la lista completa del
+planificador, los repositorios de barrera/estado/Sheets y los casos anteriores de
+relevo/pausa. El protocolo de Google registrado ejercita el adaptador real; no
+demuestra IAM del proveedor, entrega/drenaje real ni escrituras físicas.
+La revisión independiente no encontró bloqueantes para este alcance local.
+Los cinco fallos iniciales al comparar huecos de array con `null` de JSON se
+corrigieron conservando las comprobaciones de celdas y contenido. Logs iniciales
+y finales, comandos, hashes y lecturas de la copia quedan en privado. El emulador
+está detenido. Este bloque sigue local y sin commit; no cambia código nativo ni
+exportaciones de despliegue, por lo que no requiere nuevas pruebas Android/iOS
+ni introduce una diferencia funcional entre plataformas.
+
 ## Validación y condición pendiente
 
 Este ensayo se validó sobre la base `f5c3b5db`. Con Node
@@ -270,3 +371,64 @@ del proveedor, el vaciado del runtime anterior, los controles de otros escritore
 ni un acuerdo operativo vigente del propietario. El paquete real sigue necesitando pruebas actuales del proveedor,
 vinculaciones exactas de fuente/autoridad y operaciones de aplicación/recuperación
 autorizadas por separado; **se mantiene obligatoriamente `canApply:false`**.
+
+
+## Ensayo autorizado en la copia real — 28-10-2026
+
+Este punto sustituye el estado anterior de copia solo preparada; se conserva sin
+cambios el resultado histórico de 622 pruebas locales. La ejecución autorizada
+por separado utilizó la copia aislada existente, datos sintéticos de mercado y
+un token real del SDK de Google. Envió **un único `batchUpdate` físico: 45
+peticiones para diez filas de mercado en una pestaña nueva**. Los digests
+completos de las siete pestañas anteriores fueron idénticos antes y después,
+comprobados antes de completar el comando. La pestaña nueva queda para revisión.
+
+La variante explícita `isolated-copy-runtime` usa un acuerdo de copia de esquema
+2 y autoridad vinculada a esa copia. Su operador es la instancia real del proceso
+local, sin inventar una segunda persona ni un principal IAM con permiso exclusivo
+de invocación. Identidad, permisos y scopes exactos, vencimiento del token, bloqueo
+del proceso, contadores reales del SDK y el recibo/puntero de envío existentes
+limitaron la ejecución a esta copia y su proyecto demo de Firestore en localhost.
+No se construyó una barrera ficticia de los 27 grupos de develop. La barrera
+compartida por defecto y los requisitos de escritores antiguos no cambian.
+
+La identidad de copia sin claves recibió un permiso temporal acotado y un token
+de 300 segundos con solo los scopes de Sheets y lectura de metadatos de Drive.
+El cliente del SDK que recibe únicamente ese token fija un umbral de refresco
+anticipado de 1 ms y `forceRefreshOnFailure:false`: en el SDK instalado, cero
+activa el valor por defecto de cinco minutos e intenta refrescar un token corto
+aún válido. Las pruebas focales y la llamada real comprobaron esta configuración;
+el escritor no usa ADC ni renueva automáticamente el token. Otro desajuste real
+se corrigió solo para la copia: el propietario exacto del archivo y del acuerdo
+puede tener también un permiso heredado de escritura, porque no añade otro actor
+a su capacidad ya reconocida. Siguen rechazados el escritor técnico heredado, los
+grupos con escritura y los escritores adicionales.
+
+El proceso comprobó propiedad, contenido e inode del bloqueo y los plazos antes
+del envío, contó la llamada real del SDK y conservó su intención duradera antes
+de enviarla. Los controles actuales del proveedor y la comparación completa de
+preservación precedieron a la verificación y finalización. El comando real del
+emulador quedó en `completed`, liberó la exclusión de mercado y creó cero eventos
+de notificación; los contadores finales fueron un envío, cero en curso y cero
+inciertos. Los intentos bloqueados anteriores enviaron cero lotes del SDK; sus
+incidencias se conservaron, sin borrarlas para reutilizar una autorización.
+
+Tras una primera lectura IAM aún desactualizada, la limpieza idempotente repetida
+y una lectura actual confirmaron: copia compartida solo con su propietario,
+nueva identidad de ensayo deshabilitada, sin claves propias, roles
+del proyecto ni permisos temporales, rechazo del bearer original todavía vigente
+y rechazo de una nueva emisión de token (ambos observados como 404). Recibos,
+imágenes completas, diagnósticos y limpieza quedan en el paquete privado
+`2026-10-28-isolated-copy-rehearsal`; aquí no se incluyen cuentas, identificadores
+de archivos, credenciales ni datos de negocio.
+
+Esto demuestra la vía física acotada de la copia. No acredita la entrada duradera
+de develop compartido, el control efectivo de escritores antiguos y sus efectos
+ni la autoridad operativa. No hubo acceso a archivos originales o de producción,
+operaciones sobre datos compartidos de Firebase, liberación de avisos ni
+despliegues. La admisión compartida mantiene `canApply:false`. La validación final
+pasa build/lint completo de Functions y **661 pruebas conjuntas de emulador y
+regresión, cero fallos ni saltos**. Ambos bloques revisados se incluyen en este
+punto de entrega; el commit exacto y la comprobación remota quedan registrados
+en #268/#269 y la PR borrador #278. Sigue abordar la entrada, los escritores
+antiguos y la autoridad de develop compartido; HU-084 y HU-085 siguen abiertas.

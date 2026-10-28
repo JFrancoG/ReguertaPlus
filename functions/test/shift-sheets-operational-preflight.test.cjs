@@ -84,6 +84,10 @@ test("observes complete visible ACL and bounded seasonal grids while keeping own
     assert.equal(wire.includes(secret), false);
   assert.ok(f.requests.every((call) => call.options.retry === false && call.options.timeout > 0));
   assert.ok(f.requests.filter((call) => call.api === "permissions.list").every((call) => call.request.supportsAllDrives === true));
+  const metadataFields = f.requests.filter((call) => call.api === "files.get" && call.request.fields.includes("capabilities")).map((call) => call.request.fields);
+  assert.ok(metadataFields.every((fields) => !fields.includes("canModifyContentRestriction")));
+  for (const capability of ["canModifyEditorContentRestriction", "canModifyOwnerContentRestriction", "canRemoveContentRestriction"])
+    assert.ok(metadataFields.every((fields) => fields.includes(capability)));
 });
 
 test("observer capabilities are its own and never inferred from the owner's role", async () => {
@@ -202,6 +206,10 @@ test("reuses snapshot bounds before requesting an oversized grid", async () => {
   await rejected(f.observe(), "workbook_observation_unavailable");
   assert.equal(f.snapshotReads, 1);
   assert.equal(f.requests.some((call) => call.api === "sheets.get" && call.request.ranges), false);
+  const preservation = fixture({mutateState: (state) => { state.sheets[0].properties.gridProperties.rowCount = 100000; }});
+  await rejected(preservation.observe({collector: "googleapis-raw", includePreservationCells: true}), "workbook_observation_unavailable");
+  assert.equal(preservation.snapshotReads, 1);
+  assert.equal(preservation.requests.some((call) => call.api === "sheets.get" && call.request.fields.includes("userEnteredFormat")), false);
 });
 
 test("normalizes only whitelisted API values and keeps protection evidence separate from content", async () => {
@@ -237,4 +245,76 @@ test("binds the expected content digest before asynchronous reads", async () => 
   const result = await observeShiftSheetsWorkbook(detached.input);
   assert.equal(result.summary.contentDigest, clean.summary.contentDigest);
   assert.equal(result.summary.selectedTabCount, 4);
+});
+
+test("observes restrictions and observer-specific restriction capabilities without inferring omitted authority", async () => {
+  const unknown = await fixture().observe();
+  assert.equal(unknown.privateObservation.file.contentRestrictions, null);
+  assert.equal(unknown.privateObservation.file.capabilities.canModifyOwnerContentRestriction, null);
+  const file = {contentRestrictions: [{readOnly: true, ownerRestricted: true,
+    systemRestricted: false, reason: "sealed maintenance", type: "globalContentRestriction"}],
+  capabilities: {canEdit: true, canModifyContent: false, canShare: true,
+    canModifyEditorContentRestriction: false,
+    canModifyOwnerContentRestriction: false, canRemoveContentRestriction: false}};
+  const known = await fixture({file}).observe();
+  assert.equal(known.privateObservation.file.contentRestrictions[0].ownerRestricted, true);
+  assert.equal(known.privateObservation.file.capabilities.canRemoveContentRestriction, false);
+  assert.notEqual(known.privateObservation.authorityDigest, unknown.privateObservation.authorityDigest);
+  assert.ok(known.summary.blockers.includes("observer_cannot_modify_content"));
+  assert.equal(known.summary.canApply, false);
+  assert.ok(fixture().input.files.get);
+});
+
+test("accepts omitted empty restrictions only on the explicit direct raw Google REST path", async () => {
+  const raw = await fixture().observe({collector: "googleapis-raw"});
+  const empty = await fixture({file: {contentRestrictions: []}}).observe();
+  assert.deepEqual(raw.privateObservation.file.contentRestrictions, []);
+  assert.equal(raw.privateObservation.authorityDigest, empty.privateObservation.authorityDigest);
+  assert.equal(raw.privateObservation.file.capabilities.canModifyOwnerContentRestriction, null);
+  const unknown = await fixture({file: {contentRestrictions: null}}).observe({collector: "googleapis-raw"});
+  assert.equal(unknown.privateObservation.file.contentRestrictions, null);
+  assert.notEqual(raw.privateObservation.authorityDigest, unknown.privateObservation.authorityDigest);
+  assert.equal(raw.summary.canApply, false);
+});
+
+test("separates semantic authority from version changes and reads preservation cells only by explicit opt-in", async () => {
+  const first = await fixture({file: {contentRestrictions: []}}).observe();
+  const next = await fixture({file: {version: "18", contentRestrictions: []}}).observe();
+  assert.notEqual(first.summary.aclDigest, next.summary.aclDigest);
+  assert.equal(first.privateObservation.authorityDigest, next.privateObservation.authorityDigest);
+  const f = fixture({mutateState(state) {
+    const cell = state.sheets[0].data[0].rowData[0].values[0];
+    cell.userEnteredFormat = {textFormat: {bold: true}};
+    cell.note = "private note";
+    cell.textFormatRuns = [{startIndex: 0, format: {italic: true}}];
+    cell.dataValidation = {strict: true};
+  }});
+  const result = await f.observe({includePreservationCells: true});
+  const selected = result.privateObservation.snapshot.sheets.find((sheet) => sheet.properties.title === titles[0]);
+  assert.equal(selected.dataCoverage, "complete");
+  assert.deepEqual(selected.data[0].rowData[0].values[0].userEnteredValue,
+    {stringValue: `Private ${titles[0]}`});
+  assert.equal(selected.data[0].rowData[0].values[0].note, "private note");
+  assert.equal(selected.data[0].rowData[0].values[0].userEnteredFormat.textFormat.bold, true);
+  assert.equal(result.privateObservation.snapshot.sheets.find((s) => s.properties.title.startsWith("histórico")).dataCoverage, "metadata-only");
+  assert.equal(f.snapshotReads, 3);
+  assert.match(f.requests.filter((call) => call.api === "sheets.get").at(-1).request.fields, /userEnteredFormat,note,textFormatRuns,dataValidation/);
+  assert.equal(result.summary.canApply, false);
+});
+
+test("records absence only for exact reviewed addSheet titles without declaring grid coverage", async () => {
+  const changes = {mutateState(state) { state.sheets.shift(); }};
+  const f = fixture(changes);
+  const observed = await f.observe({includePreservationCells: true,
+    allowMissingReviewedTitles: [titles[0]]});
+  assert.deepEqual(observed.privateObservation.absentReviewedTitles, [titles[0]]);
+  assert.equal(observed.privateObservation.snapshot.sheets.some((sheet) => sheet.properties.title === titles[0]), false);
+  assert.equal(observed.summary.selectedTabCount, 3);
+  assert.equal(observed.summary.canApply, false);
+  await rejected(fixture(changes).observe({includePreservationCells: true}), "workbook_selected_tabs_missing");
+  await rejected(fixture(changes).observe({allowMissingReviewedTitles: [titles[1]]}), "workbook_selected_tabs_missing");
+  const unknown = fixture(changes);
+  await rejected(unknown.observe({allowMissingReviewedTitles: ["unapproved tab"]}), "workbook_selected_tabs_invalid");
+  assert.equal(unknown.fileReads, 0);
+  await rejected(fixture(changes).observe({allowMissingReviewedTitles: [titles[0], titles[0]]}), "workbook_selected_tabs_invalid");
 });

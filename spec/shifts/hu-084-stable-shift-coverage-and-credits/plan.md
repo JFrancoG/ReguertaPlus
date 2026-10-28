@@ -2200,3 +2200,105 @@ is composition of the real control-plane/owner observation sources and reviewed
 per-batch Sheets postimage guards, followed by separately authorized safe-copy
 procedure and live operations. Durable event delivery, actual old-work control,
 complete deployed authority bindings and all notification gates remain open.
+
+## Real control read-backs and guarded Sheets operations — 2026-10-28
+
+The owner-entry contract is delivered as `2690528e`, exact remote HEAD verified.
+The maintainer authorizes connecting the real control readers and protecting
+Sheets operations, preparing the copy rehearsal. Reuse #268/#269/current branch,
+the existing Sheets adapter/consumer/executor, workbook submission exclusion and
+receipts. No second controller/ledger or broad Cloud metadata observer is needed.
+Shared deployment, grants, re-enabling the former disabled test identity,
+original workbook writes, migration and notification release are not included.
+
+Read Drive/Sheets controls through pinned public Google resources and exact field
+masks, including restrictions/capabilities, permissions and protected ranges.
+Unknown/denied/incomplete information must block, not become empty authority.
+Join those facts to the reviewed immutable agreement and existing technical
+closure prerequisites; metadata is not old-work drain or effective-IAM proof.
+Keep those independent prerequisites open rather than adding another config-only
+collector that cannot establish them.
+
+Bind each explicitly authorized Sheets batch to command/claim/epoch/lineage,
+workbook, request/projection digests and reviewed before/expected-after images.
+The owner baseline may change only through that exact batch. Revalidate fresh
+controls before submission and before evidence/completion, including cached and
+uncertain inspections. Preserve the single physical batch with retries disabled;
+after submission uncertainty, receipts permit inspection only. A sticky incident
+in the existing receipt/workbook-pointer path must prevent digest-restored or
+unguarded-legacy completion/retry bypasses.
+
+Read-only connector preparation locates the previously created native copy and
+its seven tabs. It reports one visible owner permission, but normalizes away the
+requested version/capabilities/content restrictions; those observations remain
+unknown and cannot admit runtime writes. The copy-only packet must pin its exact
+identity, bounded operations/window and required runtime access before any user
+action or real rehearsal is requested. Original file identifiers and provider
+evidence remain private. No live business data or original Sheet is read here.
+
+Accepted local implementation reuses the existing authorization, schema3
+submission receipt and workbook pointer. It binds the full preservation manifest,
+current owner-report/document version and known control deadlines to each phase.
+The final repository CAS follows all remote reads; a synchronous pre-send check
+closes known deadline drift. Any observed registry change inside a read cycle,
+including change-and-restore, fails closed. Expected batch changes may advance
+the Drive version; untouched observed cells/controls must remain preserved.
+Cached evidence and lost acknowledgements cannot bypass fresh guard checks or
+cause another physical batch. The independent current technical hold is mandatory;
+retained historical evidence alone cannot admit execution.
+
+Final acceptance: Node 22.23.4, Functions build/full lint, five CJS syntax checks,
+622 joint emulator/regression passes with zero failures/skips, local Markdown
+links/diff checks and independent cross-review. The 29 new real-Firestore cases
+use recorded Google protocol through the actual adapter, not real Google writes.
+The first run had five JSON-null/sparse-array comparison failures, corrected
+without weakening content assertions; all diagnostics and final hashes remain
+private. The owned emulator is stopped. This group is local/uncommitted against
+delivered `2690528e`; native/deployment exports and shared resources are unchanged.
+
+The private packet proposes one synthetic canonical delivery tab on the existing
+seven-tab copy (eight total), a new copy-only keyless test identity and a maximum
+20-minute owner window. No identity/grant/window confirmation is applied. The
+read-only preparation method always returns `canApply:false`, performs no claim
+or receipt/incident write and has no physical batch route. Next is separate
+authorization and real-copy rehearsal, with fresh raw SDK/authority evidence and
+owner confirmation; original develop/production migration, old-writer/drain,
+durable intake and notification gates remain open. No maintainer action was
+needed for this local group.
+
+
+## Authorized physical copy checkpoint — 2026-10-28
+
+The separately authorized Google-provider rehearsal is complete on the existing
+isolated copy. The explicit schema 2 copy agreement names the human owner and
+the actual local runner; its technical branch does not fabricate the shared
+27-group barrier. Fixed copy/runtime/token/lock authority and localhost demo
+Firestore reuse the existing authorization, receipt/pointer and command CAS.
+Shared/default admission remains unchanged.
+
+One SDK `batchUpdate` sent 45 requests for ten synthetic market rows in one new
+tab. Complete raw before/after digests of the seven existing tabs were identical
+and checked before completion. The actual emulator command completed, its market
+lease was released and no notification event was created. Earlier blocked
+zero-submission attempts retain their incidents. The owner-only inherited writer
+exception is limited to the exact file/agreement owner; runtime inheritance,
+write groups and extra writers remain denied. The token-only client explicitly
+uses a 1 ms eager-refresh threshold and no force-refresh, accommodating the
+installed SDK's five-minute default without renewing the 300-second token.
+
+Cleanup verifies owner-only copy sharing, disabled fresh keyless identity, zero
+project roles/temporary bindings, rejection of the still-valid bearer and denial
+of another mint. Evidence stays in the private
+`2026-10-28-isolated-copy-rehearsal` packet. Final acceptance passes Functions
+build/full lint and 661 joint emulator/regression tests with zero failures/skips;
+the earlier 622-case history is unchanged. An initially stale IAM read was resolved
+by repeated idempotent cleanup and fresh disabled/no-binding read-back.
+
+No original/production workbook I/O, shared data operation, deploy or notification
+release occurred. Both reviewed groups are included in the maintainer-authorized
+delivery checkpoint; exact Git/remote verification is recorded in #268/#269 and
+draft PR #278. All 28 accepted file hashes were checked before the delivery-only
+documentation/changelog edits, so the 661-test/build/lint acceptance is reused.
+Next is durable shared develop intake and effective old-writer/effect/authority
+control. The copy result does not admit a shared maintenance packet or close
+HU-084/HU-085.

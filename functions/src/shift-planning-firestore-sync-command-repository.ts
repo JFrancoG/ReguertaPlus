@@ -1,3 +1,13 @@
+import {
+  assertShiftPlanningOwnerSheetsProof,
+  parseShiftPlanningOwnerSheetsIncident,
+  parseShiftPlanningOwnerSheetsProof,
+  parseShiftPlanningOwnerSheetsAuthorization,
+  parseShiftPlanningOwnerSheetsAuthorizationSnapshot,
+  shiftPlanningOwnerSheetsAuthorizationDigest,
+  ShiftPlanningOwnerSheetsAuthorizationSnapshot,
+  ShiftPlanningOwnerSheetsBinding,
+} from "./shift-planning-owner-sheets-contract.js";
 import {isDeepStrictEqual} from "node:util";
 import {
   DocumentSnapshot,
@@ -389,6 +399,37 @@ const readOwnedCommand = async (
   return {command, sourcePolicy};
 };
 
+const requireOwnerAuthorization = async (
+  firestore: Firestore, transaction: Transaction,
+  binding: ShiftPlanningOwnerSheetsBinding,
+  observed: ShiftPlanningOwnerSheetsAuthorizationSnapshot,
+): Promise<void> => {
+  const expected = parseShiftPlanningOwnerSheetsAuthorizationSnapshot(
+    observed, binding.batchIntent.environment,
+  );
+  if (expected.path !== binding.authorizationSnapshot.path) {
+    return failSync("Owner authorization path changed.");
+  }
+  const snapshot = await transaction.get(firestore.doc(expected.path));
+  const authorization = parseShiftPlanningOwnerSheetsAuthorization(
+    requireSnapshotData(snapshot, "owner authorization"),
+  );
+  const report = authorization.ownerReport;
+  if (!snapshot.updateTime ||
+      snapshot.updateTime.seconds !== expected.updateTime.seconds ||
+      snapshot.updateTime.nanoseconds !== expected.updateTime.nanoseconds ||
+      createShiftPlanningDigest(report) !== expected.ownerReportDigest ||
+      shiftPlanningOwnerSheetsAuthorizationDigest(authorization) !==
+        binding.authorizationDigest ||
+      authorization.commandId !== binding.batchIntent.commandId ||
+      authorization.controlIncident || report.agreementStatus !== "confirmed" ||
+      report.ownerActivity !== "none-reported" ||
+      report.unresolvedWriteCount !== 0 ||
+      report.permissionWorkflowClosed !== true) {
+    return failSync("Owner authorization changed before the repository CAS.");
+  }
+};
+
 /**
  * Persists the explicit pull lifecycle for activation Sheets-sync commands.
  * Discovery never mutates. Claim, stale-claim takeover, pre-batch
@@ -597,9 +638,23 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
         return failSync("Sheets submission already exists; inspect only.");
       }
       const receipt = parseShiftPlanningSheetsSubmission({
-        schemaVersion: binding.readable ? 2 : 1, command, ...binding,
-        submittedAt: now, evidence: null,
+        schemaVersion: binding.ownerMaintenance ? 3 : binding.readable ? 2 : 1,
+        command, ...binding, submittedAt: now, evidence: null,
+        ...(binding.ownerMaintenance ? {
+          ownerVerification: null, guardIncident: null,
+        } : {}),
       });
+      if (receipt.ownerMaintenance) {
+        const window = receipt.ownerMaintenance.agreement.payload.intent;
+        if (now.toMillis() < window.startsAtMillis ||
+            now.toMillis() >= window.endsAtMillis) {
+          return failSync("Owner agreement expired before preparing a send.");
+        }
+        await requireOwnerAuthorization(
+          firestore, transaction, receipt.ownerMaintenance,
+          receipt.ownerMaintenance.authorizationSnapshot,
+        );
+      }
       if (receipt.readable) {
         if (receipt.readable.environment !== token.environment) {
           return failSync("Readable source targets another environment.");
@@ -616,7 +671,21 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       }
       let expectedRevision = command.workbookRevision;
       if (workbook.exists) {
-        const preceding = parseShiftSheetsWorkbookSubmission(workbook.data());
+        const precedingData = workbook.data();
+        if (precedingData?.schemaVersion === 3) {
+          const precedingOwner =
+            parseShiftPlanningSheetsSubmission(precedingData);
+          const previousCommand = await transaction.get(commandReference(
+            firestore, token.environment, precedingOwner.command.commandId,
+          ));
+          const previous = parseShiftPlanningPersistedSyncCommand(
+            requireSnapshotData(previousCommand, "preceding owner command"),
+          );
+          if (previous.state !== "completed") {
+            return failSync("The preceding owner batch guard is incomplete.");
+          }
+        }
+        const preceding = parseShiftSheetsWorkbookSubmission(precedingData);
         if (preceding.workbookId !== command.workbookId ||
           preceding.evidence === null) {
           return failSync("Workbook has unresolved Sheets work or changed ID.");
@@ -626,12 +695,54 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       if (receipt.beforeWorkbookRevision !== expectedRevision) {
         return failSync("Workbook version changed without a verified receipt.");
       }
+      if (receipt.ownerMaintenance) {
+        const finalNow = clock().toMillis();
+        const window = receipt.ownerMaintenance.agreement.payload.intent;
+        requireOpenClaim(command, Timestamp.fromMillis(finalNow));
+        if (finalNow < window.startsAtMillis ||
+            finalNow >= window.endsAtMillis ||
+            finalNow >= receipt.ownerMaintenance.controlsValidUntilMillis) {
+          return failSync("Owner window expired before the final prepare CAS.");
+        }
+      }
       transaction.create(reference, receipt);
       transaction.set(workbookReference, receipt);
     });
   },
 
-  async verifySubmission({token, evidence}) {
+  async readSubmissionForIncident(token) {
+    const snapshot = await submissionReference(firestore, token).get();
+    if (!snapshot.exists) return null;
+    const receipt = parseShiftPlanningSheetsSubmission(snapshot.data());
+    requireShiftPlanningSyncCommandToken(receipt.command, token);
+    return receipt;
+  },
+
+  async retainSubmissionIncident({token, incident}) {
+    const parsed = parseShiftPlanningOwnerSheetsIncident(incident);
+    await firestore.runTransaction(async (transaction) => {
+      const reference = submissionReference(firestore, token);
+      const pointer = workbookSubmissionReference(firestore, token.environment);
+      const [snapshot, current] = await transaction.getAll(reference, pointer);
+      const receipt = parseShiftPlanningSheetsSubmission(
+        requireSnapshotData(snapshot, "owner submission"),
+      );
+      requireShiftPlanningSyncCommandToken(receipt.command, token);
+      if (!receipt.ownerMaintenance ||
+          parsed.bindingDigest !== receipt.ownerMaintenance.bindingDigest) {
+        return failSync("Incident has no matching accepted owner submission.");
+      }
+      if (receipt.guardIncident) return;
+      const retained = parseShiftPlanningSheetsSubmission({...receipt,
+        guardIncident: parsed});
+      transaction.set(reference, retained);
+      if (current.exists && isDeepStrictEqual(current.data(), receipt)) {
+        transaction.set(pointer, retained);
+      }
+    });
+  },
+
+  async verifySubmission({token, evidence, ownerProof}) {
     return firestore.runTransaction(async (transaction) => {
       await readOwnedCommand(firestore, transaction, token, null);
       const reference = submissionReference(firestore, token);
@@ -645,8 +756,25 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
         requireSnapshotData(snapshot, "Sheets submission"),
       );
       requireShiftPlanningSyncCommandToken(receipt.command, token);
+      if (receipt.ownerMaintenance) {
+        if (receipt.guardIncident) {
+          return failSync("Owner submission is incident-closed.");
+        }
+        const proof = parseShiftPlanningOwnerSheetsProof(ownerProof);
+        assertShiftPlanningOwnerSheetsProof({
+          binding: receipt.ownerMaintenance, proof, phase: "readback",
+          nowMillis: clock().toMillis(),
+        });
+        await requireOwnerAuthorization(
+          firestore, transaction, receipt.ownerMaintenance,
+          proof.authorizationSnapshot,
+        );
+      }
       const verified = parseShiftPlanningSheetsSubmission({
         ...receipt, evidence,
+        ...(receipt.ownerMaintenance ? {
+          ownerVerification: receipt.ownerVerification ?? ownerProof,
+        } : {}),
       });
       if (receipt.evidence !== null) {
         if (!isDeepStrictEqual(receipt, verified)) {
@@ -659,6 +787,12 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       );
       if (!isDeepStrictEqual(current, receipt)) {
         return failSync("Current workbook submission no longer matches.");
+      }
+      if (receipt.ownerMaintenance) {
+        assertShiftPlanningOwnerSheetsProof({
+          binding: receipt.ownerMaintenance, proof: ownerProof,
+          phase: "readback", nowMillis: clock().toMillis(),
+        });
       }
       transaction.set(reference, verified);
       transaction.set(workbookReference, verified);
@@ -698,6 +832,20 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
       if (submitted.exists) {
         const receipt = parseShiftPlanningSheetsSubmission(submitted.data());
         requireShiftPlanningSyncCommandToken(receipt.command, token);
+        if (receipt.ownerMaintenance) {
+          if (receipt.guardIncident) {
+            return failSync("Owner submission is incident-closed.");
+          }
+          const proof = parseShiftPlanningOwnerSheetsProof(input.ownerProof);
+          assertShiftPlanningOwnerSheetsProof({
+            binding: receipt.ownerMaintenance, proof, phase: "completion",
+            nowMillis: completedAt.toMillis(),
+          });
+          await requireOwnerAuthorization(
+            firestore, transaction, receipt.ownerMaintenance,
+            proof.authorizationSnapshot,
+          );
+        }
         if (receipt.evidence === null ||
           createShiftPlanningDigest(receipt.evidence) !==
           createShiftPlanningDigest(input.evidence)) {
@@ -717,6 +865,15 @@ export const createFirestoreShiftPlanningSyncCommandRepository = (
         persisted,
       );
       requireOwnedPartition(persisted, sourcePolicy.partition);
+      if (submitted.exists) {
+        const owner = parseShiftPlanningSheetsSubmission(submitted.data());
+        if (owner.ownerMaintenance) {
+          assertShiftPlanningOwnerSheetsProof({
+            binding: owner.ownerMaintenance, proof: input.ownerProof,
+            phase: "completion", nowMillis: clock().toMillis(),
+          });
+        }
+      }
       const completed = createShiftPlanningCompletedSyncCommand({
         command: persisted,
         completedAt,

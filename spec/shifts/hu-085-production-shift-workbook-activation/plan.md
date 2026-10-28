@@ -78,8 +78,44 @@ build/lint and independent source review. Version 1's strict default and digest
 remain exact. This group was validated against `3aafe4e8`.
 Historical receipts grant no renewed admission; fresh owner reports surround the
 callback and typed failure incidents retain the technical closure separately.
-Real provider composition, Sheets batch postimage guards and safe-copy procedure
-rehearsal remain pending. No live activation criterion is completed by this run.
+The following local group connects the raw Google SDK observation sources and
+reviewed Sheets batch postimage guards through the existing consumer and receipts.
+The [updated handoff guide](../../../docs/testing/hu084-backend-handoff-rehearsal.md)
+records the copy-only packet, read/authority limits and independent current
+technical-control requirement. The copy procedure has not been executed; grants,
+owner window, real old-work drain and shared deployment remain pending. No live
+activation criterion is completed by these local checks. The final joint
+acceptance passes 622 tests with zero failures/skips, build/lint and independent
+review; the new batch group remains local/uncommitted against delivered
+`2690528e` and has performed no real Google write or grant.
+
+## Authorized copy-provider dependency checkpoint — 2026-10-28
+
+HU-084 has now executed the separately authorized isolated-copy procedure:
+one actual Google batch, 45 requests, ten synthetic market rows in one new tab,
+identical complete raw images of the seven previous tabs checked before command
+completion, and zero notification events. Its real emulator command completed
+and released the market lease. Schema 2 copy authority names the actual local
+runner separately from the human owner without claiming another human/IAM
+operator or fabricating a closed 27-group shared barrier. The shared/default
+barrier remains intact.
+
+The bounded keyless identity/token window was closed and read back: owner-only
+copy sharing, disabled identity, no keys/project roles/temporary bindings, rejected
+still-valid bearer and denied new token request. Exact metadata and evidence stay
+private. The copy-only owner-inheritance and short-token SDK fixes are covered
+without broadening shared authority. Final acceptance passes Functions build/full
+lint and 661 joint emulator/regression tests with zero failures/skips; the
+historical 622-case checkpoint above is unchanged. Repeated idempotent cleanup
+resolved an initially stale IAM read before final closure was reported.
+
+This is provider evidence for a copy, not production/develop activation. No
+original/production workbook I/O, shared Firebase data operation, deploy or
+notification release occurred. Durable shared intake and actual old-writer/effect
+control plus effective authority remain open; shared admission remains
+`canApply:false`. Both reviewed groups are included in the authorized delivery
+checkpoint, with exact Git/remote verification recorded in #268/#269 and draft
+PR #278. This delivery does not complete a shared activation criterion.
 
 ## 1. Delivery strategy
 

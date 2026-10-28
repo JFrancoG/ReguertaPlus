@@ -1674,3 +1674,37 @@ export const enterShiftPlanningMaintenanceBehindIntakeBarrier = async (
   }
   return adapterResult;
 };
+
+
+/**
+ * Revalidates the strong technical evidence used by an explicit Sheets phase.
+ * This does not make a historical retained document a current control read;
+ * the caller must also obtain the same held checkpoint from its live reader.
+ * Owner validity and the current command lineage are separate batch gates.
+ * @param {unknown} value Versioned evidence read from trusted controls.
+ * @param {string} expectedDigest Reviewed evidence identity.
+ * @param {string} environment Exact phase environment.
+ * @param {string} workbookId Exact phase workbook.
+ * @param {number} nowMillis Current trusted clock.
+ * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Verified technical data.
+ */
+export const verifyShiftPlanningOwnerSheetsTechnicalEvidence = (
+  value: unknown,
+  expectedDigest: string,
+  environment: ShiftPlanningEnvironment,
+  workbookId: string,
+  nowMillis: number,
+): {evidence: ShiftPlanningIntakeBarrierEvidenceEnvelope;
+  technicalExpiresAtMillis: number} => {
+  const evidence =
+    parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope(value);
+  if (evidence.digest !== expectedDigest ||
+      evidence.payload.environment !== environment ||
+      evidence.payload.workbook.fileId !== workbookId) {
+    return failBarrier("Sheets technical control scope changed.");
+  }
+  validateChronology(evidence.payload, nowMillis, true);
+  return {evidence, technicalExpiresAtMillis:
+    oldestBarrierObservationMillis(evidence.payload) +
+      evidence.payload.policy.maximumEvidenceAgeMillis};
+};

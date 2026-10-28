@@ -9,7 +9,13 @@ const {SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION: revision,
 function ownerFixture(overrides = {}) {
   const base = scope(overrides);
   const payload = evidence().payload;
-  payload.transition.expectedAuthoritativeDigest = base.expectedAuthoritativeDigest;
+  for (const field of ["transitionId", "expectedAuthoritativeDigest", "expectedStateRevision",
+    "expectedWriteEpoch", "expectedActiveRevision", "expectedActiveDigest"]) {
+    payload.transition[field] = base[field];
+  }
+  payload.workbook.fileId = base.expectedWorkbookFileId;
+  payload.workbook.revision = payload.workbook.readBackRevision = base.expectedWorkbookRevision;
+  payload.workbook.digest = payload.workbook.readBackDigest = base.expectedWorkbookDigest;
   const technicalDigest = createShiftPlanningControlManifestDigest(payload.writerControls, "owner-agreement");
   const participants = [{principalId: "owner-human", role: "owner"},
     {principalId: "operator-invoker", role: "operator"}];

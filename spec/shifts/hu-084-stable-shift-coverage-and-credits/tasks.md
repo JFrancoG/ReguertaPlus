@@ -384,3 +384,46 @@ The group was validated against `3aafe4e8`. Version 2 covers maintenance
 entry with an unchanged workbook baseline and historical CAS receipt reads;
 later Sheets batches still need their expected-postimage guard and actual
 provider composition before any safe-copy or live window is authorized.
+
+## Real control read-backs and guarded Sheets operations — 2026-10-28
+
+- [x] Deliver owner-entry implementation as `2690528e`, verify remote HEAD and reuse #268/#269/current branch.
+- [x] Record narrow implementation/read-only scope and verify the existing seven-tab copy without changing permissions/content.
+- [x] Extend the existing Drive/Sheets reader with restrictions/capabilities and explicit incomplete/denied evidence; compose it with reviewed agreement/technical prerequisites.
+- [x] Bind and guard the existing consumer's exact batch/before/expected-after images and require fresh controls for apply, inspect and completion.
+- [x] Extend existing submission receipts/pointers with immutable owner binding and sticky incidents; reject unguarded schema3 recovery and uncertain automatic resubmission.
+- [x] Validate real Firestore receipts/exclusion plus the real Sheets adapter with recorded Google protocol; preserve strict/legacy paths and original/production canaries.
+- [x] Prepare the copy-only identity/window/operations/read-back/recovery packet and record any concrete user action still needed without applying it.
+- [x] Complete Functions build/lint, five CJS syntax checks, 622 joint passes with zero failures/skips, independent review, bilingual guidance and private evidence; keep shared live readiness blocked.
+
+Local/uncommitted against `2690528e`; 29 new concrete-composition emulator cases
+cover fresh identity/controls, agreement/TTL/epoch drift, changed/restored reports,
+preservation, cached evidence, one physical batch and lost acknowledgement.
+Copy execution and temporary access/window confirmations remain separately
+authorized, as do all original develop/production activation gates.
+
+
+## Authorized real-copy execution — 2026-10-28
+
+- [x] Add explicit copy-only technical authority and a schema 2 owner/runner
+  agreement without fictitious shared writer evidence or a second human operator.
+- [x] Bind short keyless token/scopes, fresh provider controls, owned local lock
+  and actual SDK counters to existing durable receipts/CAS and isolated demo data.
+- [x] Rehearse one real Google batch: 45 requests, ten synthetic market rows, one
+  new tab, identical raw before/after images of all seven existing tabs checked
+  before completion, completed market command/released lease and zero notices.
+- [x] Preserve blocked zero-send incidents; constrain inherited writer acceptance
+  to the exact named owner and verify short-token SDK refresh configuration.
+- [x] Verify owner-only copy ACL, disabled fresh identity without keys/project
+  roles/bindings and denial of the still-valid bearer plus a new mint.
+- [x] Pass Functions build/full lint and 661 joint emulator/regression tests with
+  zero failures/skips; preserve the earlier 622-case local history.
+- [x] Include both reviewed groups in the authorized delivery checkpoint; record
+  exact commit/remote verification in #268/#269 and draft PR #278.
+- [ ] Establish durable shared develop intake and actual old-writer/effect and
+  effective-authority controls before a shared maintenance/migration packet.
+
+The provider result is limited to the authorized copy and localhost demo
+Firestore. No original/production I/O, shared deploy or notification release
+occurred. Private evidence is retained in `2026-10-28-isolated-copy-rehearsal`;
+HU-084/HU-085 remain open and shared admission remains `canApply:false`.

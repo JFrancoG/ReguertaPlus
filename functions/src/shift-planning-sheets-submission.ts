@@ -1,3 +1,9 @@
+import {
+  parseShiftPlanningOwnerSheetsBinding, parseShiftPlanningOwnerSheetsIncident,
+  parseShiftPlanningOwnerSheetsProof,
+  ShiftPlanningOwnerSheetsBinding, ShiftPlanningOwnerSheetsIncident,
+  ShiftPlanningOwnerSheetsProof,
+} from "./shift-planning-owner-sheets-contract.js";
 import {Timestamp} from "@google-cloud/firestore";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
 import type {ShiftRotationType} from "./shift-planning-contract.js";
@@ -26,7 +32,7 @@ export type ShiftPlanningReadableSubmission = {
 
 /** One possible external submission, never an authorization to retry it. */
 export type ShiftPlanningSheetsSubmission = {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   readable?: ShiftPlanningReadableSubmission;
   command: ShiftPlanningProcessingSyncCommand;
   projectionDigest: string;
@@ -34,11 +40,15 @@ export type ShiftPlanningSheetsSubmission = {
   beforeWorkbookRevision: string;
   submittedAt: Timestamp;
   evidence: ShiftPlanningSyncReadBackEvidence | null;
+  ownerMaintenance?: ShiftPlanningOwnerSheetsBinding;
+  ownerVerification?: ShiftPlanningOwnerSheetsProof | null;
+  guardIncident?: ShiftPlanningOwnerSheetsIncident | null;
 };
 
 export type ShiftPlanningSheetsSubmissionBinding = Pick<
   ShiftPlanningSheetsSubmission,
-  "projectionDigest" | "requestDigest" | "beforeWorkbookRevision" | "readable"
+  "projectionDigest" | "requestDigest" | "beforeWorkbookRevision" | "readable" |
+    "ownerMaintenance"
 >;
 
 export const failSheetsSubmission = (message: string): never => {
@@ -164,8 +174,10 @@ export const parseShiftPlanningSheetsSubmission = (
   const record = value as Record<string, unknown>;
   const keys = ["schemaVersion", "command", "projectionDigest",
     "requestDigest", "beforeWorkbookRevision", "submittedAt", "evidence",
-    ...(record.schemaVersion === 2 ? ["readable"] : [])];
-  if (![1, 2].includes(record.schemaVersion as number) ||
+    ...(record.schemaVersion === 2 ? ["readable"] : []),
+    ...(record.schemaVersion === 3 ? ["readable", "ownerMaintenance",
+      "ownerVerification", "guardIncident"] : [])];
+  if (![1, 2, 3].includes(record.schemaVersion as number) ||
     Object.keys(record).length !== keys.length ||
     Object.keys(record).some((key) => !keys.includes(key))) {
     return failSheetsSubmission("Sheets submission fields are not exact.");
@@ -185,8 +197,8 @@ export const parseShiftPlanningSheetsSubmission = (
     return digest;
   };
   const result: ShiftPlanningSheetsSubmission = {
-    schemaVersion: record.schemaVersion as 1 | 2,
-    ...(record.schemaVersion === 2 ?
+    schemaVersion: record.schemaVersion as 1 | 2 | 3,
+    ...([2, 3].includes(record.schemaVersion as number) ?
       {readable: parseReadableSubmission(record.readable, command)} : {}),
     command,
     projectionDigest: sheetDigest(record.projectionDigest),
@@ -197,6 +209,46 @@ export const parseShiftPlanningSheetsSubmission = (
     submittedAt: record.submittedAt,
     evidence: null,
   };
+  if (record.schemaVersion === 3) {
+    if (Buffer.byteLength(JSON.stringify(record)) > 900000) {
+      return failSheetsSubmission("Owner receipt exceeds the size limit.");
+    }
+    const binding =
+      parseShiftPlanningOwnerSheetsBinding(record.ownerMaintenance);
+    if (binding.batchIntent.commandId !== command.commandId ||
+        binding.batchIntent.commandDigest !== command.commandDigest ||
+        binding.batchIntent.operationId !== command.idempotencyKey ||
+        binding.batchIntent.workbookId !== command.workbookId ||
+        binding.batchIntent.writeEpoch !== command.writeEpoch ||
+        binding.batchIntent.activeRevision !== command.expectedActiveRevision ||
+        binding.batchIntent.activeDigest !== command.expectedActiveDigest ||
+        binding.batchIntent.projectionDigest !== result.projectionDigest ||
+        binding.batchIntent.requestDigest !== result.requestDigest ||
+        binding.batchIntent.beforeWorkbookRevision !==
+          result.beforeWorkbookRevision ||
+        binding.claim.workerId !== command.claim.workerId ||
+        binding.claim.attemptId !== command.claim.attemptId ||
+        binding.claim.fencingEpoch !== command.claim.fencingEpoch ||
+        binding.claim.acquiredAtMillis !==
+          command.claim.acquiredAt.toMillis() ||
+        binding.claim.expiresAtMillis !== command.claim.expiresAt.toMillis() ||
+        binding.preparedAtMillis > record.submittedAt.toMillis() ||
+        binding.batchIntent.environment !== result.readable?.environment) {
+      return failSheetsSubmission("Owner binding differs from submission.");
+    }
+    result.ownerMaintenance = binding;
+    result.ownerVerification = record.ownerVerification === null ? null :
+      parseShiftPlanningOwnerSheetsProof(record.ownerVerification);
+    result.guardIncident = record.guardIncident === null ? null :
+      parseShiftPlanningOwnerSheetsIncident(record.guardIncident);
+    if ((result.ownerVerification &&
+        (result.ownerVerification.bindingDigest !== binding.bindingDigest ||
+          result.ownerVerification.phase !== "readback")) ||
+        (result.guardIncident &&
+          result.guardIncident.bindingDigest !== binding.bindingDigest)) {
+      return failSheetsSubmission("Owner receipt control identity drifted.");
+    }
+  }
   if (record.evidence !== null) {
     if (typeof record.evidence !== "object" ||
       record.evidence === null || Array.isArray(record.evidence) ||
@@ -217,6 +269,9 @@ export const parseShiftPlanningSheetsSubmission = (
         projectionDigest: result.projectionDigest,
       })) {
       return failSheetsSubmission("Read-back is not bound to submission.");
+    }
+    if (record.schemaVersion === 3 && !result.ownerVerification) {
+      return failSheetsSubmission("Owner read-back has no guard proof.");
     }
     result.evidence = {
       workbookRevision: revision,
@@ -447,7 +502,8 @@ export const parseShiftSheetsWorkbookSubmission = (value: unknown) => {
       ordinaryOperationId: null};
   }
   const receipt = parseShiftPlanningSheetsSubmission(value);
-  return {workbookId: receipt.command.workbookId, evidence: receipt.evidence,
+  return {workbookId: receipt.command.workbookId,
+    evidence: receipt.guardIncident ? null : receipt.evidence,
     environment: receipt.readable?.environment ?? null,
     importOperationId: null, coverageOperationId: null,
     ordinaryOperationId: null};

@@ -3,7 +3,7 @@ import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {createShiftSheetsWorkbookVersionReader} from
   "./shift-planning-sheets-consumer.js";
 import {ShiftSheetsConfig} from "./shift-sheets-config.js";
-import {readShiftSheetsSnapshot} from "./shift-sheets.js";
+import {readShiftSheetsSnapshot, SHIFT_SHEETS_LIMITS} from "./shift-sheets.js";
 
 export const SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS = Object.freeze([
   "control_plane_unavailable",
@@ -114,6 +114,14 @@ const user = (value: unknown) => {
   return {permissionId: text(item.permissionId),
     emailAddress: text(item.emailAddress), me: boolean(item.me)};
 };
+const restriction = (value: unknown) => {
+  const item = record(value);
+  return {readOnly: boolean(item.readOnly), reason: text(item.reason),
+    type: text(item.type), ownerRestricted: boolean(item.ownerRestricted),
+    systemRestricted: boolean(item.systemRestricted),
+    restrictingUser: item.restrictingUser ? user(item.restrictingUser) : null,
+    restrictionTime: text(item.restrictionTime)};
+};
 const range = (value: unknown) => {
   if (value === undefined || value === null) return null;
   const item = record(value);
@@ -133,7 +141,7 @@ const protection = (value: unknown) => {
     editors: {users: texts(editors.users), groups: texts(editors.groups),
       domainUsersCanEdit: boolean(editors.domainUsersCanEdit)}};
 };
-const cell = (value: unknown) => {
+const cell = (value: unknown, preservation = false) => {
   if (value === undefined || value === null) return {};
   const item = record(value);
   const entered = item.userEnteredValue ? record(item.userEnteredValue) : {};
@@ -154,9 +162,18 @@ const cell = (value: unknown) => {
   if (Object.keys(result).length > 1) {
     return fail("workbook_observation_invalid");
   }
-  return result;
+  if (!preservation) return result;
+  const preserved: JsonRecord = {};
+  for (const key of ["userEnteredFormat", "note", "textFormatRuns",
+    "dataValidation"]) {
+    if (item[key] !== undefined && item[key] !== null) {
+      preserved[key] = JSON.parse(JSON.stringify(item[key]));
+    }
+  }
+  return {...(Object.keys(result).length ? {userEnteredValue: result} : {}),
+    ...preserved};
 };
-const sheet = (value: unknown, includeData: boolean) => {
+const sheet = (value: unknown, includeData: boolean, preservation = false) => {
   const item = record(value); const properties = record(item.properties);
   const grid = properties.gridProperties ?
     record(properties.gridProperties) : {};
@@ -184,12 +201,15 @@ const sheet = (value: unknown, includeData: boolean) => {
           startIndex: integer(dimension.startIndex),
           endIndex: integer(dimension.endIndex)}}};
   }),
+  ...(preservation ? {dataCoverage: includeData ? "complete" :
+    "metadata-only"} : {}),
   data: includeData ? list(item.data).map((value) => {
     const data = record(value);
     return {startRow: integer(data.startRow) ?? 0,
       startColumn: integer(data.startColumn) ?? 0,
       rowData: list(data.rowData).map((value) => ({values:
-        list(value ? record(value).values : undefined).map(cell)}))};
+        list(value ? record(value).values : undefined)
+          .map((value) => cell(value, preservation))}))};
   }) : []};
 };
 const permission = (value: unknown) => {
@@ -234,12 +254,24 @@ export const observeShiftSheetsWorkbook = async (input: {
   sheets: Pick<SheetsV4.Resource$Spreadsheets, "get">;
   nowMillis(): number;
   expectedContentDigest?: string;
+  includePreservationCells?: boolean;
+  /** Only direct raw Google responses preserve REST's omitted-empty arrays. */
+  collector?: "googleapis-raw";
+  /** Server-owned names derived from the already approved addSheet manifest. */
+  allowMissingReviewedTitles?: readonly string[];
 }) => {
   const config = {...input.config, aliases: input.config.aliases.map((a) =>
     ({...a}))};
   const titles = [...input.titles];
   const expectedContentDigest = input.expectedContentDigest;
+  const preservation = input.includePreservationCells === true;
+  const directRaw = input.collector === "googleapis-raw";
+  const allowedMissing = [...(input.allowMissingReviewedTitles ?? [])];
   if (new Set(titles).size !== titles.length) {
+    return fail("workbook_selected_tabs_invalid");
+  }
+  if (new Set(allowedMissing).size !== allowedMissing.length ||
+    allowedMissing.some((title) => !titles.includes(title))) {
     return fail("workbook_selected_tabs_invalid");
   }
   const readVersion = createShiftSheetsWorkbookVersionReader({
@@ -248,18 +280,33 @@ export const observeShiftSheetsWorkbook = async (input: {
     const {data} = await input.files.get({fileId: config.workbookId,
       supportsAllDrives: true, fields: "id,mimeType,trashed,version," +
         "driveId,parents,owners(permissionId,emailAddress,me)," +
-        "capabilities(canEdit,canModifyContent,canShare,canReadRevisions)"},
+        "contentRestrictions(readOnly,reason,type,ownerRestricted," +
+        "systemRestricted,restrictingUser(permissionId,emailAddress,me)," +
+        "restrictionTime),capabilities(canEdit,canModifyContent,canShare," +
+        "canReadRevisions," +
+        "canModifyEditorContentRestriction,canModifyOwnerContentRestriction," +
+        "canRemoveContentRestriction)"},
     options);
     const capabilities = data.capabilities ?? {};
     return {id: text(data.id), mimeType: text(data.mimeType),
       trashed: boolean(data.trashed), version: text(data.version),
       driveId: text(data.driveId), parents: texts(data.parents),
       owners: list(data.owners).map(user).sort((a, b) =>
-        compare(a.permissionId ?? "", b.permissionId ?? "")), capabilities: {
+        compare(a.permissionId ?? "", b.permissionId ?? "")),
+      contentRestrictions: data.contentRestrictions === undefined &&
+        directRaw ? [] :
+        data.contentRestrictions == null ? null :
+          list(data.contentRestrictions).map(restriction), capabilities: {
         canEdit: boolean(capabilities.canEdit),
         canModifyContent: boolean(capabilities.canModifyContent),
         canShare: boolean(capabilities.canShare),
-        canReadRevisions: boolean(capabilities.canReadRevisions)}};
+        canReadRevisions: boolean(capabilities.canReadRevisions),
+        canModifyEditorContentRestriction:
+          boolean(capabilities.canModifyEditorContentRestriction),
+        canModifyOwnerContentRestriction:
+          boolean(capabilities.canModifyOwnerContentRestriction),
+        canRemoveContentRestriction:
+          boolean(capabilities.canRemoveContentRestriction)}};
   };
   let versionBefore: string; let versionAfter: string;
   let before: Awaited<ReturnType<typeof readFile>>;
@@ -315,6 +362,57 @@ export const observeShiftSheetsWorkbook = async (input: {
     stage = "snapshot";
     snapshot = await readShiftSheetsSnapshot({config,
       sheets: input.sheets, titles});
+    if (preservation) {
+      const selected = (snapshot.sheets ?? []).filter((sheet) =>
+        titles.includes(sheet.properties?.title ?? ""));
+      let requestedCells = 0;
+      if (selected.length > SHIFT_SHEETS_LIMITS.tabs) {
+        return fail("workbook_observation_invalid");
+      }
+      for (const sheet of selected) {
+        const rows = sheet.properties?.gridProperties?.rowCount;
+        const columns = sheet.properties?.gridProperties?.columnCount;
+        if (!Number.isSafeInteger(rows) || !Number.isSafeInteger(columns) ||
+          (rows ?? 0) < 1 || (columns ?? 0) < 1 ||
+          (rows ?? Infinity) > SHIFT_SHEETS_LIMITS.tabRows ||
+          (columns ?? Infinity) > SHIFT_SHEETS_LIMITS.tabColumns) {
+          return fail("workbook_observation_invalid");
+        }
+        requestedCells += (rows as number) * (columns as number);
+      }
+      if (requestedCells > SHIFT_SHEETS_LIMITS.readCells) {
+        return fail("workbook_observation_invalid");
+      }
+      const column = (count: number): string => count <= 26 ?
+        String.fromCharCode(64 + count) :
+        String.fromCharCode(64 + Math.floor((count - 1) / 26)) +
+          String.fromCharCode(65 + (count - 1) % 26);
+      if (selected.length) {
+        const response = await input.sheets.get({
+          spreadsheetId: config.workbookId,
+          ranges: selected.map((sheet) => "'" +
+            (sheet.properties?.title ?? "").replace(/'/g, "''") + "'!A1:" +
+            column(sheet.properties?.gridProperties?.columnCount ?? 0) +
+            sheet.properties?.gridProperties?.rowCount),
+          fields: "spreadsheetId,sheets(properties,protectedRanges,merges," +
+            "developerMetadata,data(startRow,startColumn,rowData(values(" +
+            "userEnteredValue,userEnteredFormat,note,textFormatRuns," +
+            "dataValidation))))",
+        }, options);
+        if (response.data.spreadsheetId !== config.workbookId ||
+          selected.some((sheet) => {
+            const matches = response.data.sheets?.filter((after) =>
+              after.properties?.sheetId === sheet.properties?.sheetId &&
+              after.properties?.title === sheet.properties?.title) ?? [];
+            return matches.length !== 1 ||
+              digest(matches[0].properties) !== digest(sheet.properties);
+          })) return fail("workbook_observation_changed");
+        snapshot = {...snapshot, sheets: snapshot.sheets?.map((sheet) =>
+          response.data.sheets?.find((after) =>
+            after.properties?.sheetId === sheet.properties?.sheetId) ??
+            sheet)};
+      }
+    }
     stage = "file_after";
     after = await readFile();
     stage = "version_after";
@@ -335,12 +433,14 @@ export const observeShiftSheetsWorkbook = async (input: {
   const normalized = {spreadsheetId: config.workbookId,
     sheets: list(snapshot.sheets).map((value) => {
       const title = text(record(record(value).properties).title);
-      return sheet(value, titles.includes(title ?? ""));
+      return sheet(value, titles.includes(title ?? ""), preservation);
     }).sort((a, b) => compare(a.properties.title ?? "",
       b.properties.title ?? ""))};
   const selected = normalized.sheets.filter((s) =>
     titles.includes(s.properties.title ?? ""));
-  if (selected.length !== titles.length) {
+  const absentReviewedTitles = titles.filter((title) =>
+    !selected.some((sheet) => sheet.properties.title === title));
+  if (absentReviewedTitles.some((title) => !allowedMissing.includes(title))) {
     return fail("workbook_selected_tabs_missing");
   }
   const contentDigest = digest(selected.map((s) =>
@@ -354,6 +454,9 @@ export const observeShiftSheetsWorkbook = async (input: {
     return fail("workbook_observation_clock_invalid");
   }
   const aclDigest = digest({principal, file: before, permissions});
+  const {version: ignoredVersion, ...authorityFile} = before;
+  void ignoredVersion;
+  const authorityDigest = digest({principal, file: authorityFile, permissions});
   const protectionsDigest = digest(normalized.sheets.map((s) =>
     ({sheetId: s.properties.sheetId, protectedRanges: s.protectedRanges,
       merges: s.merges})));
@@ -391,8 +494,8 @@ export const observeShiftSheetsWorkbook = async (input: {
   const privateBody = {schemaVersion: 1, environment: config.environment,
     workbookVersionBefore: versionBefore, workbookVersionAfter: versionAfter,
     observedAtMillis, principal, file: before, permissions,
-    snapshot: normalized,
-    contentDigest, aclDigest, protectionsDigest};
+    snapshot: normalized, absentReviewedTitles,
+    contentDigest, aclDigest, authorityDigest, protectionsDigest};
   const observationDigest = digest(privateBody);
   const summary: ShiftSheetsOperationalPreflightSummary = {
     schemaVersion: 1, environment: config.environment, canApply: false,
