@@ -1,5 +1,12 @@
 # HU-084 develop operational inspection
 
+> **Policy update — 2026-10-28:** [ADR-0021](../decisions/0021-use-cooperative-owner-maintenance-for-shift-workbooks.md)
+> accepts a bounded no-edit agreement with the named owner instead of technically
+> removing their manual edit capability. Other writer, delivery, drain and
+> notification controls, and `canApply:false`, remain unchanged. Historical results
+> and physical-fence limitations below remain valid; implementation and live
+> authorization are still pending.
+
 Status: the private develop inspection is deployed and verified under dedicated
 identities. Workbook access is reader-only; the temporary human OIDC creation
 binding has been removed and checked. This operation includes no migration,

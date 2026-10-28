@@ -116,7 +116,8 @@ open, as do the two missing market months and complete seasonal preview.
   sharing, and parameter presence without exposing raw URL/ID.
 - [ ] Resolve `driveId`, My Drive/Shared Drive location, owner(s), roles/capabilities,
   bound scripts, transitive group/domain membership, DWD/OAuth/Workspace admin paths,
-  and an effective reversible owner-write fence.
+  and effective recoverable controls for all writers except the named owner under
+  ADR-0021's bounded cooperation agreement; record retained owner capability.
 - [ ] Obtain editor online/closed/no-pending-offline confirmations and define forced
   server reload, base-revision validation, post-reopen observation, and read-only/
   versioned-command fallback for unconfirmed humans or automations.
@@ -124,10 +125,19 @@ open, as do the two missing market months and complete seasonal preview.
 - [ ] Compare candidate allowlists/manifests with current and absent state.
 - [ ] Inventory human editors/protections, Apps Script triggers/deployments, add-ons,
   API/OAuth clients, service accounts, Shared Drive automations, recent executions/
-  Drive activity, and the revision/digest needed for an exclusive writer fence.
-- [ ] If an owner cannot be fenced, stop for a separate transfer/move decision;
-  prove on a fixture and then read back same file ID/link, bindings, permissions,
-  and content before updating the production packet.
+  Drive activity, and expected revision/digest before and after batches; record
+  audit visibility and race/detection limits instead of physical sole writing.
+- [x] Record the maintainer's accepted owner-cooperation policy in bilingual
+  ADR-0021 and align the specification; this approves no live permission/mutation.
+- [ ] Bind the named owner's online/closed/no-pending-offline/no-edit confirmation
+  to the exact file, start/deadline and operator contact; invalidate it on expiry
+  or owner/editor/authority change.
+- [ ] Implement and rehearse the revised packet/adapter mode without presenting
+  cooperation as the current technical `fenced` receipt or bypassing event/effect,
+  epoch/revision, Admin SDK, or notification controls; retain `canApply:false` meanwhile.
+- [ ] If the owner cannot confirm the procedure, stop for a separate custody
+  decision. Any optional move/transfer must preserve file ID/link, bindings,
+  permissions and content on a fixture and by read-back.
 
 ## 2. Backup, dry-run, fence, and authorization
 
@@ -190,10 +200,12 @@ open, as do the two missing market months and complete seasonal preview.
 - [ ] After queues/event ledgers plus the quiet horizon are terminal, revoke/disable
   and read back all drain identities/revisions before migration/candidate data write.
 - [ ] After Sheets drain is terminal, provision the Drive permission controller,
-  apply/read back the fence for every human/automated workbook writer, audit exact
+  apply/read back controls for every other human/automated workbook writer, audit exact
   effective group/domain/DWD/Workspace authority, online/closed/offline-edit
   acknowledgements, Drive/Workspace activity, ACL/protection actions, and unchanged
-  cell digest; then freeze/revoke it and prove zero continuing data-write paths.
+  cell digest; then freeze/revoke its workflow/temporary credentials. If it is the
+  named owner, retain that exception explicitly rather than claiming revoked ownership.
+  Confirm the bounded owner agreement and no other active writer before admission.
 - [ ] Reauthorize the keyless evidence auditor only for the exact window; capture
   fresh post-drain Firestore/workbook backups, present/absent manifests,
   planner inputs, digests, recovery manifest, and forward/inverse budgets; compare
@@ -206,8 +218,10 @@ open, as do the two missing market months and complete seasonal preview.
   assign Function `serviceAccount` yet.
 - [ ] Reauthorize the Drive controller through a second sealed exact-action packet
   to grant only the candidate runtime's reviewed workbook role. Audit unchanged
-  cell digest/activity, revoke/read back the controller, prove candidate sole writer,
-  and preserve both-workbook/cross-route guards for shared revisions.
+  cell digest/activity, revoke/read back the controller workflow, establish candidate
+  commands as the only authorized automated writes under the valid owner agreement,
+  and preserve both-workbook/cross-route guards for shared revisions. Test expiry,
+  reported owner edits, observable drift and uncertain-write recovery without blind retry.
 - [ ] Provision the distinct rollout operator principal/IAM without granting it
   Firestore/Sheets roles, runtime impersonation/token creation, workbook access,
   or ordinary mobile-admin authority; prove each negative permission.

@@ -9,6 +9,7 @@
 - blocked_by: HU-082 / #266, HU-083 / #267, final live authorization
 - depends_on: HU-082 / #266, HU-083 / #267
 - live_gate: explicit phase-by-phase production authorization after final preflight
+- workbook_maintenance_policy: accepted owner cooperation on 2026-10-28; ADR-0021
 
 ## Context and problem
 
@@ -37,6 +38,10 @@ The maintainer supplied the intended production workbook out of repository on
 2026-08-23. Read-only connector metadata confirmed that it contains legacy tabs
 `TORRE 2025-26` and `MERCADO 2025-26`; no cell, name, permission, parameter, or
 sharing state was changed.
+
+The maintainer accepted [maintenance with owner cooperation](../../../docs/decisions/0021-use-cooperative-owner-maintenance-for-shift-workbooks.md)
+on 2026-10-28. This amends the earlier absolute exclusion of the My Drive owner;
+it does not approve live maintenance, any permission change, or activation.
 
 The raw URL/ID stays outside committed specs and public issue evidence. The
 change-window packet records a non-sensitive fingerprint and keeps the exact ID
@@ -112,6 +117,13 @@ epoch-aware recovery revision under the same governed data identity, may write
 Firestore or Sheet content. HU-083 scripts supply manifests/dry-runs only inside
 HU-085; neither their principal nor credentials are reused for rollout writes.
 
+For Sheet content, "only the candidate runtime may write" is the authorized
+procedure, subject to the named owner's retained technical capability described
+below. If that owner also performs manifested ACL/protection controller actions,
+record the two responsibilities and close the controller workflow/temporary
+credentials after each action; never claim that ownership itself was revoked.
+The owner exception grants no Firestore/Admin SDK or automation bypass.
+
 The evidence auditor has only the exact source read/export actions and encrypted
 backup-destination create permission needed by the packet. It cannot invoke rollout
 operations, mutate affected Firestore/application data, edit the source workbook,
@@ -166,8 +178,8 @@ it does not implement. If causal isolation is impossible, HU-085 aborts before d
 workbook mutation and a separate bridge-revision story must specify its own intake
 snapshot, mixed-revision cutover, authorization, rollback, and drain. Once the bounded drain
 is terminal, those identities/revisions and deliveries are disabled or revoked and
-read back before migration. Only the frozen candidate runtime may write Firestore
-or Sheets afterward. The rollout operator has invoker-only IAM on the exact
+read back before migration. Only the frozen candidate runtime is authorized to
+write Firestore or Sheets afterward, under the workbook policy below. The rollout operator has invoker-only IAM on the exact
 endpoint and no Firestore/Sheets role, runtime impersonation, service-account token
 creation, or direct data path.
 
@@ -197,7 +209,8 @@ least:
 Pre-drain backups remain recovery evidence but are not the migration baseline,
 because authorized drain work may legitimately change Firestore or Sheets. After
 queues/event ledgers are terminal, causal-drain writers are revoked, and workbook
-writers are fenced to zero, the keyless evidence auditor captures a new quiescent
+writes are closed under the workbook maintenance policy below, the keyless
+evidence auditor captures a new reconciled maintenance
 Firestore backup plus workbook copy/revision, present/absent manifests, hashes,
 planner inputs, and forward/inverse transaction budgets. The operator recomputes
 the full packet against that
@@ -219,19 +232,43 @@ cancel/supersede residual—expires all operation IDs, closes the maintenance st
 revokes temporary operator IAM, and reads those changes back. A deployed endpoint
 may remain only if it is inert without a fresh time-bounded authorization.
 
-Every workbook writer is fenced, not only human editors. The inventory covers
+Every workbook writer is inventoried, not only human editors. The inventory covers
 editors, Apps Script simple/installable triggers and deployments, add-ons, OAuth/
 API clients, service accounts, Shared Drive automations, workflows using an owner's
 credentials, transitive Google Group/Shared Drive/domain membership, Domain-Wide
 Delegation grants/scopes, and Workspace administrator impersonation/control paths.
-These authorities are frozen/digested or proved absent, with Drive and Workspace
-audit read-back. The window recoverably disables/removes their write paths,
-records recent executions/Drive activity and prior sharing/protection state, then
-first proves there are zero continuing workbook data-write paths. Only then does it
-provision the candidate runtime and prove that account is the sole writer. It
-rechecks the exact Drive revision/content digest immediately before each batch
-mutation. If either zero-writer or sole-writer boundary cannot be proved, the
-window aborts rather than racing a write.
+These authorities are frozen/digested or proved absent, with available provider
+evidence and its visibility limits recorded. Inaccessible Workspace audit data
+is not invented or treated as proof of no automation. The window recoverably
+disables/removes all other writers' paths, records recent executions/Drive
+activity and prior sharing/protection state, and names the retained owner
+capability separately. No automated writer may remain active before candidate
+admission; afterwards only the reviewed runtime's exact commands are authorized.
+No physical zero-writer or sole-writer claim is made while owner capability remains.
+
+The named owner explicitly agrees to keep the file closed and online with no
+pending offline edits and not edit content, change sharing/protections or run
+owner-authorized tools during the bounded window. The sole exception is a
+separately authorized sealed ACL/protection action as the named permission
+controller, with no content edit or other automation; close that workflow and
+its temporary credentials immediately afterwards. Record the owner's confirmation,
+file fingerprint, window start/deadline and operator contact. Confirm it again
+after expiry or any owner/editor/authority change before resuming; no standing
+consent or automatic time extension is accepted. This exception covers only
+the declared owner's passive technical capability. It never covers other
+editors, owner-credential scripts/OAuth automation, Admin SDK writers, controllers
+acting outside their sealed ACL operation or unresolved prior effects.
+
+Before and after each batch, compare exact Drive revision, content and the
+current authority/checkpoint to the expected result of the preceding reviewed
+operation. Sheets offers no CAS: these checks detect observable drift but neither
+exclude every interleaving nor guarantee detection of a transient change or
+preservation of an owner edit overwritten during the write. This residual risk
+is explicitly accepted by the maintenance policy. Observed drift, an owner's
+reported edit or an uncertain submission stops automatic advancement and
+notification release. Preserve before/after evidence and reconcile the incident;
+never blindly retry or restore over a possibly concurrent edit. Only a new
+reviewed checkpoint with the required phase authorization can resume operations.
 
 Every prior human editor must explicitly confirm the workbook is online, closed,
 and has no pending offline edits before the writer fence is accepted. A permission
@@ -244,13 +281,22 @@ read-only. The same base revision/digest precondition applies to re-enabled Apps
 Script, OAuth/API, and automation writers so stale deferred work is quarantined.
 
 Preflight must resolve whether the file lives in My Drive or a Shared Drive, its
-`driveId`, owner(s), membership/roles, and effective capabilities. A My Drive owner
-may make the zero-writer fence impossible through ordinary file permissions. The
-packet must prove a reversible organizational control that removes/suspends that
-write path; otherwise HU-085 stops and raises a separate transfer/move decision.
-Any move/ownership transfer must first prove on a safe fixture and then by read-back
+`driveId`, owner(s), membership/roles, and effective capabilities. The accepted
+My Drive route keeps the same file and records owner cooperation instead of
+requiring an organizational owner suspension. If the owner will not confirm the
+bounded procedure, or other writer paths cannot be controlled, stop and raise a
+separate custody decision. Buying Workspace, moving/transferring or replacing
+the file is not required or authorized by this policy. Any later move/ownership
+transfer must first prove on a safe fixture and then by read-back
 that the same production file ID/link, bound scripts, permissions, and content
 remain valid. Creating a replacement workbook is not silently substituted.
+
+This accepted policy is not yet an operational adapter. Existing strict
+barrier/control-plane contracts must not be satisfied with fabricated owner-fence
+receipts, a relabelled local fixture or an unconditional cooperation flag. Bind
+the revised packet/adapter and rehearse expiry, drift, uncertain writes and
+recovery before any real admission. All pending-event, old-work/effect, write
+epoch/revision, Firestore authority and notification controls remain unchanged.
 
 Only exact change-window operation IDs are allowlisted. The packet assigns a
 maximum duration and recovery outcome to every fenced phase. The fence normally
@@ -327,7 +373,8 @@ Planning this story authorizes no live mutation. The refreshed packet contains:
   editor/protection/API/trigger fence, revision/digest comparison, timeout, and
   exact restoration procedure;
 - workbook location (`driveId`/My Drive/Shared Drive), owners/roles/capabilities,
-  reversible owner fence or separately authorized transfer/move proof;
+  named-owner bounded cooperation confirmation, retained capability/risk,
+  all-other-writer controls and a separately authorized proof for any custody move;
 - post-drain quiescent Firestore/workbook backups, present/absent manifests,
   planner/digest inputs, forward/inverse budgets, comparison, and renewed approval;
 - degraded-mode owner, TTL, affected shift/range mutation fence, escalation, and
@@ -373,8 +420,9 @@ targets/snapshot/digest/revisions and expires on drift.
   prior environment-specific Function split, plus a distinct IAM-restricted
   operator-only rollout channel.
 - Protected production workbook parameter and minimum sharing.
-- Recoverable fence for human and automated workbook writers plus revision/digest
-  checks for the affected workbook surface.
+- Recoverable controls for human and automated workbook writers, with only the
+  named owner's bounded cooperation exception, plus revision/digest checks whose
+  race/detection limits are explicitly recorded.
 - Exact allowlisted Functions deploy and exact Rules/indexes deploy/rollback, or
   proof that Rules/indexes are unchanged; additive indexes are `READY` before
   entering the main maintenance window.
@@ -486,7 +534,9 @@ targets/snapshot/digest/revisions and expires on drift.
   correction/recovery/cleanup mutation is invoked by exact operation ID/revision/
   digest. Only the candidate or pre-rehearsed epoch-aware recovery runtime writes
   affected Firestore/Sheet content; HU-083 script, operator, deployer, Drive
-  controller, and auditor identities cannot do so.
+  controller, and auditor identities have no authorized content-write action.
+  Deny their technical data paths except the named owner's retained manual
+  Sheet capability under ADR-0021; that never grants a Firestore bypass.
 - [ ] The temporary control-plane deployer can execute only the exact authorized
   deploy/Rules/Eventarc/config/IAM operations, can `actAs` only as needed to assign
   candidate/prior runtimes under the frozen rollback branch, and cannot read/write
@@ -495,8 +545,9 @@ targets/snapshot/digest/revisions and expires on drift.
   redeploy is rehearsed; affected legacy Admin writers are never re-enabled.
 - [ ] The named Drive permission controller performs only the manifested ACL/
   protection fence while necessarily holding temporary edit capability. Activity/
-  cell-digest evidence proves no content edit, and it is frozen/revoked before the
-  quiescent baseline. Separate sealed, exact, temporary reauthorizations grant the
+  cell-digest evidence records no observed content edit, and its workflow/temporary
+  authority is closed before baseline. If it is the owner, ownership/capability
+  remains under the declared no-edit agreement. Separate sealed, exact, temporary reauthorizations grant the
   candidate runtime after baseline approval and restore recovery/terminal ACLs.
 - [ ] The temporary keyless evidence auditor has exact read/export-only access to
   source Firestore/workbook state and create-only access to an encrypted, ACL- and
@@ -510,16 +561,22 @@ targets/snapshot/digest/revisions and expires on drift.
 - [ ] Human editors, Apps Script/installable triggers, add-ons, API/OAuth clients,
   service accounts, Shared Drive automations, transitive group/domain membership,
   Domain-Wide Delegation, and Workspace admin paths are inventoried and recoverably
-  fenced/digested or proved absent. Drive/Workspace audit first proves zero continuing
-  data-write paths; after access it proves candidate runtime sole writer per batch.
+  fenced/digested or proved absent, apart from the declared owner's retained
+  capability under the accepted policy. Provider evidence records its visibility
+  limits; candidate admission leaves only reviewed runtime commands authorized.
 - [ ] Prior editors confirm online/closed/no-pending-offline state. Affected ranges
   remain protected until controlled reauthorization, forced server reload, and
   post-reopen observation/read-back; unconfirmed editors/automations remain read-only
   or use a versioned base-revision command path.
-- [ ] Workbook location, owner(s), roles, and capabilities are resolved. A reversible
-  mechanism truly fences every owner write path; otherwise rollout stops for a
-  separate move/transfer decision with fixture and same-ID/link read-back evidence.
-- [ ] After drain and zero-writer workbook fencing, fresh Firestore/workbook
+- [ ] Workbook location, owner(s), roles, and capabilities are resolved. The named
+  owner confirms the exact bounded no-edit/no-pending-offline window and its
+  retained capability/risk is explicit. All other writer paths are controlled;
+  expiry or authority change invalidates the confirmation. Any optional custody
+  move has separate fixture and same-ID/link read-back evidence.
+- [ ] The revised maintenance packet/adapter and safe-copy rehearsal cover owner
+  confirmation, expiry, drift, uncertain effects and recovery without certifying
+  physical exclusivity or bypassing existing event/effect/notification gates.
+- [ ] After drain and accepted workbook maintenance entry, fresh Firestore/workbook
   backups, absent/present manifests, digests, planner inputs, and forward/inverse
   budgets define the quiescent baseline. Any delta from the pre-drain packet is
   commit-rehearsed in an isolated restored clone and reauthorized before access/
@@ -652,12 +709,14 @@ targets/snapshot/digest/revisions and expires on drift.
   trigger.
 - A required index is not `READY`, a mixed revision can receive work, or access/
   parameter read-back targets the wrong boundary.
-- Temporary Rules/ingress cannot close direct and callable/event writes, any human
-  or automated workbook writer cannot be fenced, exclusive writer ownership is
-  unproved, or workbook revision/digest drifts before a mutation.
-- My Drive/Shared Drive location, ownership, or capabilities are unknown; an owner
-  remains able to write; or a required transfer/move cannot prove the same file ID/
-  link and bound integrations before production authorization.
+- Temporary Rules/ingress cannot close direct and callable/event writes, a workbook
+  writer other than the declared cooperative owner cannot be controlled, owner
+  confirmation expires/is absent, or workbook revision/digest or authority drifts.
+- My Drive/Shared Drive location, ownership, or capabilities are unknown; the owner
+  cannot commit to the bounded no-edit procedure/reports an edit; or an optional
+  transfer/move cannot prove the same file ID/link and bound integrations before
+  production authorization. Retained owner capability alone is not an abort under
+  the accepted policy and must never be reported as technically excluded.
 - Any Admin SDK/server/IAM writer is unknown, unfrozen, newly active, or disagrees
   with the current expected IAM/log/workload/data checkpoint; any state change not
   produced by the preceding manifested operation is drift.

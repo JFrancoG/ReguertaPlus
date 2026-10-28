@@ -380,6 +380,8 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-10-28 | ✅ test(shifts): rehearse backend handoff
+
 - 2026-10-28 | ✅ test(shifts): rehearse develop pause and copy lock
 
 - 2026-10-28 | ✅ test(shifts): rehearse reversible develop controls

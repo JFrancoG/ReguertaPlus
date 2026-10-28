@@ -1,5 +1,12 @@
 # HU-084: ensayo de la pausa selectiva de develop
 
+> **Política vigente — 2026-10-28:** [ADR-0021](../decisions/0021-usar-mantenimiento-acordado-con-el-propietario-en-hojas-de-turnos.md)
+> acepta un compromiso acotado de no editar del propietario identificado, en vez
+> de retirarle técnicamente esa capacidad manual. Los demás controles de
+> escritores, entrega, vaciado y notificaciones, y `canApply:false`, siguen intactos.
+> Los resultados históricos y límites del cierre físico descritos abajo conservan
+> su validez; faltan la implementación y la autorización real.
+
 Estado: diseño y ensayo local; **`canApply:false`**. No es una pausa desplegada
 ni un punto de control que admita la migración.
 

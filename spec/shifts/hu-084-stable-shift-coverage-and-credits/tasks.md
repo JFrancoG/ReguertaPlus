@@ -331,7 +331,9 @@ Accepted local evidence: [rehearsal guide](../../../docs/testing/hu084-develop-m
 - [x] Design and locally rehearse selective admission/retention against the exact audited legacy source, preserving positive production callback behavior and conservative in-flight uncertainty.
 - [ ] Establish actual durable develop delivery and reconcile invocations from old revisions before deploying a real bridge.
 - [x] Verify owner-only lock capability and reversible isolated-copy owner/service-account canaries.
-- [ ] Resolve actual-file ACL/control-plane authority and a held transition to the governed writer before real application.
+- [ ] Resolve actual-file ACL/control-plane authority and a transition under
+  ADR-0021's bounded owner-cooperation policy before real application; all other
+  writers and automated owner-credential paths remain controlled.
 Shared runtime/operator/Drive admission, complete post-drain capture, actual
 application/rollback authorization and full annual preview remain open.
 
@@ -344,4 +346,26 @@ application/rollback authorization and full annual preview remain open.
 - [x] Obtain explicit session `drive.metadata` consent; verify actual owner capabilities, absent restrictions and a positive owner write followed by restoration.
 - [x] Complete owner/service-account positive-before, denied-during and recovered-after copy canaries, exact own-lock reversal and temporary-access cleanup.
 - [x] Record final local validation, independent copy-image/restriction review and verified ACL/IAM/OAuth cleanup; preserve `canApply:false` and unresolved old-in-flight/delivery/inventory gates.
-- [ ] Deliver this new rehearsal through Git; it remains local after `f105ca5c`.
+- [x] Deliver this rehearsal as `f5c3b5db`; exact remote HEAD verified.
+
+## Exclusive backend handoff design and rehearsal — 2026-10-28
+
+- [x] Commit/push the accepted pause/copy-lock group and reuse #268/#269/current branch.
+- [x] Refine masked metadata for six exact legacy Functions/Run revisions and four Eventarc/subscription configurations; distinguish configuration from absent runtime/queue census.
+- [x] Inspect existing custody/external-fence/barrier contracts and accessible Shared Drives without changing resources.
+- [x] Prepare the bilingual three-lane design and custody alternatives; record the
+  later explicit owner-cooperation choice in ADR-0021 and align HU-085.
+- [x] Rehearse committed capture with lost SDK acknowledgement, duplicate/conflict handling and current-state reconciliation without legacy callback/notification replay; do not infer broker durability.
+- [x] Rehearse pre-pause and recording-provider-accepted late work, unknown history/uncertainty refusal, initialized epoch/revision checks and stale-command rejection in the fixed demo emulator.
+- [x] Validate 28 joint passes (eight new plus 20 unchanged), build/lint and both CJS syntax checks; reject fixture output as a live barrier proof, independently review and retain private evidence.
+- [x] Record remaining external authority/queue/inventory/procedure gates without
+  fabricating closure or authorizing a live migration; all local outputs retain `canApply:false`.
+- [x] Record the provisional personal-account assumption and accepted bounded
+  owner-cooperation policy in bilingual ADR/spec/runbook documentation.
+- [ ] Implement and locally rehearse the explicitly bound maintenance packet/
+  adapter for owner/file/window/confirmations, other-writer controls, expiry,
+  drift and uncertain-write recovery; do not relabel cooperation as technical fencing.
+
+The group was validated against `f5c3b5db`. Durable live intake, complete
+old-work control/reconciliation, writer authority and the revised maintenance procedure remain
+open; the local suite cannot close them. No native source or shared resource changed.

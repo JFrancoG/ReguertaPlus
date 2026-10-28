@@ -1,5 +1,12 @@
 # HU-084: inspección operativa de develop
 
+> **Política vigente — 2026-10-28:** [ADR-0021](../decisions/0021-usar-mantenimiento-acordado-con-el-propietario-en-hojas-de-turnos.md)
+> acepta un compromiso acotado de no editar del propietario identificado, en vez
+> de retirarle técnicamente esa capacidad manual. Los demás controles de
+> escritores, entrega, vaciado y notificaciones, y `canApply:false`, siguen intactos.
+> Los resultados históricos y límites del cierre físico descritos abajo conservan
+> su validez; faltan la implementación y la autorización real.
+
 Estado: la inspección privada de develop está desplegada y verificada con
 identidades separadas. El acceso al libro es de lector; se ha retirado y comprobado
 el permiso humano temporal para generar tokens OIDC. Esta operación no incluye

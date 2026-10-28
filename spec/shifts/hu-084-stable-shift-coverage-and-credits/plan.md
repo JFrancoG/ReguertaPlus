@@ -2061,6 +2061,90 @@ twenty-minute grant was not extended. Both temporary owner OAuth sessions are
 revoked (actual 401), the connection is absent and UI token/request fields are
 cleared. The first inspection's accidental token transcript exposure remains
 recorded separately; that token was already revoked before the later copy test.
-No reusable credentials are added to project files. This follow-up remains local
-and uncommitted after delivered `f105ca5c`. Passing the copy mechanism does not
-establish a held owner fence or exclusive runtime handoff.
+No reusable credentials are added to project files. This follow-up is delivered
+in `f5c3b5db`, with exact local/remote HEAD verified. Passing the copy mechanism
+does not establish a held owner fence or exclusive runtime handoff.
+
+## Exclusive backend handoff design and rehearsal — 2026-10-28
+
+The maintainer authorizes one grouped local design/rehearsal covering pending
+events and invocations admitted by old code. Reuse #268/#269, the same branch,
+the exact legacy VM, existing epoch/revision admission and trusted barrier.
+Do not deploy a collector/bridge, alter shared retries or IAM, move/transfer a
+workbook, change its link or mutate shared business data. The later explicit
+owner-cooperation decision below amends only HU-085's owner-exclusion policy.
+No new operational controller is needed: the implementation is confined to demo
+test helpers and an emulator suite, with `canApply:false` in every result.
+
+The finite group separates three questions:
+
+1. Capture each develop event durably before acknowledgement, bind its original
+   content/source/versions, and retain conflicting or repeated deliveries without
+   replaying legacy callbacks.
+2. Reconcile the finite known demo invocation/effect set, including an old callback
+   started before the pause, a provider-accepted late write, uncertain FCM delivery,
+   retained causal work and stale observations. Missing legacy dispatch does not
+   prove a notification was never sent.
+3. Rehearse executor ownership against initialized current epoch/revision and
+   reject stale or incomplete transitions. A hypothetical closed demo authority
+   cannot stand in for missing live runtime, queue or workbook custody evidence.
+
+Read-only provider metadata is refined for the same six audited legacy functions,
+their Run services/revisions and four Eventarc/subscription configurations. Their
+audited source/revisions are unchanged. All six have 60-second request timeouts,
+maximum 20 instances, concurrency one and all traffic on the latest revision;
+omitted minimum instance counts remain unknown. The four shared wildcard triggers
+retain Functions `DO_NOT_RETRY`, while transport subscriptions are active with
+600-second acknowledgements, 86,400-second retention and 10–600-second backoff.
+These are configuration observations, not a queue/invocation census or drain proof.
+No payload, pull/ack, application log or metrics access is used.
+
+The connected Drive account lists no accessible Shared Drives. This does not prove
+the association lacks Workspace elsewhere. The maintainer believes only personal
+accounts are used, but is not fully certain; retain that provisional assumption.
+The My Drive owner can write again when the global lock is removed; the local
+rehearsal never proves physical exclusion. No custody or replacement projection
+is selected. The [bilingual design](../../../docs/testing/hu084-backend-handoff-rehearsal.md)
+records their tradeoffs and the eight actually exercised cases. Native sources
+remain unchanged.
+
+The maintainer explicitly accepted bounded maintenance with owner cooperation.
+The aligned HU-085 specification and bilingual ADR-0021 replace only absolute
+exclusion of the named owner's manual capability: preserve file/link, published
+dates/order, temporarily restrict other editors, close all automation including
+owner-credential workloads, bind online/closed/no-offline/no-edit confirmation to
+the window/deadline, and check observed authority/revision/content before and
+after batches. Retained capability and undetectable/interleaved-edit risks remain
+explicit. Expiry, reported owner edits, observed drift or uncertain submission
+stops automatic progression; reconcile rather than blindly retry or restore.
+All other writer, old-effect, epoch/revision and notification gates remain intact.
+
+This is policy acceptance, not operational readiness or live authorization. The
+current inventory/barrier still expects technical `fenced` evidence for humans/
+offline editors. A revised packet/adapter must represent this exact exception,
+owner/file/window/confirmations and aborts; neither a boolean nor the local fixture
+can substitute for its implementation and rehearsal. If the permission controller
+is also the owner, close its ACL workflow/temporary credentials without claiming
+revoked ownership. No new source or infrastructure change follows from this choice.
+
+Accepted local evidence: Node 22.23.4, Functions build/lint, both CJS syntax checks
+and a joint emulator run with 28 passes (eight new plus 20 unchanged pause/positive
+production cases), zero failures/skips. Independent read-only review found no
+remaining blockers for this finite scope. The owned emulator is stopped. Exact
+commands, deployed-source binding, file hashes, TAP and bounded provider readbacks
+remain private. These results were captured against baseline `f5c3b5db`.
+
+The positive result is only `knownFixtureReconciliationReady`: captured event and
+disposition manifests, old terminal evidence and current-source projection agree
+in the declared demo universe. Every assessment retains `legacyUntracked:true`,
+`physicalHandoffReady:false`, `canApply:false` and `canClaimClosure:false`;
+the actual barrier rejects it. The suite does not implement a deployed collector,
+the real Sheets worker, a broker guarantee, lease-expiry transitions or a physical
+before/after handoff. A recording provider's delayed real Firestore afterimage
+does not prove a real provider's cancellation behavior.
+
+Next operational gates remain durable develop intake, effective isolation of old
+Admin SDK writers and their submitted/causal effects, complete writer-authority
+bindings and the accepted workbook maintenance procedure/adapter. Selective isolation or the existing
+separately authorized bounded shared-project window must be demonstrated; Rules,
+traffic metadata and quiet intervals cannot substitute. No live operation is authorized.
