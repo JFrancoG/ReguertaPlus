@@ -1,6 +1,8 @@
 const assert = require("node:assert/strict");
 const {test} = require("node:test");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
+const {createShiftPlanningControlManifestDigest} = require("../lib/shift-planning-intake-barrier.js");
+const {inspectCensus} = require("../scripts/inspect-develop-legacy-census.cjs");
 const {createShiftPlanningTrustedIntakeBarrierCheckpoint, createTrustedShiftPlanningIntakeBarrierAdapter} =
   require("../lib/shift-planning-trusted-intake-barrier-adapter.js");
 const {scope, evidence} = require("./shift-planning-barrier-fixture.cjs");
@@ -148,6 +150,80 @@ test("rejects non-canonical checkpoint evidence", () => {
     }),
     errorCode("maintenance_state_conflict"),
   );
+});
+
+test("a valid offline census report cannot become a trusted checkpoint or held evidence", async () => {
+  const instant = "2026-10-28T10:00:00Z";
+  const intake = {
+    name: "projects/reguerta-9f27f/databases/(default)/documents/shiftPlanningDevelopIntake/current",
+    createTime: instant,
+    updateTime: instant,
+    fields: {
+      schemaVersion: {integerValue: "1"}, legacyUntracked: {booleanValue: true},
+      captureRevision: {integerValue: "0"}, eventCount: {integerValue: "0"}, deliveryCount: {integerValue: "0"},
+    },
+  };
+  const report = inspectCensus({
+    schemaVersion: 1, projectId: "reguerta-9f27f", readOnly: true, atomicSnapshot: true,
+    readTime: instant, canApply: false, canClaimClosure: false,
+    intakeBefore: structuredClone(intake), intakeAfter: intake,
+    collections: {shiftPlanningRequests: [], shifts: [], deliveryCalendar: [], notificationEvents: []},
+    events: [], deliveries: [], chunks: {},
+  });
+  assert.equal(report.legacyUntracked, true);
+  assert.equal(report.canClaimClosure, false);
+  assert.match(report.stableSetDigest, /^[a-f0-9]{64}$/);
+  const {checkpointDigest: _originalDigest, ...validShape} = checkpoint();
+  const reboxed = {...validShape, evidence: report, evidenceDigest: digest(report)};
+  const rehashed = {...reboxed, checkpointDigest: digest(reboxed)};
+
+  for (const candidate of [report, rehashed]) {
+    const control = createControlPlane({barrierCheckpoint: candidate, readBackSteps: [candidate]});
+    const failures = createFailurePersistence();
+    const adapter = createTrustedShiftPlanningIntakeBarrierAdapter({
+      controlPlane: control.port, failurePersistence: failures.port,
+    });
+    let callbackCalls = 0;
+    await assert.rejects(adapter.withClosedIntakeBarrier(scope(), async () => {
+      callbackCalls += 1;
+    }), errorCode("maintenance_state_conflict"));
+    assert.equal(callbackCalls, 0);
+    assert.deepEqual(control.events, ["close", "readBack"]);
+    assert.deepEqual(failures.retained, []);
+    assert.equal(control.reopenCalls, 0);
+  }
+});
+
+test("a fully rehashed retained capture never qualifies as a disabled or isolated writer", async () => {
+  for (const [writerId, requiredState] of [
+    ["trigger-on-shift-written", "disabled"],
+    ["trigger-on-notification-event-created", "isolated"],
+  ]) {
+    const candidate = structuredClone(checkpoint());
+    const writer = candidate.evidence.payload.writerControls.find((item) => item.writerId === writerId);
+    assert.equal(writer.state, requiredState);
+    writer.state = "retained";
+    candidate.scope.expectedControlManifestDigest =
+      createShiftPlanningControlManifestDigest(candidate.evidence.payload.writerControls);
+    candidate.scopeDigest = digest(candidate.scope);
+    candidate.evidence.digest = digest(candidate.evidence.payload);
+    candidate.evidenceDigest = candidate.evidence.digest;
+    const {checkpointDigest: _oldDigest, ...body} = candidate;
+    candidate.checkpointDigest = digest(body);
+    const control = createControlPlane({barrierCheckpoint: candidate, readBackSteps: [candidate]});
+    const failures = createFailurePersistence();
+    const adapter = createTrustedShiftPlanningIntakeBarrierAdapter({
+      controlPlane: control.port, failurePersistence: failures.port,
+    });
+    let callbackCalls = 0;
+    await assert.rejects(adapter.withClosedIntakeBarrier(candidate.scope, async () => {
+      callbackCalls += 1;
+    }), errorCode("maintenance_state_conflict"));
+    assert.equal(callbackCalls, 0);
+    assert.deepEqual(control.events, ["close", "readBack"]);
+    assert.deepEqual(failures.retained, []);
+    assert.equal(control.reopenCalls, 0);
+  }
 });
 
 test("holds one exact checkpoint around one callback and never reopens", async () => {

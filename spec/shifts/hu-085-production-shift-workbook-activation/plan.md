@@ -840,3 +840,47 @@ external outcomes unknown, shared maintenance/migration closed and #268/#269 ope
 The maintainer authorizes delivery of the new offline inspector/tests and
 operational documentation; exact Git/remote verification is recorded in the
 canonical issues/PR. Deployed bridge code is already included in `76a96826`.
+
+## Develop client/authority closeout in preparation — 2026-10-28
+
+The inspector continuation is delivered at `f141a902`. Fresh baseline Rules and
+the real IAM census are read back. A pinned Rules-only packet and reviewed
+one-account/one-document client probe are ready for separate live approval;
+production admission predicates and server privileges are preserved. The offline
+census gains a stable set identity, not permission to declare earlier work drained.
+Build/full lint and 159 joint tests pass without failures/skips. Negative existing
+barrier integration proves a census/retained state cannot replace trusted closure.
+
+[ADR-0022](../../../docs/decisions/0022-cooperate-with-develop-firebase-administrators.md)
+is a proposed develop-only decision, not accepted policy. The observed shared
+Editor runtime, two Owner user principals and other privileged writers cannot be
+declared technically fenced by client Rules. Any agreed human exception still
+excludes automation and leaves actual invocation/effect reconciliation mandatory.
+Current HU-085/ADR-0021 authority requirements and shared admission remain unchanged.
+
+The follow-up audit confirms three enabled develop-only reminder jobs, previously
+missing from the logical inventory. V4 now requires all three before a new hold;
+it does not certify them paused or drained. Their identities/cron/HTTP/OIDC bindings
+and all twelve source generations are retained privately. The access resolver is
+newer than the eight remaining legacy HTTP callbacks and cannot be replaced from
+their old archive. After the inventory correction, 394 planning tests and a
+separate 155-case control/regression run pass without failure/skip, with build/full
+lint green. Exact live job containment remains a separate authorized action.
+
+## Approved develop client-only phase — 2026-10-28
+
+The maintainer explicitly approves Rules/Auth/probe application and accepts
+develop-only administrator cooperation under ADR-0022. The exact Firestore Rules
+candidate is published/read back. The genuine Firebase-ID-token probe proves
+baseline create200 then update403/read200/delete403/create403; owned temporary
+Auth/source cleanup succeeds. The complete business/journal set is unchanged.
+Independent audit verifies 24 Function configurations/revisions/provenances, IAM
+and inspected account controls unchanged. Three jobs remain enabled. No production
+business, original/production Sheet or FCM operation is run.
+
+This closes direct develop client writes. ADR-0022 is accepted as policy only;
+its versioned contract and actual participant confirmations remain required.
+Server admission, Scheduler containment and historical-effect proof stay pending;
+shared maintenance and production activation remain closed. The maintainer
+authorizes this source delivery; exact Git/remote verification is recorded in the
+canonical issues/PR. Unchanged executable hashes preserve build/lint and 394/155 runs.

@@ -32,20 +32,21 @@ const tagged = (value) => value === null ? ["null"] : typeof value === "string" 
       ["map", Object.keys(value).sort().map((key) => [key, tagged(value[key])])];
 const code = (expected) => (error) => error.code === expected && error.message === expected;
 
-function fixture() {
-  const target = "develop/plus-collections/shifts/current-shift";
+function fixture(id = "current-shift") {
+  const target = `develop/plus-collections/shifts/${id}`;
+  const providerId = id === "current-shift" ? "provider-delivery-a" : `provider-${id}`;
   const payload = {status: "planned", type: "delivery", privateNote: "Never include this private content"};
   const before = {path: target, exists: false, createTime: null, updateTime: null, readTime: null, fields: null};
   const after = {path: target, exists: true, createTime: at(CREATED), updateTime: at(UPDATED),
     readTime: null, fields: tagged(payload)};
   const core = {schemaVersion: 1, entryPoint: "onShiftWritten", source: SOURCE,
     type: "google.cloud.firestore.document.v1.written", path: target, before, after};
-  const metadata = tagged({id: "provider-delivery-a", params: {env: "develop", shiftId: "current-shift"},
+  const metadata = tagged({id: providerId, params: {env: "develop", shiftId: id},
     source: SOURCE, specversion: "1.0", subject: `documents/${target}`, time: UPDATED, type: core.type});
   const envelope = JSON.stringify({core, metadata, before, after});
   const eventKey = hash(JSON.stringify({entryPoint: core.entryPoint, source: SOURCE, type: core.type, path: target,
     before: [false, null], after: [true, after.updateTime]}));
-  const deliveryKey = hash(JSON.stringify({entryPoint: core.entryPoint, source: SOURCE, id: "provider-delivery-a"}));
+  const deliveryKey = hash(JSON.stringify({entryPoint: core.entryPoint, source: SOURCE, id: providerId}));
   const coreDigest = hash(JSON.stringify(core));
   const event = doc(`shiftPlanningDevelopIntake/current/events/${eventKey}`, {schemaVersion: 1, coreDigest,
     path: target, entryPoint: core.entryPoint, state: "retained", envelopeDigest: hash(envelope), chunkCount: 1, replayable: false}, LATER);
@@ -81,6 +82,7 @@ test("valid inspection binds a complete census and source version without granti
   assert.equal(report.canApply, false);
   assert.equal(report.canClaimClosure, false);
   assert.equal(report.fingerprint.length, 64);
+  assert.match(report.stableSetDigest, /^[a-f0-9]{64}$/);
   assert.equal(JSON.stringify(report).includes("Never include this private content"), false);
   assert.deepEqual(input, before);
 });
@@ -128,6 +130,7 @@ test("an absent source and a later identical-body ABA restore are distinct from 
   const report = inspectCensus(later);
   assert.equal(report.captures[0].relationship, "superseded");
   assert.notEqual(report.fingerprint, inspectCensus(fixture()).fingerprint);
+  assert.notEqual(report.stableSetDigest, inspectCensus(fixture()).stableSetDigest);
   assert.equal(report.captures[0].replayAllowed, false);
 });
 
@@ -246,12 +249,77 @@ test("non-atomic snapshots, future versions and source version regressions remai
   assert.throws(() => inspectCensus(regressed), code("source_version_regression"));
 });
 
-test("source and collection order do not change the bound fingerprint", () => {
-  const input = fixture();
-  input.collections.shifts.push(doc("develop/plus-collections/shifts/another-shift", {status: "planned"}));
+test("fresh reads retain stable set identity while recording distinct observation provenance", () => {
+  const input = fixture(), fresh = structuredClone(input);
+  fresh.readTime = "2026-10-28T10:06:00.987654321Z";
+  const original = inspectCensus(input), observed = inspectCensus(fresh);
+  assert.equal(original.stableSetDigest, observed.stableSetDigest);
+  assert.notEqual(original.fingerprint, observed.fingerprint);
+  assert.equal(observed.canApply, false);
+  assert.equal(observed.canClaimClosure, false);
+  assert.equal(observed.legacyUntracked, true);
+});
+
+test("source, event, delivery, chunk and collection ordering do not change either digest", () => {
+  const input = fixture(), second = fixture("another-shift");
+  input.collections.shifts.push(...second.collections.shifts);
+  input.events.push(...second.events);
+  input.deliveries.push(...second.deliveries);
+  Object.assign(input.chunks, second.chunks);
+  for (const root of [input.intakeBefore, input.intakeAfter]) {
+    root.fields.captureRevision = raw(2); root.fields.eventCount = raw(2); root.fields.deliveryCount = raw(2);
+  }
+  const event = input.events[0], chunk = input.chunks[event.name][0];
+  const bytes = Buffer.from(chunk.fields.bytes.bytesValue, "base64"), split = Math.floor(bytes.length / 2);
+  event.fields.chunkCount = raw(2);
+  chunk.fields.bytes = raw(bytes.subarray(0, split));
+  input.chunks[event.name].push(doc(`${event.name.slice(BASE.length)}/chunks/1`, {bytes: bytes.subarray(split)}, LATER));
   const reversed = structuredClone(input);
   reversed.collections.shifts.reverse();
+  reversed.events.reverse(); reversed.deliveries.reverse();
+  reversed.chunks = Object.fromEntries(Object.entries(reversed.chunks).reverse()
+    .map(([name, chunks]) => [name, chunks.reverse()]));
   assert.equal(inspectCensus(input).fingerprint, inspectCensus(reversed).fingerprint);
+  assert.equal(inspectCensus(input).stableSetDigest, inspectCensus(reversed).stableSetDigest);
+});
+
+test("stable identity binds every document image, including capture, delivery and chunk versions", () => {
+  const original = fixture();
+  original.collections.deliveryCalendar.push(doc("develop/plus-collections/deliveryCalendar/week", {enabled: true}));
+  const expected = inspectCensus(original).stableSetDigest;
+  for (const mutate of [
+    (input) => { input.collections.deliveryCalendar[0].fields.enabled = raw(false); },
+    (input) => { input.collections.deliveryCalendar[0].createTime = UPDATED; },
+    (input) => { input.collections.shifts[0].updateTime = LATER; },
+    (input) => { input.events[0].updateTime = READ; },
+    (input) => { input.deliveries[0].updateTime = READ; },
+    (input) => { input.chunks[input.events[0].name][0].updateTime = READ; },
+  ]) {
+    const changed = structuredClone(original); mutate(changed);
+    assert.notEqual(inspectCensus(changed).stableSetDigest, expected);
+  }
+  const corrupted = structuredClone(original);
+  corrupted.chunks[corrupted.events[0].name][0].fields.bytes = raw(Buffer.from("changed retained bytes"));
+  assert.throws(() => inspectCensus(corrupted), code("capture_envelope_digest_mismatch"));
+});
+
+test("a new valid delivery and capture revision invalidate stable set identity even for the same logical event", () => {
+  const input = fixture(), original = inspectCensus(input);
+  const event = input.events[0], alias = structuredClone(input.deliveries[0]);
+  const metadata = JSON.parse(alias.fields.metadata.stringValue);
+  metadata[1].find(([name]) => name === "id")[1][1] = "provider-alias-delivery";
+  const id = hash(JSON.stringify({entryPoint: "onShiftWritten", source: SOURCE, id: "provider-alias-delivery"}));
+  alias.name = `${ROOT}/deliveries/${id}`;
+  alias.fields.metadata = raw(JSON.stringify(metadata));
+  alias.fields.digest = raw(hash(JSON.stringify({coreDigest: event.fields.coreDigest.stringValue, metadataWire: metadata})));
+  input.deliveries.push(alias);
+  for (const root of [input.intakeBefore, input.intakeAfter]) {
+    root.fields.captureRevision = raw(2); root.fields.deliveryCount = raw(2);
+  }
+  const changed = inspectCensus(input);
+  assert.equal(changed.eventCount, 1);
+  assert.equal(changed.captureRevision, 2);
+  assert.notEqual(changed.stableSetDigest, original.stableSetDigest);
 });
 
 test("the offline CLI writes only a new private report and refuses to overwrite existing evidence", () => {

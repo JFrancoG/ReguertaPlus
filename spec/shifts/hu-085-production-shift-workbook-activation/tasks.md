@@ -469,3 +469,30 @@ open, as do the two missing market months and complete seasonal preview.
   outside automatic resend and preserve unknown earlier external effects.
 - [ ] Resolve old work/provider effects and bind effective authority before any
   shared closed-barrier admission. Local intake success does not clear this gate.
+
+## Develop client/authority closeout — 2026-10-28
+
+- [x] Deliver the inspected continuation at `f141a902`; preserve #268/#269/PR #278.
+- [x] Read current Rules and real IAM/runtime/key metadata; record shared server
+  privileges and their limits privately, without permission changes.
+- [x] Prepare/review Rules-only publication, authenticated client probe and exact
+  cleanup; validate 159 joint tests, build/full lint and stable causal-set binding.
+- [x] Separately authorize/read back live Rules/Auth/probe application, with
+  unchanged business documents and no original/production workbook or FCM action.
+- [x] Decide ADR-0022 explicitly before changing any accepted authority
+  guarantee; preserve automated-writer and outstanding-effect controls throughout.
+- [ ] Obtain real remaining technical/authority evidence; no census or retained
+  record may substitute for trusted admission or invent zero in-flight work.
+- [x] Require the three actual develop-only reminder Scheduler writers in v4;
+  reject incomplete v3 evidence and missing/enabled/undrained jobs before entry.
+- [x] Pass build/full lint, 394 planning tests and a separate 155-case control/
+  regression run without failures/skips after the inventory correction.
+- [ ] Authorize/read back the exact three-job pause and reconcile old execution;
+  do not activate production reminders by changing their environment configuration.
+
+The approved client-only phase is accepted: exact candidate Rules, genuine ID-token
+before/after behavior, conditional source/Auth cleanup and unchanged 183 business
+documents/twelve captures. All 24 Functions, IAM/service-account controls and three
+enabled jobs preserve their prior configuration. ADR-0022 is accepted for develop
+human capability only; implementation/admission remains pending. No production
+business/Sheet/FCM operation occurred, and shared maintenance stays closed.

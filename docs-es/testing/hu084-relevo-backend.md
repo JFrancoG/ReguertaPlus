@@ -1,14 +1,19 @@
 # HU-084: diseño y ensayo local del relevo al backend
 
-Estado: captura de develop desplegada con autorización separada; el mantenimiento
-compartido sigue en **`canApply:false`** y los escritores antiguos no están pausados.
+Estado: cuatro colectores de develop y seis wrappers desplegados; las Rules
+autorizadas por separado deniegan las escrituras directas de clientes en Firestore
+de develop. Faltan admisiones de servidor y efectos históricos, por lo que el
+mantenimiento compartido sigue en **`canApply:false`**.
 El mantenedor aceptó la colaboración del propietario identificado el 28-10-2026
 en el [ADR-0021](../decisions/0021-usar-mantenimiento-acordado-con-el-propietario-en-hojas-de-turnos.md).
 Esa decisión no autoriza cambios de custodia, despliegues ni mantenimiento real.
+La cooperación de administradores humanos de Firebase solo para develop está
+aceptada por separado en [ADR-0022](../decisions/0022-cooperate-with-develop-firebase-administrators.md);
+siguen haciendo falta su contrato versionado y confirmaciones por ventana.
 
 [English version](../../docs/testing/hu084-backend-handoff-rehearsal.md).
 
-## Base actual
+## Base local conservada
 
 El commit `f5c3b5db` entrega el [ensayo de pausa selectiva y bloqueo en copia](hu084-pausa-selectiva-develop.md).
 Sus 20 casos aceptados de emulador ejecutan los seis callbacks del ejecutable
@@ -688,3 +693,87 @@ No hubo acceso a las hojas originales/de producción ni envío FCM del ensayo.
 Mantenimiento y migración compartidos siguen cerrados hasta evaluar por el cauce
 previsto efectos históricos y autoridad vigente. Contener estos seis puntos de
 entrada no cierra los demás escritores ni borra `legacyUntracked`.
+
+### Controles restantes de clientes y administración
+
+El bloque anterior está entregado en `f141a902`. La continuación añade
+`stableSetDigest` al censo completo sin cambiar su huella de procedencia. Dos
+lecturas reales de los mismos 183 documentos y doce capturas conservan esa huella
+estable y cambian la vinculada a readTime. Sirve para ligar el conjunto causal
+existente; ninguna huella acredita vaciado, fuentes canónicas, autoridad vigente
+ni cierre de confianza.
+
+`prepare-develop-rules-pause.cjs` recibe rutas absolutas con `--capture`,
+`--candidate` y `--output`. Fija baseline/release reales y candidato revisado,
+crea un paquete privado nuevo limitado a Rules y no accede a la red ni despliega.
+El ejecutor real aún exige consentimiento, un único publicador, comparación
+inmediata antes de publicar y lectura posterior exacta de su resultado. El PATCH
+de la release no ofrece CAS. El candidato cierra **todas** las escrituras de
+clientes develop, incluidos productos/pedidos/configuración/dispositivos, y
+conserva lecturas y condiciones de producción. Admin SDK/IAM eluden este cierre.
+
+El censo real acotado observa 27 permisos directos, ninguno condicionado, dos
+cuentas de usuario propietarias y 23 de las 24 Functions compartiendo Compute
+con Editor. Las cuatro cuentas de servicio inspeccionadas no tienen claves
+creadas por usuarios, pero el proyecto permite administración y suplantación.
+No se devuelve parent. No se inspeccionaron políticas deny, límites de acceso de
+principales, sesiones ni procesos externos. No se cambió ningún permiso y este
+censo no certifica exclusividad.
+
+La prueba preparada utiliza una identidad Auth temporal con contraseña, sin socio
+ni permisos especiales, su ID token solo en memoria y un documento ficticio fuera
+de los cuatro filtros de triggers. Comprueba admisión del cliente en baseline y,
+tras el candidato, denegación de crear/actualizar/borrar y conservación de lectura.
+La limpieza exige creación confirmada, identidad de creación y updateTime exacto;
+los resultados ambiguos se conservan para conciliación. Se revoca/borra la cuenta
+y descarta el token, sin afirmar invalidez instantánea de un ID token ya emitido.
+Un único recibo exclusivo y el directorio privado de la CLI protegen frente a
+repeticiones. No se permite cambiar negocio de producción, hojas, FCM, IAM o Functions.
+
+Pasan build/lint completos y 159 pruebas conjuntas, incluida la matriz ampliada,
+la huella estable y las negativas con la barrera existente. Reenvolver/recalcular
+un censo no lo convierte en cierre de confianza; retained no equivale a disabled
+o isolated. [ADR-0022](../decisions/0022-cooperate-with-develop-firebase-administrators.md)
+propone cooperación de administradores humanos solo en develop. Hasta su decisión
+e implementación expresas se mantienen las garantías estrictas/de propietario;
+automatismos y efectos anteriores necesitan controles técnicos en ambos casos.
+La ejecución real de Rules/Auth/prueba sigue pendiente de autorización separada.
+
+La auditoría posterior confirma que ocho HTTP restantes coinciden con el archivo
+antiguo; el resolvedor de acceso tiene una versión desplegada más reciente y debe
+conservarse por separado. Hay tres jobs de recordatorios habilitados que hoy solo
+apuntan a develop. El inventario v4 ya los exige con entrada deshabilitada antes de
+capturar el conjunto causal, además de conciliar trabajo pendiente/en curso. Una
+evidencia v3 que los omita no admite un cierre nuevo. No se ha pausado ni cambiado
+el entorno de ningún job. Tras la corrección pasan 394 casos de planificación y
+una tanda separada de 155 casos de controles/regresión, sin fallos/omisiones,
+además de build/lint completos.
+
+### Aplicación autorizada de Rules de clientes — 2026-10-28
+
+El mantenedor autorizó expresamente la release limitada a Rules, una identidad
+Auth temporal sin privilegios con contraseña y un documento ficticio de develop.
+La confirmación de veinte minutos vincula proyecto, hashes, ejecutor y ventana.
+El único intento terminó dentro del plazo. La CLI seleccionó solo `firestore:rules`;
+las lecturas posteriores de fuentes inmutables coinciden con baseline y candidato
+fijados de 7.389 bytes. No se seleccionó ninguna acción de Functions/Storage/índices.
+
+Se verificó el ID token de Firebase contra el proyecto y UID temporal exactos.
+La creación inicial del cliente devuelve 200; tras publicar, el primer intento
+de actualizar, borrar y crear devuelve 403, y la lectura del mismo documento
+conserva 200. La limpieza comprueba identidad/contenido/versión del documento;
+la cuenta Auth se revoca/borra y se comprueba ausente. No hay credenciales/JWT
+en recibos/logs conservados. Borrar la cuenta no afirma revocación instantánea de
+todo ID token ya emitido; estas credenciales solo estuvieron en memoria y se
+descartaron.
+
+El censo real posterior conserva la huella estable completa: 183 documentos de
+negocio sin cambios y doce eventos/entregas/revisión doce. El documento temporal
+estaba fuera de los cuatro filtros de triggers y no produjo capturas de negocio.
+No hubo llamadas a las hojas originales/de producción ni a FCM.
+
+Esto cierra **escrituras directas de clientes en Firestore**. Las Rules no limitan
+Functions, otros escritores Admin/IAM ni los jobs de recordatorios aún habilitados.
+Aceptar ADR-0022 no declara esos controles bloqueados, no demuestra vaciado antiguo
+ni admite mantenimiento compartido; se mantienen `legacyUntracked:true` y
+`canEnterMaintenance:false`.

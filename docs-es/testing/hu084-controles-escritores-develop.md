@@ -7,8 +7,14 @@
 > Los resultados históricos y límites del cierre físico descritos abajo conservan
 > su validez; faltan la implementación y la autorización real.
 
-Estado: **solo preparación local — `canApply:false`**. No se ha cerrado ningún
-escritor, no se ha aplicado ningún control ni se ha llamado a `closeAndCollect`.
+Estado: **preparación histórica con inventario actualizado — `canApply:false`**.
+La captura original descrita abajo es anterior a los cuatro colectores y seis
+actualizaciones del puente. Su resultado real está en la [guía de relevo del backend](hu084-relevo-backend.md).
+Las Rules de clientes ya están aplicadas y verificadas con la prueba Auth/documento
+real autorizada. La autoridad de servidor conserva sus condiciones separadas;
+`closeAndCollect` no ha admitido mantenimiento compartido. ADR-0022 acepta aparte
+la cooperación de administradores humanos solo en develop; siguen siendo necesarios
+su contrato versionado, confirmaciones vigentes y todos los controles de automatismos.
 
 [English version](../../docs/testing/hu084-develop-writer-controls.md).
 
@@ -48,17 +54,23 @@ identificadores de permisos y de la Sheet, y las respuestas originales de los
 proveedores permanecen en evidencias restringidas fuera de Git.
 
 La autoridad es el inventario compilado
-[`hu082-affected-writers-v3`](../../functions/src/shift-planning-writer-inventory.ts):
-esquema 1, **26 escritores lógicos**, con 20 controles de barrera de entrada y seis
+[`hu082-affected-writers-v4`](../../functions/src/shift-planning-writer-inventory.ts):
+esquema 1, **29 escritores lógicos**, con 23 controles de barrera de entrada y seis
 revalidaciones de versión para la equidad. El número de Functions no equivale al
 de escritores. La inspección privada es de lectura y no añade un escritor.
 
-El inventario compilado v3 describe los escritores lógicos del código; todavía
+El inventario compilado v4 describe los escritores lógicos del código; todavía
 no reconcilia toda la autoridad desplegada. Sus cuatro IDs públicos de clientes
 no cubren implícitamente la escritura sobre privados de planificación/coberturas
 admitida por el catch-all actual. El candidato más amplio sí la cierra, pero
 antes de admitir una barrera habrá que reconciliar ese grupo y sus destinos con
-la revisión/huella aceptada del inventario. Este bloque no cambia el compilado.
+la revisión/huella aceptada del inventario. La cooperación expresa del propietario
+añade un participante: 30 escritores y 24 controles de entrada. V4 incorpora los
+tres jobs de recordatorios del domingo omitidos en V3; cada uno exige cerrar su
+entrada y conciliar por separado trabajo pendiente/en curso antes de capturar el
+conjunto causal. Recalcular una evidencia V3 sin ellos no admite una transición
+nueva. Los jobs reales siguen habilitados y solo resuelven develop; configurarlos
+para producción cambiaría su comportamiento.
 
 ## Evidencias actuales y sus límites
 

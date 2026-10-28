@@ -5,7 +5,7 @@ import {
 
 export const SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION = 1 as const;
 export const SHIFT_PLANNING_WRITER_INVENTORY_REVISION =
-  "hu082-affected-writers-v3" as const;
+  "hu082-affected-writers-v4" as const;
 
 export type ShiftPlanningWriterControl =
   | "rules-deny"
@@ -159,6 +159,39 @@ const affectedWriters = [
       "functions/src/index.ts#shiftCoverage",
       "functions/src/shift-coverage-store.ts",
       "functions/src/shift-membership-reconciliation.ts",
+    ],
+  },
+  {
+    writerId: "scheduler-order-reminder-sunday20",
+    control: "disable-ingress",
+    requiredState: "disabled",
+    shutdownOrder: "before-causal-capture",
+    targets: ["notification.delivery"],
+    sourceReferences: [
+      "functions/src/index.ts#sendPendingOrderReminderSunday20",
+      "firebase-schedule-sendPendingOrderReminderSunday20-europe-west1",
+    ],
+  },
+  {
+    writerId: "scheduler-order-reminder-sunday22",
+    control: "disable-ingress",
+    requiredState: "disabled",
+    shutdownOrder: "before-causal-capture",
+    targets: ["notification.delivery"],
+    sourceReferences: [
+      "functions/src/index.ts#sendPendingOrderReminderSunday22",
+      "firebase-schedule-sendPendingOrderReminderSunday22-europe-west1",
+    ],
+  },
+  {
+    writerId: "scheduler-order-reminder-sunday23",
+    control: "disable-ingress",
+    requiredState: "disabled",
+    shutdownOrder: "before-causal-capture",
+    targets: ["notification.delivery"],
+    sourceReferences: [
+      "functions/src/index.ts#sendPendingOrderReminderSunday23",
+      "firebase-schedule-sendPendingOrderReminderSunday23-europe-west1",
     ],
   },
   {
@@ -404,7 +437,8 @@ export const SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID =
 /**
  * ADR-0021 separates the named manual owner from every other human/offline
  * writer. Owner credentials, scripts, API and privileged paths remain under
- * their original technical controls. The v3 strict inventory is unchanged.
+ * their original technical controls. The strict inventory stays independent
+ * of this named owner exception.
  */
 export const SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS:
   readonly ShiftPlanningAffectedWriter[] = Object.freeze([

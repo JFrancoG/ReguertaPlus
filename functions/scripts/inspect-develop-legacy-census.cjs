@@ -382,13 +382,21 @@ function inspectCensus(input) {
   for (const [id, event] of captured) check(bindings.get(event.firstDeliveryKey) === id, "capture_delivery_missing");
   records.sort((a, b) => compareText(a.path, b.path));
   captureRecords.sort((a, b) => compareText(a.eventKey, b.eventKey));
+  const documents = [input.intakeAfter, ...COLLECTIONS.flatMap((name) => input.collections[name]),
+    ...input.events, ...input.deliveries, ...Object.values(input.chunks).flat()];
   const fingerprint = digest({readTime: input.readTime, captureRevision,
-    documents: [input.intakeAfter, ...COLLECTIONS.flatMap((name) => input.collections[name]),
-      ...input.events, ...input.deliveries, ...Object.values(input.chunks).flat()]
+    documents: documents
       .map((doc) => ({name: doc.name, updateTime: doc.updateTime, digest: digest(doc)}))
       .sort((a, b) => compareText(a.name, b.name))});
+  // This is a stable identity for the inspected set, not fresh control evidence
+  // or permission to turn retained captures into a drained-work declaration.
+  const stableSetDigest = digest({schemaVersion: 1, projectId: PROJECT, intakePath: ROOT,
+    captureRevision, eventCount, deliveryCount,
+    documents: documents.map((doc) => ({name: doc.name, createTime: doc.createTime,
+      updateTime: doc.updateTime, contentDigest: digest(doc.fields)}))
+      .sort((a, b) => compareText(a.name, b.name))});
   return {schemaVersion: 1, kind: "develop-legacy-census-inspection", projectId: PROJECT, readTime: input.readTime,
-    atomicSnapshotReported: true, captureRevision, eventCount, deliveryCount, fingerprint,
+    atomicSnapshotReported: true, captureRevision, eventCount, deliveryCount, fingerprint, stableSetDigest,
     sourceCounts, dispatchSummaries, historicalPossiblyDeliveredNotificationCount: sourceCounts.notificationEvents,
     records, captures: captureRecords, legacyUntracked: true, canApply: false, canClaimClosure: false};
 }

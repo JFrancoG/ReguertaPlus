@@ -34,7 +34,13 @@ const plusPaths = [
   "shiftCoverageOperations/operation",
   "unknownFuturePrivateCollection/item/submissions/attempt",
   "config/public",
+  "config/global",
+  "products/product",
+  "orderLines/line",
+  "orderlines/line",
+  "notificationEvents/notification",
   "users/member",
+  "users/member/devices/device",
 ];
 const legacyCollections = ["config", "containers", "measures", "news", "orderLines", "orders", "products", "users"];
 const genericPaths = [

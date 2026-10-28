@@ -216,7 +216,7 @@ test("explicit owner mode enters through the existing CAS and immutable evidence
   assert.deepEqual(retained.payload.ownerAgreement, value.agreement);
   const residual = retained.payload.writerControls.find((entry) => entry.writerId === OWNER_ID);
   assert.equal(residual.state, "agreement-recorded");
-  assert.equal(retained.payload.writerControls.length, 21);
+  assert.equal(retained.payload.writerControls.length, 24);
   assert.equal(retained.payload.writerControls.filter((entry) => entry.state === "agreement-recorded").length, 1);
   assert.equal(retained.payload.ownerObservation.technicalCapability, "retained");
   assert.equal((await db.doc(failurePath()).get()).exists, false);

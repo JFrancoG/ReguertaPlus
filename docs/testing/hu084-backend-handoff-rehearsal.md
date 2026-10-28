@@ -1,14 +1,19 @@
 # HU-084: backend handoff design and local rehearsal
 
-Status: separately authorized develop capture is deployed; shared maintenance
-remains **`canApply:false`** and legacy writers have not been paused.
+Status: four develop collectors and six compatibility wrappers are deployed;
+direct develop-client Firestore writes are denied by the separately authorized
+Rules. Other server admission and historical effects remain pending, so shared
+maintenance stays **`canApply:false`**.
 The maintainer accepted the named owner's cooperation exception on 2026-10-28
 in [ADR-0021](../decisions/0021-use-cooperative-owner-maintenance-for-shift-workbooks.md).
 No custody change, deployment or real maintenance is authorized by that decision.
+Develop-only human Firebase administrator cooperation is separately accepted in
+[ADR-0022](../decisions/0022-cooperate-with-develop-firebase-administrators.md);
+its versioned implementation and per-window confirmations remain required.
 
 [Versión en español](../../docs-es/testing/hu084-relevo-backend.md).
 
-## Current baseline
+## Retained local baseline
 
 Commit `f5c3b5db` delivers the [selective develop pause and copy-lock rehearsal](hu084-selective-develop-pause.md).
 Its 20 accepted emulator cases exercise the six callbacks from the exact audited
@@ -647,3 +652,83 @@ No original/production workbook I/O or test FCM send occurred. Shared maintenanc
 and migration remain closed pending the governed assessment of historical effects
 and effective authority. Successful containment of these six entry points does
 not close other writers or clear `legacyUntracked`.
+
+### Remaining client and administrative controls
+
+The previous group is delivered at `f141a902`. The requested continuation adds
+`stableSetDigest` to the complete census while keeping its provenance fingerprint
+unchanged. Fresh provider reads of the same 183 documents and twelve captures
+produce the same set digest and a different readTime-bound fingerprint. Use the
+stable identity for an existing causal-set binding; neither digest certifies drain,
+source canonicalization, current external authority or a trusted barrier.
+
+The new `prepare-develop-rules-pause.cjs` accepts `--capture`, `--candidate` and
+`--output` absolute paths. It pins the actual captured baseline/release and exact
+reviewed candidate, creates a new private Rules-only packet, and performs no
+network operation or deployment. The live runner still needs explicit consent,
+one publisher, immediate prepublish comparison and exact own-post read-back.
+The release PATCH offers no CAS. The candidate closes **all** develop client
+writes, including products/orders/config/devices, while preserving read and
+production predicates. Admin SDK/IAM writers bypass this fence.
+
+The bounded real IAM census observes 27 direct bindings, zero conditions, two
+Owner user principals and 23 of 24 Functions sharing the Editor Compute runtime.
+Four inspected service accounts have no user-managed keys; project grants still
+enable administration/impersonation. No parent is returned. Deny policies,
+principal access boundaries, sessions and external workloads were not inspected.
+No privilege was changed and this is not an exclusive-authority certificate.
+
+The prepared live probe uses one new password-provider Auth identity without
+membership/custom claims, an ID token kept in RAM and one fictitious document
+outside the four trigger filters. It verifies baseline client admission, then
+candidate create/update/delete denial and preserved read access. Cleanup requires
+acknowledged ownership, creation identity and exact document updateTime; ambiguous
+results are retained for reconciliation. The account is revoked/deleted and its
+token discarded, without claiming instant invalidation of an already issued ID
+token. One exclusive attempt receipt and private CLI cwd protect evidence from
+reruns. No production business, workbook, FCM, IAM or Function mutation is allowed.
+
+Build/full lint and 159 joint tests pass, including the expanded Rules matrix,
+stable-set behavior and negative integration with the existing trusted barrier.
+A census cannot be promoted by rewrapping/rehashing it; retained is not a disabled
+or isolated writer state. [ADR-0022](../decisions/0022-cooperate-with-develop-firebase-administrators.md)
+is proposed for develop human-administrator cooperation. Until explicitly decided
+and implemented, current strict/owner-only guarantees remain; automated writers
+and earlier effects require technical controls under either choice. Live Rules/
+Auth/probe execution remains a separate pending approval.
+
+The subsequent source audit confirms eight remaining HTTP callbacks match the
+legacy archive; the access resolver has a newer deployed dependency/security
+boundary and needs its own source preservation. Three enabled reminder jobs
+currently target develop only. Inventory v4 now includes them as required disabled
+ingress before causal capture, with independent pending/in-flight proof. Old v3
+evidence cannot admit a new hold without them. No job was paused or retargeted.
+The expanded post-correction gate passes 394 planning cases and a separate
+155-case control/regression run, zero failures/skips, plus build/full lint.
+
+### Authorized client Rules application — 2026-10-28
+
+The maintainer explicitly authorized the exact Rules-only release, one temporary
+unprivileged password-provider Auth identity and one fictitious develop document.
+The twenty-minute confirmation binds project, source hashes, runner and window.
+The single attempt completed inside that window. The configured CLI published
+only `firestore:rules`; immutable before/after source read-back matches the pinned
+baseline and 7,389-byte candidate. No Functions/Storage/index action was selected.
+
+The Firebase ID token is verified against the project and exact temporary UID.
+Client baseline create returns 200; after publication the first update attempt,
+delete and create return 403, while reading the same document still returns 200.
+Conditional cleanup verifies source identity/content/version; the temporary Auth
+account is revoked/deleted and read back absent. No credentials/JWT are found in
+retained receipts/logs. Deletion does not assert instant revocation of every
+already issued ID token; these credentials were kept only in RAM and discarded.
+
+The fresh provider census preserves the complete stable source/journal digest:
+183 unchanged business documents and twelve events/deliveries/revision twelve.
+The temporary document was outside the four trigger filters and generated no
+business capture. No original/production workbook or FCM call occurred.
+
+This applies to **direct client Firestore writes**. Rules do not constrain server
+functions, other Admin/IAM writers or the still-enabled reminder jobs. The accepted
+ADR-0022 policy does not mark those controls fenced, prove old work drained or admit
+shared maintenance; `legacyUntracked:true` and `canEnterMaintenance:false` remain.

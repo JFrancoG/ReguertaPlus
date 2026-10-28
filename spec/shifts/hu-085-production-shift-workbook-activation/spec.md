@@ -10,6 +10,7 @@
 - depends_on: HU-082 / #266, HU-083 / #267
 - live_gate: explicit phase-by-phase production authorization after final preflight
 - workbook_maintenance_policy: accepted owner cooperation on 2026-10-28; ADR-0021
+- develop_firebase_administration_policy: accepted bounded human cooperation on 2026-10-28; ADR-0022; versioned implementation and maintenance admission remain pending; production requirements unchanged
 
 ## Context and problem
 

@@ -2436,3 +2436,79 @@ authorizes delivery of the new offline inspector/tests and operational documents
 exact commit/remote verification is recorded in #268/#269 and draft PR #278.
 No original/production Sheet I/O, production business mutation or test FCM send
 occurred. Historical external effects stay unknown and shared admission closed.
+
+### Remaining operational controls — 2026-10-28
+
+The preceding inspector/pause evidence is delivered at `f141a902`, with matching
+local/remote/draft PR #278 heads. The maintainer authorizes continued work on
+direct-client Rules, remaining server authority and existing maintenance controls.
+
+Fresh read-back confirms the deployed 6,712-byte baseline Rules, hash
+`bb87cdacc63dc4e285ac24d50b8f2f8c64eff3def1e4fcf24265030059591dfa`.
+The exact reviewed candidate changes only develop write admission; it keeps reads
+and production predicates. It closes all develop app writes, including orders,
+products, users/config, devices and notices. A new offline preparer pins both
+sources and the observed immutable release, creates a private Rules-only config
+and requires fresh-before/own-after observations and one publisher. Publication
+is not CAS; permissive Rules are never restored automatically or on a timer.
+
+The real IAM census has 27 direct bindings, no conditions and two Owner user
+principals. Twenty-three of 24 Functions use Compute, including production; its
+Editor grant and the other observed server writer grants remain unchanged.
+Four relevant service accounts have no user-managed keys; this does not exclude
+project impersonation, administrative sessions or unobserved workloads. Rules
+cannot close those privileged paths. The read-only census explicitly does not
+certify exclusive authority or maintenance admission.
+
+The inspector now exposes a stable complete-set digest independent of readTime,
+while preserving its old provenance fingerprint. This can bind the existing causal
+set fields; it cannot manufacture the eight required zero drain counters. Two
+negative integration cases prove that a valid census, even rewrapped/rehashed,
+is not a trusted hold and that retained does not mean disabled/isolated. No new
+operation ledger, replay driver or parallel scheduler is introduced.
+
+Functions build/full lint and 159 joint emulator/regression tests pass, with no
+failures/skips. An independent review accepts the bounded one-account/one-document
+client-ID-token probe, conditional cleanup, private CLI cwd and exclusive receipt.
+Live Rules/Auth/probe application awaits its concrete authorization. ADR-0022 is
+proposed separately for develop administrator cooperation; ADR-0021's owner-only
+exception and current strict contracts remain unchanged until explicitly decided.
+Existing service admission, old operations and uncertain external effects still
+require technical controls under either policy choice.
+
+The remaining-source audit reads twelve immutable archives/configurations without
+mutation. Eight of nine HTTP sources match the original legacy module;
+resolveAuthorizedMember instead uses its newer Functions/Admin/Firestore boundary
+and must be preserved separately. The three scheduled reminder jobs are enabled
+and their actual resolver/configuration targets develop only. Configuring them as
+production would enable behavior they do not currently perform.
+
+The compiled writer inventory is corrected to v4: three explicit Scheduler IDs
+require disabled ingress before causal capture, with pending/in-flight evidence
+still independent. Strict/owner inventories contain 29/30 writers and 23/24 intake
+controls. Missing/enabled/undrained jobs and the old v3 evidence cannot admit a new
+hold. The jobs themselves are unchanged; their exact pause needs its own concrete
+live scope. After this core correction the broader gate passes 394 planning tests
+and a 155-case controls/regression run, both with zero failures/skips, plus build/
+full lint. These suite counts are recorded separately rather than claiming a
+distinct-test sum. At that preparation checkpoint Rules/Auth/probe consent and
+ADR-0022 remained pending.
+
+### Approved client Rules and develop administrator policy: result
+
+The maintainer approves the exact Rules/Auth/probe phase and selects ADR-0022.
+Only the reviewed Firestore Rules are published/read back. The genuine Firebase
+ID-token probe proves baseline create200 then update403/read200/delete403/create403.
+Exact owned source/Auth cleanup succeeds inside the twenty-minute window. The
+current complete 183-document/twelve-event set stays unchanged. Independent audit
+verifies 24 Functions, IAM, nine service accounts, inspected policies/key inventories
+and three enabled jobs unchanged. No production business/Sheet/FCM action occurs.
+
+ADR-0022 is accepted as policy for develop only. It does not label administrative
+capability technically fenced or complete the absent versioned contract/current
+participant confirmations. Direct client writes are closed; server ingress,
+explicit Scheduler containment and earlier-effect proof remain separate. Shared
+maintenance stays canApply/canEnterMaintenance false and legacyUntracked true.
+Frozen executable inputs preserve build/lint and the 394/155 test runs. The
+maintainer authorizes this source delivery; exact Git/remote verification is
+recorded in #268/#269 and draft PR #278.

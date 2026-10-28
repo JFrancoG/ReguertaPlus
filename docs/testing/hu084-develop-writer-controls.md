@@ -7,8 +7,14 @@
 > and physical-fence limitations below remain valid; implementation and live
 > authorization are still pending.
 
-Status: **local preparation only — `canApply:false`**. No writer has been closed,
-no control has been applied, and `closeAndCollect` has not been called.
+Status: **historical preparation with current inventory — `canApply:false`**.
+The original capture below predates the four collectors and six compatibility
+updates. Their verified live checkpoint is in the [backend handoff guide](hu084-backend-handoff-rehearsal.md).
+Direct-client Rules are now applied and verified through the authorized real
+Auth/document probe. Remaining server authority still awaits its separate gates;
+`closeAndCollect` has not admitted shared maintenance. ADR-0022 separately accepts
+develop-only human-administrator cooperation; its versioned contract, current
+confirmations and all automated-writer controls remain required.
 
 [Versión en español](../../docs-es/testing/hu084-controles-escritores-develop.md).
 
@@ -16,7 +22,7 @@ Follow-up on 2026-10-28: the [selective pause and isolated-copy mechanism
 rehearsal](hu084-selective-develop-pause.md) passes locally, including the real
 copy-only lock/reversal and cleanup. It does not apply these controls to develop.
 
-The four practical points are:
+The original preparation conditions, retained as history, are:
 
 1. The published dates and participant order stay as they are. This preparation
    describes how to pause changes safely; it does not migrate or regenerate shifts.
@@ -44,17 +50,22 @@ coverage. Raw principals, permission IDs, workbook IDs and provider observations
 remain in restricted evidence outside Git.
 
 The authority is the compiled inventory
-[`hu082-affected-writers-v3`](../../functions/src/shift-planning-writer-inventory.ts):
-schema 1, **26 logical writers**, comprising 20 intake-barrier writers and six
+[`hu082-affected-writers-v4`](../../functions/src/shift-planning-writer-inventory.ts):
+schema 1, **29 logical writers**, comprising 23 intake-barrier writers and six
 activation-version rechecks. Function count is not writer count. The private
 inspection is read-only and does not add a writer.
 
-The compiled v3 inventory is the logical source inventory, not a completed
+The compiled v4 inventory is the logical source inventory, not a completed
 reconciliation of live authority. Its four public client IDs do not implicitly
 cover the deployed catch-all's private planning/coverage access. The stronger
 all-develop candidate closes that access physically, but the client group/targets
 and accepted inventory revision/digest must be reconciled before any held-barrier
-checkpoint can be admitted. This preparation does not change the compiled list.
+checkpoint can be admitted. Explicit owner cooperation adds one participant:
+30 logical writers and 24 intake controls. V4 adds the three Sunday reminder
+Scheduler jobs missing from V3; each requires disabled ingress and independent
+pending/in-flight reconciliation before causal capture. Rehashed V3 evidence
+without them cannot admit a new transition. Live jobs are still enabled and
+resolve only develop; setting their target to production would change behavior.
 
 ## Current evidence and its limits
 

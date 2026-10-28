@@ -512,3 +512,47 @@ I/O, production business mutation or test FCM send occurred. The maintainer
 authorizes this source delivery; exact commit/remote verification is recorded in
 #268/#269 and draft PR #278. All eight accepted file hashes match before the
 delivery-only wording/changelog edits, so the build/lint/16-test gate is reused.
+
+## Remaining develop operational controls — 2026-10-28
+
+- [x] Deliver `f141a902` and verify remote/PR heads; retain the existing open issues.
+- [x] Refresh Rules release/source and read real IAM/runtime/key metadata without
+  changing permissions, credentials, deployments or business data.
+- [x] Prepare an immutable Rules-only packet with exact source/release checks,
+  explicit all-develop-client scope and no automatic restoration.
+- [x] Add a stable complete-source/journal set binding; preserve provenance,
+  historical uncertainty and closed maintenance admission.
+- [x] Prove current census/retained records cannot impersonate a trusted hold or
+  disabled/isolated controls, even after rehashing.
+- [x] Extend the Rules matrix to products, orders/orderLines, notices, global
+  config and devices; pass build/full lint and 159 joint tests without skips/failures.
+- [x] Prepare/review one regular temporary Auth account and one fictitious source
+  to verify actual Firebase-ID-token admission before/after publication, with
+  exact cleanup and a single-attempt receipt; do not store credentials.
+- [x] Obtain and apply the concrete Rules/Auth/probe authorization; verify the
+  live candidate, client denials/reads, cleanup and unchanged business/source sets.
+- [x] Resolve ADR-0022 explicitly; owner-only cooperation does not
+  silently amend Firestore administrative authority or automatic-writer controls.
+- [ ] Complete real server admission, outstanding-effect and current-authority
+  evidence before connecting a successful trusted control plane or entering maintenance.
+- [x] Read the remaining nine HTTP/three scheduled deployed sources and exact
+  Scheduler bindings: preserve the newer access resolver and actual develop-only jobs.
+- [x] Correct inventory v4 with three mandatory Scheduler controls and reject
+  missing/enabled/pending/in-flight jobs and incomplete v3 evidence before any CAS.
+- [x] Revalidate after the core correction: 394 planning tests and a separate
+  155-case controls/regression run, zero failures/skips; build/full lint pass.
+- [ ] Review/authorize the exact three-job pause separately; preserve their
+  current develop-only configuration and reconcile prior invocations independently.
+
+The approved Rules-only attempt completes inside the twenty-minute window.
+Source/release read-back matches baseline/candidate; the real authenticated client
+proves create200 before, then update403/read200/delete403/create403. The owned Auth
+identity and fictitious source are cleaned and read back absent. All 183 business
+documents and twelve events/deliveries/revision twelve preserve their stable set.
+Independent post-read verifies all 24 Function configurations/provenances, IAM,
+nine service accounts and inspected policies/keys unchanged; three jobs remain
+enabled. ADR-0022 is accepted for develop human capability only. Its versioned
+contract/confirmations, server admission, job containment and earlier effects still
+block maintenance. Executable hashes are unchanged, so build/lint and the 394/155
+runs are reused. Native apps are unchanged. The maintainer authorizes this source
+delivery; definitive commit/remote verification is recorded in #268/#269 and PR #278.

@@ -64,9 +64,9 @@ function recording(fixture) {
 test("strict inventory and default parser remain strict; only explicit v2 records retained owner capability", () => {
   const strict = inventory.SHIFT_PLANNING_AFFECTED_WRITERS;
   const cooperative = inventory.SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS;
-  assert.equal(strict.length, 26); assert.equal(cooperative.length, 27);
-  assert.equal(inventory.SHIFT_PLANNING_INTAKE_BARRIER_WRITERS.length, 20);
-  assert.equal(inventory.SHIFT_PLANNING_OWNER_AGREEMENT_INTAKE_WRITERS.length, 21);
+  assert.equal(strict.length, 29); assert.equal(cooperative.length, 30);
+  assert.equal(inventory.SHIFT_PLANNING_INTAKE_BARRIER_WRITERS.length, 23);
+  assert.equal(inventory.SHIFT_PLANNING_OWNER_AGREEMENT_INTAKE_WRITERS.length, 24);
   for (const writer of strict) {
     const next = cooperative.find((item) => item.writerId === writer.writerId);
     if (writer.writerId !== "workbook-human-and-offline-editors") assert.deepEqual(next, writer);
@@ -82,6 +82,27 @@ test("strict inventory and default parser remain strict; only explicit v2 record
   }));
   assert.equal(verifyShiftPlanningOwnerAgreementIntakeBarrierEvidence(
     fixture.evidence, fixture.command, 530).expiresAtMillis, 600);
+});
+
+test("owner cooperation cannot bypass missing, enabled or undrained reminder schedulers", () => {
+  const complete = ownerFixture();
+  assert.doesNotThrow(() => verifyShiftPlanningOwnerAgreementIntakeBarrierEvidence(
+    complete.evidence, complete.command, 530));
+  for (const writerId of ["scheduler-order-reminder-sunday20", "scheduler-order-reminder-sunday22",
+    "scheduler-order-reminder-sunday23"]) {
+    for (const mutate of [
+      (payload) => { payload.writerControls = payload.writerControls.filter((entry) => entry.writerId !== writerId); },
+      (payload) => { payload.writerControls.find((entry) => entry.writerId === writerId).state = "enabled"; },
+      (payload) => { payload.writerControls.find((entry) => entry.writerId === writerId).pendingWorkCount = 1; },
+      (payload) => { payload.writerControls.find((entry) => entry.writerId === writerId).inFlightWorkCount = 1; },
+    ]) {
+      const fixture = ownerFixture();
+      mutate(fixture.evidence.payload);
+      rehash(fixture);
+      assert.throws(() => verifyShiftPlanningOwnerAgreementIntakeBarrierEvidence(
+        fixture.evidence, fixture.command, 530));
+    }
+  }
 });
 
 test("a rehashed document cannot widen scope, operations, lineage or participant commitments", () => {
