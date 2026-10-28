@@ -326,9 +326,22 @@ Accepted local evidence: [rehearsal guide](../../../docs/testing/hu084-develop-m
 - [x] Audit immutable deployed sources of the six legacy writers; confirm absent develop/epoch/in-flight guards and unsafe generic config fallback.
 - [x] Map the 26 compiled writer IDs, capture prior/reversal conditions and prepare the blocked private packet and bilingual runbook.
 - [x] Record the maintainer's declaration of only app/actions-here writers; keep it distinct from technical exclusion.
-- [ ] Deliver this new preparation through Git; no deployment or closure is included.
+- [x] Deliver this preparation as `f105ca5c`; exact remote HEAD verified, without deployment or closure.
 - [ ] Reconcile deployed private client-write authority with the compiled writer groups/targets and accepted revision/digest before barrier admission.
-- [ ] Design/rehearse selective legacy ingress/delivery controls against the exact audited source, preserving production behavior and accepted/in-flight work.
-- [ ] Verify owner lock capability and its reversible isolated-copy canaries, missing ACL details and a held transition to the governed writer before actual application.
+- [x] Design and locally rehearse selective admission/retention against the exact audited legacy source, preserving positive production callback behavior and conservative in-flight uncertainty.
+- [ ] Establish actual durable develop delivery and reconcile invocations from old revisions before deploying a real bridge.
+- [x] Verify owner-only lock capability and reversible isolated-copy owner/service-account canaries.
+- [ ] Resolve actual-file ACL/control-plane authority and a held transition to the governed writer before real application.
 Shared runtime/operator/Drive admission, complete post-drain capture, actual
 application/rollback authorization and full annual preview remain open.
+
+## Selective pause and isolated Sheets copy — 2026-10-28
+
+- [x] Deliver the prior Rules/control preparation and verify local/remote `f105ca5c`.
+- [x] Bind the local pause design to the exact audited deployed JS; keep normal exports/configuration unchanged.
+- [x] Validate 20 emulator cases, build/lint, focused CJS syntax and independent review: production bypass, durable develop admission/retention, duplicate integrity and conservative uncertainty with the exact legacy callbacks.
+- [x] Create a separate private native Sheets copy and a dedicated canary tab; leave original develop/production data untouched.
+- [x] Obtain explicit session `drive.metadata` consent; verify actual owner capabilities, absent restrictions and a positive owner write followed by restoration.
+- [x] Complete owner/service-account positive-before, denied-during and recovered-after copy canaries, exact own-lock reversal and temporary-access cleanup.
+- [x] Record final local validation, independent copy-image/restriction review and verified ACL/IAM/OAuth cleanup; preserve `canApply:false` and unresolved old-in-flight/delivery/inventory gates.
+- [ ] Deliver this new rehearsal through Git; it remains local after `f105ca5c`.

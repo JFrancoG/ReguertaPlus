@@ -33,6 +33,19 @@ and held control-plane authority remain unresolved. The maintainer's declaration
 of no other known automation is retained separately from technical proof. This
 new preparation is local, non-executable and does not complete an activation gate.
 
+The control preparation is now delivered in `f105ca5c`. The subsequent authorized
+selective-pause rehearsal has 20 local emulator passes against byte-pinned legacy
+callbacks, plus build/lint and independent review. It intentionally cannot certify
+old in-flight work or durable live event delivery; no deployment or maintenance
+entry occurs. The authorized isolated Sheets copy mechanism test now passes:
+owner/service-account positive, blocked and recovered writes, owner-only unlock
+denial, exact reversal and identical selected seven-tab images. The copy ACL is
+owner-only again, its test account is disabled without keys/project data roles,
+temporary IAM binding removed, new token generation denied and both temporary
+owner OAuth sessions revoked with actual 401 responses. No real-file control is
+applied. Held owner/runtime handoff remains unproved. See the
+[bounded rehearsal](../../../docs/testing/hu084-selective-develop-pause.md).
+
 ## 1. Delivery strategy
 
 Use one quiesced shared-project change window with explicit gates before:

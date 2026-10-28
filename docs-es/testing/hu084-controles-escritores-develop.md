@@ -5,6 +5,10 @@ escritor, no se ha aplicado ningún control ni se ha llamado a `closeAndCollect`
 
 [English version](../../docs/testing/hu084-develop-writer-controls.md).
 
+Continuación del 2026-10-28: pasa el [ensayo de pausa selectiva y del mecanismo
+en copia aislada](hu084-pausa-selectiva-develop.md), incluido el bloqueo real de
+la copia, su reversión y la limpieza. No aplica estos controles sobre develop.
+
 Los cuatro puntos prácticos son:
 
 1. Las fechas y el orden de participantes publicados se conservan. Preparamos cómo

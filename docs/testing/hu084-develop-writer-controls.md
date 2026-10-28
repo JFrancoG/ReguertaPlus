@@ -5,6 +5,10 @@ no control has been applied, and `closeAndCollect` has not been called.
 
 [Versión en español](../../docs-es/testing/hu084-controles-escritores-develop.md).
 
+Follow-up on 2026-10-28: the [selective pause and isolated-copy mechanism
+rehearsal](hu084-selective-develop-pause.md) passes locally, including the real
+copy-only lock/reversal and cleanup. It does not apply these controls to develop.
+
 The four practical points are:
 
 1. The published dates and participant order stay as they are. This preparation

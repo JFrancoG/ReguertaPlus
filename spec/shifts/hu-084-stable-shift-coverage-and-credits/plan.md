@@ -2009,7 +2009,58 @@ Drive version 259 and the inspector's 63-case evidence are retained, not renewed
 Restoring old permissive controls after authoritative writes, epoch advancement
 or uncertainty is forbidden: keep closed and use governed recovery instead.
 
-This coherent preparation is local and pending Git delivery. Next design and
-rehearse a selective bridge against the audited legacy baseline and conditionally
-test the owner lock on an isolated copy, before proposing actual controls. No
-native changes or new parity gap; no further manual action is needed now.
+This preparation is committed and pushed as `f105ca5c`; the exact local/remote
+hash is verified. The next authorized group designs and locally rehearses a
+selective bridge against the audited legacy baseline and tests the owner lock on
+an isolated copy, before proposing actual controls. Native sources are unchanged.
+
+## Selective pause and isolated-copy experiment — 2026-10-28
+
+The maintainer authorizes this bounded follow-up and preserving published dates
+and order. The [bilingual design](../../../docs/testing/hu084-selective-develop-pause.md)
+uses the exact captured deployed executable, demo-only Firestore and recording
+Sheets/FCM ports. Production bypasses the ledger entirely. Missing/invalid state,
+unknown legacy work, deferred deliveries and uncertain effects cannot produce an
+admissible closure. No actual deploy, pause, migration or notification is included.
+
+A separate private native Sheet has all six copied tabs plus a dedicated canary
+tab. Actual owner capabilities and absent prior restrictions were verified.
+The maintainer separately approved a keyless copy-only service writer, a
+twenty-minute token grant and temporary owner `drive.metadata`/`drive.file`
+access through Google OAuth Playground. Both Sheets writers succeeded before
+the owner-only lock, were denied with 403 during it, and succeeded after its
+exact reversal; canary values are restored. A separate successful Drive
+authorization probe precedes the accepted service-account unlock denial:
+403 `insufficientFilePermissions`, with the full restriction unchanged.
+`appNotAuthorizedToFile` failures are excluded from this evidence.
+Four captures of selected cell/format/metadata images across seven tabs are
+identical, independently recomputed. Identifiers/provider details remain private.
+Original develop/production data remain untouched.
+
+The design also records two live blockers: the current trigger retry policy
+cannot guarantee durable deferral when the retention write itself fails, and a
+new journal cannot account for invocations admitted by old deployed revisions.
+The broader private/legacy client authority still needs compiled inventory
+reconciliation. This local experiment stays `canApply:false`; it does not add a
+rollout controller or satisfy `closeAndCollect`.
+
+Final backend acceptance: 20 emulator passes, zero failures/skips, Functions
+build/lint, focused CJS syntax and independent read-only review. Positive outcomes
+anchor all six original production callbacks; their traces and stored business
+images match with zero pause-ledger access. Actual commit-ack loss retains an
+uncertain after-image. The emulator is stopped. The initial legacy fixture's
+twelve-month expectation is corrected to the exact deployed algorithm's ten
+months, with the first failed attempt retained as diagnostic evidence. This is
+compatibility evidence, not a change in the future planner's requirements.
+
+Final copy cleanup: no restrictions, only its owner in the ACL, former writer
+file access denied with 404 before disabling it. The exact temporary IAM binding
+is removed; the owned test account is disabled, with zero user-managed keys and
+direct project data roles, and actual token generation denied with 404. Its
+twenty-minute grant was not extended. Both temporary owner OAuth sessions are
+revoked (actual 401), the connection is absent and UI token/request fields are
+cleared. The first inspection's accidental token transcript exposure remains
+recorded separately; that token was already revoked before the later copy test.
+No reusable credentials are added to project files. This follow-up remains local
+and uncommitted after delivered `f105ca5c`. Passing the copy mechanism does not
+establish a held owner fence or exclusive runtime handoff.
