@@ -2385,3 +2385,54 @@ Sheets maintenance, notifications and HU-084/HU-085 closure remain blocked.
 The maintainer authorizes delivery of the accepted source; exact commit/remote
 verification is recorded in #268/#269. Next is the separately scoped selective
 pause/containment of old develop writers and their effects.
+
+### Selective legacy containment and finite census — 2026-10-28
+
+The accepted capture group is delivered at `76a96826`; remote and draft PR #278
+heads match. The maintainer requests the next grouped outcome: contain the six
+legacy develop entry points and reconcile their outstanding work. Reuse the
+accepted generated package, not the current application index. A fresh all-region,
+both-generation inventory confirms exactly six existing updates, zero creates or
+deletes, and four unchanged active collectors. All ten serve their latest revision.
+
+Deployment is a separate concrete shared-Firebase approval: keep the existing
+runtime identity, limits, environment, ingress, IAM, filters and retries. The six
+production callback bodies remain byte-preserved. Updating shared services still
+has ordinary deployment/cold-start risk. The notification wrapper holds **all**
+develop notifications, including order reminders; it is not limited to shifts.
+Update that dispatcher first, then the other five, and read back every source,
+configuration and traffic assignment before making a containment claim. Stop on
+partial failure; repair forward while retaining capture and closed develop.
+Never automatically restore unwrapped callbacks or reopen on an elapsed timeout.
+
+A bounded read-only census uses a common Firestore readTime, exact develop paths,
+private intake events/deliveries/chunks, version fingerprints and capture revision.
+The initial observation contains zero planning requests, 62 planned shifts, four
+calendar overrides and 117 historical notices: 55 no_tokens, 34 partial_success,
+25 success and three without dispatch metadata. These are observations, not proof
+of previous external effects. No_tokens does not establish an entire no-send
+history; missing dispatch can follow an actual send. No historical notice may be
+resent automatically. Current planning failures can follow Sheets writes.
+
+The offline inspection must validate the retained hashes/identities, reject
+partial or inconsistent input, and distinguish present, changed and absent
+sources without executing/replaying callbacks. A captured probe prefix alone is
+not proof of authorization or exemption. Raw documents stay private. The report
+binds the observed set and versions, never future state or complete pre-journal
+history. Keep legacyUntracked true, legacy outstanding effects unknown and shared
+maintenance/migration admission closed. Client writes, users/config authority,
+manual edits and other services remain outside these six wrappers.
+
+The concrete scope was subsequently authorized and completed. Six immutable
+sources match the accepted package, with preserved runtime/configuration/IAM and
+100% traffic on their new revisions; four collectors and 14 other Functions are
+unchanged. Two HTTP 503 checks, six successful event requests on the updated
+revisions, six retained probe events and four CAS-cleaned sources pass. Both
+183-document business sets remain identical. Twelve total captures/deliveries and
+revision twelve are verified by the offline inspector, whose 16 new tests plus
+Functions build/full lint pass. The accepted nine executable inputs are unchanged,
+so their 697-test baseline is reused. Raw evidence remains private. The maintainer
+authorizes delivery of the new offline inspector/tests and operational documents;
+exact commit/remote verification is recorded in #268/#269 and draft PR #278.
+No original/production Sheet I/O, production business mutation or test FCM send
+occurred. Historical external effects stay unknown and shared admission closed.

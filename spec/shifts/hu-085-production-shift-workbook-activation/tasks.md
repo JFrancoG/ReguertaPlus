@@ -459,7 +459,13 @@ open, as do the two missing market months and complete seasonal preview.
 - [x] Separately authorize/read back only the four new develop collectors;
   preserve all six original Functions, verify exact deployed source and six
   original provider deliveries with all four temporary probes CAS-cleaned.
-- [ ] Separately authorize/read back the six-callback compatibility handoff,
+- [x] Separately authorize/read back the six-callback compatibility handoff,
   preserving production runtime/behavior and the exact target selectors.
+- [x] Verify the bounded six-entry-point develop pause: two HTTP 503 responses,
+  six captured probe events/four CAS-cleaned sources, twelve total journal events,
+  unchanged 183 business documents and unchanged four collectors/14 other Functions.
+- [x] Inspect the complete versioned develop/journal census without replay or
+  data edits; keep 117 historical notices, including three without dispatch,
+  outside automatic resend and preserve unknown earlier external effects.
 - [ ] Resolve old work/provider effects and bind effective authority before any
   shared closed-barrier admission. Local intake success does not clear this gate.

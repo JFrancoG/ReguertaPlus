@@ -457,15 +457,58 @@ HU-084/HU-085 remain open and shared admission remains `canApply:false`.
   original create events and both written-delete events through provider retry,
   without recreating/pulling/seeking/replaying messages; verify four CAS-cleaned
   probe documents remain absent and keep all failed-attempt evidence.
-- [ ] Separately authorize the six compatibility updates after the accepted
+- [x] Separately authorize the six compatibility updates after the accepted
   capture phase and prepare their bounded pause/recovery handoff.
 - [ ] Reconcile earlier invocations, retry-disabled failures and provider effects;
   connect current effective authority to the existing trusted closed barrier.
 
 This source group is included in the maintainer-authorized delivery checkpoint.
-Only the four new develop collectors are
-live; the six legacy Functions remain unchanged. Four authorized temporary
+At the first-phase checkpoint only the four new develop collectors were
+live; the six legacy Functions were unchanged. Four authorized temporary
 source records were created/deleted and six original events are retained in the
 private journal. No original/production Sheet I/O, production data change or
 trial notification send occurred.
 The intake retains `legacyUntracked:true`; `canApply:false` remains mandatory.
+
+## Selective old-develop containment and bounded reconciliation — 2026-10-28
+
+- [x] Deliver the accepted intake group at `76a96826`; verify local/remote/PR
+  heads and synchronize #268/#269 plus draft PR #278 without closing them.
+- [x] Read a bounded, common-readTime census of the four actual develop source
+  collections and private journal; preserve raw documents outside Git.
+- [x] Refresh the all-region/both-generation inventory: exactly six updates,
+  zero creates/deletes; verify four unchanged collectors and runtime/configuration.
+- [x] Prepare the accepted-source package, four create-only/CAS-cleaned probes,
+  two develop-only HTTP checks, source/config/traffic read-back and stop/forward
+  repair policy; disclose retention of all develop notices, including orders.
+- [x] Obtain explicit authorization for these six shared Function updates and
+  four bounded develop probes, without Sheets/FCM/Rules/IAM/production data changes.
+- [x] Update the dispatcher first, verify it, then update the other five;
+  verify all six immutable sources, runtime/permissions/filters and latest traffic.
+- [x] Verify the two HTTP 503 responses, six logical probe events and conditional
+  cleanup; compare the unchanged business-document census before/after.
+- [x] Add and validate an offline inspector of exact source/capture/delivery
+  sets, hashes and versions, with no replay and no closure or apply authority.
+- [x] Record the actual containment result separately from historical effects,
+  client writes and effective-authority controls; keep shared maintenance closed.
+
+The six updated immutable sources match the accepted package; runtime, permissions,
+filters/retries and 100% latest traffic are verified. Four collectors and 14 other
+Functions remain unchanged. The two HTTP 503 checks and six event requests on the
+updated revisions are positively observed in a complete paginated log window.
+Four probes are CAS-cleaned; the private journal now contains twelve verified
+events/deliveries and revision twelve. All 183 business documents/versions are
+unchanged. The final offline inspector rejects equal-version content/createTime
+contradictions and passes 16 tests plus syntax, Functions build/full lint.
+The accepted 697-test/packaged-SDK baseline is reused for unchanged bridge code.
+
+This completes containment of new executions at these six develop entry points,
+not historical effect closure. There are zero current planning requests and
+117 historical notices with no automatic resend; three missing dispatch summaries
+belong to administrative broadcasts from 2026-04-01. All external outcomes retain
+their original uncertainty. Direct clients and effective-authority controls are
+still pending, and shared maintenance/migration stays closed. No original Sheet
+I/O, production business mutation or test FCM send occurred. The maintainer
+authorizes this source delivery; exact commit/remote verification is recorded in
+#268/#269 and draft PR #278. All eight accepted file hashes match before the
+delivery-only wording/changelog edits, so the build/lint/16-test gate is reused.

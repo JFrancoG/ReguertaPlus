@@ -813,3 +813,30 @@ production data change or trial notification send occurs. Old invocations, retry
 effects remain unresolved; the prepared intake cannot issue a trusted barrier or
 replace current authority evidence. HU-085 stays open and shared `canApply:false`
 is unchanged.
+
+## Selective legacy develop containment verified — 2026-10-28
+
+After delivery of `76a96826`, separate explicit authorization covers all six
+compatibility updates and four bounded develop probes. Dispatcher-first deployment
+preserves the exact accepted source package, runtime/environment/permissions and
+production callback bodies. All six new revisions serve 100% traffic; four
+collectors and 14 other Functions remain unchanged. Both HTTP develop paths return
+503, six event requests reach the updated revisions, six probe events are retained
+and all four probe sources are conditionally cleaned. No original/production
+workbook I/O, production business mutation or test FCM send occurs.
+
+The offline inspector verifies before/after common-readTime source/journal sets,
+hashes, identities and versions/content; all 183 business documents remain unchanged.
+There are no current planning requests. All 117 historical notices remain outside
+automatic resend, including three old administrative broadcasts without dispatch
+summaries. Twelve captures/deliveries/revision twelve are verified, without replay
+or journal/business edits. Sixteen new tests and Functions build/full lint pass;
+the nine unchanged accepted executable inputs retain their 697-test baseline.
+
+This proves containment of new executions through the six selected develop entry
+points, including **all** develop notifications, not historical drain or authority
+over direct clients/users/config/manual actors. Keep legacyUntracked true, earlier
+external outcomes unknown, shared maintenance/migration closed and #268/#269 open.
+The maintainer authorizes delivery of the new offline inspector/tests and
+operational documentation; exact Git/remote verification is recorded in the
+canonical issues/PR. Deployed bridge code is already included in `76a96826`.

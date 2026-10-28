@@ -639,3 +639,52 @@ los escritores antiguos de develop, sus efectos pendientes y su autoridad.
 Mantenimiento, migración y coberturas siguen bloqueados. El commit y su referencia
 remota exactos se verifican en #268/#269; las pruebas quedan en el paquete privado
 `2026-10-28-durable-develop-intake`.
+
+### Pausa selectiva autorizada y conciliación de solo lectura
+
+Tras la entrega `76a96826`, el mantenedor autorizó por separado las seis Functions
+antiguas de `reguerta-9f27f` y cuatro registros ficticios de develop. Se utilizó
+el mismo paquete aceptado: primero el emisor y después los otros cinco destinos
+exactos. Las seis fuentes coinciden con los seis archivos permitidos. Se conservan
+identidad, valores de entorno, límites, ingreso/IAM, filtros y reintentos, con todo
+el tráfico en las revisiones nuevas. Los cuatro colectores y las otras 14 Functions
+siguen intactos. Los cuerpos de producción son idénticos byte a byte; no se invocó
+negocio de producción para probarlos. Esto no acredita ausencia total de
+interrupciones durante el despliegue.
+
+Las dos rutas de importación/exportación de develop responden HTTP 503 antes de
+ejecutar negocio. Los cuatro registros de creación exclusiva generan cuatro
+capturas de creación y dos de borrado; se verifican contenido/versión/hashes y se
+limpian comprobando imagen y updateTime exactos. Una ventana paginada completa de
+logs muestra los dos 503 y seis peticiones de eventos correctas en las cuatro
+revisiones antiguas actualizadas. El registro pasa de seis a doce eventos,
+entregas y revisiones y conserva `legacyUntracked:true`. Esto acredita las rutas
+nuevas, no el fin del trabajo admitido por revisiones anteriores. **Se retienen
+todos los avisos de develop**, incluidos pedidos; clientes, escritores de
+usuarios/configuración, ediciones manuales y otros servicios quedan fuera de estas
+seis protecciones. Ante fallos se conservan captura/cierre y se corrige hacia
+delante. No se restauran callbacks sin protección ni se reabre por transcurso de tiempo.
+
+Los censos anterior y posterior, cada uno con una readTime común, conservan los
+mismos 183 documentos de negocio y versiones: cero solicitudes de planificación,
+62 turnos planificados, cuatro ajustes de calendario y 117 avisos históricos.
+Hay 55 no_tokens, 34 partial_success, 25 success y tres sin resumen de envío.
+Estos últimos son comunicados administrativos creados el 01/04/2026, no fallos
+nuevos de turnos. Ninguno queda autorizado para reenvío automático. Un resultado
+mutable/no_tokens no acredita todo el historial de envíos; un fallo de planificación
+puede producirse después de escribir en Sheets.
+
+`functions/scripts/inspect-develop-legacy-census.cjs` inspecciona fuera de línea
+un censo REST privado: rutas exactas de develop, conjuntos completos de
+capturas/entregas/fragmentos, hashes, identidades y relación de versiones/contenido
+actuales. Vincula huella y revisión, mantiene desconocidos los efectos externos y
+deniega reproducción/aplicación/cierre. La atomicidad es la declarada por el lector,
+no una certificación independiente. Un prefijo de prueba no otorga exención.
+Se ejecuta con `--input <censo-privado.json> --output <informe-privado-nuevo.json>`
+y solo crea un archivo local nuevo con permisos 0600. Datos, recibos y fuentes
+quedan fuera de Git. La inspección no modifica negocio ni el registro de eventos.
+
+No hubo acceso a las hojas originales/de producción ni envío FCM del ensayo.
+Mantenimiento y migración compartidos siguen cerrados hasta evaluar por el cauce
+previsto efectos históricos y autoridad vigente. Contener estos seis puntos de
+entrada no cierra los demás escritores ni borra `legacyUntracked`.

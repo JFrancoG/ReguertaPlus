@@ -56,6 +56,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-28 | ✨ feat(shifts): inspect retained develop work
+
 - 2026-10-28 | ✨ feat(shifts): capture develop events durably
 
 - 2026-10-28 | ✨ feat(shifts): guard owner Sheets operations

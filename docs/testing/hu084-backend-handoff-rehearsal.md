@@ -600,3 +600,50 @@ send occurred. The next gate is the separately scoped pause/containment of old
 develop writers, their outstanding effects and effective authority. Maintenance,
 migration and coverage activation remain blocked. Exact commit/remote verification
 is recorded in #268/#269; evidence stays in the private `2026-10-28-durable-develop-intake` packet.
+
+### Authorized selective legacy pause and read-only reconciliation
+
+After delivery at `76a96826`, the maintainer separately authorized the six legacy
+Function updates in `reguerta-9f27f` and four temporary develop probes. The same
+accepted package was used: dispatcher first, then the other five exact targets.
+All six immutable sources match the six-file allowlist. Runtime identity, values
+of environment variables, limits, ingress/IAM, filters and retry policies are
+preserved, with 100% traffic on the new revisions. The four collectors and other
+14 Functions remain unchanged. Production callbacks stay byte-identical; no
+production business call was used as a probe. This does not establish zero
+interruption during deployment.
+
+Both develop import/export paths return the expected HTTP 503 before business
+work. The four create-only probes produce four create and two written-delete
+captures, verified by content/version/hash and cleaned with exact postimage and
+updateTime preconditions. A complete paginated request-log window shows the two
+503s and six successful event requests on the four updated legacy revisions.
+Intake advances from six to twelve events/deliveries/revisions and retains
+`legacyUntracked:true`. This establishes the new callback paths, not a drain of
+work admitted by previous revisions. **All develop notices are held**, including
+order reminders; clients, users/config writers, manual actors and other services
+are outside these six wrappers. On failure, preserve capture/closed develop and
+repair forward. Never restore unwrapped callbacks or reopen on elapsed time.
+
+The before/after common-readTime censuses contain the same 183 business documents
+and versions: zero planning requests, 62 planned shifts, four calendar overrides
+and 117 historical notices. Dispatch summaries are 55 no_tokens, 34 partial_success,
+25 success and three absent. The latter are administrative broadcasts created on
+2026-04-01, not new shift failures. None is authorized for automatic resend.
+Mutable results/no_tokens cannot establish a complete send history; failed
+planning can follow an actual Sheets write.
+
+`functions/scripts/inspect-develop-legacy-census.cjs` inspects a private REST census
+offline: exact develop paths, complete capture/delivery/chunk sets, hashes,
+identities and current version/content relationships. It binds a fingerprint and
+capture revision, preserves unknown external outcomes and denies replay/apply/
+closure. Atomicity is explicitly reported by the collector, not independently
+attested. A probe prefix grants no exemption. Run with
+`--input <private-census.json> --output <new-private-report.json>`; the CLI creates
+only a new local 0600 report. Raw data/provider receipts/source archives stay
+outside Git. This inspection never changes business or journal records.
+
+No original/production workbook I/O or test FCM send occurred. Shared maintenance
+and migration remain closed pending the governed assessment of historical effects
+and effective authority. Successful containment of these six entry points does
+not close other writers or clear `legacyUntracked`.
