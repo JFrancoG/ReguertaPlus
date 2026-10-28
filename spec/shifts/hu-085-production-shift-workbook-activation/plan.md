@@ -795,3 +795,21 @@ incident residual while the story remains open for exact reconciliation.
 - **Irreversible notifications**: separate release and idempotency evidence.
 - **Unbounded outage**: phase deadlines force rollback or an explicitly approved
   safe resume with the outbox still sealed and the story left open.
+
+## Develop intake compatibility preparation — 2026-10-28
+
+HU-084 prepares the actual legacy-source bridge and durable capture in the same
+worktree; see its living plan and the bilingual backend-handoff guide. Functions
+build/full lint, 697 joint tests and the separately installed legacy-SDK protobuf capture
+smoke pass locally. Fresh read-only metadata confirms the six old deployed source
+generations are unchanged. The prepared package preserves their production bodies,
+lockfile and runtime configuration and proposes four collectors before six
+compatibility updates. The maintainer separately authorizes the first four only:
+they are deployed with exact source/configuration read-back and the six original
+Functions remain unchanged. Four safe temporary probes are CAS-cleaned; their
+four create and two delete events survive the observed protobuf-boundary fault
+and provider retry after its narrow correction. No original/production Sheet I/O,
+production data change or trial notification send occurs. Old invocations, retry-disabled delivery gaps and submitted provider
+effects remain unresolved; the prepared intake cannot issue a trusted barrier or
+replace current authority evidence. HU-085 stays open and shared `canApply:false`
+is unchanged.

@@ -2302,3 +2302,86 @@ documentation/changelog edits, so the 661-test/build/lint acceptance is reused.
 Next is durable shared develop intake and effective old-writer/effect/authority
 control. The copy result does not admit a shared maintenance packet or close
 HU-084/HU-085.
+
+## Authorized develop intake and compatibility bridge — 2026-10-28
+
+The maintainer authorizes the next grouped result after the roadmap review:
+durable develop capture and selective containment of the actual legacy writers.
+Reuse #268/#269, the existing HU-084 worktree and the closed-barrier contracts.
+Do not deploy this branch's replacement index over the six old shared handlers:
+its production behavior differs from the audited deployed executable.
+
+Prepare one bounded source package from the byte-pinned legacy archive, keeping
+its dependency lock and production callbacks. Four new develop-only retryable
+collectors and the four wrapped legacy event callbacks retain original events
+before ACK; the two wrapped HTTP callbacks reject develop before business work.
+All captured work remains pending reconciliation, without automatic replay,
+Sheets writes or notification sends. The collectors must be installed and
+verified before switching the six shared handlers. Missing/unknown old work,
+external results and effective authority still block shared barrier admission.
+
+The intake owns an explicitly addressed Firestore client and uses the private
+root `shiftPlanningDevelopIntake/current`: the deployed broad client Rules must
+not expose its events or let members/admins forge capture receipts. Verify
+transaction acknowledgement loss, concurrent/aliased deliveries, contradictory
+payloads, supported typed fields, bounded chunks and client denial against both
+the captured baseline and the prepared Rules. Run the six exact production
+callbacks against their original traces/data; production must not construct or
+access the develop journal. Preserve `legacyUntracked:true` and `canApply:false`.
+
+Actual shared deployment, Rules/Drive changes and legacy-effect reconciliation
+need their concrete reviewed operational handoff. This authorization does not
+activate production, run a migration, publish turn changes or send notifications.
+
+Acceptance is complete locally: Functions build/full lint and 697 joint tests
+pass with no failures/skips. The eight generated-JavaScript production cases
+include both HTTP defaults resolved to production. An independently installed
+packaged runtime uses the actual locked Firestore 7.11.1/Functions 6.3.2/Admin
+13.4.0 SDKs and executes 20 capture callbacks against loopback Firestore,
+including raw protobuf and retaining ten events/ten deliveries without Sheets/FCM.
+The code/test freeze is unchanged throughout final acceptance. An initial
+692-case run preceded the final packaged-runtime preservation and stronger
+generated-source checks; neither it nor the earlier 695-case result replaces
+the corrected 697-case provider-boundary acceptance.
+
+Review corrections keep the journal outside public client routes, preserve
+source SDK precision rather than assuming unpersisted sub-microsecond values,
+disable buildpack recompilation of the generated entrypoint, and add exactly one
+audited `preserveExternalChanges:true` global option so an update does not reset
+the existing runtime limits/identity/ingress. New collectors explicitly cap
+instances at 20. Original business bodies and constructor arguments remain
+byte-preserved inside their six wrappers. Source package, fresh configuration
+observations, raw results and hashes remain in the private
+`2026-10-28-durable-develop-intake` packet. Shared deployment still requires its
+reviewed scope/authorization; no previous operation is terminalized by this work.
+
+
+### Authorized shared first phase: verified result
+
+The maintainer explicitly authorizes only four new develop collectors, their
+existing runtime account and four temporary create-only/CAS-cleaned probes.
+CLI 15.15.0 creates then repairs only those four named Functions; both-generation,
+all-region inventory excludes selector-prefix collisions. The six original
+Functions retain complete source/configuration. Private IAM invocation, exact
+develop filters, retry policy, maximum 20 instances and immutable deployed source
+are read back. Every accepted package file matches in all four repaired sources.
+
+The real protobuf boundary initially rejected readTime on local SDK snapshots.
+The four probes were cleaned at the initial timeout without losing their queued
+messages. A narrow public-DocumentSnapshot/exact-error fallback stores null only
+for that absent observational time, preserving all source-version/error checks.
+Two meaningful raw-protobuf regressions and an actual SDK-6 packaged smoke close
+the validation gap; the main suite has 697 passes/zero skips/failures, and the
+separate smoke executes 20 callbacks. A private fixture path correction was
+validated independently without rerunning unchanged passing tests.
+
+The same transports redeliver all four original creations and two deletions;
+versions, contents/hashes and absence of all four source probes are verified.
+No new canary creation, manual replay, pull/seek or ACK occurred. Private counts
+are six events/deliveries and revision six with legacyUntracked true. This is a
+positive bounded delivery result, not exhaustive broker/error-history or old-work
+closure. The broker has ACK600/retention86400/backoff10–600 seconds. Migration,
+Sheets maintenance, notifications and HU-084/HU-085 closure remain blocked.
+The maintainer authorizes delivery of the accepted source; exact commit/remote
+verification is recorded in #268/#269. Next is the separately scoped selective
+pause/containment of old develop writers and their effects.

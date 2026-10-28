@@ -451,3 +451,15 @@ open, as do the two missing market months and complete seasonal preview.
   baseline, candidate, sync command, or held event.
 - [ ] Prove rollback restores both prior type projections/cursors as one bundle;
   no mixed-generation delivery/market state remains.
+
+## Develop intake handoff checkpoint — 2026-10-28
+
+- [x] Prepare/review the scoped legacy-source package and durable private intake;
+  accept Functions build/lint, 697 joint tests and actual packaged SDK protobuf smoke.
+- [x] Separately authorize/read back only the four new develop collectors;
+  preserve all six original Functions, verify exact deployed source and six
+  original provider deliveries with all four temporary probes CAS-cleaned.
+- [ ] Separately authorize/read back the six-callback compatibility handoff,
+  preserving production runtime/behavior and the exact target selectors.
+- [ ] Resolve old work/provider effects and bind effective authority before any
+  shared closed-barrier admission. Local intake success does not clear this gate.

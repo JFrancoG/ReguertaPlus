@@ -1,6 +1,7 @@
 # HU-084: backend handoff design and local rehearsal
 
-Status: local rehearsal and accepted maintenance policy; **`canApply:false`**.
+Status: separately authorized develop capture is deployed; shared maintenance
+remains **`canApply:false`** and legacy writers have not been paused.
 The maintainer accepted the named owner's cooperation exception on 2026-10-28
 in [ADR-0021](../decisions/0021-use-cooperative-owner-maintenance-for-shift-workbooks.md).
 No custody change, deployment or real maintenance is authorized by that decision.
@@ -404,3 +405,198 @@ emulator/regression tests, zero failures/skips**. Both reviewed groups are inclu
 in this delivery checkpoint. Their exact commit and remote verification are
 recorded in #268/#269 and draft PR #278. Next is the shared develop
 intake/old-writer/authority work; HU-084 and HU-085 stay open.
+
+## Durable develop intake and baseline bridge — 2026-10-28
+
+This is the next implementation block after the accepted copy rehearsal. It
+prepares capture and containment code; it does not record a shared deployment,
+complete historical event capture or certify old operations drained. The earlier
+661-case acceptance belongs to the preceding groups. Validation of this block
+must be recorded separately after its source and packaged runtime are checked.
+
+### One capture boundary, without legacy replay
+
+The [durable intake](../../functions/src/develop-shift-intake.ts) writes only under
+`shiftPlanningDevelopIntake/current`, outside the broad environment/dataset
+client grant in the deployed Rules. Member, admin and unauthenticated clients
+must be denied all reads and writes there. One Firestore transaction
+retains the original event metadata, typed before/after images in bounded chunks,
+logical event identity and delivery identity, and advances `captureRevision`.
+Acknowledgement follows that commit. A repeated delivery cannot replace the
+original payload; aliases for the same source document version share one logical
+capture. Source timestamps retain nanoseconds, and delivery/read times remain
+distinct from document-version identity.
+
+The retained format supports plain maps/arrays, timestamps, geopoints, bytes,
+vectors and all numeric values. It explicitly rejects document references,
+unsupported SDK objects, getters, envelopes above 4 MiB or metadata above
+256 KiB. Nothing is silently truncated or acknowledged as captured. This is a
+bounded inspection format, not a general SDK snapshot serializer. A rejected
+old retry-disabled delivery remains a historical gap; verify source-field
+compatibility and observe capture failures before admitting the shared handoff.
+
+Capture has no Sheets/FCM port, business executor, callback replay or activation
+path. New captures change the revision that a future causal manifest must bind;
+an older manifest cannot describe that newer set. The intake is not yet connected
+to a trusted operational drain/authority reader. Its counts are diagnostic,
+`legacyUntracked` remains true and inspection returns `canClaimClosure:false`
+and `canApply:false`. Neither an empty capture collection nor a missing planning
+state proves that earlier work did not exist.
+
+The [bridge](../../functions/src/develop-shift-intake-bridge.ts) wraps the audited
+deployed callbacks, preserving their SDK registration/options. Its four original
+event callbacks capture develop deliveries before returning, including deliveries
+generated before the new collectors existed. Its two original HTTP callbacks
+resolve the environment with the baseline's own resolver and reject develop with
+HTTP 503 before invoking legacy work. Exact production dispatch invokes the
+original callback without constructing or reading the intake; unsupported
+environment values fail closed.
+
+Four additional capture-only exports use fixed develop paths and `retry:true`:
+`captureDevelopShiftPlanningRequest`, `captureDevelopShiftWritten`,
+`captureDevelopDeliveryCalendarWritten` and `captureDevelopNotificationCreated`.
+They use the same capture repository as the original callbacks. This deliberately
+allows overlap without executing the old business effects twice.
+
+### Reproducible runtime and ordered deployment proposal
+
+The [package builder](../../functions/scripts/prepare-develop-intake-bridge.cjs)
+requires the audited baseline ZIP and JavaScript digests. It packages that
+baseline with the intake/bridge, rather than deploying the current application
+`index.ts`. The baseline lockfile stays exact; the only package change is
+`scripts.gcp-build = ""`, preventing the buildpack from invoking legacy `tsc`
+and overwriting the prepared entrypoint. Dependency versions remain: `firebase-admin` 13.4.0,
+`firebase-functions` 6.3.2, `@google-cloud/firestore` 7.11.1 and `googleapis` 144.
+One additional audited global option, `preserveExternalChanges:true`, prevents
+SDK reset defaults from replacing the live runtime identity, limits or ingress.
+The four new collectors explicitly cap instances at 20. The installed Firebase
+CLI retains existing environment values when no dotenv file is supplied; these
+values remain private and their exact read-back hashes are bound to the plan.
+The six original constructors and callback bodies remain unchanged apart from
+the explicit callback wrappers. Runtime metadata still needs fresh pre/post
+verification at deployment.
+
+Prepared runtime, phase manifests and Firebase configuration stay in the private
+evidence packet. Both configurations discover all ten exports, so each phase
+requires the manifest's exact `--only` selector for its four or six targets; a
+configuration filename alone does not restrict deployment. Existing secrets,
+environment files and unrelated application
+exports are not copied into it. Building the package does not deploy it.
+
+The proposed shared operation remains ordered and separately authorized:
+
+1. Create only the four new collectors. Read back their exact develop filters,
+   destinations and retry configuration, then verify durable capture through
+   each route before changing any original callback.
+2. Update only the six baseline callbacks with the bridge, preserving production
+   behavior. Keep both sets of capture paths during the transition; do not delete
+   a destination simply because its replacement is deployed.
+3. Reconcile old invocations, delayed causal events and already submitted provider
+   effects; establish effective writer/authority controls and fresh read-backs.
+   Only that later evidence can support a trusted barrier and maintenance entry.
+
+Firebase's [function migration guidance](https://firebase.google.com/docs/functions/manage-functions)
+requires the replacement to be deployed before removing the original and calls
+for idempotency during overlap. This package provides that capture boundary; it
+does not make deployment, rollback or shared-project shutdown decisions itself.
+
+### Delivery and historical limits that remain blocking
+
+Firestore delivery is unordered and at least once, so arrival order is not a
+business sequence. [Firestore trigger limitations](https://firebase.google.com/docs/firestore/extend-with-functions-2nd-gen)
+also state that Admin SDK writes bypass client Rules. Capture and Rules closure
+therefore cannot by themselves revoke older privileged invocations.
+
+The four original deployed triggers have `RETRY_POLICY_DO_NOT_RETRY`. A failed
+capture there may be dropped; adding retry-enabled collectors does not change
+the old destinations retroactively or recover their earlier backlog. Firebase's
+[retry contract](https://firebase.google.com/docs/functions/retries) gives
+second-generation retries a finite 24-hour window. [Eventarc Standard](https://docs.cloud.google.com/eventarc/standard/docs/overview)
+documents a default 24-hour retention period and warns that events generated
+before a trigger update can still follow the previous filter/destination within
+three days. These transport limits are not a drain certificate or a reason to
+clear an unknown operation after waiting.
+
+A separately identified source backfill may describe documents still present.
+It cannot recreate deleted documents, overwritten intermediate versions, missing
+historical deliveries or FCM already accepted without a reliable terminal receipt.
+Such gaps and possibly delivered notices remain unresolved; there is no automatic
+resend. A crashed old callback, an expired lease, a swallowed error or an ambiguous
+external acknowledgement must not become a successful terminal disposition.
+
+The next operational gate remains effective control and reconciliation of the
+old develop writers and their effects. This source block neither clears
+`legacyUntracked` nor activates shared develop, migration, production or
+notification delivery. HU-084 and HU-085 remain open.
+
+The focused emulator gate is
+`npm run test:shift-planning:develop-intake:emulator` from `functions`, with the
+private audited files supplied as `HU084_DEPLOYED_LEGACY_JS` and
+`HU084_DEPLOYED_LEGACY_ZIP`. `HU084_LEGACY_RUNTIME_METADATA` optionally binds the
+read-only six-function metadata capture to the preparation manifest. Missing
+metadata never authorizes a deploy. Keep the source archive, environment values
+and generated package outside Git.
+
+### Accepted local checkpoint before the provider run
+
+Node 22.23.4, Functions build/full lint and **695 joint tests** pass with zero
+failures/skips. Eight production cases run the builder's transformed JavaScript
+after its original source pin is checked; all six positive callback traces and
+after-images match, including two additional HTTP cases with omitted environment
+resolved to production. The private path denies member/admin/unauthenticated
+get/list/create/update/delete under both the captured and prepared Rules.
+
+A separately installed source package loads the actual locked Admin 13.4.0,
+Functions 6.3.2 and Firestore 7.11.1 SDKs. Its ten exports have the expected
+filters/retries and runtime-preservation metadata; eight local callbacks retain
+four events and four deliveries without Sheets/FCM submission. Final executable
+hashes are unchanged during the gate. Logs, source package, private configuration
+capture and receipts stay in `2026-10-28-durable-develop-intake` outside Git.
+
+Only the six shared Functions' configuration/source metadata was read live; all
+source generations remain unchanged. No shared data mutation, deployment,
+workbook I/O or real notification occurred. Android/iOS sources are unchanged;
+their existing accepted physical evidence is reused. Shared rollout, old-effect
+reconciliation and current authority remain pending, so `canApply:false` holds.
+
+### Authorized shared capture phase and provider correction
+
+The maintainer separately approved only the four new develop collectors in
+`reguerta-9f27f`, using the existing runtime account, plus four create-only
+temporary probes and their conditional deletion. CLI 15.15.0 was scoped to their
+exact names after checking both generations/all regions for selector-prefix
+collisions. The six legacy Functions retain their source, runtime configuration
+and behavior; their compatibility bridge is prepared but not deployed.
+
+The first real protobuf deliveries exposed an SDK boundary missed by the earlier
+query-snapshot smoke: local event snapshots throw when reading `readTime`.
+The four probes were deleted with exact payload/update-time checks after that
+attempt timed out. The correction accepts absent read time only for an actual
+`DocumentSnapshot` throwing the pinned SDK's exact local-document error; other
+errors and existing-document source-version requirements remain strict.
+
+Final validation passes build/full lint and **697 joint tests**, including raw
+protobuf through public trigger decoders. A separate packaged SDK 6.3.2/Firestore
+7.11.1 run executes **20 callbacks**, including unprojected protobuf creation and
+deletion, with ten logical captures/deliveries and no Sheets/FCM submission.
+The SDK 7.3.2 test fixture explicitly omits only its derived V1-compatibility
+getters when projecting the baseline-6 CloudEvent shape; production has no such
+metadata relaxation. Both deployed archives are retained, and every one of the
+six accepted runtime files matches for all four repaired Functions.
+
+The existing Eventarc transports remained identical across the repair. They
+redelivered all **four original creations and two deletions** without another
+create, manual replay, subscription pull/seek or ACK. Exact payloads, source
+versions and retained hashes match; the four temporary source documents remain
+absent. Current private counts are six events, six deliveries and revision six,
+with `legacyUntracked:true`. Positive six-event evidence does not certify all
+broker/error history or old-work drain; a partial stderr page is not a zero-error
+audit. Private read-back verifies IAM-authenticated invocation, fixed develop
+filters, retry policy and maximum 20 instances. Broker metadata records a
+600-second ACK deadline, 24-hour retention and 10–600-second retry backoff.
+
+No original/production workbook I/O, production data change or trial notification
+send occurred. The next gate is the separately scoped pause/containment of old
+develop writers, their outstanding effects and effective authority. Maintenance,
+migration and coverage activation remain blocked. Exact commit/remote verification
+is recorded in #268/#269; evidence stays in the private `2026-10-28-durable-develop-intake` packet.

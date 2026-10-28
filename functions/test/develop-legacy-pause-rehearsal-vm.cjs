@@ -37,6 +37,11 @@ function loadExactLegacy(db, options = {}) {
   const source = fs.readFileSync(sourcePath);
   if (createHash("sha256").update(source).digest("hex") !==
       DEPLOYED_LEGACY_SOURCE_SHA256) throw Error("source_digest_mismatch");
+  // Only the audited builder's fixed six callback insertions may transform this
+  // already pinned source. No arbitrary source/transform override is accepted.
+  const evaluatedSource = options.bridgeWrappers ?
+    require("../scripts/prepare-develop-intake-bridge.cjs")
+      .wrapLegacySource(source).source : source.toString("utf8");
   const trace = [];
   const mutations = [];
   const objects = new WeakMap();
@@ -169,6 +174,9 @@ function loadExactLegacy(db, options = {}) {
       sheets: () => sheets,
     }},
   };
+  if (options.bridgeWrappers) {
+    modules["./develop-shift-intake-bridge.js"] = options.bridgeWrappers;
+  }
   const exports = {};
   class FixedDate extends Date {
     constructor(...args) {
@@ -193,7 +201,7 @@ function loadExactLegacy(db, options = {}) {
     }},
     Error, Date: FixedDate, Math: math, Intl,
   };
-  vm.runInNewContext(source.toString("utf8") +
+  vm.runInNewContext(evaluatedSource +
     "\nexports.__resolveEnv = value => parseEnvParam(value);", sandbox, {
     filename: "byte-pinned-deployed-index.js", timeout: 5000,
   });

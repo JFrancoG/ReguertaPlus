@@ -1,6 +1,7 @@
 # HU-084: diseño y ensayo local del relevo al backend
 
-Estado: ensayo local y política de mantenimiento aceptada; **`canApply:false`**.
+Estado: captura de develop desplegada con autorización separada; el mantenimiento
+compartido sigue en **`canApply:false`** y los escritores antiguos no están pausados.
 El mantenedor aceptó la colaboración del propietario identificado el 28-10-2026
 en el [ADR-0021](../decisions/0021-usar-mantenimiento-acordado-con-el-propietario-en-hojas-de-turnos.md).
 Esa decisión no autoriza cambios de custodia, despliegues ni mantenimiento real.
@@ -432,3 +433,209 @@ regresión, cero fallos ni saltos**. Ambos bloques revisados se incluyen en este
 punto de entrega; el commit exacto y la comprobación remota quedan registrados
 en #268/#269 y la PR borrador #278. Sigue abordar la entrada, los escritores
 antiguos y la autoridad de develop compartido; HU-084 y HU-085 siguen abiertas.
+
+## Entrada duradera de develop y puente sobre el baseline — 28-10-2026
+
+Este es el siguiente bloque de implementación tras aceptar el ensayo en copia.
+Prepara código de captura y contención; no acredita un despliegue compartido,
+la captura completa del historial ni el vaciado de operaciones antiguas. La
+aceptación anterior de 661 pruebas pertenece a los bloques previos. La validación
+de este bloque debe registrarse por separado tras comprobar su código y paquete.
+
+### Una captura común, sin reejecutar callbacks antiguos
+
+La [entrada duradera](../../functions/src/develop-shift-intake.ts) solo escribe
+bajo `shiftPlanningDevelopIntake/current`, fuera del permiso amplio por
+entorno/dataset de las Rules desplegadas. Los clientes de socios, administradores
+y sin autenticar deben tener denegadas todas las lecturas y escrituras ahí.
+Una transacción de
+Firestore conserva metadatos originales, imágenes anterior y posterior con tipos
+en fragmentos acotados, identidad lógica del evento e identidad de su entrega,
+y avanza `captureRevision`. Solo después confirma la recepción. Una entrega
+repetida no sustituye el contenido original; las entregas con distinto ID de una
+misma versión del documento comparten una captura lógica. Los tiempos del origen
+conservan nanosegundos; los tiempos de entrega y lectura se distinguen de la
+identidad de la versión del documento.
+
+El formato admite mapas/listas simples, timestamps, geopuntos, bytes, vectores
+y todos los valores numéricos. Rechaza expresamente referencias a documentos,
+objetos SDK no admitidos, getters, contenido superior a 4 MiB o metadatos de más
+de 256 KiB. No recorta ni confirma contenido que no haya guardado. Es un formato
+acotado de inspección, no un serializador general del SDK. Una entrega antigua
+sin reintentos que se rechace sigue siendo un hueco histórico; antes de admitir
+el relevo compartido hay que verificar los tipos usados y observar los fallos.
+
+La captura no tiene puerto de Sheets/FCM, ejecución de negocio, reproducción de
+callbacks ni vía de activación. Cada captura nueva cambia la revisión que debe
+vincular un futuro manifiesto causal; el anterior no describe ese conjunto más
+reciente. Esta entrada aún no está conectada a un lector operativo de confianza
+que demuestre vaciado y autoridad. Sus contadores son diagnósticos,
+`legacyUntracked` sigue siendo true y la inspección devuelve
+`canClaimClosure:false` y `canApply:false`. Ni una colección vacía ni la ausencia
+del estado del planificador demuestran que no existiera trabajo anterior.
+
+El [puente](../../functions/src/develop-shift-intake-bridge.ts) envuelve los
+callbacks desplegados y auditados, conservando su registro y opciones del SDK.
+Sus cuatro callbacks de eventos originales capturan las entregas de develop
+antes de terminar, incluidas las generadas antes de existir los colectores nuevos.
+Sus dos callbacks HTTP originales resuelven el entorno con el mismo resolvedor
+del baseline y rechazan develop con HTTP 503 antes de ejecutar trabajo antiguo.
+La ruta exacta de producción invoca el callback original sin construir ni leer
+la entrada; los valores de entorno no admitidos bloquean la operación.
+
+Cuatro exportaciones adicionales solo capturan, con rutas fijas de develop y
+`retry:true`: `captureDevelopShiftPlanningRequest`, `captureDevelopShiftWritten`,
+`captureDevelopDeliveryCalendarWritten` y `captureDevelopNotificationCreated`.
+Usan el mismo repositorio de captura que los callbacks originales. Así pueden
+solaparse durante la transición sin ejecutar dos veces los efectos de negocio.
+
+### Paquete reproducible y propuesta de despliegue ordenado
+
+El [constructor del paquete](../../functions/scripts/prepare-develop-intake-bridge.cjs)
+exige los digests auditados del ZIP y JavaScript desplegados. Empaqueta ese
+baseline junto con la entrada y el puente, sin desplegar el `index.ts` actual
+de la aplicación. Conserva exactamente el lockfile; el único cambio del paquete es
+`scripts.gcp-build = ""`, para que el buildpack no ejecute el antiguo `tsc` ni
+sobrescriba la entrada preparada. Las versiones siguen siendo:
+`firebase-admin` 13.4.0, `firebase-functions` 6.3.2,
+`@google-cloud/firestore` 7.11.1 y `googleapis` 144. El runtime preparado, los
+manifiestos de fases y la configuración de Firebase quedan en el paquete privado
+de evidencias; no se copian secretos, archivos de entorno ni exportaciones ajenas
+de la aplicación. Construir el paquete no lo despliega.
+
+La opción global auditada `preserveExternalChanges:true` evita que los valores
+de reinicio del SDK sustituyan la identidad, los límites o el ingreso del runtime
+actual. Los cuatro colectores nuevos fijan un máximo de 20 instancias. La CLI
+instalada conserva las variables de entorno existentes si no se aporta un
+archivo dotenv; sus valores siguen en privado y el plan vincula sus hashes.
+Los seis constructores y cuerpos originales se conservan, con sus envolturas
+explícitas de callback. El despliegue aún exige verificar la configuración antes
+y después. Ambas configuraciones descubren las diez exportaciones: cada fase
+requiere el selector `--only` exacto de cuatro o seis del manifiesto; el nombre
+del archivo de configuración no limita por sí solo las Functions desplegadas.
+
+La operación compartida propuesta mantiene este orden y autorización separada:
+
+1. Crear solo los cuatro colectores nuevos. Comprobar sus filtros exactos de
+   develop, destinos y reintentos, y verificar captura duradera por las cuatro
+   rutas antes de modificar ningún callback original.
+2. Actualizar solo los seis callbacks del baseline con el puente, conservando
+   el comportamiento de producción. Mantener ambas vías de captura durante la
+   transición; no borrar un destino solo porque ya esté desplegado su sustituto.
+3. Reconciliar invocaciones antiguas, eventos causales retrasados y efectos ya
+   enviados al proveedor; establecer controles efectivos de escritores y
+   autoridad con comprobaciones actuales. Solo esa evidencia posterior puede
+   sustentar una barrera de confianza y la entrada en mantenimiento.
+
+La [guía de migración de Functions](https://firebase.google.com/docs/functions/manage-functions)
+exige desplegar el sustituto antes de retirar el original e idempotencia durante
+el solapamiento. El paquete aporta esa captura común; no decide por sí mismo
+despliegues, reversiones ni cierres del proyecto compartido.
+
+### Límites de entrega e historial que siguen bloqueando
+
+Firestore entrega sin orden garantizado y al menos una vez; el orden de llegada
+no es una secuencia de negocio. Las [limitaciones de sus triggers](https://firebase.google.com/docs/firestore/extend-with-functions-2nd-gen)
+también indican que las escrituras del Admin SDK eluden las reglas de cliente.
+Por tanto, la captura y el cierre de Rules no revocan por sí solos las
+invocaciones privilegiadas anteriores.
+
+Los cuatro triggers originales desplegados tienen
+`RETRY_POLICY_DO_NOT_RETRY`. Una captura fallida allí puede perderse; añadir
+colectores con reintentos no modifica retroactivamente los destinos antiguos ni
+recupera su cola previa. El [contrato de reintentos de Firebase](https://firebase.google.com/docs/functions/retries)
+fija una ventana finita de 24 horas para segunda generación.
+[Eventarc Standard](https://docs.cloud.google.com/eventarc/standard/docs/overview)
+documenta una retención por defecto de 24 horas y advierte que los eventos
+generados antes de actualizar un trigger pueden seguir el filtro y destino
+anteriores durante tres días. Estos límites de transporte no certifican el
+vaciado ni permiten borrar una operación desconocida por haber esperado.
+
+Una captura complementaria del estado actual, identificada como tal, puede
+describir los documentos que aún existen. No reconstruye documentos borrados,
+versiones intermedias sobrescritas, entregas históricas ausentes ni avisos que
+FCM ya aceptó sin un recibo terminal fiable. Esos huecos y avisos posiblemente
+entregados siguen sin resolver; no se reenvían automáticamente. Un callback
+antiguo interrumpido, una exclusión vencida, un error absorbido o una respuesta
+externa ambigua no pueden convertirse en un resultado terminal satisfactorio.
+
+La siguiente condición operativa sigue siendo controlar y reconciliar los
+escritores antiguos de develop y sus efectos. Este bloque de código no borra
+`legacyUntracked` ni activa develop compartido, migraciones, producción o
+notificaciones. HU-084 y HU-085 siguen abiertas.
+
+La validación acotada se ejecuta desde `functions` con
+`npm run test:shift-planning:develop-intake:emulator`, indicando los archivos
+privados auditados en `HU084_DEPLOYED_LEGACY_JS` y
+`HU084_DEPLOYED_LEGACY_ZIP`. `HU084_LEGACY_RUNTIME_METADATA` puede vincular la
+lectura de configuración de las seis Functions al manifiesto de preparación.
+La ausencia de esos metadatos no autoriza un despliegue. El archivo fuente, los
+valores de entorno y el paquete generado se conservan fuera de Git.
+
+### Validación local aceptada antes del ensayo real
+
+Con Node 22.23.4 pasan build y lint completos de Functions y **695 pruebas
+conjuntas**, sin fallos ni omisiones. Ocho casos de producción ejecutan el
+JavaScript transformado por el generador tras verificar el hash original: las
+trazas y los datos finales de los seis callbacks positivos coinciden, incluidos
+dos casos HTTP adicionales sin entorno explícito que resuelven a producción.
+La ruta privada deniega get/list/create/update/delete a socios, administradores
+y clientes sin autenticar con las Rules capturadas y con las preparadas.
+
+El paquete instalado por separado carga los SDK reales fijados de Admin 13.4.0,
+Functions 6.3.2 y Firestore 7.11.1. Sus diez exportaciones conservan los filtros,
+reintentos y metadatos previstos; ocho callbacks locales retienen cuatro eventos
+y cuatro entregas sin enviar nada a Sheets/FCM. Los hashes ejecutables no cambian
+durante la validación. Logs, paquete, configuración privada y recibos quedan en
+`2026-10-28-durable-develop-intake`, fuera de Git.
+
+En el proyecto compartido solo se ha leído la configuración y procedencia de
+las seis Functions: sus fuentes siguen iguales. No se han modificado datos
+compartidos, desplegado cambios, accedido a hojas ni enviado avisos reales.
+Android/iOS no cambian y se reutilizan sus pruebas físicas aceptadas. Siguen
+pendientes el despliegue, la conciliación de efectos antiguos y la autoridad
+vigente; se mantiene `canApply:false`.
+
+### Primera fase compartida autorizada y corrección del proveedor
+
+El mantenedor autorizó únicamente los cuatro colectores nuevos de develop en
+`reguerta-9f27f`, con la cuenta de ejecución existente, y cuatro registros
+temporales de creación exclusiva y borrado condicionado. La CLI 15.15.0 se limitó
+a sus nombres exactos tras descartar colisiones de prefijo en ambas generaciones
+y todas las regiones. Las seis Functions antiguas conservan fuente, configuración
+y comportamiento; su puente está preparado, pero no desplegado.
+
+Las primeras entregas protobuf reales revelaron un caso que no cubría el ensayo
+anterior con snapshots de consulta: el SDK lanza una excepción al leer `readTime`
+en las imágenes locales de los eventos. Al vencer esa primera comprobación se
+borraron los cuatro registros verificando su contenido y versión exactos.
+La corrección admite la ausencia de hora de lectura solo para un
+`DocumentSnapshot` real que lance el error exacto del SDK fijado; sigue rechazando
+los demás errores y exigiendo la versión original de documentos existentes.
+
+La validación final pasa build/lint completos y **697 pruebas conjuntas**, con
+protobuf y decodificadores públicos del trigger. El paquete instalado con los SDK
+reales 6.3.2/Firestore 7.11.1 ejecuta **20 callbacks**, incluidas creación y
+eliminación protobuf sin proyección, y conserva diez capturas/entregas sin enviar
+nada a Sheets/FCM. La fixture local 7.3.2 excluye expresamente solo sus getters
+derivados de compatibilidad V1 al proyectar la forma CloudEvent del baseline 6;
+producción no relaja así los metadatos. Se conservan ambos archivos desplegados
+y coinciden los seis ficheros del paquete aceptado en las cuatro Functions reparadas.
+
+Las mismas suscripciones de Eventarc volvieron a entregar las **cuatro creaciones
+originales y los dos borrados**, sin recrear registros, reproducir eventos a mano
+ni hacer pull/seek/ACK. Coinciden contenido, versiones y hashes; los cuatro
+documentos temporales siguen ausentes. El registro privado queda con seis eventos,
+seis entregas y revisión seis, manteniendo `legacyUntracked:true`. Esta evidencia
+positiva no certifica todo el historial del broker ni el vaciado antiguo; una
+página parcial de stderr no demuestra ausencia total de errores. Las lecturas
+actuales verifican invocación autenticada por IAM, filtros exclusivos de develop,
+reintentos y máximo de 20 instancias. El broker conserva plazo de ACK de 600
+segundos, retención de 24 horas e intervalos de reintento de 10–600 segundos.
+
+No se ha accedido a las hojas originales/de producción, cambiado datos de
+producción ni enviado avisos del ensayo. Queda autorizar y controlar la pausa de
+los escritores antiguos de develop, sus efectos pendientes y su autoridad.
+Mantenimiento, migración y coberturas siguen bloqueados. El commit y su referencia
+remota exactos se verifican en #268/#269; las pruebas quedan en el paquete privado
+`2026-10-28-durable-develop-intake`.

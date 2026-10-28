@@ -427,3 +427,45 @@ The provider result is limited to the authorized copy and localhost demo
 Firestore. No original/production I/O, shared deploy or notification release
 occurred. Private evidence is retained in `2026-10-28-isolated-copy-rehearsal`;
 HU-084/HU-085 remain open and shared admission remains `canApply:false`.
+
+## Durable develop intake and selective compatibility bridge — 2026-10-28
+
+- [x] Add an owned, exact-project Firestore capture adapter outside the deployed
+  broad client Rules; atomically retain typed images/chunks, delivery identities
+  and a monotonic capture revision before acknowledging the callback.
+- [x] Reject conflicting duplicates, unsupported values and oversized envelopes;
+  preserve ambiguous/old history without automatic replay or closure claims.
+- [x] Prepare four exact-develop retry-enabled collectors and wrappers for the
+  six byte-pinned deployed callbacks; original event destinations also capture
+  during overlap and original develop HTTP paths reject before business work.
+- [x] Generate a separate allowlisted package with the exact legacy lockfile,
+  an empty buildpack hook and explicit preservation of existing runtime settings;
+  cap new collectors at 20 instances and require exact four/six target selectors.
+- [x] Refresh only the six live Functions' configuration/source provenance and
+  bind the unchanged legacy source and private runtime/environment hashes.
+- [x] Pass Functions build/full lint and 697 joint tests, zero failures/skips;
+  execute the generated JavaScript for six positive production paths plus two
+  omitted-environment HTTP paths, matching baseline traces and after-images.
+- [x] Install the actual packaged legacy SDKs separately and execute 20
+  capture callbacks locally, including raw protobuf: ten logical captures/ten
+  delivery records, no
+  Sheets/FCM submissions and no reset of existing runtime metadata in the manifest.
+- [x] Obtain explicit first-phase authorization, deploy only the four new develop
+  collectors, verify private invocation/retry/filters/limits and the exact
+  deployed source, and prove the six old Functions unchanged.
+- [x] Correct the actual protobuf snapshot readTime boundary; accept all four
+  original create events and both written-delete events through provider retry,
+  without recreating/pulling/seeking/replaying messages; verify four CAS-cleaned
+  probe documents remain absent and keep all failed-attempt evidence.
+- [ ] Separately authorize the six compatibility updates after the accepted
+  capture phase and prepare their bounded pause/recovery handoff.
+- [ ] Reconcile earlier invocations, retry-disabled failures and provider effects;
+  connect current effective authority to the existing trusted closed barrier.
+
+This source group is included in the maintainer-authorized delivery checkpoint.
+Only the four new develop collectors are
+live; the six legacy Functions remain unchanged. Four authorized temporary
+source records were created/deleted and six original events are retained in the
+private journal. No original/production Sheet I/O, production data change or
+trial notification send occurred.
+The intake retains `legacyUntracked:true`; `canApply:false` remains mandatory.
