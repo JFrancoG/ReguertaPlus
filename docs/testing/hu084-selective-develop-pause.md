@@ -218,3 +218,8 @@ automated authority and earlier effects still need their own evidence. No
 production business, Sheets or FCM operation occurs. Native apps are unchanged;
 the maintainer authorizes this source delivery; exact commit/remote evidence is
 recorded in #268/#269 and draft PR #278.
+
+The subsequent [prior-operation reconciliation](hu084-develop-legacy-reconciliation.md)
+classifies the observed set with exact probe receipts and bounded provider evidence.
+Historical uncertainty remains separate from current executable work; the completed
+investigation does not admit maintenance or migration.

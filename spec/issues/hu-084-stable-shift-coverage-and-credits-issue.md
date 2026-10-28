@@ -1,5 +1,19 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Latest reconciliation checkpoint — 2026-10-28
+
+Delivered `afbcd098` and verified remote/draft PR heads. The subsequent approved
+read-only reconciliation is implemented locally:12 exact synthetic captures,
+observed import62 terminal/HTTP200 and12 recent reminder terminals/HTTP200s;
+all117 historical notices remain possibly delivered/unreplayable. Four seasonal
+grids retain399 exact typed literals. Before/after census and paused jobs preserve
+the accepted state. Build/full lint and40 offline regressions pass without failures/
+skips; independent receipt/census monotonicity finding is fixed. See the bilingual
+legacy-reconciliation acceptance guide. The maintainer authorizes this source delivery; complete
+automated authority/queue/in-flight evidence and the participant/window agreement
+still precede maintenance/migration admission. Both stories and draft PR stay open.
+
+
 ## Latest grouped server checkpoint — 2026-10-28
 
 Delivered `e29b6bdd` and verified the remote/draft PR head. The explicit ADR-0022

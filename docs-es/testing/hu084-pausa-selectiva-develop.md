@@ -238,3 +238,8 @@ reales de todos los participantes y evidencia de autoridad automática y efectos
 anteriores. No hay operaciones de datos de producción, Sheets o FCM. Las apps no
 cambian; el mantenedor autoriza entregar este código y documentación; la evidencia exacta
 de commit/remoto queda registrada en #268/#269 y la PR en borrador #278.
+
+La [conciliación posterior de operaciones anteriores](hu084-conciliacion-operaciones-develop.md)
+clasifica el conjunto observado con recibos exactos y evidencia acotada del
+proveedor. La incertidumbre histórica se separa del trabajo ejecutable actual;
+terminar la investigación no admite el mantenimiento ni la migración.

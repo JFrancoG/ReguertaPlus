@@ -2535,3 +2535,31 @@ Final reads preserve all three PAUSED jobs, accepted Rules and the complete
 recorded in #268/#269 and draft PR #278. No maintenance/migration admission, old-work drain or production
 business/Sheets/FCM action is implied. Actual complete participant commitments,
 automated authority and earlier effects are the remaining operational boundary.
+
+### Prior develop operations: approved reconciliation — 2026-10-28
+
+Deliver the accepted administrator/server closure as `afbcd098` before beginning
+this grouped investigation. Reuse the current validated census and exact deployed
+source/receipts to classify every observed source and retained delivery offline.
+Bind conclusions to source versions, set digest and evidence bytes. Correlate the
+twelve captures with accepted synthetic probe receipts/cleanup and bounded real
+legacy logs; retain all 117 notifications as possibly delivered and unreplayable.
+Inspect the three develop-only reminder services and provider log retention with
+finite read-only queries. Distinguish current baseline, attributed terminal work,
+external uncertainty and missing historical evidence. No replay, new shared ledger,
+legacyUntracked reset or maintenance/migration admission is part of this group.
+Finish with a finite evidence-bound report, relevant regression tests and a clear
+residual list; ask for a human decision only if that concrete residual requires it.
+
+The approved read-only group is now accepted:12 captures bind to exact synthetic
+receipts;5 old-revision runtime logs confirm probe exits; one observed import62
+terminal/HTTP200 agrees with current versions;12 recent reminder terminals/HTTP200s
+agree with recent notices. All117 notices remain possibly delivered/unreplayable;
+75 reminders lie outside the observed30-day retention window. The four seasonal
+workbook grids retain399 exact typed literals. Before/after source/journal payloads
+are identical; all three jobs remain PAUSED. The bounded offline inspector passes
+40 tests and Functions build/full lint; independent receipt/census monotonicity
+finding is fixed. See `docs/testing/hu084-develop-legacy-reconciliation.md` and its
+Spanish counterpart for the finite residual list. Investigation completeness is
+not physical handoff: no admission/legacyUntracked flag is relaxed. Actual automated
+control/queue/in-flight evidence and the participant/window agreement are next.
