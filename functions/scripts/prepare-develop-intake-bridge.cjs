@@ -13,6 +13,8 @@ const LEGACY = ["syncShiftsFromGoogleSheets", "exportShiftsToGoogleSheets",
   "onDeliveryCalendarOverrideWritten", "onNotificationEventCreated"];
 const CAPTURE = ["captureDevelopShiftPlanningRequest", "captureDevelopShiftWritten",
   "captureDevelopDeliveryCalendarWritten", "captureDevelopNotificationCreated"];
+const CAPTURE_DOCUMENTS = ["shiftPlanningRequests/{requestId}", "shifts/{shiftId}",
+  "deliveryCalendar/{weekKey}", "notificationEvents/{eventId}"];
 const ADMINISTRATIVE = ["onProductWrite", "onContainerWrite", "onMeasureWrite",
   "onUserWrite", "onOrderWrite", "upsertMemberByAdmin", "validateGlobalVersionPolicy",
   "validateGlobalFreshnessConfig"];
@@ -152,6 +154,15 @@ function runtimeMetadata(file, names = LEGACY) {
         service.maxInstanceRequestConcurrency !== 1 || service.availableCpu !== "1" ||
         service.availableMemory !== "256Mi" || service.ingressSettings !== "ALLOW_ALL" ||
         service.allTrafficOnLatestRevision !== true ||
+        (names === CAPTURE && (service.maxInstanceCount !== 20 ||
+          data.eventTrigger?.retryPolicy !== "RETRY_POLICY_RETRY" ||
+          data.eventTrigger?.serviceAccountEmail !== service.serviceAccountEmail ||
+          data.eventTrigger?.eventType !== `google.cloud.firestore.document.v1.${
+            [1, 2].includes(CAPTURE.indexOf(name)) ? "written" : "created"}` ||
+          data.eventTrigger?.eventFilters?.find((filter) => filter.attribute === "document")?.operator !==
+            "match-path-pattern" ||
+          data.eventTrigger?.eventFilters?.find((filter) => filter.attribute === "document")?.value !==
+            `develop/plus-collections/${CAPTURE_DOCUMENTS[CAPTURE.indexOf(name)]}`)) ||
         (LEGACY.includes(name) && name.startsWith("on") &&
           data.eventTrigger?.retryPolicy !== "RETRY_POLICY_DO_NOT_RETRY")) {
       fail("runtime_metadata_changed");
@@ -166,7 +177,10 @@ function runtimeMetadata(file, names = LEGACY) {
       memory: service.availableMemory, ingress: service.ingressSettings,
       minimumInstances: service.minInstanceCount ?? null,
       minimumInstancesKnown: Object.hasOwn(service, "minInstanceCount"),
-      retryPolicy: data.eventTrigger?.retryPolicy ?? null};
+      retryPolicy: data.eventTrigger?.retryPolicy ?? null,
+      ...(names === CAPTURE ? {eventTriggerSha256: sha(JSON.stringify(data.eventTrigger)),
+        documentPattern: `develop/plus-collections/${CAPTURE_DOCUMENTS[CAPTURE.indexOf(name)]}`,
+        triggerServiceAccountSha256: sha(data.eventTrigger.serviceAccountEmail)} : {})};
   });
   if (new Set(entries.map((entry) => entry.entryPoint)).size !== names.length) fail("runtime_metadata_invalid");
   return {capturedAt: value.capturedAt, captureSha256: sha(bytes), functions: entries};
@@ -174,6 +188,9 @@ function runtimeMetadata(file, names = LEGACY) {
 
 function prepareDevelopIntakeBridge(options) {
   const {sourceZip, outputDirectory, compiledDirectory} = options;
+  const captureUpdate = options.profile === "capture-update4";
+  if ((options.profile !== undefined && !captureUpdate) ||
+      (captureUpdate && !options.runtimeMetadataPath)) fail("capture_update_configuration_invalid");
   if (!path.isAbsolute(sourceZip) || !path.isAbsolute(outputDirectory) ||
       !path.isAbsolute(compiledDirectory) || fs.existsSync(outputDirectory) ||
       options.projectId !== PROJECT_ID || options.codebase !== "default") {
@@ -194,7 +211,7 @@ function prepareDevelopIntakeBridge(options) {
   // generated entrypoint. Only the buildpack hook changes; the lock is exact.
   const deployPackage = {...pkg, scripts: {...pkg.scripts, "gcp-build": ""}};
   const deployPackageBytes = Buffer.from(JSON.stringify(deployPackage, null, 2) + "\n");
-  const observedRuntime = runtimeMetadata(options.runtimeMetadataPath);
+  const observedRuntime = runtimeMetadata(options.runtimeMetadataPath, captureUpdate ? CAPTURE : LEGACY);
   const legacy = wrapLegacySource(readZip(sourceZip, "lib/index.js"));
   const modules = {};
   for (const name of ["develop-shift-intake", "develop-shift-intake-bridge"]) {
@@ -210,12 +227,12 @@ function prepareDevelopIntakeBridge(options) {
   fs.writeFileSync(path.join(runtime, "package.json"), deployPackageBytes);
   fs.writeFileSync(path.join(runtime, "package-lock.json"), lockBytes);
   fs.writeFileSync(path.join(runtime, "lib/legacy.js"), legacy.source);
-  fs.writeFileSync(path.join(runtime, "lib/index.js"), entrypoint([...LEGACY, ...CAPTURE]));
+  fs.writeFileSync(path.join(runtime, "lib/index.js"), entrypoint(captureUpdate ? CAPTURE : [...LEGACY, ...CAPTURE]));
   for (const [name, bytes] of Object.entries(modules)) {
     fs.writeFileSync(path.join(runtime, `lib/${name}.js`), bytes);
   }
   const functions = [{source: "runtime", codebase: "default", runtime: "nodejs22"}];
-  for (const phase of ["capture", "bridge"]) {
+  for (const phase of captureUpdate ? ["capture"] : ["capture", "bridge"]) {
     fs.writeFileSync(path.join(outputDirectory, `firebase.${phase}.json`),
       JSON.stringify({functions}, null, 2) + "\n");
   }
@@ -223,6 +240,8 @@ function prepareDevelopIntakeBridge(options) {
     "lib/develop-shift-intake.js", "lib/develop-shift-intake-bridge.js"].map((name) => ({
     path: `runtime/${name}`, sha256: sha(fs.readFileSync(path.join(runtime, name))),
   }));
+  if (captureUpdate) files.push({path: "firebase.capture.json",
+    sha256: sha(fs.readFileSync(path.join(outputDirectory, "firebase.capture.json")))});
   const manifest = {schemaVersion: 1, kind: "develop-intake-bridge-preparation",
     projectId: PROJECT_ID, codebase: "default", runtime: "nodejs22", canApply: false,
     sourceArchiveSha256: ZIP_SHA256, deployedJavaScriptSha256: LEGACY_JS_SHA256,
@@ -246,8 +265,30 @@ function prepareDevelopIntakeBridge(options) {
       earlierWorkAndRetryDisabledFailuresRemainUnknown: true},
     excluded: [".env", "source maps", "current application index", "credentials"],
   };
+  if (captureUpdate) {
+    manifest.kind = "develop-capture-observation-update-preparation";
+    manifest.profile = "capture-update4";
+    manifest.exports = [...CAPTURE];
+    manifest.requiredConfig = "firebase.capture.json";
+    manifest.requiredOnly = CAPTURE.map((name) => `functions:${name}`).join(",");
+    manifest.phases = [{kind: "capture-update-only", config: manifest.requiredConfig,
+      functions: [...CAPTURE], requiredOnly: manifest.requiredOnly}];
+    manifest.blockers = ["fresh_capture_source_runtime_identity_and_iam_readbacks_required",
+      "old_work_and_delivery_outcomes_unproved"];
+    manifest.guards.deployCaptureAndVerifyBeforeBridge = false;
+    manifest.guards.captureUpdateOnly = true;
+    manifest.guards.noLegacyDeploymentAuthorized = true;
+    manifest.guards.selectorPrefixCollisionsRequireLiveReadback = true;
+  }
   fs.writeFileSync(path.join(outputDirectory, "bridge-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   return manifest;
+}
+
+function prepareDevelopCaptureObservationUpdate(options) {
+  if (options.profile !== undefined && options.profile !== "capture-update4") {
+    fail("capture_update_profile_invalid");
+  }
+  return prepareDevelopIntakeBridge({...options, profile: "capture-update4"});
 }
 function wrapAdministrativeSource(bytes, profile) {
   const modern = profile === "authorized-member1";
@@ -374,7 +415,8 @@ function prepareDevelopAdministrativeBridge(options) {
   return manifest;
 }
 
-module.exports = {prepareDevelopIntakeBridge, wrapLegacySource, prepareDevelopAdministrativeBridge,
+module.exports = {prepareDevelopIntakeBridge, prepareDevelopCaptureObservationUpdate,
+  wrapLegacySource, prepareDevelopAdministrativeBridge,
   wrapAdministrativeSource, ZIP_SHA256, LEGACY_JS_SHA256, LEGACY, CAPTURE, ADMINISTRATIVE, RESOLVE_PROFILE};
 if (require.main === module) {
   const args = process.argv.slice(2);
@@ -384,7 +426,8 @@ if (require.main === module) {
       new Set(args.filter((_, i) => i % 2 === 0)).size !== args.length / 2) fail("bridge_arguments_invalid");
   const flags = Object.fromEntries(Array.from({length: args.length / 2},
     (_, i) => [args[i * 2], args[i * 2 + 1]]));
-  const prepare = flags["--profile"] ? prepareDevelopAdministrativeBridge : prepareDevelopIntakeBridge;
+  const prepare = flags["--profile"] === "capture-update4" ? prepareDevelopCaptureObservationUpdate :
+    flags["--profile"] ? prepareDevelopAdministrativeBridge : prepareDevelopIntakeBridge;
   const result = prepare({sourceZip: flags["--source-zip"], profile: flags["--profile"],
     outputDirectory: flags["--output"], compiledDirectory: flags["--compiled"],
     projectId: flags["--project"], codebase: flags["--codebase"],

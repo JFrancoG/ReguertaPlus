@@ -273,6 +273,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-10-29 | 🐛 fix(shifts): retain delivery metadata observations
+
 - 2026-10-27 | 🐛 fix(shifts): handle limited reader visibility
 
 - 2026-10-27 | 🐛 fix(shifts): isolate develop inspection identities

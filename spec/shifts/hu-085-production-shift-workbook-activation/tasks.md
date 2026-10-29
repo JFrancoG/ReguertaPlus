@@ -527,3 +527,41 @@ business/Sheet/FCM operation occurred, and shared maintenance stays closed.
   preserving possibly-delivered/no-replay history and all admission blockers.
 - [x] Seal the measured classification, explicit residuals and next finite gate;
   keep physical handoff and migration admission false.
+
+## Develop queues and maintenance-window preparation — 2026-10-28
+
+- [x] Commit/push prior reconciliation as `4cb21682`; verify remote/draft PR.
+- [x] Read eight exact trigger/topic/subscription bindings, metric scope/lag and
+  service revisions without consuming/ACKing messages; retain shared UNKNOWN.
+- [x] Identify four actual private backlog/500 conflicts and confirm five planning
+  authority paths absent; do not infer a maintenance epoch or drain.
+- [x] Implement/review/test lossless delivery observations and backwards-compatible
+  inspection, preserving original records and strict core/identity rejection.
+- [x] Prepare the four-private-collector-only packet with exact SDK/config/source
+  bindings and obtain separate deployment authorization after local validation.
+- [x] Verify natural redelivery retention, current source set and bounded metrics
+  after any authorized update; keep shared/absent metrics as UNKNOWN.
+- [x] Record the proposed window, real participants/operator requirements, remaining
+  control/bootstrap gaps and explicit NOT READY status without starting a window.
+
+Local gate: full Functions build/lint and147 joint tests pass, zero failures/skips.
+The exact four-export/seven-file packet and GET-only guard are independently
+reviewed; all24 Functions still match the baseline. Separate deployment approval
+and natural-retry acceptance remain pending. See the bilingual queue/window guide.
+
+Acceptance on 2026-10-29: four natural HTTP2xx requests are correlated by exact
+CloudEvent ID/source labels, service and new revision; the bounded query has no
+HTTP4xx/5xx or application errors. Four metadata observations differ only in
+traceparent; original183 sources/twelve events/twelve V1 deliveries/chunks and
+versions are preserved. Revision/deliveryCount16, eventCount12. All four source
+archives and controls match; other20 Functions unchanged. Eight unchanged
+executable-input hashes retain build/lint and147 tests. Shared UNKNOWN and bootstrap/
+provider-sourceScope/participant requirements still block maintenance admission.
+The maintainer authorizes source delivery; exact Git/remote evidence is recorded in #268/#269 and draft PR #278.
+
+Final bounded queue observation (2026-10-29): latest returned backlog samples are
+0/0/0/1 across the four private subscriptions. Four correlated HTTP2xx responses
+and preserved metadata do not establish broker ACK/drain; the remaining value1
+is unresolved, not silently treated as metric lag. Shared missing series remain
+UNKNOWN. Next operational step is to reconcile that residual provider delivery
+before claiming private queue drain or preparing real maintenance admission.

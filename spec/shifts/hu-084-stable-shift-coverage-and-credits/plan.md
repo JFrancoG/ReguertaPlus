@@ -2563,3 +2563,56 @@ finding is fixed. See `docs/testing/hu084-develop-legacy-reconciliation.md` and 
 Spanish counterpart for the finite residual list. Investigation completeness is
 not physical handoff: no admission/legacyUntracked flag is relaxed. Actual automated
 control/queue/in-flight evidence and the participant/window agreement are next.
+
+### Develop queues and maintenance-window preparation — 2026-10-28
+
+Deliver prior reconciliation as `4cb216824dc908293311a4f9c496fc2326c0f350`,
+with remote/PR verification and matching six-input validation (build/full/focused
+lint and40 offline tests). Inspect actual Eventarc/PubSub/service bindings and
+bounded provider metrics without pulling/ACKing/seeking messages or changing IAM.
+Prepare a concrete future window; preparation does not open maintenance.
+
+The first real observation finds four private collectors each with backlog1 and
+repeated event_payload_conflict/HTTP500. Shared subscriptions provide no series,
+which remains unknown. Existing canonical event/delivery keys collapse differing
+metadata observations; the exact conflicting field is not yet proven. Prepare a
+single lossless metadata-observation fix and four-only deployment packet under
+proposed ADR-0023: preserve twelve schema1 deliveries/first envelopes, append
+schema2 observations in the same collection only for identical core and immutable
+CloudEvent identity, and retain rejection/diagnostics for other conflicts. Reuse
+existing counters/CAS/inspector; never ACK without durable retention or run legacy
+business logic. Review/test/freeze the packet before requesting its scoped live
+authorization. After authorized update, inspect natural retries/journal/provider
+observations rather than manually consuming or replaying messages.
+
+The window remains NOT READY. Five exact planning-authority paths are absent;
+bootstrap cannot be replaced by epoch0. Shared ACTIVE production triggers cannot
+be reported physically disabled, and the existing v4 admission contract lacks the
+provider-backed capture-only scope. Future admission needs those explicit controls,
+actual participants/operator identity, refreshed source/IAM/workbook/set bindings
+and separate authorization. A provisional20-minute work plus20-minute recovery
+budget has no date, confirmation or live effect.
+
+Local preparation is complete: full Functions build/lint and147 joint tests pass
+with no failures/skips. The exact four-export/seven-file packet, backwards-compatible
+inspector and GET-only guard/post verifier pass independent review. Real archived
+SDK discovery confirms four retry-enabled exports; a fresh guard binds all24
+unchanged Functions and the final manifest. The bilingual queue/window guide fixes
+the future prerequisites and provisional budget. Scoped deployment approval is
+requested; no cloud update, natural-retry acceptance or maintenance entry is yet claimed.
+
+## Authorized four-collector update — 2026-10-29
+
+The authorized deployment succeeds for exactly four private collectors. Immutable
+source archives match the reviewed packet; runtime configuration, identity,
+permissions, filters, retries and traffic are preserved, as are the other twenty
+Functions. Natural retries retain four schema2 observations: each differs from
+its canonical record only in traceparent. The source183 documents, twelve original
+events/deliveries and chunks remain byte-equivalent including source versions.
+Root captureRevision/deliveryCount advance12→16; eventCount stays12 and
+legacyUntracked stays true. No business callback, Sheets write, FCM send, manual
+message consumption, maintenance entry or migration is performed.
+
+The 147-test/build/lint gate is reused with unchanged executable inputs. The
+Firebase CLI warns about the intentionally preserved archived SDK; this scoped
+update does not upgrade runtime dependencies. Native code is unchanged.

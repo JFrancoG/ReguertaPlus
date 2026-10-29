@@ -7,7 +7,8 @@ const os = require("node:os");
 const path = require("node:path");
 const {spawnSync} = require("node:child_process");
 const {inspectCensus} = require("../scripts/inspect-develop-legacy-census.cjs");
-const {BASE, ROOT, SOURCE, CREATED, UPDATED, LATER, READ, at, hash, raw, doc, tagged, fixture} =
+const {BASE, ROOT, SOURCE, CREATED, UPDATED, LATER, READ, at, hash, raw, doc, tagged, fixture,
+  addMetadataObservation} =
   require("./develop-legacy-census-fixture.cjs");
 const code = (expected) => (error) => error.code === expected && error.message === expected;
 
@@ -25,6 +26,9 @@ test("valid inspection binds a complete census and source version without granti
   assert.equal(report.captureRevision, 1);
   assert.equal(report.eventCount, 1);
   assert.equal(report.deliveryCount, 1);
+  assert.deepEqual(report.deliverySchemaCounts, {canonical: 1, metadataObservations: 0});
+  assert.equal(report.fingerprint, "5b2d7b0ea5e552872da54099faa9ba0e2012f371aeb293fa92ae67b38920b0ec");
+  assert.equal(report.stableSetDigest, "db6bd2bf28af02a04183b59b4f35cac8d8f8f89930ed5281f51a20b237a2749f");
   assert.equal(report.captures[0].relationship, "current-version-matching");
   assert.equal(report.captures[0].externalOutcome, "unknown");
   assert.equal(report.legacyUntracked, true);
@@ -269,6 +273,72 @@ test("a new valid delivery and capture revision invalidate stable set identity e
   assert.equal(changed.eventCount, 1);
   assert.equal(changed.captureRevision, 2);
   assert.notEqual(changed.stableSetDigest, original.stableSetDigest);
+});
+
+test("v2 retains a different full metadata observation beside its immutable v1 anchor, with independent read times", () => {
+  const input = fixture(), original = inspectCensus(input);
+  const event = structuredClone(input.events[0]), chunks = structuredClone(input.chunks), base = structuredClone(input.deliveries[0]);
+  const observation = addMetadataObservation(input, {location: "fixed-receiver", extension: {retained: ["private extension"]}},
+    {beforeReadTime: at(UPDATED), afterReadTime: at(LATER)});
+  const unchanged = structuredClone(input), report = inspectCensus(input);
+  assert.equal(report.eventCount, 1); assert.equal(report.deliveryCount, 2); assert.equal(report.captureRevision, 2);
+  assert.deepEqual(report.deliverySchemaCounts, {canonical: 1, metadataObservations: 1});
+  assert.deepEqual(input.events[0], event); assert.deepEqual(input.chunks, chunks); assert.deepEqual(input.deliveries[0], base);
+  assert.deepEqual(input, unchanged);
+  assert.equal(observation.fields.beforeReadTime.arrayValue.values[1].integerValue, String(at(UPDATED)[1]));
+  assert.notEqual(report.stableSetDigest, original.stableSetDigest);
+  assert.notEqual(report.fingerprint, original.fingerprint);
+  assert.equal(report.captures[0].externalOutcome, "unknown");
+  assert.equal(report.canApply, false); assert.equal(report.canClaimClosure, false); assert.equal(report.legacyUntracked, true);
+  assert.equal(JSON.stringify(report).includes("private extension"), false);
+  input.deliveries.reverse();
+  assert.deepEqual(inspectCensus(input), report);
+});
+
+test("metadata observations require a validated canonical v1 anchor and cannot duplicate its full metadata", () => {
+  const orphan = fixture(); addMetadataObservation(orphan); orphan.deliveries.shift();
+  for (const control of [orphan.intakeBefore, orphan.intakeAfter]) {
+    control.fields.captureRevision = raw(1); control.fields.deliveryCount = raw(1);
+  }
+  assert.throws(() => inspectCensus(orphan), code("delivery_observation_orphan"));
+  const invalidBase = fixture(); addMetadataObservation(invalidBase);
+  invalidBase.deliveries[0].fields.digest = raw("f".repeat(64));
+  assert.throws(() => inspectCensus(invalidBase), code("delivery_binding_mismatch"));
+  const duplicate = fixture(); addMetadataObservation(duplicate, {});
+  assert.throws(() => inspectCensus(duplicate), code("delivery_observation_duplicate"));
+});
+
+test("a rehashed metadata observation cannot change the canonical CloudEvent identity", () => {
+  const input = fixture(); addMetadataObservation(input, {time: LATER});
+  assert.throws(() => inspectCensus(input), code("delivery_identity_mismatch"));
+  for (const patch of [{id: "another-provider-id"}, {source: SOURCE + "-other"},
+    {type: "google.cloud.firestore.document.v1.created"}, {subject: "documents/develop/other/document"},
+    {specversion: "2.0"}]) {
+    const changed = fixture(); addMetadataObservation(changed, patch);
+    assert.throws(() => inspectCensus(changed));
+  }
+});
+
+test("observation keys, base pointers, digests, fields, read times and root counters remain exact", () => {
+  for (const mutate of [
+    (input, row) => {row.name = `${ROOT}/deliveries/${"f".repeat(64)}`;},
+    (input, row) => {row.fields.baseDeliveryKey = raw("f".repeat(64));},
+    (input, row) => {row.fields.digest = raw("f".repeat(64));},
+    (input, row) => {row.fields.eventKey = raw("f".repeat(64));},
+    (input, row) => {row.fields.equivalent = raw(true);},
+    (input, row) => {row.fields.afterReadTime = raw(at("2027-01-01T00:00:00.000000000Z"));},
+    (input) => {for (const control of [input.intakeBefore, input.intakeAfter]) control.fields.captureRevision = raw(1);},
+    (input) => {for (const control of [input.intakeBefore, input.intakeAfter]) control.fields.eventCount = raw(2);},
+  ]) {
+    const input = fixture(), observation = addMetadataObservation(input); mutate(input, observation);
+    assert.throws(() => inspectCensus(input));
+  }
+  const input = fixture(); addMetadataObservation(input);
+  assert.deepEqual(Object.keys(input.intakeAfter.fields).sort(),
+    ["captureRevision", "deliveryCount", "eventCount", "legacyUntracked", "schemaVersion"]);
+  const before = inspectCensus(input).stableSetDigest;
+  input.deliveries[1].updateTime = READ;
+  assert.notEqual(inspectCensus(input).stableSetDigest, before);
 });
 
 test("the offline CLI writes only a new private report and refuses to overwrite existing evidence", () => {

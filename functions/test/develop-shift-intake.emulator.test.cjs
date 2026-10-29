@@ -121,9 +121,9 @@ function rawProtobufEvent(route, documentId, {deleted = false, writtenCreated = 
     traceparent: `00-${"1".repeat(32)}-${"2".repeat(16)}-01`, data};
 }
 
-function publicFirestoreTrigger(route, handler) {
+function publicFirestoreTrigger(route, handler, shared = false) {
   const bind = route.created ? onDocumentCreated : onDocumentWritten;
-  return bind(`develop/plus-collections/${route.collection}/{${route.parameter}}`,
+  return bind(`${shared ? "{env}" : "develop"}/plus-collections/${route.collection}/{${route.parameter}}`,
     (event) => {
       // This fixture uses SDK 7.3.2 to decode real protobuf snapshots. Its V1
       // compatibility getters are derived aliases, not CloudEvent wire fields;
@@ -326,16 +326,48 @@ test("a new delivery ID and later SDK read time alias one source version without
   assert.equal(row.get("eventKey"), first.eventKey);
 });
 
-test("same-ID metadata or source-version conflicts cannot overwrite the first committed payload", async () => {
+test("same-ID metadata variations are retained losslessly without rewriting the first capture or base delivery", async () => {
+  const value = await sourceEvent();
+  const first = await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const retained = await storedCapture(first.eventKey), firstImage = await journalImage();
+  const variant = {...value.event, traceparent: "another-receiver-trace", extension: {different: true}};
+  const next = await captureDevelopShiftEvent(db, value.route.entryPoint, variant);
+  const encoded = encodeDevelopShiftEvent(PROJECT, value.route.entryPoint, variant);
+  const observations = (await db.doc(DEVELOP_SHIFT_INTAKE_PATH).collection("deliveries").get()).docs;
+  const appended = observations.find((doc) => doc.get("schemaVersion") === 2);
+  assert.equal(next.eventKey, first.eventKey); assert.equal(next.duplicate, true);
+  assert.equal(appended.id, createHash("sha256").update(JSON.stringify({baseDeliveryKey: encoded.deliveryKey,
+    metadataDigest: encoded.deliveryDigest})).digest("hex"));
+  assert.deepEqual(appended.data(), {schemaVersion: 2, baseDeliveryKey: encoded.deliveryKey,
+    eventKey: first.eventKey, digest: encoded.deliveryDigest, ...encoded.delivery});
+  assert.deepEqual((await storedCapture(first.eventKey)).bytes, retained.bytes);
+  const after = await journalImage();
+  for (const original of firstImage.filter((row) => row.path !== DEVELOP_SHIFT_INTAKE_PATH)) {
+    assert.deepEqual(after.find((row) => row.path === original.path), original);
+  }
+  assert.deepEqual(await state(), {schemaVersion: 1, legacyUntracked: true, captureRevision: 2, eventCount: 1, deliveryCount: 2});
+  const stable = await journalImage();
+  await captureDevelopShiftEvent(db, value.route.entryPoint,
+    {...variant, data: {before: value.before, after: await value.reference.get()}});
+  assert.deepEqual(await journalImage(), stable);
+});
+
+test("same-ID changed CloudEvent time remains a diagnostic conflict without modifying retained metadata", async () => {
   const value = await sourceEvent();
   await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
   const retained = await journalImage();
   await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint,
-    {...value.event, traceparent: "conflicting-delivery-metadata"}), hasCode("event_payload_conflict"));
+    {...value.event, time: "2026-10-28T12:34:57.123456789Z"}), hasCode("delivery_identity_conflict"));
   assert.deepEqual(await journalImage(), retained);
+});
+
+test("same CloudEvent ID for another source version remains a rejected delivery identity", async () => {
+  const value = await sourceEvent();
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const retained = await journalImage();
   await value.reference.update({assignedUserIds: ["b", "a"]});
   const next = cloudEvent(value.route, value.after, await value.reference.get(), value.event.id);
-  await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, next), hasCode("event_payload_conflict"));
+  await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, next), hasCode("delivery_event_key_conflict"));
   assert.deepEqual(await journalImage(), retained);
 });
 
@@ -348,8 +380,150 @@ test("conflicting fields for an already captured source version remain unacknowl
   const encoded = encodeDevelopShiftEvent(PROJECT, value.route.entryPoint, conflict);
   assert.equal(encoded.eventKey, first.eventKey);
   assert.notEqual(encoded.coreDigest, first.coreDigest);
-  await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, conflict), hasCode("event_payload_conflict"));
+  await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, conflict), hasCode("event_core_conflict"));
   assert.deepEqual(await journalImage(), retained);
+});
+
+test("both public SDK path patterns retain four same-ID metadata observations after real protobuf decoding", async () => {
+  for (const route of routes) {
+    const input = rawProtobufEvent(route, `overlap-${route.collection}`);
+    const retain = (event) => captureDevelopShiftEvent(db, route.entryPoint, event);
+    const shared = publicFirestoreTrigger(route, retain, true), fixed = publicFirestoreTrigger(route, retain);
+    await shared({...input, traceparent: "shared-delivery-context"});
+    const original = await journalImage();
+    await fixed({...input, traceparent: "private-delivery-context", deliveryExtension: {preserved: true}});
+    const after = await journalImage();
+    for (const row of original.filter((row) => row.path !== DEVELOP_SHIFT_INTAKE_PATH)) {
+      assert.deepEqual(after.find((item) => item.path === row.path), row);
+    }
+  }
+  const deliveries = (await db.doc(DEVELOP_SHIFT_INTAKE_PATH).collection("deliveries").get()).docs;
+  assert.equal(deliveries.filter((doc) => doc.get("schemaVersion") === 1).length, 4);
+  assert.equal(deliveries.filter((doc) => doc.get("schemaVersion") === 2).length, 4);
+  assert.deepEqual(await state(), {schemaVersion: 1, legacyUntracked: true, captureRevision: 8, eventCount: 4, deliveryCount: 8});
+});
+
+test("concurrent distinct metadata observations and exact retries advance only once per observation", async () => {
+  const value = await sourceEvent();
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const events = [1, 2].map((attempt) => ({...value.event, extension: {attempt}, traceparent: `trace-${attempt}`}));
+  await Promise.all(events.flatMap((event) => Array.from({length: 3}, () =>
+    captureDevelopShiftEvent(db, value.route.entryPoint, event))));
+  assert.deepEqual(await state(), {schemaVersion: 1, legacyUntracked: true, captureRevision: 3, eventCount: 1, deliveryCount: 3});
+});
+
+test("a metadata observation committed before lost ACK is recovered without another write", async () => {
+  const value = await sourceEvent();
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const variant = {...value.event, traceparent: "retained-before-lost-ack"}, original = db.runTransaction;
+  db.runTransaction = async function(...args) { await original.apply(this, args); throw new Error("observation_ack_lost"); };
+  try {
+    await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, variant), /observation_ack_lost/);
+  } finally { db.runTransaction = original; }
+  const committed = await journalImage();
+  assert.equal((await state()).deliveryCount, 2);
+  const fresh = createDevelopShiftIntakeDatabase(PROJECT);
+  try {
+    assert.equal((await captureDevelopShiftEvent(fresh, value.route.entryPoint, variant)).duplicate, true);
+    assert.deepEqual(await journalImage(), committed);
+  } finally { await fresh.terminate(); }
+});
+
+test("an observation transaction failure cannot ACK, change counters or leave a partial observation", async () => {
+  const value = await sourceEvent();
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const retained = await journalImage(), original = db.runTransaction;
+  db.runTransaction = function(update, options) { return original.call(this, async (tx) => {
+    await update(tx); throw new Error("observation_not_committed");
+  }, options); };
+  try {
+    await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint,
+      {...value.event, traceparent: "uncommitted"}), /observation_not_committed/);
+  } finally { db.runTransaction = original; }
+  assert.deepEqual(await journalImage(), retained);
+});
+
+test("every retained immutable identity field is bound to its base delivery key and incoming event", async () => {
+  const value = await sourceEvent();
+  const encoded = encodeDevelopShiftEvent(PROJECT, value.route.entryPoint, value.event);
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const base = db.doc(DEVELOP_SHIFT_INTAKE_PATH).collection("deliveries").doc(encoded.deliveryKey), original = (await base.get()).data();
+  for (const name of ["id", "source", "type", "subject", "time", "specversion"]) {
+    const metadataWire = JSON.parse(original.metadata);
+    metadataWire[1].find(([key]) => key === name)[1][1] = name === "time" ? "2026-10-28T12:34:57Z" : `changed-${name}`;
+    const digest = createHash("sha256").update(JSON.stringify({coreDigest: encoded.coreDigest, metadataWire})).digest("hex");
+    await base.set({...original, metadata: JSON.stringify(metadataWire), digest});
+    const retained = await journalImage();
+    await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint,
+      {...value.event, traceparent: "candidate"}), hasCode(["id", "source"].includes(name) ?
+      "delivery_record_invalid" : "delivery_identity_conflict"));
+    assert.deepEqual(await journalImage(), retained);
+    await base.set(original);
+  }
+});
+
+test("corrupted base metadata, digest, scope or schema cannot authorize a new observation", async () => {
+  const value = await sourceEvent(), encoded = encodeDevelopShiftEvent(PROJECT, value.route.entryPoint, value.event);
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const base = db.doc(DEVELOP_SHIFT_INTAKE_PATH).collection("deliveries").doc(encoded.deliveryKey), original = (await base.get()).data();
+  for (const patch of [{digest: "f".repeat(64)}, {metadata: "[]"}, {metadata: original.metadata + " "},
+    {schemaVersion: 2}, {unexpected: true}, {beforeReadTime: [1, 1e9]}]) {
+    await base.set({...original, ...patch});
+    const retained = await journalImage();
+    await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint,
+      {...value.event, traceparent: "candidate"}), hasCode("delivery_record_invalid"));
+    assert.deepEqual(await journalImage(), retained);
+    await base.set(original);
+  }
+});
+
+test("orphaned or contradictory v2 rows remain unacknowledged and never repair themselves", async () => {
+  const value = await sourceEvent(), variant = {...value.event, traceparent: "private-observation"};
+  const encoded = encodeDevelopShiftEvent(PROJECT, value.route.entryPoint, variant);
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  await captureDevelopShiftEvent(db, value.route.entryPoint, variant);
+  const deliveries = db.doc(DEVELOP_SHIFT_INTAKE_PATH).collection("deliveries"),
+    base = deliveries.doc(encoded.deliveryKey), rows = (await deliveries.get()).docs,
+    observation = rows.find((doc) => doc.get("schemaVersion") === 2).ref;
+  const baseData = (await base.get()).data(), observationData = (await observation.get()).data();
+  for (const patch of [{baseDeliveryKey: "f".repeat(64)}, {eventKey: "f".repeat(64)},
+    {digest: "f".repeat(64)}, {metadata: baseData.metadata}, {afterReadTime: "invalid"}]) {
+    await observation.set({...observationData, ...patch});
+    const retained = await journalImage();
+    await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, variant), (error) =>
+      ["delivery_record_invalid", "delivery_observation_conflict"].includes(error.code));
+    assert.deepEqual(await journalImage(), retained);
+  }
+  await observation.set(observationData); await base.delete();
+  const orphan = await journalImage();
+  await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, variant), hasCode("intake_state_invalid"));
+  assert.deepEqual(await journalImage(), orphan);
+});
+
+test("a fabricated v2 row identical to its v1 base cannot manufacture a second observation", async () => {
+  const value = await sourceEvent(), encoded = encodeDevelopShiftEvent(PROJECT, value.route.entryPoint, value.event);
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const key = createHash("sha256").update(JSON.stringify({baseDeliveryKey: encoded.deliveryKey,
+    metadataDigest: encoded.deliveryDigest})).digest("hex");
+  await db.doc(DEVELOP_SHIFT_INTAKE_PATH).collection("deliveries").doc(key).create({schemaVersion: 2,
+    baseDeliveryKey: encoded.deliveryKey, eventKey: encoded.eventKey, digest: encoded.deliveryDigest, ...encoded.delivery});
+  const retained = await journalImage();
+  await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, value.event), hasCode("delivery_observation_conflict"));
+  assert.deepEqual(await journalImage(), retained);
+});
+
+test("inconsistent five-field root counters cannot ACK an existing delivery or append an observation", async () => {
+  const value = await sourceEvent();
+  await captureDevelopShiftEvent(db, value.route.entryPoint, value.event);
+  const control = db.doc(DEVELOP_SHIFT_INTAKE_PATH), original = (await control.get()).data();
+  for (const patch of [{captureRevision: 2}, {eventCount: 2}]) {
+    await control.set({...original, ...patch});
+    const retained = await journalImage();
+    for (const event of [value.event, {...value.event, traceparent: "new-observation"}]) {
+      await assert.rejects(captureDevelopShiftEvent(db, value.route.entryPoint, event), hasCode("intake_state_invalid"));
+      assert.deepEqual(await journalImage(), retained);
+    }
+  }
 });
 
 test("written creation and deletion keep absent images distinct and preserve the original SDK timestamp precision", async () => {

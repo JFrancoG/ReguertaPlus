@@ -55,4 +55,27 @@ function fixture(id = "current-shift") {
       `shiftPlanningDevelopIntake/current/events/${eventKey}/chunks/0`, {bytes: Buffer.from(envelope)}, LATER)]}};
 }
 
-module.exports = {PROJECT, BASE, ROOT, SOURCE, CREATED, UPDATED, LATER, READ, at, hash, raw, fields, doc, tagged, fixture};
+function addMetadataObservation(input, patch = {location: "receiver-specific-extension"}, times = {}) {
+  const base = input.deliveries.find((row) => row.fields.schemaVersion.integerValue === "1");
+  const wire = JSON.parse(base.fields.metadata.stringValue), entries = new Map(wire[1]);
+  for (const [key, value] of Object.entries(patch)) entries.set(key, tagged(value));
+  const metadataWire = ["map", [...entries].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)];
+  const eventKey = base.fields.eventKey.stringValue;
+  const event = input.events.find((row) => row.name === `${ROOT}/events/${eventKey}`);
+  const metadataDigest = hash(JSON.stringify({coreDigest: event.fields.coreDigest.stringValue, metadataWire}));
+  const baseDeliveryKey = base.name.split("/").at(-1);
+  const observationKey = hash(JSON.stringify({baseDeliveryKey, metadataDigest}));
+  const delivery = doc(`shiftPlanningDevelopIntake/current/deliveries/${observationKey}`, {
+    schemaVersion: 2, baseDeliveryKey, eventKey, digest: metadataDigest, metadata: JSON.stringify(metadataWire),
+    beforeReadTime: times.beforeReadTime ?? null, afterReadTime: times.afterReadTime ?? null,
+  }, LATER);
+  input.deliveries.push(delivery);
+  for (const control of [input.intakeBefore, input.intakeAfter]) {
+    control.fields.captureRevision = raw(Number(control.fields.captureRevision.integerValue) + 1);
+    control.fields.deliveryCount = raw(Number(control.fields.deliveryCount.integerValue) + 1);
+  }
+  return delivery;
+}
+
+module.exports = {PROJECT, BASE, ROOT, SOURCE, CREATED, UPDATED, LATER, READ, at, hash, raw, fields, doc,
+  tagged, fixture, addMetadataObservation};

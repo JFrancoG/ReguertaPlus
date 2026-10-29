@@ -58,6 +58,114 @@ const fail = (code: string): never => {
 };
 const hash = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
+const deliveryIdentityFields = [
+  "id", "source", "type", "subject", "time", "specversion",
+];
+const storedTime = (value: unknown): void => {
+  if (value === null) return;
+  if (!Array.isArray(value) || value.length !== 2 ||
+      !Number.isSafeInteger(value[0]) || !Number.isInteger(value[1]) ||
+      value[0] < -62135596800 || value[0] > 253402300799 ||
+      value[1] < 0 || value[1] >= 1e9) fail("delivery_record_invalid");
+};
+const encodedValue = (value: unknown, depth = 0): void => {
+  if (depth > 34 || !Array.isArray(value)) {
+    return fail("delivery_record_invalid");
+  }
+  const [kind, content] = value;
+  if (kind === "null" && value.length === 1) return;
+  if (value.length !== (kind === "geopoint" ? 3 : 2)) {
+    return fail("delivery_record_invalid");
+  }
+  if ((kind === "string" || kind === "boolean") &&
+      typeof content === kind) return;
+  if (kind === "number" && typeof content === "string" &&
+      (content === "-0" || ["NaN", "Infinity", "-Infinity"].includes(content) ||
+      Number.isFinite(Number(content)) &&
+        String(Number(content)) === content)) {
+    return;
+  }
+  if (kind === "timestamp" && content !== null) return storedTime(content);
+  if (kind === "bytes" && typeof content === "string" &&
+      Buffer.from(content, "base64").toString("base64") === content) return;
+  if (kind === "geopoint" && Number.isFinite(content) && content >= -90 &&
+      content <= 90 && Number.isFinite(value[2]) && value[2] >= -180 &&
+      value[2] <= 180) return;
+  if ((kind === "array" || kind === "vector") && Array.isArray(content)) {
+    content.forEach((item) => {
+      if (kind === "vector" && (!Array.isArray(item) ||
+          item[0] !== "number")) fail("delivery_record_invalid");
+      encodedValue(item, depth + 1);
+    });
+    return;
+  }
+  if (kind === "map" && Array.isArray(content)) {
+    let previous: string | undefined;
+    for (const pair of content) {
+      if (!Array.isArray(pair) || pair.length !== 2 ||
+          typeof pair[0] !== "string" ||
+          previous !== undefined && previous >= pair[0]) {
+        return fail("delivery_record_invalid");
+      }
+      previous = pair[0];
+      encodedValue(pair[1], depth + 1);
+    }
+    return;
+  }
+  return fail("delivery_record_invalid");
+};
+const retainedMetadata = (
+  text: unknown, entryPoint: string, path: string,
+) => {
+  if (typeof text !== "string" || Buffer.byteLength(text) > 256 * 1024) {
+    return fail("delivery_record_invalid");
+  }
+  let wire;
+  try {
+    wire = JSON.parse(text);
+  } catch {
+    return fail("delivery_record_invalid");
+  }
+  encodedValue(wire);
+  if (wire[0] !== "map" || JSON.stringify(wire) !== text) {
+    return fail("delivery_record_invalid");
+  }
+  const fields = new Map<string, unknown>(wire[1]);
+  const params = fields.get("params");
+  if (!Array.isArray(params) || params[0] !== "map") {
+    return fail("delivery_record_invalid");
+  }
+  const parameters = new Map<string, unknown>(params[1]);
+  const parameter = DEVELOP_SHIFT_INTAKE_ROUTES[entryPoint as EntryPoint][1];
+  if (JSON.stringify(parameters.get("env")) !==
+      JSON.stringify(["string", "develop"]) ||
+      JSON.stringify(parameters.get(parameter)) !==
+        JSON.stringify(["string", path.split("/").at(-1)])) {
+    return fail("delivery_record_invalid");
+  }
+  const identity = deliveryIdentityFields.map((name) => {
+    const value = fields.get(name);
+    if (!Array.isArray(value) || value[0] !== "string") {
+      return fail("delivery_record_invalid");
+    }
+    return value[1] as string;
+  });
+  return {wire, identity: JSON.stringify(identity), id: identity[0],
+    source: identity[1]};
+};
+const assertDeliveryRecord = (
+  value: RecordValue, schemaVersion: 1 | 2,
+  eventKey: string, digest: string,
+): void => {
+  const keys = ["schemaVersion", "eventKey", "digest", "metadata",
+    "beforeReadTime", "afterReadTime",
+    ...(schemaVersion === 2 ? ["baseDeliveryKey"] : [])];
+  if (Object.keys(value).sort().join() !== keys.sort().join() ||
+      value.schemaVersion !== schemaVersion || value.eventKey !== eventKey ||
+      value.digest !== digest) return fail("delivery_record_invalid");
+  storedTime(value.beforeReadTime);
+  storedTime(value.afterReadTime);
+};
 const record = (value: unknown): RecordValue => {
   if (!value || typeof value !== "object" || Array.isArray(value) ||
       Object.getPrototypeOf(value) !== Object.prototype ||
@@ -213,8 +321,9 @@ export function encodeDevelopShiftEvent(
     before: before && [before.exists, before.updateTime],
     after: [after.exists, after.updateTime]}));
   const deliveryKey = hash(JSON.stringify({entryPoint, source, id}));
-  // Same source version with another delivery ID is deduplicated; conflicting
-  // images or same-ID metadata can never overwrite the first capture.
+  // One immutable source core can have multiple lossless metadata observations.
+  // The first delivery and envelope stay unchanged; observations authorize no
+  // replay and do not claim equivalent transports or completed legacy effects.
   const deliveryDigest = hash(JSON.stringify({coreDigest, metadataWire}));
   return {eventKey, coreDigest, deliveryKey, deliveryDigest, path,
     envelope: JSON.stringify({core, metadata: metadataWire, before, after}),
@@ -259,15 +368,21 @@ export async function captureDevelopShiftEvent(
   const eventRef = control.collection("events").doc(captured.eventKey);
   const deliveryRef = control.collection("deliveries")
     .doc(captured.deliveryKey);
+  const observationRef = control.collection("deliveries").doc(hash(
+    JSON.stringify({baseDeliveryKey: captured.deliveryKey,
+      metadataDigest: captured.deliveryDigest}),
+  ));
+  const incoming = retainedMetadata(captured.delivery.metadata,
+    entryPoint, captured.path);
   return db.runTransaction(async (tx) => {
-    const [state, prior, delivered] = await tx.getAll(
-      control, eventRef, deliveryRef,
+    const [state, prior, delivered, observation] = await tx.getAll(
+      control, eventRef, deliveryRef, observationRef,
     );
-    if ((prior.exists && prior.get("coreDigest") !== captured.coreDigest) ||
-        (delivered.exists &&
-          (delivered.get("eventKey") !== captured.eventKey ||
-           delivered.get("digest") !== captured.deliveryDigest))) {
-      return fail("event_payload_conflict");
+    if (prior.exists && prior.get("coreDigest") !== captured.coreDigest) {
+      return fail("event_core_conflict");
+    }
+    if (delivered.exists && delivered.get("eventKey") !== captured.eventKey) {
+      return fail("delivery_event_key_conflict");
     }
     const stored = state.data();
     if (stored && (Object.keys(stored).sort().join() !== [
@@ -276,18 +391,49 @@ export async function captureDevelopShiftEvent(
     ].join() ||
         stored.schemaVersion !== 1 ||
         stored.legacyUntracked !== true ||
+        stored.captureRevision !== stored.deliveryCount ||
+        stored.eventCount > stored.deliveryCount ||
         ![stored.captureRevision, stored.eventCount, stored.deliveryCount]
           .every((value) => Number.isSafeInteger(value) && value >= 0 &&
             value < Number.MAX_SAFE_INTEGER))) {
       return fail("intake_state_invalid");
     }
-    if ((prior.exists && !stored) ||
-        (delivered.exists && !prior.exists)) {
+    if ((prior.exists && !stored) || (delivered.exists && !prior.exists) ||
+        observation.exists && !delivered.exists) {
       return fail("intake_state_invalid");
     }
-    if (!delivered.exists) {
-      tx.create(deliveryRef, {schemaVersion: 1, eventKey: captured.eventKey,
-        digest: captured.deliveryDigest, ...captured.delivery});
+    let variant = false;
+    if (delivered.exists) {
+      const base = delivered.data() as RecordValue;
+      const retained = retainedMetadata(base.metadata, entryPoint,
+        captured.path);
+      const digest = hash(JSON.stringify({coreDigest: captured.coreDigest,
+        metadataWire: retained.wire}));
+      assertDeliveryRecord(base, 1, captured.eventKey, digest);
+      if (hash(JSON.stringify({entryPoint, source: retained.source,
+        id: retained.id})) !== captured.deliveryKey) {
+        return fail("delivery_record_invalid");
+      }
+      if (retained.identity !== incoming.identity) {
+        return fail("delivery_identity_conflict");
+      }
+      variant = digest !== captured.deliveryDigest;
+    }
+    if (observation.exists) {
+      const existing = observation.data() as RecordValue;
+      if (!variant || existing.baseDeliveryKey !== captured.deliveryKey ||
+          existing.metadata !== captured.delivery.metadata) {
+        return fail("delivery_observation_conflict");
+      }
+      assertDeliveryRecord(existing, 2, captured.eventKey,
+        captured.deliveryDigest);
+    }
+    if (!delivered.exists || variant && !observation.exists) {
+      tx.create(variant ? observationRef : deliveryRef, {
+        schemaVersion: variant ? 2 : 1,
+        ...(variant ? {baseDeliveryKey: captured.deliveryKey} : {}),
+        eventKey: captured.eventKey, digest: captured.deliveryDigest,
+        ...captured.delivery});
       tx.set(control, {schemaVersion: 1, legacyUntracked: true,
         captureRevision: (stored?.captureRevision ?? 0) + 1,
         eventCount: (stored?.eventCount ?? 0) + (prior.exists ? 0 : 1),

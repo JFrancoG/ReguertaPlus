@@ -247,3 +247,29 @@ caller. The protected workbook ID, not either email, is the parameter.
 - `area:shifts`
 - `platform:backend`
 - `priority:P1`
+
+## Develop queue/window checkpoint — 2026-10-28
+
+Prior reconciliation is delivered as `4cb216824dc908293311a4f9c496fc2326c0f350`
+with exact remote/draft PR #278 head. Real inspection finds four private retry
+backlogs/payload conflicts; shared missing metrics remain UNKNOWN. A lossless
+schema2 metadata-observation repair preserves twelve original schema1 deliveries
+and all business data. Full Functions build/lint and147 joint tests pass with no
+failures/skips. The four-only packet is reviewed and24 live Function configurations
+remain unchanged; scoped deployment approval/natural-retry acceptance are pending.
+The [queue/window guide](../../docs/testing/hu084-develop-queues-and-maintenance-window.md)
+records five absent bootstrap paths, missing provider/sourceScope composition and
+participant requirements. Window NOT READY; no migration, legacyUntracked reset,
+Sheets/FCM/business operation or production activation is authorized by preparation.
+
+## Authorized capture repair accepted — 2026-10-29
+
+Acceptance on 2026-10-29: four natural HTTP2xx requests are correlated by exact
+CloudEvent ID/source labels, service and new revision; the bounded query has no
+HTTP4xx/5xx or application errors. Four metadata observations differ only in
+traceparent; original183 sources/twelve events/twelve V1 deliveries/chunks and
+versions are preserved. Revision/deliveryCount16, eventCount12. All four source
+archives and controls match; other20 Functions unchanged. Eight unchanged
+executable-input hashes retain build/lint and147 tests. Shared UNKNOWN and bootstrap/
+provider-sourceScope/participant requirements still block maintenance admission.
+The maintainer authorizes source delivery; exact Git/remote evidence is recorded in #268/#269 and draft PR #278.

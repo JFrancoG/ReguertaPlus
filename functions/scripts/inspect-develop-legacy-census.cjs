@@ -101,6 +101,8 @@ function tagged(value, depth = 0) {
 const taggedField = (value, key) => value?.[0] === "map" ?
   value[1].find((pair) => pair[0] === key)?.[1] : undefined;
 const taggedString = (value) => value?.[0] === "string" ? value[1] : null;
+const metadataIdentity = (value) => ["id", "source", "type", "subject", "time", "specversion"]
+  .map((key) => [key, taggedField(value, key)]);
 const restString = (value) => plain(value) && Object.keys(value).length === 1 &&
   typeof value.stringValue === "string" ? value.stringValue : null;
 
@@ -354,32 +356,51 @@ function inspectCensus(input) {
       sourceVersion: version, currentUpdateTime: current?.updateTime ?? null,
       relationship, classification: "retained-unreplayed", externalOutcome: "unknown", replayAllowed: false});
   }
+  const deliverySchemaCounts = {canonical: 0, metadataObservations: 0};
   for (const delivery of input.deliveries) {
     const id = typeof delivery?.name === "string" ? delivery.name.slice(`${ROOT}/deliveries/`.length) : null;
     check(HEX.test(id || ""), "delivery_path_invalid");
     document(delivery, `${ROOT}/deliveries/${id}`, readTime, names);
     const fields = delivery.fields;
-    exact(fields, ["schemaVersion", "eventKey", "digest", "metadata", "beforeReadTime", "afterReadTime"]);
+    const version = restInteger(fields.schemaVersion);
+    check(version === 1 || version === 2, "invalid_delivery_record");
+    exact(fields, ["schemaVersion", "eventKey", "digest", "metadata", "beforeReadTime", "afterReadTime",
+      ...(version === 2 ? ["baseDeliveryKey"] : [])]);
     const eventKey = restString(fields.eventKey), event = captured.get(eventKey), text = restString(fields.metadata);
-    check(restInteger(fields.schemaVersion) === 1 && event && text && Buffer.byteLength(text) <= 256 * 1024,
+    check(event && text && Buffer.byteLength(text) <= 256 * 1024,
       "invalid_delivery_record");
     let wire;
     try { wire = JSON.parse(text); } catch { fail("invalid_delivery_metadata"); }
     const metadataId = metadata(wire, event.core);
-    check(hash(JSON.stringify({entryPoint: event.core.entryPoint, source: SOURCE, id: metadataId})) === id &&
-      hash(JSON.stringify({coreDigest: event.coreDigest, metadataWire: wire})) === restString(fields.digest),
-    "delivery_binding_mismatch");
+    const baseDeliveryKey = hash(JSON.stringify({entryPoint: event.core.entryPoint, source: SOURCE, id: metadataId}));
+    const deliveryDigest = hash(JSON.stringify({coreDigest: event.coreDigest, metadataWire: wire}));
+    check(deliveryDigest === restString(fields.digest), "delivery_binding_mismatch");
+    if (version === 1) check(baseDeliveryKey === id, "delivery_binding_mismatch");
+    else check(restString(fields.baseDeliveryKey) === baseDeliveryKey &&
+      hash(JSON.stringify({baseDeliveryKey, metadataDigest: deliveryDigest})) === id, "delivery_binding_mismatch");
     const beforeRead = restStamp(fields.beforeReadTime), afterRead = restStamp(fields.afterReadTime);
     for (const time of [beforeRead, afterRead].filter(Boolean)) {
       check(compareStamp(time, readTime) <= 0, "invalid_snapshot_timestamp");
     }
-    if (id === event.firstDeliveryKey) {
+    if (version === 1 && id === event.firstDeliveryKey) {
       check(same(wire, event.envelope.metadata) && same(beforeRead, event.envelope.before?.readTime ?? null) &&
         same(afterRead, event.envelope.after.readTime), "delivery_binding_mismatch");
     }
-    bindings.set(id, eventKey);
+    bindings.set(id, {version, eventKey, wire, digest: deliveryDigest, baseDeliveryKey});
+    deliverySchemaCounts[version === 1 ? "canonical" : "metadataObservations"]++;
   }
-  for (const [id, event] of captured) check(bindings.get(event.firstDeliveryKey) === id, "capture_delivery_missing");
+  // Input ordering is not evidence of observation order. Resolve anchors only
+  // after every immutable row has passed its own key, metadata and digest check.
+  for (const observed of bindings.values()) {
+    if (observed.version !== 2) continue;
+    const base = bindings.get(observed.baseDeliveryKey);
+    check(base?.version === 1, "delivery_observation_orphan");
+    check(base.eventKey === observed.eventKey, "delivery_binding_mismatch");
+    check(same(metadataIdentity(base.wire), metadataIdentity(observed.wire)), "delivery_identity_mismatch");
+    check(base.digest !== observed.digest, "delivery_observation_duplicate");
+  }
+  for (const [id, event] of captured) check(bindings.get(event.firstDeliveryKey)?.version === 1 &&
+    bindings.get(event.firstDeliveryKey).eventKey === id, "capture_delivery_missing");
   records.sort((a, b) => compareText(a.path, b.path));
   captureRecords.sort((a, b) => compareText(a.eventKey, b.eventKey));
   const documents = [input.intakeAfter, ...COLLECTIONS.flatMap((name) => input.collections[name]),
@@ -397,7 +418,8 @@ function inspectCensus(input) {
       .sort((a, b) => compareText(a.name, b.name))});
   return {schemaVersion: 1, kind: "develop-legacy-census-inspection", projectId: PROJECT, readTime: input.readTime,
     atomicSnapshotReported: true, captureRevision, eventCount, deliveryCount, fingerprint, stableSetDigest,
-    sourceCounts, dispatchSummaries, historicalPossiblyDeliveredNotificationCount: sourceCounts.notificationEvents,
+    sourceCounts, dispatchSummaries, deliverySchemaCounts,
+    historicalPossiblyDeliveredNotificationCount: sourceCounts.notificationEvents,
     records, captures: captureRecords, legacyUntracked: true, canApply: false, canClaimClosure: false};
 }
 
