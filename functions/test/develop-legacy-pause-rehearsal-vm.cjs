@@ -5,7 +5,7 @@ const vm = require("node:vm");
 const {createHash} = require("node:crypto");
 const path = require("node:path");
 const {execFileSync} = require("node:child_process");
-const {RESOLVE_PROFILE} = require("../scripts/prepare-develop-intake-bridge.cjs");
+const {RESOLVE_PROFILE, REMINDER_PROFILE} = require("../scripts/prepare-develop-intake-bridge.cjs");
 const {
   Timestamp, FieldValue,
 } = require("@google-cloud/firestore");
@@ -36,18 +36,19 @@ function loadExactLegacy(db, options = {}) {
     throw Error("local_emulator_required");
   }
   const modern = options.authorizedMember === true;
+  const reminders = options.reminders === true;
   const directory = process.env.HU084_REMAINING_LEGACY_SOURCES;
-  const sourcePath = modern && directory ? path.join(directory, "resolveAuthorizedMember.main.js") :
+  const sourcePath = reminders && directory ? path.join(directory, "sendPendingOrderReminderSunday20.main.js") : modern && directory ? path.join(directory, "resolveAuthorizedMember.main.js") :
     process.env.HU084_DEPLOYED_LEGACY_JS;
   if (!sourcePath) throw Error("HU084_DEPLOYED_LEGACY_JS_required");
   const source = fs.readFileSync(sourcePath);
   if (createHash("sha256").update(source).digest("hex") !==
-      (modern ? RESOLVE_PROFILE.main : DEPLOYED_LEGACY_SOURCE_SHA256)) throw Error("source_digest_mismatch");
+      (modern ? RESOLVE_PROFILE.main : reminders ? REMINDER_PROFILE.main : DEPLOYED_LEGACY_SOURCE_SHA256)) throw Error("source_digest_mismatch");
   // Only the audited builder's fixed six callback insertions may transform this
   // already pinned source. No arbitrary source/transform override is accepted.
   const evaluatedSource = options.administrativeBridgeWrappers ?
     require("../scripts/prepare-develop-intake-bridge.cjs").wrapAdministrativeSource(
-      source, modern ? "authorized-member1" : "legacy-http8",
+      source, modern ? "authorized-member1" : reminders ? "reminders3" : "legacy-http8",
     ).source : options.bridgeWrappers ?
     require("../scripts/prepare-develop-intake-bridge.cjs")
       .wrapLegacySource(source).source : source.toString("utf8");
@@ -193,6 +194,7 @@ function loadExactLegacy(db, options = {}) {
   const modules = {
     "firebase-functions/v2": {setGlobalOptions() {}},
     "firebase-functions/v2/https": {onRequest: capture},
+    "firebase-functions/v2/scheduler": {onSchedule: capture},
     "firebase-functions/v2/firestore": {
       onDocumentCreated: capture, onDocumentWritten: capture,
     },
@@ -257,6 +259,7 @@ function loadExactLegacy(db, options = {}) {
       APP_ENV: options.defaultEnv === null ? undefined :
         (options.defaultEnv || "develop"),
       CLOUD_RUNTIME_CONFIG: JSON.stringify({app: {env: options.runtimeEnv}}),
+      ORDER_REMINDER_ENVS: options.reminderEnvs,
       SHEETS_SPREADSHEET_ID_DEVELOP: "demo-develop-workbook",
       SHEETS_SPREADSHEET_ID_PRODUCTION: "demo-production-workbook",
       SHEETS_DELIVERY_RANGE: "Delivery!A:F",

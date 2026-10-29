@@ -1788,3 +1788,33 @@ focused CJS lint under Node22.23.4. Initial creation/inverse, late classified ve
 unseen events, retained evidence and lost-ACK restart are covered. No native/shared
 service change. Work remains local/uncommitted. Next resolve real old business effects
 and automated authority before workbook/source-policy/window admission.
+
+### Direct reminder admission correction prepared — 2026-10-29
+
+ADR-0025/observations are delivered as `5f648963398d2e600f70129bc8fdec19317b77aa`.
+Read-only authority inspection found that all three PAUSED reminder jobs still target
+ACTIVE, directly invocable original develop callbacks. The existing source preparer
+now wraps those three callbacks, preserving original production-only behavior and
+rejecting whole develop/mixed target sets before data access. New work remains local.
+Build/full lint/focused CJS lint,15 local and24 emulator tests pass without skips.
+The exact reviewed ZIP and build-source-only update plan preserve all jobs PAUSED,
+all other21 Functions, runtime configuration and IAM; no live invocation is proposed.
+Deployment requires explicit approval. It closes new admission, not old-call or
+external-effect uncertainty. All117 notices remain unreplayed, legacyUntracked stays
+true and live maintenance/migration stays NOT_READY. No native changes/parity gap.
+See the bilingual `docs/testing/hu084-develop-old-work-boundary.md` guide for package
+hashes, preflight/readback requirements and stopping rules.
+
+### Authorized reminder closure deployed — 2026-10-29
+
+The maintainer explicitly authorized the three reminder Function updates in
+`reguerta-9f27f`. Sequential build-source-only patches completed and exact source
+ZIP/readiness/traffic were verified for all three. Jobs remain PAUSED; effective
+runtime configuration/IAM and all other 21 Functions are unchanged. Provider-added
+identity metadata is checked against exact function/region values. No Function was
+invoked; no business data, Sheets or FCM was written. Private operation/readback
+records retain the result; bilingual old-work-boundary guide records revisions and
+reconciled preparation incidents. Reuse the unchanged 15 local/24 emulator tests and
+build/lint; this turn adds real deployment verification and negative verifier checks.
+Code/docs remain uncommitted after `5f648963`. Old work/automated authority and
+workbook/window evidence remain open; no replay or maintenance/migration admission.

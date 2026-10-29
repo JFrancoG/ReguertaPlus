@@ -18,6 +18,11 @@ const CAPTURE_DOCUMENTS = ["shiftPlanningRequests/{requestId}", "shifts/{shiftId
 const ADMINISTRATIVE = ["onProductWrite", "onContainerWrite", "onMeasureWrite",
   "onUserWrite", "onOrderWrite", "upsertMemberByAdmin", "validateGlobalVersionPolicy",
   "validateGlobalFreshnessConfig"];
+const REMINDERS = [20, 22, 23].map(hour => `sendPendingOrderReminderSunday${hour}`);
+const REMINDER_PROFILE = {
+  zip: "98175ecc32c5c2e4b94c82df856aeadb9d804b38f625d9db4a2cd6b0871de1a5",
+  main: "1b3d01cc95a3e10ee3f8d0eab610ed240f65c2a7fa29c0489050518f01c55aba",
+};
 const RESOLVE_PROFILE = {
   zip: "83f0b69192dab558f0698a8eac0e39ed34ee2b0f2b677b7d09b6660da448a44c",
   main: "bc52c3d0122680145c3b5e1623c3feedad24dca57aa69765e576d3f8c3c9dd99",
@@ -34,7 +39,7 @@ const sha = (value) => createHash("sha256").update(value).digest("hex");
 const readZip = (archive, entry) => execFileSync("unzip", ["-p", archive, entry],
   {maxBuffer: 20 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"]});
 
-function registrations(source, names = LEGACY, httpOnly = false) {
+function registrations(source, names = LEGACY, httpOnly = false, scheduled = false) {
   const parsed = ts.createSourceFile("legacy.js", source, ts.ScriptTarget.Latest,
     true, ts.ScriptKind.JS);
   if (parsed.parseDiagnostics.length) fail("legacy_syntax_invalid");
@@ -50,7 +55,7 @@ function registrations(source, names = LEGACY, httpOnly = false) {
         fail("legacy_callback_invalid");
       }
       const constructor = call.expression.getText(parsed);
-      const expected = !httpOnly && name.startsWith("on") ?
+      const expected = scheduled ? "onSchedule" : !httpOnly && name.startsWith("on") ?
         (name === "onShiftWritten" || name === "onDeliveryCalendarOverrideWritten" ?
           "onDocumentWritten" : "onDocumentCreated") : "onRequest";
       if (!constructor.endsWith(`.${expected})`)) fail("legacy_constructor_changed");
@@ -148,8 +153,9 @@ function runtimeMetadata(file, names = LEGACY) {
     if (!names.includes(name) || item.sourceUnchanged !== true ||
         data.state !== "ACTIVE" || data.buildConfig.runtime !== "nodejs22" ||
         !service || !service.environmentVariables || !service.serviceAccountEmail ||
-        (names === LEGACY ? service.maxInstanceCount !== 20 :
-          !Number.isSafeInteger(service.maxInstanceCount) || service.maxInstanceCount < 1) ||
+        (names === REMINDERS ? Object.hasOwn(service, "maxInstanceCount") :
+          names === LEGACY ? service.maxInstanceCount !== 20 :
+            !Number.isSafeInteger(service.maxInstanceCount) || service.maxInstanceCount < 1) ||
         service.timeoutSeconds !== 60 ||
         service.maxInstanceRequestConcurrency !== 1 || service.availableCpu !== "1" ||
         service.availableMemory !== "256Mi" || service.ingressSettings !== "ALLOW_ALL" ||
@@ -173,6 +179,7 @@ function runtimeMetadata(file, names = LEGACY) {
       environmentVariablesSha256: sha(JSON.stringify(service.environmentVariables)),
       serviceAccountSha256: sha(service.serviceAccountEmail),
       maximumInstances: service.maxInstanceCount, timeoutSeconds: service.timeoutSeconds,
+      ...(names === REMINDERS ? {maximumInstancesKnown: false} : {}),
       concurrency: service.maxInstanceRequestConcurrency, cpu: service.availableCpu,
       memory: service.availableMemory, ingress: service.ingressSettings,
       minimumInstances: service.minInstanceCount ?? null,
@@ -292,17 +299,21 @@ function prepareDevelopCaptureObservationUpdate(options) {
 }
 function wrapAdministrativeSource(bytes, profile) {
   const modern = profile === "authorized-member1";
-  if (!modern && profile !== "legacy-http8") fail("administrative_profile_invalid");
-  if (sha(bytes) !== (modern ? RESOLVE_PROFILE.main : LEGACY_JS_SHA256)) fail("source_digest_mismatch");
-  const source = bytes.toString("utf8"), names = modern ? ["resolveAuthorizedMember"] : ADMINISTRATIVE;
-  const original = registrations(source, names, true), patches = [];
-  if (modern) {
+  const reminders = profile === "reminders3";
+  if (!modern && !reminders && profile !== "legacy-http8") fail("administrative_profile_invalid");
+  if (sha(bytes) !== (modern ? RESOLVE_PROFILE.main : reminders ? REMINDER_PROFILE.main : LEGACY_JS_SHA256)) fail("source_digest_mismatch");
+  const source = bytes.toString("utf8"), names = modern ? ["resolveAuthorizedMember"] : reminders ? REMINDERS : ADMINISTRATIVE;
+  const original = registrations(source, names, true, reminders), patches = [];
+  if (reminders) {
+    for (const entry of original.values()) patches.push({...entry, replacement:
+      `__developShiftBridge.wrapDevelopScheduledReminder(${JSON.stringify(entry.name)}, ${entry.callback}, parseOrderReminderEnvs)`});
+  } else if (modern) {
     const parsed = ts.createSourceFile("legacy.js", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
     const wanted = new Map([
       ["parseRequestEnvironment", "wrapDevelopEnvironmentResolver"],
       ["resolveRequestEnvironmentForIdentity", "wrapDevelopEffectiveEnvironmentResolver"],
     ]);
-    function visit(node) {
+    const visit = (node) => {
       if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && wanted.has(node.name.text)) {
         const initializer = node.initializer;
         if (!initializer || !ts.isArrowFunction(initializer)) fail("environment_resolver_invalid");
@@ -312,7 +323,7 @@ function wrapAdministrativeSource(bytes, profile) {
           replacement: `__developShiftBridge.${method}(${callback}, () => new backend_security_js_1.HttpRequestError(503, "develop_legacy_intake_closed", "Develop member writes are paused"))`});
       }
       ts.forEachChild(node, visit);
-    }
+    };
     visit(parsed);
     if (wanted.size || patches.length !== 2) fail("environment_resolver_incomplete");
   } else {
@@ -346,12 +357,13 @@ function wrapAdministrativeSource(bytes, profile) {
 function prepareDevelopAdministrativeBridge(options) {
   const {sourceZip, outputDirectory, compiledDirectory, profile} = options;
   const modern = profile === "authorized-member1";
-  if ((!modern && profile !== "legacy-http8") || !path.isAbsolute(sourceZip) ||
+  const reminders = profile === "reminders3";
+  if ((!modern && !reminders && profile !== "legacy-http8") || !path.isAbsolute(sourceZip) ||
       !path.isAbsolute(outputDirectory) || !path.isAbsolute(compiledDirectory) ||
       fs.existsSync(outputDirectory) || options.projectId !== PROJECT_ID || options.codebase !== "default") {
     fail("bridge_configuration_invalid");
   }
-  const expectedZip = modern ? RESOLVE_PROFILE.zip : ZIP_SHA256;
+  const expectedZip = modern ? RESOLVE_PROFILE.zip : reminders ? REMINDER_PROFILE.zip : ZIP_SHA256;
   if (sha(fs.readFileSync(sourceZip)) !== expectedZip) fail("source_archive_digest_mismatch");
   const packageBytes = readZip(sourceZip, "package.json"), lockBytes = readZip(sourceZip, "package-lock.json");
   if (sha(lockBytes) !== (modern ? RESOLVE_PROFILE.lock : "38009fa8abd24f149347d2e571bc6dfcc6e96662cb389e5b21acf58d9068ef6a")) {
@@ -386,9 +398,9 @@ function prepareDevelopAdministrativeBridge(options) {
   const configBytes = Buffer.from(JSON.stringify({functions: [
     {source: "runtime", codebase: "default", runtime: "nodejs22"},
   ]}, null, 2) + "\n");
-  const manifest = {schemaVersion: 1, kind: "develop-administrative-http-bridge-preparation", profile,
+  const manifest = {schemaVersion: 1, kind: reminders ? "develop-reminder-bridge-preparation" : "develop-administrative-http-bridge-preparation", profile,
     projectId: PROJECT_ID, codebase: "default", runtime: "nodejs22", canApply: false,
-    sourceArchiveSha256: expectedZip, deployedJavaScriptSha256: modern ? RESOLVE_PROFILE.main : LEGACY_JS_SHA256,
+    sourceArchiveSha256: expectedZip, deployedJavaScriptSha256: modern ? RESOLVE_PROFILE.main : reminders ? REMINDER_PROFILE.main : LEGACY_JS_SHA256,
     originalPackageSha256: sha(packageBytes), generatedPackageSha256: sha(packageOut),
     packageDelta: {onlyAddedScript: "gcp-build", value: ""}, preservedLockSha256: sha(lockBytes), versions,
     exports: transformed.names, registrations: transformed.registrations, patchCount: transformed.patchCount,
@@ -400,7 +412,9 @@ function prepareDevelopAdministrativeBridge(options) {
       {path: "firebase.http.json", sha256: sha(configBytes)}],
     guards: {exactSelectorRequired: true, preserveExternalChanges: true, noDeploymentPerformed: true,
       mixedOrDefaultDevelopRequestsRejectedWhole: true, noRequestFilteringOrProductionSubset: true,
-      directAndReviewerDevelopResolutionClosed: modern, oldInFlightOrAuthorityClosureClaimed: false},
+      directAndReviewerDevelopResolutionClosed: modern, oldInFlightOrAuthorityClosureClaimed: false,
+      ...(reminders ? {schedulerJobsMustRemainPaused: true, functionBuildUpdateOnly: true,
+        firebaseCliDeployForbidden: true, noSchedulerOrIamMutation: true} : {})},
     blockers: ["fresh_source_runtime_environment_and_iam_readbacks_required", "old_work_and_authority_unproved",
       ...(!observedRuntime ? ["fresh_runtime_metadata_required"] : [])],
     excluded: [".env", "source maps", "current application index", "credentials", "all unrelated exports"]};
@@ -417,7 +431,7 @@ function prepareDevelopAdministrativeBridge(options) {
 
 module.exports = {prepareDevelopIntakeBridge, prepareDevelopCaptureObservationUpdate,
   wrapLegacySource, prepareDevelopAdministrativeBridge,
-  wrapAdministrativeSource, ZIP_SHA256, LEGACY_JS_SHA256, LEGACY, CAPTURE, ADMINISTRATIVE, RESOLVE_PROFILE};
+  wrapAdministrativeSource, ZIP_SHA256, LEGACY_JS_SHA256, LEGACY, CAPTURE, ADMINISTRATIVE, RESOLVE_PROFILE, REMINDERS, REMINDER_PROFILE};
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (![10, 12, 14].includes(args.length) || args.some((value, i) => i % 2 === 0 &&

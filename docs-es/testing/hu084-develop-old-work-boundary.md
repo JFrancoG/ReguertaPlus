@@ -92,3 +92,100 @@ Esta evaluación no abre ventana, acepta política, migra, reenvía, cambia apps
 modifica producción. Solo documentación/evidencia: comprobar tabla completa, paridad
 bilingüe, enlaces locales y diff; reutilizar las 73 pruebas/build/lint anteriores
 sin presentar una nueva ejecución de pruebas de runtime.
+
+## Cierre preparado de la entrada directa de recordatorios — 2026-10-29
+
+ADR-0025 y las observaciones anteriores están commiteados y pusheados como
+`5f648963398d2e600f70129bc8fdec19317b77aa`. La corrección de recordatorios siguiente
+es trabajo local nuevo, todavía sin desplegar ni commitear en este punto.
+
+La inspección de solo lectura confirma que `sendPendingOrderReminderSunday20`,
+`sendPendingOrderReminderSunday22` y `sendPendingOrderReminderSunday23` siguen
+ACTIVE con sus fuentes originales revisadas y la misma configuración. Sus jobs
+Scheduler están PAUSED, pero cada servicio Cloud Run disponible admite invocación
+directa por su identidad de ejecución compartida. El resolver original selecciona
+develop: pausar los jobs no cerraba esta entrada capaz de modificar datos.
+La consulta corregida de logs usó los nombres Cloud Run en minúsculas desde el
+2026-10-28 a las22:00 UTC hasta la inspección y no devolvió entradas. Es cobertura
+acotada de logs, no prueba de terminación de invocaciones o envíos externos anteriores.
+
+El preparador existente incorpora `reminders3`: envuelve exactamente las tres
+operaciones archivadas con el resolver original y rechaza cualquier conjunto que
+incluya develop antes de leer/escribir, también si mezcla destinos. No redirige a
+producción. Conserva cuerpos originales para otros destinos, horarios, dependencias
+y configuración. El SDK archivado de Scheduler devuelve HTTP **500**, no503, ante
+este rechazo; la prueba local con ese SDK verifica el contrato. No se invoca ninguna
+Function real durante la preparación.
+
+Validación con Node22.23.4: build/lint completo de Functions, lint CJS dirigido,
+**15 pruebas locales y24 de emulador Firestore**, sin fallos ni omitidas. Para cada
+recordatorio, el original crea el aviso ficticio en el emulador y la protección
+rechaza antes de acceder a datos. Las ejecuciones solo producción con datos ficticios
+conservan efectos/traza originales. Se cubren destinos ausentes/por defecto/mixtos,
+fuentes alteradas y límites de instancias inventados. Las apps no cambian.
+
+### Despliegue concreto propuesto
+
+- Proyecto `reguerta-9f27f`, región `europe-west1`: solo las tres Functions anteriores.
+  Los tres jobs deben seguir PAUSED y las otras21 Functions deben conservarse.
+- ZIP SHA256: `f8827f509ca6d4bab29e025a0b78857097616dfbfe12d9bae2db40fb4cc653fe`.
+  Sus seis ficheros coinciden con el manifiesto. SHA256 del archivo original:
+  `98175ecc32c5c2e4b94c82df856aeadb9d804b38f625d9db4a2cd6b0871de1a5`.
+- Subir fuentes mediante Functions v2 y PATCH con updateMask explícito
+  `buildConfig.source`, conservando opciones de compilación, entorno, IAM y Scheduler.
+  No usar despliegue Firebase CLI de exports programados: esta operación no debe
+  reconciliar ni reanudar jobs. La máscara limita los campos solicitados
+  ([contrato oficial PATCH](https://docs.cloud.google.com/functions/docs/reference/rest/v2/projects.locations.functions/patch)).
+- Antes de subir/actualizar, releer las24 Functions, fuentes/configuración de las tres,
+  jobs e IAM; detenerse ante discrepancias. Conservar base de las otras21. Actualizar
+  secuencialmente, guardar IDs de operación e inspeccionar resultados inciertos antes
+  de reintentar. Verificar fuentes, configuración/IAM efectivos, tráfico disponible,
+  jobs PAUSED y otras21 intactas. No invocar Functions ni rutas de producción.
+- Un cambio inesperado detiene la secuencia. No restaurar automáticamente una operación
+  capaz de escribir develop. Registrar cualquier aplicación parcial y mantener cerrado
+  el mantenimiento.
+
+Paquete privado: `2026-10-29-old-business-closure/reminder-package`,
+`reminder-source-reviewed.zip`, `reminder-update-plan.json` y captura de autoridad.
+No se commitean credenciales, valores de entorno ni identidades del proveedor sin filtrar.
+El despliegue requiere autorización nueva y acotada. Prepara el cierre de **nuevas
+entradas**: llamadas anteriores, resultados de Sheets/FCM y usos de credenciales
+compartidas siguen separados. Conservar `legacyUntracked=true`, los117 avisos sin
+reenviar y mantenimiento/migración NOT_READY. Siguen pendientes política/permisos
+de la hoja y acuerdos nuevos de propietario/administradores.
+
+### Despliegue autorizado completado — 2026-10-29
+
+Tras la autorización explícita de las tres Functions en `reguerta-9f27f`, terminaron
+las tres actualizaciones secuenciales de `buildConfig.source`. Las lecturas posteriores
+verifican ACTIVE, disponibilidad, 100% del tráfico a la última revisión y los bytes
+exactos del ZIP revisado en las tres:
+
+| Sufijo de Function | Revisión Cloud Run verificada |
+| --- | --- |
+| Sunday20 | `sendpendingorderremindersunday20-00002-mec` |
+| Sunday22 | `sendpendingorderremindersunday22-00002-niw` |
+| Sunday23 | `sendpendingorderremindersunday23-00002-gel` |
+
+Los tres jobs siguen PAUSED con todos sus metadatos intactos. Se conservan opciones
+de ejecución/compilación, entorno e IAM de los servicios; las otras 21 Functions
+conservan sus metadatos completos. Google añadió únicamente etiquetas de identidad
+de Function/región y una anotación de identidad a los servicios actualizados.
+El verificador comprueba esos valores exactos, sin ignorar cambios arbitrarios.
+No se invocaron Functions ni se escribieron datos de negocio, Sheets o enviaron FCM.
+
+El primer intento de subida falló antes de desplegar; un GET del objeto exacto devolvió
+404. La misma URL firmada funcionó con las cabeceras del contrato de subida firmado
+del CLI fijado y se verificó su generación. Se normalizó el orden de `eventFilters`
+solo tras demostrar igualdad de contenido; las pruebas rechazan cambios de contenido.
+Las comprobaciones negativas también rechazan cambios de ejecución, job, IAM e identidad.
+El paquete/código no ha cambiado y reutiliza build/lint y las 15 pruebas locales/24 de
+emulador anteriores. Este turno valida el despliegue real, no una nueva ejecución de
+las pruebas de aplicación.
+
+`authorized-deployment-result.json`, operaciones y lecturas de fuentes inmutables bajo
+`2026-10-29-old-business-closure` conservan la evidencia privada. Código/documentación
+siguen sin commitear tras `5f648963`. Se cierra solo la entrada directa de recordatorios;
+siguen pendientes operaciones de negocio antiguas/autoridad automática, permisos/política
+de la hoja y acuerdos nuevos de mantenimiento. Se mantienen `legacyUntracked=true`,
+los 117 avisos sin reenviar y mantenimiento/migración NOT_READY.

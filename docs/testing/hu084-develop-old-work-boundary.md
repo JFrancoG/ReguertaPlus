@@ -92,3 +92,98 @@ No live window, policy acceptance, migration, replay, native change or productio
 mutation occurs in this assessment. This is documentation/evidence work: validate
 table completeness, bilingual alignment, local links and diff hygiene; reuse the
 previous 73-test/build/lint result without reporting a new runtime test execution.
+
+## Direct reminder admission closure prepared — 2026-10-29
+
+ADR-0025 and its preceding observation work are committed and pushed as
+`5f648963398d2e600f70129bc8fdec19317b77aa`. The following reminder correction is
+new local work, not deployed or committed at this checkpoint.
+
+Read-only inspection confirms the three `sendPendingOrderReminderSunday20`,
+`sendPendingOrderReminderSunday22` and `sendPendingOrderReminderSunday23` Functions
+remain ACTIVE with their reviewed original sources and runtime configuration.
+Their Scheduler jobs are PAUSED, but each ready Cloud Run service still permits
+its shared execution identity to invoke it directly. The original resolver selects
+develop. Pausing the jobs therefore did not close this business-capable entrance.
+A corrected log query used lowercase Cloud Run service names from 2026-10-28
+22:00 UTC to the inspection: no matching entries returned. This is bounded log
+coverage, not proof that earlier invocations or external submissions terminated.
+
+The existing source preparer now supports `reminders3`. It wraps exactly the three
+archived callbacks with the original environment resolver: any target set including
+develop is rejected before original reads/writes, including mixed targets. It does
+not redirect to production. Original non-develop callback bodies, schedules,
+dependencies and runtime settings remain preserved. The archived scheduler SDK
+returns HTTP **500**, not 503, for this rejected callback; the local real-SDK test
+checks that contract. No real Function is invoked for the preparation.
+
+Validation under Node22.23.4: Functions build/full lint, focused CJS lint, **15 local
+and24 Firestore-emulator tests**, no failures or skips. For each reminder the
+unmodified archived callback writes a synthetic reminder in the emulator, while
+the wrapper rejects before any business port. Production-only fake-data runs
+retain the original trace/effects. Missing/default/mixed target sets, changed source
+bytes and invented max-instance settings are covered. Apps are unchanged.
+
+### Exact proposed deployment
+
+- Project `reguerta-9f27f`, region `europe-west1`; update only the three Functions
+  above. All three Scheduler jobs must remain PAUSED; preserve all other21 Functions.
+- Source ZIP SHA256:
+  `f8827f509ca6d4bab29e025a0b78857097616dfbfe12d9bae2db40fb4cc653fe`.
+  Six runtime files match the package manifest. Original archive SHA256:
+  `98175ecc32c5c2e4b94c82df856aeadb9d804b38f625d9db4a2cd6b0871de1a5`.
+- Use the Functions v2 source upload and PATCH with explicit `buildConfig.source`
+  updateMask, preserving build options, runtime environment, IAM and Scheduler.
+  Do not use Firebase CLI deployment for scheduled exports: this step must not
+  reconcile or resume Scheduler jobs. The API's explicit field mask limits the
+  requested fields ([official PATCH contract](https://docs.cloud.google.com/functions/docs/reference/rest/v2/projects.locations.functions/patch)).
+- Before upload/update, re-read all24 Functions, the three source/configuration
+  bindings, jobs and service IAM; stop on drift. Retain a baseline for the other21.
+  Apply sequentially, retain operation IDs and inspect any uncertain outcome before
+  retry. Verify source bytes/provenance, effective runtime/IAM, ready traffic, jobs
+  still PAUSED and the other21 unchanged. Do not invoke Functions or production paths.
+- An unexpected change stops the sequence. Do not automatically restore a callback
+  that can write develop. Record partial completion and keep maintenance closed.
+
+Private packet: `2026-10-29-old-business-closure/reminder-package`,
+`reminder-source-reviewed.zip`, `reminder-update-plan.json` and the authority snapshot.
+No credentials, environment values or raw provider identities are committed.
+Deployment needs a new explicit scoped authorization. This prepares closure of
+**new admission only**: previous business calls, Sheets/FCM outcomes and shared
+credential uses remain separate obligations. Keep `legacyUntracked=true`, all117
+historical notices unreplayed and maintenance/migration NOT_READY. Workbook source
+policy/permissions and fresh owner/admin agreements remain pending.
+
+### Authorized deployment completed — 2026-10-29
+
+After explicit authorization of the three Functions in `reguerta-9f27f`, all three
+sequential `buildConfig.source` updates completed. Fresh reads verify ACTIVE/ready
+revisions, 100% latest traffic and the exact reviewed source ZIP bytes for all three:
+
+| Function suffix | Verified Cloud Run revision |
+| --- | --- |
+| Sunday20 | `sendpendingorderremindersunday20-00002-mec` |
+| Sunday22 | `sendpendingorderremindersunday22-00002-niw` |
+| Sunday23 | `sendpendingorderremindersunday23-00002-gel` |
+
+All three jobs remain PAUSED with their complete metadata unchanged. Function
+runtime/build options, environment and service IAM are preserved; the other 21
+Functions retain their complete metadata. Google added only exact function/region
+identity labels and an identity annotation to the updated Cloud Run services.
+The verifier validates these values rather than ignoring arbitrary metadata drift.
+No Function invocation, business-data write, Sheets write or FCM send was performed.
+
+The first upload attempt failed before any deployment; an exact object GET returned
+404. Reusing the signed URL with the pinned CLI's signed-upload header contract
+succeeded and its generation was read back. Unordered provider `eventFilters` were
+normalized only after proving identical contents; changed-content tests still reject.
+Negative verifier checks also reject runtime, job, IAM and identity-label changes.
+The unchanged application/package reuses the prior build/lint and 15 local/24 emulator
+acceptance. This turn validates the real deployment, not a new application test run.
+
+Private `authorized-deployment-result.json`, operation records and immutable source
+readbacks under `2026-10-29-old-business-closure` retain the result. Source/docs remain
+uncommitted after `5f648963`. This completes direct reminder admission closure only;
+old business submissions/automated authority, workbook permissions/source policy and
+fresh maintenance agreements still need evidence. `legacyUntracked=true`, all 117
+historical notices unreplayed and maintenance/migration NOT_READY remain unchanged.

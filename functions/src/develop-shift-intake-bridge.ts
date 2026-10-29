@@ -102,6 +102,35 @@ export const wrapDevelopAdministrativeHttp = <
   };
 };
 
+/**
+ * A paused Scheduler job does not close direct invocation of its service.
+ * Resolve the original target set before any reminder reads or writes, and
+ * reject the whole run if it includes develop. Do not reroute it to production.
+ * @param {string} entryPoint One of the three reviewed scheduled exports.
+ * @param {Function} original Unchanged original scheduled callback.
+ * @param {Function} resolveTargets Original lexical environment resolver.
+ * @return {Function} Guarded callback with the original SDK HTTP contract.
+ */
+export const wrapDevelopScheduledReminder = <Args extends unknown[], Result>(
+  entryPoint: string,
+  original: (...args: Args) => Promise<Result>,
+  resolveTargets: () => unknown,
+) => {
+  if (!/^sendPendingOrderReminderSunday(20|22|23)$/.test(entryPoint)) {
+    throw new Error("develop_bridge_entry_invalid");
+  }
+  return async (...args: Args): Promise<Result> => {
+    const targets = resolveTargets();
+    if (!Array.isArray(targets) || !targets.length ||
+        targets.some((target) => !["local", "develop", "production"]
+          .includes(target))) return rejectEnvironment();
+    if (targets.includes("develop")) {
+      throw new Error("develop_legacy_intake_closed");
+    }
+    return original(...args);
+  };
+};
+
 const requireProductionResolution = (
   value: unknown, createError: () => Error,
 ): unknown => {
