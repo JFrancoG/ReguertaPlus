@@ -179,3 +179,17 @@ test("success checks both fresh ports; later report revision changes retain afte
     assert.deepEqual(afterimage, ["committed"]);
   }
 });
+
+
+test("source-scoped capture composes with fresh owner and administrator agreement checks", async () => {
+  const fixture = administratorFixture({}, {captureControl: true});
+  const result = verify(fixture.evidence, fixture.command, 530);
+  assert.equal(result.evidence.payload.writerControls.filter(item => item.state === "capture-only").length, 4);
+  const accepted = recording(fixture);
+  await accepted.adapter.withClosedIntakeBarrier(fixture.scope, async () => "accepted");
+  assert.ok(accepted.calls.includes("owner"));assert.ok(accepted.calls.includes("admin"));
+  const withdrawn = recording(fixture);let calls = 0;
+  withdrawn.observation = {...fixture.evidence.payload.administratorObservation, agreementStatus: "withdrawn"};
+  await assert.rejects(withdrawn.adapter.withClosedIntakeBarrier(fixture.scope, async () => {calls++;}));
+  assert.equal(calls, 0);assert.ok(withdrawn.incident);
+});

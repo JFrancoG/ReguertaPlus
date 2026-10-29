@@ -2641,3 +2641,16 @@ transport as disabled, invent epoch0 or infer causal drain. Next group integrate
 trusted source-scoped controls with atomic initial-state admission and its recovery
 checks; refresh source-policy/workbook/cohort evidence before applying it. See the
 bilingual queue/window guide for the concrete preparation and60-test local gate.
+
+
+### Integrated develop capture barrier and recovery rehearsal — 2026-10-29
+
+Preparation delivered as `51b9c514`. ADR-0024 adds an explicit four-pair capture-only
+control binding to the existing verifier without changing production or fabricating
+disabled transports. Existing adapter and repository retain/check its evidence and
+incidents. The fixed-loopback rehearsal now exercises this path through initial
+creation, inverse and restart after uncertain acknowledgement.72 local and33 emulator
+tests pass; build/lint clean. No new migration engine, deployed endpoint or native
+change. Next compose real source/control and independent causal-drain observations,
+refresh policy/workbook/cohort bindings, then request the concrete maintenance window
+when all evidence is ready. Local fixtures must never substitute live observations.

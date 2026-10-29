@@ -236,3 +236,20 @@ Validation: Functions build/lint, focused CJS lint and60 joint preparation, cens
 bridge and migration tests pass with zero skips. Native code is unchanged; native
 suites were not rerun. The migration tests here are offline and do not claim a new
 shared or emulator migration execution.
+
+
+## Local integration and recovery rehearsal — 2026-10-29
+
+Preparation delivered as `51b9c514`. [ADR-0024](../decisions/0024-admit-source-scoped-develop-capture-controls.md)
+records local integration of the explicit four-pair control into the barrier,
+retaining ACTIVE production transport, participant checks and separate causal drain.
+Build/lint, CJS lint,72 local and33 emulator tests pass. Emulator cases cover initial
+creation, exact inverse, partial-state refusal and incident retention after restart
+following lost acknowledgement. Recovery keeps a closed higher epoch; audit is not
+deleted and maintenance is never automatically reopened.
+
+The previous offline preparation still cannot admit maintenance: it lacks the new
+trusted proofs and actual causal-drain counters. Remaining work is composing real
+observations through the existing control-plane port and refreshing sources/policy/
+participants for a concrete window. No deployment or shared write occurred.
+This new integration remains local and uncommitted.

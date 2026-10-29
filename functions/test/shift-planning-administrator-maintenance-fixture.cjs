@@ -30,9 +30,10 @@ function observation(value, observedAtMillis = 510) {
     administratorActivity: "none-reported", unresolvedWriteCount: 0,
     reportRevision: "admin-report-1", observedAtMillis};
 }
-function administratorFixture(overrides = {}) {
+function administratorFixture(overrides = {}, {captureControl = false} = {}) {
   const fixture = ownerFixture(overrides);
   const payload = fixture.evidence.payload;
+  if (captureControl) require("./develop-capture-control-fixture.cjs").applyCapture(payload, "reguerta-9f27f");
   const technical = controlsDigest(payload.writerControls.filter((item) => item.writerId !== OWNER), MODE);
   const ownerIntent = {...fixture.agreement.payload.intent,
     operations: [{operationId: fixture.command.transitionId, kind: "maintenance-entry", manifestDigest: technical}]};

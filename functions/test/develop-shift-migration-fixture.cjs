@@ -7,6 +7,7 @@ const {scope: barrierScope, evidence: barrierEvidence} = require("./shift-planni
 const {createShiftPlanningTrustedIntakeBarrierCheckpoint: checkpoint,
   createShiftPlanningIntakeBarrierFailureClosureRecord: failureRecord} =
   require("../lib/shift-planning-trusted-intake-barrier-adapter.js");
+const {applyCapture, bindScope} = require("./develop-capture-control-fixture.cjs");
 const migration = require("../scripts/rehearse-develop-shift-migration.cjs");
 
 const ROOT = "develop/plus-collections";
@@ -105,6 +106,7 @@ const heldControl = (options = {}) => {
     async closeAndCollect(scope) {
       events.push("close"); await options.onClose?.(scope);
       const payload = barrierEvidence().payload;
+      if (options.captureControl) applyCapture(payload);
       const shiftTimes = (item) => {
         for (const [key, value] of Object.entries(item)) {
           if (value && typeof value === "object") shiftTimes(value);
@@ -133,13 +135,16 @@ const heldControl = (options = {}) => {
   };
   return {controlPlane, failurePersistence, events, get failed() { return failed; }};
 };
-const scopeFor = (prepared, inspection, inverse = false) => barrierScope({
+const scopeFor = (prepared, inspection, inverse = false, captureControl = false) => {
+  const scope = barrierScope({
   environment: "develop", transitionId: inverse ? prepared.recoveryOperationId : prepared.operationId,
   expectedAuthoritativeDigest: inspection.sourceDigest, expectedStateRevision: inspection.maintenance.stateRevision,
   expectedWriteEpoch: inspection.maintenance.writeEpoch, expectedActiveRevision: inspection.maintenance.activeRevision,
   expectedActiveDigest: inspection.maintenance.activeDigest, expectedWorkbookFileId: migration.WORKBOOK_ID,
   expectedWorkbookRevision: "1",
-});
+  });
+  return captureControl ? bindScope(scope, applyCapture(barrierEvidence().payload)) : scope;
+};
 
 module.exports = {ROOT, NOW, cohort, contentProposal, legacyRows, legacyCapture,
   restValue, restDocument, fromSnapshot, seedAndCapture, heldControl, scopeFor};

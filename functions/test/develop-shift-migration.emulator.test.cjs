@@ -8,6 +8,8 @@ const {shiftPlanningNotificationResourceFenceId} = require("../lib/shift-plannin
 const {SHIFT_PLANNING_NOTIFICATION_DISPATCH_LEASE_MILLIS} = require("../lib/shift-planning-notification-dispatch.js");
 const {parseShiftSheetsOrdinarySubmission} = require("../lib/shift-sheets-ordinary-writer.js");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
+const {createFirestoreShiftPlanningIntakeBarrierRepository: barrierRepository} =
+  require("../lib/shift-planning-firestore-intake-barrier-repository.js");
 const migration = require("../scripts/rehearse-develop-shift-migration.cjs");
 const fixture = require("./develop-shift-migration-fixture.cjs");
 const enabled = process.env.GCLOUD_PROJECT === migration.PROJECT_ID &&
@@ -33,22 +35,37 @@ const collection = (name) => db.collection(`${ROOT}/${name}`);
 const saved = async (name, withVersion = true) => (await collection(name).orderBy("__name__").get()).docs
   .map((doc) => ({path: doc.ref.path, data: encoded(doc.data()), ...(withVersion ? {updateTime: doc.updateTime} : {})}));
 const harness = async (options = {}) => {
+  options = {captureControl: true, ...options};
   const legacyCapture = await fixture.seedAndCapture(db);
   const prepared = migration.prepareDevelopShiftMigration({contentProposal: fixture.contentProposal(), legacyCapture});
   const control = fixture.heldControl(options);
-  const service = migration.createDevelopShiftMigrationRehearsal({prepared, ...control,
+  const journal = barrierRepository(db, () => Timestamp.fromMillis(fixture.NOW));
+  const close = control.controlPlane.closeAndCollect;
+  control.controlPlane.closeAndCollect = async (scope) => {
+    const held = await close(scope);
+    await journal.retainAndReadBack({environment: scope.environment, transitionId: scope.transitionId, evidence: held.evidence});
+    return held;
+  };
+  const failures = {readExistingFailure: input => journal.readExistingFailure(input),
+    async retainFailureAndReadBack(request) {
+      await control.failurePersistence.retainFailureAndReadBack(request);
+      return journal.retainFailureAndReadBack(request);
+    }};
+  const service = migration.createDevelopShiftMigrationRehearsal({prepared, ...control, failurePersistence: failures,
     nowMillis: options.nowMillis ?? (() => fixture.NOW)});
   services.push(service);
-  const scope = async (inverse = false) => fixture.scopeFor(prepared, await service.inspect(), inverse);
+  const scope = async (inverse = false) => fixture.scopeFor(prepared, await service.inspect(), inverse, options.captureControl);
   let forwardScope;
-  return {prepared, service, control, scope, forward: async () => {
+  return {prepared, service, control, journal, scope, forward: async () => {
     forwardScope ??= await scope();
     return service.forward({scope: forwardScope});
   }};
 };
+const businessOperationCount = async () => (await collection("shiftPlanningOperations").get()).docs
+  .filter(doc => !["intakeBarrierEvidence", "intakeBarrierFailureClosure"].includes(doc.get("operationKind"))).length;
 const noForwardWrites = async () => {
   assert.equal((await collection("shifts").get()).size, 62);
-  assert.equal((await collection("shiftPlanningOperations").get()).size, 0);
+  assert.equal(await businessOperationCount(), 0);
   assert.equal((await collection("shiftPlanningMigrationBaselines").get()).size, 0);
   assert.equal((await collection("shiftPlanningState").get()).size, 0);
 };
@@ -68,6 +85,15 @@ run("SDK replay and inverse preserve raw payloads and roster while retaining clo
   assert.equal(forward.measurement.documentWriteCount, 203);
   assert.equal((await collection("shifts").get()).size, 72);
   assert.equal((await db.collection(`${ROOT}/shiftPlanningOperations/${f.prepared.operationId}/beforeImages`).get()).size, 62);
+  for (const type of ["delivery", "market"]) {
+    assert.deepEqual((await db.doc(`${ROOT}/shiftRotations/${type}`).get()).get("cursor"),
+      f.prepared.content.rotations[type].postPublishedCursor);
+  }
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/sheetsSubmission`).get()).exists, false);
+  const published = (await collection("shifts").orderBy("__name__").get()).docs.map(doc => ({
+    id: doc.id, date: doc.get("date").toDate().toISOString().slice(0, 10), assignedUserIds: doc.get("assignedUserIds")}));
+  assert.deepEqual(published, f.prepared.content.shifts.map(({id, date, assignedUserIds}) => ({id, date, assignedUserIds}))
+    .sort((a, b) => a.id < b.id ? -1 : 1));
   const forwardPublic = await saved("shifts");
   assert.equal((await f.forward()).measurement, null);
   assert.deepEqual(await saved("shifts"), forwardPublic);
@@ -109,7 +135,7 @@ run("SDK rejects a concurrent extra public row without deleting or overwriting i
   const extraAfter = await db.doc(extra).get();
   assert.deepEqual(encoded(extraAfter.data()), encoded(extraBefore.data()));
   assert.ok(extraAfter.updateTime.isEqual(extraBefore.updateTime));
-  assert.equal((await collection("shiftPlanningOperations").get()).size, 0);
+  assert.equal(await businessOperationCount(), 0);
 });
 
 run("SDK rejects canonical ABA drift before inverse despite restored body equality", async () => {
@@ -169,7 +195,7 @@ run("SDK forward refuses a reserved workbook pointer even with a fresh source sc
   const f = await harness(), originals = await saved("shifts"), pointer = await reserveWorkbook();
   await assert.rejects(f.forward(), /workbook submission pointer must be absent/);
   assert.deepEqual(await saved("shifts"), originals);
-  assert.equal((await collection("shiftPlanningOperations").get()).size, 0);
+  assert.equal(await businessOperationCount(), 0);
   assert.equal((await collection("shiftPlanningMigrationBaselines").get()).size, 0);
   assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).exists, false);
   const afterPointer = await pointer.ref.get();
@@ -225,7 +251,7 @@ run("SDK lost final-barrier acknowledgement never reports rollback of an already
   await assert.rejects(f.forward());
   assert.equal(f.control.failed.phase, "finalReadBack");
   assert.equal((await collection("shifts").get()).size, 72);
-  assert.equal((await collection("shiftPlanningOperations").get()).size, 1);
+  assert.equal(await businessOperationCount(), 1);
   assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"), "closed");
 });
 
@@ -247,10 +273,39 @@ run("SDK commit acknowledgement loss retains the committed migration and blocks 
   assert.equal(armed, false, "The injection must follow the actual admitted SDK commit");
   assert.equal(f.control.failed.phase, "operation");
   assert.equal((await collection("shifts").get()).size, 72);
-  assert.equal((await collection("shiftPlanningOperations").get()).size, 1);
+  assert.equal(await businessOperationCount(), 1);
   const committed = await saved("shifts");
   now += 7 * 86_400_000;
   await assert.rejects(f.forward(), /retained barrier failure requires governed inspection/);
   assert.deepEqual(await saved("shifts"), committed);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"), "closed");
+});
+
+
+run("SDK initialization preserves an existing partial authority document without any migration", async () => {
+  const f = await harness();
+  const reference = db.doc(`${ROOT}/shiftPlanningState/sourcePolicy`);
+  await reference.create({unreviewed: true});const original = await reference.get();
+  await assert.rejects(f.forward(), /control documents must be absent/);
+  assert.equal((await collection("shifts").get()).size, 62);
+  assert.equal((await collection("shiftRotations").get()).size, 0);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).exists, false);
+  assert.ok((await reference.get()).updateTime.isEqual(original.updateTime));
+});
+
+run("SDK restart retains capture evidence and the lost-ack incident, blocking unreviewed initialization replay", async () => {
+  const f = await harness({onReadBack: async count => {if (count === 2) throw Error("lost acknowledgement");}});
+  const scope = await f.scope();await assert.rejects(f.forward(), /lost acknowledgement/);
+  const saved = await f.journal.readExisting({environment: "develop", transitionId: f.prepared.operationId});
+  assert.equal(saved.payload.writerControls.filter(x => x.state === "capture-only").length, 4);
+  const retained = await f.journal.readExistingFailure({environment: "develop", transitionId: f.prepared.operationId});
+  assert.equal(retained.phase, "finalReadBack");
+  const freshControl = fixture.heldControl({captureControl: true});
+  const restarted = migration.createDevelopShiftMigrationRehearsal({prepared: f.prepared, ...freshControl,
+    failurePersistence: barrierRepository(db, () => Timestamp.fromMillis(fixture.NOW)), nowMillis: () => fixture.NOW});
+  services.push(restarted);
+  await assert.rejects(restarted.forward({scope}), /retained barrier failure requires governed inspection/);
+  assert.equal(freshControl.events.length, 0);
+  assert.equal((await collection("shifts").get()).size, 72);
   assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"), "closed");
 });

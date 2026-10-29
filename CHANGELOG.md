@@ -58,6 +58,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-29 | ✨ feat(shifts): admit develop capture controls
+
 - 2026-10-28 | ✨ feat(shifts): reconcile prior develop operations
 
 - 2026-10-28 | ✨ feat(shifts): govern develop administrator maintenance

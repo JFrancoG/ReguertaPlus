@@ -1,4 +1,11 @@
 import {
+  DEVELOP_CAPTURE_CONTROL_REVISION,
+  DEVELOP_CAPTURE_ROUTES,
+  developCaptureControlDigest,
+  parseShiftPlanningDevelopCaptureControl,
+  ShiftPlanningDevelopCaptureControl,
+} from "./shift-planning-develop-capture-control.js";
+import {
   ShiftPlanningError,
 } from "./shift-planning-contract.js";
 import {
@@ -129,7 +136,8 @@ export type ShiftPlanningRulesBarrierEvidence = {
 
 export type ShiftPlanningWriterControlEvidence = {
   writerId: string;
-  state: ShiftPlanningWriterControlState;
+  state: ShiftPlanningWriterControlState | "capture-only";
+  developCapture?: ShiftPlanningDevelopCaptureControl;
   controlRevision: string;
   controlDigest: ShiftPlanningDigest;
   initialReadBackRevision: string;
@@ -784,6 +792,7 @@ const parseWriterControl = (
     "finalReadBackAtMillis",
     "pendingWorkCount",
     "inFlightWorkCount",
+    ...(control.state === "capture-only" ? ["developCapture"] : []),
   ], "writer control evidence");
   const writerId = requireIdentifier(control.writerId, "writerId");
   const writer = inventoryFor(version).writers.find(
@@ -791,7 +800,15 @@ const parseWriterControl = (
   if (!writer || writer.shutdownOrder === "activation-recheck") {
     return failBarrier(`Writer ${writerId} is not an intake-barrier writer.`);
   }
-  if (control.state !== writer.requiredState) {
+  const developCapture = control.state === "capture-only" ?
+    parseShiftPlanningDevelopCaptureControl(control.developCapture, writerId) :
+    undefined;
+  if (developCapture && (control.controlRevision !==
+      DEVELOP_CAPTURE_CONTROL_REVISION || control.controlDigest !==
+      developCaptureControlDigest(developCapture))) {
+    return failBarrier("Develop capture proof is not bound to its control.");
+  }
+  if (!developCapture && control.state !== writer.requiredState) {
     return failBarrier(`Writer ${writerId} is not in its required state.`);
   }
   const controlRevision = requireIdentifier(
@@ -828,7 +845,9 @@ const parseWriterControl = (
   }
   return {
     writerId,
-    state: control.state as ShiftPlanningWriterControlState,
+    state: developCapture ? "capture-only" :
+      control.state as ShiftPlanningWriterControlState,
+    ...(developCapture ? {developCapture} : {}),
     controlRevision,
     controlDigest,
     initialReadBackRevision,
@@ -1298,6 +1317,24 @@ const parsePayload = (
     return failBarrier("Intake barrier schema version is unsupported.");
   }
   const rules = parseRules(payload.rules);
+  const writerControls = parseWriterControls(payload.writerControls, rules,
+    version);
+  const captures = writerControls.filter((control) => control.developCapture);
+  if (captures.length && (payload.environment !== "develop" ||
+      !exactStringSet(captures.map((control) => control.writerId).sort(),
+        DEVELOP_CAPTURE_ROUTES.map((route) => route[0]).sort()) ||
+      new Set(captures.map((control) => control.developCapture?.projectId))
+        .size !== 1)) {
+    return failBarrier("Develop capture needs all four exact source routes.");
+  }
+  if (captures.length && version === 3) {
+    const agreement = parseShiftPlanningAdministratorMaintenanceAgreement(
+      payload.administratorAgreement);
+    if (captures.some((control) => control.developCapture?.projectId !==
+        agreement.payload.intent.projectId)) {
+      return failBarrier("Capture and administrator project bindings differ.");
+    }
+  }
   return {
     ...(cooperative ? {
       ...(version === 3 ? {schemaVersion: 3 as const,
@@ -1325,9 +1362,7 @@ const parsePayload = (
     writerInventory: parseInventory(payload.writerInventory, version),
     policy: parsePolicy(payload.policy),
     rules,
-    writerControls: parseWriterControls(
-      payload.writerControls, rules, version,
-    ),
+    writerControls,
     causalDrain: parseCausalDrain(payload.causalDrain),
     workbook: parseWorkbook(payload.workbook),
     quietHorizon: parseQuietHorizon(payload.quietHorizon),

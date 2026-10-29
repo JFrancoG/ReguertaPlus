@@ -1698,3 +1698,23 @@ post-drain backup and finite real application handoff remain open. The two
 market gaps remain explicit; no annual readiness or cross-service atomicity is
 claimed. Native sources are unchanged; previous native acceptance is reused
 without a new physical test. Owned emulator/dependency cleanup follows the gate.
+
+
+## Develop capture-control integration review — 2026-10-29
+
+Previous preparation delivered as `51b9c514`; new implementation remains local.
+ADR-0024 and the existing intake verifier require all four reviewed capture pairs,
+complete source/configuration bindings, the explicit control-manifest approval and
+separate zero causal/work counters. Production, partial routes, absent proof,
+source/configuration drift, UNKNOWN counts and expired evidence are rejected.
+Owner/admin freshness and withdrawal remain enforced. No new deployed export.
+
+Validation: Functions build/lint, focused CJS lint;72 barrier/control/agreement tests,
+60 preparation/bridge/census/migration regression tests and33 Firestore emulator
+tests pass without skips. Initial creation preserves72 published dates/assignments
+and both cursors; inverse restores62 exact legacy payloads and keeps closed higher-
+epoch audit. Durable evidence and lost-ACK incidents survive a new service instance
+and block unreviewed replay. Partial initial authority cannot be overwritten.
+Actual multi-service observation composition, refreshed policy/workbook/cohort and
+participant/window admission remain required; synthetic controls are not live proof.
+No native behavior changed; native validation was not repeated.

@@ -236,3 +236,20 @@ Validación: build/lint de Functions, lint CJS focal y60 pruebas conjuntas de pr
 censo, puente y migración correctas, sin omisiones. Sin cambios nativos; no se repiten
 sus suites. Estas pruebas de migración son locales sin conexión y no acreditan una
 nueva ejecución en emulador ni en Firebase compartido.
+
+
+## Integración local y recuperación ensayada — 2026-10-29
+
+Preparación entregada en `51b9c514`. [ADR-0024](../decisions/0024-admit-source-scoped-develop-capture-controls.md)
+registra la integración local del control explícito de las cuatro parejas en la
+barrera, conservando transporte ACTIVE de producción, acuerdos y drenaje separado.
+Pasan build/lint, lint CJS,72 pruebas locales y33 de emulador. Estas últimas incluyen
+creación inicial, reversión exacta, protección ante estado parcial y conservación del
+incidente tras reinicio y confirmación perdida. Se conserva la época superior cerrada
+al revertir; no se borra la auditoría ni se reabre automáticamente.
+
+La preparación sin conexión anterior continúa sin admitir mantenimiento: no contiene
+las nuevas pruebas fiables ni los contadores reales de drenaje. Queda componer las
+observaciones reales por el puerto de control existente y renovar fuentes/política/
+participantes para una ventana concreta. Sin despliegues ni escrituras compartidas.
+Esta integración nueva permanece local, sin commit.

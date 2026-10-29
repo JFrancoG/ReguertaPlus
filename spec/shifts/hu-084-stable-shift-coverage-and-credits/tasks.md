@@ -649,10 +649,34 @@ bilingual queue/window guide. Only this new evidence documentation remains local
   the existing72-turn content and rotation checker, without an executable state.
 - [x] Retain both round2/index22 cursors; keep sheetsSubmission absent until needed.
 - [x] Pass build/lint, focused CJS lint and60 joint tests without skips; align EN/ES evidence.
-- [ ] Integrate trusted capture-only source controls with real barrier admission and
-  rehearse atomic initial authority creation as one block, including rejection/recovery.
+- [x] Integrate trusted capture-only source controls with barrier verification and
+  rehearse atomic initial authority creation as one block, including rejection/recovery
+  (local implementation below; real operational admission remains pending).
 - [ ] Refresh actual cohort/workbook/source-policy bindings, separate causal drain and
   complete participant commitments before any shared maintenance or migration write.
 
 Only the first delivery is committed/pushed. New preparation changes remain local;
 no deployment, migration, Sheets or FCM is authorized or performed in this block.
+
+
+## Source-scoped barrier and bootstrap/recovery rehearsal — 2026-10-29
+
+- [x] Commit/push previous preparation as `51b9c514` with changelog; verify remote.
+- [x] Add exact four-pair develop capture proof to existing barrier verification,
+  authorized manifests and immutable evidence; preserve ACTIVE production transport.
+- [x] Keep prior schemas readable and unchanged absent explicit capture proof;
+  reject production, partial routes, unreviewed bindings and unknown/nonzero drain.
+- [x] Compose with separate owner/admin confirmation and fresh observation checks.
+- [x] Rehearse atomic initialization, exact inverse and idempotent replay with new
+  controls; verify partial authority cannot be overwritten.
+- [x] Retain real emulator evidence/incidents through the existing repository;
+  verify lost-ACK restart blocks replay and preserves committed rows/closed state.
+- [x] Pass build/lint, focused CJS lint,72 local and33 emulator tests without skips.
+- [ ] Compose actual provider/source-scoped observations and separate causal drain
+  through the trusted port, with refreshed workbook/cohort/policy bindings.
+- [ ] Admit a separately authorized real window only after current owner/admin
+  commitments and all remaining controls are proven; no shared migration occurred.
+
+ADR-0024 documents the additive control evidence. This completes the preceding
+local integration/rehearsal checkbox; actual shared control-plane composition and
+admission remain open. The new implementation is local and uncommitted.
