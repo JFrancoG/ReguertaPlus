@@ -143,3 +143,37 @@ del proveedor ni el vaciado: el valor1 sigue pendiente de conciliación y no se
 da por simple retraso de métricas. Las compartidas sin serie siguen DESCONOCIDAS.
 El siguiente paso operativo es resolver esa entrega residual antes de declarar
 vaciadas las colas privadas o admitir mantenimiento real.
+
+## Conciliación del pendiente de la cola — 2026-10-29
+
+El mantenedor autoriza commit/push y conciliación de lectura. La corrección queda
+entregada como `3977fd6f2df13d87748c7db1e3dd31ed36b8db1d`, igual en local, remoto
+y PR borrador #278. Se reutilizan build/lint y147 pruebas con ocho hashes ejecutables
+idénticos. Este bloque no requiere código nuevo ni cambios en el proveedor.
+
+El residual pertenece a la suscripción privada de captureDevelopShiftWritten.
+La consulta acotada sin alineación encuentra un push ack_204 y un mensaje confirmado
+entre00:30 y00:31 UTC. Tanto el contador pendiente como su antigüedad indican0 a
+las00:36:00 y00:37:00 UTC. Esto concilia el pendiente observado mediante evidencia
+del proveedor, junto con la petición CloudEvent correcta y sus metadatos conservados.
+El ACK es una métrica agregada de esa suscripción: no aporta un identificador de
+confirmación por mensaje y no se inventa esa prueba.
+
+Los logs de las nuevas revisiones entre00:35 y06:22:51 UTC no contienen nuevas
+peticiones ni errores. El censo actual conserva183 documentos,12 eventos,12 entregas
+originales,4 observaciones y sus fragmentos/versiones; la revisión sigue en16. No
+hay nuevas observaciones, reenvíos, ACK manual, pull, seek, escrituras de negocio,
+Sheets/FCM, cambios IAM ni despliegues. Las relaciones proveedor/origen y las cuatro
+Functions coinciden con el despliegue aceptado.
+
+La consulta sin agregación de los últimos15 minutos no devuelve series: continúa
+DESCONOCIDA, sin convertirla en cero actual ni en drenaje físico global. El residual
+histórico queda conciliado; la ventana aún necesita el control provider/sourceScope,
+el arranque inicial controlado y los compromisos de participantes. legacyUntracked
+sigue en true y los permisos de entrada en mantenimiento/migración en false.
+Las modificaciones nuevas de este bloque son documentales; basta comprobar el diff,
+sin repetir pruebas nativas.
+
+[La guía de métricas de Google](https://docs.cloud.google.com/pubsub/docs/metrics-autoscaling-best-practices)
+advierte que ausencia de métricas no equivale a cola vacía. Las observaciones
+acotadas y sus hashes permanecen en evidencia privada.

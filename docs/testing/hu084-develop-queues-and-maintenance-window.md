@@ -145,3 +145,36 @@ and preserved metadata do not establish broker ACK/drain; the remaining value1
 is unresolved, not silently treated as metric lag. Shared missing series remain
 UNKNOWN. Next operational step is to reconcile that residual provider delivery
 before claiming private queue drain or preparing real maintenance admission.
+
+## Residual queue reconciliation — 2026-10-29
+
+The maintainer authorizes commit/push and read-only reconciliation. The reviewed
+repair is delivered as `3977fd6f2df13d87748c7db1e3dd31ed36b8db1d`; local, remote and
+draft PR #278 heads match. Eight identical executable hashes reuse build/full lint
+and147 tests. No new runtime code or provider mutation is needed in this group.
+
+The residual belongs to the private captureDevelopShiftWritten subscription. A
+bounded unaligned metric query observes one push response ack_204 and one push
+acknowledged message during00:30–00:31 UTC. Its backlog and oldest-unacknowledged
+age both report0 at00:36:00 and00:37:00 UTC. This resolves the previously observed
+backlog1 through provider evidence, alongside the already-correlated successful
+CloudEvent request and retained metadata. Subscription aggregate ACK metrics do
+not expose a per-message ACK identifier; no such identity proof is fabricated.
+
+New-revision logs from00:35 to06:22:51 UTC contain no further requests or errors.
+The fresh census is unchanged from the post-deployment snapshot:183 sources,
+12 events,12 canonical deliveries,4 observations and all chunks/versions preserved;
+revision remains16. No additional observations, replay, manual ACK, pull, seek,
+Sheets/FCM/business writes, IAM change or deployment occurs. The provider/source
+bindings and four Function configurations match the accepted deployment.
+
+The last15-minute raw metric query returns no series. This remains UNKNOWN, not
+a continuously fresh zero or global physical-drain proof. The historical residual
+is reconciled; maintenance still needs provider/sourceScope admission, controlled
+bootstrap and participant/window commitments. Keep legacyUntracked:true and all
+maintenance/migration admission flags false. This group's new changes are evidence
+documentation only; diff checks suffice, with no new native validation required.
+
+[Google's metric guidance](https://docs.cloud.google.com/pubsub/docs/metrics-autoscaling-best-practices)
+warns against treating absent metrics as an empty backlog. Raw bounded observations
+and their hashes remain private.

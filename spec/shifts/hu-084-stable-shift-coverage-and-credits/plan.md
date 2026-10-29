@@ -2616,3 +2616,14 @@ message consumption, maintenance entry or migration is performed.
 The 147-test/build/lint gate is reused with unchanged executable inputs. The
 Firebase CLI warns about the intentionally preserved archived SDK; this scoped
 update does not upgrade runtime dependencies. Native code is unchanged.
+
+## Delivered repair and residual reconciliation — 2026-10-29
+
+Repair delivered as `3977fd6f2df13d87748c7db1e3dd31ed36b8db1d`; remote and draft
+PR match. Read-only residual reconciliation observes one provider ack_204/push ACK
+in00:30–00:31 UTC and backlog/oldest-age0 at00:36/00:37 UTC for the private shift
+subscription. Fresh183-source/12-event/16-delivery census is unchanged; no new
+requests/errors in the later bounded query. Historical residual reconciled; recent
+missing metrics remain UNKNOWN and do not admit maintenance. Next: provider/sourceScope
+control and controlled bootstrap before participant/window commitments. See the
+bilingual queue/window guide. Only this new evidence documentation remains local.
