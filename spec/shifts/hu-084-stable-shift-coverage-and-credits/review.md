@@ -1935,3 +1935,21 @@ parity gap. New changes remain local after `9f01bae8`. See bilingual writer-cont
 and private `2026-10-29-develop-owner-transfer` evidence. Next complete remaining automatic
 authority/prior effects before a bounded agreed window; HU-084/HU-085 and draft PR #278
 remain open. Recovery would require reverse transfer and acceptance.
+
+
+### Remaining access/effects audit — 2026-10-29
+
+`b69dcf5b` delivered and remote verified. Fresh provider inventory confirms only 24
+reviewed Run services globally, no Run jobs/worker pools/instances, three paused
+Scheduler jobs, no Build triggers/active builds across 44 locations, nine keyless
+service accounts and unchanged project IAM/Rules. Census remains 183 sources plus
+12 captures/16 deliveries. Two known calendar probes have exact HTTP 200 terminals
+and no Sheets/notice effects. No global old-effect closure is inferred.
+The maintainer identifies the existing apps/Functions using `collections`, distinct
+from `plus-collections`. Both use the same project; current develop Rules cover both
+namespaces and legacy HTTP endpoints are shared. This identifies known callers, not
+an exhaustive external-credential inventory. The 105 older notices remain unreplayed
+history and residual effects still block admission.
+No cloud mutation or production-data read. This audit is documentation only; prior 141 tests/
+build/lint reused unchanged. See bilingual writer-controls guide for finite next
+steps and private 2026-10-29-remaining-authority-effects evidence. No native parity gap.

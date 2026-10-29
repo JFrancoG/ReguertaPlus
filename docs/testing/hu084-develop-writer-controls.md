@@ -590,3 +590,62 @@ Recovery after acceptance requires reverse transfer and the former owner's accep
 it was not performed. Next finish remaining server/delegation authority and prior
 external-effect reconciliation, then obtain coherent current workbook/control and
 new-owner/admin window evidence. HU-084/HU-085 remain open and PR #278 remains draft.
+
+
+### Remaining configured access and prior effects — 2026-10-29
+
+The runtime/owner isolation is committed and pushed as `b69dcf5b` (remote verified).
+This subsequent inspection is read-only; this checkpoint records its documentation.
+
+| Area | New observation | Boundary |
+| --- | --- | --- |
+| Functions and Run | All 24 Functions match the reviewed metadata/source bindings; the global Run inventory contains exactly their 24 services, zero jobs, worker pools or independent instances, with no unreachable regions/continuation. Current traffic remains 100% on reviewed revisions, no tags. | Global v1 endpoints used by installed gcloud resolve the regional me-central2 denials; the denials themselves are not empty inventories. |
+| Scheduled/CI work | Three jobs remain PAUSED across 34 Scheduler locations. No triggers or active/pending builds in global plus 43 documented Build regions. No App Engine services or Extensions instances. This GitHub repo has zero workflows, running Actions or repository Actions-secret names. | Does not inventory automation outside this project/repository or secret values. |
+| Credentials | All 9 project service accounts have zero USER_MANAGED keys and zero direct IAM bindings; three test identities remain disabled. Zero workload identity pools. Project bindings and Rules are unchanged. | Shared Editor/Admin/Token Creator roles still exist. Neither missing keys nor empty direct policies proves absent issued tokens or automation using human credentials. |
+| Source census | Same 62 shifts, four calendars and 117 notices, 12 captures/16 delivery records; all source versions and retained history are identical to the prior census. | Stable content is not a complete old-call ledger or a held maintenance barrier. |
+| Known effects | Two exact calendar probes correlate to their reviewed old revision and individual HTTP 200 terminals; updatedCount 0 means the source skips both Sheets writes and notice creation. Prior three imports and 12 FCM attempts retain their earlier evidence. | Covers only these identified invocations; FCM acceptance is not a device receipt. |
+
+The new develop-filtered log query covers only the delta from 16:55:14 through 20:05:12
+UTC. All pages finish with no new matching effects. Do not extend that negative result
+to unlogged work or reread the expired history. The 105 older notices remain possibly
+delivered and unreplayed, not 105 pending sends. Old submitted effects without causal
+terminal evidence remain a residual; the investigation cannot manufacture them into
+zero in-flight work. `legacyUntracked=true` and NOT_READY remain explicit.
+
+Cloud Asset was SERVICE_DISABLED and was not enabled. Invalid initial regional
+field masks, an unsupported Build-locations route and the SDK policy GET were
+retained as errors, then replaced with supported reads. Build locations come from
+[Google's published catalogue](https://docs.cloud.google.com/build/docs/locations);
+Run's global methods match the installed CLI's
+[all-regions list contract](https://docs.cloud.google.com/sdk/gcloud/reference/run/jobs/list).
+No new privilege, token impersonation, production data read, deployment or business
+write occurred. Existing login-session refresh is not a new service-account grant.
+
+#### Remaining prerequisites
+
+1. The maintainer identifies existing apps/Functions writing `collections` in
+   develop/production. Local classic iOS configuration confirms the same
+   `reguerta-9f27f` project, ordinary `collections` root and shared HTTP endpoints.
+   Reviewed deployed Rules deny develop client writes in **both** namespaces;
+   production branches retain their prior permissions. Different names alone do not
+   prove isolation: the old calendar callback reads `collections/config` before
+   `plus-collections/config`, and the classic checkout contains explicit copy tools
+   targeting plus-collections. Local presence does not prove published release
+   inclusion or execution; their develop client writes are covered by current Rules.
+   This answer identifies known callers, not universal absence of other credentialed
+   programs. It neither requires stopping the classic production app nor authorizes
+   reopening develop/collections. Private evidence:
+   `classic-namespace-clarification-private.json`.
+2. Keep the historical external-effect residual explicit. Under ADR-0025, missing
+   terminal evidence still needs effective destination isolation or the existing
+   scoped residual/incident exit; an incident alone is not successful admission.
+   Do not keep querying expired logs, replay notices or weaken the contract silently.
+3. Only after those issues are resolved, bind current new-owner parent/version
+   evidence, refreshed controls and named owner/admin window agreements. No window
+   is requested or opened by this audit.
+
+Private packet: `2026-10-29-remaining-authority-effects`; `assess.py` checks real
+provider/source comparisons and preserves failed reads. Its assertions pass. The
+pushed implementation reuses the unchanged 141-test/build/lint validation; no new
+application test run is claimed. New changes are documentation only: diff/link/parity
+checks, no native build or parity gap. HU-084/HU-085 remain open; PR #278 remains draft.

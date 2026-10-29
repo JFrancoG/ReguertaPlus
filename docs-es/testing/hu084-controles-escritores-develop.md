@@ -621,3 +621,67 @@ propietario anterior; no se ejecutó. Siguiente: completar autoridad de servidor
 delegación y conciliación de efectos anteriores; después, evidencia coherente actual
 de hoja/controles y acuerdo de ventana del nuevo propietario/administradores.
 HU-084/HU-085 siguen abiertas y PR #278 en borrador.
+
+
+### Accesos configurados restantes y efectos anteriores — 2026-10-29
+
+El aislamiento de ejecuciones/propietario está commiteado y pusheado como `b69dcf5b`
+(remoto verificado). Esta inspección posterior es de solo lectura; este punto registra
+su documentación.
+
+| Área | Observación nueva | Límite |
+| --- | --- | --- |
+| Functions y Run | Las 24 Functions mantienen metadatos/fuentes revisados; el inventario global de Run contiene exactamente sus 24 servicios, cero jobs, worker pools o instancias independientes, sin regiones inaccesibles ni continuación. Tráfico 100% a revisiones revisadas, sin tags. | Los endpoints globales v1 usados por gcloud resuelven las denegaciones regionales de me-central2; las denegaciones por sí solas no son inventarios vacíos. |
+| Programación/CI | Tres jobs PAUSED en 34 ubicaciones Scheduler. Sin disparadores ni builds activos/pendientes en global y 43 regiones Build documentadas. Sin servicios App Engine ni instancias Extensions. Este repo GitHub no tiene workflows, Actions ejecutándose ni nombres de secretos Actions del repositorio. | No inventaría automatizaciones ajenas al proyecto/repositorio ni lee valores secretos. |
+| Credenciales | Las 9 cuentas de servicio del proyecto tienen cero claves USER_MANAGED y cero bindings IAM directos; tres identidades de prueba siguen deshabilitadas. Cero pools de identidades externas. Bindings de proyecto y Rules sin cambios. | Persisten roles compartidos Editor/Admin/Token Creator. Sin claves o políticas directas no equivale a inexistencia de tokens emitidos o automatización con credenciales humanas. |
+| Censo fuente | Los mismos 62 turnos, cuatro calendarios y 117 avisos, 12 capturas/16 entregas; versiones fuente e historial retenido idénticos al censo anterior. | La estabilidad no es un registro completo de llamadas antiguas ni una barrera de mantenimiento retenida. |
+| Efectos conocidos | Dos pruebas exactas de calendario correlacionadas con su revisión antigua revisada y sus respuestas HTTP 200; updatedCount 0 hace que el código omita escritura Sheets y creación de aviso. Se mantiene la evidencia previa de tres importaciones y 12 intentos FCM. | Solo cubre esas invocaciones identificadas; aceptación FCM no es recepción en el dispositivo. |
+
+La consulta nueva filtrada a develop abarca únicamente desde 16:55:14 hasta 20:05:12
+UTC. Agota las páginas sin efectos coincidentes nuevos. No extender esa negativa a
+trabajo sin registrar ni repetir búsquedas caducadas. Los 105 avisos anteriores siguen
+como posiblemente entregados y sin reproducción; no son 105 envíos pendientes.
+Los efectos ya enviados sin recibo causal de terminación siguen como residuo: no se
+convierten en cero operaciones en curso. Se mantienen `legacyUntracked=true` y NOT_READY.
+
+Cloud Asset devolvió SERVICE_DISABLED y no se habilitó. Se conservaron como errores
+las máscaras regionales iniciales inválidas, una ruta no admitida de ubicaciones Build
+y el GET de política del SDK; después se sustituyeron por lecturas soportadas.
+Las ubicaciones Build proceden del
+[catálogo oficial](https://docs.cloud.google.com/build/docs/locations); los métodos
+globales Run coinciden con la CLI instalada y su
+[contrato de listado global](https://docs.cloud.google.com/sdk/gcloud/reference/run/jobs/list).
+Sin privilegios nuevos, suplantación, lectura de datos de producción, despliegue ni
+escrituras de negocio. Refrescar la sesión existente no concede acceso nuevo a una
+cuenta de servicio.
+
+#### Siguiente actuación acotada
+
+1. El mantenedor identifica las apps vigentes y sus Functions como escritoras de
+   `collections` en develop/production. La configuración local de iOS clásico confirma
+   el mismo proyecto `reguerta-9f27f`, raíz ordinaria `collections` y endpoints HTTP
+   compartidos. Las Rules desplegadas revisadas cierran escrituras de develop en
+   **ambos** namespaces; las ramas de producción conservan sus permisos anteriores.
+   No deducir aislamiento completo solo de nombres distintos: el callback antiguo de
+   calendario consulta `collections/config` antes de `plus-collections/config`, y el
+   checkout clásico incluye herramientas explícitas de copia hacia plus-collections.
+   Su presencia local no prueba que estén en la versión publicada ni que se ejecuten;
+   sus escrituras cliente hacia develop están cubiertas por las Rules actuales.
+   La respuesta identifica clientes conocidos, no acredita ausencia universal de
+   otros programas con credenciales. No requiere parar la app clásica de producción
+   ni autoriza reabrir develop/collections. Evidencia: paquete privado
+   `classic-namespace-clarification-private.json`.
+2. Mantener explícito el residuo histórico de efectos externos. ADR-0025 exige cierre
+   verificable, aislamiento efectivo del destino o la salida residual/incidente
+   acotada existente; una incidencia no equivale a admisión correcta. No repetir logs
+   caducados, reproducir avisos ni rebajar silenciosamente el contrato.
+3. Después de resolver esos puntos: evidencia actual de carpeta/versión del nuevo
+   propietario, controles actualizados y acuerdo de ventana de propietario/admins.
+   Esta inspección no solicita ni abre una ventana.
+
+Paquete privado: `2026-10-29-remaining-authority-effects`; `assess.py` comprueba las
+comparaciones reales de proveedor/fuentes y conserva lecturas fallidas. Aserciones
+correctas. Se reutilizan 141 pruebas/build/lint sin cambios de la implementación
+pusheada; no se afirma otra ejecución de tests de aplicación. Los cambios nuevos son
+solo documentación: diff/enlaces/paridad, sin build nativo ni brecha de paridad.
+HU-084/HU-085 siguen abiertas; PR #278 en borrador.
