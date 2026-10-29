@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-29 | 📝 docs(shifts): reconcile historical develop effects
+
 - 2026-10-29 | 📝 docs(shifts): reconcile the develop queue residual
 
 - 2026-10-27 | 📝 docs(shifts): prepare preserved develop baseline

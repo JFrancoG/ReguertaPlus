@@ -786,3 +786,19 @@ reconciled preparation incidents. Reuse the unchanged 15 local/24 emulator tests
 build/lint; this turn adds real deployment verification and negative verifier checks.
 Code/docs remain uncommitted after `5f648963`. Old work/automated authority and
 workbook/window evidence remain open; no replay or maintenance/migration admission.
+
+### Post-reminder effects reconciliation — 2026-10-29
+
+Reminder closure delivered/pushed as `34aa7aaec1b9ddcd44b970b540ec700a4f4e80c1`.
+Read-only reconciliation joins12 recent FCM attempt terminals to exact traces,
+reviewed revisions and matching Firestore summaries: six token sends reported successful/six
+failed by the SDK, without claiming device receipt, non-delivery or replay safety. Three62-row imports
+and five probe exits have matching HTTP200s. Current183 sources/12 captures/16
+recorded deliveries and six inspected Sheets ranges (742 typed values) are unchanged.
+Five negative correlation checks pass; reuse unchanged application acceptance.
+The105 older notices are unreplayable/unverifiable history, not a pending-send count.
+Stop repeating expired-log searches; next bind actual automated credential/destination
+and workbook-writer authority to old-work completion or effective isolation. Keep
+legacyUntracked and maintenance/migration NOT_READY. New documentation remains local;
+no cloud mutation, production data access or native change. See bilingual legacy-
+reconciliation guide for exact bounds, evidence and limitations.

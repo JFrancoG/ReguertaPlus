@@ -92,3 +92,62 @@ queue/in-flight controls, owner/administrator participants and a concrete agreed
 window. If an external effect remains physically uncertain, use the existing
 HU-085 scoped residual/incident exit rather than silently accepting global closure.
 No human decision or device action is required by the observations in this report.
+
+## Post-reminder effects reconciliation — 2026-10-29
+
+Direct reminder closure and its deployment evidence are committed/pushed as
+`34aa7aaec1b9ddcd44b970b540ec700a4f4e80c1`; remote equality was verified.
+This subsequent reconciliation is read-only and its documentation is local.
+
+A bounded develop-only application-log query covers 2026-09-29 16:55:14 UTC through
+2026-10-29 16:55:14 UTC across six exact legacy services. All pages are exhausted:
+20 application records and20 same-trace request records. Requests were read only
+for the traces found in that develop query. Exact pre-bridge revisions match the
+reviewed deployed sources; no production payloads, device records or tokens are read.
+
+- **12 FCM attempts reconciled:** event ID joins the terminal log to its current
+  Firestore dispatch summary; accepted/failed counts, status and resolved-user count
+  agree, timestamps are present and each exact trace/revision has HTTP200. The SDK
+  reports six successful token sends and six failures. Error codes were not retained
+  by this legacy terminal; a failure is not promoted to proof of non-delivery. This is server-attempt evidence,
+  not device receipt, absence of other attempts or permission to replay.
+- **Three imports completed:** 12,14 and23 October each report62 imported shifts
+  on the reviewed revision with a same-trace HTTP200. These read Sheets and write
+  Firestore; they do not prove a Sheets export. The last matches the current baseline.
+- **Five prior probe exits:** one each malformed notice/planning request/shift and
+  two calendar callbacks with updatedCount0, all same-trace HTTP200. The archived
+  calendar log occurs before potential notice creation; do not treat its log alone
+  as whole-callback completion. Count0 bypasses that subsequent notification branch.
+- **Stable current source set:** snapshot readTime2026-10-29 16:54:40 UTC preserves
+  all183 business source documents,12 captures and16 delivery records versus the
+  preceding window-readiness snapshot, including exact document images/versions.
+- **Six bounded Sheets ranges unchanged:** four seasonal A1:F100/A1:C100 ranges
+  retain399 typed values (228/85/17/69); historical TORRE A1:F150 and MERCADO A1:C100
+  retain343 (270/73). Coordinate/type/value equality preserves the inspected published
+  dates/order. Drive modifiedTime is unchanged before/after. This does not certify
+  formatting, uninspected cells, effective writer exclusion or past-call completion.
+
+Private evidence resides in `2026-10-29-effects-reconciliation`: bounded query/pages,
+atomic census, workbook snapshots and `effects-reconciliation-private.json`.
+Five negative correlation checks reject changed counts/status/event IDs/revisions/
+environment. No application code changed; reuse the delivered build/lint and
+15 local/24 emulator acceptance. Documentation gets diff/bilingual checks.
+
+### Finite disposition and next gate
+
+The105 older notices remain unverifiable history, possibly delivered and never
+replayed; they are **not105 pending sends**. Preserve the55 no_tokens/34 partial_success/
+25 success/three missing historical summaries. Missing logs do not prove an active
+operation, zero old work or completeness of the callback universe. No develop Sheets
+export terminal appeared in this finite query; current cell equality is not a
+substitute for external-call terminal evidence. Do not clear legacyUntracked or
+admit maintenance/migration from these observations.
+
+Close this finite historical search rather than repeatedly querying expired logs.
+Reopen it only for new causal evidence. The actionable next gate is current automated
+credential/destination authority and effective workbook writers, with old-call
+termination or effective isolation bound to those controls. Retain any physically
+uncertain external submission under the existing scoped incident process, without
+fabricating zero counters or using an incident as successful admission. Obtain fresh
+owner/admin window agreements only after those controls are ready. No device action,
+new policy acceptance or live mutation was needed for this reconciliation.

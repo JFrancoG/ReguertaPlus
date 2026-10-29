@@ -93,3 +93,63 @@ concreta acordada. Si queda un efecto externo físicamente incierto, se aplica l
 salida de incidencia acotada existente en HU-085; no se acepta un cierre global
 implícito. Las observaciones de este informe no exigen decisión humana ni prueba
 en un dispositivo ahora.
+
+## Conciliación de efectos tras cerrar recordatorios — 2026-10-29
+
+El cierre directo de recordatorios y su despliegue están commiteados/pusheados como
+`34aa7aaec1b9ddcd44b970b540ec700a4f4e80c1`, comprobado contra el remoto. Esta conciliación
+posterior es de solo lectura y su documentación permanece local.
+
+La consulta acotada de logs de aplicación develop comprende del 2026-09-29 a las
+16:55:14 UTC al 2026-10-29 a las16:55:14 UTC en seis servicios antiguos exactos.
+Paginación agotada:20 registros de aplicación y20 peticiones de las mismas trazas.
+Solo se leyeron peticiones de trazas encontradas en develop. Las revisiones anteriores
+al bloqueo coinciden con las fuentes desplegadas revisadas; no se leyeron datos de
+producción, dispositivos ni tokens.
+
+- **12 intentos FCM conciliados:** el ID de evento enlaza log final y resumen actual
+  de Firestore; coinciden cantidades aceptadas/fallidas, estado y usuarios resueltos,
+  existen marcas temporales y cada traza/revisión exacta tiene HTTP200. El SDK registra
+  seis éxitos y seis fallos de envío. El log antiguo no conservó códigos de error;
+  un fallo no se convierte en prueba de que no hubo entrega. Acredita esos intentos del servidor, no recepción en el móvil,
+  ausencia de otros intentos ni permiso para reenviar.
+- **Tres importaciones terminadas:** los días12,14 y23 de octubre registran62 turnos
+  importados y HTTP200 de la misma traza/revisión. Leen Sheets y escriben Firestore;
+  no prueban una exportación a Sheets. La última concuerda con la base actual.
+- **Cinco salidas de ensayos anteriores:** aviso/petición/turno malformados y dos
+  operaciones de calendario con updatedCount0, todas con HTTP200 de su misma traza.
+  El log antiguo del calendario precede al posible aviso: por sí solo no acredita
+  el final de toda la operación. Con contador0 no se ejecuta esa rama de notificación.
+- **Fuentes actuales estables:** la instantánea a las16:54:40 UTC del 2026-10-29
+  conserva los183 documentos fuente,12 capturas y16 entregas frente a la captura
+  anterior de preparación de ventana, incluyendo imágenes/versiones exactas.
+- **Seis rangos Sheets sin cambios:** cuatro rangos de temporadas A1:F100/A1:C100
+  conservan399 valores tipados (228/85/17/69); TORRE histórico A1:F150 y MERCADO A1:C100
+  conservan343 (270/73). La igualdad de coordenada/tipo/valor conserva fechas/orden
+  inspeccionados. modifiedTime de Drive permanece igual antes/después. No acredita
+  formato, celdas no inspeccionadas, exclusión de escritores ni terminación pasada.
+
+Evidencia privada en `2026-10-29-effects-reconciliation`: consultas/páginas acotadas,
+censo atómico, capturas de hoja y `effects-reconciliation-private.json`.
+Cinco comprobaciones negativas rechazan alteraciones de cantidades/estado/ID/revisión/
+entorno. Sin cambios de aplicación: reutilizar build/lint y15 pruebas locales/24 de
+emulador del bloque entregado. Se comprueban diff y alineación bilingüe de la documentación.
+
+### Clasificación finita y siguiente control
+
+Los105 avisos antiguos quedan como historial no verificable, posiblemente entregado
+y nunca reenviable; **no son105 envíos pendientes**. Se conservan los resúmenes
+55 no_tokens/34 partial_success/25 success/tres ausentes. La falta de logs no demuestra
+operación activa, cero trabajo antiguo ni universo completo de invocaciones.
+No apareció un final de exportación develop a Sheets en esta consulta acotada; la
+igualdad de celdas actuales no sustituye la evidencia de terminación externa.
+No borrar legacyUntracked ni admitir mantenimiento/migración por estas observaciones.
+
+Se cierra esta búsqueda histórica finita, sin repetir consultas a logs caducados.
+Solo se reabre con nueva evidencia causal. El siguiente control útil es la autoridad
+actual de credenciales/destinos automáticos y los escritores efectivos de la hoja,
+vinculando terminación de llamadas anteriores o aislamiento efectivo. Los envíos
+físicamente inciertos siguen el proceso de incidencia acotada existente, sin inventar
+contadores a cero ni convertir la incidencia en admisión satisfactoria. Recabar acuerdos
+nuevos de propietario/administradores cuando estén listos los controles. Esta conciliación
+no requirió pruebas en móviles, nueva política ni modificaciones en servicios reales.
