@@ -818,3 +818,9 @@ production/IAM/owner/inspector. Not authorized/applied; exact permission IDs and
 reversible readback are required before mutation. Two human project owners identified
 privately for the later window. No source/platform change; docs checks only. New docs
 local; maintenance NOT_READY. See bilingual develop-writer-controls guide.
+
+### Develop permission-record checkpoint — 2026-10-29
+
+- [x] Deliver writer-authority review (`048497d2`); acquire exact file/parent ACL records through explicitly authorized metadata-only OAuth reads. Two service writers are direct grants; preserve owner inheritance and inspector reader.
+- [x] Prepare exact two-role demotion/recovery requests, sequential whole-ACL checks and unknown/partial-result handling; verify private manifest and revoke temporary access (original token denied401, no refresh token). New evidence/documentation remains local.
+- [ ] Separately authorize/apply the develop-only writer-to-reader changes and recovery, then demonstrate effective enforcement before maintenance admission. Preparation is not an applied fence; keep old-work/source/window gates and NOT_READY.

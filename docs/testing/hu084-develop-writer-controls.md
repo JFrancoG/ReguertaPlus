@@ -357,3 +357,37 @@ commit. Preserve legacyUntracked and maintenance/migration NOT_READY.
 
 A changed ACL readback alone is not proof that write-fence propagation is complete;
 its effective enforcement must be verified before it can support admission.
+
+### Exact permission records acquired; role changes still prepared — 2026-10-29
+
+The authority review above is committed/pushed as `048497d2`; this follow-up is local.
+After explicit authorization, an Online OAuth Playground session requested only
+`drive.metadata.readonly`. Two Google Drive `permissions.list` GETs returned200 for
+the exact develop file and its parent, with no nextPageToken. The private evidence
+retains the displayed JSON semantically, not as a byte-identical HTTP archive.
+
+Both target service-account permissions are user/writer, not deleted or pending
+ownership, with a direct file grant (`inherited:false`) and captured permission IDs.
+The inspector is a direct reader. The named owner has direct ownership **and an
+inherited writer detail**; the parent has only that same owner. Preserve both owner
+details: they are not an additional non-owner writer. No expirationTime is returned.
+
+The private plan now binds exactly two role-only PATCH requests and their original
+writer recovery roles to the observed file/permission IDs. Apply sequentially, with a
+fresh full ACL comparison before each change and full readback afterwards: Google
+does not support concurrent permission modifications on one file. If a result is
+unknown or only one change succeeds, inspect and retain the partial state; never
+blindly retry or restore. Recovery requires an authorized condition and unchanged
+non-target records. See [Drive permissions.update](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/update).
+
+`authorized:false` and `canApply:false` remain. The read-only OAuth grant cannot apply
+these changes; later execution needs separately approved write access or the owner's
+Sharing UI. No workbook permission/content, project IAM, production resource or
+maintenance state changed. New software tests/builds are unnecessary for this
+documentation-only preparation; verify the manifest and bilingual diff instead.
+
+Cleanup verified: no refresh token was issued; the temporary Playground connection
+was removed, and the same session token returned401 UNAUTHENTICATED/invalid_token on
+the same parent GET. Code/token fields were cleared and Playground reset. The exact
+two-target manifest and documentation diff checks pass. No user action is required
+until separately authorizing the actual role changes and their recovery.

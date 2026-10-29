@@ -384,3 +384,38 @@ Mantener legacyUntracked y mantenimiento/migración NOT_READY.
 
 Releer la ACL modificada no demuestra por sí solo que el bloqueo ya se haya
 propagado: hay que verificar su aplicación efectiva antes de usarlo para admitir mantenimiento.
+
+### Registros exactos obtenidos; cambio de roles solo preparado — 2026-10-29
+
+La auditoría anterior está commiteada/pusheada en `048497d2`; este seguimiento es local.
+Tras autorización expresa, una sesión Online de OAuth Playground solicitó únicamente
+`drive.metadata.readonly`. Dos GET `permissions.list` de Google Drive devolvieron200
+para la hoja exacta de develop y su padre, sin nextPageToken. La evidencia privada
+conserva semánticamente el JSON mostrado, no un archivo HTTP idéntico byte a byte.
+
+Los dos permisos objetivo son user/writer, sin baja ni transferencia pendiente,
+con concesión directa (`inherited:false`) e identificadores capturados. El inspector
+es lector directo. El propietario tiene propiedad directa **y un detalle writer
+heredado**; el padre contiene solo ese mismo propietario. Conservar ambos detalles:
+no constituyen otro escritor ajeno al propietario. No se devuelve expirationTime.
+
+El plan privado fija exactamente dos PATCH que cambian solo el rol y su recuperación
+al writer original, ligados a los IDs observados de archivo/permiso. Aplicar en serie,
+comparando toda la ACL actual antes de cada cambio y releyéndola después: Google no
+admite modificaciones concurrentes de permisos sobre un archivo. Ante resultado
+incierto o éxito de solo un cambio, inspeccionar y conservar el estado parcial; nunca
+reintentar ni restaurar a ciegas. La recuperación requiere condición autorizada y
+registros ajenos intactos. Véase [Drive permissions.update](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/update).
+
+Se mantienen `authorized:false` y `canApply:false`. El permiso OAuth de lectura no
+puede aplicar estos cambios; la ejecución posterior requiere acceso de escritura
+autorizado aparte o la interfaz Compartir del propietario. Sin cambios de permisos
+o contenido de la hoja, IAM, producción ni mantenimiento. Esta preparación solo
+documental no requiere builds ni nuevas pruebas de software; comprobar manifiesto
+y diff bilingüe.
+
+Limpieza verificada: no se emitió refresh token; se retiró la conexión temporal de
+Playground y el mismo token devolvió401 UNAUTHENTICATED/invalid_token en el mismo GET
+del padre. Se vaciaron código/tokens y se reinició Playground. Pasan la comprobación
+del manifiesto de dos objetivos y el diff documental. No hace falta acción del usuario
+hasta autorizar por separado el cambio real de roles y su recuperación.

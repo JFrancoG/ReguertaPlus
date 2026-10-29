@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-29 | 📝 docs(shifts): prepare exact develop permission changes
+
 - 2026-10-29 | 📝 docs(shifts): audit develop writer authority
 
 - 2026-10-29 | 📝 docs(shifts): reconcile historical develop effects

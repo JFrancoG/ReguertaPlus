@@ -1850,3 +1850,19 @@ production/IAM/owner/inspector. Not authorized/applied; exact permission IDs and
 reversible readback are required before mutation. Two human project owners identified
 privately for the later window. No source/platform change; docs checks only. New docs
 local; maintenance NOT_READY. See bilingual develop-writer-controls guide.
+
+### Exact develop ACL acquired; mutation not authorized — 2026-10-29
+
+Authority review delivered in `048497d2`. Separately authorized Online metadata-only
+OAuth reads return complete file/parent permission lists, capturing IDs and original
+records for both direct service-account writer grants. Preserve the inspector and
+the named owner's direct ownership/inherited writer detail; parent has only owner.
+Private plan contains exactly two sequential role-only changes plus conditional
+recovery, fresh whole-ACL drift checks and unknown/partial-result handling. No ACL
+mutation, production access or admission. Read-only acquisition does not establish
+effective write fencing. Manifest/document checks replace unrelated builds; no
+native change or parity gap. See bilingual develop writer-controls guides.
+
+Cleanup: temporary Playground connection removed; original session token denied401
+on the same parent request, no refresh token issued, credential fields cleared.
+Exact two-target manifest validation and bilingual diff checks pass.
