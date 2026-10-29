@@ -281,3 +281,79 @@ requires durable closure on success **and failure**, with initial/final read-bac
 and causal-drain evidence. A list of proposed controls cannot satisfy it. Do not
 wire this document or emulator result into `closeAndCollect`, reopen the inspector's
 OIDC grant, or report an admitted migration until those real contracts are proven.
+
+## Effective develop workbook writers and automatic authority — 2026-10-29
+
+The preceding effects reconciliation is delivered as
+`713c09020b46d0317399a1dd3fb0d60f8e952286`, verified against the remote branch.
+This new inspection is read-only. It does not reuse the earlier inspector's unknown
+ACL counts as an empty permission set: the connected owner-side Drive metadata now
+returns permission entries and canShare=true for the exact develop workbook.
+
+| Observed principal class | Workbook role | Relevant current capability |
+| --- | --- | --- |
+| Named human owner | owner | Retained manual/owner capability under ADR-0021; no current window agreement. |
+| Default Compute service account | writer | Executes23 of24 Functions, including shared production paths; project Editor plus Eventarc receiver/Run invoker. |
+| Firebase Admin SDK service account | writer | Executes none of the24 Functions; retains SDK-admin/data, Auth, Storage and project Token Creator roles. Absence from runtime selection does not mean unused. |
+| Dedicated shift inspector | reader | No workbook write grant observed. |
+
+The workbook is directly under My Drive; the parent shows only its owner. The
+returned file permission list contains exactly one owner, two writers and one
+reader, with no group/domain/public entry. The connector omits permission IDs and
+detailed inheritance fields, so obtain exact restorable permission records before
+mutation. No production workbook permission was read or changed.
+
+### Automatic identities and workload scope
+
+- All24 immutable Function source bindings and runtime identities/revisions still
+  match the accepted post-reminder deployment. The24 Cloud Run services in
+  europe-west1 match those Functions; no additional service or Run Job is observed
+  there. All three Scheduler jobs remain PAUSED.
+- Cloud Build trigger lists are empty in global/europe-west1; App Engine's service
+  list is empty. Compute instance enumeration returns403 SERVICE_DISABLED, not
+  an empty instance list. Its API was not enabled.
+- USER_MANAGED key metadata is empty for the two workbook writers, the prepared
+  shift runtime and default App Engine account. No key material was fetched, token
+  minted for those accounts, identity impersonated or grant changed. Existing
+  configured OAuth session refresh is not a new service-account credential grant.
+- Correct POST getIamPolicy reads show no direct bindings on those four accounts.
+  Initial GET404s were protocol errors, not evidence of missing permissions. Project
+  bindings still grant impersonation/deployment/data capabilities to humans and
+  managed service agents. In particular the SDK account has project Token Creator;
+  zero user-created keys cannot establish zero automatic authority.
+- Two named human project Owners are identified privately for the later ADR-0022
+  window agreement. No group binding or organization/folder parent is returned in
+  this project snapshot. Do not generalize this into an issued-token inventory.
+
+The original Sheets adapter uses GoogleAuth/ADC. The running shared identity and
+its develop-file writer grant therefore matter independently of Firestore Rules.
+No broader claim is made about other-region Run workloads, external clients, already
+issued tokens or owner OAuth delegations. Prior operations remain a separate gate.
+
+### Concrete reversible permission plan (prepared, not applied)
+
+On the **exact develop file only**, change the two identified service-account
+permissions from writer to reader; retain the owner and inspector grants, parent,
+all production-file permissions and all project IAM/account state. This avoids
+revoking an identity shared with production. It also restricts direct file writes
+under either identity regardless of which caller obtains that identity's token;
+it does not revoke Firestore authority or prove old external-call completion.
+
+Before applying, obtain a fresh exact ACL with permission IDs, save original records,
+reject extra/inherited writer drift and bind the authorized scope/recovery. Verify
+both reader roles and all untouched entries afterwards; restore exactly the two
+captured writer roles when the approved recovery requires it. Do not grant a new
+backend writer as part of this two-permission action. A successful role change alone
+cannot admit maintenance or migration, nor replace fresh owner/admin agreements,
+source-policy checks and old-work evidence. No changes were authorized in this audit.
+
+Private evidence: `2026-10-29-writer-authority` contains owner-side file/parent reads,
+project/account roles and key metadata, bounded workload inventories, source binding
+comparison and `develop-sheet-permission-plan-private.json` with the exact principals.
+Public documentation intentionally omits raw ACL IDs, workbook IDs and human emails.
+No application source changed: documentation diff/parity checks suffice; no native
+build or emulator rerun is needed. New documentation is local after the delivered
+commit. Preserve legacyUntracked and maintenance/migration NOT_READY.
+
+A changed ACL readback alone is not proof that write-fence propagation is complete;
+its effective enforcement must be verified before it can support admission.

@@ -802,3 +802,19 @@ and workbook-writer authority to old-work completion or effective isolation. Kee
 legacyUntracked and maintenance/migration NOT_READY. New documentation remains local;
 no cloud mutation, production data access or native change. See bilingual legacy-
 reconciliation guide for exact bounds, evidence and limitations.
+
+### Effective writer authority reviewed — 2026-10-29
+
+Prior reconciliation delivered/pushed as `713c09020b46d0317399a1dd3fb0d60f8e952286`.
+Owner-side metadata identifies one owner, two service-account writers and one inspector
+reader on the develop workbook; parent My Drive shows only its owner. Compute runs23
+of24 Functions; SDK is a file writer without a Function runtime assignment. All24
+source/runtime bindings remain unchanged. Four reviewed accounts have no USER_MANAGED
+keys but project delegation/data authority persists. Three jobs PAUSED; no extra Run
+service/job in europe-west1, no Build triggers in global/europe-west1, no App Engine
+services. Compute inventory is unknown because its API is disabled; no API enabled.
+Prepared exact-file writer-to-reader changes for the two service accounts, preserving
+production/IAM/owner/inspector. Not authorized/applied; exact permission IDs and fresh
+reversible readback are required before mutation. Two human project owners identified
+privately for the later window. No source/platform change; docs checks only. New docs
+local; maintenance NOT_READY. See bilingual develop-writer-controls guide.

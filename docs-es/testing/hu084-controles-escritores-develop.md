@@ -307,3 +307,80 @@ comprobación inicial/final y evidencia causal de finalización. Una lista de
 controles propuestos no cumple ese contrato. No conectar este documento ni el
 resultado del emulador a `closeAndCollect`, restablecer el permiso OIDC del inspector
 ni declarar admitida la migración antes de demostrar esas condiciones reales.
+
+## Escritores efectivos de la hoja develop y autoridad automática — 2026-10-29
+
+La conciliación anterior está entregada como
+`713c09020b46d0317399a1dd3fb0d60f8e952286`, comprobado contra el remoto.
+Esta inspección nueva es de solo lectura. No interpreta los anteriores permisos
+desconocidos del inspector como lista vacía: los metadatos Drive desde el acceso
+conectado del propietario devuelven ahora permisos y canShare=true de la hoja exacta.
+
+| Clase de cuenta observada | Permiso en hoja | Capacidad actual relevante |
+| --- | --- | --- |
+| Propietario humano identificado | owner | Conserva capacidad bajo ADR-0021; sin acuerdo de ventana vigente. |
+| Cuenta Compute predeterminada | writer | Ejecuta23 de24 Functions, incluidas rutas compartidas de producción; Editor del proyecto y receptor Eventarc/invocador Run. |
+| Cuenta Firebase Admin SDK | writer | No ejecuta ninguna de las24 Functions; conserva roles SDK-admin/datos, Auth, Storage y Token Creator del proyecto. No figurar en las Functions no significa que esté sin uso. |
+| Inspector dedicado | reader | No se observa permiso de escritura en la hoja. |
+
+La hoja está directamente en Mi unidad; el padre muestra solo al propietario.
+La lista devuelta contiene un propietario, dos editores y un lector, sin entradas
+de grupo/dominio/públicas. El conector omite IDs de permisos y detalles de herencia:
+antes de modificar hay que obtener registros exactos restaurables. No se han leído
+ni cambiado permisos de la hoja de producción.
+
+### Identidades automáticas y ámbito de cargas
+
+- Las24 fuentes inmutables e identidades/revisiones de Functions coinciden con el
+  despliegue verificado de recordatorios. Los24 servicios Cloud Run de europe-west1
+  corresponden a esas Functions; no se observa allí otro servicio ni Run Job.
+  Los tres jobs Scheduler siguen PAUSED.
+- No hay triggers Cloud Build en global/europe-west1 ni servicios App Engine.
+  El inventario Compute devuelve403 SERVICE_DISABLED: no es una lista vacía de
+  máquinas. No se ha habilitado esa API.
+- No aparecen claves USER_MANAGED en las dos cuentas editoras, el runtime de turnos
+  preparado ni la cuenta App Engine. No se descargaron claves, emitieron tokens de
+  esas cuentas, suplantaron identidades ni cambiaron permisos. Refrescar la sesión
+  OAuth ya configurada no concede una nueva credencial de cuenta de servicio.
+- Las lecturas POST correctas de getIamPolicy muestran cero asignaciones directas
+  en esas cuatro cuentas. Los GET404 iniciales fueron errores de protocolo, no
+  evidencia de permisos ausentes. Los roles de proyecto conservan capacidades de
+  suplantación/despliegue/datos para humanos y agentes gestionados. En particular,
+  SDK conserva Token Creator del proyecto: cero claves propias no implica cero
+  autoridad automática.
+- Dos Owners humanos del proyecto quedan identificados en la evidencia privada
+  para el acuerdo posterior ADR-0022. Esta captura no devuelve grupos ni padre de
+  organización/carpeta. No equivale a un inventario de tokens emitidos.
+
+El adaptador Sheets original usa GoogleAuth/ADC. La identidad compartida en ejecución
+y su permiso de edición de develop importan independientemente de las Rules de
+Firestore. No se afirma cobertura de cargas Run de otras regiones, clientes externos,
+tokens existentes o delegaciones OAuth del propietario. Las operaciones anteriores
+siguen siendo una comprobación separada.
+
+### Plan reversible concreto de permisos (preparado, sin aplicar)
+
+Solo en **la hoja exacta de develop**, pasar de writer a reader los dos permisos de
+cuentas de servicio identificados; conservar propietario, inspector, carpeta, permisos
+de producción y todos los roles/estados de las cuentas del proyecto. Así no se revoca
+una identidad compartida con producción. Se restringe la escritura directa bajo
+ambas identidades con independencia de quién obtenga su token; no se revoca autoridad
+Firestore ni se prueba la terminación de llamadas externas anteriores.
+
+Antes de aplicar, releer ACL exacta con IDs, guardar originales, rechazar nuevos
+escritores/herencia y fijar autorización/recuperación. Después verificar los dos
+lectores y las entradas intactas; restaurar exactamente los dos roles writer cuando
+lo requiera la recuperación aprobada. No conceder un nuevo escritor backend en esta
+operación de dos permisos. El cambio por sí solo no admite mantenimiento/migración
+ni sustituye acuerdos nuevos, política de fuentes y evidencia de operaciones antiguas.
+Esta auditoría no autoriza modificaciones.
+
+Evidencia privada en `2026-10-29-writer-authority`: permisos de hoja/padre, roles,
+metadatos de claves, cargas acotadas, comparación de fuentes y plan de permisos con
+cuentas exactas. La documentación pública omite IDs de permisos/hoja y correos humanos.
+Sin cambios de aplicación: bastan comprobaciones de diff/paridad documental, sin
+repetir builds nativos o emuladores. Documentación nueva local tras el commit entregado.
+Mantener legacyUntracked y mantenimiento/migración NOT_READY.
+
+Releer la ACL modificada no demuestra por sí solo que el bloqueo ya se haya
+propagado: hay que verificar su aplicación efectiva antes de usarlo para admitir mantenimiento.
