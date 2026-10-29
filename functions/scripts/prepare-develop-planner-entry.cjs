@@ -24,18 +24,13 @@ function normalizedConfiguration(fn) {
 }
 const identity = name => `projects/${PROJECT}/locations/europe-west1/functions/${name}`;
 
-function prepareDevelopPlannerEntry(value) {
-  const input = structuredClone(value);
-  exact(input, ["schemaVersion", "projectId", "environment", "reviewedFunctions", "observedFunctions",
-    "observedAt", "absence", "contentProposal", "census"]);
-  assert.equal(input.schemaVersion, 1); assert.equal(input.projectId, PROJECT); assert.equal(input.environment, "develop");
-  assert.ok(Number.isFinite(Date.parse(input.observedAt)), "observation timestamp required");
+function reviewDevelopCaptureControls(input) {
   const names = PAIRS.flatMap(pair => pair.slice(0, 2));
   for (const set of [input.reviewedFunctions, input.observedFunctions]) {
     assert.equal(set.length, 8);
     assert.deepEqual(set.map(fn => fn.name).sort(), names.map(identity).sort(), "exact eight functions required");
   }
-  const controls = PAIRS.map(([legacy, collector, document, kind]) => {
+  return PAIRS.map(([legacy, collector, document, kind]) => {
     const read = (name, prefix, retry) => {
       const fn = input.observedFunctions.find(fn => fn.name === identity(name));
       equal(normalizedConfiguration(input.reviewedFunctions.find(old => old.name === fn.name)),
@@ -65,6 +60,15 @@ function prepareDevelopPlannerEntry(value) {
     pendingBusinessWorkCount: null, inFlightBusinessWorkCount: null,
     requiredControl: "source-scoped-capture-with-separate-drain", compatibleWithCurrentBarrier: false};
   });
+}
+
+function prepareDevelopPlannerEntry(value) {
+  const input = structuredClone(value);
+  exact(input, ["schemaVersion", "projectId", "environment", "reviewedFunctions", "observedFunctions",
+    "observedAt", "absence", "contentProposal", "census"]);
+  assert.equal(input.schemaVersion, 1); assert.equal(input.projectId, PROJECT); assert.equal(input.environment, "develop");
+  assert.ok(Number.isFinite(Date.parse(input.observedAt)), "observation timestamp required");
+  const controls = reviewDevelopCaptureControls(input);
   const absence = input.absence;
   assert.equal(absence.projectId, PROJECT); assert.equal(absence.databaseId, "(default)");
   assert.equal(absence.environment, "develop"); assert.equal(absence.readOnly, true);
@@ -104,7 +108,7 @@ function prepareDevelopPlannerEntry(value) {
     liveExecutable: false, canApply: false, canEnterMaintenance: false, legacyUntracked: true};
   return {...result, preparationDigest: digest(result)};
 }
-module.exports = {prepareDevelopPlannerEntry, PAIRS, PATHS};
+module.exports = {prepareDevelopPlannerEntry, reviewDevelopCaptureControls, PAIRS, PATHS};
 if (require.main === module) {
   try {
     const args = process.argv.slice(2);

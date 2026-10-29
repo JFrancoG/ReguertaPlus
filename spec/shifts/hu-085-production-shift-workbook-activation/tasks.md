@@ -576,3 +576,13 @@ requests/errors in the later bounded query. Historical residual reconciled; rece
 missing metrics remain UNKNOWN and do not admit maintenance. Next: provider/sourceScope
 control and controlled bootstrap before participant/window commitments. See the
 bilingual queue/window guide. Only this new evidence documentation remains local.
+
+## Develop contained-delivery evidence — 2026-10-29
+
+- [x] Accept and locally implement ADR-0025 with HU-084: four exact capture pairs,
+  eight-route observations, unchanged old business-work and production requirements.
+- [x] Validate174 local/37 emulator cases with no skips; preserve source-set/history
+  separation and immutable receipts/incident recovery. No live admission or deployment.
+- [ ] Resolve actual prior business effects and automated authority, then bind
+  workbook/source-policy/window evidence. See HU-084 review and bilingual ADR-0025;
+  this local gate is not production activation or HU-085 completion.

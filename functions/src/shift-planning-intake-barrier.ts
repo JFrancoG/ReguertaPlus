@@ -1,4 +1,10 @@
 import {
+  DEVELOP_CONTAINED_DELIVERY_POLICY,
+  ContainedDeliveryEvidence,
+  containedDeliveryCount,
+  parseContainedDeliveryEvidence,
+} from "./shift-planning-contained-delivery.js";
+import {
   DEVELOP_CAPTURE_CONTROL_REVISION,
   DEVELOP_CAPTURE_ROUTES,
   developCaptureControlDigest,
@@ -138,6 +144,7 @@ export type ShiftPlanningWriterControlEvidence = {
   writerId: string;
   state: ShiftPlanningWriterControlState | "capture-only";
   developCapture?: ShiftPlanningDevelopCaptureControl;
+  deliveryPolicy?: typeof DEVELOP_CONTAINED_DELIVERY_POLICY;
   controlRevision: string;
   controlDigest: ShiftPlanningDigest;
   initialReadBackRevision: string;
@@ -147,24 +154,26 @@ export type ShiftPlanningWriterControlEvidence = {
   closedAtMillis: number;
   initialReadBackAtMillis: number;
   finalReadBackAtMillis: number;
+  /** Business work, including callbacks admitted before the capture bridge. */
   pendingWorkCount: number;
   inFlightWorkCount: number;
 };
 
 export type ShiftPlanningCausalDrainEvidence = {
+  containedDelivery?: ContainedDeliveryEvidence;
   acceptedSetRevision: string;
   acceptedSetDigest: ShiftPlanningDigest;
   capturedAtMillis: number;
   drainedAtMillis: number;
   initialPendingWorkCount: number;
   initialInFlightWorkCount: number;
-  initialPendingDeliveryCount: number;
-  initialInFlightDeliveryCount: number;
+  initialPendingDeliveryCount: number | null;
+  initialInFlightDeliveryCount: number | null;
   initialQueueReadBackAtMillis: number;
   finalPendingWorkCount: number;
   finalInFlightWorkCount: number;
-  finalPendingDeliveryCount: number;
-  finalInFlightDeliveryCount: number;
+  finalPendingDeliveryCount: number | null;
+  finalInFlightDeliveryCount: number | null;
   finalQueueReadBackAtMillis: number;
 };
 
@@ -793,6 +802,7 @@ const parseWriterControl = (
     "pendingWorkCount",
     "inFlightWorkCount",
     ...(control.state === "capture-only" ? ["developCapture"] : []),
+    ...(control.deliveryPolicy !== undefined ? ["deliveryPolicy"] : []),
   ], "writer control evidence");
   const writerId = requireIdentifier(control.writerId, "writerId");
   const writer = inventoryFor(version).writers.find(
@@ -807,6 +817,10 @@ const parseWriterControl = (
       DEVELOP_CAPTURE_CONTROL_REVISION || control.controlDigest !==
       developCaptureControlDigest(developCapture))) {
     return failBarrier("Develop capture proof is not bound to its control.");
+  }
+  if (control.deliveryPolicy !== undefined && (!developCapture ||
+      control.deliveryPolicy !== DEVELOP_CONTAINED_DELIVERY_POLICY)) {
+    return failBarrier("Contained delivery needs an explicit capture control.");
   }
   if (!developCapture && control.state !== writer.requiredState) {
     return failBarrier(`Writer ${writerId} is not in its required state.`);
@@ -848,6 +862,8 @@ const parseWriterControl = (
     state: developCapture ? "capture-only" :
       control.state as ShiftPlanningWriterControlState,
     ...(developCapture ? {developCapture} : {}),
+    ...(control.deliveryPolicy !== undefined ?
+      {deliveryPolicy: DEVELOP_CONTAINED_DELIVERY_POLICY} : {}),
     controlRevision,
     controlDigest,
     initialReadBackRevision,
@@ -931,12 +947,15 @@ export const createShiftPlanningControlManifestDigest = (
       state: control.state,
       controlRevision: control.controlRevision,
       controlDigest: control.controlDigest,
+      ...(control.deliveryPolicy ?
+        {deliveryPolicy: control.deliveryPolicy} : {}),
     }))
     .sort((left, right) => compareIdentifiers(left.writerId, right.writerId)),
 });
 
 const parseCausalDrain = (
   value: unknown,
+  controls: readonly ShiftPlanningWriterControlEvidence[],
 ): ShiftPlanningCausalDrainEvidence => {
   const drain = requireRecord(value, "causal drain evidence");
   requireExactKeys(drain, [
@@ -954,8 +973,26 @@ const parseCausalDrain = (
     "finalPendingDeliveryCount",
     "finalInFlightDeliveryCount",
     "finalQueueReadBackAtMillis",
+    ...(drain.containedDelivery !== undefined ? ["containedDelivery"] : []),
   ], "causal drain evidence");
+  const containedControls = controls.filter((control) =>
+    control.deliveryPolicy);
+  const functions = containedControls.flatMap((control) =>
+    control.developCapture ?
+      [control.developCapture.shared.functionName,
+        control.developCapture.collector.functionName] : []);
+  if ((containedControls.length > 0) !==
+      (drain.containedDelivery !== undefined)) {
+    return failBarrier("Contained delivery must bind its authorized controls.");
+  }
+  const containedDelivery = drain.containedDelivery === undefined ? undefined :
+    parseContainedDeliveryEvidence(drain.containedDelivery, functions,
+      requireDigest(drain.acceptedSetDigest, "accepted causal set digest"));
+  const deliveryCount = (value: unknown, name: string): number | null =>
+    containedDelivery && value === null ? null :
+      requireNonNegativeInteger(value, name);
   const parsed = {
+    ...(containedDelivery ? {containedDelivery} : {}),
     acceptedSetRevision: requireIdentifier(
       drain.acceptedSetRevision,
       "accepted causal set revision",
@@ -980,11 +1017,11 @@ const parseCausalDrain = (
       drain.initialInFlightWorkCount,
       "initial in-flight causal work",
     ),
-    initialPendingDeliveryCount: requireNonNegativeInteger(
+    initialPendingDeliveryCount: deliveryCount(
       drain.initialPendingDeliveryCount,
       "initial pending deliveries",
     ),
-    initialInFlightDeliveryCount: requireNonNegativeInteger(
+    initialInFlightDeliveryCount: deliveryCount(
       drain.initialInFlightDeliveryCount,
       "initial in-flight deliveries",
     ),
@@ -1000,11 +1037,11 @@ const parseCausalDrain = (
       drain.finalInFlightWorkCount,
       "final in-flight causal work",
     ),
-    finalPendingDeliveryCount: requireNonNegativeInteger(
+    finalPendingDeliveryCount: deliveryCount(
       drain.finalPendingDeliveryCount,
       "final pending deliveries",
     ),
-    finalInFlightDeliveryCount: requireNonNegativeInteger(
+    finalInFlightDeliveryCount: deliveryCount(
       drain.finalInFlightDeliveryCount,
       "final in-flight deliveries",
     ),
@@ -1016,14 +1053,24 @@ const parseCausalDrain = (
   if (
     parsed.initialPendingWorkCount !== 0 ||
     parsed.initialInFlightWorkCount !== 0 ||
-    parsed.initialPendingDeliveryCount !== 0 ||
-    parsed.initialInFlightDeliveryCount !== 0 ||
     parsed.finalPendingWorkCount !== 0 ||
-    parsed.finalInFlightWorkCount !== 0 ||
-    parsed.finalPendingDeliveryCount !== 0 ||
-    parsed.finalInFlightDeliveryCount !== 0
+    parsed.finalInFlightWorkCount !== 0
   ) {
-    return failBarrier("Causal work and delivery queues must be empty.");
+    return failBarrier("Prior causal business work must be drained.");
+  }
+  for (const stage of ["initial", "final"] as const) {
+    for (const [field, total] of [["pendingCount", "PendingDeliveryCount"],
+      ["inFlightCount", "InFlightDeliveryCount"]] as const) {
+      const expected = containedDelivery ?
+        containedDeliveryCount(containedDelivery[stage], field) : 0;
+      if (parsed[`${stage}${total}`] !== expected) {
+        return failBarrier("Delivery counts do not bind their exact routes.");
+      }
+    }
+    if (containedDelivery && containedDelivery[stage].observedAtMillis !==
+        parsed[`${stage}QueueReadBackAtMillis`]) {
+      return failBarrier("Contained delivery observation time is unbound.");
+    }
   }
   return parsed;
 };
@@ -1335,6 +1382,7 @@ const parsePayload = (
       return failBarrier("Capture and administrator project bindings differ.");
     }
   }
+  const causalDrain = parseCausalDrain(payload.causalDrain, writerControls);
   return {
     ...(cooperative ? {
       ...(version === 3 ? {schemaVersion: 3 as const,
@@ -1363,7 +1411,7 @@ const parsePayload = (
     policy: parsePolicy(payload.policy),
     rules,
     writerControls,
-    causalDrain: parseCausalDrain(payload.causalDrain),
+    causalDrain,
     workbook: parseWorkbook(payload.workbook),
     quietHorizon: parseQuietHorizon(payload.quietHorizon),
     verifiedAtMillis: requireNonNegativeInteger(

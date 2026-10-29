@@ -253,3 +253,173 @@ trusted proofs and actual causal-drain counters. Remaining work is composing rea
 observations through the existing control-plane port and refreshing sources/policy/
 participants for a concrete window. No deployment or shared write occurred.
 This new integration remains local and uncommitted.
+
+## Real observations and bounded window preparation — 2026-10-29
+
+Capture-barrier integration delivered as `f7ef299a`; exact remote and draft PR
+verification are recorded in #268/#269. This continuation remains local.
+
+`observe-develop-capture-controls.cjs` connects injected read-only provider ports to
+the existing eight-function verifier and ADR-0024 binding parser. It validates every
+selector before reads, downloads generation-pinned source archives, matches their
+reviewed SHA256, checks queue/subscription observations and re-reads all eight
+configurations after source/queue reads. Drift rejects the complete observation.
+The reusable verifier is extracted from the existing preparer; no second planner
+or maintenance engine is added. Missing series remain UNKNOWN; even measured zero
+samples remain SAMPLED_ONLY. Neither produces causal-drain counters or a held barrier.
+
+The actual run verified all eight immutable archives and produced four typed source
+control proofs. Observation digest:
+`shift-planning:v1:sha256:389112b5c8ff04aa6edbefb36f504df4dfbf05fc343d8b57bf8e3367129694db`.
+A separate metadata refresh verifies all24 Functions unchanged, all three reminder
+jobs PAUSED and the exact accepted Rules release/source unchanged. Fresh develop
+sources retain183 documents,12 events/16 deliveries and the same census digest.
+All48 members' planning fields are unchanged;32 remain eligible. Credits, reserves,
+coverage cases, sync commands, effects and swap requests return no documents.
+
+Bounded A1:M80 formatted projections on the four published tabs match the retained
+68/54/7/44-row projections exactly. This is visible published-data parity, not proof
+of unchanged formulas/permissions or a new full-workbook version. No cell was edited.
+The Drive connector omits the numeric version even when requested. After explicit
+authorization, the existing private runtime inspector was invoked once and returned
+HTTP200: six tabs read with numeric version259 before and after, canApply:false.
+OIDC minting initially returned403; only minting was retried within the original
+ten-minute deadline, without extending the grant or repeating the inspection.
+Both grant attempts were cleaned up. An independent final IAM read confirms zero
+direct bindings and preservation of the prior policy. Tokens were not persisted.
+The reader cannot enumerate detailed ACL/owner counts; those remain unknown.
+This refresh supplies a workbook observation, not maintenance admission.
+
+The targeted shifts index read initially returned400 for pageSize100. Retrying with
+the provider-required pageSize0 returns200 but five indexes belonging to orders,
+products and orderLines. These do not establish shifts index readiness or absence.
+Treat the authority as UNBOUND, retaining the exact request/response privately.
+The request shape was checked against the official [index list API](https://docs.cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.collectionGroups.indexes/list).
+The invoker IAM read was corrected to the documented options.requestedPolicyVersion
+query and confirms no direct bindings; this was read-only.
+
+### Proposed window: not scheduled, admission false
+
+| Gate | Current evidence / pending action |
+| --- | --- |
+| Deployed source controls | Four exact proofs; shared transport remains ACTIVE. Other controls retain their independently checked state. |
+| Prior work and delivery drain | No recent metric series. Counts remain UNKNOWN; historical ACK/quiet census cannot replace source-specific causal proof or unresolved-effects reconciliation. |
+| Published sources | Planning roster and four formatted projections match; preserve the72-turn proposal and both cursors. |
+| Workbook/version/source policy | Runtime version259 is freshly stable across six tabs; ACL/owner inventory and reviewed horizon/helper/frontier bindings remain required. |
+| Index authority | Response scope does not match shifts; no readiness claim. |
+| Human agreements | Two human project Owners need complete current commitments; the additional human Viewer is not classified as an administrator. No window commitment requested yet. |
+
+Do not name a start time or solicit a20-minute no-edit promise while technical gates
+remain unresolved. After resolving them, freeze one intent containing exact controls,
+source/policy digests, operation/recovery IDs, all participants and the start/end/recovery
+limits. Obtain that concrete window's commitments, re-read every bound authority,
+then admit initialization through the existing transaction and read back its results.
+On drift, unknown/nonzero work, lost acknowledgement or participant activity, stop and
+retain closure/incident; never automatically reopen, replay historical notices or
+modify production. No deploy or shared business write is part of this preparation.
+
+Validation: full Functions build/lint, focused CJS lint and73 observation/preparation/
+bridge/census/migration tests pass without skips. Native and emulator migration gates
+are unchanged from the delivered integration and were not rerun for this read-only
+observation adapter. Raw source archives, roster, metrics and window packet stay private.
+
+## Index authority and finite drain diagnosis — 2026-10-29
+
+This read-only follow-up resolves the earlier scope-invalid index response by
+listing the complete database inventory (`collectionGroups/-`), following the
+provider page contract and reading each returned index by its exact resource name.
+A second list matches the first: five READY composite indexes, all for orders,
+products or orderLines. The complete field-override list contains only the database
+default. Exact reads of the default, shifts wildcard and shifts.date confirm READY
+ascending/descending/array indexes inherited by shifts; no shifts composite exists.
+Observed configuration digest: `shift-planning:v1:sha256:35561b4957290cffa1a275e84316f674b4a4407d6fbde58fc7cb770265253216`. This is an observation to refresh before
+admission, not a Firestore wire/index-size measurement or an apply authorization.
+
+A separate concrete omission affects both native clients: their latest-request
+query filters requestedByUserId and schemaVersion, orders requestedAt descending
+and limits to one. The matching composite is declared in firestore.indexes.json
+but absent from the deployed database. A develop-only Query Explain with
+analyze:false returns FAILED_PRECONDITION, "no matching index found". It does not
+execute the query or read member documents. See the official [Query Explain contract](https://firebase.google.com/docs/firestore/query-explain).
+
+The prepared private operation creates exactly that one COLLECTION index through
+the index-create API, after comparing all five existing indexes. It neither
+replaces the inventory nor runs a broad Firebase index deploy. The three ordered
+fields are requestedByUserId ASC, schemaVersion ASC, requestedAt DESC. The operation
+applies to every collection with that ID, including production. The script permits
+one submission only and retains an intent before POST; an uncertain response cannot
+be resubmitted. After approval: retain the operation, wait for READY, verify the five
+old indexes unchanged, rerun the same explain and refresh the configuration binding.
+Authorization is pending. No provider mutation was made by this follow-up.
+
+| Drain item | Fresh finding and limit |
+| --- | --- |
+| Source set | Same183 documents and stable digest as the preceding read; zero planning requests,62 legacy shifts,4 calendar rows and117 notices. Planned shifts are baseline data, not pending commands. |
+| Retained captures | The existing offline reconciler binds all12 captures to accepted test receipts; zero unmatched captures.16 delivery records remain. This does not prove old callbacks terminal. |
+| Eight queues | Bounded unaligned24-hour queries find historical backlog/age/outstanding zeros for all eight. Latest backlog zeros are00:28–00:37 UTC29 October for private collectors and13:10–13:11 UTC28 October for shared triggers. They are stale, not current zero counters. |
+| Runtime | All23 non-inspector services are ready, with100% traffic on their reviewed revisions and no traffic tags. Twenty retain historical revisions. Configuration/traffic is not a running-invocation census. |
+| Earlier notifications | All117 remain possibly delivered and unreplayable, including three old broadcasts without dispatch summaries. Neither expiry nor redeployment proves an unknown external outcome. |
+
+The official [Pub/Sub guidance](https://docs.cloud.google.com/pubsub/docs/metrics-autoscaling-best-practices)
+explicitly warns against interpreting missing metrics as no work. The finite
+investigation is complete; repeated identical metric reads cannot supply the missing
+source-specific terminal evidence. Keep causalDrain:null and legacyUntracked:true.
+ADR-0024 still requires every numeric zero counter. The next drain work must map each
+remaining writer to actual terminal evidence or effective isolation, and resolve the
+mismatch between sampled provider telemetry and the barrier's live-delivery contract
+before proposing any contract adjustment. Do not create synthetic zero counters,
+clear historical uncertainty, replay old notices, delete revisions or stop shared
+production transport to force this gate green. No maintenance window is scheduled.
+
+Validation: private readers and the single-index preparation pass syntax/assertion
+checks and the latter's read-only preflight. The existing census inspector/reconciler
+passes on the fresh provider snapshot. This follow-up changes documentation/evidence
+only, so native/build/unit gates are not rerun under the minimal-change exception;
+the previous73-test/build/lint acceptance is unchanged. All raw evidence stays private.
+
+## Authorized single-index creation and query acceptance — 2026-10-29
+
+The maintainer explicitly authorized exactly the previously declared
+shiftPlanningRequests composite in reguerta-9f27f/(default). One create POST was
+submitted after verifying the five-index baseline; no retry or broad index deploy.
+The new index is READY and exact GET matches requestedByUserId ASC, schemaVersion
+ASC, requestedAt DESC plus Firestore's implicit __name__ DESC. All five original
+composites and the complete field-override configuration are unchanged. The index
+is collection-ID-wide and therefore also applies to matching production collections.
+
+The first plan-only Explain after READY still returned FAILED_PRECONDITION. A later
+read-only retry returned HTTP200 and explicitly selected that exact composite.
+There was no second creation or query execution (analyze:false throughout). This
+validates index availability for the query shape shared by Android and iOS; it does
+not validate native Rules/session behavior or activate either app's planning feature.
+Updated measured configuration digest: `shift-planning:v1:sha256:3e433596c64942e59ae7464ec44161fcb7bfc726de1a733727cd91552c7b028b`. Renew it before maintenance admission.
+
+Validation consists of provider operation/index reads, exact existing-resource
+comparisons, query-plan acceptance and script syntax/diff checks. No runtime source
+changed, so full/native tests were not repeated; earlier73-test/build/lint acceptance
+is unchanged. No documents, Rules, Functions, Sheets or FCM were modified. This
+closes the missing-index gate only. The drain/old-execution evidence, source policy,
+workbook authority and participant/window requirements remain open. Docs remain local.
+
+Final operation read: done:true, no error; READY and query-plan acceptance confirmed.
+
+## Current decision gate — 2026-10-29
+
+The index gate is closed. The [31-writer assessment](hu084-develop-old-work-boundary.md)
+separates current ingress, contained delivery and old business effects. A fresh
+read observes 23 reviewed service routes and 284 RETIRED historical revisions;
+neither is an external-call terminal proof. Proposed [ADR-0025](../decisions/0025-separate-contained-deliveries-from-business-drain.md)
+would admit explicitly contained delivery without fabricating zero counters. It
+does not relax old-effect or automated-authority controls. Decision pending; no
+implementation, window, migration or cloud mutation in this assessment.
+
+## Accepted contained-delivery implementation — 2026-10-29
+
+ADR-0025 is accepted for local implementation/rehearsal and implemented. Exact
+opt-in controls, all eight delivery routes and separate frozen source/core sets
+preserve unknown/nonzero observations without weakening old business-work counters.
+174 local and37 emulator tests, build/full lint/CJS lint pass, no skips. Immutable
+held receipts still reject drift. See the [implementation checkpoint](../decisions/0025-separate-contained-deliveries-from-business-drain.md).
+Next reconcile actual old business effects/automated authority, then bind workbook/
+source policy and fresh window commitments. Shared admission stays false; no live
+change or native change. This block remains uncommitted with the prior observation work.

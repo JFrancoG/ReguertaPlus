@@ -2654,3 +2654,67 @@ tests pass; build/lint clean. No new migration engine, deployed endpoint or nati
 change. Next compose real source/control and independent causal-drain observations,
 refresh policy/workbook/cohort bindings, then request the concrete maintenance window
 when all evidence is ready. Local fixtures must never substitute live observations.
+
+
+### Real observations connected; window still not ready — 2026-10-29
+
+`f7ef299a` delivers ADR-0024 integration. The new read-only observation adapter
+reuses the preparer verifier, downloads generation-bound reviewed archives, creates
+four capture proofs and rechecks deployment after queue reads. Actual measurements
+confirm unchanged controls and published source projections. Metrics remain UNKNOWN;
+the shifts index response is outside requested scope. Neither is converted to proof.
+The explicitly authorized private inspector returned HTTP200 on its sole invocation:
+six tabs, stable numeric version259, canApply:false. Initial OIDC mint403 was retried
+within the original ten-minute deadline; both grants were removed and independent
+IAM verification finds zero direct bindings. Detailed ACL/owner inventory remains
+unknown to this reader. No window starts until separate drain, index authority,
+workbook/source policy and current owner/admin commitments are bound. See the bilingual
+queue/window guide. Build/lint and73 local regressions pass; no native/deployed change.
+
+### Index authority resolved; deployment omission and drain limit — 2026-10-29
+
+Database-wide index enumeration/exact GETs bind five READY composites and inherited
+automatic shifts indexing. Both native latest-request queries need the separately
+declared but undeployed shiftPlanningRequests composite; develop plan-only Explain
+confirms FAILED_PRECONDITION. One-index creation is prepared with preservation of
+the five existing indexes and explicit authorization pending. The fresh census
+retains183 sources,12 accepted probe captures and16 deliveries. All eight queues
+have historical zeros, but no current causal counters.23 services route100% to
+reviewed revisions;20 retain old revisions. Stop repeating the same telemetry reads;
+next resolve writer-specific terminality/isolation and the provider/contract gap,
+without silently weakening ADR-0024. No shared mutation or window admission.
+
+### Authorized missing-index rollout — 2026-10-29
+
+One explicit authorized create adds the declared shiftPlanningRequests composite.
+READY, exact field/scope binding, five old indexes and field overrides unchanged.
+Develop plan-only Explain now returns200 and uses the new index after an initial
+propagation failure. Update the configuration binding before admission; this closes
+the missing-index gate, not drain/old-effects/source-policy/window admission.
+No native/runtime source change or business write. Evidence/docs remain local.
+
+### Contained delivery versus old business work — 2026-10-29
+
+The finite 31-writer assessment replaces repeated missing-metric queries as the
+next decision gate. ADR-0025 is Proposed only: a scoped evidence alternative for
+the four reviewed capture pairs, preserving independent old-business-effect and
+automated-authority requirements. Runtime metadata observes 284 retired historical
+revisions, not external-call terminality. Archived cloneGlobalConfig writes production,
+not develop; no invocation or source change is made. Next obtain the maintainer's
+policy decision, then implement/rehearse the grouped evidence change if accepted.
+Maintenance remains NOT_READY; do not clear legacyUntracked or replay old notices.
+See docs/testing/hu084-develop-old-work-boundary.md and its Spanish counterpart.
+
+### ADR-0025 implementation acceptance — 2026-10-29
+
+Maintainer explicitly accepted local implementation/rehearsal. Four control opt-ins
+bind the new evidence alternative into the approved manifest. Eight-route nullable/
+nonzero observations and source/core/history bindings cannot relax old business-work,
+quiet business-effect, owner/admin or production checks. Offline census projection
+preserves append-only captures and legacyUntracked; it never authorizes live entry.
+Held receipt drift still stops progression instead of silently refreshing evidence.
+174 local tests and37 emulator tests pass without skips, plus build/full lint and
+focused CJS lint under Node22.23.4. Initial creation/inverse, late classified versus
+unseen events, retained evidence and lost-ACK restart are covered. No native/shared
+service change. Work remains local/uncommitted. Next resolve real old business effects
+and automated authority before workbook/source-policy/window admission.

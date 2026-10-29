@@ -253,3 +253,175 @@ las nuevas pruebas fiables ni los contadores reales de drenaje. Queda componer l
 observaciones reales por el puerto de control existente y renovar fuentes/política/
 participantes para una ventana concreta. Sin despliegues ni escrituras compartidas.
 Esta integración nueva permanece local, sin commit.
+
+## Observaciones reales y preparación acotada de ventana — 2026-10-29
+
+Integración de la barrera entregada en `f7ef299a`; la verificación exacta de remoto y
+PR borrador queda en #268/#269. Esta continuación permanece local.
+
+`observe-develop-capture-controls.cjs` conecta puertos de proveedor de solo lectura
+con el verificador existente de ocho funciones y el parser de ADR-0024. Valida todos
+los selectores antes de leer, descarga archivos de fuente con generación inmutable,
+compara su SHA256 revisada, comprueba observaciones de colas/suscripciones y vuelve a
+leer las ocho configuraciones al terminar. Cualquier cambio rechaza la observación.
+Se extrae el verificador reutilizable de la preparación existente, sin otro planificador
+ni motor de mantenimiento. Series ausentes siguen UNKNOWN; incluso muestras cero
+siguen SAMPLED_ONLY. Ninguna fabrica drenaje causal ni una barrera retenida.
+
+La ejecución real verifica los ocho archivos inmutables y genera cuatro pruebas de
+control. Huella:
+`shift-planning:v1:sha256:389112b5c8ff04aa6edbefb36f504df4dfbf05fc343d8b57bf8e3367129694db`.
+Otra lectura confirma24 Functions sin cambios, los tres jobs de avisos PAUSED y la
+misma versión/fuente aceptada de Rules. Se conservan183 documentos,12 eventos/16
+entregas y la huella del censo. Los campos de planificación de48 socios no cambian;
+32 siguen siendo elegibles. Créditos, reservas, casos, comandos de sincronización,
+efectos y solicitudes de intercambio no devuelven documentos.
+
+Las proyecciones formateadas A1:M80 de las cuatro pestañas publicadas coinciden con
+las68/54/7/44 filas conservadas. Acredita paridad visible publicada, no identidad de
+fórmulas/permisos ni una versión nueva de la hoja completa. No se ha editado ninguna
+celda. El conector omite la versión numérica aunque se solicite. Tras autorización
+expresa, se invocó una sola vez la inspección privada existente: HTTP200, seis pestañas
+y versión259 antes y después, con canApply:false. La obtención del token OIDC devolvió
+403 inicialmente; solo se reintentó esa obtención dentro del plazo original de diez
+minutos, sin ampliar el permiso ni repetir la inspección. Ambas concesiones quedaron
+retiradas. Una lectura IAM final independiente confirma cero concesiones directas y
+conservación de la política anterior. No se persistieron tokens. El lector no puede
+enumerar ACL/propietarios detallados; siguen desconocidos. Esta renovación aporta
+una observación de la hoja, no admisión al mantenimiento.
+
+La consulta de índices de shifts devolvió400 con pageSize100. Con pageSize0, exigido
+por el proveedor, devuelve200 y cinco índices de orders, products y orderLines.
+No acreditan preparación ni ausencia de índices de shifts. Su autoridad queda UNBOUND,
+con petición/respuesta privadas. Se contrastó el contrato con la [API oficial de índices](https://docs.cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.collectionGroups.indexes/list).
+La lectura IAM del invocador se corrigió usando options.requestedPolicyVersion en
+la consulta y confirma que no tiene concesiones directas; no se modificó nada.
+
+### Ventana propuesta: sin programar y sin admisión
+
+| Condición | Evidencia actual / pendiente |
+| --- | --- |
+| Controles desplegados | Cuatro pruebas exactas; transporte compartido ACTIVE. Los demás controles conservan su comprobación independiente. |
+| Trabajo anterior y drenaje | Sin series recientes. Contadores UNKNOWN; un ACK histórico o censo quieto no sustituyen drenaje causal por origen ni conciliación de efectos inciertos. |
+| Fuentes publicadas | Censo de planificación y cuatro proyecciones iguales; conservar propuesta de72 turnos y cursores. |
+| Hoja/versión/política | Versión259 renovada y estable en seis pestañas; faltan inventario ACL/propietarios y vínculos revisados de horizonte/ayudantes/frontera. |
+| Autoridad de índices | Respuesta ajena a shifts; no se declara preparada. |
+| Acuerdos humanos | Los dos Owners humanos requieren compromisos actuales completos; el tercer usuario Viewer no se clasifica como administrador. No se pide aún compromiso de ventana. |
+
+No fijar hora ni pedir veinte minutos sin edición mientras sigan abiertas las
+condiciones técnicas. Después, fijar un único compromiso con controles exactos,
+huellas de fuente/política, identificadores de operación/recuperación, participantes
+y límites de inicio/fin/recuperación. Obtener las confirmaciones de esa ventana,
+releer todas las autoridades, admitir la creación por la transacción existente y
+comprobar sus resultados. Ante cambios, trabajo desconocido/no cero, confirmación
+perdida o actividad de participantes, detener y conservar cierre/incidente. Sin
+reapertura automática, repetición de avisos históricos ni cambios de producción.
+Esta preparación no despliega ni escribe datos de negocio compartidos.
+
+Validación: build/lint de Functions, lint CJS focal y73 pruebas de observación,
+preparación, puente, censo y migración correctas, sin omisiones. Los controles nativos
+y de migración en emulador siguen como en la integración entregada; no se repiten por
+este adaptador de observación de solo lectura. Archivos, censo, métricas y ventana
+quedan en evidencia privada.
+
+## Autoridad de índices y diagnóstico acotado del drenaje — 2026-10-29
+
+Esta continuación de solo lectura resuelve la respuesta anterior de índices ajena
+a shifts: se consulta el inventario completo (`collectionGroups/-`), se comprueba
+la paginación y se lee cada índice por su nombre de recurso exacto. Una segunda
+lista coincide: cinco índices compuestos READY, de orders, products y orderLines.
+La lista completa de excepciones de campos solo contiene la configuración general.
+Las lecturas exactas del valor predeterminado, shifts/* y shifts/date confirman
+índices READY ascendentes, descendentes y de arrays heredados; no hay compuesto de
+shifts. Huella observada: `shift-planning:v1:sha256:35561b4957290cffa1a275e84316f674b4a4407d6fbde58fc7cb770265253216`. Debe renovarse antes de admitir una operación;
+no mide el tamaño real de índices/peticiones ni autoriza escrituras.
+
+Se encuentra además una carencia concreta para ambas apps: la consulta de la última
+solicitud filtra requestedByUserId y schemaVersion, ordena requestedAt descendente
+y limita a uno. El índice está declarado en firestore.indexes.json pero no está
+desplegado. Query Explain sobre develop, con analyze:false, devuelve
+FAILED_PRECONDITION, "no matching index found". No ejecuta la consulta ni lee datos
+de socios. Véase el [contrato oficial de Query Explain](https://firebase.google.com/docs/firestore/query-explain).
+
+La operación privada preparada añade solo ese índice COLLECTION mediante la API de
+creación, tras comparar los cinco existentes. No sustituye el inventario ni utiliza
+un despliegue global de índices. Campos ordenados: requestedByUserId ASC,
+schemaVersion ASC y requestedAt DESC. Afecta a cualquier colección con ese nombre,
+incluida producción. El script permite un envío, registra su intención antes del
+POST y no repite una respuesta incierta. Tras autorizar: conservar la operación,
+esperar READY, verificar los cinco índices anteriores, repetir Explain y renovar
+la huella. Autorización pendiente. Esta continuación no ha modificado el proveedor.
+
+| Elemento | Hallazgo renovado y límite |
+| --- | --- |
+| Fuentes | Mismos183 documentos y huella: cero solicitudes,62 turnos antiguos,4 filas de calendario y117 avisos. Los turnos planned son datos de referencia, no comandos pendientes. |
+| Capturas retenidas | El conciliador existente vincula las12 a recibos de pruebas aceptadas; cero capturas sin atribuir. Se conservan16 entregas. No acredita el fin de callbacks antiguos. |
+| Ocho colas | Consultas de24 horas sin alineación encuentran ceros históricos de pendientes/antigüedad/en vuelo en las ocho. Últimos ceros de pendientes:00:28–00:37 UTC del29 de octubre en privadas y13:10–13:11 UTC del28 en compartidas. Son antiguos, no contadores actuales. |
+| Ejecución | Los23 servicios distintos del inspector están preparados y envían100% del tráfico a las revisiones revisadas, sin etiquetas de tráfico. Veinte conservan revisiones antiguas. La configuración no es un censo de invocaciones en curso. |
+| Avisos anteriores | Los117 siguen posiblemente entregados y no se reenvían, incluidos tres avisos administrativos antiguos sin resumen de envío. Un plazo o redespliegue no demuestra un resultado externo desconocido. |
+
+La [guía oficial de Pub/Sub](https://docs.cloud.google.com/pubsub/docs/metrics-autoscaling-best-practices)
+advierte que la ausencia de métricas no significa ausencia de mensajes. La
+investigación acotada termina aquí: repetir las mismas consultas no aporta la
+terminación por origen que falta. Se mantienen causalDrain:null y legacyUntracked:true.
+ADR-0024 sigue exigiendo todos los contadores numéricos a cero. El siguiente trabajo
+debe vincular cada escritor pendiente a evidencia de terminación o aislamiento
+efectivo y resolver la diferencia entre telemetría muestreada y el contrato de
+entregas en vivo antes de proponer ajustes de contrato. No fabricar ceros, borrar
+incertidumbre histórica, repetir avisos, eliminar revisiones ni parar transporte de
+producción para forzar una aceptación. La ventana de mantenimiento sigue sin fecha.
+
+Validación: lectores privados y preparación del único índice pasan sintaxis y
+aserciones; esta última supera el preflight de solo lectura. El inspector/conciliador
+existente acepta la captura renovada. Solo se cambian documentos/evidencias, por lo
+que no se repiten build/pruebas nativas/unitarias bajo la excepción de cambio mínimo;
+se conserva la aceptación anterior de73 pruebas/build/lint. Evidencia cruda privada.
+
+## Creación autorizada del único índice y consulta validada — 2026-10-29
+
+El mantenedor autorizó expresamente solo el compuesto de shiftPlanningRequests ya
+declarado en reguerta-9f27f/(default). Se envió un POST de creación tras verificar
+los cinco índices de referencia, sin repetición ni despliegue global. El nuevo
+índice está READY y su lectura exacta confirma requestedByUserId ASC, schemaVersion
+ASC, requestedAt DESC y el __name__ DESC implícito de Firestore. Los cinco índices
+previos y toda la configuración de excepciones de campos permanecen iguales.
+El índice se aplica también a colecciones del mismo nombre en producción.
+
+El primer Explain tras READY aún devolvió FAILED_PRECONDITION. Un reintento posterior
+de solo lectura obtuvo HTTP200 y seleccionó expresamente ese compuesto. No hubo
+segunda creación ni ejecución de la consulta (analyze:false en todo momento).
+Valida la disponibilidad del índice para la consulta compartida por Android e iOS;
+no valida sesiones/Rules nativas ni activa la planificación de las apps.
+Huella de configuración renovada: `shift-planning:v1:sha256:3e433596c64942e59ae7464ec44161fcb7bfc726de1a733727cd91552c7b028b`. Renovarla antes de admitir mantenimiento.
+
+Validación mediante lecturas de operación/índice, comparación exacta de recursos
+previos, aceptación del plan de consulta y sintaxis/diff. Sin cambios de código de
+runtime, no se repiten las suites completas/nativas; se conserva la aceptación
+anterior de73 pruebas/build/lint. No se modifican documentos, Rules, Functions,
+Sheets ni FCM. Solo se cierra el requisito del índice: siguen abiertos drenaje y
+ejecuciones antiguas, política de fuentes, autoridad de hoja y acuerdos de ventana.
+La documentación sigue local.
+
+Lectura final de la operación: done:true, sin error; READY y plan de consulta confirmados.
+
+## Decisión actual pendiente — 2026-10-29
+
+El índice ya está resuelto. La [evaluación de 31 escritores](hu084-develop-old-work-boundary.md)
+separa entradas actuales, entregas contenidas y efectos antiguos. Una lectura nueva
+observa 23 rutas de servicio revisadas y 284 versiones históricas RETIRED; no acredita
+terminación de envíos externos. La propuesta [ADR-0025](../decisions/0025-separate-contained-deliveries-from-business-drain.md)
+admitiría entregas expresamente contenidas sin inventar contadores a cero. No relaja
+los controles de efectos anteriores ni autoridad automática. Decisión pendiente;
+esta evaluación no implementa, abre ventana, migra ni modifica servicios compartidos.
+
+## Implementación aceptada de entregas contenidas — 2026-10-29
+
+ADR-0025 está aceptado para implementación/ensayo local e implementado. La selección
+expresa en controles, las ocho rutas y la separación de fuentes/eventos conservan
+observaciones desconocidas/no nulas sin relajar contadores de operaciones antiguas.
+174 pruebas locales y37 de emulador, build/lint completo/lint CJS pasan, sin omitidas.
+Los recibos retenidos siguen rechazando cambios. Véase la [implementación](../decisions/0025-separate-contained-deliveries-from-business-drain.md).
+Siguiente: conciliar efectos antiguos/autoridad automática reales; después fijar
+permisos de la hoja, política de fuentes y acuerdos nuevos de ventana. La admisión
+real sigue cerrada; sin cambios compartidos ni nativos. Bloque sin commit junto
+con el trabajo previo de observaciones.

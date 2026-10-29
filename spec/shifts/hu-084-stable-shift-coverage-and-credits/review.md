@@ -1718,3 +1718,73 @@ and block unreviewed replay. Partial initial authority cannot be overwritten.
 Actual multi-service observation composition, refreshed policy/workbook/cohort and
 participant/window admission remain required; synthetic controls are not live proof.
 No native behavior changed; native validation was not repeated.
+
+
+## Real observation boundary review — 2026-10-29
+
+Delivered `f7ef299a`; continuation remains local. Eight immutable archives and
+initial/final Function configuration match; four actual capture proofs are produced.
+The adapter exposes read ports only, validates fixed selectors before access, rejects
+archive/configuration drift and stale queue observations, and never promotes sampled
+zero or absent metrics to causal drain.73 joint tests and build/lint pass. Live checks
+are read-only and preserve source data. Exact Rules, paused jobs, roster planning
+fields and bounded sheet projections match. Shifts index response is unbound; numeric
+workbook version is now freshly verified as259 before/after six-tab inspection.
+The authorized single invocation returned HTTP200/canApply:false; only OIDC minting
+was retried on403, within the original deadline. Both temporary grants were removed;
+an independent IAM read confirms zero direct bindings and preserved prior policy.
+No token was persisted, and no detailed ACL/owner inventory is inferred from the
+reader response. This follow-up changes evidence/docs only; the73-test gate is reused.
+Window stays NOT_READY,
+with no human no-edit commitment requested and no automatic reopen/apply capability.
+
+## Index and drain evidence review — 2026-10-29
+
+The index authority is now measured from an exhausted database-wide inventory and
+exact resource reads, not inferred from a wrong-scoped list. A real plan-only Explain
+rejects both apps' latest-request query because its declared composite is absent.
+A single-create packet compares the existing five indexes, records intent before
+submission and cannot repeat an uncertain POST; user authorization remains pending.
+The fresh census passes the existing inspector/reconciler with12 accepted canary
+captures and no unmatched capture. Stale zeros on all eight subscriptions and100%
+reviewed traffic on23 services are expressly insufficient for causal-drain admission.
+No source/runtime change; documentation-only validation reuses the prior73-test gate
+and checks diff hygiene. See bilingual queue/window guide for the finite residual.
+
+## Authorized index acceptance — 2026-10-29
+
+Exactly one create POST after explicit authorization and unchanged-baseline check.
+The new index is READY with the declared fields and implicit descending name; five
+old composites and all field overrides match. The initial post-READY plan returned
+FAILED_PRECONDITION; a later read-only Explain returns200 and selects the exact new
+index, with analyze:false and no documents returned. Updated configuration binding
+is retained privately and in the bilingual guide. No full tests rerun for provider
+configuration/evidence only; prior73-test/build/lint acceptance remains unchanged.
+No other deployment or business mutation. Drain and maintenance admission remain open.
+
+## Old-work boundary and proposed contract correction — 2026-10-29
+
+Read-only runtime metadata gives 23 reviewed routes and284 RETIRED historical
+revisions after normalized-ID exclusion of current revisions. It does not establish
+external-call termination. The bilingual table covers exactly all31 current canonical
+writer IDs, not the earlier26-item snapshot. Proposed ADR-0025 separates contained
+transport from business work without coercing unknown/nonzero counts to zero or
+weakening old-effect/production controls. It explicitly requires a source-set versus
+delivery-history distinction before implementation. Accepted ADRs and runtime code
+are unchanged. Documentation-only checks validate membership, local links and diff;
+no new runtime tests claimed. Prior73-test/build/lint evidence remains reusable.
+Policy decision and operational blockers remain open; no maintenance admission.
+
+### ADR-0025 implementation acceptance — 2026-10-29
+
+Maintainer explicitly accepted local implementation/rehearsal. Four control opt-ins
+bind the new evidence alternative into the approved manifest. Eight-route nullable/
+nonzero observations and source/core/history bindings cannot relax old business-work,
+quiet business-effect, owner/admin or production checks. Offline census projection
+preserves append-only captures and legacyUntracked; it never authorizes live entry.
+Held receipt drift still stops progression instead of silently refreshing evidence.
+174 local tests and37 emulator tests pass without skips, plus build/full lint and
+focused CJS lint under Node22.23.4. Initial creation/inverse, late classified versus
+unseen events, retained evidence and lost-ACK restart are covered. No native/shared
+service change. Work remains local/uncommitted. Next resolve real old business effects
+and automated authority before workbook/source-policy/window admission.

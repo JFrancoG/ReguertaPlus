@@ -30,10 +30,14 @@ function observation(value, observedAtMillis = 510) {
     administratorActivity: "none-reported", unresolvedWriteCount: 0,
     reportRevision: "admin-report-1", observedAtMillis};
 }
-function administratorFixture(overrides = {}, {captureControl = false} = {}) {
+function administratorFixture(overrides = {}, {captureControl = false, containedDelivery = false} = {}) {
   const fixture = ownerFixture(overrides);
   const payload = fixture.evidence.payload;
   if (captureControl) require("./develop-capture-control-fixture.cjs").applyCapture(payload, "reguerta-9f27f");
+  if (containedDelivery) {
+    require("./develop-capture-control-fixture.cjs").applyContained(payload);
+    fixture.command.expectedCausalSetDigest = payload.causalDrain.acceptedSetDigest;
+  }
   const technical = controlsDigest(payload.writerControls.filter((item) => item.writerId !== OWNER), MODE);
   const ownerIntent = {...fixture.agreement.payload.intent,
     operations: [{operationId: fixture.command.transitionId, kind: "maintenance-entry", manifestDigest: technical}]};

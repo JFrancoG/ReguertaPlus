@@ -54,7 +54,7 @@ const harness = async (options = {}) => {
   const service = migration.createDevelopShiftMigrationRehearsal({prepared, ...control, failurePersistence: failures,
     nowMillis: options.nowMillis ?? (() => fixture.NOW)});
   services.push(service);
-  const scope = async (inverse = false) => fixture.scopeFor(prepared, await service.inspect(), inverse, options.captureControl);
+  const scope = async (inverse = false) => fixture.scopeFor(prepared, await service.inspect(), inverse, options.captureControl, options.containedDelivery);
   let forwardScope;
   return {prepared, service, control, journal, scope, forward: async () => {
     forwardScope ??= await scope();
@@ -308,4 +308,41 @@ run("SDK restart retains capture evidence and the lost-ack incident, blocking un
   assert.equal(freshControl.events.length, 0);
   assert.equal((await collection("shifts").get()).size, 72);
   assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"), "closed");
+});
+
+run("SDK contained-delivery window initializes and recovers with unknown transport and a late classified duplicate", async () => {
+  const f = await harness({containedDelivery: true}), originals = await saved("shifts", false);
+  const forward = await f.forward();
+  const retained = await f.journal.readExisting({environment: "develop", transitionId: f.prepared.operationId});
+  assert.equal(retained.payload.causalDrain.initialPendingDeliveryCount, null);
+  assert.equal(retained.payload.causalDrain.finalPendingDeliveryCount, 1);
+  assert.deepEqual([retained.payload.causalDrain.containedDelivery.initial.captureRevision,
+    retained.payload.causalDrain.containedDelivery.final.captureRevision], [1, 2]);
+  assert.equal((await collection("shifts").get()).size, 72);
+  await f.service.inverse({scope: await f.scope(true), forwardReadBack: forward});
+  assert.deepEqual(await saved("shifts", false), originals);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"), "closed");
+});
+for (const [name, mutate] of [
+  ["an unclassified late event", p => {p.causalDrain.containedDelivery.final.capturedEventSetDigest = digest("unreviewed");}],
+  ["a prior business invocation", p => {p.causalDrain.finalInFlightWorkCount = 1;}],
+]) run(`SDK contained transport cannot admit ${name}`, async () => {
+  const f = await harness({containedDelivery: true, onPayload: mutate});
+  await assert.rejects(f.forward());await noForwardWrites();
+});
+run("SDK contained evidence and lost-ack incident survive restart without replay", async () => {
+  const f = await harness({containedDelivery: true, onReadBack: async n => {
+    if (n === 2) throw Error("lost contained final acknowledgement");
+  }});
+  const scope = await f.scope();
+  await assert.rejects(f.service.forward({scope}), /lost contained final acknowledgement/);
+  assert.equal((await collection("shifts").get()).size, 72);
+  const retained = await f.journal.readExisting({environment: "develop", transitionId: f.prepared.operationId});
+  assert.equal(retained.payload.causalDrain.initialPendingDeliveryCount, null);
+  const control = fixture.heldControl({captureControl: true, containedDelivery: true});
+  const restarted = migration.createDevelopShiftMigrationRehearsal({prepared: f.prepared, ...control,
+    failurePersistence: barrierRepository(db, () => Timestamp.fromMillis(fixture.NOW)), nowMillis: () => fixture.NOW});
+  services.push(restarted);
+  await assert.rejects(restarted.forward({scope}), /retained barrier failure requires governed inspection/);
+  assert.equal((await collection("shifts").get()).size, 72);
 });

@@ -680,3 +680,79 @@ no deployment, migration, Sheets or FCM is authorized or performed in this block
 ADR-0024 documents the additive control evidence. This completes the preceding
 local integration/rehearsal checkbox; actual shared control-plane composition and
 admission remain open. The new implementation is local and uncommitted.
+
+
+## Real control/source observations and proposed window — 2026-10-29
+
+- [x] Deliver capture integration as `f7ef299a`; local/remote/draft PR heads match.
+- [x] Connect read-only provider ports to the existing eight-function verifier and
+  new capture proof, download/check reviewed immutable archives, then re-read controls.
+- [x] Read actual Eventarc/PubSub/Run bindings and metrics without pull/ACK/replay;
+  preserve UNKNOWN and null causal drain when no series returns.
+- [x] Refresh24 Functions, three PAUSED jobs, exact Rules release/source,183-source
+  census,48-member planning fields (32 eligible), empty coverage/work collections
+  and the four unchanged bounded published-sheet projections.
+- [x] Retain scope-invalid shifts index response as UNBOUND; do not infer readiness.
+- [x] Prepare one private-inspector invocation plus exact ten-minute OIDC grant/
+  cleanup; obtain explicit authorization before the scoped permission mutation.
+- [x] Prepare a NOT_READY window with explicit stop conditions, no start time and
+  no premature no-edit promise. Preserve initial policy/cursors and higher-epoch recovery.
+- [x] Pass Functions build/lint, CJS lint and73 joint observation/preparation tests.
+- [x] After explicit authorization, invoke the private inspector once: HTTP200,
+  six tabs, version259 before/after and canApply:false. Retry only OIDC mint403
+  within the original deadline; remove both grants and independently verify zero
+  direct bindings/preserved prior policy. Detailed ACL/owner inventory stays unknown.
+- [ ] Resolve source-specific causal drain/prior effects and scope-bound index
+  authority; bind actual source policy before requesting concrete window commitments.
+
+This continues the previous trusted-port composition item for measured capture
+controls; it does not claim a complete held multi-service barrier. New work is local.
+
+## Index authority and finite drain diagnosis — 2026-10-29
+
+- [x] Bind complete database composite/field inventory and exact shifts inheritance;
+  resolve the earlier unbound index-list response without editing indexes.
+- [x] Verify the missing declared latest-request index with develop plan-only Explain.
+- [x] Prepare exactly one index create, preserve all five existing indexes and ask
+  for explicit shared-project authorization; no deploy performed yet.
+- [x] Reconcile fresh183-source/12-probe/16-delivery census with retained receipts.
+- [x] Read eight subscriptions over24 hours and23 service traffic/revision inventories;
+  retain stale/unknown delivery and invocation status instead of synthesizing zeros.
+- [x] After explicit authorization, create exactly one index: READY, five old indexes
+  and field overrides unchanged; develop Explain returns200 using the new index.
+  Refresh the index-configuration binding; retain the initial propagation failure.
+- [ ] Establish writer-specific old-work terminality or effective isolation; resolve
+  the sampled-telemetry/live-drain contract gap before any maintenance admission.
+
+No new native/backend runtime code or provider mutation; changes remain local.
+
+Authorized index rollout changes only the shared index configuration. No business
+write or other deployment; documentation remains local and admission stays false.
+
+## Finite old-work assessment and proposed evidence correction — 2026-10-29
+
+- [x] Account for all31 canonical cooperative writers (25 intake/six activation)
+  and separate present routes, prior operations and external authority.
+- [x] Read23 runtime/revision inventories: reviewed traffic,284 retired historical
+  revisions; retain the explicit absence of invocation/external-terminal proof.
+- [x] Prepare bilingual Proposed ADR-0025 without changing accepted ADRs/verifiers.
+- [x] Check exact table membership, bilingual local links and diff hygiene.
+- [x] Maintainer accepts the contained-delivery evidence alternative on2026-10-29.
+- [x] Implement and rehearse it as one grouped change, retaining old
+  effects/unknown authority as independent blockers and production strictness.
+
+No provider mutation, migration, deployment or commit is included in this assessment.
+
+### ADR-0025 implementation acceptance — 2026-10-29
+
+Maintainer explicitly accepted local implementation/rehearsal. Four control opt-ins
+bind the new evidence alternative into the approved manifest. Eight-route nullable/
+nonzero observations and source/core/history bindings cannot relax old business-work,
+quiet business-effect, owner/admin or production checks. Offline census projection
+preserves append-only captures and legacyUntracked; it never authorizes live entry.
+Held receipt drift still stops progression instead of silently refreshing evidence.
+174 local tests and37 emulator tests pass without skips, plus build/full lint and
+focused CJS lint under Node22.23.4. Initial creation/inverse, late classified versus
+unseen events, retained evidence and lost-ACK restart are covered. No native/shared
+service change. Work remains local/uncommitted. Next resolve real old business effects
+and automated authority before workbook/source-policy/window admission.
