@@ -419,3 +419,55 @@ Playground y el mismo token devolvió401 UNAUTHENTICATED/invalid_token en el mis
 del padre. Se vaciaron código/tokens y se reinició Playground. Pasan la comprobación
 del manifiesto de dos objetivos y el diff documental. No hace falta acción del usuario
 hasta autorizar por separado el cambio real de roles y su recuperación.
+
+### Bloqueo por lectores aplicado y probado en develop — 2026-10-29
+
+La preparación de permisos exactos está entregada en `25ed6f63`. El mantenedor
+autorizó por separado los dos cambios exclusivos de develop y su recuperación
+condicionada, y después la prueba acotada de identidades. El propietario cambió
+primero Compute y después Firebase Admin SDK desde Compartir. Las ACL completas
+actuales de la API coincidían con los originales antes del primer cambio y con
+el estado intermedio esperado de un lector/un editor antes del segundo. No se
+recrearon permisos; se conservaron propietario, inspector y carpeta padre.
+
+Ambas identidades superaron el control positivo aún como editoras: el mismo
+`spreadsheets.batchUpdate` reenvió el literal existente **Fecha** a A1 de la hoja
+de reparto actual, con máscara limitada a `userEnteredValue`. Tras los cambios,
+los dos tokens originales aún válidos mantuvieron GET200, mostraron
+`canEdit:false` y recibieron403 PERMISSION_DENIED para ese mismo lote válido.
+Son negativas de escritura autenticadas, no credenciales caducadas ni peticiones
+incorrectas. Los seis rangos A1:Z200, con742 valores poblados, coinciden antes/después,
+incluidas fechas y orden publicados. Las escrituras del mismo valor y los cambios de
+ACL avanzan metadatos Drive: no afirmar modifiedTime/version o historial intactos.
+
+La lectura final desde el propietario confirma un propietario y tres lectores en
+la misma hoja; la carpeta conserva solo al propietario. Enumerar la ACL completa se deniega a la cuenta de servicio
+tras pasar a lector; la comprobación final del propietario aporta las cuatro entradas
+normalizadas, no nuevos campos de herencia crudos. Las ACL previas completas y las
+acciones dirigidas de la interfaz conservan la trazabilidad. No hizo falta recuperar;
+mantener ambas cuentas como lectoras. La recuperación se limita a sus dos roles writer
+originales y exige nueva comprobación de cambios ajenos.
+
+El flujo IAM autorizado aparte usó concesiones condicionales de
+`roles/iam.workloadIdentityUser` sobre cada cuenta, todas sujetas al límite original
+de diez minutos. La propagación IAM provocó intentos denegados y un intento incompleto
+con dos cuentas; cada intento retiró sus concesiones exactas. Se emitieron tres tokens
+Drive de cinco minutos en total (dos Compute, uno SDK); el anterior se descartó de
+memoria, sin guardar credenciales. Las concesiones del par exitoso se retiraron antes
+de cambiar la hoja, preservando las demás entradas. El `testIamPermissions` posterior
+no devuelve getAccessToken para ninguna cuenta. Sin claves, concesiones de proyecto,
+lecturas/escrituras de producción, cambios de Functions ni envíos FCM.
+
+Evidencia privada: `2026-10-29-develop-reader-fence` conserva manifiestos/ACL exactas,
+capturas de742 valores, resultados positivos/negativos, retirada de concesiones,
+metadatos sin credenciales y hashes de fuentes. Sin cambios de código/apps; las
+comprobaciones operativas y documentales sustituyen builds ajenos a este alcance.
+Se prueban nuevas escrituras bajo esas dos identidades, no la terminación de llamadas
+externas ya enviadas, todos los escritores OAuth del propietario ni la admisión del
+mantenimiento. Mantener controles de operaciones antiguas/fuentes/ventana y NOT_READY.
+
+Limpieza final de credenciales: ambos tokens exitosos caducaron y el GET de la misma
+hoja devolvió401 UNAUTHENTICATED para cada uno. Se descartaron y se cerró el proceso
+local; los metadatos del token anterior indican caducidad previa. Las dos políticas
+vacías originales están restauradas. Pasan las comprobaciones de evidencia operativa
+y diff bilingüe; este seguimiento sigue local tras `25ed6f63`.

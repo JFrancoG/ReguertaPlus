@@ -653,4 +653,5 @@ local; maintenance NOT_READY. See bilingual develop-writer-controls guide.
 
 - [x] Deliver writer-authority review (`048497d2`); acquire exact file/parent ACL records through explicitly authorized metadata-only OAuth reads. Two service writers are direct grants; preserve owner inheritance and inspector reader.
 - [x] Prepare exact two-role demotion/recovery requests, sequential whole-ACL checks and unknown/partial-result handling; verify private manifest and revoke temporary access (original token denied401, no refresh token). New evidence/documentation remains local.
-- [ ] Separately authorize/apply the develop-only writer-to-reader changes and recovery, then demonstrate effective enforcement before maintenance admission. Preparation is not an applied fence; keep old-work/source/window gates and NOT_READY.
+- [x] Apply the separately authorized develop-only writer-to-reader changes. Both identities pass positive batch200 before and read200/canEdit=false/write403 after;742 values unchanged. Temporary account-scoped IAM grants removed; no recovery needed. New operational evidence remains local after `25ed6f63`.
+- [ ] Bind the observed two-account Sheets fence and completed credential cleanup to fresh old-work/source/owner/admin-window evidence before maintenance admission; keep NOT_READY until that integration is proven.

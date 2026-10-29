@@ -1866,3 +1866,24 @@ native change or parity gap. See bilingual develop writer-controls guides.
 Cleanup: temporary Playground connection removed; original session token denied401
 on the same parent request, no refresh token issued, credential fields cleared.
 Exact two-target manifest validation and bilingual diff checks pass.
+
+### Develop service writers demoted and effective denial observed — 2026-10-29
+
+Permission preparation delivered as `25ed6f63`. Authorized owner UI changes demote
+exactly the two direct service writers to reader, with exact pre/intermediate ACL
+comparison and owner-side final four-entry role readback. Both same-token controls
+move from valid identical-header batch200 to read200/canEdit=false/write403;742 values
+across six ranges remain equal. Drive metadata advances; no full-history claim.
+Raw ACL enumeration becomes forbidden to the readers; final owner metadata is
+normalized, preserving the stated observation limit. No recovery needed.
+Account-scoped temporary IAM grants are removed before role changes; all attempts
+retain the original expiry. Propagation retries issued three short Drive tokens
+(two Compute, one SDK), with no stored credentials; no current getAccessToken grant.
+Private evidence and bilingual guide capture the exact scope. No app change or
+parity gap; provider/document checks only. No production data, deployment or push.
+Maintenance stays NOT_READY pending integration with old-work/source/window evidence.
+
+Final token cleanup verified: both original successful tokens now return401
+UNAUTHENTICATED after expiry. Earlier token expiry precedes them; credentials are
+discarded and the owned probe process closed. Original empty account policies
+restored, evidence assertions and documentation diff pass. New docs remain local.

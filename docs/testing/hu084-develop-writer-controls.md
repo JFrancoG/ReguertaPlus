@@ -391,3 +391,53 @@ was removed, and the same session token returned401 UNAUTHENTICATED/invalid_toke
 the same parent GET. Code/token fields were cleared and Playground reset. The exact
 two-target manifest and documentation diff checks pass. No user action is required
 until separately authorizing the actual role changes and their recovery.
+
+### Develop reader fence applied and exercised — 2026-10-29
+
+Exact-permission preparation is delivered in `25ed6f63`. The maintainer separately
+authorized the two develop-only role changes and conditional recovery, then the
+bounded identity probe. The owner changed Compute first and Firebase Admin SDK
+second through Sharing. Fresh complete API ACLs matched the saved records before
+the first change and the expected one-reader/one-writer intermediate state before
+the second. No permission was recreated; owner, inspector and parent were preserved.
+
+Both identities passed a positive Sheets control while still writers: the same
+`spreadsheets.batchUpdate` resubmitted the existing literal **Fecha** to A1 of the
+current delivery sheet, with only `userEnteredValue` in its field mask. After the
+demotions, both original still-valid tokens retained file GET200, reported
+`canEdit:false` and received403 PERMISSION_DENIED for that identical valid batch.
+These are authenticated write denials, not expired credentials or malformed probes.
+Six named A1:Z200 ranges, containing742 populated values, match before/after, including
+the published dates/order. The accepted same-value writes and ACL updates advance
+Drive metadata; do not claim an unchanged modifiedTime/version or whole-file history.
+
+Owner-side final metadata confirms one owner and three readers on the same file;
+the parent retains only its owner. Full raw ACL enumeration is denied after demotion under the service reader;
+final owner readback supplies the normalized four entries, not fresh raw inheritance
+fields. The earlier complete ACLs and targeted UI actions retain the identity trail.
+No recovery was required; leave both service accounts as readers. Recovery remains
+limited to these two captured writer roles after a fresh drift check.
+
+The separately authorized IAM workflow used account-scoped conditional
+`roles/iam.workloadIdentityUser` grants, all bounded by the original ten-minute
+deadline. IAM propagation caused denied mint attempts and one incomplete two-account
+attempt; every attempt removed its exact grants. Three five-minute Drive-only tokens
+were issued in total (two Compute, one SDK); the earlier token was discarded in
+memory, without storing credentials. The successful pair's grants were removed
+before the Sheet role changes, preserving unrelated bindings. Subsequent
+`testIamPermissions` contains no getAccessToken permission for either account. No
+key, project-level grant, production read/write, Function change or FCM send occurred.
+
+Private evidence: `2026-10-29-develop-reader-fence` retains exact ACL/role manifests,
+742-value snapshots, positive/negative provider results, conditional-grant cleanup,
+credential-free token metadata and source hashes. Source/apps are unchanged;
+operational provider checks and documentation checks replace unrelated builds.
+This verifies new writes under these two identities, not termination of an already
+submitted external call, every owner/OAuth writer, or maintenance admission. Keep
+old-work/source/window gates and maintenance/migration NOT_READY.
+
+Final credential cleanup: both successful tokens expired and the same file GET
+returned401 UNAUTHENTICATED for each. They were discarded and the local probe
+process closed; earlier token metadata has an earlier expiry. The two original
+empty account policies are restored. Operational evidence and bilingual diff checks
+pass; this follow-up remains local after `25ed6f63`.
