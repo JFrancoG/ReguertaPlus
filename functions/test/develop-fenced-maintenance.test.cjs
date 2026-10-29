@@ -1,7 +1,9 @@
 "use strict";
 const {test} = require("node:test");
 const assert = require("node:assert/strict");
-const {prepareDevelopFencedMaintenance: prepare} = require("../scripts/prepare-develop-fenced-maintenance.cjs");
+const {prepareDevelopFencedMaintenance: prepare, inspectDevelopRetiredRuntimes: inspectRuntimes,
+  inspectDevelopOwnerTransfer: inspectTransfer} =
+  require("../scripts/prepare-develop-fenced-maintenance.cjs");
 const {fixture, doc, LATER} = require("./develop-legacy-census-fixture.cjs");
 const {parseShiftPlanningMaintenanceBarrierEvidenceEnvelope: parseBarrier} = require("../lib/shift-planning-intake-barrier.js");
 const FILE = "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A", PARENT = "0ADG4r1X1_oDPUk9PVA";
@@ -77,3 +79,89 @@ for (const [name, change] of [
   ["old census", d => {d.currentCensus.readTime = time(100);}],
   ["future readback", d => {d.ownerReadback.observedAt = time(301);}],
 ]) test(`rejects ${name}`, () => {const data = input();change(data);assert.throws(() => prepare(data));});
+
+function runtimes() {
+  const root = "projects/reguerta-9f27f/locations/europe-west1/", name = root + "services/onshiftwritten";
+  const fn = {name: root + "functions/onShiftWritten", serviceConfig: {service: name, revision: "onshiftwritten-00002-new"}};
+  const latest = name + "/revisions/" + fn.serviceConfig.revision;
+  const service = {name, latestReadyRevision: latest, latestCreatedRevision: latest,
+    generation: "2", observedGeneration: "2", terminalCondition: {state: "CONDITION_SUCCEEDED"},
+    traffic: [{type: "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST", percent: 100}],
+    trafficStatuses: [{type: "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST", revision: fn.serviceConfig.revision, percent: 100}]};
+  const old = {name: name + "/revisions/onshiftwritten-00001-old", generation: "1", observedGeneration: "1",
+    conditions: [{type: "Active", state: "CONDITION_FAILED", revisionReason: "RETIRED", lastTransitionTime: time(100)}]};
+  return {reviewedFunctions: [fn], observation: {projectId: "reguerta-9f27f", readOnly: true,
+    startedAt: time(200), completedAt: time(210), services: [{functionName: fn.name, service,
+      serviceAfter: structuredClone(service), revisions: [{name: latest}, old]}]}};
+}
+test("provider retirement closes old container execution but not submitted effects or other writers", () => {
+  const data = runtimes(), before = structuredClone(data), result = inspectRuntimes(data);
+  assert.equal(result.retiredRevisionCount, 1);assert.equal(result.serviceCount, 1);
+  assert.equal(result.oldContainerExecution, "provider-infrastructure-retired");
+  assert.equal(result.submittedExternalEffects, "not-established");assert.equal(result.otherAutomaticWriters, "not-established");
+  assert.equal(result.canEnterMaintenance, false);assert.equal(result.canApply, false);assert.deepEqual(data, before);
+  const combined = prepare({...input(), retiredRuntimes: data});
+  assert.deepEqual(combined.oldWork.runtimeIsolation, result);
+  assert.equal(combined.oldWork.inFlightWorkCount, null);
+  assert.ok(combined.blockers.includes("old-business-effects-not-closed"));
+  assert.throws(() => parseBarrier(combined));
+});
+for (const [name, change] of [
+  ["unreviewed function", d => {d.reviewedFunctions[0].name += "Other";}],
+  ["wrong project", d => {d.observation.projectId = "production-project";}],
+  ["missing service", d => {d.observation.services.pop();}],
+  ["duplicated service", d => {d.observation.services.push(d.observation.services[0]);}],
+  ["service changed during read", d => {d.observation.services[0].serviceAfter.generation = "3";}],
+  ["tagged old revision", d => {for (const s of [d.observation.services[0].service, d.observation.services[0].serviceAfter]) s.trafficStatuses.push({tag: "old", percent: 0, revision: "onshiftwritten-00001-old"});}],
+  ["missing latest revision", d => {d.observation.services[0].revisions.shift();}],
+  ["duplicate revision", d => {d.observation.services[0].revisions.push(d.observation.services[0].revisions[1]);}],
+  ["timeout instead of retirement", d => {d.observation.services[0].revisions[1].conditions[0].revisionReason = "HEALTH_CHECK_CONTAINER_ERROR";}],
+  ["active old revision", d => {d.observation.services[0].revisions[1].conditions[0].state = "CONDITION_SUCCEEDED";}],
+  ["revision still reconciling", d => {d.observation.services[0].revisions[1].reconciling = true;}],
+  ["unobserved revision generation", d => {d.observation.services[0].revisions[1].observedGeneration = "0";}],
+  ["missing generations", d => {delete d.observation.services[0].revisions[1].generation;delete d.observation.services[0].revisions[1].observedGeneration;}],
+  ["future retirement", d => {d.observation.services[0].revisions[1].conditions[0].lastTransitionTime = time(220);}],
+]) test(`runtime isolation rejects ${name}`, () => {const data = runtimes();change(data);assert.throws(() => inspectRuntimes(data));});
+
+function transfer() {
+  const request = {spreadsheet_id: FILE, requests: [{updateCells: {
+    range: {sheetId: 673721152, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1},
+    rows: [{values: [{userEnteredValue: {stringValue: "Fecha"}}]}], fields: "userEnteredValue",
+  }}]};
+  const values = {spreadsheetId: FILE, sheets: [673721152, 300742320, 769128650, 1735509106, 1770956648, 448800119]
+    .map(sheetId => ({properties: {sheetId}, data: [{rowData: [{values: [{userEnteredValue: {stringValue: "Fecha"}}]}]}]}))};
+  return {fileId: FILE, authorized: true, connectorAccount: "drpuerk@gmail.com", completedAt: time(290),
+    sharing: {fileId: FILE, source: "google-sharing-ui", generalAccess: "restricted", observedAt: time(280),
+      permissions: [{type: "user", emailAddress: "testplusprojects@gmail.com", role: "owner"},
+        ...input().ownerReadback.file.permissions.map(p => ({...p, role: "reader"}))]},
+    positive: {at: time(250), request, result: {isError: false, structuredContent: {spreadsheetId: FILE}}},
+    negative: {at: time(270), request: structuredClone(request), result: {isError: true,
+      structuredContent: {error_code: "FORBIDDEN", error: "HTTPError: 403 PERMISSION_DENIED"}}},
+    ranges: input().fence.valuesBefore.valueRanges.map(row => row.range), valuesBefore: values, valuesAfter: structuredClone(values)};
+}
+test("accepted transfer binds the current owner without fabricating parent authority or replacing history", () => {
+  const data = transfer(), original = structuredClone(data), report = inspectTransfer(data);
+  assert.equal(report.owner, "testplusprojects@gmail.com");assert.equal(report.formerOwnerRole, "reader");
+  assert.equal(report.typedValueCount, 6);assert.equal(report.parentAuthority, "not-observed");
+  assert.equal(report.connectorWrite, "permission-denied");assert.equal(report.connectorRead, "preserved");
+  assert.deepEqual(data, original);
+  const result = prepare({...input(), ownerTransfer: data});
+  assert.deepEqual(result.currentOwnership, report);assert.equal(result.status, "NOT_READY");
+  assert.equal(result.oldWork.legacyUntracked, true);assert.equal(result.oldWork.inFlightWorkCount, null);
+  assert.ok(result.blockers.includes("fresh-owner-parent-authority-required"));
+  assert.equal(result.fence.ownerRolesObservedAt, time(240));assert.equal(result.canApply, false);
+  assert.throws(() => parseBarrier(result));
+});
+for (const [name, change] of [
+  ["unaccepted owner", d => {d.sharing.permissions[0].role = "writer";}],
+  ["former owner still editor", d => {d.sharing.permissions[1].role = "writer";}],
+  ["extra writer", d => {d.sharing.permissions.push({type: "user", emailAddress: "other", role: "writer"});}],
+  ["public sharing", d => {d.sharing.generalAccess = "anyone";}],
+  ["different negative request", d => {d.negative.request.requests[0].updateCells.range.sheetId = 1;}],
+  ["failed positive probe", d => {d.positive.result.isError = true;}],
+  ["expired token", d => {d.negative.result.structuredContent = {error_code: "UNAUTHORIZED", error: "401 UNAUTHENTICATED"};}],
+  ["unrelated forbidden error", d => {d.negative.result.structuredContent.error = "403 QUOTA_EXCEEDED";}],
+  ["changed values", d => {d.valuesAfter.sheets[0].data[0].rowData[0].values[0].userEnteredValue.stringValue = "Other";}],
+  ["missing tab", d => {d.valuesBefore.sheets.pop();d.valuesAfter.sheets.pop();}],
+  ["sharing before denial", d => {d.sharing.observedAt = time(260);}],
+]) test(`owner isolation rejects ${name}`, () => {const data = transfer();change(data);assert.throws(() => inspectTransfer(data));});

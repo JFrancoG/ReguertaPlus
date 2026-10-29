@@ -310,7 +310,7 @@ mutation. No production workbook permission was read or changed.
   europe-west1 match those Functions; no additional service or Run Job is observed
   there. All three Scheduler jobs remain PAUSED.
 - Cloud Build trigger lists are empty in global/europe-west1; App Engine's service
-  list is empty. Compute instance enumeration returns403 SERVICE_DISABLED, not
+  list is empty. Compute instance enumeration returns 403 SERVICE_DISABLED, not
   an empty instance list. Its API was not enabled.
 - USER_MANAGED key metadata is empty for the two workbook writers, the prepared
   shift runtime and default App Engine account. No key material was fetched, token
@@ -491,3 +491,102 @@ the repository ESLint command covers JS/TS, not CJS. No deploy, IAM grant, busin
 write, Sheets write, FCM or production-data access in this integration step.
 Native apps and their previous acceptance are unchanged. New code/docs are local
 and uncommitted after `e6d02cc2`; maintenance and migration remain closed.
+
+
+### Old runtime isolation and remaining owner OAuth — 2026-10-29
+
+The preceding preparation is delivered/pushed as `9f01bae8`. New read-only provider
+inspection enumerates all revisions of the24 reviewed Cloud Run services. All288
+non-current revisions report `Active/CONDITION_FAILED/RETIRED`; each service routes
+100% to its reviewed current revision with no tags. Service generations, traffic
+and latest-created/latest-ready bindings are identical before and after each bounded
+revision enumeration. No revision or service was deleted, stopped or deployed.
+
+The existing preparation now accepts this separate observation through
+`inspectDevelopRetiredRuntimes`. It rejects missing/duplicate services or revisions,
+unreviewed destinations, tagged routes, rollout drift, unobserved generations,
+reconciling revisions and generic failures/timeouts substituted for retirement.
+The real provider packet passes. This closes execution in those retired containers;
+it does not prove the outcome of requests already submitted to Sheets/FCM, revoke
+issued credentials, or close other automatic writers. Work counts remain unknown,
+legacyUntracked stays true, and the preparation cannot admit maintenance.
+Google documents RETIRED as retirement of the infrastructure for that revision:
+[Cloud Run revision lifecycle](https://docs.cloud.google.com/run/docs/managing/revisions).
+A Sheets timeout after180 seconds is not an acknowledged successful/rolled-back
+operation and is not used as a drain receipt:
+[Sheets limits](https://developers.google.com/workspace/sheets/api/limits).
+
+Owner-side Google Account UI reveals two relevant Drive connections: OpenAI has
+write access to all Sheets, and Google AI Studio shows Drive read/modify/create/delete.
+The OpenAI permission detail explicitly includes all Sheets. No OAuth Playground
+connection remains in the visible full connection list. These are observed grants, not evidence that the
+apps are currently writing or that the UI inventories every issued token. Removing
+all OpenAI access there would also affect Gmail/Calendar and other unrelated use.
+No global access was revoked. The previously supplied test account is signed in and
+its Google Account connections page says there are no linked applications.
+
+#### Prepared file-only isolation, pending explicit authorization
+
+Recommended: transfer only the existing develop workbook to the test account;
+then make the original owner a reader. Preserve the same file ID/URL, data, dates,
+order, three service readers and restricted general sharing. Ensure the old owner's
+parent cannot retain inherited write access, moving this file only into the new
+owner's My Drive if necessary. This makes the old owner's OAuth clients subject
+to that reader permission without disconnecting them from unrelated files/services.
+The human-owner maintenance agreement remains necessary under ADR-0021.
+
+Consumer transfers require the recipient's acceptance; the previous owner initially
+becomes an editor and must explicitly be changed to reader. Transfer alone is not
+isolation. See [Google ownership transfer](https://developers.google.com/workspace/drive/api/guides/transfer-file).
+The private plan identifies both accounts, exact file and prior roles. It covers
+Google's invitation/acceptance notifications; a positive same-value Fecha/A1 probe
+through the existing owner connector before transfer; the identical negative probe
+and retained reads afterward; and six-range value comparison. No new OAuth/IAM
+permission is planned. Stop on drift or incomplete acceptance; do not automatically
+restore writer roles. Cancellation before acceptance differs from recovery after
+acceptance, which requires a reverse transfer and acceptance by the original owner.
+
+Do not change the current preparation's hardcoded owner/parent or label the new
+identity accepted before authorization and verified transfer. Bind new observed
+owner/parent evidence afterward. This operation still does not open maintenance,
+apply migration, write production, or settle earlier external effects. The remaining
+server/delegation authority and historical effects retain their independent gates.
+
+Private evidence: `2026-10-29-old-call-access-closure` includes bracketed revisions,
+validated isolation result and the proposed ownership/recovery manifest. Functions
+build/lint and129 focused tests pass (15 added runtime-isolation cases). No native
+change or parity gap. New source/docs are local after `9f01bae8`.
+
+
+### Authorized owner transfer and connector fence — 2026-10-29
+
+The user authorized the exact file-only plan above. Google delivered the transfer
+invitation, the signed-in test account accepted it, and the former owner was then
+changed from editor to reader. The sharing dialog now shows the test account as
+owner, the former owner and all three service accounts as readers, and restricted
+general access. The original file ID/link is unchanged. No other file, global OAuth
+connection, IAM grant, deployment or production data was changed.
+
+The existing connector successfully sent the same literal `Fecha` to A1 before the
+transfer. The identical batchUpdate after demotion returns HTTP 403 PERMISSION_DENIED;
+reading all six bounded ranges still succeeds. All742 typed values, dates and order
+are identical before/after. No parent move was needed for this effective denial.
+As a reader, the connector no longer exposes file permissions or parent IDs: null
+fields are **unavailable metadata**, not proof of an empty parent ACL. New-owner
+parent authority/version evidence remains required for maintenance admission.
+
+`inspectDevelopOwnerTransfer` binds the observed sharing UI, exact positive/negative
+requests and six-range comparison separately from historical owner/parent API
+readbacks. The preparation preserves both without renewing old censuses or runtime
+observations. It cannot admit maintenance, replay notices, count unknown work as
+zero or settle previously submitted effects. The actual packet passes with 742
+values; 141 focused tests (12 added transfer cases), Functions build/lint and diff
+checks pass. No native changes or parity gap. New source/docs remain uncommitted
+after `9f01bae8`; this approval did not request another commit.
+
+Evidence: private `2026-10-29-develop-owner-transfer`, including screenshot/AX roles,
+original connector receipts, exact values and the combined NOT_READY preparation.
+Recovery after acceptance requires reverse transfer and the former owner's acceptance;
+it was not performed. Next finish remaining server/delegation authority and prior
+external-effect reconciliation, then obtain coherent current workbook/control and
+new-owner/admin window evidence. HU-084/HU-085 remain open and PR #278 remains draft.

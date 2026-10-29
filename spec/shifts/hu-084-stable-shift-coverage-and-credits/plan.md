@@ -2796,3 +2796,35 @@ uncommitted. Next resolve prior external-call completion/isolation and complete 
 writer authority, then fresh consistent workbook/control evidence and owner/admin window
 agreements. Do not reinterpret retained historical notices as pending sends or revisit
 expired logs. Maintenance/migration remain NOT_READY; see bilingual writer-controls guide.
+
+
+### Old containers retired; owner isolation prepared — 2026-10-29
+
+Previous preparation delivered as `9f01bae8`. Provider-bound inspection confirms288
+old revisions across24 services are RETIRED, current traffic100% with no tags and
+stable service readbacks. Added15 tests;129 focused tests/build/lint pass. This closes
+old-container execution only; previously submitted effects and other writers remain
+independent. Owner OAuth grants include broad Sheets/Drive write access; the known
+test account's Google UI reports no linked apps. Prepared transfer of only the same
+develop file to that account, demotion of the former owner to reader, parent-inheritance
+check, connector probe/value comparison and conditional reverse-transfer recovery.
+No ownership/permission change authorized or performed yet. New code/docs local;
+maintenance/migration NOT_READY. See bilingual writer-controls guide for scope.
+
+
+### Owner isolation executed with authorization — 2026-10-29
+
+The exact develop workbook transfer was accepted by the test account; the former
+owner is now a reader alongside the three service readers, with restricted sharing.
+Same-value Fecha/A1 connector write succeeded before and returns 403 PERMISSION_DENIED
+after; reads remain available and all 742 typed values across six ranges are unchanged.
+No move was necessary for the observed denial. Parent/permission metadata is now
+unavailable to the reader connector; do not fabricate a parent ACL or refresh the
+historical owner API record. The preparation binds current UI/probe evidence separately.
+141 focused tests/build/lint pass; actual combined evidence remains NOT_READY with
+unknown prior effects/other writers and explicit current-parent/version/control gates.
+No new OAuth/IAM, global revocation, deployment, FCM or production change. No native
+parity gap. New changes remain local after `9f01bae8`. See bilingual writer-controls guide
+and private `2026-10-29-develop-owner-transfer` evidence. Next complete remaining automatic
+authority/prior effects before a bounded agreed window; HU-084/HU-085 and draft PR #278
+remain open. Recovery would require reverse transfer and acceptance.

@@ -436,7 +436,7 @@ de reparto actual, con máscara limitada a `userEnteredValue`. Tras los cambios,
 los dos tokens originales aún válidos mantuvieron GET200, mostraron
 `canEdit:false` y recibieron403 PERMISSION_DENIED para ese mismo lote válido.
 Son negativas de escritura autenticadas, no credenciales caducadas ni peticiones
-incorrectas. Los seis rangos A1:Z200, con742 valores poblados, coinciden antes/después,
+incorrectas. Los seis rangos A1:Z200, con 742 valores poblados, coinciden antes/después,
 incluidas fechas y orden publicados. Las escrituras del mismo valor y los cambios de
 ACL avanzan metadatos Drive: no afirmar modifiedTime/version o historial intactos.
 
@@ -490,7 +490,7 @@ ni declaración de drenaje. La barrera de ejecución no lo acepta como evidencia
 Lecturas posteriores al bloqueo: las24 configuraciones de Functions coinciden con
 la referencia revisada tras actualizar recordatorios; los tres jobs siguen PAUSED.
 Se conservan183 fuentes (62 turnos,4 calendarios,117 avisos),12 eventos y16 entregas.
-Las cinco rutas de autoridad inicial siguen ausentes. Los742 valores tipados de
+Las cinco rutas de autoridad inicial siguen ausentes. Los 742 valores tipados de
 los seis rangos coinciden con la conciliación anterior; no se alteraron fechas ni
 orden. Los permisos normalizados siguen mostrando las dos cuentas y el inspector
 como lectores y al mismo propietario; la carpeta solo muestra al propietario.
@@ -522,3 +522,102 @@ el ESLint del repositorio cubre JS/TS, no CJS. Esta integración no despliega, c
 IAM, escribe datos/Sheets, envía FCM ni accede a datos de producción. Ambas apps y
 su aceptación previa siguen iguales. Código/docs nuevos locales sin commit después
 de `e6d02cc2`; mantenimiento y migración siguen cerrados.
+
+
+### Aislamiento de ejecuciones antiguas y OAuth del propietario — 2026-10-29
+
+La preparación anterior está commiteada/pusheada en `9f01bae8`. La inspección de
+solo lectura enumera las revisiones de los24 servicios Cloud Run revisados: las288
+anteriores indican `Active/CONDITION_FAILED/RETIRED`. Cada servicio dirige el100%
+a la revisión actual revisada, sin etiquetas de tráfico. Generaciones, tráfico y
+revisiones creadas/listas coinciden antes y después de cada enumeración acotada.
+No se ha eliminado, detenido ni desplegado ninguna revisión o servicio.
+
+La preparación existente incorpora `inspectDevelopRetiredRuntimes`: rechaza
+servicios/revisiones ausentes o duplicados, destinos no revisados, rutas etiquetadas,
+cambios durante la lectura, generaciones no observadas, revisiones reconciliándose
+y errores genéricos/timeouts utilizados como si fueran retirada. El paquete real
+pasa. Esto cierra la ejecución en esos contenedores retirados; no prueba el resultado
+de peticiones ya enviadas a Sheets/FCM, revoca credenciales ni cierra otros escritores.
+Los contadores siguen desconocidos, legacyUntracked permanece true y no se admite
+mantenimiento. Google define RETIRED como infraestructura retirada para esa revisión:
+[ciclo de revisiones](https://docs.cloud.google.com/run/docs/managing/revisions).
+Un timeout de Sheets a los180 segundos no es un recibo de éxito/reversión y no se
+usa como prueba de drenaje: [límites de Sheets](https://developers.google.com/workspace/sheets/api/limits).
+
+La interfaz de la cuenta propietaria muestra dos conexiones relevantes de Drive:
+OpenAI puede escribir todas las Sheets; Google AI Studio puede ver/modificar/crear/
+eliminar archivos de Drive. El detalle de OpenAI incluye explícitamente todas las Sheets. OAuth
+Playground ya no aparece en la lista completa visible. Son permisos observados,
+no actividad de escritura demostrada ni un inventario universal de tokens. Eliminar
+todo el acceso de OpenAI también afectaría Gmail/Calendar y usos ajenos a develop.
+No se revocó nada. La cuenta de pruebas proporcionada anteriormente está conectada
+y su página de conexiones indica que no tiene aplicaciones vinculadas.
+
+#### Aislamiento solo del archivo, preparado y pendiente de autorización
+
+Recomendación: transferir únicamente la hoja de develop existente a la cuenta de
+pruebas y después dejar a su anterior propietario como lector. Conservar ID/enlace,
+datos, fechas, orden, tres lectores de servicio y acceso general restringido.
+Comprobar que la carpeta anterior no mantenga escritura heredada; si es necesario,
+mover solo este archivo a Mi unidad del nuevo propietario. Los clientes OAuth de
+la cuenta anterior quedarían sujetos a su permiso de lector, sin desconectarlos de
+otros archivos/servicios. Sigue siendo necesario el acuerdo humano de ADR-0021.
+
+Entre cuentas personales el destinatario debe aceptar. El propietario anterior
+queda inicialmente como editor: hay que cambiarlo explícitamente a lector; la
+transferencia por sí sola no aísla. [Contrato de Google](https://developers.google.com/workspace/drive/api/guides/transfer-file).
+El plan privado fija las cuentas, archivo y permisos originales. Incluye los avisos
+de invitación/aceptación de Google; una prueba positiva que reenvía el mismo Fecha/A1
+mediante el conector actual antes del cambio; su negativa idéntica y lectura posterior;
+y comparación de los seis rangos. No se prevé nuevo OAuth/IAM. Parar ante cambios o
+aceptación incompleta y no restaurar escritores automáticamente. Cancelar antes de
+aceptar es distinto de recuperar después: esto exige transferencia inversa y
+aceptación por el propietario original.
+
+No cambiar el propietario/carpeta fijados en el comprobador actual ni aceptar la
+nueva identidad antes de autorizar y verificar la transferencia. Después se vincula
+la evidencia nueva. La operación no abre mantenimiento, migra, escribe producción
+ni resuelve efectos externos anteriores. Los accesos restantes de servidor/delegación
+y los efectos históricos mantienen sus condiciones independientes.
+
+Evidencia privada: `2026-10-29-old-call-access-closure`, con revisiones, resultado
+validado y plan de propiedad/recuperación. Build/lint de Functions y129 pruebas
+correctos (15 casos nuevos). Sin cambios nativos ni desfase entre plataformas.
+Código/docs nuevos locales después de `9f01bae8`.
+
+
+### Transferencia autorizada y bloqueo del conector — 2026-10-29
+
+El usuario autorizó el plan anterior para este único archivo. Google envió la
+invitación, la cuenta de pruebas conectada la aceptó y después se cambió al propietario
+anterior de editor a lector. El diálogo de compartir muestra a la cuenta de pruebas
+como propietaria, al propietario anterior y las tres cuentas de servicio como lectores,
+y acceso general restringido. Se conserva el ID/enlace original. No se modificaron
+otros archivos, conexiones OAuth globales, concesiones IAM, despliegues ni producción.
+
+El conector existente pudo reenviar el mismo literal `Fecha` a A1 antes de transferir.
+La petición batchUpdate idéntica después devuelve HTTP 403 PERMISSION_DENIED; la lectura
+de los seis rangos acotados sigue funcionando. Los 742 valores tipados, fechas y orden
+son idénticos antes/después. No hizo falta mover el archivo para obtener esta denegación.
+Como lector, el conector ya no expone permisos ni IDs de carpetas padre: los campos
+nulos son **metadatos no disponibles**, no prueba de una ACL padre vacía. La admisión
+del mantenimiento sigue requiriendo evidencia actual de autoridad padre y versión.
+
+`inspectDevelopOwnerTransfer` vincula el diálogo observado, las peticiones positivas y
+negativas exactas y la comparación de seis rangos, separados de las lecturas API
+históricas del propietario/carpeta anteriores. Conserva ambas evidencias sin renovar
+los censos ni observaciones de ejecución anteriores. No admite mantenimiento, reproduce
+avisos, convierte trabajo desconocido en cero ni resuelve efectos ya enviados.
+El paquete real pasa con 742 valores; 141 pruebas focalizadas (12 nuevas), build/lint
+de Functions y comprobación del diff correctos. Sin cambios nativos ni brecha de
+paridad. Código/documentación nuevos sin commit tras `9f01bae8`; esta autorización
+no pidió otro commit.
+
+Evidencia privada: `2026-10-29-develop-owner-transfer`, con captura/AX de permisos,
+respuestas originales del conector, valores exactos y preparación conjunta NOT_READY.
+La recuperación después de aceptar exige transferencia inversa y aceptación del
+propietario anterior; no se ejecutó. Siguiente: completar autoridad de servidor/
+delegación y conciliación de efectos anteriores; después, evidencia coherente actual
+de hoja/controles y acuerdo de ventana del nuevo propietario/administradores.
+HU-084/HU-085 siguen abiertas y PR #278 en borrador.

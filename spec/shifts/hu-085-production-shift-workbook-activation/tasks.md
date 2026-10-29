@@ -664,3 +664,26 @@ censuses is local under HU-084,114 focused tests/build/lint passed. Develop rema
 NOT_READY: prior calls, complete automatic authority, coherent current workbook version
 and fresh owner/admin window agreements still need closure. No production activation,
 data access or policy relaxation. See HU-084 writer-controls guide.
+
+
+Develop follow-up: old runtime retirement is provider-observed (288 prior revisions,
+24 reviewed services). File-only owner/OAuth isolation is prepared, not authorized;
+no production action or admission. HU-084 source/docs local after `9f01bae8`.
+
+
+### Owner isolation executed with authorization — 2026-10-29
+
+The exact develop workbook transfer was accepted by the test account; the former
+owner is now a reader alongside the three service readers, with restricted sharing.
+Same-value Fecha/A1 connector write succeeded before and returns 403 PERMISSION_DENIED
+after; reads remain available and all 742 typed values across six ranges are unchanged.
+No move was necessary for the observed denial. Parent/permission metadata is now
+unavailable to the reader connector; do not fabricate a parent ACL or refresh the
+historical owner API record. The preparation binds current UI/probe evidence separately.
+141 focused tests/build/lint pass; actual combined evidence remains NOT_READY with
+unknown prior effects/other writers and explicit current-parent/version/control gates.
+No new OAuth/IAM, global revocation, deployment, FCM or production change. No native
+parity gap. New changes remain local after `9f01bae8`. See bilingual writer-controls guide
+and private `2026-10-29-develop-owner-transfer` evidence. Next complete remaining automatic
+authority/prior effects before a bounded agreed window; HU-084/HU-085 and draft PR #278
+remain open. Recovery would require reverse transfer and acceptance.
