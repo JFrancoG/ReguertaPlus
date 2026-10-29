@@ -441,3 +441,53 @@ returned401 UNAUTHENTICATED for each. They were discarded and the local probe
 process closed; earlier token metadata has an earlier expiry. The two original
 empty account policies are restored. Operational evidence and bilingual diff checks
 pass; this follow-up remains local after `25ed6f63`.
+
+
+### Fence joined to maintenance preparation — 2026-10-29
+
+The effective two-account fence is committed/pushed as `e6d02cc2`. The new local
+`functions/scripts/prepare-develop-fenced-maintenance.cjs` joins the reviewed
+positive/negative probes and credential cleanup to owner file/parent roles and two
+validated Firestore censuses. It has no SDK, network, mutation or admission port.
+It rejects missing/invalid probes, expired credentials presented as permission
+denials, changed values, restored writers, inherited writers and observations out
+of order. Source drift invalidates reuse of the previous census. A matching census
+preserves unknown pending/in-flight work, `legacyUntracked:true` and no replay.
+The output is preparation only: `NOT_READY`, `startAt:null`, no writer controls or
+causal-drain declaration. It is not accepted as runtime barrier evidence.
+
+Read-only refresh after the fence: all24 deployed Function configurations match the
+reviewed post-reminder baseline; three jobs remain PAUSED. The census has the same
+183 sources (62 shifts,4 calendars,117 notices),12 captures and16 deliveries. The
+five bootstrap authority paths remain absent. All742 typed values in the six
+inspected ranges match the preceding reconciliation; no dates/order were changed.
+Owner-side normalized ACLs still show the two service accounts as readers, the
+inspector as reader and the same owner; the parent shows only its owner.
+
+**Metadata limitation:** two connector reads return modifiedTime
+`2026-10-29T17:47:48.221Z`, older than the direct probe's
+`2026-10-29T17:48:31.491Z`, and omit the requested raw version. The preparation
+flags this discrepancy; neither a fresh call timestamp nor matching cell values
+renews the workbook-version/probe evidence. Do not manufacture a current version
+or request another impersonation grant merely to fill this field.
+
+Before proposing a start time:
+
+1. Resolve completion or effective isolation of earlier external calls, separately
+   from the117 retained notices (including105 older notices with unavailable logs).
+   Do not replay them or repeat searches beyond log retention.
+2. Complete automatic-writer authority, including owner OAuth/delegation and other
+   server access; the two-account ACL fence does not close the whole writer group.
+3. Obtain consistent current workbook version/content and refresh the full control,
+   source and causal evidence. Keep the two readers; do not restore writes on abort.
+4. Bind owner and both Firebase administrator agreements to that exact evidence and
+   only then propose the bounded window, entry checks and conditional recovery.
+
+The private `2026-10-29-fence-window-integration` packet keeps original receipts,
+observation times, source hashes, comparisons and explicit outstanding gates.
+`npm run test:shift-planning:fenced-maintenance` passes114 tests (19 new cases);
+Functions build/lint pass. The new CJS is checked by Node and exercised directly;
+the repository ESLint command covers JS/TS, not CJS. No deploy, IAM grant, business
+write, Sheets write, FCM or production-data access in this integration step.
+Native apps and their previous acceptance are unchanged. New code/docs are local
+and uncommitted after `e6d02cc2`; maintenance and migration remain closed.

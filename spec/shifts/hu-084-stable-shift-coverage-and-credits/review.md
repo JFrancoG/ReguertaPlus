@@ -1887,3 +1887,19 @@ Final token cleanup verified: both original successful tokens now return401
 UNAUTHENTICATED after expiry. Earlier token expiry precedes them; credentials are
 discarded and the owned probe process closed. Original empty account policies
 restored, evidence assertions and documentation diff pass. New docs remain local.
+
+
+### Fenced maintenance preparation — 2026-10-29
+
+Fence evidence delivered/pushed as `e6d02cc2`. Local offline preparation joins the
+two-account probe/credential cleanup to normalized owner roles and validated old/current
+censuses without producing barrier admission or zero work counts. The real packet
+matches183 sources/12 captures/16 deliveries, all24 Function bindings, three PAUSED
+jobs and742 typed workbook values. The connector metadata timestamp regresses versus
+the direct probe and has no raw version; this is an explicit remaining gate.
+114 focused tests (19 new), Functions build/lint pass. No native change/parity gap,
+cloud mutation, production-data access or renewed impersonation. Local code/docs remain
+uncommitted. Next resolve prior external-call completion/isolation and complete automatic
+writer authority, then fresh consistent workbook/control evidence and owner/admin window
+agreements. Do not reinterpret retained historical notices as pending sends or revisit
+expired logs. Maintenance/migration remain NOT_READY; see bilingual writer-controls guide.

@@ -471,3 +471,54 @@ hoja devolvió401 UNAUTHENTICATED para cada uno. Se descartaron y se cerró el p
 local; los metadatos del token anterior indican caducidad previa. Las dos políticas
 vacías originales están restauradas. Pasan las comprobaciones de evidencia operativa
 y diff bilingüe; este seguimiento sigue local tras `25ed6f63`.
+
+
+### Bloqueo integrado en la preparación del mantenimiento — 2026-10-29
+
+El bloqueo efectivo de las dos cuentas está commiteado y pusheado en `e6d02cc2`.
+El nuevo script local `functions/scripts/prepare-develop-fenced-maintenance.cjs`
+une las pruebas positivas/negativas revisadas y la limpieza de credenciales con los
+roles de archivo/carpeta y dos censos de Firestore validados. No tiene SDK, red,
+mutaciones ni admisión. Rechaza pruebas incompletas o inválidas, credenciales
+caducadas usadas como denegaciones de permiso, valores cambiados, escritores
+restaurados/heredados y observaciones fuera de orden. Si cambia el censo, exige
+revisar la conciliación. Si coincide, conserva desconocidas las operaciones
+pendientes/en curso, `legacyUntracked:true` y la prohibición de reenvío.
+El resultado solo prepara: `NOT_READY`, `startAt:null`, sin controles de escritores
+ni declaración de drenaje. La barrera de ejecución no lo acepta como evidencia.
+
+Lecturas posteriores al bloqueo: las24 configuraciones de Functions coinciden con
+la referencia revisada tras actualizar recordatorios; los tres jobs siguen PAUSED.
+Se conservan183 fuentes (62 turnos,4 calendarios,117 avisos),12 eventos y16 entregas.
+Las cinco rutas de autoridad inicial siguen ausentes. Los742 valores tipados de
+los seis rangos coinciden con la conciliación anterior; no se alteraron fechas ni
+orden. Los permisos normalizados siguen mostrando las dos cuentas y el inspector
+como lectores y al mismo propietario; la carpeta solo muestra al propietario.
+
+**Límite de metadatos:** dos lecturas del conector devuelven modifiedTime
+`2026-10-29T17:47:48.221Z`, anterior al `2026-10-29T17:48:31.491Z` observado por la
+prueba directa, y omiten la versión solicitada. La preparación señala la discrepancia;
+la hora de la consulta y la coincidencia de celdas no renuevan la evidencia de
+versión ni la prueba. No inventar una versión actual ni pedir otra suplantación
+solo para rellenar ese campo.
+
+Antes de proponer una hora de inicio:
+
+1. Resolver la terminación o el aislamiento efectivo de llamadas externas anteriores,
+   separado de los117 avisos conservados (105 fuera de la retención de logs).
+   No reenviarlos ni repetir búsquedas fuera de la retención.
+2. Completar los accesos automáticos, incluidos OAuth/delegación del propietario y
+   otros accesos de servidor; las dos cuentas no representan a todo el grupo.
+3. Obtener una versión/contenido actual coherente y renovar los controles completos,
+   fuentes y evidencia causal. Conservar los lectores; no reabrir escrituras al abortar.
+4. Vincular los acuerdos del propietario y los dos administradores de Firebase a esa
+   evidencia y después proponer la ventana acotada, sus comprobaciones y recuperación.
+
+El paquete privado `2026-10-29-fence-window-integration` conserva los recibos
+originales, tiempos, huellas, comparaciones y condiciones pendientes explícitas.
+`npm run test:shift-planning:fenced-maintenance` pasa114 pruebas (19 nuevas);
+build/lint de Functions correctos. Node comprueba el CJS y las pruebas lo ejecutan;
+el ESLint del repositorio cubre JS/TS, no CJS. Esta integración no despliega, concede
+IAM, escribe datos/Sheets, envía FCM ni accede a datos de producción. Ambas apps y
+su aceptación previa siguen iguales. Código/docs nuevos locales sin commit después
+de `e6d02cc2`; mantenimiento y migración siguen cerrados.

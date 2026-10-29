@@ -655,3 +655,12 @@ local; maintenance NOT_READY. See bilingual develop-writer-controls guide.
 - [x] Prepare exact two-role demotion/recovery requests, sequential whole-ACL checks and unknown/partial-result handling; verify private manifest and revoke temporary access (original token denied401, no refresh token). New evidence/documentation remains local.
 - [x] Apply the separately authorized develop-only writer-to-reader changes. Both identities pass positive batch200 before and read200/canEdit=false/write403 after;742 values unchanged. Temporary account-scoped IAM grants removed; no recovery needed. New operational evidence remains local after `25ed6f63`.
 - [ ] Bind the observed two-account Sheets fence and completed credential cleanup to fresh old-work/source/owner/admin-window evidence before maintenance admission; keep NOT_READY until that integration is proven.
+
+
+### Develop-only preparation handoff — 2026-10-29
+
+The two-account write fence is delivered in `e6d02cc2`; its integration with old/current
+censuses is local under HU-084,114 focused tests/build/lint passed. Develop remains
+NOT_READY: prior calls, complete automatic authority, coherent current workbook version
+and fresh owner/admin window agreements still need closure. No production activation,
+data access or policy relaxation. See HU-084 writer-controls guide.

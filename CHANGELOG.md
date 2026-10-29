@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Maintenance
+
+- 2026-10-29 | 🔧 chore(shifts): bind develop fence to maintenance preparation
+
 ### Documentation
 
 - 2026-10-29 | 📝 docs(shifts): record effective develop write fence
