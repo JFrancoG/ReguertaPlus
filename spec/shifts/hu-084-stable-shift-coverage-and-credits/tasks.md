@@ -636,3 +636,23 @@ requests/errors in the later bounded query. Historical residual reconciled; rece
 missing metrics remain UNKNOWN and do not admit maintenance. Next: provider/sourceScope
 control and controlled bootstrap before participant/window commitments. See the
 bilingual queue/window guide. Only this new evidence documentation remains local.
+
+
+## Shared triggers and initial planner preparation — 2026-10-29
+
+- [x] Deliver residual reconciliation as `3dbbd4da`; verify local/remote/draft PR heads.
+- [x] Compare all eight deployed immutable-source/configuration bindings, normalizing
+  filter order only; retain shared no-retry/private retry policies and production routing.
+- [x] Refresh the183-source/12-event/16-delivery census and five-path absence evidence;
+  preserve the prior stable set digest and UNKNOWN drain counters.
+- [x] Prepare an offline source-scoped control review and initial-state recipe using
+  the existing72-turn content and rotation checker, without an executable state.
+- [x] Retain both round2/index22 cursors; keep sheetsSubmission absent until needed.
+- [x] Pass build/lint, focused CJS lint and60 joint tests without skips; align EN/ES evidence.
+- [ ] Integrate trusted capture-only source controls with real barrier admission and
+  rehearse atomic initial authority creation as one block, including rejection/recovery.
+- [ ] Refresh actual cohort/workbook/source-policy bindings, separate causal drain and
+  complete participant commitments before any shared maintenance or migration write.
+
+Only the first delivery is committed/pushed. New preparation changes remain local;
+no deployment, migration, Sheets or FCM is authorized or performed in this block.

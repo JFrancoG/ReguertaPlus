@@ -2627,3 +2627,17 @@ requests/errors in the later bounded query. Historical residual reconciled; rece
 missing metrics remain UNKNOWN and do not admit maintenance. Next: provider/sourceScope
 control and controlled bootstrap before participant/window commitments. See the
 bilingual queue/window guide. Only this new evidence documentation remains local.
+
+
+### Shared-trigger control and bootstrap preparation — 2026-10-29
+
+Residual reconciliation is delivered as `3dbbd4da`. The new offline preparer pins
+four shared capture-only develop routes and four private collectors to reviewed
+immutable sources and provider configuration, retaining production transport ACTIVE.
+Fresh census matches and five planner paths remain absent. Reuse the72-turn proposal,
+existing rotation checker and round2/index22 cursors; sheetsSubmission stays absent.
+No change to ADR-0022 admission rules: this review cannot represent ACTIVE shared
+transport as disabled, invent epoch0 or infer causal drain. Next group integrates
+trusted source-scoped controls with atomic initial-state admission and its recovery
+checks; refresh source-policy/workbook/cohort evidence before applying it. See the
+bilingual queue/window guide for the concrete preparation and60-test local gate.

@@ -491,6 +491,6 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
   };
 };
 
-module.exports = {PROJECT_ID, HOST, WORKBOOK_ID, decodeRESTValue, decodeRESTDocument, createLocalMigrationPolicyDraft,
+module.exports = {PROJECT_ID, HOST, WORKBOOK_ID, checkContentPositions, decodeRESTValue, decodeRESTDocument, createLocalMigrationPolicyDraft,
   prepareDevelopShiftMigration, createDevelopShiftMigrationRehearsal};
 if (require.main === module) fail("import explicitly from the isolated emulator harness; there is no live CLI");

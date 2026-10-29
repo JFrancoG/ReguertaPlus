@@ -15,8 +15,9 @@ Los datos recibidos, identidades y configuración completa quedan en evidencia p
 ## Límite de las observaciones de colas y operaciones
 
 Se leen ocho relaciones Function/Eventarc/topic/subscription: cuatro disparadores
-antiguos compartidos y cuatro receptores privados exclusivos de develop. Conservan
-reintentos, plazo de confirmación de 600 segundos y retención de 86.400 segundos.
+antiguos compartidos y cuatro receptores privados exclusivos de develop. Los compartidos
+conservan `RETRY_POLICY_DO_NOT_RETRY`; los privados, `RETRY_POLICY_RETRY`.
+Sus suscripciones conservan un plazo de confirmación de 600 segundos y retención de 86.400 segundos.
 
 | Observación | Significado y límite |
 | --- | --- |
@@ -177,3 +178,61 @@ sin repetir pruebas nativas.
 [La guía de métricas de Google](https://docs.cloud.google.com/pubsub/docs/metrics-autoscaling-best-practices)
 advierte que ausencia de métricas no equivale a cola vacía. Las observaciones
 acotadas y sus hashes permanecen en evidencia privada.
+
+
+## Control de disparadores compartidos y preparación inicial — 2026-10-29
+
+La conciliación residual está entregada en `3dbbd4dadfbfd6f87a9f193afc46b68ad4fad0d7`;
+coinciden HEAD local, remoto y PR borrador #278. La preparación siguiente sigue local.
+
+`functions/scripts/prepare-develop-planner-entry.cjs` prepara una revisión sin conexión;
+no despliega ni migra. Compara las ocho configuraciones actuales con las fuentes
+inmutables revisadas, conservando runtime, identidad, revisiones, tráfico, filtros y
+reintentos. Normaliza el orden de los filtros; rechaza cambios de valores, ampliaciones
+de alcance, funciones ausentes o cambios de fuente. Cada disparador compartido queda
+representado como **solo captura para develop, ACTIVE para producción**. Describe el
+puente desplegado, no una desactivación física. Los cuatro receptores privados
+correspondientes siguen limitados a develop.
+
+Las lecturas del proveedor coinciden con las ocho configuraciones revisadas. El censo
+nuevo de las06:35:52.940 UTC conserva los mismos183 documentos de origen, doce eventos
+y dieciséis entregas, incluidas cuatro observaciones de metadatos; captureRevision16.
+Su huella estable es
+`2e759f15bc51e1a3d9f955b4544bd56c35996b514d5f573561c1cd681d6b0692`.
+Las cinco rutas de autoridad están ausentes en su instantánea. La propuesta es:
+
+| Ruta bajo develop/plus-collections | Acción preparada tras una admisión fiable |
+| --- | --- |
+| shiftPlanningState/current | Crear revisión1/writeEpoch1 con barrera cerrada real, operación y linaje; ausencia no significa época0. |
+| shiftPlanningState/sourcePolicy | Vincular versión real de hoja/autoridad de índices, ayudantes, horizonte de mercado y frontera del planificador. |
+| shiftRotations/delivery | Conservar titulares publicados y cursor posterior de vuelta2/índice22. |
+| shiftRotations/market | Conservar titulares publicados y cursor posterior de vuelta2/índice22. |
+| shiftPlanningState/sheetsSubmission | Mantener ausente hasta que lo necesite una operación gobernada de Sheets. |
+
+Se reutiliza exactamente la propuesta conservada:72 turnos,108 posiciones, ambas
+rotaciones de54 posiciones y su cohorte de32 socios. No se regeneran fechas, orden ni
+asignaciones. Sigue siendo la propuesta sintética de develop, no una aprobación
+renovada de hoja/cohorte reales. Mercado sin julio/agosto2027,53 celdas de ayudante
+vacías y62 filas antiguas conservan su tratamiento pendiente de política/migración.
+Se reutiliza el comprobador de secuencia existente, sin añadir otro planificador.
+
+Huella de la preparación privada:
+`shift-planning:v1:sha256:2b84751806ee7ce2fa8905a72e9e10de592a548ee664a4f2c28a11218722303a`.
+Los datos del proveedor, registros y propuesta quedan fuera de Git.
+Se reproduce con `node functions/scripts/prepare-develop-planner-entry.cjs --input
+<entrada-privada.json> --output <revision-privada-nueva.json>`; crea salida exclusiva
+con modo0600 y no admite modo de aplicación.
+
+**La admisión sigue bloqueada.** La barrera estricta actual todavía no consume este
+control de captura por origen. La revisión mantiene `compatibleWithCurrentBarrier=false`,
+contadores pendientes/en curso nulos e `initialStateDocument=null`; no inventa un
+estado admitido. Siguiente bloque: integrar y ensayar conjuntamente este control
+fiable y la admisión atómica inicial, conservando drenaje causal independiente,
+vínculos renovados de fuentes y acuerdos de propietario/administradores. No cambian
+los requisitos técnicos de ADR-0022. No se ha escrito en la nube, desplegado,
+editado Sheets ni enviado FCM.
+
+Validación: build/lint de Functions, lint CJS focal y60 pruebas conjuntas de preparación,
+censo, puente y migración correctas, sin omisiones. Sin cambios nativos; no se repiten
+sus suites. Estas pruebas de migración son locales sin conexión y no acreditan una
+nueva ejecución en emulador ni en Firebase compartido.

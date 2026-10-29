@@ -15,8 +15,9 @@ Provider payloads, identities and raw configuration stay in private evidence.
 ## Measured queue and invocation boundary
 
 Eight Function/Eventarc/topic/subscription bindings are read: four shared legacy
-triggers and four fixed-develop private collectors. All preserve retry-enabled
-delivery, 600-second acknowledgement deadlines and 86,400-second retention.
+triggers and four fixed-develop private collectors. The shared triggers retain
+`RETRY_POLICY_DO_NOT_RETRY`; the private collectors retain `RETRY_POLICY_RETRY`.
+Their subscriptions retain 600-second acknowledgement deadlines and 86,400-second retention.
 
 | Observation | Meaning and limit |
 | --- | --- |
@@ -178,3 +179,60 @@ documentation only; diff checks suffice, with no new native validation required.
 [Google's metric guidance](https://docs.cloud.google.com/pubsub/docs/metrics-autoscaling-best-practices)
 warns against treating absent metrics as an empty backlog. Raw bounded observations
 and their hashes remain private.
+
+
+## Shared-trigger control and initial planner preparation — 2026-10-29
+
+Residual reconciliation is delivered as `3dbbd4dadfbfd6f87a9f193afc46b68ad4fad0d7`;
+local, remote and draft PR #278 heads match. The following preparation remains local.
+
+`functions/scripts/prepare-develop-planner-entry.cjs` is an offline review tool,
+not a deployment or migration command. It compares the eight current Function
+configurations with the previously reviewed immutable sources, preserving runtime,
+identity, revisions, traffic, filters and retry policy. Filter ordering is normalized;
+changed values, widened scope, missing functions or source drift are rejected.
+Each shared trigger is described as **capture-only for develop, ACTIVE for production**.
+This accurately represents the deployed bridge; it is not physical trigger disablement.
+The four matching private collectors remain restricted to develop.
+
+Read-only provider checks match all eight reviewed configurations. The fresh
+06:35:52.940 UTC census retains the same183 source documents, twelve events and
+sixteen deliveries, including four metadata observations; captureRevision remains16.
+Its stable set digest is
+`2e759f15bc51e1a3d9f955b4544bd56c35996b514d5f573561c1cd681d6b0692`.
+Five authority paths are absent at the absence snapshot. The review recipe is:
+
+| Path below develop/plus-collections | Prepared action after trusted admission |
+| --- | --- |
+| shiftPlanningState/current | Create revision1/writeEpoch1 with a real closed barrier, operation and lineage; absence is not epoch0. |
+| shiftPlanningState/sourcePolicy | Bind actual workbook version/index authority, helper projection, market horizon and planning frontier. |
+| shiftRotations/delivery | Retain published ownership and post-published round2/index22 cursor. |
+| shiftRotations/market | Retain published ownership and post-published round2/index22 cursor. |
+| shiftPlanningState/sheetsSubmission | Keep absent until a governed Sheets submission needs it. |
+
+The retained content proposal is reused exactly:72 shifts,108 positions, both
+54-position rotations and their32-member cohort. No date, order or allocation is
+regenerated. This is the existing synthetic develop proposal, not a refreshed live
+workbook/cohort approval. Missing market July/August2027,53 blank helper cells and
+the62 legacy rows still require the previously recorded policy/migration treatment.
+The existing migration sequence checker is reused instead of adding another planner.
+
+Private preparation digest:
+`shift-planning:v1:sha256:2b84751806ee7ce2fa8905a72e9e10de592a548ee664a4f2c28a11218722303a`.
+Provider payloads, source records and the preparation remain outside Git.
+Reproduce with `node functions/scripts/prepare-develop-planner-entry.cjs --input
+<private-input.json> --output <new-private-review.json>`; output creation is exclusive,
+mode0600, and no apply mode exists.
+
+**Admission remains blocked.** The current strict barrier does not yet consume this
+source-scoped capture control. The review sets `compatibleWithCurrentBarrier=false`,
+null pending/in-flight counts and `initialStateDocument=null`; it never fabricates
+an admitted state. Next implement and rehearse that trusted control-plane integration
+and atomic initial-state admission together, preserving separate causal drain,
+fresh source bindings and owner/administrator agreements. Existing ADR-0022 technical
+requirements are unchanged. No cloud writes, deployment, Sheets edits or FCM occurred.
+
+Validation: Functions build/lint, focused CJS lint and60 joint preparation, census,
+bridge and migration tests pass with zero skips. Native code is unchanged; native
+suites were not rerun. The migration tests here are offline and do not claim a new
+shared or emulator migration execution.
