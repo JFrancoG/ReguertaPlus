@@ -52,6 +52,13 @@ function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, 
       await verifyAccount();
       return requireSuccess(resource + ":setIamPolicy", "POST", {policy, updateMask: "bindings,etag,version"});
     },
+    async hasMintPermission() {
+      const permission = "iam.serviceAccounts.getAccessToken";
+      const value = await requireSuccess(resource + ":testIamPermissions", "POST", {permissions: [permission]});
+      assert.ok(Array.isArray(value.permissions ?? []));
+      assert.ok((value.permissions ?? []).every(item => item === permission));
+      return (value.permissions ?? []).includes(permission);
+    },
     async mint(body) {
       assert.deepEqual(body, tokenRequest);
       return requireSuccess(mintUrl, "POST", body);

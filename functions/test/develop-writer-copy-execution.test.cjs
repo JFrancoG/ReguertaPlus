@@ -30,6 +30,7 @@ function fixture() {
       assert.equal(policy.etag, state.policy.etag, "No lost policy update");
       state.calls.push("set-policy"); state.policy = {...clone(policy), etag: state.policy.etag + "-next"};
     },
+    async hasMintPermission() { return true; },
     async mint(body) { assert.deepEqual(body, prepare().tokenRequest); state.mintCount++;
       return {accessToken: "synthetic-secret", expireTime: new Date(state.now + 300000).toISOString()}; },
     async probeCopy(token) { assert.equal(token, "synthetic-secret"); state.calls.push("probe-copy");
@@ -44,6 +45,7 @@ function fixture() {
     runnerStartedAtMillis: NOW - 10, lockNonceDigest: digest("synthetic-lock")};
   const completed = {kind: "completed", submitted: 1, preservedOriginalTabs: 7, expectedRows: 10};
   const args = {input, provider, async verifyOwnerCopy() {}, nowMillis: () => state.now,
+    async sleep(milliseconds) { state.now += milliseconds; },
     async record(kind, body) { state.records.push({kind, body: clone(body)}); },
     async removeCopyPermission(value) { assert.deepEqual(value, {fileId: input.copy.fileId, permissionId: input.copy.permissionId});
       state.calls.push("remove-copy"); state.copyPermission = false; },
@@ -292,4 +294,68 @@ test("failed mint or copy read retains phase and bounded HTTP status without sec
   assert.ok(result.cleanupFailures.includes("copy_access_denial_unproven"));
   assert.equal(f.state.disabled, true); assert.equal(result.canRetry, false);
   assert.equal(JSON.stringify({result, records: f.state.records}).includes("synthetic-secret"), false);
+});
+
+test("permission propagation is read-only until ready and mints exactly once without renewing the window", async () => {
+  const f = fixture(), end = f.args.input.window.endsAtMillis; let reads = 0;
+  f.args.provider.hasMintPermission = async () => ++reads >= 3;
+  const result = await run(f);
+  assert.equal(result.kind, "completed-and-contained"); assert.equal(reads, 3);
+  assert.equal(f.state.now, NOW + 10000); assert.equal(f.state.mintCount, 1);
+  assert.equal(f.args.input.window.endsAtMillis, end);
+  assert.deepEqual(f.state.records.find(r => r.kind === "mint-permission-ready").body,
+    {observedAtMillis: NOW + 10000, waitedMillis: 10000, isAuthorizationProof: false});
+});
+
+test("unpropagated permission times out before mint and still removes grants and disables the account", async () => {
+  const f = fixture(); let childStarted = false;
+  f.args.provider.hasMintPermission = async () => false;
+  f.args.runChild = async () => { childStarted = true; throw Error("unreachable"); };
+  const result = await run(f);
+  assert.equal(result.kind, "inspection_required");
+  assert.deepEqual(result.failureDetails, {phase: "wait-token-permission", httpStatus: null});
+  assert.equal(f.state.now, NOW + 180000); assert.equal(f.state.mintCount, 0); assert.equal(childStarted, false);
+  assert.equal(f.state.disabled, true); assert.equal(f.state.copyPermission, false);
+  assert.deepEqual(f.state.policy.bindings, []); assert.equal(result.canRetry, false);
+});
+
+test("a late positive permission response cannot consume the token and cleanup reserve", async () => {
+  const f = fixture();
+  f.args.input.window.endsAtMillis = NOW + 400000;
+  f.args.provider.hasMintPermission = async () => { f.state.now += 40001; return true; };
+  const result = await run(f);
+  assert.equal(result.kind, "inspection_required"); assert.equal(f.state.mintCount, 0);
+  assert.equal(result.failureDetails.phase, "wait-token-permission"); assert.equal(f.state.disabled, true);
+});
+
+test("authority drift while waiting aborts without minting or erasing the concurrent authority", async () => {
+  const f = fixture();
+  f.args.provider.hasMintPermission = async () => false;
+  f.args.sleep = async milliseconds => {
+    f.state.now += milliseconds;
+    f.state.policy.bindings.push({role: "roles/viewer", members: ["user:concurrent@example.test"]});
+    f.state.policy.etag = "concurrent-readiness-update";
+  };
+  const result = await run(f);
+  assert.equal(result.kind, "inspection_required"); assert.equal(f.state.mintCount, 0);
+  assert.equal(f.state.disabled, true);
+  assert.deepEqual(f.state.policy.bindings, [{role: "roles/viewer", members: ["user:concurrent@example.test"]}]);
+});
+
+test("permission readiness uses only testIamPermissions on the exact account and preserves transport denial", async () => {
+  const f = fixture();
+  for (const response of [{status: 200, data: {}},
+    {status: 200, data: {permissions: ["iam.serviceAccounts.getAccessToken"]}},
+    {status: 403, data: {message: "synthetic-secret"}}]) {
+    const calls = [];
+    const provider = createProvider({identity: f.args.input.identity, copyFileId: f.args.input.copy.fileId,
+      protectedWorkbookIds: f.args.input.protectedWorkbookIds, iamBearer: "synthetic-secret",
+      async fetchImpl(url, options) { calls.push({url, options}); return {status: response.status, json: async () => response.data}; }});
+    if (response.status === 403) await assert.rejects(provider.hasMintPermission(), error =>
+      error.httpStatus === 403 && !JSON.stringify(error).includes("synthetic-secret"));
+    else assert.equal(await provider.hasMintPermission(), !!response.data.permissions);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /projects\/reguerta-9f27f\/serviceAccounts\/100000000000000000001:testIamPermissions$/);
+    assert.deepEqual(JSON.parse(calls[0].options.body), {permissions: ["iam.serviceAccounts.getAccessToken"]});
+  }
 });

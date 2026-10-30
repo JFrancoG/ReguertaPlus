@@ -923,3 +923,34 @@ ledger. See the bilingual writer-controls guide for exact evidence/limits. These
 changes are uncommitted after `98840300`; native parity is unchanged. Next review and
 deliver diagnostics before any newly authorized recovery. HU-084/HU-085 remain open,
 PR #278 draft; production and original develop workbook untouched.
+
+
+### Diagnostic delivery and fresh recovery preparation — 2026-10-30
+
+Diagnostic/evidence commit `b8cebf6f` is pushed and remote-verified. Read-only
+preflight confirms the owned account remains disabled/keyless/no direct bindings,
+unchanged project IAM and expired prior window. New private recovery-2 packet
+binds the corrected preparation/composition and preserves prior receipts/export;
+missing approval rejects before effects. OAuth consent is prepared but not granted.
+Fresh explicit reactivation/OAuth/execution approval and ten-minute owner window
+remain required. No maintenance, production, new resource, token or native change.
+Build/lint, 31 joint passes and final 17-case rerun reused after exact source hashes.
+This preparation note is local after the delivery; issues open and PR #278 draft.
+
+
+### Live mint denial and local readiness correction — 2026-10-30
+
+Authorized recovery on `b8cebf6f` reports mint-token HTTP 403, before Sheets or shared
+Firestore access. Exact cleanup: owner-only copy ACL, account disabled/keyless/no
+direct bindings, temporary IAM removed, later mint denied; OAuth revoked, same-token
+401 and zero linked apps. Writer positive-read/access-loss acceptance remains open.
+API enabled and role contains getAccessToken; three-second grant-to-mint interval
+makes propagation plausible but unproven. No real retry or new grants.
+
+Local candidate adds advisory exact-account testIamPermissions polling (5s, max 180s,
+reserving 360s of the unchanged window), fresh source/authority checks and fail-closed
+cleanup before mint on timeout/drift. One actual mint only; a positive read is not
+an authorization guarantee. Build/lint and 36 tests pass, zero skips/failures. New
+preparation digest requires new approval after review/delivery; current changes are
+uncommitted. Preserve retry-2 receipts/export; maintenance/production remain excluded,
+native parity unchanged, HU-084/HU-085 open and PR #278 draft.

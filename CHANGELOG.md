@@ -315,6 +315,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-10-30 | 🐛 fix(shifts): wait for scoped mint permission
+
 - 2026-10-30 | 🐛 fix(shifts): retain writer rehearsal diagnostics
 
 - 2026-10-29 | 🐛 fix(shifts): close direct develop reminder admission

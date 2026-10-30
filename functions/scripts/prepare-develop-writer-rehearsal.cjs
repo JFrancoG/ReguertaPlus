@@ -21,6 +21,9 @@ function prepare() {
   assert.equal(plan.identity.email, EMAIL);
   assert.deepEqual(plan.temporaryMintGrant.scopes, SCOPES);
   assert.equal(plan.canProvision, false);
+  assert.deepEqual(plan.temporaryMintGrant.readiness, {method: "testIamPermissions",
+    permission: "iam.serviceAccounts.getAccessToken", maximumWaitSeconds: 180, pollSeconds: 5,
+    minimumRemainingWindowSeconds: 360, isAuthorizationProof: false});
   const workbook = {properties: {title: "HU-084 — ENSAYO SINTETICO DEL ESCRITOR DEVELOP", locale: "es_ES", timeZone: "Europe/Madrid"},
     sheets: plan.copyRehearsal.initialTabTitles.map((title, index) => ({
       properties: {sheetId: 100 + index, title, gridProperties: plan.copyRehearsal.initialGrid},
@@ -33,6 +36,7 @@ function prepare() {
     accountCreate: {accountId: plan.identity.accountId, serviceAccount: {displayName: plan.identity.displayName}},
     workbookCreate: workbook, filePermissionCreate: {type: "user", role: "writer", emailAddress: EMAIL},
     tokenRequest: {scope: [...SCOPES], lifetime: "300s"},
+    mintReadiness: plan.temporaryMintGrant.readiness,
     runtime: {runId: plan.copyRehearsal.runId, demoProjectId: DEMO, firestoreHost: HOST, mode: "execute"},
     unresolved: ["explicit-authorization", "created-copy-id-owner-parent-and-raw-baseline", "created-account-unique-id",
       "created-copy-permission-id", "fresh-owner-confirmation", "exact-UTC-window", "protected-file-ids",
@@ -109,7 +113,8 @@ function checkIdentity(observation, owned, expectedBindings) {
  * runChild must resolve only after the child terminates; cleanup never infers that a
  * failed batch was not applied. The owner removal channel cannot carry the IAM token.
  */
-async function runSession({input, provider, runChild, verifyOwnerCopy, removeCopyPermission, record, nowMillis = Date.now}) {
+async function runSession({input, provider, runChild, verifyOwnerCopy, removeCopyPermission, record, nowMillis = Date.now,
+  sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))}) {
   const owned = bind(input, nowMillis()), prepared = prepare(), binding = grantFor(owned.window);
   assert.equal(process.env.GCLOUD_PROJECT, DEMO);
   assert.equal(process.env.FIRESTORE_EMULATOR_HOST, HOST);
@@ -132,6 +137,24 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
     await provider.setPolicy({...before.policy, version: 3, bindings: [binding]});
     phase = "verify-grant";
     baseline = checkIdentity(await provider.readIdentity(), owned, [binding]);
+    phase = "wait-token-permission";
+    const readinessStarted = nowMillis(), readiness = prepared.mintReadiness;
+    const readinessDeadline = Math.min(readinessStarted + readiness.maximumWaitSeconds * 1000,
+      owned.window.endsAtMillis - readiness.minimumRemainingWindowSeconds * 1000);
+    // This read is an advisory readiness signal, never authorization or a mint.
+    // Recheck real identity, source and time; never renew the approved window.
+    while (true) {
+      assert.ok(nowMillis() < readinessDeadline, "Mint permission not ready within the current window");
+      assertSources();
+      assert.equal(checkIdentity(await provider.readIdentity(), owned, [binding]), baseline);
+      const ready = await provider.hasMintPermission();
+      assert.equal(typeof ready, "boolean");
+      assert.ok(nowMillis() < readinessDeadline, "Readiness response arrived after its deadline");
+      if (ready) break;
+      await sleep(Math.min(readiness.pollSeconds * 1000, readinessDeadline - nowMillis()));
+    }
+    await record("mint-permission-ready", {observedAtMillis: nowMillis(), waitedMillis: nowMillis() - readinessStarted,
+      isAuthorizationProof: false});
     phase = "start-child";
     outcome = await runChild({packet, async openSession(context) {
       phase = "validate-token-admission";

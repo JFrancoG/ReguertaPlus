@@ -1088,3 +1088,63 @@ autorizado con observaciones actuales. El ensayo de copia no está aceptado.
 Sin peticiones a las hojas originales de develop/producción, escrituras de negocio
 compartidas, despliegues, FCM, mantenimiento ni cambios nativos. HU-084/HU-085 abiertas,
 PR #278 en borrador.
+
+
+### Nueva recuperación preparada tras entregar el diagnóstico — 2026-10-30
+
+Diagnóstico commiteado y pusheado en `b8cebf6f`, con HEAD remoto verificado.
+Los tres hashes de ejecutables/pruebas coinciden con los validados: se reutilizan
+build/lint, 31 pruebas conjuntas y la repetición final de 17, sin fallos ni omisiones.
+La lectura actual confirma la misma cuenta deshabilitada, cero claves/permisos
+directos, IAM del proyecto sin cambios y ventana anterior vencida. No se pidió token.
+
+El paquete privado `2026-10-30-develop-writer-live-retry-2` contiene preparación
+nueva, hash exacto de la composición, plantilla de aprobación inerte y la imagen
+sintética conservada. Arrancar sin aprobación nueva y coincidente falla antes de
+abrir un servidor local o efectuar operaciones externas. Se conservan recibos y
+exportación anteriores. La nueva sesión releerá propietario, ACL completa e imagen
+antes de reactivar y guardará los permisos finales. OAuth Online/drive.file está
+solo en la pantalla de consentimiento: sin token, renovación, cuenta/archivo nuevo,
+sesión de ejecución ni mutaciones compartidas. Faltan autorización expresa de
+reactivación/OAuth/ejecución y diez minutos nuevos del propietario. Mantenimiento y
+producción excluidos; sin cambios de paridad nativa.
+
+
+### Recuperación identifica denegación del token; espera acotada preparada — 2026-10-30
+
+La segunda recuperación autorizada usó `b8cebf6f`. Pasaron las comprobaciones
+actuales de propietario e imagen exacta de siete pestañas. El diagnóstico registra
+**mint-token, HTTP 403**, antes de entregar un token al hijo, revisar el lote o
+escribir en Sheets. Cero lotes enviados/en curso/inciertos; no se abrió el cliente
+Firestore compartido. La ACL final exacta contiene solo al propietario. Cuenta
+deshabilitada, cero claves/permisos directos, concesión temporal retirada y emisión
+posterior denegada. OAuth revocado (200), mismo token denegado (401) y cero apps
+vinculadas en Google. La prueba de pérdida efectiva de acceso sigue pendiente,
+porque no hubo lectura positiva previa del escritor. No se reintentó.
+
+La lectura confirma IAM Credentials habilitado y que el rol incluye
+`iam.serviceAccounts.getAccessToken`. La auditoría de la ventana exacta muestra
+activar/conceder/retirar/desactivar, sin detalle de la denegación del token. Se pidió
+unos tres segundos después de conceder el permiso. [Google documenta propagación eventual](https://docs.cloud.google.com/iam/docs/access-change-propagation):
+es una explicación plausible, **no una causa demostrada**. Sin ampliar roles,
+habilitar APIs, crear claves ni investigar datos de producción.
+
+La preparación local consulta solo ese permiso mediante
+[testIamPermissions](https://docs.cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/testIamPermissions)
+sobre la cuenta exacta. Consulta cada cinco segundos durante un máximo de 180,
+reservando siempre 360 segundos de la misma ventana para token/uso/limpieza. Cada
+vuelta revisa fuentes, identidad/políticas y plazo; una respuesta positiva tardía
+también aborta. Es una señal orientativa, no autorización: se mantienen la única
+solicitud real del token y todas las comprobaciones, sin reintentar un 403. Si no
+está listo o cambia la autoridad, limpia sin solicitar token y conserva concesiones
+ajenas concurrentes.
+
+Pasan build/lint, sintaxis CJS y **36 pruebas, cero fallos/omisiones**. Cinco casos
+nuevos cubren propagación tardía, timeout, respuesta positiva fuera de plazo,
+autoridad concurrente y transporte exacto de solo lectura. Nuevo digest del plan,
+fuentes y preparación: cambios locales tras `b8cebf6f`, sin otra ejecución real
+autorizada. Recibos en `2026-10-30-develop-writer-live-retry-2`; conservar resultado
+original y emulador exportado. Siguiente: revisar/entregar antes de preparar otra
+sesión expresamente autorizada. Sin mantenimiento, hojas originales de develop/
+producción, negocio compartido, FCM, despliegues ni cambios nativos. HU-084/HU-085
+abiertas y PR #278 en borrador.

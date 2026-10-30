@@ -1058,3 +1058,59 @@ Next: review/deliver this diagnostic correction and prepare a separately authori
 fresh attempt with current owner/identity observations; do not claim copy acceptance.
 No original develop/production file request, shared business write, deployment,
 FCM, maintenance admission or native change. HU-084/HU-085 remain open, PR #278 draft.
+
+
+### Fresh recovery prepared after diagnostic delivery — 2026-10-30
+
+Diagnostic correction committed/pushed as `b8cebf6f`; exact remote head verified.
+The three tested executable/test hashes still match: reuse build/lint and the
+31-test joint gate plus final 17-test diagnostic rerun, all green without skips.
+Read-only preflight confirms the same account disabled, zero user keys/direct
+bindings, unchanged project IAM and expired prior window. No writer token requested.
+
+Private `2026-10-30-develop-writer-live-retry-2` holds fresh preparation, an exact
+composition hash, inert approval template and reuse of the retained synthetic
+baseline. Startup without a fresh matching approval rejects before any local server
+or provider effect. Prior receipts/export are preserved. The new session must
+re-read owner/full ACL/raw baseline before re-enablement and saves terminal ACLs.
+OAuth Online/drive.file is prepared at consent only; no token, refresh grant, new
+account/file, runtime session or shared mutation has occurred. Separate explicit
+reactivation/OAuth/execution approval and a fresh ten-minute owner window remain
+pending. Maintenance and production remain excluded; no native parity change.
+
+
+### Recovery identified mint denial; bounded readiness prepared locally — 2026-10-30
+
+The explicitly authorized second recovery used delivered `b8cebf6f`. Fresh owner
+and raw seven-tab checks passed. The corrected diagnostic records **mint-token,
+HTTP 403** before writer-token handoff, batch review or Sheets submission. Child
+counters are zero submitted/in-flight/unknown; no shared Firestore client was opened.
+The exact terminal ACL contains only the owner. Account disabled, zero user keys
+and direct bindings, temporary grant removed, later mint denied; owner OAuth
+revoked (200), same token denied (401), Google UI zero linked apps. Access-loss
+acceptance remains unproven without a preceding positive writer read. No retry.
+
+Read-only inspection confirms IAM Credentials enabled and the selected role includes
+`iam.serviceAccounts.getAccessToken`. Exact-window audit records show successful
+caller enable/grant/remove/disable, but no mint-denial detail. Mint was attempted
+about three seconds after the grant. [Google documents eventual IAM propagation](https://docs.cloud.google.com/iam/docs/access-change-propagation),
+so propagation is plausible, **not a proven root cause**. No role expansion, API
+activation, key creation or production investigation was performed.
+
+Local preparation now checks only that permission using the exact account's
+[testIamPermissions](https://docs.cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/testIamPermissions).
+It polls at five-second intervals for at most 180 seconds, stopping earlier to
+reserve 360 seconds in the unchanged owner window for token/use/cleanup. Every
+iteration rechecks source, identity/policy and deadline; even a late positive reply
+aborts. The advisory read is not authorization proof: the single actual mint and
+all existing checks remain mandatory, and a 403 there is never retried. Missing
+readiness or authority drift cleans up without minting. Foreign grants are preserved.
+
+Build/lint, CJS checks and **36 tests, zero failures/skips**, pass. Five new cases
+cover delayed readiness, timeout, late positive response, concurrent authority drift
+and exact read-only transport. New plan/source/preparation digest; this is local
+work after `b8cebf6f`, not another authorized live execution. Receipt directory:
+`2026-10-30-develop-writer-live-retry-2`; preserve its original result and demo export.
+Next review/deliver this correction before preparing a newly authorized session.
+No maintenance, original develop/production file, shared business write, FCM,
+deployment or native change. HU-084/HU-085 open; PR #278 draft.

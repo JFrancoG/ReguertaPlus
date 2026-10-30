@@ -54,7 +54,15 @@
     ],
     "refreshToken": false,
     "ambientCredentialFallbackInChild": false,
-    "iamEnforcesRequestedScopesAndTokenCount": false
+    "iamEnforcesRequestedScopesAndTokenCount": false,
+    "readiness": {
+      "method": "testIamPermissions",
+      "permission": "iam.serviceAccounts.getAccessToken",
+      "maximumWaitSeconds": 180,
+      "pollSeconds": 5,
+      "minimumRemainingWindowSeconds": 360,
+      "isAuthorizationProof": false
+    }
   },
   "laterDevelopAdmission": {
     "workbookId": "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A",
