@@ -2893,3 +2893,23 @@ plans and refresh remaining authority/queue controls before the separately autho
 owner/admin/risk window; the observations are not a held barrier. NOT_READY, no window
 or operation acceptance fabricated. See bilingual writer-controls guide for scope and
 historical-evidence limits. New documentary work remains uncommitted; issues stay open.
+
+### Evidence-bound migration review package — 2026-10-30
+
+Previous real-evidence documentation delivered/pushed as `3c06b28d`; draft PR #278
+head verified. New offline preparer and 19 focused tests remain local. It binds
+thirteen private evidence files, reviewed proposal/content, version 278, exact
+permissions/index/control/source observations, 62 raw before-images, 72 published
+semantic creates and 53 helper cells to one source-policy binding and both intents.
+117 notices remain preserved without replay; dates and all 108 positions unchanged.
+Raw inverse fields are exact; original service timestamps cannot be restored.
+
+Package `ee465d0e2adb646111336d19356d685196c49ed4954834d7e320eeec49d7ac75`
+is PREPARED_NOT_ADMITTED, not an executable manifest. Runtime policy, held source
+versions, actual receipts/markers, live budget and window/risk agreements remain
+explicitly unbound. No provider calls, maintenance entry, migration or production
+access. 83 local tests, build/lint and focused CJS lint pass; no native changes or
+parity gap. Emulator executor unchanged, not rerun. See the bilingual migration
+rehearsal guide. Next materialize/rehearse the closed runtime policy and exact
+transaction manifests locally; obtain fresh admission evidence and explicit window
+only afterwards. HU-084/HU-085 remain open, PR #278 draft.

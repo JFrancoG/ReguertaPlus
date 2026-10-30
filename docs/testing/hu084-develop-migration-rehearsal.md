@@ -1,5 +1,81 @@
 # HU-084 controlled develop migration rehearsal
 
+## Evidence-bound review package — 2026-10-30
+
+Previous evidence documentation is delivered as `3c06b28d`. The new local-only
+`functions/scripts/prepare-develop-migration-package.cjs` composes the existing
+census, eligibility, rotation-position and deployed capture-control checks. It
+does not create a provider client or change the loopback-only rehearsal runner.
+Inputs are thirteen retained JSON files, pinned by absolute path and SHA-256,
+plus the independently reviewed content/proposal digests. An operator must select
+those reviewed digests from the existing validation receipt, not recalculate
+approval from an edited proposal. Private captures and generated packets stay
+outside Git. Output is created exclusively with mode `0600`; an existing packet
+is never overwritten, and there is no apply mode.
+
+The accepted retained packet binds the atomic source observation of
+`2026-10-30T06:48:26.324Z`, workbook version 278, 742 typed cells/notes, exact file
+and parent permissions, 48 projected users, six READY indexes, reviewed Functions,
+Rules/IAM and three paused jobs. It compares the cell image with the retained
+owner-transfer image and normalizes only unordered provider event filters.
+These are historical observations, not a held multi-service barrier; the earlier
+automatic-access, queue and write-denial controls still need refreshing at admission.
+
+The source-policy **binding** records those authorities, both unchanged rotation
+queues/cursors, zero initial credits and no retained reserves. Its runtime policy
+document stays null: annual continuity, inherited prefix and frontier have not
+been admitted, and July/August 2027 Market gaps must not be invented. The 48-user
+projection is sufficient to check the retained cohort, not to bootstrap all user
+fields or notification destinations. Planning, coverage and notification replay
+remain disabled. This binding is not written to Firestore.
+
+The forward intent contains all 62 raw before-images with exact update-time
+preconditions, their retirements, all 72 reviewed semantic creates preserving the
+108 ordered places, and 53 exact helper-cell before/after literals. All 117 notice
+documents are bound for preservation, with no replay. The inverse binds that
+forward digest, restores every raw field and reverses those 53 literals; deleting
+canonical rows requires the actual forward readback versions and payloads. It
+retains archive/baseline evidence and technical Sheets markers, leaves security
+state closed at epoch 2, and never restores the original absence of security
+state. Service create/update timestamps cannot be restored. Existing transaction
+shapes imply 203/140 writes, **not** a measured live byte/index budget or atomic
+commit spanning Firestore and Sheets.
+
+The packet is an exact captured-data/static-intent review, **not yet an executable
+transaction manifest**. The runtime source-policy document, final markers and
+timestamps, actual index budget, governed Sheets writer/markers, held refreshed
+source versions, owner/admin agreements, and operation-specific ADR-0026 risk
+acceptance remain explicit prerequisites. The inverse additionally requires the
+actual forward receipt. No acceptance or window timestamps are fabricated.
+
+Retained private acceptance: `2026-10-30-migration-package`.
+
+| Binding | SHA-256 suffix after `shift-planning:v1:sha256:` |
+| --- | --- |
+| Complete review packet | `ee465d0e2adb646111336d19356d685196c49ed4954834d7e320eeec49d7ac75` |
+| Forward static intent | `90793bc01d63c0a4f9922e4ed8529e72aaa38adad83304d061ccc69dad87bed9` |
+| Inverse static intent | `fc1d2573b7ddb883e89257655a72734cc98aa3c6c996f228972242b02635a3f4` |
+
+Validation: `npm run test:shift-planning:develop-migration-package` covers 83
+passing local tests, including 19 new tests for lossless recovery, deterministic
+binding, altered proposal/CAS/cells/cohort/permissions/controls/indexes, output
+overwrite refusal and file-byte tampering. Functions build/lint and focused CJS
+lint pass. Existing emulator tests were not rerun: no executor, barrier, app or
+SDK mutation behavior changed. This does not certify live migration or recovery.
+HU-084/HU-085 and draft PR #278 remain open; no native parity gap. Next materialize
+and rehearse the closed runtime policy/manifests locally before seeking a window.
+
+```sh
+node scripts/prepare-develop-migration-package.cjs --input /private/manifest.json --output /private/review-package.json
+```
+
+The manifest has `files` (each entry `{path, sha256}`), `reviewedContentDigest`
+and `reviewedProposalDigest`. File keys are `snapshot`, `sheetCells`,
+`referenceCells`, `proposal`, `fileBefore`, `fileAfter`, `filePermissions`, `parent`,
+`parentPermissions`, `indexes`, `controls`, `reviewedControls`, `assessment`.
+
+## Earlier local rehearsal
+
 The content preparation is delivered as `73001988`. The following implementation
 and acceptance remain local after that checkpoint. They introduce no shared
 endpoint, production operation or alternate planner/parser.

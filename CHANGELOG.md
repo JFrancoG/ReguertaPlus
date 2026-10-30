@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-30 | ✨ feat(shifts): bind develop migration review evidence
+
 - 2026-10-30 | ✨ feat(shifts): admit bounded develop historical risk
 
 ### Maintenance

@@ -92,3 +92,78 @@ posterior a ese cierre y paquete exacto de aplicación/reversión con autorizaci
 acotada. Las pruebas locales no acreditan esos controles reales. Siguen visibles
 los dos meses de Mercado pendientes. Para este ensayo ya terminado no hace falta
 usar el móvil ni repetir las declaraciones de saldo cero y reservas.
+## Paquete de revisión vinculado a evidencias — 2026-10-30
+
+La documentación anterior está entregada en `3c06b28d`. El nuevo preparador local
+`functions/scripts/prepare-develop-migration-package.cjs` reutiliza las comprobaciones
+del censo, elegibilidad, posiciones y receptores desplegados. No crea un cliente
+de proveedor ni modifica el ejecutor limitado al emulador. Recibe trece JSON
+conservados, fijados por ruta absoluta y SHA-256, y los digests del contenido y la
+propuesta previamente revisados. Estos deben proceder del recibo de validación;
+recalcularlos tras editar la propuesta no constituye aprobación. Las capturas y
+los paquetes privados permanecen fuera de Git. La salida se crea con modo `0600`,
+sin sobrescribir archivos existentes y sin opción de ejecución.
+
+El paquete aceptado vincula la captura atómica `2026-10-30T06:48:26.324Z`, versión
+278 de la hoja, 742 celdas/notas tipadas, permisos exactos del archivo y su padre,
+48 usuarios proyectados, seis índices READY, Functions revisadas, Rules/IAM y tres
+jobs pausados. Compara las celdas con la imagen conservada del cambio de propietario
+y normaliza únicamente el orden irrelevante de los filtros de eventos de Google.
+Son observaciones históricas, no una barrera mantenida entre servicios. Los controles
+anteriores de accesos automáticos, colas y denegación de escritura deben actualizarse
+en la admisión.
+
+La **vinculación** de la política de fuentes recoge esas autoridades, ambas colas y
+cursores sin cambios, compensaciones iniciales a cero y ninguna reserva previa.
+El documento de política para ejecución queda nulo: todavía no están admitidos la
+continuidad anual, el prefijo heredado ni la frontera del planificador. No se inventan
+los mercados ausentes de julio/agosto de 2027. La proyección de 48 socios comprueba
+el grupo conservado, pero no basta para inicializar todos los campos ni destinos de
+notificación. Planificación, coberturas y repetición de avisos siguen deshabilitadas.
+Esta vinculación no se escribe en Firestore.
+
+El plan de ida contiene las 62 imágenes originales con sus versiones exactas,
+su retirada, las 72 altas semánticas revisadas con las 108 posiciones ordenadas y
+las 53 celdas de ayudantes con sus literales anterior/posterior. Vincula los 117
+avisos para conservarlos sin repetirlos. La inversa depende del digest de ida,
+restaura todos los campos originales y revierte esos 53 literales. Para borrar
+los turnos nuevos exige las versiones y contenidos realmente leídos tras la ida.
+Conserva archivos, baseline y marcadores técnicos de Sheets; deja el estado de
+seguridad cerrado en época 2, sin restaurar su ausencia inicial. Las marcas de
+creación/actualización del servicio no se pueden restaurar. Las formas existentes
+suponen 203/140 escrituras; no prueban el presupuesto real de bytes/índices ni una
+transacción atómica entre Firestore y Sheets.
+
+Es una revisión exacta de datos conservados e intención estática, **todavía no un
+manifiesto ejecutable**. Faltan materializar la política de ejecución, marcadores
+y tiempos finales, presupuesto real, escritor y marcadores de Sheets, versiones
+renovadas dentro de la barrera, acuerdos de propietario/administradores y aceptación
+ADR-0026 de la operación concreta. La inversa necesita además el recibo real de ida.
+No se fabrican aceptaciones ni fechas de ventana.
+
+Aceptación privada conservada: `2026-10-30-migration-package`.
+
+| Vinculación | Sufijo SHA-256 tras `shift-planning:v1:sha256:` |
+| --- | --- |
+| Paquete completo | `ee465d0e2adb646111336d19356d685196c49ed4954834d7e320eeec49d7ac75` |
+| Intención estática de ida | `90793bc01d63c0a4f9922e4ed8529e72aaa38adad83304d061ccc69dad87bed9` |
+| Intención estática inversa | `fc1d2573b7ddb883e89257655a72734cc98aa3c6c996f228972242b02635a3f4` |
+
+Validación: `npm run test:shift-planning:develop-migration-package`, 83 pruebas locales
+correctas, incluidas 19 nuevas sobre recuperación sin pérdidas, vinculación
+determinista, cambios de propuesta/versiones/celdas/socios/permisos/controles/índices,
+rechazo de sobrescritura y modificación de archivos. Build/lint de Functions y lint
+CJS focalizado correctos. No se repite el emulador: no cambia el ejecutor, la barrera,
+las apps ni las escrituras SDK. Esto no valida una migración/reversión real.
+HU-084/HU-085 y PR #278 borrador siguen abiertos; sin brecha nativa. Siguiente paso:
+materializar y ensayar localmente la política cerrada y los manifiestos antes de
+solicitar una ventana.
+
+```sh
+node scripts/prepare-develop-migration-package.cjs --input /private/manifest.json --output /private/review-package.json
+```
+
+El manifiesto contiene `files` (entradas `{path, sha256}`), `reviewedContentDigest`
+y `reviewedProposalDigest`. Las claves de archivos son `snapshot`, `sheetCells`,
+`referenceCells`, `proposal`, `fileBefore`, `fileAfter`, `filePermissions`, `parent`,
+`parentPermissions`, `indexes`, `controls`, `reviewedControls`, `assessment`.
