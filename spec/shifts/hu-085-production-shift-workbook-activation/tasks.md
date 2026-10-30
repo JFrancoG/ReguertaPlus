@@ -730,3 +730,22 @@ for rejection cases, post-commit failure and limits. Work remains local after
 `d3ae12d9`; no commit/push, shared maintenance, production change or native parity
 gap. Next prepare fresh real authority and exact operation acceptance, then request
 its separately authorized window. HU-084/HU-085 and draft PR #278 stay open.
+
+
+### Real develop evidence refreshed; window remains closed — 2026-10-30
+
+ADR-0026 delivered in `0539ee40`, remote/draft PR #278 verified. Reused unchanged
+137 local + 26 emulator tests, build/lint after checking all seven source hashes.
+New read-only packet `2026-10-30-maintenance-evidence`: unchanged 24 Functions,
+Rules/IAM, three paused jobs, 288 retired revisions, six READY indexes; unchanged
+62 shifts/four calendars/117 notices and 12 captures/16 deliveries; 48 projected users;
+five absent authority documents; 742 unchanged typed workbook cells and renewed UI
+showing one owner/four readers. Offline assertions pass. No shared writes or native gap.
+A separately authorized owner Online-only metadata-read session confirms stable Drive
+version 278 and the test owner's My Drive root: one owner/four direct readers on the
+file, only that owner on its parent. Authorization removed; Connections empty and same
+GET denied with 401. No retained credentials or IAM changes. Bind real source policy/
+plans and refresh remaining authority/queue controls before the separately authorized
+owner/admin/risk window; the observations are not a held barrier. NOT_READY, no window
+or operation acceptance fabricated. See bilingual writer-controls guide for scope and
+historical-evidence limits. New documentary work remains uncommitted; issues stay open.

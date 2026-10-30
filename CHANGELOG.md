@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-30 | 📝 docs(shifts): record real develop maintenance evidence
+
 - Reconcile retained develop notice outcomes and propose an explicit historical-risk decision; live admission remains closed.
 
 - 2026-10-29 | 📝 docs(shifts): record remaining develop access and effects

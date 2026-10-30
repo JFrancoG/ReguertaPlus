@@ -697,3 +697,59 @@ for exact bindings, preserved unknowns, rejection/recovery and limits. No histor
 notice replay, shared mutation or maintenance admission occurred. Live preparation
 stays NOT_READY; fresh authority/operation acceptance and a separately authorized
 window remain required. Changes are local after `d3ae12d9`, no native parity gap.
+
+
+### Real maintenance evidence prepared — 2026-10-30
+
+ADR-0026 implementation delivered in `0539ee40` and verified on the remote and
+open draft PR #278. The seven implementation/test hashes still match the validated
+137 local + 26 emulator tests, build and lint; those results are reused unchanged.
+
+Fresh read-only observations are retained privately in
+`2026-10-30-maintenance-evidence` with an offline assertion report:
+
+- All 24 Functions match the reviewed source/configuration; Rules and project IAM
+  are unchanged; all three Scheduler jobs remain paused. A renewed bracketed Run
+  read confirms 288 retired revisions across those 24 services. This does not prove
+  termination of previously submitted external effects.
+- The atomic Firestore snapshot at `2026-10-30T06:48:26.324Z` retains exactly 62 shifts,
+  four calendars, 117 notices, zero planning requests and unchanged 12 captures/16
+  deliveries. The relevant four-field projection of all 48 users and config/global
+  matches the prior snapshot. Reserves, credits, membership state and the inspected
+  case/effect/sync/swap collections are empty; all five planner authority documents
+  remain absent, not an existing epoch-zero authority.
+- All 742 typed content cells/notes across six bounded workbook ranges are unchanged,
+  including dates and order. The refreshed owner-session sharing UI shows the test
+  owner, four readers and restricted sharing. No write probe was repeated.
+- All six deployed composite indexes remain READY, including the exact planning
+  request index; inherited shifts/date indexing remains available.
+
+The reader connector omitted numeric Drive version, parent and permission records.
+The maintainer subsequently authorized one Online-only `drive.metadata.readonly`
+Google OAuth Playground session with the test owner. The exact workbook API read
+before/after agrees on **version 278**, the owner, and the test owner's My Drive root
+`0AK7v8_RQogQlUk9PVA`. Complete permission lists contain the owner plus four direct
+readers on the workbook, and only the owner on that root; no other effective editor
+is present in these observations. Its inherited writer entry belongs to the same
+owner. The old owner's root is historical evidence, not the current parent.
+
+Only the named file and its returned parent were queried. Authorization was removed
+immediately afterwards: Connections shows no linked applications and the same GET
+returns HTTP 401. No refresh token was issued; no token is retained in the evidence
+files. Cloud metadata reads used the existing Firebase CLI session; no IAM change.
+The metadata and cell observations were separate reads, not one held barrier.
+
+The final packet is **NOT_READY**, with no operation acceptance or window times,
+`canEnterMaintenance=false` and `canApply=false`. Exact API authority is now observed;
+it must still be refreshed and bound at admission rather than reused as a permanent
+permission guarantee. Private assertions compare file/parent records and check
+revocation; evidence hashes retain their provenance.
+
+Next bind the real source policy and forward/
+inverse plans; refresh remaining automatic-authority/queue controls at admission,
+then obtain named owner/admin agreements and operation-specific risk acceptance for
+an explicitly authorized window. Prior global authority and effective write-denial
+proofs remain labelled historical. These observations are not a held maintenance
+barrier or a complete bootstrap snapshot. No shared mutation, FCM, production-data
+access or native change. Assertion/syntax/diff checks pass; new work is documentary
+and private evidence only, uncommitted after `0539ee40`.

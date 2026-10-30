@@ -734,3 +734,59 @@ para vínculos exactos, desconocidos conservados, rechazo/recuperación y límit
 Sin reenviar avisos, modificar servicios compartidos ni admitir mantenimiento.
 Preparación real en NOT_READY; faltan autoridad/aceptación exacta actuales y ventana
 autorizada por separado. Cambios locales tras `d3ae12d9`, sin brecha de paridad nativa.
+
+
+### Evidencias reales preparadas para mantenimiento — 2026-10-30
+
+Implementación de ADR-0026 entregada en `0539ee40`, verificada en remoto y PR #278
+abierta en borrador. Las siete huellas de implementación/pruebas coinciden con las
+137 pruebas locales + 26 de emulador, build y lint ya validados; se reutilizan.
+
+Lecturas nuevas conservadas en la evidencia privada
+`2026-10-30-maintenance-evidence`, con informe de aserciones sin conexión:
+
+- Las 24 Functions coinciden con las fuentes/configuración revisadas; Rules e IAM
+  del proyecto no cambian; los tres jobs siguen pausados. La lectura de Run con
+  comprobación antes/después confirma 288 revisiones retiradas en esos 24 servicios.
+  No acredita la terminación de efectos externos ya enviados.
+- La captura atómica de Firestore de `2026-10-30T06:48:26.324Z` conserva exactamente
+  62 turnos, cuatro calendarios, 117 avisos, cero solicitudes y las mismas 12 capturas/
+  16 entregas. Coinciden los cuatro campos consultados de los 48 socios y config/global.
+  Reservas, compensaciones, situación de socios y las colecciones consultadas de casos,
+  efectos, sincronización e intercambios están vacías. Los cinco documentos de autoridad
+  del planificador siguen ausentes; no se interpreta como una autoridad con época cero.
+- Coinciden las 742 celdas con contenido tipado/notas de seis rangos acotados, incluidas
+  fechas y orden. La pantalla de compartir renovada desde el propietario muestra la
+  cuenta de pruebas, cuatro lectores y acceso restringido. No se repite ninguna escritura.
+- Los seis índices compuestos siguen READY, incluido el índice exacto de solicitudes;
+  continúa disponible la indexación heredada de shifts/date.
+
+El conector lector omitía la versión numérica, el padre y los permisos exactos.
+El mantenedor autorizó después una sesión de Google OAuth Playground con acceso
+Online y permiso `drive.metadata.readonly`, usando el propietario de pruebas. Las
+lecturas de API antes/después coinciden en la **versión 278**, el propietario y la
+raíz de Mi unidad de pruebas `0AK7v8_RQogQlUk9PVA`. Las listas completas contienen al
+propietario y cuatro lectores directos en la hoja; en la raíz, únicamente al propietario.
+No aparece otro editor efectivo en estas observaciones. La entrada heredada de escritura
+pertenece al mismo propietario. La raíz del antiguo dueño queda como evidencia histórica.
+
+Solo se consultaron la hoja indicada y su padre devuelto por Google. La autorización
+se retiró al terminar: la cuenta muestra cero aplicaciones vinculadas y la misma lectura
+GET devuelve HTTP 401. No se emitió refresh token ni se conserva ningún token en los
+archivos de evidencia. Las lecturas de Cloud usaron la sesión existente de Firebase CLI;
+sin cambios IAM. Metadatos y celdas se observaron por separado, no bajo una barrera tomada.
+
+El paquete final sigue **NOT_READY**, sin aceptación de operación ni fechas de ventana,
+con `canEnterMaintenance=false` y `canApply=false`. Ya está observada la autoridad exacta
+de API; habrá que renovarla y vincularla al admitir, no tratarla como garantía permanente.
+Las aserciones privadas comparan hoja/padre y comprueban la revocación; las huellas de
+los archivos conservan la procedencia.
+
+Después hay que vincular la política real de fuentes y los planes de migración/reversión,
+renovar los controles restantes de autoridad automática/colas al admitir y obtener los
+acuerdos nominativos de propietario/administradores y la aceptación de riesgo para la
+operación y ventana concretas. El inventario global y las pruebas de denegación anteriores
+se conservan como históricos. Este paquete no es una barrera tomada ni una captura completa
+del bootstrap. Sin mutación compartida, FCM, datos de producción ni cambios nativos.
+Aserciones/sintaxis/diff correctos; documentación y evidencia nueva locales, sin commit
+tras `0539ee40`.
