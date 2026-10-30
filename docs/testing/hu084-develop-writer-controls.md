@@ -1186,3 +1186,41 @@ This new preparation is uncommitted and has not loaded credentials or contacted
 Google. Next review/deliver, then obtain explicit approval for the isolated IAM
 reactivation/grant/single mint/cleanup. No owner action or closed-sheet window is
 needed. Maintenance closed; production untouched; native parity unchanged.
+
+
+### IAM-only execution stopped before grant; cleanup reconciled — 2026-10-30
+
+Commit `43706b14` was pushed and its exact remote HEAD verified. Lint/build and 33
+focused tests passed again before the explicitly authorized single execution.
+The original ten-minute deadline was retained; the private source-bound packet
+matched the delivered code. No owner OAuth, workbook access or data client.
+
+Preflight passed and the isolated account was enabled. A local check at
+`grant-identity` then failed before writing a grant intent, changing account IAM,
+checking readiness or requesting a token. The original terminal result is
+`inspection_required`, `mintAttempted:false`, with `terminal_identity_unproven`.
+No replay was attempted and the original receipt remains unchanged.
+
+A separate read-only reconciliation verifies the exact account disabled, zero user
+keys/direct bindings, unchanged project policy against retained evidence and the
+existing authority checks passing. Scoped Admin Activity records show successful
+EnableServiceAccount and DisableServiceAccount calls at 18:53:42 and 18:53:44 UTC.
+The cleanup is now reconciled in a separate receipt. No token was requested or
+issued; this execution cannot explain the earlier mint 403.
+
+The failed local assertion was not identified by the original receipt. Delayed
+account-state visibility and policy drift cannot be distinguished retrospectively;
+neither is a proven cause. The local diagnostic now records only constant check
+identifiers (lifecycle, identity authority, project policy), phase, expected/observed
+disabled booleans and pass/fail, including cleanup. No raw assertion, policy,
+credentials or provider response is retained. A focused regression distinguishes
+lifecycle mismatch from changed project policy without granting or minting.
+Admission, time bounds, cleanup and single-attempt limits are unchanged.
+
+This observation-only correction/evidence is local and uncommitted. Validate and
+review/deliver before preparing a fresh approval-bound execution; do not reuse the
+consumed journal or prior packet. Maintenance remains closed; production and all
+workbooks untouched; no native change. Issues open; PR #278 draft. Private evidence:
+`2026-10-30-develop-writer-iam-only`, original terminal plus `cleanup-reconciliation.json`.
+
+Observation correction validation: lint/build and 34 focused tests pass, zero failures/skips.

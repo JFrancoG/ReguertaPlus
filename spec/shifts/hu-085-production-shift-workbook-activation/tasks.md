@@ -1001,3 +1001,20 @@ Review/deliver then obtain explicit isolated IAM execution approval. No closed-s
 window or owner action needed. Success will not prove Sheets access or migration
 readiness. Maintenance closed; production untouched; native parity unchanged.
 HU-084/HU-085 stay open and PR #278 draft. See bilingual writer-controls guide.
+
+
+### Delivered IAM-only check; no mint; cleanup reconciled — 2026-10-30
+
+`43706b14` pushed/remote-verified, lint/build and 33 focused tests passed. Authorized
+execution enabled the isolated account but a local check failed at grant-identity
+before grant intent or token request. Original inspection_required receipt retained;
+no replay. Separate live read confirms disabled/keyless/no direct bindings, unchanged
+project policy and authority checks passing. Scoped audit confirms successful enable
+and disable. Cleanup reconciliation is separate from the original unresolved receipt.
+Prior 403 remains unexplained. Local correction records bounded check/phase and
+expected/observed lifecycle booleans, distinguishing local assertions without raw
+policy/errors/secrets. Same admission/cleanup/one-attempt contract. Review/deliver
+before a fresh authorized execution; no maintenance, production or workbook access,
+native parity unchanged. Issues open; PR #278 draft. See writer-controls guide.
+
+Observation correction validation: lint/build and 34 focused tests pass, zero failures/skips.

@@ -50,15 +50,22 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
   let phase = "preflight", owned = false, baselineProject = null, failure = null, mintAttempted = false;
   let tokenIssued = false, readiness = null;
   const cleanupFailures = [];
+  const observations = [];
   const assertAdmission = () => {
     assert.equal(prepareDiagnostic(input.identity).preparationDigest, prepared.preparationDigest);
     assert.ok(nowMillis() + 360000 < a.endsAtMillis, "Insufficient remaining diagnostic window");
   };
   function check(observation, disabled, bindings) {
+    const summary = {phase, expectedDisabled: disabled, observedDisabled: observation.account.disabled === true,
+      check: "account-lifecycle", passed: false};
+    observations.push(summary);
     assert.equal(observation.account.disabled === true, disabled);
+    summary.check = "identity-authority";
     // Reuse authority checks without relaxing the existing enabled-session contract.
     checkIdentity({...observation, account: {...observation.account, disabled: false}}, input, bindings);
+    summary.check = "project-policy";
     if (baselineProject !== null) assert.equal(digest(observation.projectPolicy), baselineProject);
+    summary.passed = true;
   }
   try {
     const before = await provider.readIdentity();
@@ -104,6 +111,7 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
       providerReason: safeProviderReason(error?.providerReason)};
   } finally {
     if (owned) {
+      phase = "cleanup";
       try {
         const current = await provider.readIdentity();
         assert.equal(current.account.email, EMAIL); assert.equal(current.account.uniqueId, input.identity.uniqueId);
@@ -116,7 +124,7 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
     }
   }
   const result = {kind: failure || cleanupFailures.length ? "inspection_required" : "mint-observed-and-contained",
-    mintAttempted, tokenIssued, readiness, failure, cleanupFailures, canRetry: false, canEnterMaintenance: false,
+    mintAttempted, tokenIssued, readiness, failure, cleanupFailures, observations, canRetry: false, canEnterMaintenance: false,
     provesSheetsAccess: false};
   record("terminal", result);
   return result;

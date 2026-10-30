@@ -1224,3 +1224,42 @@ Google. Siguiente paso: revisar/entregar y obtener autorización expresa para
 reactivación, permiso, emisión única y limpieza de IAM. No hace falta actuar como
 propietario ni mantener la hoja cerrada. Mantenimiento cerrado, producción intacta,
 sin cambios de paridad nativa.
+
+
+### Ejecución de IAM detenida antes del permiso; limpieza conciliada — 2026-10-30
+
+Commit `43706b14` subido y verificado exactamente en remoto. Lint/build y 33 pruebas
+focalizadas repetidas correctamente antes de la única ejecución expresamente
+autorizada. Se conservó el plazo original de diez minutos y el paquete privado
+coincidía con el código entregado. Sin OAuth del propietario, hojas ni datos.
+
+Pasó la comprobación inicial y se reactivó la cuenta aislada. Después falló una
+comprobación local en `grant-identity`, antes de registrar intención de concesión,
+cambiar IAM, comprobar disponibilidad o solicitar un token. El recibo original
+conserva `inspection_required`, `mintAttempted:false` y
+`terminal_identity_unproven`. No se repitió la ejecución ni se alteró el recibo.
+
+Una conciliación posterior de solo lectura verifica cuenta exacta deshabilitada,
+cero claves de usuario/permisos directos, política del proyecto idéntica a la
+evidencia conservada y comprobaciones de autoridad correctas. El registro
+administrativo acotado muestra EnableServiceAccount y DisableServiceAccount
+correctos a las 18:53:42 y 18:53:44 UTC. La limpieza queda conciliada en un recibo
+separado. No se solicitó ni emitió token; no explica el 403 de intentos anteriores.
+
+El recibo inicial no identificaba la aserción local fallida. No se pueden distinguir
+retrospectivamente visibilidad tardía del estado y cambio de política; ninguna causa
+está demostrada. La corrección local registra solo identificadores constantes de
+comprobación (estado, autoridad, política), fase, booleanos de deshabilitación
+esperada/observada y resultado, incluida la limpieza. No conserva aserciones,
+políticas, credenciales ni respuestas originales. Una regresión distingue estado
+incompatible de política cambiada sin conceder permisos ni emitir tokens.
+Se conservan admisión, plazos, limpieza y límite de un intento.
+
+Esta corrección de observación y sus evidencias siguen locales y sin commit.
+Validar, revisar/entregar y preparar otra ejecución con autorización nueva; no
+reutilizar el registro consumido ni el paquete anterior. Mantenimiento cerrado;
+producción y hojas intactas; sin cambios nativos. Issues abiertas y PR #278 en
+borrador. Evidencia privada: `2026-10-30-develop-writer-iam-only`, recibo original
+y `cleanup-reconciliation.json` separado.
+
+Validación de la corrección: lint/build y 34 pruebas focalizadas correctas, sin fallos ni omisiones.

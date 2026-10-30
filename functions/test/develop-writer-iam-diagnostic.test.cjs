@@ -120,6 +120,24 @@ test("failed cleanup is explicit and cannot be confused with successful diagnosi
   assert.deepEqual(result.cleanupFailures, ["identity_disablement_unproven", "terminal_identity_unproven"]);
 });
 
+test("lifecycle mismatch is distinguished from project authority drift without leaking policy data", async t => {
+  for (const lifecycle of [true, false]) {
+    const f = fixture(t);
+    f.args.provider.enableOwned = async () => {
+      f.state.disabled = lifecycle;
+      if (!lifecycle) f.state.projectBindings.push({role: "roles/viewer", members: ["user:synthetic-secret@example.test"]});
+    };
+    const result = await runDiagnostic(f.args);
+    assert.equal(result.failure.phase, "grant-identity"); assert.equal(f.state.mintCount, 0);
+    assert.deepEqual(result.observations.find(o => o.phase === "grant-identity"), {
+      phase: "grant-identity", expectedDisabled: false, observedDisabled: lifecycle,
+      check: lifecycle ? "account-lifecycle" : "project-policy", passed: false,
+    });
+    assert.equal(f.receipts().includes("synthetic-secret"), false);
+    assert.equal(f.state.disabled, true);
+  }
+});
+
 test("IAM-only transport addresses exact UID with no redirect or workbook capability", async () => {
   const calls = [], identity = {email: EMAIL, uniqueId: "100000000000000000001"};
   const provider = createIamProvider({identity, iamBearer: "synthetic-secret", async fetchImpl(url, options) {
