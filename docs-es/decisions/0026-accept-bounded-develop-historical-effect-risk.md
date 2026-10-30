@@ -141,3 +141,14 @@ tiempos, barreras y recibos de esta aceptación pertenecen al emulador. Validaci
 92 pruebas unitarias + 39 de emulador + una de Sheets con captura retenida. Detalle
 en la guía bilingüe de migración. La activación compartida y la admisión de una
 política anual continúan siendo puertas independientes.
+
+## Conexión del ejecutor controlado — 2026-10-30
+
+No cambia la política de riesgo aceptada. El materializador se conecta al motor
+existente con autoridad fijada a develop. La admisión pasiva no adquiere controles
+ni persiste incidencias; ejecutar requiere barrera ya retenida, observaciones
+actuales y manifiestos exactos. No se añade punto de entrada desplegable.
+La comprobación real de solo lectura bloquea por dos documentos config ausentes
+del censo revisado; global sigue igual. Ningún paquete histórico ni ensayo local
+sustituye la nueva revisión de fuentes ni la autorización de la ventana.
+Véase la guía de migración: 102 pruebas unitarias y 47 de emulador; mantenimiento cerrado.

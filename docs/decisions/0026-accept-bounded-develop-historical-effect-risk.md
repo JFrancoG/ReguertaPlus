@@ -136,3 +136,14 @@ versions, timestamps, barriers and receipts used in this acceptance belong to
 the emulator. Local closed-policy acceptance: 92 unit + 39 emulator + one captured
 Sheets test; see the bilingual migration guide. Shared activation and annual
 policy admission remain separate gates.
+
+## Controlled executor checkpoint — 2026-10-30
+
+No change to the accepted risk policy. The materializer now composes with the
+existing engine under fixed shared-develop authority. Passive admission cannot
+acquire controls or persist incidents; execution requires an already-held barrier,
+fresh observations and exact manifests. No deployable entry point is added.
+The real read-only source check blocks on two config documents missing from the
+reviewed census; global itself is unchanged. No historical packet or successful
+local test substitutes for renewed source review or window authorization.
+See the migration guide: 102 unit + 47 emulator passes, shared maintenance closed.

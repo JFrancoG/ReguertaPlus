@@ -8,7 +8,8 @@ const {SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION} = require("../lib/shift-plan
 const KIND = "closedDevelopInitialMigration";
 const WORKBOOK = "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A";
 
-function closedPolicy(binding, packageDigest) {
+function closedPolicy(binding, packageDigest, scope = "loopback_emulator_only") {
+  assert.ok(["loopback_emulator_only", "controlled_develop_preparation"].includes(scope));
   assert.equal(binding.environment,"develop"); assert.equal(binding.runtimeDocument,null);
   assert.equal(binding.workbook.fileId,WORKBOOK); assert.match(binding.workbook.version,/^[1-9]\d*$/);
   assert.equal(binding.planningEnabled,false); assert.equal(binding.coverageEnabled,false);
@@ -22,13 +23,13 @@ function closedPolicy(binding, packageDigest) {
     sync:{transactionMeasurementAuthority:{adapterRevision:SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION,
       indexConfigurationDigest:binding.indexAuthorityDigest},partitions:Object.fromEntries(["delivery","market"].map(type =>
       [type,{workbookId:WORKBOOK,workbookRevision:binding.workbook.version,partitionKey:type,stateRevision:1,epoch:1,lease:null}]))}};
-  const localOnly = {scope:"loopback_emulator_only",liveExecutable:false,planningReady:false,
+  const localOnly = {scope,liveExecutable:false,planningReady:false,
     sourcePolicyBinding:binding,reviewPackageDigest:packageDigest,
     indexAuthority:"retained_observation_not_wire_or_index_budget",workbookAuthority:"retained_not_held",
     rotationFrontier:"2025_is_a_closed_rehearsal_sentinel_not_an_admitted_annual_frontier"};
   return {document,localOnly,draftDigest:digest({document,localOnly})};
 }
 function verifyClosedPolicy(draft) {
-  assert.deepEqual(draft,closedPolicy(draft.localOnly.sourcePolicyBinding,draft.localOnly.reviewPackageDigest));
+  assert.deepEqual(draft,closedPolicy(draft.localOnly.sourcePolicyBinding,draft.localOnly.reviewPackageDigest,draft.localOnly.scope));
 }
 module.exports = {KIND,closedPolicy,verifyClosedPolicy};

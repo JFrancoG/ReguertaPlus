@@ -263,3 +263,56 @@ Next connect the materializer to the controlled develop executor, prepare its
 read-only admission checks and refresh authority before requesting a specific
 owner/admin/risk window. Do not copy emulator receipts, timestamps or approvals
 into that window. HU-084/HU-085 and draft PR #278 remain open; no native parity gap.
+
+## Controlled develop composition and passive admission — 2026-10-30
+
+The previous materializer is delivered/pushed in `9a83203f`; remote and draft
+PR #278 head match. The following implementation remains local.
+
+`develop-shift-migration-engine.cjs` extracts the existing serializer/barrier/CAS
+runner without duplicating its algorithm. The original rehearsal wrapper still
+requires the exact demo project and loopback host before constructing a client.
+The new `controlled-develop-migration.cjs` accepts an injected Firestore client
+pinned to `reguerta-9f27f`, database `(default)`, and hard-coded
+`develop/plus-collections`. Shared preparation requires original reviewed service
+versions, not clone versions. The policy context explicitly records
+`controlled_develop_preparation`; the historical `localOnly` container name does
+not imply emulator authority. No endpoint, deployment or apply CLI is supplied.
+
+Passive inspection uses a read-only source transaction and existing held-control
+readers. It neither acquires/closes controls nor persists incidents. Every report
+keeps `canApply:false` and `canEnterMaintenance:false`; even `checksPassed:true`
+is not authorization. Execution separately requires a matching, unexpired
+inspection (maximum 60 seconds), reconstructs the exact manifest and rechecks
+current source versions, owner/admin observations and the existing held barrier.
+The inverse requires the actual forward receipt. Execution failures retain the
+existing incident behavior; passive failures cannot claim durable incident evidence.
+
+**Real read-only result: blocked, correctly.** Existing CLI authorization was used
+only for develop Firestore reads. The retained packet reviewed `config/global`
+only, while the real collection also contains `config/member` and `config/public`.
+Global's payload and update time still match exactly. This is an incomplete source
+census, not evidence that global changed. Admission returns `source_not_verified`;
+no complete source match or held window is claimed. Each diagnostic transaction
+was explicitly read-only; zero control reads, control-close calls or write attempts.
+An initial REST/auth-library mismatch failed before useful verification; the private
+harness then reused the SDK's own compatible auth library, without changing project
+dependencies or granting permissions. Failed observations are retained separately.
+
+Local validation: 102 unit tests and 47 SDK-emulator tests, zero failures/skips;
+Functions build/full lint and focused CJS lint pass. The retained-input controlled
+roundtrip uses the same 203/140 mutations, restores all 62 originals and preserves
+117 notices. Passive snapshots, including service versions, stay unchanged.
+Missing/invalid held controls, changed human observations, late writes, expired
+inspection and the observed extra-config condition block. No native changes/parity
+gap. The previous captured-image Sheets acceptance is unchanged and not rerun;
+this new composition does not establish live Sheets writer authority or atomicity.
+Private evidence: `2026-10-30-controlled-executor` (final emulator run in `final/`).
+
+Next refresh the exact source census to include and review both additional config
+documents, regenerate the bound package and repeat passive admission. Then bind
+current technical control readers, Sheets destination/writer authority and explicit
+owner/admin/risk agreements for a separately authorized window. No approval is
+needed from the user for the current local block. Maintenance remains unopened,
+with no shared business writes, Sheets writes, notification, deployment or production
+access. HU-084/HU-085 remain open; PR #278 stays draft.

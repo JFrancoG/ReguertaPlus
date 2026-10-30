@@ -19,6 +19,7 @@ const {fromSnapshot} = require("./develop-shift-migration-fixture.cjs");
 const {loadManifest,prepareDevelopMigrationPackage} = require("../scripts/prepare-develop-migration-package.cjs");
 const {materializeDevelopMigrationPreparation} = require("../scripts/materialize-develop-migration-package.cjs");
 const migration = require("../scripts/rehearse-develop-shift-migration.cjs");
+const {createControlledDevelopMigrationEmulator}=require("../scripts/controlled-develop-migration.cjs");
 const ROOT = "develop/plus-collections";
 const enabled = process.env.GCLOUD_PROJECT === migration.PROJECT_ID && process.env.FIRESTORE_EMULATOR_HOST === migration.HOST;
 const run = (name,fn) => test(name,{skip:!enabled},fn);
@@ -65,7 +66,8 @@ async function harness(sourceInput=fixture()) {
     f.command.expectedHistoricalRiskDigest=f.scope.expectedHistoricalRiskDigest=digest(risk);f.evidence.digest=digest(f.evidence.payload);
     return f.scope;
   };
-  return {prepared,service,scope,reviewPackage,sourceInput,cloneCapture,setClock:value=>{now=value;}};
+  return {prepared,service,scope,reviewPackage,sourceInput,cloneCapture,controlPlane,journal,current:()=>f,
+    setClock:value=>{now=value;},clock:()=>now};
 }
 async function forward(h) {
   const scope=await h.scope(),finalManifest=await h.service.forward({scope,materializeOnly:true});
@@ -146,4 +148,83 @@ run("closed policy still refuses annual production if a local maintenance flag i
 });
 run("clone precision loss is rejected instead of silently changing a retained payload",async()=>{
   await assert.rejects(harness(reviewFixture()),/clone payload drift/);
+});
+
+async function controlled(sourceInput) {
+  const h=await harness(sourceInput),counts={close:0,incident:0};
+  const controlPlane={...h.controlPlane,closeAndCollect:async()=>{counts.close++;throw new Error("must not close controls");}};
+  const failurePersistence={readExistingFailure:i=>h.journal.readExistingFailure(i),retainFailureAndReadBack:async i=>{
+    counts.incident++;return h.journal.retainFailureAndReadBack(i);
+  }};
+  const executor=createControlledDevelopMigrationEmulator({firestore:db,prepared:h.prepared,controlPlane,failurePersistence,nowMillis:h.clock});
+  const hold=async(inverse=false)=>{const scope=await h.scope(inverse);await h.controlPlane.closeAndCollect(scope);return scope;};
+  return {...h,executor,hold,counts,readers:controlPlane};
+}
+const businessSnapshot=async()=>Object.fromEntries(await Promise.all(["shifts","users","config","notificationEvents","deliveryCalendar",
+  "shiftPlanningState","shiftRotations","shiftPlanningOperations","shiftPlanningMigrationBaselines"].map(async c=>[c,await saved(c,true)])));
+run("controlled read-only admission reports the absent window without acquiring controls or writing",async()=>{
+  const h=await controlled(),before=await businessSnapshot();
+  const result=await h.executor.inspectAdmission();assert.equal(result.checksPassed,false);
+  assert.deepEqual(result.blockers,["window_scope_missing"]);assert.equal(result.canApply,false);assert.equal(result.canEnterMaintenance,false);
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
+});
+run("controlled admission and execution reuse exact forward/inverse manifests and held controls",async()=>{
+  const sourceInput=process.env.HU084_REVIEW_MANIFEST?loadManifest(process.env.HU084_REVIEW_MANIFEST):fixture();
+  const h=await controlled(sourceInput),original=await saved("shifts"),notices=await saved("notificationEvents",true),scope=await h.hold();
+  const before=await businessSnapshot(),admission=await h.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);assert.equal(admission.canApply,false);assert.deepEqual(await businessSnapshot(),before);
+  const receipt=await h.executor.execute({scope,admission});assert.equal(receipt.measurement.documentWriteCount,203);
+  assert.equal((await h.executor.readRetained({scope})).replayed,true);
+  const inverseScope=await h.hold(true),afterForward=await businessSnapshot();
+  const inverse=await h.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+  assert.equal(inverse.checksPassed,true);assert.deepEqual(await businessSnapshot(),afterForward);
+  assert.equal((await h.executor.execute({scope:inverseScope,admission:inverse,forwardReadBack:receipt})).measurement.documentWriteCount,140);
+  assert.deepEqual(await saved("shifts"),original);assert.deepEqual(await saved("notificationEvents",true),notices);
+  assert.deepEqual(h.counts,{close:0,incident:0});
+  if(process.env.HU084_CONTROLLED_OUTPUT){
+    assert.ok(path.isAbsolute(process.env.HU084_CONTROLLED_OUTPUT));fs.mkdirSync(process.env.HU084_CONTROLLED_OUTPUT,{recursive:true,mode:0o700});
+    fs.writeFileSync(path.join(process.env.HU084_CONTROLLED_OUTPUT,"controlled-roundtrip.json"),JSON.stringify({
+      reviewPackageDigest:h.reviewPackage.packageDigest,preparedDigest:h.prepared.preparedDigest,admission,inverse,
+      forwardReceiptDigest:receipt.receiptDigest,counts:h.counts,originalsRestored:62,noticesPreserved:117,liveExecutable:false},null,2),{mode:0o600,flag:"wx"});
+  }
+});
+run("invalid owner facts block passive admission without creating a failure journal",async()=>{
+  const h=await controlled(),scope=await h.hold(),before=await businessSnapshot();
+  h.current().evidence.payload.ownerObservation.ownerActivity="reported";
+  const result=await h.executor.inspectAdmission({scope});assert.equal(result.checksPassed,false);assert.equal(result.finalManifest,null);
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
+});
+run("a passed inspection cannot bypass a changed administrator observation during execution",async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+  h.readers.readBackAdministratorObservation=async()=>({...h.current().evidence.payload.administratorObservation,administratorActivity:"reported"});
+  await assert.rejects(h.executor.execute({scope,admission}));assert.equal((await saved("shifts")).length,62);
+  assert.equal(h.counts.close,0);assert.equal(h.counts.incident,1);
+});
+run("a passed inspection cannot bypass a late source write",async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+  const ref=db.doc(`${ROOT}/notificationEvents/after-inspection`);await ref.create({keep:true});
+  await assert.rejects(h.executor.execute({scope,admission}));assert.equal((await ref.get()).get("keep"),true);
+  assert.equal((await saved("shifts")).length,62);assert.equal(h.counts.close,0);
+});
+run("inspection failure does not claim a durable incident when the held checkpoint is missing",async()=>{
+  const h=await controlled(),scope=await h.scope();h.readers.readBackClosed=async()=>null;
+  const before=await businessSnapshot(),result=await h.executor.inspectAdmission({scope});
+  assert.deepEqual(result.blockers,["held_checkpoint_missing"]);assert.deepEqual(await businessSnapshot(),before);
+  await assert.rejects(h.executor.execute({scope,admission:result}));assert.deepEqual(h.counts,{close:0,incident:0});
+});
+run("unreviewed config documents block passive admission even when config/global is unchanged",async()=>{
+  const h=await controlled(),global=await db.doc(`${ROOT}/config/global`).get();
+  await db.doc(`${ROOT}/config/member`).create({deliveryDayOfWeek:3});
+  await db.doc(`${ROOT}/config/public`).create({versions:{}});
+  const before=await businessSnapshot(),result=await h.executor.inspectAdmission();
+  assert.deepEqual(result.blockers,["source_not_verified"]);assert.equal(result.source,null);
+  assert.ok((await db.doc(`${ROOT}/config/global`).get()).updateTime.isEqual(global.updateTime));
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
+});
+run("an expired controlled admission cannot execute or persist an incident",async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);const before=await businessSnapshot();
+  h.setClock(h.clock()+60_001);
+  await assert.rejects(h.executor.execute({scope,admission}),/inspection expired/);
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
 });

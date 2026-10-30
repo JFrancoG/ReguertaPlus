@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-30 | ✨ feat(shifts): connect controlled develop admission
+
 - 2026-10-30 | ✨ feat(shifts): materialize closed migration manifests
 
 - 2026-10-30 | ✨ feat(shifts): bind develop migration review evidence

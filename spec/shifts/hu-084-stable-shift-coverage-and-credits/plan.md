@@ -2935,3 +2935,22 @@ rehearsal authority, not live admission. No shared executor, maintenance opening
 deployment or production access; no native parity gap. Next connect controlled
 develop execution and prepare read-only admission before a separately authorized
 window. New changes remain local; HU-084/HU-085/PR #278 stay open/draft.
+
+### Controlled executor connected; real admission remains blocked — 2026-10-30
+
+Previous materializer delivered/pushed as `9a83203f`; remote and draft PR #278
+head verified. New local composition reuses the extracted migration engine with
+fixed develop project/database/namespace and exact original service versions.
+Passive admission does not close controls or write incidents; execution consumes
+an already-held barrier, rechecks source/human observations and rejects inspection
+older than 60 seconds. Reports never authorize application or maintenance entry.
+
+102 unit + 47 SDK-emulator passes, build/full lint and CJS lint. Retained-input
+203/140-write roundtrip restores 62 originals and preserves 117 notices. Actual
+read-only develop inspection detects two unreviewed config documents (member/public);
+config/global itself is unchanged. Admission blocks with zero shared writes or
+control reads. Next extend/review the exact config census and regenerate the bound
+packet before repeating passive admission and preparing the separately authorized
+window. See bilingual migration guide and private `2026-10-30-controlled-executor`.
+No deployment, maintenance opening, production access or native parity gap.
+New work remains uncommitted; HU-084/HU-085 open, PR #278 draft.

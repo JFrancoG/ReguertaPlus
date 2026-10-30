@@ -252,3 +252,57 @@ preparar su comprobación de admisión de solo lectura y renovar la autoridad an
 de pedir una ventana concreta con acuerdos y aceptación del riesgo. No reutilizar
 recibos, tiempos ni aprobaciones del emulador en esa ventana. HU-084/HU-085 y
 PR #278 borrador siguen abiertos; sin brecha nativa.
+
+## Ejecutor controlado de develop y admisión pasiva — 2026-10-30
+
+El materializador anterior está publicado en `9a83203f`; remoto y cabecera de la
+PR #278 coinciden. La implementación siguiente permanece local.
+
+`develop-shift-migration-engine.cjs` extrae el ejecutor existente y reutiliza su
+serialización, barrera y CAS. El envoltorio del ensayo conserva la exigencia del
+proyecto demo y host loopback exactos antes de construir el cliente. La nueva
+composición `controlled-develop-migration.cjs` recibe un cliente Firestore fijado
+a `reguerta-9f27f`, base `(default)` y rutas `develop/plus-collections`. La preparación
+compartida exige las versiones originales revisadas, no las del clon. El contexto
+de política indica `controlled_develop_preparation`; el nombre histórico del
+contenedor `localOnly` no convierte esa evidencia en autoridad del emulador.
+No se añade endpoint, despliegue ni CLI de aplicación.
+
+La inspección pasiva lee las fuentes mediante una transacción de solo lectura y
+consulta controles ya retenidos. No adquiere/cierra controles ni guarda incidencias.
+Todos los informes conservan `canApply:false` y `canEnterMaintenance:false`, incluso
+con `checksPassed:true`: no son autorizaciones. Ejecutar exige un informe coincidente
+y de un máximo de 60 segundos; reconstruye el manifiesto y vuelve a verificar fuentes,
+propietario, administradores y barrera vigente. La inversa depende del recibo real de
+la ida. Los fallos al ejecutar conservan el registro de incidencias existente; los
+fallos pasivos no declaran una incidencia persistida.
+
+**Comprobación real de solo lectura: bloqueada correctamente.** Se utilizó la
+sesión existente de CLI exclusivamente para leer Firestore de develop. El paquete
+revisaba solo `config/global`, pero la colección real también contiene
+`config/member` y `config/public`. Contenido y versión de global coinciden exactamente.
+Es una omisión del censo, no evidencia de que global haya cambiado. La admisión devuelve
+`source_not_verified`; no se acredita una coincidencia completa ni una ventana retenida.
+Cada transacción de diagnóstico fue de solo lectura: cero consultas a controles,
+intentos de cierre o escritura. Un primer fallo de compatibilidad REST/autenticación
+no permitió verificar fuentes; el arnés privado reutilizó después la librería de
+autenticación compatible del SDK, sin actualizar dependencias ni conceder permisos.
+Las observaciones fallidas se conservan separadas.
+
+Validación local: 102 pruebas unitarias y 47 de emulador SDK, sin fallos ni omisiones;
+build/lint de Functions y lint CJS pasan. La ida/vuelta controlada con datos retenidos
+conserva las 203/140 mutaciones, restaura los 62 originales y preserva los 117 avisos.
+Las inspecciones conservan las imágenes y versiones. Controles ausentes/inválidos,
+cambios en acuerdos, escrituras tardías, inspecciones caducadas y los documentos de
+configuración no revisados bloquean. Sin cambios nativos ni brecha de paridad. El
+ensayo anterior de Sheets no cambia ni se repite; esta composición no acredita un
+escritor real de Sheets ni atomicidad entre servicios. Evidencia privada:
+`2026-10-30-controlled-executor`, con ensayo final en `final/`.
+
+Siguiente paso: ampliar y revisar el censo exacto con los dos documentos de
+configuración, regenerar el paquete vinculado y repetir la admisión pasiva. Después,
+vincular lectores de controles actuales, destino/escritor de Sheets y acuerdos
+expresos de propietario/administradores/riesgo para una ventana autorizada aparte.
+Este bloque local no requiere intervención del usuario. Mantenimiento sin abrir;
+sin escrituras de negocio compartidas, Sheets, notificaciones, despliegues ni acceso
+a producción. HU-084/HU-085 siguen abiertas y la PR #278 en borrador.
