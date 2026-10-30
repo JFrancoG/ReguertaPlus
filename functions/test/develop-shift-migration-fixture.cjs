@@ -66,6 +66,7 @@ const legacyRows = () => [
 
 const restValue = (value) => {
   if (value === null) return {nullValue: null};
+  if (Buffer.isBuffer(value)) return {bytesValue: value.toString("base64")};
   if (value instanceof Timestamp) return {timestampValue:
     `${new Date(value.seconds * 1000).toISOString().slice(0, 19)}.${String(value.nanoseconds).padStart(9, "0")}Z`};
   if (typeof value === "string") return {stringValue: value};

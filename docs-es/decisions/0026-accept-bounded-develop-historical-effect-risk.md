@@ -127,3 +127,17 @@ cambiado no permite inventar un recibo durable de incidencia. Evidencia privada:
 Implementación/documentación locales tras `d3ae12d9`; este paso no pidió commit/push.
 Siguiente: vincular autoridad/observaciones reales actuales y aceptación de la operación
 exacta antes de solicitar una ventana de mantenimiento autorizada por separado.
+
+## Materialización final local — 2026-10-30
+
+La decisión de riesgo aceptada no cambia. El ejecutor loopback usa ahora una
+política explícita de migración cerrada; no presenta una política anual ficticia
+como autoridad de ejecución. El productor anual rechaza deliberadamente su
+registro diferenciado. Los manifiestos completos se reconstruyen y comparan
+dentro del intento existente; la inversa depende del recibo real de ida.
+No se fabrican endpoint real, aceptación humana ni observación compartida mantenida.
+Las identidades de hoja/índices se vinculan como evidencia; todas las versiones,
+tiempos, barreras y recibos de esta aceptación pertenecen al emulador. Validación:
+92 pruebas unitarias + 39 de emulador + una de Sheets con captura retenida. Detalle
+en la guía bilingüe de migración. La activación compartida y la admisión de una
+política anual continúan siendo puertas independientes.

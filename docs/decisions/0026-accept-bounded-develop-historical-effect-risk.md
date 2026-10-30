@@ -122,3 +122,17 @@ Private evidence: `2026-10-30-historical-risk-local`. No native changes/parity g
 All implementation/doc changes remain local after `d3ae12d9`; no commit/push was
 requested for this step. Next bind fresh real authority/observations and the exact
 operation acceptance before requesting a separately authorized maintenance window.
+
+## Final local materialization checkpoint — 2026-10-30
+
+The accepted risk decision is unchanged. The loopback runner now uses an explicit
+closed migration policy instead of treating a fixture annual policy as runtime
+authority. Its distinct record is deliberately rejected by the ordinary annual
+source parser. Complete transaction manifests are reconstructed and compared
+inside the existing attempt; inverse depends on the actual forward receipt.
+No live entry point, human acceptance or held shared observation is manufactured.
+The retained workbook/index identity is bound as evidence, while all service
+versions, timestamps, barriers and receipts used in this acceptance belong to
+the emulator. Local closed-policy acceptance: 92 unit + 39 emulator + one captured
+Sheets test; see the bilingual migration guide. Shared activation and annual
+policy admission remain separate gates.

@@ -23,7 +23,8 @@ const {resolveShiftRotationBootstrap} = require("../lib/shift-rotation-bootstrap
 const {consumeRotationPositions} = require("../lib/shift-planning-contract.js");
 const {parseShiftPlanningMaintenanceState} = require("../lib/shift-planning-wire.js");
 const {applyShiftPlanningFirestoreTransactionAttempt} = require("../lib/shift-planning-firestore-transaction-attempt.js");
-const {SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION} = require("../lib/shift-planning-firestore-transaction-manifest.js");
+const {SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION, prepareShiftPlanningFirestoreTransaction} = require("../lib/shift-planning-firestore-transaction-manifest.js");
+const {KIND: CLOSED_POLICY, verifyClosedPolicy} = require("./develop-closed-migration-policy.cjs");
 const {createTrustedShiftPlanningIntakeBarrierAdapter, createTrustedShiftPlanningAdministratorBarrierAdapter} = require("../lib/shift-planning-trusted-intake-barrier-adapter.js");
 const {DEVELOP_HISTORICAL_WORKBOOK} = require("../lib/shift-planning-historical-risk.js");
 const {verifyShiftPlanningIntakeBarrierEvidence, verifyShiftPlanningAdministratorAgreementIntakeBarrierEvidence} = require("../lib/shift-planning-intake-barrier.js");
@@ -141,15 +142,18 @@ const prepareDevelopShiftMigration = ({contentProposal, legacyCapture, policyDra
     draft.localOnly.liveExecutable === false && draft.localOnly.planningReady === false &&
     draft.document.environment === "develop" && draft.document.creditLedger.enabled === false &&
     draft.document.coverage?.enabled !== true, "closed policy draft");
-  requireValue(["delivery", "market"].every((type) => draft.document.sync.partitions[type].workbookId === WORKBOOK_ID &&
+  if (draft.document.kind === CLOSED_POLICY) verifyClosedPolicy(draft);
+  else requireValue(["delivery", "market"].every((type) => draft.document.sync.partitions[type].workbookId === WORKBOOK_ID &&
     draft.document.sync.partitions[type].workbookRevision === "1" && draft.document.sync.partitions[type].lease === null), "local workbook authority");
   const chosenRun = runId ?? `hu084-migration-${contentDigest.slice(-12)}`;
   requireValue(id(chosenRun), "run id");
   const source = legacy.map((item) => ({path: item.path, payload: encode(item.data),
     updateTime: encode(item.updateTime), createTime: encode(item.createTime)}));
   const guards = legacyCapture.guardCollections ?? null;
-  requireValue(guards === null || Object.keys(guards).sort().join() === "deliveryCalendar,users", "complete guard collection names");
-  const guardCollections = guards === null ? null : Object.fromEntries(["users", "deliveryCalendar"].map((collection) => {
+  const guardNames = draft.document.kind === CLOSED_POLICY ? ["users", "deliveryCalendar", "notificationEvents", "config"] : ["users", "deliveryCalendar"];
+  requireValue(guards === null || Object.keys(guards).sort().join() === [...guardNames].sort().join(), "complete guard collection names");
+  requireValue(draft.document.kind !== CLOSED_POLICY || guards !== null, "closed migration requires complete source guards");
+  const guardCollections = guards === null ? null : Object.fromEntries(guardNames.map((collection) => {
     requireValue(Array.isArray(guards[collection]) && guards[collection].length <= 1000, "bounded guard documents");
     const documents = guards[collection].map((doc) => guardDocument(doc, collection)).sort((a, b) => compare(a.path, b.path));
     requireValue(new Set(documents.map((doc) => doc.path)).size === documents.length, "duplicate guard path");
@@ -180,6 +184,11 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
   requireValue(prepared.projectId === PROJECT_ID && prepared.environment === "develop" &&
     prepared.liveExecutable === false && digest(preparedBody) === preparedDigest, "prepared binding");
   checkContentPositions(prepared.content);
+  const closedPolicy = prepared.policyDraft.document.kind === CLOSED_POLICY;
+  if (closedPolicy) {
+    verifyClosedPolicy(prepared.policyDraft);
+    requireValue(historicalRiskMode, "closed migration requires the historical risk barrier");
+  }
   const db = new Firestore({projectId: PROJECT_ID, host: HOST, ssl: false});
   requireValue(typeof historicalRiskMode === "boolean", "explicit historical risk mode");
   const barrier = historicalRiskMode ? createTrustedShiftPlanningAdministratorBarrierAdapter({
@@ -200,10 +209,12 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
   const capture = async (tx) => {
     const documents = new Map();
     for (const collection of ["shifts", "users", "deliveryCalendar", "shiftPlanningSyncCommands", "shiftCoverageEffects", "shiftSwapRequests",
-      ...(historicalRiskMode ? ["notificationEvents"] : [])]) {
+      ...(historicalRiskMode ? ["notificationEvents"] : []),
+      ...(closedPolicy ? ["config", "shiftPlanningRequests", "shiftCoverageReserves", "shiftCoverageCredits", "shiftMembershipState", "shiftCoverageCases"] : [])]) {
       const query = await tx.get(db.collection(`${ROOT}/${collection}`).orderBy("__name__").limit(1001));
       requireValue(query.size <= 1000, "bounded source");
-      if (["shiftPlanningSyncCommands", "shiftCoverageEffects", "shiftSwapRequests"].includes(collection)) {
+      if (["shiftPlanningSyncCommands", "shiftCoverageEffects", "shiftSwapRequests", "shiftPlanningRequests",
+        "shiftCoverageReserves", "shiftCoverageCredits", "shiftMembershipState", "shiftCoverageCases"].includes(collection)) {
         requireValue(query.empty, "runnable or retained workflow requires separate review");
       }
       for (const doc of query.docs) documents.set(doc.ref.path, doc);
@@ -357,17 +368,35 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
     verifyHeld(evidence, scope);
     return callback(evidence);
   });
+  const finalTimestamp = (finalManifest) => {
+    if (!finalManifest) return clock();
+    const {finalDigest, ...body} = finalManifest;
+    requireValue(digest(body) === finalDigest && body.preparedDigest === preparedDigest, "final manifest identity");
+    const value = decodeShiftPlanningFirestoreValue(body.attemptedAt), age = clock().toMillis() - value.toMillis();
+    requireValue(age >= 0 && age <= 60_000, "final manifest expired or future dated");
+    return value;
+  };
+  const finalize = (direction, scope, mutations, manifestDigest, attemptedAt) => {
+    const transaction = prepareShiftPlanningFirestoreTransaction({direction, manifestDigest, mutations,
+      expectedDocumentWriteCount:mutations.length, authority:prepared.policyDraft.document.sync.transactionMeasurementAuthority, writeLimit:500});
+    const body = {schemaVersion:1,scope:"loopback_emulator_only",projectId:PROJECT_ID,liveExecutable:false,
+      preparedDigest,direction,scopeDigest:digest(scope),attemptedAt:encode(attemptedAt),transaction};
+    return {...body,finalDigest:digest(body)};
+  };
   return {
     close: () => db.terminate(),
     retentionPolicy,
     async inspect() { const source = await db.runTransaction(capture); return {sourceDigest: source.sourceDigest, maintenance: source.maintenance}; },
-    async forward({scope}) {
+    async forward({scope, materializeOnly = false, finalManifest = null}) {
+      requireValue(typeof materializeOnly === "boolean" && !(materializeOnly && finalManifest), "materialization options");
       await requireNoFailure(prepared.operationId);
       const replay = await retained(scope);
       if (replay) {
+        requireValue(!materializeOnly && !finalManifest, "use retained receipt after commit, not a new manifest");
         if (replay.operation.operationKind === "activationRecovery") return {replayed: true, direction: "forward", recovered: true, operation: encode(replay.operation)};
         return snapshotReceipt("forward", forwardDescriptors(replay.baseline), null, replay.operation, true);
       }
+      requireValue(!closedPolicy || materializeOnly || finalManifest, "closed migration requires a final manifest");
       return runHeld(scope, async (evidence) => {
         const result = await db.runTransaction(async (tx) => {
         const source = await capture(tx);
@@ -383,7 +412,7 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
           requireValue(actual?.exists && actual.updateTime.isEqual(decodeShiftPlanningFirestoreValue(before.updateTime)), "legacy source version changed");
           requireValue(digest(encode(actual.data())) === digest(before.payload), "legacy source payload changed");
         }
-        const attemptedAt = clock();
+        const attemptedAt = finalTimestamp(finalManifest);
         const verified = verifyHeld(evidence, scope);
         const archives = prepared.legacy.map((before, index) => createShiftPlanningBeforeImageEnvelope({
           operationId: prepared.operationId, environment: "develop", bundleRevision: prepared.baselineRevision,
@@ -447,21 +476,31 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
         baselineCore.expectedForward = descriptors(mutations);
         const baseline = {...baselineCore, baselineDigest: digest(baselineCore)};
         mutations.push({kind: "create", documentPath: baselinePath, data: baseline});
+        const finalized = finalize("forward", scope, mutations, preparedDigest, attemptedAt);
+        if (materializeOnly) return {finalized};
+        if (finalManifest) same(finalized, finalManifest);
         const measurement = await applyShiftPlanningFirestoreTransactionAttempt({firestore: db, transaction: tx, direction: "forward",
           manifestDigest: preparedDigest, mutations, expectedDocumentWriteCount: mutations.length, writerFenceCheckedAt: clock(),
           authority: prepared.policyDraft.document.sync.transactionMeasurementAuthority, writeLimit: 500});
         return {measurement, operation, expected: descriptors(mutations)};
         });
+        if (materializeOnly) return result.finalized;
         return snapshotReceipt("forward", result.expected, result.measurement, result.operation);
       });
     },
-    async inverse({scope, forwardReadBack}) {
+    async inverse({scope, forwardReadBack, materializeOnly = false, finalManifest = null}) {
+      requireValue(typeof materializeOnly === "boolean" && !(materializeOnly && finalManifest), "materialization options");
       await requireNoFailure(prepared.recoveryOperationId);
       const replay = await retained(scope, true, forwardReadBack);
-      if (replay) return {replayed: true, direction: "inverse", historical: true, readBackVerified: false, operation: encode(replay.operation)};
+      if (replay) {
+        requireValue(!materializeOnly && !finalManifest, "use retained recovery after commit, not a new manifest");
+        return {replayed: true, direction: "inverse", historical: true, readBackVerified: false, operation: encode(replay.operation)};
+      }
+      requireValue(!closedPolicy || materializeOnly || finalManifest, "closed recovery requires a final manifest");
       return runHeld(scope, async (evidence) => {
         const result = await db.runTransaction(async (tx) => {
         const source = await capture(tx); scopeCheck(scope, source, true);
+        if (closedPolicy) checkGuardsAndCohort(source);
         requireValue(!source.documents.get(WORKBOOK_POINTER_PATH).exists, "workbook submission pointer must be absent before inverse");
         const canonicalPaths = prepared.content.shifts.map((item) => `${ROOT}/shifts/${item.id}`).sort(compare);
         const actualPaths = [...source.documents.values()].filter((doc) => doc.ref.path.startsWith(`${ROOT}/shifts/`))
@@ -470,7 +509,7 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
         await checkReadBack(tx, forwardReadBack, source.documents.get(baselinePath));
         const activation = parseShiftPlanningActivationOperationTerminal(decode(forwardReadBack.operation));
         requireValue(activation.operationId === prepared.operationId, "activation identity");
-        const recoveredAt = clock(); verifyHeld(evidence, scope);
+        const recoveredAt = finalTimestamp(finalManifest); verifyHeld(evidence, scope);
         const deletedPaths = prepared.content.shifts.map((s) => `${ROOT}/shifts/${s.id}`).sort(compare);
         const inverseManifestDigest = inverseDigest(scope, forwardReadBack);
         const recoveryCore = {schemaVersion: 2, operationKind: "activationRecovery", state: "committed",
@@ -500,11 +539,15 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
         {kind: "update", documentPath: operationPath, data: buildShiftPlanningExactReplacementData({desired: recovery, current: source.documents.get(operationPath).data()}),
           precondition: {lastUpdateTime: source.documents.get(operationPath).updateTime}},
         {kind: "create", documentPath: shiftPlanningPublicEventOperationRetentionPath({environment: "develop", operationId: prepared.recoveryOperationId}), data: retention}];
+        const finalized = finalize("inverse", scope, mutations, inverseManifestDigest, recoveredAt);
+        if (materializeOnly) return {finalized};
+        if (finalManifest) same(finalized, finalManifest);
         const measurement = await applyShiftPlanningFirestoreTransactionAttempt({firestore: db, transaction: tx, direction: "inverse",
           manifestDigest: inverseManifestDigest, mutations, expectedDocumentWriteCount: mutations.length, writerFenceCheckedAt: clock(),
           authority: prepared.policyDraft.document.sync.transactionMeasurementAuthority, writeLimit: 500});
         return {measurement, operation: recovery, expected: descriptors(mutations, {[operationPath]: recovery})};
         });
+        if (materializeOnly) return result.finalized;
         return snapshotReceipt("inverse", result.expected, result.measurement, result.operation);
       });
     },

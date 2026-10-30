@@ -167,3 +167,88 @@ El manifiesto contiene `files` (entradas `{path, sha256}`), `reviewedContentDige
 y `reviewedProposalDigest`. Las claves de archivos son `snapshot`, `sheetCells`,
 `referenceCells`, `proposal`, `fileBefore`, `fileAfter`, `filePermissions`, `parent`,
 `parentPermissions`, `indexes`, `controls`, `reviewedControls`, `assessment`.
+
+## Política cerrada y manifiestos locales finales — 2026-10-30
+
+El paquete de revisión está entregado y subido en `e9fb31e5`. Esta nueva
+implementación queda local. `materialize-develop-migration-package.cjs` verifica
+el paquete contra sus trece entradas fijadas y compara todos los contenidos
+originales con el clon recién creado y leído en el emulador. No envía las versiones
+del servicio original al clon. Rechaza incluso un redondeo de marcas temporales:
+Firestore conserva sus campos temporales con precisión de microsegundos, mientras
+las imágenes offline retienen todos los dígitos recibidos. No se normalizan pérdidas.
+
+`closedDevelopInitialMigration` es un registro explícito de política cerrada.
+Vincula las evidencias revisadas de hoja/índices y deshabilita planificación,
+coberturas, compensaciones y repetición de avisos. Continuidad anual, prefijo
+heredado y frontera siguen nulos. El productor ordinario rechaza su formato
+diferenciado incluso si se abre por error la bandera local de mantenimiento.
+No se debilita el parser anual. Las rotaciones conservan el valor centinela 2025
+del ensayo cerrado anterior: no es una frontera anual admitida. Sustituir esta
+política por una anual sigue siendo trabajo independiente.
+
+El ejecutor existente, limitado a loopback, materializa la transacción final con
+el serializador público existente, la reconstruye dentro de la transacción de
+ejecución y exige igualdad exacta antes de escribir datos de negocio. El modo
+cerrado exige este paso en ambos sentidos. El manifiesto vincula preparación,
+dirección, ámbito de barrera, tiempos concretos, todas las mutaciones y sus
+precondiciones. Rechaza tiempos futuros o con más de 60 segundos. La inversa
+solo se materializa con el recibo real de lectura posterior de la ida; no inventa
+versiones futuras. La repetición de operaciones conservadas sigue funcionando
+sin reenviar el manifiesto final. La preparación puede guardar evidencia de
+barrera en el registro local, pero no modifica documentos de negocio.
+
+El identificador de ejecución se convierte explícitamente a
+`request-${reviewForwardId}`, usando el identificador revisado como requestId.
+La correspondencia determinista queda fijada en el digest; se conserva el contrato
+de identidad de recuperación. Ambas direcciones protegen socios, calendarios,
+avisos y configuración; solicitudes, compensaciones, reservas, situaciones de
+socios, casos, efectos o trabajos de sincronización/intercambio impiden ejecutar.
+
+Aceptación privada: `2026-10-30-final-migration`, únicamente contra
+`demo-reguerta-hu084-migration` en `127.0.0.1:8798`. Resultados conservados:
+
+| Artefacto | Sufijo SHA-256 tras `shift-planning:v1:sha256:` |
+| --- | --- |
+| Preparación del clon | `4cf80f9b53f6898bcb6253abe52360c7d3e53994abd8c65ef012398791b097c2` |
+| Manifiesto final de ida | `d588a58b173da4bab8ec2b0ec5195bd4a16c3fe037b08dfb0aa7a53e97a5f8af` |
+| Manifiesto final inverso | `41950f02de9a6849e6a64616d6ca73519fcf8358703e866d8c6d1e4bc19a60ab` |
+| Aceptación/manifiestos Sheets | `956899b9841043558abc7d2cd0fd007510009db5205a91e3cff20563657d396b` |
+
+La ida confirma 203 escrituras (estimación de aplicación: 1.844.040 bytes); la
+inversa, 140 (532.726 bytes). Se restauran/conservan los 62 originales, 72 turnos
+publicados, 108 posiciones, 48 socios, cuatro calendarios y 117 avisos sin repetirlos.
+La recuperación deja la seguridad cerrada en época 2. Las estimaciones vinculan
+la observación retenida de índices, pero no miden bytes/índices del proveedor
+ni conceden admisión real.
+
+El adaptador existente de Sheets materializa y aplica por separado dos lotes
+exactos en una copia en memoria de las seis pestañas conservadas: cada uno incluye
+53 celdas y dos marcadores técnicos. Vinculan revisión, preparación y recibos
+locales de Firestore. Se restauran las 742 celdas/notas tipadas observadas y se
+conservan los marcadores técnicos. Los IDs de metadatos y el contador de versión
+son locales, no autoridad vigente de Google. No se certifican formatos/celdas
+no observados ni atomicidad entre servicios. No se crea un cliente Google.
+
+Validación: 92 pruebas locales + 39 de emulador Firestore + una aceptación Sheets
+con imagen retenida, sin fallos ni omisiones en las ejecuciones finales; build/lint
+completo de Functions, lint CJS focalizado y diff correctos. Comandos:
+
+```sh
+npm run test:shift-planning:develop-final-migration
+npm run test:shift-planning:develop-final-migration:emulator
+```
+
+La aceptación privada añade `HU084_REVIEW_MANIFEST` y `HU084_FINAL_OUTPUT` al
+emulador; la de Sheets añade también `HU084_MIGRATION_EVIDENCE_DIR` para el
+mapeo publicado previamente revisado. Las salidas se crean sin sobrescribir,
+modo 0600, en directorio privado. Cada ensayo usa otro directorio; las versiones
+del clon hacen que sus digests sean propios de esa ejecución.
+
+No se añade ejecutor/endpoint compartido, despliegue, apertura real de mantenimiento
+ni acceso a producción. Queda cerrado el ensayo local, no la activación real.
+Siguiente paso: conectar el materializador al ejecutor controlado de develop,
+preparar su comprobación de admisión de solo lectura y renovar la autoridad antes
+de pedir una ventana concreta con acuerdos y aceptación del riesgo. No reutilizar
+recibos, tiempos ni aprobaciones del emulador en esa ventana. HU-084/HU-085 y
+PR #278 borrador siguen abiertos; sin brecha nativa.

@@ -769,3 +769,25 @@ parity gap. Emulator executor unchanged, not rerun. See the bilingual migration
 rehearsal guide. Next materialize/rehearse the closed runtime policy and exact
 transaction manifests locally; obtain fresh admission evidence and explicit window
 only afterwards. HU-084/HU-085 remain open, PR #278 draft.
+
+### Closed policy and final local migration/inverse accepted — 2026-10-30
+
+Review package delivered/pushed in `e9fb31e5`, remote/PR #278 head verified. New
+local implementation materializes an explicitly closed source policy and complete
+forward/inverse transaction manifests with the existing serializer/barrier/CAS.
+Execution reconstructs and compares every mutation/precondition; inverse requires
+the actual forward receipt. Raw/guard drift, rounded clone fields, missing final
+manifest, future/stale time and substituted writes reject. Reviewed operation IDs
+are explicitly mapped to the existing canonical request-operation identity.
+Annual production rejects the closed policy even after accidental local opening.
+
+92 local + 39 SDK-emulator + 1 captured Sheets acceptance pass, build/full lint
+and CJS lint pass. Real retained input roundtrip: 203/140 writes; exact 62 originals,
+72 published rows/108 positions, 48 users, four calendars and 117 notices preserved.
+Sheets: 53 helpers plus two markers per batch; 742 observed cells/notes restored.
+Evidence `2026-10-30-final-migration`; see bilingual migration guide for exact
+digests, byte estimates and limitations. All final receipts/times/controls are local
+rehearsal authority, not live admission. No shared executor, maintenance opening,
+deployment or production access; no native parity gap. Next connect controlled
+develop execution and prepare read-only admission before a separately authorized
+window. New changes remain local; HU-084/HU-085/PR #278 stay open/draft.

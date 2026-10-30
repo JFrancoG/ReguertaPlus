@@ -181,3 +181,85 @@ The two missing market months and partial annual horizon remain visible. The
 shared workbook exclusion is not newly certified here. Android/iOS are unchanged,
 with no new parity gap or physical test. No maintainer/phone action is needed for
 the completed local rehearsal.
+
+## Closed policy and final local manifests — 2026-10-30
+
+The review package is delivered/pushed in `e9fb31e5`. This new implementation
+remains local. `materialize-develop-migration-package.cjs` verifies that exact
+review packet against its thirteen pinned inputs and compares every original
+payload with the freshly seeded/read emulator clone. Original service versions
+are never submitted to the clone. Even timestamp rounding is rejected; Firestore
+field timestamps have microsecond precision, while offline before-images retain
+all supplied digits. No loss is silently normalized.
+
+`closedDevelopInitialMigration` is an explicit closed source-policy record. It
+binds the reviewed workbook/index evidence and disables planning, coverage,
+credits and notification replay. Annual continuity, inherited prefix and frontier
+remain null. The ordinary source producer rejects its distinct shape, including
+when a local maintenance flag is accidentally opened. No annual parser was
+weakened. Rotation metadata retains the existing closed-rehearsal 2025 sentinel,
+explicitly not an admitted annual frontier. Replacing this closed policy with an
+annual policy remains separate work.
+
+The existing fixed-loopback runner now materializes a detached final transaction
+using the existing public transaction serializer, then reconstructs it inside the
+execution transaction and requires exact equality before any business write.
+Closed mode requires this step in both directions. Each final manifest binds the
+prepared digest, direction, held scope, concrete timestamps, full serialized
+mutations and preconditions. Future timestamps or age above 60 seconds reject.
+The inverse is materialized only from the actual forward readback receipt; no
+future service versions are invented. Retained-operation replay still works
+without resubmitting a final manifest. Barrier evidence may be recorded in the
+local journal during preparation; no business document changes in that stage.
+
+The runtime operation ID is explicitly lowered to `request-${reviewForwardId}`,
+with that reviewed ID as requestId. The deterministic mapping is retained in the
+prepared digest; the existing recovery identity contract is unchanged. Both
+directions bind users, calendars, notices and config; new requests, credits,
+reserves, memberships, cases, effects or sync/swap work prevent execution.
+
+Private acceptance: `2026-10-30-final-migration`, against only
+`demo-reguerta-hu084-migration` at `127.0.0.1:8798`. Concrete retained results:
+
+| Artifact | SHA-256 suffix after `shift-planning:v1:sha256:` |
+| --- | --- |
+| Prepared clone | `4cf80f9b53f6898bcb6253abe52360c7d3e53994abd8c65ef012398791b097c2` |
+| Final forward manifest | `d588a58b173da4bab8ec2b0ec5195bd4a16c3fe037b08dfb0aa7a53e97a5f8af` |
+| Final inverse manifest | `41950f02de9a6849e6a64616d6ca73519fcf8358703e866d8c6d1e4bc19a60ab` |
+| Sheets acceptance/manifests | `956899b9841043558abc7d2cd0fd007510009db5205a91e3cff20563657d396b` |
+
+Forward commits 203 writes (application estimate 1,844,040 bytes); inverse commits
+140 (532,726 bytes). Both restore/preserve the expected 62 originals, 72 published
+rows, 108 positions, 48 users, four calendars and 117 notices without replay.
+Recovery leaves security closed at epoch 2. These byte estimates bind the retained
+index observation but are not provider wire/index measurements or live admission.
+
+The existing Sheets adapter separately materializes and applies two exact batches
+to an in-memory copy seeded from the current retained six-tab image: each has
+53 helper-cell writes and two technical markers. Both batches bind the review,
+prepared digest and local Firestore receipts. All 742 observed typed cells/notes
+are restored; technical markers remain. Sheets metadata IDs and its version
+counter are local, not current Google authority. Unobserved formatting/grids and
+cross-service atomicity are not certified. No Google client is constructed.
+
+Validation: 92 local tests + 39 Firestore-emulator tests + one retained-image Sheets
+acceptance pass, zero failures/skips in their final runs; Functions build/full
+lint, focused CJS lint and diff checks pass. Commands:
+
+```sh
+npm run test:shift-planning:develop-final-migration
+npm run test:shift-planning:develop-final-migration:emulator
+```
+
+Private acceptance additionally supplies `HU084_REVIEW_MANIFEST` and
+`HU084_FINAL_OUTPUT` to the emulator tests. The Sheets acceptance uses those plus
+`HU084_MIGRATION_EVIDENCE_DIR` for the independently reviewed published mapping.
+Outputs use exclusive creation/mode 0600 in a private directory; do not reuse an
+output directory for another run. Clone versions make each rehearsal digest unique.
+
+No shared executor/endpoint, deployment, real maintenance opening or production
+access is added. This closes local materialization/recovery, not live activation.
+Next connect the materializer to the controlled develop executor, prepare its
+read-only admission checks and refresh authority before requesting a specific
+owner/admin/risk window. Do not copy emulator receipts, timestamps or approvals
+into that window. HU-084/HU-085 and draft PR #278 remain open; no native parity gap.
