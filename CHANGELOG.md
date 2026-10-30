@@ -317,6 +317,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-10-30 | 🐛 fix(shifts): allow scoped IAM grant propagation
+
 - 2026-10-30 | 🐛 fix(shifts): contain IAM lifecycle transitions
 
 - 2026-10-30 | 🐛 fix(shifts): identify IAM admission failures

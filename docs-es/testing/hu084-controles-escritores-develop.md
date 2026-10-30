@@ -1305,3 +1305,42 @@ Corrección/evidencia locales, sin commit ni ejecución real. Autorización cons
 revisar/entregar antes de un nuevo intento autorizado con huella nueva. Evidencia:
 `2026-10-30-develop-writer-iam-only-retry-1`.
 Mantenimiento cerrado; producción y todas las hojas intactas; sin cambios nativos.
+
+
+### Emisión única denegada por IAM; limpieza verificada; antigüedad mínima preparada — 2026-10-30
+
+Entregado `7de7a19a`, verificado exactamente en remoto; lint/build y37 pruebas
+focalizadas repetidas. El intento IAM-only retry-2 autorizado pasó las comprobaciones
+de estado/autoridad, concedió el rol exacto y obtuvo disponibilidad orientativa en
+649ms. La única emisión real respondió HTTP403, **IAM_PERMISSION_DENIED**. No se
+emitió ni utilizó token. Desactivación explícita y retirada del permiso completadas
+sin fallos de limpieza. Otra lectura verifica deshabilitada, cero claves/permisos
+directos y política del proyecto sin cambios. El registro administrativo confirma
+reactivación/concesión/retirada/desactivación por el usuario esperado. Sin segunda
+emisión, OAuth del propietario, hojas ni datos de negocio.
+
+Las lecturas confirman IAM Credentials habilitada y getAccessToken incluido en el
+rol. La concesión conservada apunta al usuario y plazo esperados. La intención de
+emisión fue aproximadamente1,4s después del registro de aplicación del permiso.
+Userinfo respondió401 y no verifica por separado la identidad del token del usuario;
+la cuenta CLI y el registro administrativo respaldan el solicitante esperado. La
+consulta combinada IAM/Credentials no aportó evidencia; la consulta administrativa
+acotada correcta registra las mutaciones, no el detalle interno de la denegación.
+
+Google documenta propagación de políticas habitualmente en dos minutos, pudiendo
+tardar siete o más ([propagación de acceso](https://docs.cloud.google.com/iam/docs/access-change-propagation)).
+Es una hipótesis plausible, no demostrada por este403. No se justifican más permisos
+ni otra identidad. La preparación local exige ahora120s desde la respuesta de
+concesión antes de la única emisión. Relee estado/fuentes/autoridad y permiso
+orientativo cada5s dentro del máximo180s y ventana original de diez minutos,
+reservando360s. Una respuesta positiva inmediata no acorta ese mínimo. Si vence,
+aborta y limpia; no repite reactivación, concesión ni emisión. Dos minutos no prueban
+autorización ni garantizan que la propagación haya terminado.
+
+Validación local: lint/build y39 pruebas correctas, sin fallos ni omisiones. Las
+regresiones nuevas comprueban que una disponibilidad inmediata no adelanta la
+emisión y que una ventana insuficiente aborta sin emitir. Corrección y evidencia
+sin commit ni ejecución real; se conservan recibos y autorización consumida.
+Siguiente paso: revisar/entregar y nuevo intento IAM autorizado. No hace falta
+actuar como propietario ni cerrar hojas. Evidencia:2026-10-30-develop-writer-iam-only-retry-2.
+Mantenimiento cerrado; producción y hojas intactas; sin cambios de paridad nativa.

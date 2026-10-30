@@ -1035,3 +1035,19 @@ fails immediately). Tests:37 focused +38 copy/emulator regressions,51 unique pas
 no skips. Local/uncommitted/not executed; fresh digest and authorization needed after
 review/delivery. Historical403 unresolved. Maintenance closed; production/workbooks
 untouched; native parity unchanged. See bilingual writer-controls guide.
+
+
+### IAM denial isolated; minimum grant age prepared — 2026-10-30
+
+`7de7a19a` delivered/remote-verified; lint/build and37 focused passes before retry-2.
+Single actual mint:403 IAM_PERMISSION_DENIED after advisory readiness649ms, about
+1.4s after grant. No token issued/used. Grant removed, explicit disable succeeded;
+independent read confirms disabled/keyless/no direct bindings/project unchanged,
+admin audit caller expected. API enabled and role contains getAccessToken. Root
+cause remains unproven; propagation is plausible, not justification for more roles.
+Local candidate adds120s minimum grant age before the single mint, preserving max
+180s readiness, ten-minute window and360s reserve; no mutation/mint retry. Lint/build
+and39 focused cases pass without skips/failures. Candidate/evidence uncommitted and
+not executed. Review/deliver then fresh authorized attempt; no owner/Sheets window.
+Maintenance closed, production/workbooks untouched, no native parity gap. Issues
+open; PR#278 draft. See bilingual writer-controls guide and retained retry-2 receipts.

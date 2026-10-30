@@ -16,6 +16,7 @@ function prepareDiagnostic(identity) {
     caller: "user:drpuerk@gmail.com", role: "roles/iam.workloadIdentityUser",
     maximumWindowSeconds: 600, mintReadiness: previous.mintReadiness, tokenRequest: previous.tokenRequest,
     lifecycleObservation: {maximumWaitSeconds: 60, pollSeconds: 5},
+    minimumGrantAgeSeconds: 120,
     maximumMintAttempts: 1, useIssuedToken: false, ownerOAuthRequired: false, workbookAccess: false,
     canExecute: false, canRetry: false, canEnterMaintenance: false,
     approvalTemplate: {kind: "authorized-single-iam-diagnostic", authorized: false, receiptId: null,
@@ -99,6 +100,7 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
     const enabled = await observeState(false, []); assertAdmission();
     record("grant-intent", {binding, beforePolicy: enabled.policy});
     await provider.setPolicy({...enabled.policy, version: 3, bindings: [binding]});
+    const grantedAtMillis = nowMillis();
     phase = "wait-token-permission";
     const start = nowMillis(), deadline = Math.min(start + prepared.mintReadiness.maximumWaitSeconds * 1000,
       a.endsAtMillis - prepared.mintReadiness.minimumRemainingWindowSeconds * 1000);
@@ -107,10 +109,13 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
       await observeState(false, [binding], deadline);
       const ready = await provider.hasMintPermission();
       assert.equal(typeof ready, "boolean"); assert.ok(nowMillis() < deadline);
-      if (ready) break;
+      // The advisory permission can appear before the mint service sees the grant.
+      // Keep one actual mint, inside the unchanged deadline, after a minimum age.
+      if (ready && nowMillis() >= grantedAtMillis + prepared.minimumGrantAgeSeconds * 1000) break;
       await sleep(Math.min(prepared.mintReadiness.pollSeconds * 1000, deadline - nowMillis()));
     }
-    readiness = {waitedMillis: nowMillis() - start, isAuthorizationProof: false};
+    readiness = {waitedMillis: nowMillis() - start, grantAgeMillis: nowMillis() - grantedAtMillis,
+      isAuthorizationProof: false};
     record("readiness", readiness);
     phase = "admit-mint";
     await observeState(false, [binding]); assertAdmission();

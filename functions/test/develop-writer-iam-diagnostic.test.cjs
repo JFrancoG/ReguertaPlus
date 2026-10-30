@@ -168,7 +168,7 @@ test("alternating lifecycle reads wait without another enable, grant or mint; cl
     return value;
   };
   const result = await runDiagnostic(f.args);
-  assert.equal(result.kind, "mint-observed-and-contained"); assert.equal(f.state.now, NOW + 15000);
+  assert.equal(result.kind, "mint-observed-and-contained"); assert.equal(f.state.now, NOW + 130000);
   assert.equal(f.state.mintCount, 1);
   assert.equal(f.state.calls.filter(c => c === "enable").length, 1);
   assert.equal(f.state.calls.filter(c => c === "disable").length, 1);
@@ -203,4 +203,27 @@ test("authority drift is never tolerated while waiting for lifecycle visibility"
   assert.equal(result.failure.phase, "grant-identity"); assert.equal(f.state.now, NOW);
   assert.equal(f.state.mintCount, 0); assert.deepEqual(f.state.policy.bindings, [foreign]);
   assert.equal(result.observations.find(o => o.phase === "grant-identity").check, "identity-authority");
+});
+
+test("immediate advisory success never mints before two minutes; one mint and cleanup remain bounded", async t => {
+  const f = fixture(t), mint = f.args.provider.mint;
+  let permissionReads = 0;
+  f.args.provider.hasMintPermission = async () => { permissionReads++; return true; };
+  f.args.provider.mint = async body => {
+    assert.ok(f.state.now >= NOW + 120000); assert.ok(f.state.now + 360000 < f.args.input.approval.endsAtMillis);
+    return mint(body);
+  };
+  const result = await runDiagnostic(f.args);
+  assert.equal(result.kind, "mint-observed-and-contained"); assert.equal(f.state.mintCount, 1);
+  assert.ok(permissionReads > 1); assert.equal(result.readiness.grantAgeMillis, 120000);
+  assert.equal(result.readiness.isAuthorizationProof, false);
+  assert.equal(f.state.disabled, true); assert.deepEqual(f.state.policy.bindings, []);
+});
+
+test("short remaining window expires without mint even with immediate permission", async t => {
+  const f = fixture(t); f.args.input.approval.endsAtMillis = NOW + 400000;
+  const result = await runDiagnostic(f.args);
+  assert.equal(result.kind, "inspection_required"); assert.equal(result.failure.phase, "wait-token-permission");
+  assert.equal(f.state.now, NOW + 40000); assert.equal(f.state.mintCount, 0);
+  assert.equal(f.state.disabled, true); assert.deepEqual(f.state.policy.bindings, []);
 });

@@ -1266,3 +1266,42 @@ The correction/evidence is local, uncommitted and not executed live. Prior appro
 is consumed. Review/deliver before a new authorized attempt with a fresh digest.
 Private evidence: `2026-10-30-develop-writer-iam-only-retry-1`.
 Maintenance closed; production/all workbooks untouched; no native parity change.
+
+
+### Single mint denied by IAM; cleanup verified; minimum grant age prepared — 2026-10-30
+
+Delivered `7de7a19a`, exact remote verified; lint/build and 37 focused tests rerun.
+The newly authorized IAM-only retry-2 passed lifecycle/authority checks, granted
+the exact role and received advisory readiness in 649ms. Its single actual mint
+returned HTTP403, **IAM_PERMISSION_DENIED**. No token was issued or used. Explicit
+disable and grant removal completed, with no cleanup failures. Independent later
+read verifies disabled, zero user keys/direct bindings, unchanged project policy.
+Scoped Admin Activity confirms the expected caller's enable/grant/removal/disable.
+No second mint, owner OAuth, workbook or business-data access.
+
+Read-only checks confirm IAM Credentials ENABLED and the selected role includes
+getAccessToken. The retained grant targets the expected caller and time condition.
+Mint intent was about 1.4s after the audit timestamp of grant application. Userinfo
+returned401 and does not independently establish bearer identity; expected caller
+is supported by the CLI account and scoped administrative audit. The combined
+IAM/Credentials audit query did not yield evidence; the successful scoped Admin
+Activity query provides the recorded mutation sequence, not mint-denial internals.
+
+Google documents policy propagation as typically two minutes, potentially seven
+minutes or longer ([access propagation](https://docs.cloud.google.com/iam/docs/access-change-propagation)).
+Propagation is plausible, not proven by this 403. No role expansion or identity
+change is justified. Local preparation now requires a minimum grant age of120s,
+measured after the grant response, before the only mint. Lifecycle/source/authority
+and advisory permission are reread at5s intervals within the unchanged max180s
+readiness deadline and ten-minute authorization window, reserving360s. Immediate
+advisory success cannot shorten that minimum. Expiry still aborts and cleans up;
+there is no retry of enable, grant or mint. Two minutes is not an authorization
+proof or guaranteed propagation bound.
+
+Local validation: lint/build and39 focused tests pass, zero failures/skips. New
+regressions check immediate readiness cannot mint early and an insufficient window
+aborts with zero mints. This minimum-age correction and current evidence are
+uncommitted and unexecuted; previous live receipts/authorization stay consumed.
+Next review/deliver, then a fresh authorized IAM-only attempt. No owner action or
+closed-sheet window is needed. Private evidence:2026-10-30-develop-writer-iam-only-retry-2.
+Maintenance closed; production/all workbooks untouched; no native parity change.
