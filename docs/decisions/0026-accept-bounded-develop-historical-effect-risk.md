@@ -147,3 +147,13 @@ The real read-only source check blocks on two config documents missing from the
 reviewed census; global itself is unchanged. No historical packet or successful
 local test substitutes for renewed source review or window authorization.
 See the migration guide: 102 unit + 47 emulator passes, shared maintenance closed.
+
+## Complete configuration evidence checkpoint — 2026-10-30
+
+The accepted policy is unchanged. The source packet now binds all three config
+records (global/member/public), including exact original service versions. The
+previously omitted records are read guards only; no mutation or annual-policy
+admission is added. The regenerated packet passes the real passive source check
+and stops before control admission because no window is supplied. Retained evidence
+from other providers is not refreshed authority. See the bilingual migration guide:
+113 unit/50 emulator passes, no maintenance opening or production access.

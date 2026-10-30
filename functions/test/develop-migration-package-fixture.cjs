@@ -30,6 +30,9 @@ function fixture({timestampNanoseconds = "123456789"} = {}) {
   snapshot.singletons = Object.fromEntries(["shiftPlanningState/current", "shiftPlanningState/sourcePolicy", "shiftPlanningState/sheetsSubmission",
     "shiftRotations/delivery", "shiftRotations/market"].map(key => [key,null]));
   snapshot.singletons["config/global"] = doc(`${ROOT}/config/global`, {version:1});
+  snapshot.collections.config = [structuredClone(snapshot.singletons["config/global"]),
+    doc(`${ROOT}/config/member`, {cacheExpirationMinutes:30,deliveryDayOfWeek:3,lastTimestamps:{}}),
+    doc(`${ROOT}/config/public`, {versions:{}})];
   const sheetCells = {spreadsheetId:WORKBOOK, sheets:[...new Set(proposal.content.helperProjectionDraft.map(c => c.tabTitle))].map((title,i) => ({
     properties:{sheetId:i,title},data:[{rowData:Array.from({length:60}, (_,r) => ({values:[{userEnteredValue:{stringValue:`Published ${r}`}}]}))}]}))};
   const owners = [{emailAddress:OWNER}];

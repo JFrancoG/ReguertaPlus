@@ -20,7 +20,7 @@ function prepareForTarget({sourceInput,reviewPackage,cloneCapture}, targetProjec
   assert.equal(cloneCapture.projectId,targetProjectId); assert.equal(cloneCapture.environment,"develop");
   const expected = {shifts:sourceInput.snapshot.collections.shifts,users:sourceInput.snapshot.collections.users,
     deliveryCalendar:sourceInput.snapshot.collections.deliveryCalendar,notificationEvents:sourceInput.snapshot.collections.notificationEvents,
-    config:[sourceInput.snapshot.singletons["config/global"]]};
+    config:sourceInput.snapshot.collections.config};
   assert.deepEqual(Object.keys(cloneCapture.guardCollections).sort(),["config","deliveryCalendar","notificationEvents","users"]);
   for (const [collection, originals] of Object.entries(expected)) {
     const clone = collection === "shifts" ? cloneCapture.documents : cloneCapture.guardCollections[collection];

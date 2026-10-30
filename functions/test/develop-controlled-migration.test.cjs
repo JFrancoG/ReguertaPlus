@@ -9,7 +9,7 @@ function input(){
   const sourceInput=fixture();return {sourceInput,reviewPackage:prepareDevelopMigrationPackage(sourceInput),sourceCapture:{
     projectId:"reguerta-9f27f",environment:"develop",documents:structuredClone(sourceInput.snapshot.collections.shifts),
     guardCollections:{...Object.fromEntries(["users","deliveryCalendar","notificationEvents"].map(c=>[c,structuredClone(sourceInput.snapshot.collections[c])])),
-      config:[structuredClone(sourceInput.snapshot.singletons["config/global"])]}}};
+      config:structuredClone(sourceInput.snapshot.collections.config)}}};
 }
 function dependencies(){
   let reads=0;const prepared=prepare(input());
@@ -27,6 +27,8 @@ test("shared preparation binds retained real versions without consuming or renam
 });
 for(const [name,mutate]of Object.entries({
   "cloned service version":x=>{x.sourceCapture.documents[0].updateTime="2026-10-30T12:00:00.000001Z";},
+  "changed member config version":x=>{x.sourceCapture.guardCollections.config[1].updateTime="2026-10-28T10:00:01.123456790Z";},
+  "changed public config payload":x=>{x.sourceCapture.guardCollections.config[2].fields.extra={booleanValue:true};},
   "other project":x=>{x.sourceCapture.projectId="another-project";},
   "production namespace":x=>{x.sourceCapture.documents[0].name=x.sourceCapture.documents[0].name.replace("/develop/","/production/");},
   "another environment":x=>{x.sourceCapture.environment="production";},

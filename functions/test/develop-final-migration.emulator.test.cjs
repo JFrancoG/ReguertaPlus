@@ -35,7 +35,7 @@ const saved = async (collection,versions=false) => (await db.collection(`${ROOT}
 async function harness(sourceInput=fixture()) {
   const reviewPackage=prepareDevelopMigrationPackage(sourceInput), batch=db.batch();
   for (const row of [...sourceInput.snapshot.collections.shifts,...sourceInput.snapshot.collections.users,
-    ...sourceInput.snapshot.collections.deliveryCalendar,...sourceInput.snapshot.collections.notificationEvents,sourceInput.snapshot.singletons["config/global"]]) {
+    ...sourceInput.snapshot.collections.deliveryCalendar,...sourceInput.snapshot.collections.notificationEvents,...sourceInput.snapshot.collections.config]) {
     const target=row.name.split("/documents/")[1];assert.ok(target.startsWith(ROOT+"/"));
     batch.create(db.doc(target),Object.fromEntries(Object.entries(row.fields).map(([k,v])=>[k,migration.decodeRESTValue(v)])));
   }
@@ -212,10 +212,9 @@ run("inspection failure does not claim a durable incident when the held checkpoi
   assert.deepEqual(result.blockers,["held_checkpoint_missing"]);assert.deepEqual(await businessSnapshot(),before);
   await assert.rejects(h.executor.execute({scope,admission:result}));assert.deepEqual(h.counts,{close:0,incident:0});
 });
-run("unreviewed config documents block passive admission even when config/global is unchanged",async()=>{
+run("an unreviewed config document blocks passive admission even when config/global is unchanged",async()=>{
   const h=await controlled(),global=await db.doc(`${ROOT}/config/global`).get();
-  await db.doc(`${ROOT}/config/member`).create({deliveryDayOfWeek:3});
-  await db.doc(`${ROOT}/config/public`).create({versions:{}});
+  await db.doc(`${ROOT}/config/unreviewed`).create({deliveryDayOfWeek:3});
   const before=await businessSnapshot(),result=await h.executor.inspectAdmission();
   assert.deepEqual(result.blockers,["source_not_verified"]);assert.equal(result.source,null);
   assert.ok((await db.doc(`${ROOT}/config/global`).get()).updateTime.isEqual(global.updateTime));
@@ -227,4 +226,23 @@ run("an expired controlled admission cannot execute or persist an incident",asyn
   h.setClock(h.clock()+60_001);
   await assert.rejects(h.executor.execute({scope,admission}),/inspection expired/);
   assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
+});
+for(const name of ["member","public"])run(`reviewed config/${name} version drift blocks execution and preserves the change`,async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);const ref=db.doc(`${ROOT}/config/${name}`),before=await ref.get();
+  // A no-op set can keep the same service version. Exercise an actual ABA edit.
+  await ref.update({late:true});await ref.set(before.data());const after=await ref.get();
+  assert.equal(after.updateTime.isEqual(before.updateTime),false);assert.deepEqual(after.data(),before.data());
+  await assert.rejects(h.executor.execute({scope,admission}));
+  assert.ok((await ref.get()).updateTime.isEqual(after.updateTime));assert.equal((await saved("shifts")).length,62);
+  assert.equal(h.counts.close,0);
+});
+run("changed public config blocks inverse admission without altering the committed migration",async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});
+  const receipt=await h.executor.execute({scope,admission}),inverseScope=await h.hold(true);
+  await db.doc(`${ROOT}/config/public`).update({late:true});const before=await businessSnapshot();
+  const result=await h.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+  assert.equal(result.checksPassed,false);assert.equal(result.finalManifest,null);
+  assert.deepEqual(await businessSnapshot(),before);assert.equal((await saved("shifts")).length,72);
+  assert.deepEqual(h.counts,{close:0,incident:0});
 });

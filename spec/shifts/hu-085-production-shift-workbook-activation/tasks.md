@@ -810,3 +810,23 @@ packet before repeating passive admission and preparing the separately authorize
 window. See bilingual migration guide and private `2026-10-30-controlled-executor`.
 No deployment, maintenance opening, production access or native parity gap.
 New work remains uncommitted; HU-084/HU-085 open, PR #278 draft.
+
+### Complete config census; real passive source match — 2026-10-30
+
+Controlled composition delivered/pushed in `eb073e0e`, exact remote/PR #278 head
+verified. New local correction requires all three config documents and binds whole
+payloads/versions to the reviewed policy and materializer. The fresh atomic census
+preserves every previously reviewed source/receipt; config/member and config/public
+were pre-existing omissions. Regenerated packet preserves all business mutations,
+published dates/order and 53 helper intents; identities change with new evidence.
+
+Actual SDK read-only source inspection passes and stops at window_scope_missing:
+one transaction, zero control reads/close calls/writes, no maintenance permission.
+Other technical/Sheets authorities remain retained observations, not fresh admission.
+113 unit + 50 SDK-emulator tests, build/lint and CJS lint pass. Exact 203/140-write
+recovery and config drift/ABA refusal are covered; no native parity gap.
+See bilingual migration guide and private `2026-10-30-config-census` for digests
+and limits. Next prepare/refresh current technical and Sheets writer/destination
+admission for this exact package before requesting the explicit window. No shared
+mutation, deploy, maintenance opening or production access. New work remains local;
+HU-084/HU-085 remain open and PR #278 draft.

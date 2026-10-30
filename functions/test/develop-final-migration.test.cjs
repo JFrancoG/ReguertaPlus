@@ -14,7 +14,7 @@ function input(){
   return {sourceInput,reviewPackage,cloneCapture:{projectId:migration.PROJECT_ID,environment:"develop",
     documents:clone(sourceInput.snapshot.collections.shifts),guardCollections:{
       ...Object.fromEntries(["users","deliveryCalendar","notificationEvents"].map(key=>[key,clone(sourceInput.snapshot.collections[key])])),
-      config:clone([sourceInput.snapshot.singletons["config/global"]])}}};
+      config:clone(sourceInput.snapshot.collections.config)}}};
 }
 test("closed preparation binds reviewed intent and fresh clone versions without annual placeholders",()=>{
   const args=input(),result=prepare(args),policy=result.policyDraft.document;

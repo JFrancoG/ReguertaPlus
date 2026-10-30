@@ -152,3 +152,13 @@ La comprobación real de solo lectura bloquea por dos documentos config ausentes
 del censo revisado; global sigue igual. Ningún paquete histórico ni ensayo local
 sustituye la nueva revisión de fuentes ni la autorización de la ventana.
 Véase la guía de migración: 102 pruebas unitarias y 47 de emulador; mantenimiento cerrado.
+
+## Evidencia completa de configuración — 2026-10-30
+
+La política aceptada no cambia. El paquete vincula los tres documentos config
+(global/member/public), con sus versiones originales exactas. Los dos documentos
+omitidos son guardas de lectura; no se añaden mutaciones ni admisión de planificación
+anual. El paquete regenerado pasa la comprobación real de fuentes y se detiene antes
+de los controles porque no se aporta ventana. La evidencia retenida de otros
+proveedores no constituye autoridad actualizada. Véase la guía bilingüe: 113 pruebas
+unitarias/50 de emulador, sin abrir mantenimiento ni acceder a producción.

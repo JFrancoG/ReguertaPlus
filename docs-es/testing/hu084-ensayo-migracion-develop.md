@@ -306,3 +306,67 @@ expresos de propietario/administradores/riesgo para una ventana autorizada apart
 Este bloque local no requiere intervención del usuario. Mantenimiento sin abrir;
 sin escrituras de negocio compartidas, Sheets, notificaciones, despliegues ni acceso
 a producción. HU-084/HU-085 siguen abiertas y la PR #278 en borrador.
+
+## Censo de configuración completo y nueva comprobación de fuentes — 2026-10-30
+
+La composición controlada está publicada en `eb073e0e`; esta corrección permanece
+local. El preparador exige el conjunto exacto `config/global`, `config/member` y
+`config/public` dentro del censo atómico. Rechaza paquetes antiguos con solo global,
+registros ausentes/duplicados/adicionales/de otro entorno, observaciones contradictorias
+de global y versiones posteriores a la lectura, con precisión de nanosegundos.
+Los tres documentos completos y sus versiones quedan vinculados al resumen de
+configuración, las rutas de la política revisada y las guardas del materializador.
+Se reutilizan las comprobaciones existentes de ejecución e inversa. Son fuentes
+protegidas de solo lectura; la migración no modifica esos documentos.
+
+El nuevo censo GET de `reguerta-9f27f`, `develop/plus-collections`, usa la lectura
+fija `2026-10-30T10:29:05.515Z`. Coinciden todos los contenidos y versiones anteriores,
+las cinco autoridades ausentes y los registros de recepción/captura/entrega. Se
+conservan 62 turnos, 48 socios proyectados, cuatro calendarios, 117 avisos, 12 capturas
+y 16 entregas, incorporando los tres documentos config. Member/public ya existían:
+faltaban en nuestra evidencia. Member contiene la proyección para la app de caché,
+actualización y día de reparto (`WED`); public contiene la política de versiones.
+Ambos se conservan completos, sin convertirlos en política del planificador ni
+reescribirlos. Se revisaron la proyección de Functions y los consumidores nativos;
+sus contratos no cambian.
+
+Los trece archivos del paquete quedan vinculados de nuevo con el censo y su evaluación.
+Se mantienen exactamente las fechas, contenidos, 108 posiciones publicadas, 62 imágenes
+de restauración y 53 propuestas de celdas de ayudante. Cambian las identidades de
+política/planes/operaciones al cambiar la evidencia; no se reutiliza una aceptación
+anterior. No se han actualizado observaciones de otros proveedores: Drive/Sheets,
+controles e índices siguen siendo evidencia retenida, no una barrera actual.
+No se han concedido permisos OAuth/IAM.
+
+Evidencia privada: `2026-10-30-config-census`. Sufijos SHA-256 con prefijo
+`shift-planning:v1:sha256:`:
+
+| Artefacto | Resumen |
+| --- | --- |
+| Censo config | `9fc426e9f3116640eba2c391d78d64986069003adb2c21a828822abd1f6ce270` |
+| Paquete revisado | `a2c6923715243faaace634f408520c155c0f9d392bc2719e1cf30a0767bdbf31` |
+| Intención de ida | `0864eff73642825dce110c3763fca139f76871af7dbe97601e855e02c36c610a` |
+| Intención inversa | `b32f11c9aaba10879cb4441afa4c2596e6c3425c2d747eff5d59390fd955377a` |
+| Preparación compartida | `6d8461a2a43f9572eb886494d3af577561ea937f065504b899b1bd40d4291ecd` |
+
+**La comprobación real de fuentes pasa.** Una transacción SDK independiente de solo
+lectura verifica todas las fuentes y versiones. El informe se detiene después en
+`window_scope_missing`: cero consultas a controles, cierres o escrituras; sin
+manifiesto final y con aplicación/entrada a mantenimiento deshabilitadas. No acredita
+los demás controles reales, porque no se ha aportado una ventana ni se han invocado.
+El estado actual sigue ausente; proyectar revisión/época cero no crea autoridad.
+
+Validación: 113 pruebas unitarias, 50 de emulador SDK, build/lint completo y lint CJS,
+sin fallos ni omisiones en las ejecuciones aceptadas. La ida/vuelta del clon renovado
+restaura fuentes/configuración/avisos y conserva las 203/140 escrituras. Las pruebas
+nuevas rechazan cambios de versión member/public, cambios config antes de la inversa
+y documentos no revisados. Dos aserciones iniciales suponían que escribir el mismo
+valor avanzaría la versión; ahora realizan un cambio real y lo restauran para probar
+la modificación intermedia. La repetición completa pasa. El ensayo previo de Sheets
+no cambia ni se repite. Sin cambios nativos ni brecha de paridad.
+
+Siguiente paso: preparar/actualizar los lectores de controles técnicos y la admisión
+del escritor/destino real de Sheets vinculados al paquete exacto, antes de solicitar
+la ventana expresa de propietario/administradores/riesgo. Sin abrir mantenimiento,
+escrituras compartidas o Sheets, despliegues, avisos ni acceso a producción.
+HU-084/HU-085 siguen abiertas y la PR #278 en borrador.

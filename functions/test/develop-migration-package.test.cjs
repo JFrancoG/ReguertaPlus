@@ -40,6 +40,14 @@ test("unordered provider filters do not change reviewed code/configuration equal
 });
 
 const invalid = {
+  "old global-only census": x => {delete x.snapshot.collections.config;},
+  "missing member config": x => {x.snapshot.collections.config.splice(1,1);},
+  "duplicate config": x => {x.snapshot.collections.config[1]=structuredClone(x.snapshot.collections.config[0]);},
+  "unexpected config document": x => {x.snapshot.collections.config.push({...x.snapshot.collections.config[0],name:x.snapshot.collections.config[0].name.replace('/global','/extra')});},
+  "production config path": x => {x.snapshot.collections.config[1].name=x.snapshot.collections.config[1].name.replace('/develop/','/production/');},
+  "config outside atomic read": x => {x.snapshot.collections.config[1].updateTime="2026-10-28T10:05:00.123456790Z";},
+  "inconsistent global singleton": x => {x.snapshot.singletons['config/global'].fields.version={integerValue:'2'};},
+  "missing config payload": x => {delete x.snapshot.collections.config[1].fields;},
   "production legacy path": x => {x.snapshot.collections.shifts[0].name = x.snapshot.collections.shifts[0].name.replace("/develop/","/production/");},
   "changed proposal despite valid self hashes": x => {
     x.proposal.content.shifts[0].date = "2026-09-09";
@@ -66,6 +74,22 @@ const invalid = {
 };
 for (const [name, mutate] of Object.entries(invalid)) test(`rejects ${name}`, () => {
   const input = fixture(); mutate(input); assert.throws(() => prepare(input));
+});
+
+test("all reviewed config values and versions bind the policy and both intents without changing published content",()=>{
+  const original=fixture(),prior=prepare(original);
+  assert.deepEqual(prior.sourcePolicy.configurationPaths,["global","member","public"].map(n=>`develop/plus-collections/config/${n}`));
+  for(const index of [1,2])for(const versionOnly of [false,true]){
+    const input=structuredClone(original);
+    if(versionOnly)input.snapshot.collections.config[index].updateTime="2026-10-28T10:00:01.123456790Z";
+    else input.snapshot.collections.config[index].fields.extra={booleanValue:true};
+    const changed=prepare(input);
+    for(const key of ["packageDigest","policyDigest","forwardDigest","inverseDigest"])assert.notEqual(changed[key],prior[key]);
+    assert.notEqual(changed.sourcePolicy.configurationDigest,prior.sourcePolicy.configurationDigest);
+    assert.deepEqual(changed.forward.publicWrites,prior.forward.publicWrites);
+    assert.deepEqual(changed.forward.sheets,prior.forward.sheets);
+    assert.equal(changed.canEnterMaintenance,false);
+  }
 });
 
 test("manifest pins file bytes; CLI never overwrites a packet or accepts an apply option", () => {

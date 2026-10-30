@@ -8,7 +8,7 @@ const fs = require("node:fs"), path = require("node:path"), {createHash} = requi
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {isEligibleForShiftRotation} = require("../lib/shift-eligibility.js");
 const {inspectCensus} = require("./inspect-develop-legacy-census.cjs");
-const {checkContentPositions} = require("./rehearse-develop-shift-migration.cjs");
+const {checkContentPositions, decodeRESTValue} = require("./rehearse-develop-shift-migration.cjs");
 const {reviewDevelopCaptureControls, PAIRS} = require("./prepare-develop-planner-entry.cjs");
 const PROJECT = "reguerta-9f27f", ROOT = "develop/plus-collections";
 const WORKBOOK = "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A";
@@ -26,6 +26,23 @@ const shortPath = document => {
   return document.name.slice(PREFIX.length);
 };
 const byPath = documents => [...documents].sort((a, b) => a.name.localeCompare(b.name));
+function reviewedConfiguration(snapshot) {
+  const documents = snapshot.collections.config;
+  assert.ok(Array.isArray(documents), "complete config census required");
+  const expected = ["global", "member", "public"].map(name => `${ROOT}/config/${name}`);
+  assert.deepEqual(documents.map(shortPath).sort(), expected, "exact reviewed config document set required");
+  const readTime = decodeRESTValue({timestampValue:snapshot.readTime});
+  for (const document of documents) {
+    assert.ok(document.fields && typeof document.fields === "object" && !Array.isArray(document.fields), "config fields required");
+    const created = decodeRESTValue({timestampValue:document.createTime});
+    const updated = decodeRESTValue({timestampValue:document.updateTime});
+    assert.ok(created.valueOf() <= updated.valueOf() && updated.valueOf() <= readTime.valueOf(), "config version outside snapshot");
+    decodeRESTValue({mapValue:{fields:document.fields}});
+  }
+  const global = documents.find(document => shortPath(document) === `${ROOT}/config/global`);
+  equal(global, snapshot.singletons["config/global"], "global singleton and config census differ");
+  return byPath(documents);
+}
 function literalCells(book) {
   assert.equal(book.spreadsheetId, WORKBOOK);
   const result = {};
@@ -56,6 +73,7 @@ function prepareDevelopMigrationPackage(input) {
   const core = {...Object.fromEntries(keys.map(key => [key, snapshot[key]])),
     collections: Object.fromEntries(names.map(key => [key, snapshot.collections[key]]))};
   const census = inspectCensus(core);
+  const configuration = reviewedConfiguration(snapshot);
   equal(census.sourceCounts, {shiftPlanningRequests: 0, shifts: 62, deliveryCalendar: 4, notificationEvents: 117});
   for (const name of ["shiftPlanningState", "shiftCoverageReserves", "shiftCoverageCredits", "shiftMembershipState",
     "shiftPlanningSyncCommands", "shiftCoverageCases", "shiftCoverageEffects", "shiftSwapRequests"]) equal(snapshot.collections[name], []);
@@ -140,7 +158,8 @@ function prepareDevelopMigrationPackage(input) {
     workbook: {fileId: WORKBOOK, version: file.version, typedCellsDigest: digest(currentCells), parentId: parent.id,
       authorityDigest: digest({file, permissions, parent, parentPermissions}), observationsHeldTogether: false},
     indexAuthorityDigest: digest(indexes), controlObservationDigest: digest(controls), sourceReadTime: snapshot.readTime,
-    sourceDigest: census.stableSetDigest, configurationDigest: digest(snapshot.singletons["config/global"]),
+    sourceDigest: census.stableSetDigest, configurationDigest: digest(configuration),
+    configurationPaths: configuration.map(shortPath),
     rosterProjectionDigest: digest(byPath(users)), userProjectionOnly: true,
     rotations: proposal.content.rotations, initialCreditBalance: 0, retainedReserves: [],
     planningEnabled: false, coverageEnabled: false, notificationReplayAllowed: false,

@@ -316,3 +316,64 @@ owner/admin/risk agreements for a separately authorized window. No approval is
 needed from the user for the current local block. Maintenance remains unopened,
 with no shared business writes, Sheets writes, notification, deployment or production
 access. HU-084/HU-085 remain open; PR #278 stays draft.
+
+## Complete config census and renewed passive source check — 2026-10-30
+
+Controlled composition is delivered/pushed as `eb073e0e`; this correction remains
+local. The preparer now requires the exact `config/global`, `config/member` and
+`config/public` set in the atomic census. It rejects old global-only packets,
+missing/duplicate/extra/wrong-environment records, inconsistent global observations,
+and versions outside the snapshot, preserving nanosecond precision. All three
+complete documents and service versions enter the configuration digest, reviewed
+policy paths and materializer guards. The existing execution/inverse guards apply
+unchanged. Config documents are read-only guards; none is a migration mutation.
+
+The new GET-only census of `reguerta-9f27f`, `develop/plus-collections`, uses fixed
+read time `2026-10-30T10:29:05.515Z`. Every previously reviewed source payload and
+version, five absent authority documents and intake/capture/delivery record matches
+the retained census. Counts remain 62 shifts, 48 projected users, four calendars,
+117 notices, 12 capture records and 16 deliveries, plus three config documents.
+The additional member/public records predate this work; they were missing from
+our evidence. Member config is the app-facing cache/freshness/delivery-weekday
+projection (`WED`); public config carries version policy. Both are retained whole,
+not converted into planner configuration or rewritten. Existing Functions projection
+and native calendar consumers were inspected; their contracts are unchanged.
+
+Thirteen evidence files are repinned with the new census and its assessment.
+All published semantic payloads/dates/108 positions, 62 restore images and 53 helper
+cell intents match the previous package exactly. Policy/plan/operation identities
+change because the evidence changes; no old operation acceptance is carried over.
+No other provider evidence was refreshed: Drive/Sheets/controls/index observations
+remain retained inputs, not a current held barrier. No new OAuth/IAM grant.
+
+Private evidence: `2026-10-30-config-census`. SHA-256 suffixes below use
+`shift-planning:v1:sha256:`:
+
+| Artifact | Digest |
+| --- | --- |
+| Config census | `9fc426e9f3116640eba2c391d78d64986069003adb2c21a828822abd1f6ce270` |
+| Review package | `a2c6923715243faaace634f408520c155c0f9d392bc2719e1cf30a0767bdbf31` |
+| Forward intent | `0864eff73642825dce110c3763fca139f76871af7dbe97601e855e02c36c610a` |
+| Inverse intent | `b32f11c9aaba10879cb4441afa4c2596e6c3425c2d747eff5d59390fd955377a` |
+| Shared preparation | `6d8461a2a43f9572eb886494d3af577561ea937f065504b899b1bd40d4291ecd` |
+
+**Real passive source check passes.** One independent SDK read-only transaction
+matches all sources and versions. The report then stops at `window_scope_missing`,
+with zero control reads, zero close calls/writes, no final manifest and both
+application/maintenance flags false. This does not mean other live controls passed:
+no window was supplied and those checks were not invoked. The absent current-state
+record remains absent; projected zero revision/epoch does not establish authority.
+
+Validation: 113 unit tests, 50 SDK-emulator tests, build/full lint and focused CJS
+lint pass, no failures/skips in accepted runs. The refreshed real-input clone
+roundtrip restores all original sources/config/notices; the 203/140 write set is
+unchanged. New cases reject altered member/public versions, config changes before
+recovery and added unreviewed documents. Two initial fixture assertions incorrectly
+expected a no-op set to advance its version; they now perform and restore an actual
+edit to exercise ABA drift. The full accepted emulator rerun passes. Prior Sheets
+acceptance is unchanged, not rerun. No native changes or parity gap.
+
+Next prepare/refresh the technical-control readers and real Sheets writer/destination
+admission against this exact package, before requesting the explicit owner/admin/risk
+window. No maintenance opening, shared business/Sheets write, deploy, notification or
+production access. HU-084/HU-085 remain open; PR #278 stays draft.
