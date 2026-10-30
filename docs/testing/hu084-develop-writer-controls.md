@@ -809,3 +809,107 @@ Keep the existing general backend roles untouched. Real writer capabilities,
 current external-control composition and owner/admin/risk window remain unadmitted.
 No maintenance entry, shared business/Sheet write, FCM or production-data access.
 No native change/parity gap; HU-084/HU-085 open, PR #278 draft.
+
+### Proposed develop Sheets identity and permission test — 2026-10-30
+
+The preceding provider review is delivered as `2a0836b0`. This proposal implements
+no new policy exception under ADR-0021/0022/0025/0026. Its reviewable, **non-executable**
+[plan](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-sheets-writer-plan.json)
+contains proposed names and limits, not live IDs, credentials or an authorization.
+`canProvision`, `canApply` and `canEnterMaintenance` remain false.
+
+Use a fresh `reguerta-develop-sheets-writer` service account in `reguerta-9f27f`.
+Do not repurpose `reguerta-shifts-runtime`, Compute, Firebase Admin SDK, the inspector
+or disabled rehearsal identities. The candidate was absent from the retained nine-account
+inventory; repeat the exact lookup before creation and stop on a name collision.
+Record the returned immutable unique ID and Drive `about.user.permissionId`; never
+infer either from its email. No project roles, user-managed keys, domain delegation,
+attached Function/Run service or standing impersonation grant are proposed.
+
+| Boundary | Proposed permission | Evidence needed before use |
+| --- | --- | --- |
+| File | Direct editor on one new synthetic rehearsal workbook only | Owner, parent and complete ACL before/after; returned permission ID |
+| Token issuance | `user:drpuerk@gmail.com`, `roles/iam.workloadIdentityUser` on this account only, explicit UTC condition at most ten minutes | Full policy version/etag; preserve unrelated bindings; stop on drift |
+| Child Google token | One 300-second access token, `spreadsheets` and `drive.metadata.readonly`, no delegation/refresh | Actual expiry, exact scopes, in-memory IPC; no token in arguments/logs/files |
+| Cloud data | No project role and no shared Firestore/FCM access | Fresh project bindings/keys/account policy and no attached service |
+| Original develop | No permission in the first experiment | Excluded destination in the runner, not a remote negative probe |
+| Production | No grant, read, write or probe | Protected ID handled locally only; no network request to it |
+
+These two OAuth scopes match the existing composition and copy contract. They are
+not a file-ID restriction: the file ACL and exact-destination SDK wrapper provide
+that boundary. The IAM role also permits ID-token issuance, and the grant does not
+technically restrict requested scopes, token count or requested lifetime to the
+values above. Those limits belong to the sealed controller and named operator;
+review that residual power in the eventual authorization. Do not add Token Creator,
+Service Account User, signing, project-data roles or a custom role to make a failed
+probe pass. The parent retains its existing credential; the child receives only the
+short token. IAM removal does not by itself prove issued tokens or in-flight writes
+have stopped.
+
+**Existing observer constraint:** `observeShiftSheetsWorkbook` reads complete ACLs
+only when this observer's `canShare` is true. The guard additionally requires
+`canEdit`, `canModifyContent`, exact principal/authority digest, complete restrictions
+and only the named owner/runtime as writers. An editor with `canShare=false` therefore
+fails this composition; do not silently widen scopes or bypass the ACL check.
+The proposed token cannot mutate Drive permissions, although the file role itself
+may permit sharing with other credentials. A successful metadata read as owner is
+not a successful read as this new writer. Test this explicitly on the copy.
+
+**One coherent copy experiment, after separate authorization:** the owner creates a
+new native workbook with the seven synthetic BASE tabs described in the plan, no
+real member data and no inherited third-party writers. The existing runner requires
+exactly seven initial tabs. Neither the six-tab original nor the prior completed
+eight-tab copy qualifies; do not delete their tabs or relax the guard. Bind the
+returned workbook/tab IDs and raw before-images, then obtain a fresh online/closed/
+no-offline-edits/no-other-automation owner confirmation and the controller agreement
+not to mint extra tokens during the bounded session.
+
+Create the new identity and grant only its copy permission and exact conditional IAM
+binding. Start the existing runner in a fresh `demo-reguerta-copy-writer-v1` emulator
+at `127.0.0.1:8897`; pin parent/child sources and provider-read adapters before minting.
+The parent must read real identity/key/policy observations, not supply asserted zeros.
+Mint once after the runner starts, with expiry within the remaining grant/window.
+Keep the observed grant policy stable for the existing authority digest; remove it
+in cleanup. Insufficient time aborts instead of extending the grant or auto-minting.
+Preparation/readback must bind the actual Google principal, capabilities, complete
+ACL, exact batch and all seven original raw tabs before the single allowed SDK batch.
+
+| Test | Acceptance | Where |
+| --- | --- | --- |
+| Wrong workbook/environment, missing owner, broad action or another principal | Rejected before provider submission | Existing local contract/runner tests |
+| No ADC fallback, short expiry, no refresh on 401/403 | No ambient credential or automatic retry | Existing local runner tests |
+| Editor identity/ACL visibility | Exact email + permission ID, complete ACL and required capabilities | Authorized synthetic workbook |
+| Successful guarded projection | One new market tab, ten fictitious turns, one SDK batch; seven original tabs identical | Authorized copy + local demo receipts |
+| Lost acknowledgement, drift, expired authority | Retain incident and inspect; never blind retry/inverse | Existing local tests; do not inject faults into real Google writes |
+| Permission removal | Same still-valid token loses copy access; 403/404 only accepted after a successful positive read | Authorized copy, immediately after removing its grant |
+| Identity cleanup | Exact temporary binding removed, account disabled, zero user keys/data grants; fresh mint denied | Authorized new account only |
+
+Keep the synthetic output for review. Remove only the permission/binding created by
+this experiment, using exact IDs and an etag-aware merge after a fresh policy read;
+never replace a stale entire policy. Disable the new account, verify actual access
+loss, clear credentials and retain receipts. If the write result is uncertain, keep
+the workbook and receipt for inspect-only recovery; revocation is not proof of
+non-execution. An expired token is not proof of an effective ACL denial. Future
+re-enablement needs separate approval, expiry/reconciliation of prior credentials
+and a new observation; do not recycle the original receipt or blank the ledger.
+
+**Later original-develop gate:** an exact original-file grant and effective write
+probe are separate from this copy test. Renew owner/parent/ACL/version, bind the new
+principal and ACL to freshly prepared Sheets manifests, preserve published dates/
+order and recheck the source census. Do not transplant the version278 packet or
+copy authority. Identity success does not implement the missing shared external-
+control reader or admit the owner/admin/risk window. The Sheets account has no
+Firestore authority: the existing composition must receive separate explicit Google
+and Firestore clients; assigning this account as the sole ADC runtime would fail.
+Shared composition/deployment and its control observations remain separate work,
+without adding Firestore/FCM roles to this file writer. No deployment is proposed here.
+
+Preparation uses source review and offline checks only. The live experiment still
+needs exact resource IDs, timestamps, sealed parent-controller evidence and explicit
+approval; it is not yet executable. New proposal remains local after `2a0836b0`.
+
+References checked on 2026-10-30: Google [IAM role permissions](https://docs.cloud.google.com/iam/docs/service-account-permissions),
+[access-token request](https://docs.cloud.google.com/iam/docs/reference/credentials/rest/v1/projects.serviceAccounts/generateAccessToken),
+[Sheets scopes](https://developers.google.com/workspace/sheets/api/scopes),
+[Drive scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth),
+[account disablement](https://docs.cloud.google.com/iam/docs/service-accounts-disable-enable).

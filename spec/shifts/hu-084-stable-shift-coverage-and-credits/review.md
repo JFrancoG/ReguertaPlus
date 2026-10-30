@@ -2105,3 +2105,31 @@ assertions pass. Next prepare the scoped writer grant/probe proposal before any
 separately authorized window. No maintenance, business/Sheets write, FCM or production
 data access; no native gap.
 New docs remain local; stories open, PR #278 draft.
+
+### Develop Sheets writer identity and test proposal — 2026-10-30
+
+Technical/owner evidence delivered in `2a0836b0`. The new non-executable
+`develop-sheets-writer-plan.json` and bilingual writer-controls guide propose a
+fresh `reguerta-develop-sheets-writer`, no project roles/keys/attached services,
+copy-only editor access, a ten-minute account-scoped mint grant and one 300-second
+token with the existing two scopes. No account, grant, token or workbook created.
+
+The existing observer requires canShare for complete ACLs; do not bypass this or
+mistake owner capabilities for runtime capabilities. The seven-tab runner can use
+a fresh synthetic workbook, not the six-tab original or completed eight-tab copy.
+Separate Google credentials from Firestore authority; do not add data/FCM roles to
+make the file writer an all-purpose runtime. Token scopes/count/lifetime are explicit
+controller limits, not constraints enforced by that IAM role. Cleanup removes only
+the exact copy permission/IAM binding, disables the account and verifies access loss;
+unknown writes stay inspect-only. No production requests, original-file grant,
+maintenance opening, shared deployment or native change.
+
+Next: prepare the exact synthetic-copy/controller execution packet, then request
+bounded provisioning and copy-rehearsal authorization. Original develop permission,
+regenerated source/ACL binding, current external-control composition and a named
+owner/admin/risk window remain separate gates. Proposal is local after the delivered
+commit; HU-084/HU-085 open, PR #278 draft.
+
+Validation: proposal invariants/source-scope checks and ten selected local contract/runner
+tests pass (zero failures/skips). Live provider/emulator scenarios were not rerun;
+no executable sources changed, so full build/lint and native gates were not repeated.

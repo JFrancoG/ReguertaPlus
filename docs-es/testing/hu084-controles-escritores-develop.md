@@ -848,3 +848,107 @@ los roles generales existentes. Siguen sin admitir capacidades reales del escrit
 composición de controles externos y ventana propietario/administradores/riesgo.
 Sin abrir mantenimiento, escrituras compartidas/Sheets, avisos ni acceso a datos de
 producción. Sin cambios nativos/brecha de paridad; HU-084/HU-085 abiertas y PR #278 en borrador.
+
+### Identidad propuesta y prueba de permisos de Sheets develop — 2026-10-30
+
+La revisión anterior está publicada en `2a0836b0`. Esta propuesta no cambia las
+excepciones de ADR-0021/0022/0025/0026. El [plan revisable, no ejecutable](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-sheets-writer-plan.json)
+contiene nombres y límites propuestos, no identificadores reales, credenciales ni
+una autorización. `canProvision`, `canApply` y `canEnterMaintenance` siguen a false.
+
+Proponer una cuenta nueva `reguerta-develop-sheets-writer` en `reguerta-9f27f`.
+No reutilizar `reguerta-shifts-runtime`, Compute, Firebase Admin SDK, inspector ni
+identidades de ensayo deshabilitadas. No aparecía en el inventario retenido de nueve
+cuentas: antes de crearla se repite la consulta exacta y se para si ya existe.
+Conservar el unique ID devuelto y `about.user.permissionId` de Drive; no deducirlos
+por el correo. Sin roles de proyecto, claves de usuario, delegación de dominio,
+Functions/Run asociados ni permiso permanente de suplantación.
+
+| Límite | Permiso propuesto | Evidencia antes de usarlo |
+| --- | --- | --- |
+| Archivo | Editor directo solo de una hoja sintética nueva de ensayo | Propietario, padre, ACL completa antes/después e ID del permiso devuelto |
+| Emisión | `user:drpuerk@gmail.com`, `roles/iam.workloadIdentityUser` solo sobre esta cuenta, condición UTC de diez minutos como máximo | Política completa con versión/etag; conservar otros permisos y parar ante cambios |
+| Token Google del hijo | Un token de 300 segundos, `spreadsheets` y `drive.metadata.readonly`, sin delegación ni renovación | Caducidad real, alcances exactos, IPC en memoria; nunca argumentos, logs o archivos |
+| Datos Cloud | Sin roles de proyecto ni acceso a Firestore compartido/FCM | Lectura reciente de roles, claves, política de cuenta y servicios asociados |
+| Develop original | Sin permiso en este primer ensayo | Destino excluido en el ejecutor, sin prueba negativa remota |
+| Producción | Sin permiso, lectura, escritura ni prueba | ID protegido solo en local; ninguna petición a ese archivo |
+
+Los dos alcances coinciden con la composición y el contrato de copia existentes.
+No limitan el token a un ID de archivo: esa frontera depende de la ACL y del adaptador
+SDK que fija el destino exacto. El rol IAM también permite emitir ID tokens y no
+impone técnicamente esos alcances, cantidad de tokens o duración solicitada. Esos
+límites pertenecen al controlador sellado y al operador identificado; la autorización
+posterior debe explicar ese poder residual. No añadir Token Creator, Service Account
+User, firmas, roles de datos ni roles personalizados para superar una prueba fallida.
+El padre conserva su credencial existente; el hijo recibe solo el token corto.
+Retirar IAM no demuestra por sí solo que un token emitido o una escritura en curso
+hayan dejado de actuar.
+
+**Condición del observador actual:** `observeShiftSheetsWorkbook` solo enumera toda
+la ACL si `canShare` es true para ese observador. La guarda también exige `canEdit`,
+`canModifyContent`, identidad/huella exactas, restricciones completas y que solo
+propietario y ejecutor sean escritores. Un editor con `canShare=false` no pasa:
+no ampliar alcances ni omitir esa comprobación. El token propuesto no puede cambiar
+permisos de Drive, aunque el rol del archivo permita compartir usando otras
+credenciales. Leer como propietario no acredita poder leer como la cuenta nueva;
+esto debe probarse en la copia.
+
+**Un ensayo completo en copia, tras autorización separada:** el propietario crea una
+hoja nativa nueva con las siete pestañas BASE sintéticas del plan, sin datos reales
+ni escritores heredados de terceros. El ejecutor existente exige siete pestañas
+iniciales. No sirven el original de seis ni la copia anterior ya terminada de ocho:
+no borrar sus pestañas ni relajar la guarda. Fijar los IDs reales de archivo/pestañas
+y sus imágenes previas; después obtener confirmación reciente del propietario de
+estar en línea, hoja cerrada, sin cambios pendientes sin conexión ni otra automatización,
+y el compromiso del controlador de no emitir más tokens durante la sesión acotada.
+
+Crear la identidad nueva y conceder solo el permiso de la copia y el binding IAM
+condicionado exacto. Arrancar el ejecutor existente en un emulador nuevo
+`demo-reguerta-copy-writer-v1`, `127.0.0.1:8897`; fijar fuentes de padre/hijo y adaptadores
+de observación antes de emitir. El padre lee cuentas/claves/políticas reales: no
+inyecta ceros declarativos. Emitir una vez tras arrancar el hijo y con caducidad dentro
+del plazo restante del permiso/ventana. Mantener estable la política observada para
+la huella del contrato y retirarla al limpiar. Si no queda tiempo, abortar sin ampliar
+ni renovar automáticamente. La preparación y relectura vinculan identidad Google,
+capacidades, ACL completa, lote exacto y las siete pestañas originales antes del único
+lote SDK permitido.
+
+| Prueba | Aceptación | Dónde |
+| --- | --- | --- |
+| Otro archivo/entorno, falta propietario, acción amplia u otra identidad | Rechazo antes del envío al proveedor | Pruebas locales existentes de contrato/ejecutor |
+| Sin ADC implícitas, caducidad corta, sin renovación ante 401/403 | Sin otra credencial ni reintento automático | Pruebas locales existentes |
+| Identidad y ACL del editor | Correo + permission ID exactos, ACL completa y capacidades exigidas | Hoja sintética autorizada |
+| Proyección protegida correcta | Una pestaña nueva de mercado, diez turnos ficticios, un lote SDK; siete pestañas intactas | Copia autorizada y recibos de emulador |
+| Pérdida de respuesta, cambio de datos o caducidad | Conservar incidente e inspeccionar, sin reintento/inversa ciegos | Pruebas locales existentes; sin inyectar fallos en Google real |
+| Retirada del permiso | El mismo token aún vigente pierde acceso; 403/404 solo valen tras lectura positiva | Copia autorizada, inmediatamente después de quitar el permiso |
+| Limpieza de identidad | Binding exacto retirado, cuenta deshabilitada, cero claves/roles de datos y emisión nueva denegada | Solo la cuenta nueva autorizada |
+
+Conservar el resultado sintético para revisarlo. Retirar únicamente permiso/binding
+creados por este ensayo, con IDs exactos y mezcla de política usando etag tras lectura
+reciente; nunca sustituir una política completa obsoleta. Deshabilitar la cuenta,
+comprobar la pérdida efectiva de acceso, vaciar credenciales y conservar recibos.
+Si la escritura queda incierta, conservar hoja y recibo para inspección: revocar no
+demuestra que no se ejecutase. Un token caducado no demuestra denegación por ACL.
+Rehabilitarla después requiere aprobación separada, caducidad/conciliación de las
+credenciales previas y nueva observación; no reciclar recibos ni vaciar el registro.
+
+**Paso posterior sobre develop original:** el permiso del archivo original y una
+prueba efectiva de escritura son distintos del ensayo en copia. Renovar propietario,
+padre, ACL y versión; vincular nueva identidad/ACL a manifiestos de Sheets regenerados,
+conservar fechas/orden publicados y revisar el censo. No trasladar el paquete de
+versión278 ni la autoridad de copia. Probar identidad no implementa el lector de
+controles externos compartidos ni admite la ventana de propietario/administradores/
+riesgo. La cuenta Sheets no tiene autoridad Firestore: la composición existente debe
+recibir clientes Google y Firestore explícitos separados; usarla como única identidad
+ADC del servicio fallaría. La composición/despliegue compartidos siguen pendientes,
+sin añadir roles Firestore/FCM a esta cuenta. Aquí no se propone desplegar nada.
+
+La preparación es documental y local. Para ejecutar faltan IDs y fechas exactos,
+evidencia del controlador padre sellado y autorización expresa. Propuesta local tras
+`2a0836b0`, no una ejecución preparada con todas sus credenciales.
+
+Fuentes comprobadas el 2026-10-30: Google [permisos IAM](https://docs.cloud.google.com/iam/docs/service-account-permissions),
+[petición de token](https://docs.cloud.google.com/iam/docs/reference/credentials/rest/v1/projects.serviceAccounts/generateAccessToken),
+[alcances Sheets](https://developers.google.com/workspace/sheets/api/scopes),
+[alcances Drive](https://developers.google.com/workspace/drive/api/guides/api-specific-auth),
+[deshabilitación de cuentas](https://docs.cloud.google.com/iam/docs/service-accounts-disable-enable).
