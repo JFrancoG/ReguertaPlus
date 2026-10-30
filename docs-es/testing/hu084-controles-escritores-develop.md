@@ -952,3 +952,98 @@ Fuentes comprobadas el 2026-10-30: Google [permisos IAM](https://docs.cloud.goog
 [alcances Sheets](https://developers.google.com/workspace/sheets/api/scopes),
 [alcances Drive](https://developers.google.com/workspace/drive/api/guides/api-specific-auth),
 [deshabilitación de cuentas](https://docs.cloud.google.com/iam/docs/service-accounts-disable-enable).
+
+### Ejecución concreta del escritor en hoja sintética — 2026-10-30
+
+La propuesta de identidad está entregada en `44e578d1`, con remoto y cabeza de la
+PR #278 verificados. La implementación siguiente es local, pendiente de entrega.
+No se han creado cuentas, hojas, permisos o tokens ni se ha abierto mantenimiento.
+
+`functions/scripts/prepare-develop-writer-rehearsal.cjs` genera un paquete privado
+sin conexión: peticiones de cuenta/hoja/permiso/token y plantilla de entrada. Su
+huella vincula la propuesta, controlador, transporte y fuentes del ejecutor actual.
+Se genera **después** de compilar Functions; si cambia el código hay que revisar y
+regenerar, nunca sustituir la huella antigua para forzar la admisión:
+
+```sh
+cd functions
+npm run build
+node scripts/prepare-develop-writer-rehearsal.cjs /ruta/privada/paquete-nuevo.json
+```
+
+La única acción de consola es generar ese archivo (`wx`, permisos 0600). No hay
+orden de ejecución real ni lectura de ADC o credenciales guardadas por la CLI.
+La petición de hoja crea siete pestañas BASE de 20×6 con el mismo texto de ensayo;
+no copia socios, turnos publicados ni contenido de producción.
+
+#### Secuencia exacta tras una autorización independiente
+
+1. Autorizar identidad y hoja nuevas, edición solo de la copia, permiso
+   workloadIdentityUser sobre esa cuenta durante un máximo de diez minutos, un
+   token solicitado de 300 segundos y limpieza. Usar las peticiones preparadas con
+   el propietario indicado y conservar respuestas e ID inmutable de la cuenta.
+   La creación queda fuera de `runSession`: si una respuesta se pierde, comprobar
+   el recurso antes de repetir. No reutilizar la copia ni sesión anteriores.
+2. Leer padre, único propietario, propiedades de las siete pestañas e imagen
+   completa mediante `readRawOriginalTabs`, ahora exportado por el ejecutor, con
+   clientes Google explícitos del propietario sin renovación. Comprobar que son
+   exactamente las BASE sintéticas creadas y conservar la imagen privada. Rellenar
+   `inputTemplate` con esas respuestas; incluir el ID de producción excluido solo
+   como dato **local**, sin consultarlo. Vincular la autorización a la huella del
+   paquete revisado; ningún valor pendiente permite ejecutar.
+3. Obtener confirmación reciente del propietario: conectado, copia cerrada, sin
+   cambios sin conexión, sin otras escrituras ni emisión adicional de tokens; fijar
+   inicio/fin UTC. Usar directorio privado nuevo y emulador vacío
+   `demo-reguerta-copy-writer-v1` en `127.0.0.1:8897`. No vaciar un registro anterior
+   para repetirlo. Credencial IAM del operador y Drive del propietario permanecen
+   separadas y únicamente en memoria del proceso padre.
+4. Componer los puertos exportados según el ejemplo de la guía inglesa enlazada
+   abajo. `bind` valida recursos y autorización antes de efectos. El puerto del
+   propietario comprueba archivo/padre/propietario y permiso exacto del escritor.
+   El puerto IAM usa el **ID inmutable de cuenta** en lecturas/cambios/tokens,
+   política versión 3 y etag, rechaza claves de usuario, roles de proyecto y
+   autoridad de un padre; emite un solo token y nunca cambia IAM del proyecto.
+   La credencial del propietario solo consulta/cambia el recurso Drive de la copia.
+5. El hijo recibe solo su token corto por IPC y una lista limitada de variables.
+   Prepara el lote real y espera la revisión del padre: imagen inicial, propietario,
+   escritor y presupuesto de 45 peticiones/diez filas con autoridad vigente.
+   Un rechazo impide la escritura. El adaptador existente sigue comprobando lote
+   único sobre pestaña nueva, ACL/capacidades completas y conservación de las siete
+   originales. Un hijo atascado se termina a los cuatro minutos, forzosamente cinco
+   segundos después, dejando tiempo de limpieza dentro de los cinco del token.
+6. Tras terminar el hijo, también si falla: retirar el permiso exacto de la copia,
+   probar negativa con el mismo token **aún vigente**, retirar mediante CAS solo el
+   miembro/condición IAM de esta sesión, deshabilitar la cuenta y comprobar ausencia
+   de claves/permisos directos y negativa de nueva emisión. Las etapas continúan
+   aunque otra falle. Un permiso concurrente ajeno se conserva y se comunica; no
+   se elimina. Caducidad, retirada fallida o respuesta incierta no son éxito.
+
+Composición exacta y nombres de parámetros en
+[la guía inglesa](../../docs/testing/hu084-develop-writer-controls.md#concrete-synthetic-writer-session--2026-10-30).
+La función de registro debe persistir cada cuerpo tipado antes de devolver, con
+nombres nuevos y permisos 0600 dentro de un directorio 0700. No guardar tokens,
+errores SDK sin filtrar, salida cruda del hijo ni cuerpos del proveedor. Conservar
+paquete/autorización, respuestas de creación, imagen inicial, salida privada del
+hijo y limpieza terminal; no borrar copia ni registro del emulador. Las credenciales
+del padre deben durar lo suficiente para limpiar después de terminar el hijo.
+
+Si cae el proceso, inspeccionar intención IAM y recursos exactos conservados: que
+venza el permiso no prueba la limpieza. No rehabilitar la cuenta ni repetir una
+posible escritura. Primero conciliar registro y copia bajo autorización específica
+de inspección sin escritura. El controlador limita sus propias peticiones; no puede
+impedir técnicamente que otro administrador emita tokens. IAM tampoco impone el
+alcance, número o duración pedidos. Referencias de Google:
+[emisión](https://docs.cloud.google.com/iam/docs/reference/credentials/rest/v1/projects.serviceAccounts/generateAccessToken),
+[política y etag](https://docs.cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/setIamPolicy)
+y [deshabilitación](https://docs.cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/disable).
+La propagación y capacidades reales siguen pendientes; las pruebas locales no las
+sustituyen.
+
+Validación local: build/lint de Functions, análisis CJS dirigido y 30 pruebas sin
+fallos ni omisiones: 16 nuevas del controlador/transporte/IPC, nueve del ejecutor
+real (cuatro con emulador) y cinco del contrato del propietario. Google usa dobles;
+Firestore usa SDK real contra emulador. Rechazar la revisión del ejecutor real
+produce cero lotes. Sin cambios nativos ni nueva diferencia Android/iOS.
+Siguiente paso: autorizar/aprovisionar esta sesión sintética y ejecutarla con su
+limpieza. El permiso del escritor en develop original, la composición de controles
+y la ventana de mantenimiento/migración siguen siendo pasos independientes.

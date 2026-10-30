@@ -294,7 +294,10 @@ async function runOwnerSheetsCopyRehearsal({packet: raw, outputDirectory, openSe
     writePrivate(path.join(output, "prepared.json"), prepared);
     writePrivate(path.join(output, "reviewed-plan.json"), reviewedPlan);
     await onPrepared?.({title, expectedRows: 10, requests: prepared.planned.batch.requests.length,
-      preservationDigest: prepared.planned.preservationManifest.digest, canApply: false});
+      preservationDigest: prepared.planned.preservationManifest.digest, canApply: false,
+      originalTabsDigest: rawBefore.digest, workbookId: packet.copyWorkbookId,
+      ownerEmail: before.file.owners[0].emailAddress, ownerPermissionId: before.file.owners[0].permissionId,
+      runtimeEmail: before.principal.emailAddress, runtimePermissionId: before.principal.permissionId});
     if (packet.mode !== "execute") return {kind: "prepared", canApply: false, submitted: 0, title};
     validatePacket(packet);
     const planned = prepared.planned.batch;
@@ -381,7 +384,7 @@ async function runOwnerSheetsCopyRehearsal({packet: raw, outputDirectory, openSe
 }
 
 module.exports = {runOwnerSheetsCopyRehearsal, validatePacket, assertOneNewTabPlan, runnerSourceDigest, ownsLock,
-  createShortTokenAuth};
+  createShortTokenAuth, readRawOriginalTabs};
 
 if (require.main === module) {
   if (!process.send || process.argv.length !== 4) fail("Use the reviewed one-session parent; no standalone credentials are loaded.");
@@ -410,7 +413,8 @@ if (require.main === module) {
       const session = await request("open-copy-session", context);
       return {...session, readProviderControls: () => request("read-copy-identity")};
     },
-    onPrepared: (summary) => process.send({type: "prepared", data: summary}),
+    onPrepared: (summary) => packet.requireParentPlanReview ? request("review-copy-plan", summary) :
+      process.send({type: "prepared", data: summary}),
   }).then((result) => { process.send({type: "result", data: result}); process.disconnect(); })
     .catch(() => { process.send({type: "failed"}); process.exitCode = 1; process.disconnect(); });
 }

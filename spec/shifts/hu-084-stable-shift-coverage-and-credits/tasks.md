@@ -1056,3 +1056,24 @@ commit; HU-084/HU-085 open, PR #278 draft.
 Validation: proposal invariants/source-scope checks and ten selected local contract/runner
 tests pass (zero failures/skips). Live provider/emulator scenarios were not rerun;
 no executable sources changed, so full build/lint and native gates were not repeated.
+
+
+### Concrete synthetic writer execution prepared locally — 2026-10-30
+
+Proposal delivered/pushed as `44e578d1`; exact remote and draft PR #278 head verified.
+New local controller emits sealed offline payloads/input template and composes the
+existing copy runner with exact-ID IAM/Drive adapters. Explicit parent credentials,
+one token attempt, parent review before the only batch, four-minute child deadline,
+independent cleanup stages and same-unexpired-token denial are covered. Unknown
+outcomes stay inspect-only; concurrent foreign grants are preserved. There is no
+live CLI, ADC fallback, resource provisioning or shared activation in this work.
+
+Validation: build/lint, targeted CJS diagnostics and 30 tests, no failures/skips;
+real Firestore SDK/emulator and Google transport doubles. Native sources unchanged.
+Reproduce with `npm run test:shift-planning:writer-copy:emulator` in functions.
+Concrete steps, credential separation, baseline capture and crash recovery are in
+both writer-controls guides; private preparation: 2026-10-30-develop-writer-execution.
+Next request bounded authorization to create the identity and synthetic workbook,
+run this exact session and verify cleanup. No phone action now. Original develop
+permission/current shared controls/maintenance remain separate. New implementation
+is uncommitted; HU-084/HU-085 open, PR #278 draft, production untouched.

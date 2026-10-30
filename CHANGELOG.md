@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-10-30 | 🔧 chore(shifts): prepare isolated writer rehearsal
+
 - 2026-10-30 | 🐛 fix(shifts): bind complete develop config census
 
 - 2026-10-30 | ✨ feat(shifts): connect controlled develop admission

@@ -435,3 +435,27 @@ test("a new runner instance inspects an unacknowledged non-applied seven-tab bat
       assert.equal(evidence.physicalPostimageMatches, false);
     });
   });
+
+
+test("a rejected parent plan stops the actual runner before the only Sheets batch",
+  {skip: !emulatorAvailable}, async () => {
+    await runnerScenario(async (f) => {
+      let reviews = 0;
+      await assert.rejects(runOwnerSheetsCopyRehearsal({packet: packet("execute"),
+        outputDirectory: f.output, openSession: f.openSession,
+        async onPrepared(review) {
+          reviews++;
+          assert.equal(review.workbookId, COPY);
+          assert.equal(review.runtimeEmail, SERVICE_EMAIL);
+          assert.equal(review.runtimePermissionId, RUNTIME);
+          assert.equal(review.ownerPermissionId, OWNER);
+          assert.match(review.originalTabsDigest, /^shift-planning:v1:sha256:[a-f0-9]{64}$/);
+          assert.equal(review.expectedRows, 10);
+          assert.equal(review.requests, 45);
+          throw Error("Parent rejected baseline");
+        }}), /Parent rejected baseline/);
+      assert.equal(reviews, 1);
+      assert.equal(f.service.mutations.length, 0);
+      assert.deepEqual(clone(f.service.state.sheets), f.originalsBefore);
+    });
+  });

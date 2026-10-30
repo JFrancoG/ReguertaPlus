@@ -913,3 +913,109 @@ References checked on 2026-10-30: Google [IAM role permissions](https://docs.clo
 [Sheets scopes](https://developers.google.com/workspace/sheets/api/scopes),
 [Drive scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth),
 [account disablement](https://docs.cloud.google.com/iam/docs/service-accounts-disable-enable).
+
+### Concrete synthetic writer session — 2026-10-30
+
+The identity proposal is delivered in `44e578d1` (remote and draft PR #278 head
+verified). The following implementation is local, pending the next delivery.
+No account, workbook, grant or token was created and no maintenance was opened.
+
+`functions/scripts/prepare-develop-writer-rehearsal.cjs` emits a private offline
+preparation with account/workbook/permission/token payloads and an input template.
+Its digest binds the proposal, controller, provider and existing runner/source
+closure. Generate it **after** building Functions; source changes require review
+and regeneration, never editing the old digest to force admission:
+
+```sh
+cd functions
+npm run build
+node scripts/prepare-develop-writer-rehearsal.cjs /absolute/private/new-preparation.json
+```
+
+The only CLI action is offline output (`wx`, mode 0600); there is no live CLI and
+neither controller loads ADC or cached CLI credentials. The synthetic workbook
+payload creates seven 20×6 BASE tabs with the same sentinel cell. It does not copy
+members, published turns or production content.
+
+#### Exact execution sequence after separate authorization
+
+1. Authorize the new identity and new synthetic workbook, its copy-only editor
+   permission, a maximum ten-minute account-scoped workloadIdentityUser grant,
+   one requested 300-second token and cleanup. Do not reuse the old copy/session.
+   Create with the prepared payloads under the named owner; retain provider
+   creation receipts and the account's immutable unique ID. Creation belongs
+   outside `runSession`: check ambiguous create results before any retry.
+2. Read the copy's actual parent, sole owner, seven tab properties and complete
+   raw baseline with `readRawOriginalTabs` (exported by the existing runner), using
+   explicit owner Google clients with refresh disabled. Confirm those are exactly
+   the synthetic BASE tabs just created. Store the raw snapshot privately. Fill
+   `inputTemplate` from those receipts, including the known production exclusion
+   ID **locally**, without making a production request. Set its approval digest
+   to the reviewed preparation digest; no placeholder grants admission.
+3. Obtain the owner's fresh online/closed/no-offline/no-edits confirmation, the
+   exact UTC start/end and the no-additional-mint undertaking. Use a fresh private
+   output directory and an empty `demo-reguerta-copy-writer-v1` emulator at
+   `127.0.0.1:8897`; never clear an earlier session's ledger to rerun it. Operator
+   IAM and owner Drive credentials remain distinct in-memory parent inputs.
+4. Compose the exported ports as below. `bind` checks all owned resources and
+   approval before effects. The owner port verifies file/parent/owner and the
+   exact writer permission. The IAM port targets the **unique account ID** for
+   every read/change/mint, uses policy-version 3 and etag CAS, checks no user keys,
+   project grants or parent authority, and mints only once. It never modifies
+   project IAM. Owner credentials only call this copy's Drive resource.
+5. The child receives only its one short token over IPC and an environment
+   allowlist. It prepares the actual batch, then waits for the parent to compare
+   baseline, owner, writer and 45-request/ten-row budget with current authority.
+   Rejection stops before Sheets submission. The existing adapter still proves
+   the single new-tab batch, full ACL/capabilities and original-tab preservation.
+   The parent terminates a stuck child after four minutes (hard kill five seconds
+   later) to retain cleanup time inside the five-minute token lifetime.
+6. After child termination, including failure, remove the exact copy permission,
+   demonstrate denial with the same token **before it expires**, CAS-remove only
+   this session's IAM member/condition, disable the owned identity, and check
+   disabled/keyless/no direct grants plus denied mint. Cleanup stages run even
+   when another stage fails. A concurrent foreign grant is preserved and reported,
+   never erased. A failed removal, expired token or uncertain response cannot pass.
+
+Composition (operator inputs shown as variables, never credential files/argv):
+
+```js
+const {prepare, bind, runSession} = require("./scripts/prepare-develop-writer-rehearsal.cjs");
+const {createProvider, createOwnerControls, createChildRunner} = require("./scripts/develop-writer-copy-provider.cjs");
+const owned = bind(reviewedInput, Date.now());
+const owner = createOwnerControls({copy: owned.copy,
+  protectedWorkbookIds: owned.protectedWorkbookIds, ownerBearer});
+const provider = createProvider({identity: owned.identity, copyFileId: owned.copy.fileId,
+  protectedWorkbookIds: owned.protectedWorkbookIds, iamBearer});
+const runChild = createChildRunner({outputDirectory: freshChildDirectory,
+  expectedRunnerDigest: prepare().runnerSourceDigest});
+const result = await runSession({input: owned, provider, runChild,
+  verifyOwnerCopy: owner.verify, removeCopyPermission: owner.remove, record: writePrivateTypedReceipt});
+```
+
+`writePrivateTypedReceipt` must persist each supplied typed body before resolving,
+using fresh names/mode 0600 inside a mode-0700 parent directory. Never log bearer
+inputs, raw SDK errors, child stderr/stdout or provider response bodies. The
+preparation/approval, creation receipts, original raw snapshot, child output and
+terminal cleanup receipt are retained; the copy and local ledger are not deleted.
+The parent credential must cover IAM cleanup beyond the child deadline and the
+owner credential must still allow removal. If the process crashes, inspect its
+retained grant intent and exact resources; containment is not proved by elapsed
+IAM TTL. Do not re-enable the account or retry a possible write. Reconcile receipts
+and the synthetic copy under a separately authorized read-only inspection first.
+
+This controller constrains its own calls; it cannot technically prohibit an
+administrator from minting separately. IAM does not enforce the requested token
+scope/count/lifetime. See Google's [token API](https://docs.cloud.google.com/iam/docs/reference/credentials/rest/v1/projects.serviceAccounts/generateAccessToken),
+[policy CAS API](https://docs.cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/setIamPolicy)
+and [disable contract](https://docs.cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/disable).
+Live propagation/capabilities are still to be tested; no local test is a live proof.
+
+Local validation: Functions build/lint, focused CJS diagnostics and 30 tests pass
+with no failures/skips (16 new controller/transport/IPC tests, nine actual-runner
+contracts including four emulator cases, five owner-contract tests). Google is
+replaced by transport doubles; Firestore uses the real SDK against the emulator.
+The real runner's rejected review submits zero batches. Native code is unchanged,
+so no new Android/iOS gate or parity gap. Next: authorize and provision this exact
+synthetic session, then execute it and inspect cleanup. Original develop writer
+access, current control composition and maintenance/migration remain separate gates.
