@@ -1192,3 +1192,20 @@ before a fresh authorized execution; no maintenance, production or workbook acce
 native parity unchanged. Issues open; PR #278 draft. See writer-controls guide.
 
 Observation correction validation: lint/build and 34 focused tests pass, zero failures/skips.
+
+
+### IAM lifecycle inconsistency and explicit containment — 2026-10-30
+
+`dfaafc22` delivered/remote-verified, lint/build and34 focused tests passed. Authorized
+retry-1 enabled the account and granted scoped IAM; next read reported disabled=true,
+so account-lifecycle stopped before token request. Grant removed, but automatic
+cleanup skipped disable based on that stale/inconsistent read. Later live read found
+enabled. Explicit disable returned200; final read confirms disabled/keyless/no direct
+bindings/project policy unchanged. Scoped audit supports this sequence. Original
+terminal preserved and containment superseded by separate cleanup reconciliation.
+No token/second enable/grant. Local fix always sends disable and adds bounded
+lifecycle-only read observation (5s/max60s, existing deadlines; authority drift still
+fails immediately). Tests:37 focused +38 copy/emulator regressions,51 unique passes,
+no skips. Local/uncommitted/not executed; fresh digest and authorization needed after
+review/delivery. Historical403 unresolved. Maintenance closed; production/workbooks
+untouched; native parity unchanged. See bilingual writer-controls guide.

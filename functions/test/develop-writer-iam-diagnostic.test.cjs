@@ -152,6 +152,55 @@ test("IAM-only transport addresses exact UID with no redirect or workbook capabi
   await provider.enableOwned(); await provider.hasMintPermission();
   await provider.mint(prepareDiagnostic(identity).tokenRequest); await provider.disableOwned();
   assert.equal(calls.filter(c => c.url.includes(":generateAccessToken")).length, 1);
+  assert.equal(calls.filter(c => c.url.endsWith(":disable")).length, 1, "disabled=true never skips explicit containment");
   assert.ok(calls.every(c => c.url.includes(identity.uniqueId)));
   await assert.rejects(provider.mint({scope: ["https://www.googleapis.com/auth/cloud-platform"], lifetime: "3600s"}));
+});
+
+test("alternating lifecycle reads wait without another enable, grant or mint; cleanup waits after explicit disable", async t => {
+  const f = fixture(t), read = f.args.provider.readIdentity, enable = f.args.provider.enableOwned, disable = f.args.provider.disableOwned;
+  let delayedStates = [];
+  f.args.provider.enableOwned = async () => { await enable(); delayedStates = [true, false, true, false]; };
+  f.args.provider.disableOwned = async () => { await disable(); delayedStates = [false, true]; };
+  f.args.provider.readIdentity = async () => {
+    const value = await read();
+    if (delayedStates.length) value.account.disabled = delayedStates.shift();
+    return value;
+  };
+  const result = await runDiagnostic(f.args);
+  assert.equal(result.kind, "mint-observed-and-contained"); assert.equal(f.state.now, NOW + 15000);
+  assert.equal(f.state.mintCount, 1);
+  assert.equal(f.state.calls.filter(c => c === "enable").length, 1);
+  assert.equal(f.state.calls.filter(c => c === "disable").length, 1);
+  assert.equal(f.state.calls.filter(c => c === "policy").length, 2);
+  assert.equal(result.observations.filter(o => !o.passed && o.check === "account-lifecycle").length, 3);
+});
+
+test("lifecycle observation timeout or late success prevents grant and mint without extending approval", async t => {
+  for (const late of [false, true]) {
+    const f = fixture(t), read = f.args.provider.readIdentity;
+    let afterEnable = false, delayedResponse = false;
+    f.args.provider.enableOwned = async () => { afterEnable = true; };
+    f.args.provider.disableOwned = async () => { afterEnable = false; f.state.disabled = true; };
+    f.args.provider.readIdentity = async () => {
+      const value = await read();
+      if (afterEnable && late && !delayedResponse) {
+        delayedResponse = true; f.state.now += 60000; value.account.disabled = false;
+      }
+      return value;
+    };
+    const result = await runDiagnostic(f.args);
+    assert.equal(result.failure.phase, "grant-identity"); assert.equal(f.state.mintCount, 0);
+    assert.equal(f.state.now, NOW + 60000); assert.equal(f.state.calls.includes("policy"), false);
+    assert.equal(result.canRetry || result.canEnterMaintenance, false);
+  }
+});
+
+test("authority drift is never tolerated while waiting for lifecycle visibility", async t => {
+  const f = fixture(t), foreign = {role: "roles/viewer", members: ["user:other@example.test"]};
+  f.args.provider.enableOwned = async () => { f.state.disabled = true; f.state.policy.bindings = [foreign]; };
+  const result = await runDiagnostic(f.args);
+  assert.equal(result.failure.phase, "grant-identity"); assert.equal(f.state.now, NOW);
+  assert.equal(f.state.mintCount, 0); assert.deepEqual(f.state.policy.bindings, [foreign]);
+  assert.equal(result.observations.find(o => o.phase === "grant-identity").check, "identity-authority");
 });

@@ -1224,3 +1224,45 @@ workbooks untouched; no native change. Issues open; PR #278 draft. Private evide
 `2026-10-30-develop-writer-iam-only`, original terminal plus `cleanup-reconciliation.json`.
 
 Observation correction validation: lint/build and 34 focused tests pass, zero failures/skips.
+
+
+### Lifecycle oscillation observed; explicit containment corrected — 2026-10-30
+
+Delivered `dfaafc22`, pushed and exact remote HEAD verified; lint/build and 34
+focused tests passed again. The new authorized IAM-only retry used a fresh journal,
+source-bound preparation and the original ten-minute deadline. Preflight and the
+post-enable check passed. The temporary grant was applied, then the next identity
+read reported disabled=true during wait-token-permission. The account-lifecycle
+observation failed; no readiness result or token request occurred. Grant removal
+completed. The automatic terminal's empty cleanupFailures is **not sufficient
+containment evidence** for this attempt.
+
+A later exact read found the account enabled. The old transport had skipped its
+disable POST on a disabled=true read. Scoped audit shows enable, grant and removal,
+then only the later explicit disable; this identifies a concrete containment bug
+under inconsistent lifecycle reads. An unconditional disable on the verified UID
+returned 200. Subsequent exact read verifies disabled, zero keys/direct bindings
+and unchanged project policy. Separate reconciliation supersedes the containment
+assessment, preserving the original terminal. No second enable, grant or mint.
+
+Local correction: always issue disable after identity verification, even when a
+read says disabled. Google documents that disabling an already disabled account
+has no effect ([enable/disable guide](https://docs.cloud.google.com/iam/docs/service-accounts-disable-enable)).
+The IAM-only controller now observes the expected lifecycle every 5s for at most
+60s per observation, clipped to the existing admission/readiness deadline. Only
+lifecycle mismatch is waited on; identity, key, bindings and project-policy checks
+remain immediate failures. No extra enable or grant, no extended owner/authorization
+window, and only one actual mint attempt. Cleanup always sends disable first and
+then observes the terminal state within 60s, reporting timeout as unresolved.
+Neither a positive read nor bounded observation proves all IAM replicas agree;
+actual mint remains decisive. The historical mint403 is still unexplained.
+
+Validation: lint/build, 37 focused tests and 38 copy/emulator regressions (51 unique
+cases), all pass with no skips. Regressions cover alternating lifecycle reads,
+explicit disable despite disabled=true, timeout, late positive reply and authority
+drift during observation. One initial new-test timing assertion counted an unintended
+second simulated delay; the fixture was corrected and the full focused suite rerun.
+The correction/evidence is local, uncommitted and not executed live. Prior approval
+is consumed. Review/deliver before a new authorized attempt with a fresh digest.
+Private evidence: `2026-10-30-develop-writer-iam-only-retry-1`.
+Maintenance closed; production/all workbooks untouched; no native parity change.

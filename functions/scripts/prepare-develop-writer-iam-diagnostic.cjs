@@ -15,6 +15,7 @@ function prepareDiagnostic(identity) {
     sourceDigest: digest(fs.readFileSync(__filename, "utf8")), parentPreparationDigest: previous.preparationDigest,
     caller: "user:drpuerk@gmail.com", role: "roles/iam.workloadIdentityUser",
     maximumWindowSeconds: 600, mintReadiness: previous.mintReadiness, tokenRequest: previous.tokenRequest,
+    lifecycleObservation: {maximumWaitSeconds: 60, pollSeconds: 5},
     maximumMintAttempts: 1, useIssuedToken: false, ownerOAuthRequired: false, workbookAccess: false,
     canExecute: false, canRetry: false, canEnterMaintenance: false,
     approvalTemplate: {kind: "authorized-single-iam-diagnostic", authorized: false, receiptId: null,
@@ -53,19 +54,37 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
   const observations = [];
   const assertAdmission = () => {
     assert.equal(prepareDiagnostic(input.identity).preparationDigest, prepared.preparationDigest);
+    assert.ok(nowMillis() >= a.confirmedAtMillis);
     assert.ok(nowMillis() + 360000 < a.endsAtMillis, "Insufficient remaining diagnostic window");
   };
-  function check(observation, disabled, bindings) {
+  function check(observation, disabled, bindings, allowLifecycleWait = false) {
     const summary = {phase, expectedDisabled: disabled, observedDisabled: observation.account.disabled === true,
       check: "account-lifecycle", passed: false};
     observations.push(summary);
-    assert.equal(observation.account.disabled === true, disabled);
+    if (!allowLifecycleWait) assert.equal(observation.account.disabled === true, disabled);
     summary.check = "identity-authority";
     // Reuse authority checks without relaxing the existing enabled-session contract.
     checkIdentity({...observation, account: {...observation.account, disabled: false}}, input, bindings);
     summary.check = "project-policy";
     if (baselineProject !== null) assert.equal(digest(observation.projectPolicy), baselineProject);
+    if ((observation.account.disabled === true) !== disabled) {
+      summary.check = "account-lifecycle";
+      return false;
+    }
     summary.passed = true;
+    return true;
+  }
+  async function observeState(disabled, bindings, outerDeadline = a.endsAtMillis - 360000) {
+    const deadline = Math.min(nowMillis() + prepared.lifecycleObservation.maximumWaitSeconds * 1000, outerDeadline);
+    while (true) {
+      if (!disabled) assertAdmission();
+      assert.ok(nowMillis() < deadline, "Account lifecycle observation deadline exceeded");
+      const observation = await provider.readIdentity();
+      const matched = check(observation, disabled, bindings, true);
+      assert.ok(nowMillis() < deadline, "Account lifecycle observation arrived too late");
+      if (matched) return observation;
+      await sleep(Math.min(prepared.lifecycleObservation.pollSeconds * 1000, deadline - nowMillis()));
+    }
   }
   try {
     const before = await provider.readIdentity();
@@ -77,7 +96,7 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
     phase = "enable-identity";
     await provider.enableOwned();
     phase = "grant-identity";
-    const enabled = await provider.readIdentity(); check(enabled, false, []); assertAdmission();
+    const enabled = await observeState(false, []); assertAdmission();
     record("grant-intent", {binding, beforePolicy: enabled.policy});
     await provider.setPolicy({...enabled.policy, version: 3, bindings: [binding]});
     phase = "wait-token-permission";
@@ -85,7 +104,7 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
       a.endsAtMillis - prepared.mintReadiness.minimumRemainingWindowSeconds * 1000);
     while (true) {
       assertAdmission(); assert.ok(nowMillis() < deadline);
-      check(await provider.readIdentity(), false, [binding]);
+      await observeState(false, [binding], deadline);
       const ready = await provider.hasMintPermission();
       assert.equal(typeof ready, "boolean"); assert.ok(nowMillis() < deadline);
       if (ready) break;
@@ -94,7 +113,7 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
     readiness = {waitedMillis: nowMillis() - start, isAuthorizationProof: false};
     record("readiness", readiness);
     phase = "admit-mint";
-    check(await provider.readIdentity(), false, [binding]); assertAdmission();
+    await observeState(false, [binding]); assertAdmission();
     record("mint-intent", {attempt: 1, tokenRequest: prepared.tokenRequest});
     mintAttempted = true; phase = "mint-token";
     let token = await provider.mint(prepared.tokenRequest);
@@ -119,7 +138,7 @@ async function runDiagnostic({input, provider, journalRoot, nowMillis = Date.now
         if (digest(next.bindings) !== digest(current.policy.bindings ?? [])) await provider.setPolicy(next);
       } catch { cleanupFailures.push("iam_binding_removal_unproven"); }
       try { await provider.disableOwned(); } catch { cleanupFailures.push("identity_disablement_unproven"); }
-      try { check(await provider.readIdentity(), true, []); }
+      try { await observeState(true, [], nowMillis() + prepared.lifecycleObservation.maximumWaitSeconds * 1000); }
       catch { cleanupFailures.push("terminal_identity_unproven"); }
     }
   }

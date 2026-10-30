@@ -1263,3 +1263,45 @@ borrador. Evidencia privada: `2026-10-30-develop-writer-iam-only`, recibo origin
 y `cleanup-reconciliation.json` separado.
 
 Validación de la corrección: lint/build y 34 pruebas focalizadas correctas, sin fallos ni omisiones.
+
+
+### Oscilación de estado observada; contención explícita corregida — 2026-10-30
+
+Entregado `dfaafc22`, subido y verificado exactamente en remoto; lint/build y 34
+pruebas focalizadas repetidas correctamente. El nuevo intento autorizado usó un
+registro nuevo, fuentes vinculadas y plazo original de diez minutos. Pasaron las
+comprobaciones inicial y posterior a reactivar la cuenta. Se concedió el permiso
+temporal y la lectura siguiente devolvió disabled=true en wait-token-permission.
+Falló account-lifecycle; no hubo resultado de disponibilidad ni solicitud de token.
+Se retiró el permiso. El cleanupFailures vacío del recibo automático **no basta
+como evidencia de contención** de este intento.
+
+Una lectura posterior encontró la cuenta habilitada. El transporte anterior había
+omitido el POST de desactivación por una lectura disabled=true. El registro acotado
+muestra reactivación, concesión y retirada, y únicamente la desactivación explícita
+posterior: identifica un defecto concreto de limpieza ante lecturas contradictorias.
+La desactivación incondicional del UID verificado respondió 200. Otra lectura
+confirma deshabilitada, cero claves/permisos directos y política del proyecto sin
+cambios. La conciliación separada sustituye la evaluación de contención, conservando
+el recibo original. Sin otra reactivación, concesión ni emisión.
+
+Corrección local: ordenar siempre desactivar tras comprobar identidad, aunque la
+lectura indique deshabilitada. Google documenta que desactivar una cuenta ya
+deshabilitada no produce otro efecto ([guía de activación/desactivación](https://docs.cloud.google.com/iam/docs/service-accounts-disable-enable)).
+El controlador IAM espera el estado esperado con lecturas cada 5s, hasta 60s por
+observación y sin superar el plazo existente de admisión/disponibilidad. Solo espera
+ante discrepancias del estado; identidad, claves, permisos y política siguen siendo
+fallos inmediatos. Sin reactivar/conceder otra vez, ampliar ventana ni repetir emisión.
+La limpieza ordena desactivar antes de observar hasta 60s el estado final; si vence,
+queda pendiente. Una lectura positiva o una espera limitada no prueban coherencia
+de todas las réplicas; decide la emisión real. El 403 histórico sigue sin explicación.
+
+Validación: lint/build, 37 pruebas focalizadas y 38 regresiones con emulador (51 casos
+distintos), todas correctas y sin omisiones. Cubren lecturas alternantes, desactivación
+aunque se lea disabled=true, vencimiento, respuesta positiva tardía y cambio de
+autoridad durante la espera. Una aserción temporal nueva contaba un segundo retraso
+simulado no previsto; se corrigió el doble y se repitió toda la suite focalizada.
+Corrección/evidencia locales, sin commit ni ejecución real. Autorización consumida;
+revisar/entregar antes de un nuevo intento autorizado con huella nueva. Evidencia:
+`2026-10-30-develop-writer-iam-only-retry-1`.
+Mantenimiento cerrado; producción y todas las hojas intactas; sin cambios nativos.

@@ -70,8 +70,9 @@ function createIamProvider({identity, iamBearer, fetchImpl = fetch}) {
       return requireSuccess(resource + ":enable", "POST", {});
     },
     async disableOwned() {
-      const account = await verifyAccount();
-      if (!account.disabled) await requireSuccess(resource + ":disable", "POST", {});
+      await verifyAccount();
+      // A stale disabled=true read must never suppress the containment request.
+      await requireSuccess(resource + ":disable", "POST", {});
     },
     async probeMintDenied(body) {
       assert.deepEqual(body, tokenRequest);
