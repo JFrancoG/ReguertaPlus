@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {fork} = require("node:child_process");
-const {prepare, PROJECT, EMAIL, DEMO, HOST} = require("./prepare-develop-writer-rehearsal.cjs");
+const {prepare, safeProviderReason, PROJECT, EMAIL, DEMO, HOST} = require("./prepare-develop-writer-rehearsal.cjs");
 const {runnerSourceDigest} = require("./rehearse-owner-sheets-copy.cjs");
 
 function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, fetchImpl = fetch}) {
@@ -29,7 +29,11 @@ function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, 
   async function requireSuccess(url, method = "GET", body) {
     const result = await request(url, method, body);
     if (!(result.status >= 200 && result.status < 300 && result.data)) {
-      throw Object.assign(Error("Scoped provider operation failed"), {httpStatus: result.status});
+      const details = result.data?.error?.details;
+      const info = Array.isArray(details) ? details.find(item => item?.["@type"] === "type.googleapis.com/google.rpc.ErrorInfo" &&
+        item.domain === "googleapis.com" && safeProviderReason(item.reason)) : null;
+      throw Object.assign(Error("Scoped provider operation failed"),
+        {httpStatus: result.status, providerReason: safeProviderReason(info?.reason)});
     }
     return result.data;
   }
@@ -125,7 +129,7 @@ function createChildRunner({outputDirectory, expectedRunnerDigest, spawnChild = 
     // Raw child logs can contain SDK request configuration. Keep only typed receipts.
     child.stdout?.resume(); child.stderr?.resume();
     let result = null, opened = false, reviewed = false, protocolFailed = false, exited = false;
-    let failureHttpStatus = null;
+    let failureHttpStatus = null, failureProviderReason = null;
     let chain = Promise.resolve();
     const deadline = Math.max(1, Math.min(240000, packet.ownerConfirmation.endsAtMillis - Date.now()));
     const kill = setTimeout(() => { protocolFailed = true; child.kill("SIGTERM"); }, deadline);
@@ -155,6 +159,7 @@ function createChildRunner({outputDirectory, expectedRunnerDigest, spawnChild = 
         if (Number.isInteger(error?.httpStatus) && error.httpStatus >= 100 && error.httpStatus <= 599) {
           failureHttpStatus = error.httpStatus;
         }
+        failureProviderReason ??= safeProviderReason(error?.providerReason);
         protocolFailed = true;
         if (child.connected && Number.isSafeInteger(message?.id)) child.send({type: "reply", id: message.id, error: true});
       });
@@ -170,7 +175,8 @@ function createChildRunner({outputDirectory, expectedRunnerDigest, spawnChild = 
       });
       await chain;
       if (!(exit.code === 0 && !exit.signal && !protocolFailed && result)) {
-        throw Object.assign(Error("Child outcome requires inspection"), {httpStatus: failureHttpStatus});
+        throw Object.assign(Error("Child outcome requires inspection"),
+          {httpStatus: failureHttpStatus, providerReason: failureProviderReason});
       }
       return result;
     } finally { clearTimeout(kill); clearTimeout(hardKill); }

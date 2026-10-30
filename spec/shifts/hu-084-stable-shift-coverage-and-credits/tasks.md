@@ -1128,3 +1128,33 @@ an authorization guarantee. Build/lint and 36 tests pass, zero skips/failures. N
 preparation digest requires new approval after review/delivery; current changes are
 uncommitted. Preserve retry-2 receipts/export; maintenance/production remain excluded,
 native parity unchanged, HU-084/HU-085 open and PR #278 draft.
+
+
+### Readiness accepted; actual mint denied; cleanup complete — 2026-10-30
+
+The authorized recovery-3 used delivered `7d5bd6d6`. Owner/full ACL and the raw
+seven-tab baseline matched. Advisory permission readiness returned true after
+747 ms; the single actual mint still returned HTTP 403 (`mint-token`). No writer
+token handoff, batch review, Sheets submission or shared Firestore access occurred;
+child submitted/in-flight/unknown counters are zero. This does not establish a
+root cause or justify broader permissions or a different identity.
+
+Cleanup verified owner-only copy ACL, exact temporary IAM removal, disabled
+account, zero user keys/direct bindings and a later denied mint. Owner OAuth was
+revoked (200), the same token denied (401), and Google showed zero linked apps.
+The private retry-3 receipt and emulator export are retained; local bridge and
+emulator stopped. Positive writer-read/access-loss acceptance remains unproven:
+`inspection_required`, `canRetry:false`, `canEnterMaintenance:false`.
+
+A local diagnostic correction now retains only recognized Google ErrorInfo reason
+codes, discarding messages, metadata and unknown values. It preserves the first
+recognized reason across child failure reporting. It cannot recover the reason
+from this completed attempt. Build/lint and 38 focused tests pass, zero failures
+or skips. The correction and this evidence are not yet committed. No retry was
+performed with the modified sources; any future packet requires a fresh digest.
+
+Next: deliver the diagnostic correction, then prepare an IAM-only diagnostic
+without owner OAuth or workbook sharing/window before proposing another full
+rehearsal. That diagnostic is not yet prepared or authorized. Maintenance stays
+closed; production, original develop workbook, shared business data and FCM remain
+untouched. No native changes or parity gap. HU-084/HU-085 open; PR #278 draft.

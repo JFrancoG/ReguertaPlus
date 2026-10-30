@@ -15,6 +15,10 @@ const ROLE = "roles/iam.workloadIdentityUser";
 const HOST = "127.0.0.1:8897";
 const DEMO = "demo-reguerta-copy-writer-v1";
 const id = value => typeof value === "string" && /^[A-Za-z0-9_-]{6,128}$/.test(value);
+const PROVIDER_REASONS = new Set(["IAM_PERMISSION_DENIED", "ACCESS_TOKEN_SCOPE_INSUFFICIENT", "SERVICE_DISABLED",
+  "CONSUMER_INVALID", "USER_PROJECT_DENIED", "SECURITY_POLICY_VIOLATED", "ACCOUNT_STATE_INVALID",
+  "CREDENTIALS_MISSING", "ACCESS_TOKEN_EXPIRED", "RATE_LIMIT_EXCEEDED"]);
+const safeProviderReason = value => PROVIDER_REASONS.has(value) ? value : null;
 
 function prepare() {
   const plan = JSON.parse(fs.readFileSync(PLAN));
@@ -220,7 +224,8 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
   } catch (error) {
     primaryFailure = "session_requires_inspection";
     const status = error?.httpStatus;
-    failureDetails = {phase, httpStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null};
+    failureDetails = {phase, httpStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+      providerReason: safeProviderReason(error?.providerReason)};
   }
   finally {
     // Never clean an unverified identity. Once ownership is verified, failures
@@ -258,7 +263,7 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
   return result;
 }
 
-module.exports = {prepare, bind, grantFor, removeOwnGrant, checkIdentity, runSession, PROJECT, EMAIL, DEMO, HOST};
+module.exports = {prepare, bind, grantFor, removeOwnGrant, checkIdentity, runSession, safeProviderReason, PROJECT, EMAIL, DEMO, HOST};
 if (require.main === module) {
   assert.equal(process.argv.length, 3, "Only an offline output path is accepted");
   fs.writeFileSync(process.argv[2], JSON.stringify(prepare(), null, 2) + "\n", {flag: "wx", mode: 0o600});

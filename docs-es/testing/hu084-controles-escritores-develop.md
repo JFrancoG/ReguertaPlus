@@ -1148,3 +1148,36 @@ original y emulador exportado. Siguiente: revisar/entregar antes de preparar otr
 sesión expresamente autorizada. Sin mantenimiento, hojas originales de develop/
 producción, negocio compartido, FCM, despliegues ni cambios nativos. HU-084/HU-085
 abiertas y PR #278 en borrador.
+
+
+### Permiso previo disponible; emisión denegada; limpieza terminada — 2026-10-30
+
+La recuperación-3 autorizada usó `7d5bd6d6`, ya entregado. Coincidían propietario,
+ACL completa y contenido original de las siete pestañas. La consulta orientativa
+de permisos devolvió disponible en 747 ms, pero la única emisión real devolvió
+HTTP 403 (`mint-token`). No hubo entrega de token al escritor, revisión del lote,
+escritura en Sheets ni acceso a Firestore compartido; los contadores del hijo
+(enviados/en curso/desconocidos) son cero. No queda demostrada la causa ni se
+justifica ampliar permisos o cambiar de identidad.
+
+Limpieza verificada: copia con solo su propietario, concesión IAM exacta retirada,
+cuenta deshabilitada, cero claves de usuario/concesiones directas y emisión
+posterior denegada. OAuth revocado (200), mismo token denegado (401) y Google sin
+aplicaciones vinculadas. Se conservan recibo privado retry-3 y exportación del
+emulador; puente local y emulador detenidos. Sigue sin probarse la lectura positiva
+del escritor seguida de pérdida efectiva de acceso: `inspection_required`,
+`canRetry:false`, `canEnterMaintenance:false`.
+
+La corrección local conserva únicamente códigos reconocidos de Google ErrorInfo;
+descarta mensajes, metadatos y valores desconocidos. Mantiene el primer código
+reconocido aunque el hijo comunique después un fallo genérico. No permite recuperar
+el motivo de este intento ya terminado. Build/lint y 38 pruebas focalizadas pasan,
+sin fallos ni omisiones. Corrección y evidencias aún sin commit; no se ha ejecutado
+otro intento con estas fuentes. Un futuro paquete necesita una huella nueva.
+
+Siguiente paso: entregar el diagnóstico y preparar una comprobación exclusiva de
+IAM, sin OAuth del propietario ni permisos o ventana sobre la hoja, antes de
+proponer otro ensayo completo. Esa comprobación aún no está preparada ni autorizada.
+Mantenimiento cerrado; sin tocar producción, hoja original de develop, datos
+compartidos ni FCM. Sin cambios nativos ni brecha de paridad. HU-084/HU-085 abiertas;
+PR #278 en borrador.

@@ -209,7 +209,12 @@ for (const rejectReview of [false, true]) test(`child IPC awaits parent review (
         const child = new EventEmitter(); child.connected = true; child.pid = 1234;
         child.kill = () => { child.connected = false; child.emit("exit", 1, "SIGTERM"); };
         child.send = reply => {
-          if (reply.error) { child.connected = false; setImmediate(() => child.emit("exit", 1, null)); return; }
+          if (reply.error) {
+            child.connected = false;
+            setImmediate(() => { child.emit("message", {type: "failed"});
+              setImmediate(() => child.emit("exit", 1, null)); });
+            return;
+          }
           if (reply.id === 1) setImmediate(() => child.emit("message", {type: "review-copy-plan", id: 2, data: f.review}));
           if (reply.id === 2) { sentBatch = true; setImmediate(() => {
             child.emit("message", {type: "result", data: f.completed});
@@ -223,10 +228,10 @@ for (const rejectReview of [false, true]) test(`child IPC awaits parent review (
       ownerConfirmation: {endsAtMillis: Date.now() + 10000}},
     async openSession() { calls++; return {}; }, async reviewPlan() {
       assert.equal(sentBatch, false);
-      if (rejectReview) throw Object.assign(Error("synthetic-secret-in-provider-message"), {httpStatus: 503});
+      if (rejectReview) throw Object.assign(Error("synthetic-secret-in-provider-message"), {httpStatus: 503, providerReason: "IAM_PERMISSION_DENIED"});
     }});
     if (rejectReview) await assert.rejects(execution, error =>
-      error.httpStatus === 503 && /requires inspection/.test(error.message) && !JSON.stringify(error).includes("synthetic-secret"));
+      error.httpStatus === 503 && error.providerReason === "IAM_PERMISSION_DENIED" && /requires inspection/.test(error.message) && !JSON.stringify(error).includes("synthetic-secret"));
     else assert.deepEqual(await execution, f.completed);
     assert.equal(calls, 1); assert.equal(sentBatch, !rejectReview);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
@@ -281,7 +286,7 @@ test("failed mint or copy read retains phase and bounded HTTP status without sec
       throw Object.assign(Error("synthetic-secret-in-message"), {httpStatus: status, response: {token: "synthetic-secret"}});
     };
     const result = await run(f);
-    assert.deepEqual(result.failureDetails, {phase: "mint-token", httpStatus: status === 403 ? 403 : null});
+    assert.deepEqual(result.failureDetails, {phase: "mint-token", httpStatus: status === 403 ? 403 : null, providerReason: null});
     assert.equal(result.kind, "inspection_required"); assert.equal(result.canRetry, false);
     assert.equal(f.state.mintCount, 1); assert.equal(f.state.disabled, true);
     assert.deepEqual(f.state.policy.bindings, []); assert.equal(f.state.copyPermission, false);
@@ -290,7 +295,7 @@ test("failed mint or copy read retains phase and bounded HTTP status without sec
   const f = fixture();
   f.args.provider.probeCopy = async () => ({status: 403, body: "synthetic-secret"});
   const result = await run(f);
-  assert.deepEqual(result.failureDetails, {phase: "probe-copy-access", httpStatus: 403});
+  assert.deepEqual(result.failureDetails, {phase: "probe-copy-access", httpStatus: 403, providerReason: null});
   assert.ok(result.cleanupFailures.includes("copy_access_denial_unproven"));
   assert.equal(f.state.disabled, true); assert.equal(result.canRetry, false);
   assert.equal(JSON.stringify({result, records: f.state.records}).includes("synthetic-secret"), false);
@@ -313,7 +318,7 @@ test("unpropagated permission times out before mint and still removes grants and
   f.args.runChild = async () => { childStarted = true; throw Error("unreachable"); };
   const result = await run(f);
   assert.equal(result.kind, "inspection_required");
-  assert.deepEqual(result.failureDetails, {phase: "wait-token-permission", httpStatus: null});
+  assert.deepEqual(result.failureDetails, {phase: "wait-token-permission", httpStatus: null, providerReason: null});
   assert.equal(f.state.now, NOW + 180000); assert.equal(f.state.mintCount, 0); assert.equal(childStarted, false);
   assert.equal(f.state.disabled, true); assert.equal(f.state.copyPermission, false);
   assert.deepEqual(f.state.policy.bindings, []); assert.equal(result.canRetry, false);
@@ -357,5 +362,39 @@ test("permission readiness uses only testIamPermissions on the exact account and
     assert.equal(calls.length, 1);
     assert.match(calls[0].url, /projects\/reguerta-9f27f\/serviceAccounts\/100000000000000000001:testIamPermissions$/);
     assert.deepEqual(JSON.parse(calls[0].options.body), {permissions: ["iam.serviceAccounts.getAccessToken"]});
+  }
+});
+
+
+test("only recognized Google ErrorInfo reasons cross transport; messages and metadata never do", async () => {
+  const f = fixture();
+  for (const reason of ["IAM_PERMISSION_DENIED", "SERVICE_DISABLED", "SYNTHETIC_SECRET", null]) {
+    const provider = createProvider({identity: f.args.input.identity, copyFileId: f.args.input.copy.fileId,
+      protectedWorkbookIds: f.args.input.protectedWorkbookIds, iamBearer: "synthetic-secret",
+      async fetchImpl() { return {status: 403, json: async () => ({error: {message: "synthetic-secret",
+        details: [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", domain: "googleapis.com", reason,
+          metadata: {credential: "synthetic-secret"}}]}})}; }});
+    await assert.rejects(provider.mint(prepare().tokenRequest), error => {
+      assert.equal(error.httpStatus, 403);
+      assert.equal(error.providerReason, ["IAM_PERMISSION_DENIED", "SERVICE_DISABLED"].includes(reason) ? reason : null);
+      assert.equal(JSON.stringify(error).includes("synthetic-secret"), false);
+      assert.equal(JSON.stringify(error).includes("SYNTHETIC_SECRET"), false);
+      return true;
+    });
+  }
+});
+
+test("recognized mint denial is retained without a retry and unknown reasons are discarded", async () => {
+  for (const reason of ["IAM_PERMISSION_DENIED", "synthetic-secret"]) {
+    const f = fixture();
+    f.args.provider.mint = async () => {
+      f.state.mintCount++;
+      throw Object.assign(Error("synthetic-secret"), {httpStatus: 403, providerReason: reason});
+    };
+    const result = await run(f);
+    assert.deepEqual(result.failureDetails, {phase: "mint-token", httpStatus: 403,
+      providerReason: reason === "IAM_PERMISSION_DENIED" ? reason : null});
+    assert.equal(f.state.mintCount, 1); assert.equal(f.state.disabled, true); assert.equal(result.canRetry, false);
+    assert.equal(JSON.stringify({result, records: f.state.records}).includes("synthetic-secret"), false);
   }
 });
