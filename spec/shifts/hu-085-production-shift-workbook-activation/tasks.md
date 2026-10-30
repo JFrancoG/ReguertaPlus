@@ -984,3 +984,20 @@ without owner OAuth or workbook sharing/window before proposing another full
 rehearsal. That diagnostic is not yet prepared or authorized. Maintenance stays
 closed; production, original develop workbook, shared business data and FCM remain
 untouched. No native changes or parity gap. HU-084/HU-085 open; PR #278 draft.
+
+
+### IAM-only diagnostic preparation — 2026-10-30
+
+Delivered and remote-verified `d7fb614a`: denial reasons and actual recovery-3
+failure/cleanup evidence. New local IAM-only preparation uses the same caller,
+account, role and single 300s mint, with fresh source-bound approval, max ten-minute
+window, bounded readiness, exclusive journal and exact cleanup. No owner OAuth,
+workbook access, token use, data client, second cleanup mint or automatic retry.
+Known IAM service ErrorInfo domains are supported without retaining raw errors.
+Lint/build, 38 copy/emulator regressions and nine IAM-only tests pass, zero skips.
+Private inert packet/offline rejection: `2026-10-30-develop-writer-iam-only`.
+Preparation remains uncommitted; no credentials loaded or Google calls this phase.
+Review/deliver then obtain explicit isolated IAM execution approval. No closed-sheet
+window or owner action needed. Success will not prove Sheets access or migration
+readiness. Maintenance closed; production untouched; native parity unchanged.
+HU-084/HU-085 stay open and PR #278 draft. See bilingual writer-controls guide.

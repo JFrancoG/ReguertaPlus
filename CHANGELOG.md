@@ -20,6 +20,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-10-30 | 🔧 chore(shifts): prepare isolated IAM diagnostic
+
 - 2026-10-29 | 🔧 chore(shifts): verify develop owner isolation
 
 - 2026-10-29 | 🔧 chore(shifts): bind develop fence to maintenance preparation

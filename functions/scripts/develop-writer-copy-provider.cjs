@@ -8,19 +8,16 @@ const {fork} = require("node:child_process");
 const {prepare, safeProviderReason, PROJECT, EMAIL, DEMO, HOST} = require("./prepare-develop-writer-rehearsal.cjs");
 const {runnerSourceDigest} = require("./rehearse-owner-sheets-copy.cjs");
 
-function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, fetchImpl = fetch}) {
+function createIamProvider({identity, iamBearer, fetchImpl = fetch}) {
   assert.equal(identity.email, EMAIL); assert.match(identity.uniqueId, /^\d{10,30}$/);
-  assert.match(copyFileId, /^[A-Za-z0-9_-]{6,128}$/); assert.ok(iamBearer);
-  assert.ok(protectedWorkbookIds?.length >= 2 && !protectedWorkbookIds.includes(copyFileId));
-  assert.ok(protectedWorkbookIds.includes("1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A"));
+  assert.ok(iamBearer);
   const tokenRequest = prepare().tokenRequest;
   const resource = `https://iam.googleapis.com/v1/projects/${PROJECT}/serviceAccounts/${identity.uniqueId}`;
   const project = `https://cloudresourcemanager.googleapis.com/v1/projects/${PROJECT}`;
   const mintUrl = `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${identity.uniqueId}:generateAccessToken`;
-  const copyUrl = `https://www.googleapis.com/drive/v3/files/${copyFileId}?fields=id`;
   async function request(url, method, body, bearer = iamBearer) {
     const response = await fetchImpl(url, {method, headers: {Authorization: `Bearer ${bearer}`, "Content-Type": "application/json"},
-      ...(body === undefined ? {} : {body: JSON.stringify(body)}), signal: AbortSignal.timeout(15000)});
+      ...(body === undefined ? {} : {body: JSON.stringify(body)}), signal: AbortSignal.timeout(15000), redirect: "error"});
     // Deliberately never put response bodies, headers or raw provider errors in logs.
     let data = null;
     try { data = await response.json(); } catch { /* A non-JSON body stays unknown. */ }
@@ -31,7 +28,7 @@ function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, 
     if (!(result.status >= 200 && result.status < 300 && result.data)) {
       const details = result.data?.error?.details;
       const info = Array.isArray(details) ? details.find(item => item?.["@type"] === "type.googleapis.com/google.rpc.ErrorInfo" &&
-        item.domain === "googleapis.com" && safeProviderReason(item.reason)) : null;
+        ["googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com"].includes(item.domain) && safeProviderReason(item.reason)) : null;
       throw Object.assign(Error("Scoped provider operation failed"),
         {httpStatus: result.status, providerReason: safeProviderReason(info?.reason)});
     }
@@ -67,9 +64,10 @@ function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, 
       assert.deepEqual(body, tokenRequest);
       return requireSuccess(mintUrl, "POST", body);
     },
-    async probeCopy(bearer) {
-      const r = await request(copyUrl, "GET", undefined, bearer);
-      return {status: r.status, id: r.data?.id ?? null};
+    async enableOwned() {
+      const account = await verifyAccount();
+      assert.equal(account.disabled, true);
+      return requireSuccess(resource + ":enable", "POST", {});
     },
     async disableOwned() {
       const account = await verifyAccount();
@@ -80,6 +78,23 @@ function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, 
       return (await request(mintUrl, "POST", body)).status;
     },
   };
+}
+
+// The IAM-only transport has no workbook address or data-access method.
+function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, fetchImpl = fetch}) {
+  assert.match(copyFileId, /^[A-Za-z0-9_-]{6,128}$/);
+  assert.ok(protectedWorkbookIds?.length >= 2 && !protectedWorkbookIds.includes(copyFileId));
+  assert.ok(protectedWorkbookIds.includes("1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A"));
+  const iam = createIamProvider({identity, iamBearer, fetchImpl});
+  const {enableOwned, ...existingIam} = iam;
+  return {...existingIam, async probeCopy(bearer) {
+    const response = await fetchImpl(`https://www.googleapis.com/drive/v3/files/${copyFileId}?fields=id`,
+      {method: "GET", headers: {Authorization: `Bearer ${bearer}`, "Content-Type": "application/json"},
+        signal: AbortSignal.timeout(15000), redirect: "error"});
+    let data = null;
+    try { data = await response.json(); } catch { /* Non-JSON stays unknown. */ }
+    return {status: response.status, id: data?.id ?? null};
+  }};
 }
 
 // A separate owner session removes only the writer permission created for this
@@ -182,5 +197,5 @@ function createChildRunner({outputDirectory, expectedRunnerDigest, spawnChild = 
     } finally { clearTimeout(kill); clearTimeout(hardKill); }
   };
 }
-module.exports = {createProvider, createOwnerControls, createChildRunner};
+module.exports = {createIamProvider, createProvider, createOwnerControls, createChildRunner};
 if (require.main === module) { console.error("Explicit reviewed composition required; no live CLI."); process.exitCode = 1; }

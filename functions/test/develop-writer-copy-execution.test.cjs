@@ -368,19 +368,21 @@ test("permission readiness uses only testIamPermissions on the exact account and
 
 test("only recognized Google ErrorInfo reasons cross transport; messages and metadata never do", async () => {
   const f = fixture();
-  for (const reason of ["IAM_PERMISSION_DENIED", "SERVICE_DISABLED", "SYNTHETIC_SECRET", null]) {
-    const provider = createProvider({identity: f.args.input.identity, copyFileId: f.args.input.copy.fileId,
-      protectedWorkbookIds: f.args.input.protectedWorkbookIds, iamBearer: "synthetic-secret",
-      async fetchImpl() { return {status: 403, json: async () => ({error: {message: "synthetic-secret",
-        details: [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", domain: "googleapis.com", reason,
-          metadata: {credential: "synthetic-secret"}}]}})}; }});
-    await assert.rejects(provider.mint(prepare().tokenRequest), error => {
-      assert.equal(error.httpStatus, 403);
-      assert.equal(error.providerReason, ["IAM_PERMISSION_DENIED", "SERVICE_DISABLED"].includes(reason) ? reason : null);
-      assert.equal(JSON.stringify(error).includes("synthetic-secret"), false);
-      assert.equal(JSON.stringify(error).includes("SYNTHETIC_SECRET"), false);
-      return true;
-    });
+  for (const domain of ["googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "untrusted.example"]) {
+    for (const reason of ["IAM_PERMISSION_DENIED", "SERVICE_DISABLED", "SYNTHETIC_SECRET", null]) {
+      const provider = createProvider({identity: f.args.input.identity, copyFileId: f.args.input.copy.fileId,
+        protectedWorkbookIds: f.args.input.protectedWorkbookIds, iamBearer: "synthetic-secret",
+        async fetchImpl() { return {status: 403, json: async () => ({error: {message: "synthetic-secret",
+          details: [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", domain, reason,
+            metadata: {credential: "synthetic-secret"}}]}})}; }});
+      await assert.rejects(provider.mint(prepare().tokenRequest), error => {
+        assert.equal(error.httpStatus, 403);
+        assert.equal(error.providerReason, domain !== "untrusted.example" && ["IAM_PERMISSION_DENIED", "SERVICE_DISABLED"].includes(reason) ? reason : null);
+        assert.equal(JSON.stringify(error).includes("synthetic-secret"), false);
+        assert.equal(JSON.stringify(error).includes("SYNTHETIC_SECRET"), false);
+        return true;
+      });
+    }
   }
 });
 

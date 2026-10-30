@@ -1181,3 +1181,46 @@ proponer otro ensayo completo. Esa comprobación aún no está preparada ni auto
 Mantenimiento cerrado; sin tocar producción, hoja original de develop, datos
 compartidos ni FCM. Sin cambios nativos ni brecha de paridad. HU-084/HU-085 abiertas;
 PR #278 en borrador.
+
+
+### Diagnóstico exclusivo de IAM preparado; sin ejecución real — 2026-10-30
+
+Entregado `d7fb614a`, verificado en remoto: motivos seguros de denegación y evidencia
+del fallo/limpieza de recovery-3. Lint/build y 24 pruebas de transporte/controlador
+repetidas correctamente; se conserva la evidencia integrada anterior de 38 casos.
+
+La preparación local aísla IAM sin OAuth del propietario, identificadores de hojas,
+peticiones Drive/Sheets, proceso hijo ni emulador. El nuevo script
+`prepare-develop-writer-iam-diagnostic.cjs` reutiliza las comprobaciones de autoridad
+y limpieza con control de versión; el proveedor ofrece un transporte exclusivo de
+IAM. Una autorización nueva vincula UID exacto, fuentes/composición y ventana máxima
+de diez minutos. Un directorio exclusivo consume el recibo antes del proveedor.
+La composición privada rechaza aprobación ausente/caducada antes de cargar
+credenciales o acceder a la red; no reutiliza recibos anteriores.
+
+La ejecución propuesta reactiva solo el escritor aislado existente, concede el mismo
+`roles/iam.workloadIdentityUser` sobre esa cuenta al mismo usuario, comprueba durante
+un máximo de 180s la disponibilidad y solicita un único token (300s, mismos ámbitos,
+sin delegación). Son límites del controlador, no restricciones impuestas por el rol
+IAM. Un token recibido no se registra, guarda ni utiliza. La limpieza retira solo
+la concesión propia, deshabilita la cuenta y revisa identidad/claves/permisos/política
+del proyecto. No solicita otro token para probar la limpieza. Conserva permisos
+ajenos y los comunica como estado pendiente. Una caída o limpieza incierta exige
+inspeccionar recibos e identidad exacta; nunca repetir la autorización consumida.
+
+Solo admite motivos conocidos de ErrorInfo de Google, IAM o IAM Credentials;
+descarta dominios/motivos desconocidos, mensajes y metadatos. Decide la API real,
+no la consulta orientativa; referencia oficial:
+[contrato generateAccessToken](https://docs.cloud.google.com/iam/docs/reference/credentials/rest/v1/projects.serviceAccounts/generateAccessToken).
+El éxito no prueba acceso a Sheets, admisión de migración ni la causa del 403 previo.
+
+Validación: lint/build; 38 pruebas de regresión de copia con emulador Firestore y
+nueve exclusivas de IAM, todas correctas y sin omisiones. El paquete privado
+`2026-10-30-develop-writer-iam-only` contiene aprobación inactiva, preparación y
+composición vinculadas a fuentes y rechazo comprobado sin aprobación. La identidad
+procede del recibo conservado, no de una consulta real nueva; se revisará antes de
+los efectos. Preparación nueva sin commit, sin cargar credenciales ni contactar
+Google. Siguiente paso: revisar/entregar y obtener autorización expresa para
+reactivación, permiso, emisión única y limpieza de IAM. No hace falta actuar como
+propietario ni mantener la hoja cerrada. Mantenimiento cerrado, producción intacta,
+sin cambios de paridad nativa.

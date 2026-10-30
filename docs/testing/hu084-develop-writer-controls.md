@@ -1144,3 +1144,45 @@ without owner OAuth or workbook sharing/window before proposing another full
 rehearsal. That diagnostic is not yet prepared or authorized. Maintenance stays
 closed; production, original develop workbook, shared business data and FCM remain
 untouched. No native changes or parity gap. HU-084/HU-085 open; PR #278 draft.
+
+
+### IAM-only diagnostic prepared; no live execution — 2026-10-30
+
+Delivered `d7fb614a` (remote verified): safe denial reasons and the recovery-3
+failure/cleanup evidence. Fresh lint/build and 24 transport/controller tests pass;
+the preceding 38-case integrated evidence remains recorded above.
+
+The next local preparation isolates IAM without owner OAuth, workbook identifiers,
+Drive/Sheets requests, a child or an emulator. `prepare-develop-writer-iam-diagnostic.cjs`
+reuses the reviewed authority checks and CAS cleanup; the existing provider now
+exposes an IAM-only transport. A fresh approval seals the exact account UID,
+source/composition and a maximum ten-minute window. An exclusive receipt directory
+is consumed before provider access. Missing/stale approval rejects before credentials
+or network in the private composition. Prior receipts are never reused.
+
+The proposed execution reactivates only the existing isolated writer, grants the
+same account-level `roles/iam.workloadIdentityUser` to the same caller, checks
+readiness for at most 180s and makes one actual mint request (300s, unchanged scopes,
+no delegates). These are controller limits, not restrictions imposed by the IAM
+role. A returned token is neither logged, persisted nor used. Cleanup removes only
+the owned grant, disables the account and rechecks identity/keys/bindings/project
+policy; no second mint is issued to test cleanup. Foreign grants survive and prevent
+a successful terminal verdict. A crash or uncertain cleanup requires inspection of
+the intent receipts and exact identity; never rerun the consumed approval.
+
+Known reasons are accepted only from the generic Google, IAM or IAM Credentials
+ErrorInfo domains; unknown domains/reasons, messages and metadata are discarded.
+The real API remains decisive, not the advisory permission query; see the official
+[generateAccessToken contract](https://docs.cloud.google.com/iam/docs/reference/credentials/rest/v1/projects.serviceAccounts/generateAccessToken).
+Success here cannot establish Sheets access, migration admission or the 403 cause
+from earlier attempts.
+
+Validation: lint/build; 38 copy regression tests with the local Firestore emulator
+plus nine IAM-only tests, all passing without skips. Private packet
+`2026-10-30-develop-writer-iam-only` contains an inert approval template, source-bound
+preparation/composition and offline rejection evidence. Identity comes from the
+retained receipt, not a new live observation; execution rechecks it before effects.
+This new preparation is uncommitted and has not loaded credentials or contacted
+Google. Next review/deliver, then obtain explicit approval for the isolated IAM
+reactivation/grant/single mint/cleanup. No owner action or closed-sheet window is
+needed. Maintenance closed; production untouched; native parity unchanged.

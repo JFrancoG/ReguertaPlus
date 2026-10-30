@@ -1,6 +1,7 @@
 {
   "name": "functions",
   "scripts": {
+    "test:shift-planning:writer-iam": "npm run build && node --test test/develop-writer-iam-diagnostic.test.cjs test/develop-writer-copy-execution.test.cjs",
     "test:shift-planning:writer-copy:emulator": "npm run build && firebase emulators:exec --config ../firebase.develop-writer-controls-emulator.json --project demo-reguerta-copy-writer-v1 --only firestore \"METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/rehearse-owner-sheets-copy.test.cjs test/shift-planning-owner-sheets-contract.test.cjs test/develop-writer-copy-execution.test.cjs\"",
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
