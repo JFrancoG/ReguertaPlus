@@ -685,3 +685,52 @@ correctas. Se reutilizan 141 pruebas/build/lint sin cambios de la implementació
 pusheada; no se afirma otra ejecución de tests de aplicación. Los cambios nuevos son
 solo documentación: diff/enlaces/paridad, sin build nativo ni brecha de paridad.
 HU-084/HU-085 siguen abiertas; PR #278 en borrador.
+
+
+### Clasificación de efectos históricos y decisión — 2026-10-29
+
+La revisión anterior de accesos/namespaces está entregada en `d3ae12d9` (remoto
+verificado). Este paso concilia evidencia conservada sin conexión, sin renovar
+controles reales, consultar logs caducados, invocar Functions ni modificar proveedores.
+
+| Evidencia de aviso | Cantidad | Tratamiento |
+| --- | ---: | --- |
+| `no_tokens` guardado | 55 | Conservar el resumen; no prueba ausencia de otros intentos. |
+| `partial_success` guardado | 34 | Conservar; los tokens rechazados no justifican reenviar a los posiblemente aceptados. |
+| `success` guardado | 25 | Conservar; no es un recibo de entrega por dispositivo. |
+| Sin resultado de envío | 3 | Avisos administrativos del 1 de abril, sin cambios desde su creación; desconocidos, no trabajo activo recién identificado. |
+
+Los 117 documentos quedan vinculados a hashes privados exactos de fuente/versión.
+Doce de los 59 resúmenes de envío coinciden con registros conservados de aplicación/
+fin de petición: seis tokens aceptados y seis rechazados. Los 105 sin esa correlación
+son 55 sin tokens, 28 parciales, 19 correctos y tres sin resultado. No se reenvía
+ninguno. Tres importaciones de 62 filas y dos pruebas de calendario sin efectos
+conservan su prueba de terminación aparte. Estas 17 terminaciones conocidas no
+acreditan el conjunto completo de invocaciones antiguas.
+
+La conciliación de la evidencia disponible está terminada; no está acreditada toda
+la terminación histórica. El contrato actual sigue rechazando mantenimiento. La
+propuesta [ADR-0026](../decisions/0026-accept-bounded-develop-historical-effect-risk.md)
+hace explícita la decisión: aceptar un riesgo histórico acotado solo para migración
+inicial de develop, conservando desconocidos/controles actuales, o mantener bloqueada
+la admisión estricta. No está aceptada ni implementada. Hace falta decidir la política,
+no otra búsqueda de logs; la ventana real requerirá autorización separada tras
+implementación/pruebas y controles de autoridad pendientes.
+
+El script privado `2026-10-29-historical-effect-disposition/reconcile.py` comprueba
+independientemente las 117 fuentes exactas, coherencia de resultados y las 12
+correlaciones de terminación conservadas. Produce clasificación por documento y
+hashes de fuentes con `legacyUntracked=true`, `canEnterMaintenance=false`,
+`canApply=false`. Aserciones, enlaces bilingües y diff correctos. Cambios nuevos solo
+documentales, locales sin commit; sin repetir build/tests de app ni cambiar paridad.
+
+
+### ADR-0026 aceptado y ensayado localmente — 2026-10-30
+
+El mantenedor acepta el riesgo histórico acotado solo en develop. Implementación y
+ensayo local terminados: 137 pruebas locales + 26 de emulador, build/lint, sintaxis
+CJS y diff correctos. Véase el [punto de implementación](../decisions/0026-accept-bounded-develop-historical-effect-risk.md#implementación-local--2026-10-30)
+para vínculos exactos, desconocidos conservados, rechazo/recuperación y límites.
+Sin reenviar avisos, modificar servicios compartidos ni admitir mantenimiento.
+Preparación real en NOT_READY; faltan autoridad/aceptación exacta actuales y ventana
+autorizada por separado. Cambios locales tras `d3ae12d9`, sin brecha de paridad nativa.

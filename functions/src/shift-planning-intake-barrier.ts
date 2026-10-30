@@ -1,4 +1,8 @@
 import {
+  DevelopHistoricalRisk, parseDevelopHistoricalRisk,
+  assertDevelopHistoricalRiskBinding, developHistoricalRiskDigest,
+} from "./shift-planning-historical-risk.js";
+import {
   DEVELOP_CONTAINED_DELIVERY_POLICY,
   ContainedDeliveryEvidence,
   containedDeliveryCount,
@@ -74,6 +78,7 @@ export type ShiftPlanningAdministratorAgreementMode = Omit<
   expectedAdministratorSourceRevision: string;
   expectedAdministratorSourceDigest: ShiftPlanningDigest;
   expectedEffectiveIamDigest: ShiftPlanningDigest;
+  expectedHistoricalRiskDigest?: ShiftPlanningDigest;
 };
 type ShiftPlanningStrictMode = {
   schemaVersion?: never;
@@ -154,24 +159,25 @@ export type ShiftPlanningWriterControlEvidence = {
   closedAtMillis: number;
   initialReadBackAtMillis: number;
   finalReadBackAtMillis: number;
-  /** Business work, including callbacks admitted before the capture bridge. */
-  pendingWorkCount: number;
-  inFlightWorkCount: number;
+  /** Historical unknowns are null only for explicitly accepted predecessors. */
+  pendingWorkCount: number | null;
+  inFlightWorkCount: number | null;
 };
 
 export type ShiftPlanningCausalDrainEvidence = {
   containedDelivery?: ContainedDeliveryEvidence;
+  historicalRisk?: DevelopHistoricalRisk;
   acceptedSetRevision: string;
   acceptedSetDigest: ShiftPlanningDigest;
   capturedAtMillis: number;
-  drainedAtMillis: number;
-  initialPendingWorkCount: number;
-  initialInFlightWorkCount: number;
+  drainedAtMillis: number | null;
+  initialPendingWorkCount: number | null;
+  initialInFlightWorkCount: number | null;
   initialPendingDeliveryCount: number | null;
   initialInFlightDeliveryCount: number | null;
   initialQueueReadBackAtMillis: number;
-  finalPendingWorkCount: number;
-  finalInFlightWorkCount: number;
+  finalPendingWorkCount: number | null;
+  finalInFlightWorkCount: number | null;
   finalPendingDeliveryCount: number | null;
   finalInFlightDeliveryCount: number | null;
   finalQueueReadBackAtMillis: number;
@@ -493,7 +499,12 @@ const administratorMode = (
   expectedAdministratorSourceDigest: requireDigest(
     value.expectedAdministratorSourceDigest, "administrator source digest"),
   expectedEffectiveIamDigest: requireDigest(
-    value.expectedEffectiveIamDigest, "effective IAM digest")};
+    value.expectedEffectiveIamDigest, "effective IAM digest"),
+  ...(value.expectedHistoricalRiskDigest !== undefined ? {
+    expectedHistoricalRiskDigest: requireDigest(
+      value.expectedHistoricalRiskDigest,
+      "historical risk acceptance digest"),
+  } : {})};
 };
 const cooperativeKeys = ["schemaVersion", "maintenanceMode",
   "expectedOwnerAgreementDigest", "expectedTechnicalControlManifestDigest"];
@@ -511,7 +522,9 @@ const normalizeMaintenanceEntryRequest = (
   requireExactKeys(
     command,
     command.schemaVersion === 3 ? [...maintenanceEntryRequestKeys,
-      ...cooperativeKeys, ...administratorKeys] : command.schemaVersion === 2 ?
+      ...cooperativeKeys, ...administratorKeys,
+      ...(command.expectedHistoricalRiskDigest !== undefined ?
+        ["expectedHistoricalRiskDigest"] : [])] : command.schemaVersion === 2 ?
       [...maintenanceEntryRequestKeys, ...cooperativeKeys] :
       maintenanceEntryRequestKeys,
     "maintenance entry request",
@@ -785,6 +798,7 @@ const parseRules = (value: unknown): ShiftPlanningRulesBarrierEvidence => {
 const parseWriterControl = (
   value: unknown,
   version: PolicyVersion = 1,
+  risk?: DevelopHistoricalRisk,
 ): ShiftPlanningWriterControlEvidence => {
   const control = requireRecord(value, "writer control evidence");
   requireExactKeys(control, [
@@ -882,14 +896,17 @@ const parseWriterControl = (
       control.finalReadBackAtMillis,
       `writer ${writerId} final read-back instant`,
     ),
-    pendingWorkCount: requireNonNegativeInteger(
-      control.pendingWorkCount,
-      `writer ${writerId} pending work`,
-    ),
-    inFlightWorkCount: requireNonNegativeInteger(
-      control.inFlightWorkCount,
-      `writer ${writerId} in-flight work`,
-    ),
+    pendingWorkCount: risk?.predecessors.some((p) => p.writerId === writerId) &&
+      control.pendingWorkCount === null ? null : requireNonNegativeInteger(
+        control.pendingWorkCount,
+        `writer ${writerId} pending work`,
+      ),
+    inFlightWorkCount: risk?.predecessors.some((p) =>
+      p.writerId === writerId) &&
+      control.inFlightWorkCount === null ? null : requireNonNegativeInteger(
+        control.inFlightWorkCount,
+        `writer ${writerId} in-flight work`,
+      ),
   };
 };
 
@@ -897,9 +914,10 @@ const parseWriterControls = (
   value: unknown,
   rules: ShiftPlanningRulesBarrierEvidence,
   version: PolicyVersion = 1,
+  risk?: DevelopHistoricalRisk,
 ): ShiftPlanningWriterControlEvidence[] => {
   const controls = requireArray(value, "writer controls")
-    .map((control) => parseWriterControl(control, version))
+    .map((control) => parseWriterControl(control, version, risk))
     .sort((left, right) => compareIdentifiers(left.writerId, right.writerId));
   const expectedWriterIds = inventoryFor(version).intake
     .map((writer) => writer.writerId)
@@ -909,7 +927,9 @@ const parseWriterControls = (
     return failBarrier("Writer controls do not match the complete inventory.");
   }
   for (const control of controls) {
-    if (control.pendingWorkCount !== 0 || control.inFlightWorkCount !== 0) {
+    if ((control.pendingWorkCount !== 0 && control.pendingWorkCount !== null) ||
+        (control.inFlightWorkCount !== 0 &&
+          control.inFlightWorkCount !== null)) {
       return failBarrier(`Writer ${control.writerId} is not drained.`);
     }
     if (
@@ -956,6 +976,7 @@ export const createShiftPlanningControlManifestDigest = (
 const parseCausalDrain = (
   value: unknown,
   controls: readonly ShiftPlanningWriterControlEvidence[],
+  historicalRisk?: DevelopHistoricalRisk,
 ): ShiftPlanningCausalDrainEvidence => {
   const drain = requireRecord(value, "causal drain evidence");
   requireExactKeys(drain, [
@@ -974,6 +995,7 @@ const parseCausalDrain = (
     "finalInFlightDeliveryCount",
     "finalQueueReadBackAtMillis",
     ...(drain.containedDelivery !== undefined ? ["containedDelivery"] : []),
+    ...(historicalRisk ? ["historicalRisk"] : []),
   ], "causal drain evidence");
   const containedControls = controls.filter((control) =>
     control.deliveryPolicy);
@@ -991,7 +1013,15 @@ const parseCausalDrain = (
   const deliveryCount = (value: unknown, name: string): number | null =>
     containedDelivery && value === null ? null :
       requireNonNegativeInteger(value, name);
+  const workCount = (value: unknown, name: string): number | null =>
+    historicalRisk && value === null ? null :
+      requireNonNegativeInteger(value, name);
+  if (historicalRisk &&
+      (drain.drainedAtMillis !== null || !containedDelivery)) {
+    return failBarrier("Historical risk cannot assert a completed drain.");
+  }
   const parsed = {
+    ...(historicalRisk ? {historicalRisk} : {}),
     ...(containedDelivery ? {containedDelivery} : {}),
     acceptedSetRevision: requireIdentifier(
       drain.acceptedSetRevision,
@@ -1005,15 +1035,15 @@ const parseCausalDrain = (
       drain.capturedAtMillis,
       "causal capture instant",
     ),
-    drainedAtMillis: requireNonNegativeInteger(
+    drainedAtMillis: historicalRisk ? null : requireNonNegativeInteger(
       drain.drainedAtMillis,
       "causal drain instant",
     ),
-    initialPendingWorkCount: requireNonNegativeInteger(
+    initialPendingWorkCount: workCount(
       drain.initialPendingWorkCount,
       "initial pending causal work",
     ),
-    initialInFlightWorkCount: requireNonNegativeInteger(
+    initialInFlightWorkCount: workCount(
       drain.initialInFlightWorkCount,
       "initial in-flight causal work",
     ),
@@ -1029,11 +1059,11 @@ const parseCausalDrain = (
       drain.initialQueueReadBackAtMillis,
       "initial queue read-back instant",
     ),
-    finalPendingWorkCount: requireNonNegativeInteger(
+    finalPendingWorkCount: workCount(
       drain.finalPendingWorkCount,
       "final pending causal work",
     ),
-    finalInFlightWorkCount: requireNonNegativeInteger(
+    finalInFlightWorkCount: workCount(
       drain.finalInFlightWorkCount,
       "final in-flight causal work",
     ),
@@ -1050,12 +1080,9 @@ const parseCausalDrain = (
       "final queue read-back instant",
     ),
   };
-  if (
-    parsed.initialPendingWorkCount !== 0 ||
-    parsed.initialInFlightWorkCount !== 0 ||
-    parsed.finalPendingWorkCount !== 0 ||
-    parsed.finalInFlightWorkCount !== 0
-  ) {
+  if ([parsed.initialPendingWorkCount, parsed.initialInFlightWorkCount,
+    parsed.finalPendingWorkCount, parsed.finalInFlightWorkCount]
+    .some((value) => value !== 0 && value !== null)) {
     return failBarrier("Prior causal business work must be drained.");
   }
   for (const stage of ["initial", "final"] as const) {
@@ -1181,6 +1208,12 @@ const validateCommandBinding = (
   command: ShiftPlanningMaintenanceEntryRequest,
 ): void => {
   const transition = payload.transition;
+  const risk = payload.causalDrain.historicalRisk;
+  if ((risk ? developHistoricalRiskDigest(risk) : undefined) !==
+      (command.schemaVersion === 3 ?
+        command.expectedHistoricalRiskDigest : undefined)) {
+    failBarrier("Historical risk differs from the authorized command.");
+  }
   if (payload.schemaVersion !== 1) {
     if (command.schemaVersion !== payload.schemaVersion ||
         payload.ownerAgreement.digest !==
@@ -1264,6 +1297,15 @@ const validateChronology = (
   requireFreshness: boolean,
 ): void => {
   const {causalDrain, quietHorizon, rules, workbook} = payload;
+  const assessedOrDrainedAt = causalDrain.historicalRisk?.assessedAtMillis ??
+    causalDrain.drainedAtMillis;
+  if (assessedOrDrainedAt === null) {
+    return failBarrier("Missing drain boundary.");
+  }
+  if (requireFreshness && causalDrain.historicalRisk &&
+      nowMillis >= causalDrain.historicalRisk.expiresAtMillis) {
+    return failBarrier("Historical risk acceptance expired.");
+  }
   const oldestFinalObservation = oldestBarrierObservationMillis(payload);
   if (
     oldestFinalObservation >
@@ -1276,8 +1318,8 @@ const validateChronology = (
   if (
     rules.closedAtMillis > rules.initialReadBackAtMillis ||
     rules.initialReadBackAtMillis > causalDrain.capturedAtMillis ||
-    causalDrain.capturedAtMillis > causalDrain.drainedAtMillis ||
-    causalDrain.drainedAtMillis >
+    causalDrain.capturedAtMillis > assessedOrDrainedAt ||
+    assessedOrDrainedAt >
       causalDrain.initialQueueReadBackAtMillis ||
     causalDrain.initialQueueReadBackAtMillis > workbook.capturedAtMillis ||
     workbook.capturedAtMillis > quietHorizon.startedAtMillis ||
@@ -1306,7 +1348,9 @@ const validateChronology = (
     const closureHasExpectedOrder =
       writer.shutdownOrder === "before-causal-capture" ?
         control.initialReadBackAtMillis <= causalDrain.capturedAtMillis :
-        control.closedAtMillis >= causalDrain.drainedAtMillis &&
+        (causalDrain.historicalRisk ?
+          control.closedAtMillis <= assessedOrDrainedAt :
+          control.closedAtMillis >= assessedOrDrainedAt) &&
           control.initialReadBackAtMillis <=
             causalDrain.initialQueueReadBackAtMillis;
     if (
@@ -1336,6 +1380,8 @@ const oldestBarrierObservationMillis = (
 const barrierEvidenceExpiresAtMillis = (
   payload: ShiftPlanningIntakeBarrierEvidencePayload,
 ): number => Math.min(
+  payload.causalDrain.historicalRisk?.expiresAtMillis ??
+    Number.MAX_SAFE_INTEGER,
   oldestBarrierObservationMillis(payload) +
     payload.policy.maximumEvidenceAgeMillis,
   payload.schemaVersion !== 1 ?
@@ -1364,8 +1410,14 @@ const parsePayload = (
     return failBarrier("Intake barrier schema version is unsupported.");
   }
   const rules = parseRules(payload.rules);
+  const rawDrain = requireRecord(payload.causalDrain, "causal drain");
+  const risk = rawDrain.historicalRisk === undefined ? undefined :
+    parseDevelopHistoricalRisk(rawDrain.historicalRisk);
+  if (risk && version !== 3) {
+    return failBarrier("Historical risk requires develop administrator mode.");
+  }
   const writerControls = parseWriterControls(payload.writerControls, rules,
-    version);
+    version, risk);
   const captures = writerControls.filter((control) => control.developCapture);
   if (captures.length && (payload.environment !== "develop" ||
       !exactStringSet(captures.map((control) => control.writerId).sort(),
@@ -1382,8 +1434,9 @@ const parsePayload = (
       return failBarrier("Capture and administrator project bindings differ.");
     }
   }
-  const causalDrain = parseCausalDrain(payload.causalDrain, writerControls);
-  return {
+  const causalDrain = parseCausalDrain(
+    payload.causalDrain, writerControls, risk);
+  const result: ShiftPlanningIntakeBarrierEvidencePayload = {
     ...(cooperative ? {
       ...(version === 3 ? {schemaVersion: 3 as const,
         maintenanceMode: "develop-administrator-agreement" as const,
@@ -1419,6 +1472,8 @@ const parsePayload = (
       "barrier verification instant",
     ),
   };
+  assertDevelopHistoricalRiskBinding(result);
+  return result;
 };
 
 /**
@@ -1970,6 +2025,8 @@ export const verifyShiftPlanningOwnerSheetsTechnicalEvidence = (
       expectedAdministratorSourceRevision: intent.sourceRevision,
       expectedAdministratorSourceDigest: intent.sourceDigest,
       expectedEffectiveIamDigest: intent.effectiveIamDigest,
+      ...(payload.causalDrain.historicalRisk ? {expectedHistoricalRiskDigest:
+        developHistoricalRiskDigest(payload.causalDrain.historicalRisk)} : {}),
     }, nowMillis, false);
   }
   validateChronology(evidence.payload, nowMillis, true);

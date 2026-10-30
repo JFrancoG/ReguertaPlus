@@ -705,3 +705,28 @@ history and residual effects still block admission.
 No cloud mutation or production-data read. This audit is documentation only; prior 141 tests/
 build/lint reused unchanged. See bilingual writer-controls guide for finite next
 steps and private 2026-10-29-remaining-authority-effects evidence. No native parity gap.
+
+
+### Develop historical-effect decision pending — 2026-10-29
+
+`d3ae12d9` delivers the preceding access/namespace audit. Offline reconciliation now
+classifies all 117 notices without replay; historical total completion remains
+unproved. Proposed [ADR-0026](../../../docs/decisions/0026-accept-bounded-develop-historical-effect-risk.md)
+is local and unaccepted, limited to one initial develop migration. It leaves all
+production guarantees and HU-085 activation gates unchanged. Maintenance remains
+NOT_READY pending the policy decision, implementation/rehearsal and real authority
+requirements. No deployment, cloud write or production access occurred.
+
+
+### ADR-0026 accepted; local implementation/rehearsal complete — 2026-10-30
+
+Explicit maintainer acceptance covers develop historical risk, local implementation
+and rehearsal only. The existing v3 barrier now binds exact risk acceptance and
+preserves historical unknowns. The fixed-demo migration/inverse runner verifies both
+plans and notices in its transaction source set; no shared entry point is enabled.
+137 local + 26 emulator passes, build/lint/syntax/diff pass. See bilingual
+[ADR-0026](../../../docs/decisions/0026-accept-bounded-develop-historical-effect-risk.md)
+for rejection cases, post-commit failure and limits. Work remains local after
+`d3ae12d9`; no commit/push, shared maintenance, production change or native parity
+gap. Next prepare fresh real authority and exact operation acceptance, then request
+its separately authorized window. HU-084/HU-085 and draft PR #278 stay open.

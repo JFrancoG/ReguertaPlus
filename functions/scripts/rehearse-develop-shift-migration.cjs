@@ -24,8 +24,9 @@ const {consumeRotationPositions} = require("../lib/shift-planning-contract.js");
 const {parseShiftPlanningMaintenanceState} = require("../lib/shift-planning-wire.js");
 const {applyShiftPlanningFirestoreTransactionAttempt} = require("../lib/shift-planning-firestore-transaction-attempt.js");
 const {SHIFT_PLANNING_FIRESTORE_ADMISSION_REVISION} = require("../lib/shift-planning-firestore-transaction-manifest.js");
-const {createTrustedShiftPlanningIntakeBarrierAdapter} = require("../lib/shift-planning-trusted-intake-barrier-adapter.js");
-const {verifyShiftPlanningIntakeBarrierEvidence} = require("../lib/shift-planning-intake-barrier.js");
+const {createTrustedShiftPlanningIntakeBarrierAdapter, createTrustedShiftPlanningAdministratorBarrierAdapter} = require("../lib/shift-planning-trusted-intake-barrier-adapter.js");
+const {DEVELOP_HISTORICAL_WORKBOOK} = require("../lib/shift-planning-historical-risk.js");
+const {verifyShiftPlanningIntakeBarrierEvidence, verifyShiftPlanningAdministratorAgreementIntakeBarrierEvidence} = require("../lib/shift-planning-intake-barrier.js");
 const {createShiftPlanningPublicEventRetentionPolicy,
   createShiftPlanningPublicEventOperationRetention,
   parseShiftPlanningPublicEventOperationRetention,
@@ -167,7 +168,12 @@ const prepareDevelopShiftMigration = ({contentProposal, legacyCapture, policyDra
   return {...value, preparedDigest: digest(value)};
 };
 
-const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, failurePersistence, nowMillis}) => {
+const historicalMigrationPlanBindings = prepared => ({
+  migrationPlanDigest: prepared.preparedDigest,
+  inversePlanDigest: digest({kind: "initial-migration-inverse", preparedDigest: prepared.preparedDigest,
+    recoveryOperationId: prepared.recoveryOperationId, baselineRevision: prepared.baselineRevision}),
+});
+const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, failurePersistence, nowMillis, historicalRiskMode = false}) => {
   requireValue(process.env.GCLOUD_PROJECT === PROJECT_ID && process.env.FIRESTORE_EMULATOR_HOST === HOST, "fixed demo emulator required");
   const prepared = structuredClone(value);
   const {preparedDigest, ...preparedBody} = prepared;
@@ -175,7 +181,10 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
     prepared.liveExecutable === false && digest(preparedBody) === preparedDigest, "prepared binding");
   checkContentPositions(prepared.content);
   const db = new Firestore({projectId: PROJECT_ID, host: HOST, ssl: false});
-  const barrier = createTrustedShiftPlanningIntakeBarrierAdapter({controlPlane, failurePersistence});
+  requireValue(typeof historicalRiskMode === "boolean", "explicit historical risk mode");
+  const barrier = historicalRiskMode ? createTrustedShiftPlanningAdministratorBarrierAdapter({
+    controlPlane, failurePersistence, readClockMillis: nowMillis,
+  }) : createTrustedShiftPlanningIntakeBarrierAdapter({controlPlane, failurePersistence});
   const operationPath = `${ROOT}/shiftPlanningOperations/${prepared.operationId}`;
   const baselinePath = `${ROOT}/shiftPlanningMigrationBaselines/${prepared.baselineRevision}`;
   const retentionPolicy = createShiftPlanningPublicEventRetentionPolicy({policyRevision: "hu084-clone-retention-v1",
@@ -190,7 +199,8 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
   ...CONTROL_PATHS, operationPath, ownPaths[2]].sort(compare);
   const capture = async (tx) => {
     const documents = new Map();
-    for (const collection of ["shifts", "users", "deliveryCalendar", "shiftPlanningSyncCommands", "shiftCoverageEffects", "shiftSwapRequests"]) {
+    for (const collection of ["shifts", "users", "deliveryCalendar", "shiftPlanningSyncCommands", "shiftCoverageEffects", "shiftSwapRequests",
+      ...(historicalRiskMode ? ["notificationEvents"] : [])]) {
       const query = await tx.get(db.collection(`${ROOT}/${collection}`).orderBy("__name__").limit(1001));
       requireValue(query.size <= 1000, "bounded source");
       if (["shiftPlanningSyncCommands", "shiftCoverageEffects", "shiftSwapRequests"].includes(collection)) {
@@ -209,8 +219,10 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
       stateRevision: state?.stateRevision ?? 0, writeEpoch: state?.writeEpoch ?? 0,
       activeRevision: state?.activeRevision ?? null, activeDigest: state?.activeDigest ?? null}};
   };
+  // Risk evidence keeps its real develop identity. This fixed demo runner maps
+  // that logical workbook to WORKBOOK_ID; no Google client or live port exists.
   const scopeCheck = (scope, source, inverse = false) => {
-    requireValue(scope.environment === "develop" && scope.expectedWorkbookFileId === WORKBOOK_ID &&
+    requireValue(scope.environment === "develop" && scope.expectedWorkbookFileId === (historicalRiskMode ? DEVELOP_HISTORICAL_WORKBOOK : WORKBOOK_ID) &&
       scope.expectedWorkbookRevision === prepared.policyDraft.document.sync.partitions.delivery.workbookRevision &&
       scope.expectedWorkbookRevision === prepared.policyDraft.document.sync.partitions.market.workbookRevision &&
       scope.transitionId === (inverse ? prepared.recoveryOperationId : prepared.operationId) &&
@@ -221,7 +233,15 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
   };
   const verifyHeld = (evidence, scope) => {
     const bound = {...scope}; delete bound.writerInventoryRevision; delete bound.writerInventoryDigest;
-    return verifyShiftPlanningIntakeBarrierEvidence(evidence, bound, clock().toMillis());
+    const verified = historicalRiskMode ? verifyShiftPlanningAdministratorAgreementIntakeBarrierEvidence(evidence, bound, clock().toMillis()) :
+      verifyShiftPlanningIntakeBarrierEvidence(evidence, bound, clock().toMillis());
+    if (historicalRiskMode) {
+      const risk = verified.evidence.payload.causalDrain.historicalRisk, plans = historicalMigrationPlanBindings(prepared);
+      requireValue(risk && risk.migrationOperationId === prepared.operationId && risk.recoveryOperationId === prepared.recoveryOperationId &&
+        risk.migrationPlanDigest === plans.migrationPlanDigest && risk.inversePlanDigest === plans.inversePlanDigest,
+      "accepted historical risk must bind this initial migration and inverse");
+    }
+    return verified;
   };
   const checkGuardsAndCohort = (source) => {
     for (const [collection, expected] of Object.entries(prepared.guardCollections ?? {})) {
@@ -492,5 +512,5 @@ const createDevelopShiftMigrationRehearsal = ({prepared: value, controlPlane, fa
 };
 
 module.exports = {PROJECT_ID, HOST, WORKBOOK_ID, checkContentPositions, decodeRESTValue, decodeRESTDocument, createLocalMigrationPolicyDraft,
-  prepareDevelopShiftMigration, createDevelopShiftMigrationRehearsal};
+  prepareDevelopShiftMigration, createDevelopShiftMigrationRehearsal, historicalMigrationPlanBindings};
 if (require.main === module) fail("import explicitly from the isolated emulator harness; there is no live CLI");

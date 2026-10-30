@@ -876,3 +876,31 @@ history and residual effects still block admission.
 No cloud mutation or production-data read. This audit is documentation only; prior 141 tests/
 build/lint reused unchanged. See bilingual writer-controls guide for finite next
 steps and private 2026-10-29-remaining-authority-effects evidence. No native parity gap.
+
+
+### Historical-effect decision pending — 2026-10-29
+
+Access/namespace audit delivered in `d3ae12d9`, remote verified. Offline disposition
+of all 117 retained notices passes: 55 no-token, 34 partial, 25 success, three missing
+April outcomes; 12 send summaries have correlated terminal receipts. Three imports
+and two calendar probes retain separate completion evidence. No replay, fresh cloud
+observation or live mutation. Complete historical termination remains unproved.
+Proposed [ADR-0026](../../../docs/decisions/0026-accept-bounded-develop-historical-effect-risk.md)
+requires an explicit policy decision before local implementation: accept the scoped
+develop historical risk or retain strict blocked admission. It does not open a
+window. Details and private evidence are in the bilingual writer-controls guide.
+New documentation remains local; assertions/links/diff pass, no native parity change.
+
+
+### ADR-0026 accepted; local implementation/rehearsal complete — 2026-10-30
+
+Explicit maintainer acceptance covers develop historical risk, local implementation
+and rehearsal only. The existing v3 barrier now binds exact risk acceptance and
+preserves historical unknowns. The fixed-demo migration/inverse runner verifies both
+plans and notices in its transaction source set; no shared entry point is enabled.
+137 local + 26 emulator passes, build/lint/syntax/diff pass. See bilingual
+[ADR-0026](../../../docs/decisions/0026-accept-bounded-develop-historical-effect-risk.md)
+for rejection cases, post-commit failure and limits. Work remains local after
+`d3ae12d9`; no commit/push, shared maintenance, production change or native parity
+gap. Next prepare fresh real authority and exact operation acceptance, then request
+its separately authorized window. HU-084/HU-085 and draft PR #278 stay open.

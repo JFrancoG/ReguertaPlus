@@ -649,3 +649,51 @@ provider/source comparisons and preserves failed reads. Its assertions pass. The
 pushed implementation reuses the unchanged 141-test/build/lint validation; no new
 application test run is claimed. New changes are documentation only: diff/link/parity
 checks, no native build or parity gap. HU-084/HU-085 remain open; PR #278 remains draft.
+
+
+### Historical-effect disposition and decision — 2026-10-29
+
+The preceding access/namespace audit is delivered in `d3ae12d9` (remote verified).
+The next step reconciles retained evidence offline, without renewing any live
+control, querying expired logs, invoking a Function or changing provider state.
+
+| Notice evidence | Count | Disposition |
+| --- | ---: | --- |
+| Stored `no_tokens` | 55 | Preserve the summary; it does not prove absence of other attempts. |
+| Stored `partial_success` | 34 | Preserve; rejected tokens do not justify replaying possibly accepted ones. |
+| Stored `success` | 25 | Preserve; this is not a per-device delivery receipt. |
+| No dispatch result | 3 | April 1 admin broadcasts, unchanged since creation; unknown, not newly identified active work. |
+
+All 117 documents have exact private source/version hashes. Twelve of the 59 send
+summaries match retained application/request terminal records: six accepted and six
+rejected tokens. The 105 without that correlation comprise 55 no-token, 28 partial,
+19 successful summaries and three missing results. None is replayed. The three
+62-row imports and two no-effect calendar probes keep their separate terminal proof.
+No closed-universe claim follows from these 17 known invocation terminals.
+
+The finite evidence reconciliation is complete; complete historical termination is
+not established. The current contract therefore still rejects maintenance. Proposed
+[ADR-0026](../decisions/0026-accept-bounded-develop-historical-effect-risk.md) makes
+that decision explicit: accept a scoped historical risk only for initial develop
+migration, preserving unknowns/current controls, or keep strict admission blocked.
+The proposal is not accepted or implemented. This is a policy decision, not another
+log search; a real window remains separately authorized after implementation/tests
+and remaining authority gates.
+
+Private `2026-10-29-historical-effect-disposition/reconcile.py` independently checks
+all 117 exact source rows, stored-result consistency and the 12 retained terminal
+correlations. It outputs a private per-document disposition and source hashes with
+`legacyUntracked=true`, `canEnterMaintenance=false`, `canApply=false`. Assertions,
+bilingual links and diff checks pass. New changes are documentation only, local
+and uncommitted; no application build/test rerun or native parity change.
+
+
+### ADR-0026 accepted and rehearsed locally — 2026-10-30
+
+The maintainer accepts bounded historical risk only in develop. Local implementation
+and rehearsal are complete: 137 local + 26 emulator passes, build/lint/CJS syntax
+and diff checks pass. See the [implementation checkpoint](../decisions/0026-accept-bounded-develop-historical-effect-risk.md#local-implementation-checkpoint--2026-10-30)
+for exact bindings, preserved unknowns, rejection/recovery and limits. No historical
+notice replay, shared mutation or maintenance admission occurred. Live preparation
+stays NOT_READY; fresh authority/operation acceptance and a separately authorized
+window remain required. Changes are local after `d3ae12d9`, no native parity gap.

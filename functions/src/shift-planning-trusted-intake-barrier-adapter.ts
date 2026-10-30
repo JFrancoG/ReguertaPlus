@@ -278,7 +278,9 @@ const parseScope = (
       ["expectedAdministratorAgreementDigest",
         "expectedAdministratorSourceRevision",
         "expectedAdministratorSourceDigest",
-        "expectedEffectiveIamDigest"] : [])] : scopeKeys,
+        "expectedEffectiveIamDigest",
+        ...(scope.expectedHistoricalRiskDigest !== undefined ?
+          ["expectedHistoricalRiskDigest"] : [])] : [])] : scopeKeys,
   "closed barrier scope");
   if (cooperative && (scope.schemaVersion !== version ||
       scope.maintenanceMode !== (version === 3 ?
@@ -378,6 +380,11 @@ const parseScope = (
         scope.expectedAdministratorSourceDigest, "administrator source digest"),
       expectedEffectiveIamDigest: requireDigest(
         scope.expectedEffectiveIamDigest, "effective IAM digest"),
+      ...(scope.expectedHistoricalRiskDigest !== undefined ? {
+        expectedHistoricalRiskDigest: requireDigest(
+          scope.expectedHistoricalRiskDigest,
+          "historical risk acceptance digest"),
+      } : {}),
     } : {schemaVersion: 2 as const,
       maintenanceMode: "owner-agreement" as const}),
     expectedOwnerAgreementDigest: requireDigest(

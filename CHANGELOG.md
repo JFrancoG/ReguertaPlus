@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- 2026-10-30 | ✨ feat(shifts): admit bounded develop historical risk
+
 ### Maintenance
 
 - 2026-10-29 | 🔧 chore(shifts): verify develop owner isolation
@@ -11,6 +15,8 @@ All notable changes to this project will be documented in this file.
 - 2026-10-29 | 🔧 chore(shifts): bind develop fence to maintenance preparation
 
 ### Documentation
+
+- Reconcile retained develop notice outcomes and propose an explicit historical-risk decision; live admission remains closed.
 
 - 2026-10-29 | 📝 docs(shifts): record remaining develop access and effects
 
