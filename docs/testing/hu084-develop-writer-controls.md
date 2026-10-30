@@ -753,3 +753,59 @@ proofs remain labelled historical. These observations are not a held maintenance
 barrier or a complete bootstrap snapshot. No shared mutation, FCM, production-data
 access or native change. Assertion/syntax/diff checks pass; new work is documentary
 and private evidence only, uncommitted after `0539ee40`.
+
+
+### Technical controls refreshed; Sheets writer not yet admitted — 2026-10-30
+
+The complete-config correction is delivered/pushed as `27920b02`, with the accepted
+113 unit/50 emulator gates reused after verifying all seven implementation/test
+hashes. This new step changes documentation and private read-only evidence only.
+Private packet: `2026-10-30-technical-sheets-review`; offline assertions pass.
+
+Fresh observations confirm unchanged metadata/configuration for all 24 Functions,
+unchanged Rules release/source and project IAM, three paused jobs, and six READY
+indexes identical to the previous authority. Bracketed Run observations confirm
+288 retired revisions across 24 services. The four capture pairs are reverified
+against exact immutable deployed source archives and all eight trigger/topic/
+subscription bindings. All five sampled metric groups return UNKNOWN; none is
+interpreted as zero or completed causal drain. ADR-0025/0026 limits still apply.
+
+There are nine service accounts, zero USER_MANAGED keys/direct account IAM bindings,
+zero workload identity pools, 24 global Run services and no Run jobs/worker pools/
+instances in the complete bounded listings. The general Cloud Asset endpoint remains
+disabled (403); it was not enabled. Other regional services, external automation and
+GitHub authority are retained evidence, not a newly complete global inventory. Empty
+keys/policies do not prove absence of previously issued tokens or human automation.
+
+The develop workbook ID, six tab IDs/titles and configured legacy-import/export/
+private-inspection destinations agree. All 742 observed typed cells/notes in the six
+bounded ranges match. The owner's sharing UI shows testplusprojects as owner, the
+same four readers and restricted sharing. The connector cannot expose numeric Drive
+version, parent or complete permissions under its reader account. The explicitly
+authorized Online-only `drive.metadata.readonly` session now confirms version 278
+with identical before/after metadata, five complete file permissions and the returned
+My Drive root owned solely by testplusprojects. Four direct readers remain; the only
+inherited writer detail belongs to that same owner, with no additional editor, group,
+domain or public grant. No content restriction is present. A stalled first session
+was revoked before a clean-tab retry. The completed session was also revoked: no
+linked apps remain and the same GET returns 401. No refresh token was issued; the
+Playground fields were cleared and its tab closed. Private evidence retains no tokens.
+
+**Writer finding:** neither `executeShiftPlanningSheetsSync` nor `executeShiftSheetsImport`
+is deployed. Compute and Firebase Admin SDK remain readers in the observed sharing UI;
+the inspector remains a reader. `reguerta-shifts-runtime` is enabled, has no keys/direct
+bindings and is assigned to none of the 24 Functions, but carries project-level
+Datastore User, Firebase Auth Viewer, Firebase Cloud Messaging Admin, Eventarc Receiver
+and Run Invoker roles. It is not established as a Sheets-only or develop-only principal,
+and has no listed file grant. No effective controlled automatic writer is verified.
+No service account was enabled/disabled, impersonated, granted access or write-probed.
+
+The observation packet references the exact reviewed migration package
+`a2c6923715243faaace634f408520c155c0f9d392bc2719e1cf30a0767bdbf31`;
+it does not replace held controls or silently regenerate operation identities.
+Owner API metadata verification and revocation are complete. Next prepare a narrowly
+scoped Sheets writer identity and explicit grant/probe plan for separate approval.
+Keep the existing general backend roles untouched. Real writer capabilities,
+current external-control composition and owner/admin/risk window remain unadmitted.
+No maintenance entry, shared business/Sheet write, FCM or production-data access.
+No native change/parity gap; HU-084/HU-085 open, PR #278 draft.

@@ -1004,3 +1004,27 @@ and limits. Next prepare/refresh current technical and Sheets writer/destination
 admission for this exact package before requesting the explicit window. No shared
 mutation, deploy, maintenance opening or production access. New work remains local;
 HU-084/HU-085 remain open and PR #278 draft.
+
+### Current technical controls and Sheets destination reviewed — 2026-10-30
+
+Config-census correction delivered/pushed as `27920b02`; prior 113 unit/50 emulator
+gates reused with all seven code/test hashes verified. New work is documentary and
+read-only evidence. All 24 Functions, Rules/IAM and six READY indexes match; three
+jobs stay paused, 288 old revisions retired; four exact capture proofs/eight transport
+bindings verified. Queue metrics UNKNOWN are not drain proof. Nine accounts have no
+user keys/direct bindings; no global Run jobs/pools/instances. Cloud Asset disabled;
+other automation inventory remains labelled historical.
+
+Develop destination/tab IDs and 742 cells/notes match. The explicitly authorized
+Online metadata-only owner session confirms stable Drive version 278, all five file
+permissions and the returned owner-only My Drive root. Four direct readers; the only
+inherited writer detail is the owner itself. No extra writer or content restriction.
+Both the stalled first session and successful clean-tab retry were revoked; final
+connection absent and same GET denied401, no refresh token, Playground fields cleared.
+No controlled Sheets worker is deployed; existing runtime has general project data/FCM
+roles and no file grant. No service-account grant/token or write probe. See bilingual
+writer-controls guide and private `2026-10-30-technical-sheets-review`; owner evidence
+assertions pass. Next prepare the scoped writer grant/probe proposal before any
+separately authorized window. No maintenance, business/Sheets write, FCM or production
+data access; no native gap.
+New docs remain local; stories open, PR #278 draft.

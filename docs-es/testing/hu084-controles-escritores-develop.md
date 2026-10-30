@@ -790,3 +790,61 @@ se conservan como históricos. Este paquete no es una barrera tomada ni una capt
 del bootstrap. Sin mutación compartida, FCM, datos de producción ni cambios nativos.
 Aserciones/sintaxis/diff correctos; documentación y evidencia nueva locales, sin commit
 tras `0539ee40`.
+
+
+### Controles técnicos actualizados; escritor de Sheets pendiente — 2026-10-30
+
+La corrección del censo está publicada en `27920b02`. Se reutilizan las 113 pruebas
+unitarias y 50 de emulador tras comprobar los siete hashes de implementación/pruebas.
+Este bloque solo actualiza documentación y evidencia privada de lectura. Paquete:
+`2026-10-30-technical-sheets-review`; pasan las comprobaciones locales de evidencia.
+
+Las 24 Functions conservan metadatos/configuración; no cambian Rules ni IAM del
+proyecto. Los tres jobs siguen pausados y los seis índices READY coinciden con la
+autoridad anterior. La lectura de Run antes/después confirma 288 revisiones retiradas
+en 24 servicios. Se revisan otra vez los archivos de código desplegado inmutables de
+los cuatro pares de receptores y sus ocho vínculos de trigger/topic/subscription.
+Los cinco grupos de métricas muestreadas dan UNKNOWN: no equivalen a cero ni a drenaje
+causal completado. Se mantienen los límites aceptados de ADR-0025/0026.
+
+Hay nueve cuentas de servicio, cero claves USER_MANAGED/permisos IAM directos sobre
+ellas, cero pools de identidad y 24 servicios Run globales; los listados completos
+acotados no muestran jobs, worker pools ni instancias Run. Cloud Asset sigue
+deshabilitado (403), sin activarlo. Otras regiones/servicios, automatización externa
+y autoridad GitHub son evidencia retenida, no un inventario global nuevo completo.
+La ausencia de claves no acredita la ausencia de tokens anteriores o automatización humana.
+
+Coinciden el ID del archivo de develop, los IDs/títulos de sus seis pestañas y los
+destinos configurados de importación/exportación antiguas e inspección privada.
+Las 742 celdas y notas observadas en seis rangos acotados siguen idénticas. La interfaz
+del propietario muestra testplusprojects como dueño, los mismos cuatro lectores y
+acceso restringido. El conector lector no devuelve versión numérica de Drive, padre
+ni permisos completos. La sesión Online de `drive.metadata.readonly`, expresamente
+autorizada, confirma ahora la versión 278 con metadatos idénticos antes/después,
+los cinco permisos completos de la hoja y el padre devuelto: Mi unidad, solo del
+propietario testplusprojects. Se conservan cuatro lectores directos; el único detalle
+de escritura heredada es del mismo propietario. Sin editor adicional, grupo, dominio,
+acceso público ni restricción de contenido. La primera sesión se revocó tras bloquearse
+la consulta; el reintento en pestaña limpia completó la lectura y también se revocó:
+cero aplicaciones vinculadas y la misma consulta GET devuelve 401. No se emitió token
+de renovación; se vaciaron los campos de Playground y se cerró su pestaña. La evidencia
+privada no conserva tokens.
+
+**Escritor:** ni `executeShiftPlanningSheetsSync` ni `executeShiftSheetsImport` están
+desplegados. Compute, Firebase Admin SDK y el inspector figuran como lectores.
+`reguerta-shifts-runtime` está habilitada, sin claves/permisos directos y sin asignar
+a ninguna de las 24 Functions, pero tiene roles de proyecto Datastore User, Firebase
+Auth Viewer, Firebase Cloud Messaging Admin, Eventarc Receiver y Run Invoker. No se
+acredita como identidad exclusiva de Sheets/develop y no figura entre los accesos al
+archivo. No hay escritor automático controlado efectivo verificado. No se habilitan,
+deshabilitan o suplantan cuentas de servicio, ni se conceden permisos a estas o prueban escrituras.
+
+La observación referencia el paquete exacto
+`a2c6923715243faaace634f408520c155c0f9d392bc2719e1cf30a0767bdbf31`;
+no sustituye controles retenidos ni cambia las identidades de operación. La lectura
+de API del propietario y su revocación están completas. Sigue preparar una identidad
+acotada de Sheets y su plan concreto de permisos/prueba para autorización separada. Se conservan
+los roles generales existentes. Siguen sin admitir capacidades reales del escritor,
+composición de controles externos y ventana propietario/administradores/riesgo.
+Sin abrir mantenimiento, escrituras compartidas/Sheets, avisos ni acceso a datos de
+producción. Sin cambios nativos/brecha de paridad; HU-084/HU-085 abiertas y PR #278 en borrador.
