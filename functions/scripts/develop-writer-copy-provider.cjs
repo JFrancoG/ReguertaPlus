@@ -28,7 +28,9 @@ function createProvider({identity, copyFileId, protectedWorkbookIds, iamBearer, 
   }
   async function requireSuccess(url, method = "GET", body) {
     const result = await request(url, method, body);
-    assert.ok(result.status >= 200 && result.status < 300 && result.data, "Scoped provider operation failed");
+    if (!(result.status >= 200 && result.status < 300 && result.data)) {
+      throw Object.assign(Error("Scoped provider operation failed"), {httpStatus: result.status});
+    }
     return result.data;
   }
   async function verifyAccount() {
@@ -116,6 +118,7 @@ function createChildRunner({outputDirectory, expectedRunnerDigest, spawnChild = 
     // Raw child logs can contain SDK request configuration. Keep only typed receipts.
     child.stdout?.resume(); child.stderr?.resume();
     let result = null, opened = false, reviewed = false, protocolFailed = false, exited = false;
+    let failureHttpStatus = null;
     let chain = Promise.resolve();
     const deadline = Math.max(1, Math.min(240000, packet.ownerConfirmation.endsAtMillis - Date.now()));
     const kill = setTimeout(() => { protocolFailed = true; child.kill("SIGTERM"); }, deadline);
@@ -140,7 +143,11 @@ function createChildRunner({outputDirectory, expectedRunnerDigest, spawnChild = 
           assert.ok(opened && !reviewed); await reviewPlan(message.data); reviewed = true;
         } else throw Error("Unexpected child protocol");
         if (child.connected) child.send({type: "reply", id: message.id, value});
-      }).catch(() => {
+      }).catch(error => {
+        // Preserve only a bounded status, never provider messages or request bodies.
+        if (Number.isInteger(error?.httpStatus) && error.httpStatus >= 100 && error.httpStatus <= 599) {
+          failureHttpStatus = error.httpStatus;
+        }
         protocolFailed = true;
         if (child.connected && Number.isSafeInteger(message?.id)) child.send({type: "reply", id: message.id, error: true});
       });
@@ -155,7 +162,9 @@ function createChildRunner({outputDirectory, expectedRunnerDigest, spawnChild = 
         child.once("exit", (code, signal) => { exited = true; resolve({code, signal}); });
       });
       await chain;
-      assert.ok(exit.code === 0 && !exit.signal && !protocolFailed && result, "Child outcome requires inspection");
+      if (!(exit.code === 0 && !exit.signal && !protocolFailed && result)) {
+        throw Object.assign(Error("Child outcome requires inspection"), {httpStatus: failureHttpStatus});
+      }
       return result;
     } finally { clearTimeout(kill); clearTimeout(hardKill); }
   };

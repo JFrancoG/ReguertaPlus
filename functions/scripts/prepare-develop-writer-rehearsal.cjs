@@ -115,6 +115,7 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
   assert.equal(process.env.FIRESTORE_EMULATOR_HOST, HOST);
   let mintAttempted = false, bearer = null, expiry = 0, positiveRead = false, outcome = null, baseline = null;
   let primaryFailure = null, ownedVerified = false, planReviewed = false;
+  let failureDetails = null, phase = "verify-identity";
   const assertSources = () => assert.equal(prepare().preparationDigest, owned.approval.preparationDigest);
   const cleanupFailures = [];
   const packet = {schemaVersion: 1, copyWorkbookId: owned.copy.fileId, runId: prepared.runtime.runId,
@@ -124,11 +125,16 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
     const before = await provider.readIdentity();
     checkIdentity(before, owned, []);
     ownedVerified = true;
+    phase = "verify-owner-copy";
     await verifyOwnerCopy();
     await record("grant-intent", {binding, beforePolicy: before.policy, identity: owned.identity});
+    phase = "grant-identity";
     await provider.setPolicy({...before.policy, version: 3, bindings: [binding]});
+    phase = "verify-grant";
     baseline = checkIdentity(await provider.readIdentity(), owned, [binding]);
+    phase = "start-child";
     outcome = await runChild({packet, async openSession(context) {
+      phase = "validate-token-admission";
       assert.equal(mintAttempted, false, "One mint attempt only, including uncertain failures");
       mintAttempted = true;
       assertSources();
@@ -137,15 +143,20 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
       assert.ok(context.runnerStartedAtMillis <= nowMillis());
       assert.ok(nowMillis() + 300000 < owned.window.endsAtMillis, "Insufficient token/cleanup window");
       assert.equal(checkIdentity(await provider.readIdentity(), owned, [binding]), baseline);
+      phase = "mint-token";
       const token = await provider.mint(prepared.tokenRequest);
+      phase = "validate-token-response";
       bearer = token.accessToken; expiry = Date.parse(token.expireTime);
       assert.ok(typeof bearer === "string" && bearer.length > 0);
       const issued = expiry - 300000;
       assert.ok(Number.isSafeInteger(expiry) && issued >= context.runnerStartedAtMillis && issued <= nowMillis());
       assert.ok(expiry > nowMillis() && expiry <= owned.window.endsAtMillis);
+      phase = "verify-identity-after-mint";
       assert.equal(checkIdentity(await provider.readIdentity(), owned, [binding]), baseline);
+      phase = "probe-copy-access";
       const probe = await provider.probeCopy(bearer);
-      assert.equal(probe.status, 200); assert.equal(probe.id, owned.copy.fileId); positiveRead = true;
+      if (probe.status !== 200) throw Object.assign(Error("Copy read failed"), {httpStatus: probe.status});
+      assert.equal(probe.id, owned.copy.fileId); positiveRead = true;
       await record("token-issued", {issuedAtMillis: issued, expiresAtMillis: expiry, tokenRetained: false});
       const authority = {schemaVersion: 1, kind: "isolated-copy-authority", runId: packet.runId,
         workbookId: packet.copyWorkbookId, protectedWorkbookIds: packet.protectedWorkbookIds,
@@ -157,11 +168,13 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
         tokenIssuedAtMillis: issued, tokenExpiresAtMillis: expiry, tokenScopes: [...SCOPES], maximumEvidenceAgeMillis: 60000};
       return {accessToken: bearer, tokenExpiresAtMillis: expiry, authority};
     }, async readIdentity() {
+      phase = "verify-child-identity";
       const current = await provider.readIdentity();
       assert.equal(checkIdentity(current, owned, [binding]), baseline);
       return {observedAtMillis: nowMillis(), serviceAccountEmail: EMAIL, serviceAccountUniqueId: owned.identity.uniqueId,
         serviceAccountDisabled: false, userManagedKeyCount: 0, directProjectRoleCount: 0, grantPolicyDigest: baseline};
     }, async reviewPlan(review) {
+      phase = "review-batch";
       assertSources();
       assert.equal(planReviewed, false);
       assert.equal(review.originalTabsDigest, owned.copy.baselineDigest);
@@ -175,11 +188,17 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
       assert.equal(checkIdentity(await provider.readIdentity(), owned, [binding]), baseline);
       await record("reviewed-batch", review);
       planReviewed = true;
+      phase = "execute-reviewed-batch";
     }});
+    phase = "validate-child-outcome";
     assert.ok(mintAttempted && positiveRead && planReviewed);
     assert.equal(outcome.kind, "completed"); assert.equal(outcome.submitted, 1);
     assert.equal(outcome.preservedOriginalTabs, 7); assert.equal(outcome.expectedRows, 10);
-  } catch { primaryFailure = "session_requires_inspection"; }
+  } catch (error) {
+    primaryFailure = "session_requires_inspection";
+    const status = error?.httpStatus;
+    failureDetails = {phase, httpStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null};
+  }
   finally {
     // Never clean an unverified identity. Once ownership is verified, failures
     // still require containment, including an uncertain grant or token issuance.
@@ -211,7 +230,7 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
     bearer = null;
   }
   const result = {kind: primaryFailure || cleanupFailures.length ? "inspection_required" : "completed-and-contained",
-    outcome, cleanupFailures, primaryFailure, mintAttempted, canRetry: false, canEnterMaintenance: false};
+    outcome, cleanupFailures, primaryFailure, failureDetails, mintAttempted, canRetry: false, canEnterMaintenance: false};
   await record("terminal", result);
   return result;
 }

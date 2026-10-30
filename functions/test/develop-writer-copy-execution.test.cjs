@@ -183,7 +183,8 @@ test("exact transport binds resource URLs and scopes without exposing provider e
       return {status: 403, json: async () => ({message: "never-surface-provider-secret"})};
     }});
   await assert.rejects(provider.mint({...prepare().tokenRequest, lifetime: "3600s"})); assert.equal(calls.length, 0);
-  await assert.rejects(provider.mint(prepare().tokenRequest), error => !error.message.includes("never-surface"));
+  await assert.rejects(provider.mint(prepare().tokenRequest), error =>
+    error.httpStatus === 403 && !error.message.includes("never-surface"));
   assert.equal(calls.length, 1); assert.match(calls[0].url, /projects\/-\/serviceAccounts\/100000000000000000001:generateAccessToken$/);
   assert.equal(JSON.parse(calls[0].options.body).delegates, undefined);
   assert.deepEqual(await provider.probeCopy("synthetic-copy-token"), {status: 403, id: null});
@@ -219,9 +220,12 @@ for (const rejectReview of [false, true]) test(`child IPC awaits parent review (
     const execution = runChild({packet: {demoProjectId: DEMO, requireParentPlanReview: true,
       ownerConfirmation: {endsAtMillis: Date.now() + 10000}},
     async openSession() { calls++; return {}; }, async reviewPlan() {
-      assert.equal(sentBatch, false); if (rejectReview) throw Error("rejected");
+      assert.equal(sentBatch, false);
+      if (rejectReview) throw Object.assign(Error("synthetic-secret-in-provider-message"), {httpStatus: 503});
     }});
-    if (rejectReview) await assert.rejects(execution, /requires inspection/); else assert.deepEqual(await execution, f.completed);
+    if (rejectReview) await assert.rejects(execution, error =>
+      error.httpStatus === 503 && /requires inspection/.test(error.message) && !JSON.stringify(error).includes("synthetic-secret"));
+    else assert.deepEqual(await execution, f.completed);
     assert.equal(calls, 1); assert.equal(sentBatch, !rejectReview);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
@@ -264,4 +268,28 @@ test("an IPC error waits for child termination before releasing the parent for c
       ownerConfirmation: {endsAtMillis: Date.now() + 10000}}}), /requires inspection/);
     assert.equal(terminated, true);
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
+
+
+test("failed mint or copy read retains phase and bounded HTTP status without secrets or retry", async () => {
+  for (const status of [403, "synthetic-secret", 999, null]) {
+    const f = fixture();
+    f.args.provider.mint = async () => {
+      f.state.mintCount++;
+      throw Object.assign(Error("synthetic-secret-in-message"), {httpStatus: status, response: {token: "synthetic-secret"}});
+    };
+    const result = await run(f);
+    assert.deepEqual(result.failureDetails, {phase: "mint-token", httpStatus: status === 403 ? 403 : null});
+    assert.equal(result.kind, "inspection_required"); assert.equal(result.canRetry, false);
+    assert.equal(f.state.mintCount, 1); assert.equal(f.state.disabled, true);
+    assert.deepEqual(f.state.policy.bindings, []); assert.equal(f.state.copyPermission, false);
+    assert.equal(JSON.stringify({result, records: f.state.records}).includes("synthetic-secret"), false);
+  }
+  const f = fixture();
+  f.args.provider.probeCopy = async () => ({status: 403, body: "synthetic-secret"});
+  const result = await run(f);
+  assert.deepEqual(result.failureDetails, {phase: "probe-copy-access", httpStatus: 403});
+  assert.ok(result.cleanupFailures.includes("copy_access_denial_unproven"));
+  assert.equal(f.state.disabled, true); assert.equal(result.canRetry, false);
+  assert.equal(JSON.stringify({result, records: f.state.records}).includes("synthetic-secret"), false);
 });

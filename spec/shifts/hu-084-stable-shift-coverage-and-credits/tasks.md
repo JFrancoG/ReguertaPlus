@@ -1077,3 +1077,23 @@ Next request bounded authorization to create the identity and synthetic workbook
 run this exact session and verify cleanup. No phone action now. Original develop
 permission/current shared controls/maintenance remain separate. New implementation
 is uncommitted; HU-084/HU-085 open, PR #278 draft, production untouched.
+
+
+### Synthetic writer attempt contained; diagnostics corrected locally — 2026-10-30
+
+Controller delivered in `98840300`. Authorized provisioning created the isolated
+account and synthetic workbook; the first expired-owner attempt stopped before
+access grants. Separately authorized recovery validated the same seven-tab baseline,
+then failed opening the parent session before batch review/submission. Exact copy/IAM
+grants were removed, the account disabled/keyless/without direct grants, and owner
+OAuth revoked (same-token 401, Google UI zero linked apps). Positive writer access and
+same-valid-token access loss were not established; `inspection_required` remains,
+with no retry or maintenance admission. Audit records do not identify the root cause.
+
+Local diagnostics now preserve the parent phase and bounded HTTP status without
+secrets, broader access or retries. Build/lint and 31 focused tests pass, zero skips
+or failures. New preparation digest, retained separate receipts and exported demo
+ledger. See the bilingual writer-controls guide for exact evidence/limits. These
+changes are uncommitted after `98840300`; native parity is unchanged. Next review and
+deliver diagnostics before any newly authorized recovery. HU-084/HU-085 remain open,
+PR #278 draft; production and original develop workbook untouched.

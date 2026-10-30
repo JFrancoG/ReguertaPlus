@@ -1047,3 +1047,44 @@ produce cero lotes. Sin cambios nativos ni nueva diferencia Android/iOS.
 Siguiente paso: autorizar/aprovisionar esta sesión sintética y ejecutarla con su
 limpieza. El permiso del escritor en develop original, la composición de controles
 y la ventana de mantenimiento/migración siguen siendo pasos independientes.
+
+
+### Intento real del escritor sintético y fallo contenido — 2026-10-30
+
+El controlador preparado está entregado en `98840300`. La cuenta nueva y la hoja
+nativa sintética autorizadas se crearon una sola vez. La primera sesión del
+propietario caducó antes de conceder acceso a la copia, intentar emitir un token del
+escritor o lanzar el hijo; se deshabilitó la cuenta y se retiró OAuth. Una recuperación
+expresamente autorizada reutilizó las siete pestañas tras comprobar propietario e
+igualdad exacta de la imagen inicial con una sesión nueva.
+
+La recuperación concedió solo el permiso de la hoja sintética y el permiso temporal
+de emisión sobre la cuenta. Se detuvo al abrir la sesión del controlador: el hijo
+registra cero lotes enviados, en curso o inciertos. No existen recibos de revisión
+del lote ni de token emitido. `mintAttempted:true` marca la admisión, no demuestra
+que Google emitiera un token. La auditoría IAM disponible refleja activación,
+concesión, retirada y desactivación; no identifica la operación fallida ni su estado
+HTTP. No se deduce propagación, emisión, acceso correcto ni capacidad de Sheets.
+
+La limpieza retiró el permiso exacto de la hoja y la concesión IAM temporal,
+deshabilitó la misma cuenta y comprobó cero claves de usuario, permisos directos o
+roles de proyecto y emisión posterior denegada. Revocar OAuth devolvió 200; usar
+el mismo token devolvió 401 y Google mostró cero aplicaciones vinculadas. La prueba
+de pérdida efectiva de acceso del escritor queda **sin demostrar**, al faltar una
+lectura positiva anterior. El resultado sigue siendo `inspection_required`, con
+`canRetry:false` y sin admisión de mantenimiento. Se conservan la hoja y los recibos.
+
+Una corrección local del diagnóstico conserva la fase fallida y un estado HTTP
+numérico acotado a través de IPC; no guarda errores originales, cuerpos ni tokens,
+ni añade reintentos o permisos. Pasan build/lint, sintaxis CJS y **31 pruebas, cero
+fallos u omisiones**, incluida propagación/redacción y contención. La preparación
+revisada tiene otro digest; no se puede reutilizar la autorización anterior. Esta
+corrección y sus evidencias siguen locales después de `98840300`.
+
+Recibos privados: `2026-10-30-develop-writer-live` y
+`2026-10-30-develop-writer-live-retry-1`; se conservan ambos y el emulador exportado.
+Siguiente: revisar/entregar el diagnóstico y preparar otro intento expresamente
+autorizado con observaciones actuales. El ensayo de copia no está aceptado.
+Sin peticiones a las hojas originales de develop/producción, escrituras de negocio
+compartidas, despliegues, FCM, mantenimiento ni cambios nativos. HU-084/HU-085 abiertas,
+PR #278 en borrador.

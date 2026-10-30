@@ -1019,3 +1019,42 @@ The real runner's rejected review submits zero batches. Native code is unchanged
 so no new Android/iOS gate or parity gap. Next: authorize and provision this exact
 synthetic session, then execute it and inspect cleanup. Original develop writer
 access, current control composition and maintenance/migration remain separate gates.
+
+
+### Synthetic writer live attempt and contained failure — 2026-10-30
+
+The prepared controller is delivered in `98840300`. The explicitly authorized new
+account and native synthetic workbook were created once. The first owner session
+expired before any copy grant, writer-token attempt or child execution; cleanup
+left the account disabled and removed OAuth. A separately authorized recovery
+reused the same seven-tab workbook after a fresh owner/raw-baseline comparison.
+
+The recovery granted only the synthetic file and the bounded account-level mint
+binding. It stopped during parent session opening: the child records zero submitted,
+in-flight and unknown batches. No batch-review or token-issued receipt exists.
+`mintAttempted:true` is an admission flag, not proof that Google issued a token.
+The available IAM audit records show enable/grant/remove/disable; they do not
+establish the exact failed operation or HTTP response. Do not infer propagation,
+credential issuance, successful writer access or a Sheets capability result.
+
+Cleanup removed the exact file permission and temporary IAM binding, disabled the
+same account, verified zero user keys/direct bindings/project grants and denied
+another mint. Owner OAuth revocation returned 200, its same-token probe returned
+401, and Google's account UI showed no linked apps. The copy-access-denial check
+remains **unproven**, because no positive writer read was established. The terminal
+result remains `inspection_required`, with `canRetry:false` and no maintenance
+admission. The synthetic workbook and separate original receipts are retained.
+
+A local diagnostic correction now records the failing parent phase and a bounded
+numeric HTTP status through child IPC; it retains no raw error/body/token and adds
+no retries or wider permissions. Build/lint, CJS syntax and **31 tests, zero failures
+or skips**, pass, including status propagation/redaction and unchanged containment.
+The revised preparation has a new digest; the earlier execution approval cannot
+be transplanted. These diagnostic changes/evidence are local after `98840300`.
+
+Private receipts: `2026-10-30-develop-writer-live` and
+`2026-10-30-develop-writer-live-retry-1`. Preserve both and the exported demo ledger.
+Next: review/deliver this diagnostic correction and prepare a separately authorized
+fresh attempt with current owner/identity observations; do not claim copy acceptance.
+No original develop/production file request, shared business write, deployment,
+FCM, maintenance admission or native change. HU-084/HU-085 remain open, PR #278 draft.
