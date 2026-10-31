@@ -894,3 +894,165 @@ The assembly-gated HU-084 policy remains independent and unapproved.
 - HU-084 / issue #268
 - HU-085 / issue #269
 - ADR-0003: Use Firebase as Backend
+
+## HU-084 provisional local implementation — 2026-09-12
+
+The maintainer authorized provisional implementation and local emulator tests
+before assembly ratification. This exception permits the administrative coverage
+lifecycle to be developed against canonical shift documents in a fixed demo
+project. The store is not imported by a production endpoint and requires loopback
+Firestore; private coverage collections deny client reads/writes under both Rules
+policies. No shared Firebase/Sheets changes or deployment are authorized by this
+checkpoint. The existing production planner continues to reject enabled credits.
+
+The final reserve/selection/deadline policy, membership transitions and live
+activation remain subject to assembly ratification. Local completion/credit tests
+are evidence of this limited implementation, not acceptance of the full policy.
+See `spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md` for the implemented
+scope and remaining identity, writer-fence, event and planner integration.
+
+Local selection now uses explicit `fifo-signup-v1` test settings: reserve entry
+order and volunteer registration order, with ordinal user-ID ties and a required
+volunteer response window. It freezes the candidate pool, rechecks eligibility and
+reserve revisions, and stops at `drawRequired` on exhaustion. Reserve lifecycle,
+proximity preferences beyond adjacent leads, final ordering/deadlines and future
+entropy remain unratified. There is no automatic live enrollment, draw or deploy.
+
+The next local checkpoint adds `hu084-local-beacon-v1` with a synthetic Ed25519
+issuer and `sha256-rank-v1`. A transaction fixes the candidate pool and a future
+round before signed evidence can reveal the order; retries retain that order.
+Cancellation retains the committed vacancy so a replacement case cannot reroll;
+reasoned admin recovery preserves the draw and requires member consent. Signed
+authenticity alone is not an assurance of unbiased/unpredictable entropy: the real
+provider, trust/IAM boundary, failure deadlines and assembly policy remain pending.
+This protocol remains confined to the fixed local emulator, with no deployment.
+
+The local credit checkpoint reuses the canonical owner cursor for whole-unit
+planning and reverse-order credit deferral. A fixed-emulator transaction binds the
+complete ledger and sources, then updates consumed credits, claims and canonical
+cursor with a private `localRehearsal` physical-unit record. Preview/stage do not
+spend credits. This is not HU-082 seasonal publication: public shifts/helpers,
+forward/inverse manifests, complete admission and notification/Sheets effects
+remain unintegrated. The production planner's non-zero-credit rejection is retained.
+
+The following local checkpoint integrates full seasonal credit traversal into the
+existing delivery/market planners. Credits serve canonical owner positions without
+occupying dates; complete physical units and their skipped positions carry across
+seasons together. Ordinary planner output remains identical with no credits.
+Delivery validates the prior planned helper against the pre-credit cursor, then
+may update only its prospective helper. A completed helper remains historical.
+Exact credit before/after images are prepared for later HU-082 manifest integration;
+no seasonal credit activation or inverse transaction is implemented by this change.
+Production bundle intake retains its enabled/non-zero-credit rejection.
+
+The 2026-09-12 publication checkpoint now connects those credit images to the
+existing HU-082 governed source, bundle, forward/inverse materializers and shared
+transaction admission/notification fences. Both complete ledgers and claim sets
+are transactionally reread, including deferred credits. The source producer derives
+frozen rounds from canonical/public state and recovers credited carryover from the
+active bundle; source policy cannot supply credit balances. Credit, claim, cursor,
+public rows, before images and held-intent/sync-command changes commit together.
+Seasonal consumption retains a `released` claim with plan/time evidence so inverse
+CAS can restore its exact former value. Released claims do not block selection or
+another acceptance, which replaces them. Recovery rejects any later ledger/claim
+change and restores credit/claim values while increasing ledger generations and
+write epochs. Enabled-credit execution remains restricted to a Firestore client
+created for the fixed demo/loopback emulator. This supersedes the prior local
+publication gap; it is not assembly ratification, live activation or dispatch.
+
+The subsequent local membership checkpoint reconciles one observed user transition,
+both reserve pools and affected future published coverage cases atomically, with
+source/time/actor audit and CAS. Existing eligible cohort members are baseline;
+new members and re-entries join reserve FIFO at observation time. Ineligibility
+removes reserve eligibility; re-entry increments its revision and starts at the
+tail. Neither August nor cohort inclusion implies the unratified reserve exit.
+Public dates, owners, actual completed helpers, cursors and credits remain unchanged.
+Pending swaps/occupied coverage cases require their existing administrative workflow.
+Pending queue transitions block local source capture and forward/inverse publication,
+including credit-disabled plans, preventing restoration of an old queue position
+on re-entry. New-round admission and frozen unpublished skips with complete physical
+units remain unimplemented; no standalone tombstones are written. The adapter is
+emulator-only, not a deployed observer of user changes or a ratified live policy.
+
+The local new-round admission checkpoint now removes the pending-admission fence
+only through governed ledger planning when both cursors are at wholly new round
+boundaries beyond all public/frozen evidence. Reconciliation retains admission
+intent per rotation; legacy pending records without this evidence fail closed.
+Retained owners keep order and observed entrants/re-entries append by reserve time
+then ordinal UID. The planners validate old carryover against its original cursor
+before traversing the new cohort. Complete-unit staffing, credit deferral and
+completed-helper history remain enforced. Full membership/reserve snapshots and
+live member predicates bind forward and inverse publication. Membership
+acknowledgements join the existing public/cursor/ledger transaction and its before
+images; inverse restores pending intent and prior cohorts with higher membership
+revisions. Reserves are not removed on cohort inclusion. Frozen unpublished
+positions remain blocked until skips can commit with full physical units and
+inverse evidence. This remains a fixed-emulator implementation without deployment.
+
+
+The subsequent frozen-unit checkpoint supersedes that local restriction. Frozen
+unpublished departures/ineligibility retain original owner, round, position, reason
+and membership revision in the activated bundle's complete physical-unit traversal;
+no standalone tombstone collection or writer is introduced. Reactivation preserves
+its exclusion evidence and admits the member only at a new normal position. The
+cohort changes at the permitted round boundary, even inside a market group, and
+carryover retains this transition for exact replay. Each type acknowledges admission
+only after a complete new-cohort unit; reaching the next boundary alone does not
+force another round or clear pending intent. Forward/inverse bind all membership,
+reserve and credit sources plus current member predicates, and query published
+ownership transactionally so an existing public position cannot be omitted. Inverse
+restores frozen cursors and pending intent with higher revisions. Unstaffable units
+reject without partial cursor/omission/credit writes. Existing helper-history and
+credit backtracking contracts remain intact. Local planning integration is complete;
+mobile/coverage transport and notification/Sheets product integration, real entropy,
+assembly ratification and deployment remain pending. Fixed-emulator evidence does
+not authorize shared-project writes or live activation.
+
+
+The local app-access checkpoint adds an explicitly composed Auth/Firestore emulator
+handler, not a deployable endpoint. Actual Admin Auth verification checks revoked
+credentials per request; canonical Auth links, active membership and roles are read
+inside each command/query transaction. Authenticated receipts additionally bind the
+UID so account relinking cannot replay another session's operation. Existing direct
+member-ID calls remain confined to the earlier trusted test harness. Member/admin
+read projections expose only relevant offers, own accounting and explicit management
+context; internal candidate/exclusion/draw records never cross this boundary. Valid
+maintenance remains readable with stale-write controls disabled. The engine retains
+all command/neighbor/credit checks. This supplies the common local client contract;
+native presentation/session fencing, notification/Sheets effects and
+live activation remain pending. No production entrypoint imports this composition.
+
+An explicit local runner now binds the handler to loopback only, with a required
+policy file/port and bounded JSON requests. Network tests exercise this host with
+Auth and Firestore emulators; importing it starts no listener or live service.
+
+The subsequent native checkpoint adds equivalent typed repositories and operation
+owners on Android/iOS. Local adapters are compiled only in Debug and are absent
+from live composition. A captured UID/member/authorization revision fences token
+retrieval, HTTP and presentation completion. Uncertain results retain the same
+command for explicit replay; acknowledged writes are never replayed merely because
+read-back failed. Only fixed-demo Auth-emulator credentials may reach loopback,
+with redirects refused. Native UI/session composition and connected journeys remain
+pending alongside notification/Sheets effects and live ratification/activation.
+
+
+### HU-084 local recovery authority — 2026-09-13
+
+Coverage recovery reuses the trusted HU-082 closed-intake barrier and its failure
+journal. It requires backend-owned authorization bound to an active administrator,
+exact Firestore source versions, closed maintenance and the fixed demo workbook.
+The injected control plane must fence and drain coverage runtimes along with the
+manifested writers; neither a timeout nor a closed state document proves this.
+HU-083 inspection supplies read-only projection evidence. Only verified current
+rows permit atomic inbox release and reservation removal. Obsolete notification
+intents retire without replay; a mismatched/missing projection retains its reservation.
+The command receipt, case, assignment and credit history are never rewritten.
+
+Push reconciliation preserves accepted/failed/unknown outcomes and classifies an
+interrupted submission as unknown; absent submission receipts are listed separately.
+Neither case authorizes a resend. A terminal recovery receipt is idempotent, but a
+failed final barrier read-back remains an incident even after its transaction commits.
+Controls remain closed; re-opening and admitting delivery under a new writer epoch
+are separate governed operations. Existing effect writer authority is not renewed.
+There is no deployed recovery endpoint, allowlist issuer or real control-plane driver
+in this local composition. Their wiring and live evidence remain HU-085 responsibilities.

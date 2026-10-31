@@ -1,0 +1,100 @@
+{
+  "kind": "non-executable-develop-sheets-writer-proposal",
+  "status": "prepared-not-authorized-for-provisioning",
+  "projectId": "reguerta-9f27f",
+  "environment": "develop",
+  "canProvision": false,
+  "canApply": false,
+  "canEnterMaintenance": false,
+  "identity": {
+    "accountId": "reguerta-develop-sheets-writer",
+    "email": "reguerta-develop-sheets-writer@reguerta-9f27f.iam.gserviceaccount.com",
+    "displayName": "Reguerta develop Sheets writer",
+    "uniqueId": null,
+    "drivePermissionId": null,
+    "createUserManagedKeys": false,
+    "projectRoles": [],
+    "attachedServices": [],
+    "domainWideDelegation": false
+  },
+  "copyRehearsal": {
+    "workbookId": null,
+    "ownerEmail": "testplusprojects@gmail.com",
+    "fixture": "new-native-workbook-seven-synthetic-tabs-no-business-data",
+    "initialTabTitles": ["BASE 1", "BASE 2", "BASE 3", "BASE 4", "BASE 5", "BASE 6", "BASE 7"],
+    "initialGrid": {"rowCount": 20, "columnCount": 6},
+    "initialCellA1": "ENSAYO SIN DATOS REALES",
+    "initialFilePermissions": "owner-only",
+    "temporaryFileRole": "writer",
+    "runner": "functions/scripts/rehearse-owner-sheets-copy.cjs",
+    "runId": "develop-writer-identity-v1",
+    "demoProjectId": "demo-reguerta-copy-writer-v1",
+    "firestoreHost": "127.0.0.1:8897",
+    "maximumSdkBatches": 1,
+    "addedTabCount": 1,
+    "syntheticMarketTurnCount": 10,
+    "preserveAllSevenInitialTabs": true,
+    "sharedFirestoreAccess": false,
+    "fcmAccess": false
+  },
+  "temporaryMintGrant": {
+    "resource": "new-service-account-only",
+    "member": "user:drpuerk@gmail.com",
+    "role": "roles/iam.workloadIdentityUser",
+    "maximumGrantSeconds": 600,
+    "startsAt": null,
+    "expiresAt": null,
+    "condition": "bind explicit UTC start/end at approval; never use a relative or unbounded condition",
+    "delegates": [],
+    "maximumRequestedTokens": 1,
+    "requestedTokenLifetimeSeconds": 300,
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.metadata.readonly",
+      "https://www.googleapis.com/auth/spreadsheets"
+    ],
+    "refreshToken": false,
+    "ambientCredentialFallbackInChild": false,
+    "iamEnforcesRequestedScopesAndTokenCount": false,
+    "minimumGrantAgeSeconds": 120,
+    "lifecycleObservation": {"maximumWaitSeconds": 60, "pollSeconds": 5},
+    "readiness": {
+      "method": "testIamPermissions",
+      "permission": "iam.serviceAccounts.getAccessToken",
+      "maximumWaitSeconds": 180,
+      "pollSeconds": 5,
+      "minimumRemainingWindowSeconds": 360,
+      "isAuthorizationProof": false
+    }
+  },
+  "laterDevelopAdmission": {
+    "workbookId": "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A",
+    "ownerEmail": "testplusprojects@gmail.com",
+    "referenceVersion": "278",
+    "referenceVersionIsCurrentAuthorization": false,
+    "fileGrantAuthorized": false,
+    "maintenanceAuthorized": false,
+    "requiresNewSourceAndAclBinding": true,
+    "requiresFreshWriterCapabilities": ["canEdit", "canModifyContent", "canShare"],
+    "requiresIndependentCurrentExternalControls": true,
+    "requiresSeparateFirestoreAuthority": true
+  },
+  "cleanup": {
+    "removeOnlyCreatedCopyPermission": true,
+    "removeOnlyExactTemporaryIamBinding": true,
+    "disableNewServiceAccount": true,
+    "keepSyntheticWorkbookAndEvidence": true,
+    "verifyOriginalTokenDeniedAfterAclRemoval": true,
+    "verifyNewTokenMintDenied": false,
+    "uncertainWrite": "inspect-only; no retry, inverse or cleanup content deletion",
+    "futureReenable": "separate approval after token-expiry and unresolved-operation reconciliation"
+  },
+  "unresolvedBeforeLiveRehearsal": [
+    "explicit-copy-identity-grant-and-single-batch-authorization",
+    "owner-created-workbook-id-and-fresh-owner-closed-online-window",
+    "fresh-identity-absence-and-project-policy-check",
+    "creation-unique-id-and-drive-principal-readback",
+    "sealed-parent-controller-and-child-source-hashes",
+    "actual-baseline-tab-ids-request-digest-and-before-images",
+    "runtime-protected-workbook-id-list-without-production-requests"
+  ]
+}

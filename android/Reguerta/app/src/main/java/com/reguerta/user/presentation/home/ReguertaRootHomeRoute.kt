@@ -98,6 +98,9 @@ import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.products.Product
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSession
+import com.reguerta.user.presentation.shiftcoverage.CoverageRouteViewModel
+import com.reguerta.user.presentation.shiftcoverage.CoverageScreen
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningCandidate
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestObservation
@@ -267,6 +270,8 @@ internal fun HomeRoute(
     isDevelopImpersonationEnabled: Boolean,
     onSignOut: () -> Unit,
     installedVersion: String,
+    coverageModel: CoverageRouteViewModel? = null,
+    coverageSession: ShiftCoverageSession? = null,
 ) {
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
@@ -411,6 +416,10 @@ internal fun HomeRoute(
             onRefreshMembers()
         } else if (destination == HomeDestination.SHIFTS) {
             onRefreshShifts()
+            coverageModel?.refreshAvailability()
+        } else if (destination == HomeDestination.SHIFT_COVERAGE) {
+            coverageModel?.bindSession(coverageSession)
+            if (openingNotificationEventId == null) coverageModel?.refresh()
         } else if (destination == HomeDestination.SHIFT_SWAP_REQUEST) {
             onRefreshShifts()
         } else if (destination == HomeDestination.ADMIN_BROADCAST) {
@@ -420,12 +429,16 @@ internal fun HomeRoute(
         }
     }
 
-    LaunchedEffect(pendingShiftNotificationPush) {
+    LaunchedEffect(pendingShiftNotificationPush, coverageSession) {
         val reference = pendingShiftNotificationPush ?: return@LaunchedEffect
-        navigateHome(
-            destination = HomeDestination.NOTIFICATIONS,
-            openingNotificationEventId = reference.eventId,
-        )
+        if (reference.isCoverage) {
+            if (coverageModel == null || coverageSession == null) return@LaunchedEffect
+            coverageModel.bindSession(coverageSession)
+            coverageModel.acceptPush(reference)
+            navigateHome(HomeDestination.SHIFT_COVERAGE, reference.eventId)
+        } else {
+            navigateHome(HomeDestination.NOTIFICATIONS, reference.eventId)
+        }
         onConsumeShiftNotificationPush(reference)
     }
 
@@ -558,7 +571,8 @@ internal fun HomeRoute(
                         currentDestination != HomeDestination.PUBLISH_NEWS &&
                         currentDestination != HomeDestination.ADMIN_BROADCAST &&
                         currentDestination != HomeDestination.PROFILE &&
-                        currentDestination != HomeDestination.SHIFTS
+                        currentDestination != HomeDestination.SHIFTS &&
+                        currentDestination != HomeDestination.SHIFT_COVERAGE
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -899,7 +913,14 @@ internal fun HomeRoute(
                     onCancelShiftSwapRequest = onCancelShiftSwapRequest,
                     onConfirmShiftSwapRequest = onConfirmShiftSwapRequest,
                     onDismissShiftSwapActivity = onDismissShiftSwapActivity,
+                    onOpenCoverage = if (coverageModel?.isAvailableFor(coverageSession) == true) {
+                        { navigateHome(HomeDestination.SHIFT_COVERAGE) }
+                    } else null,
                     )
+
+                    HomeDestination.SHIFT_COVERAGE -> coverageModel?.let {
+                        CoverageScreen(it, expectedSession = coverageSession)
+                    }
 
                     HomeDestination.SHIFT_SWAP_REQUEST -> ShiftSwapRequestRoute(
                     draft = shiftSwapDraft,

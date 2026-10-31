@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "kind": "non-executable-original-develop-writer-check",
+  "status": "executor-prepared-locally-validated-not-authorized",
+  "projectId": "reguerta-9f27f",
+  "environment": "develop",
+  "canProvision": false,
+  "canExecute": false,
+  "canApply": false,
+  "canEnterMaintenance": false,
+  "reviewPackageDigest": "shift-planning:v1:sha256:67b0a3d00900ce3bd9b7d77fb785ec29a64f5fe70b050ec260b1dd080f78093a",
+  "historicalWriterEvidenceDigest": "shift-planning:v1:sha256:1db10f95e2c9a8c08f48930308aa22f3604afe8ead2f50b85fee41876549af90",
+  "identity": {
+    "email": "reguerta-develop-sheets-writer@reguerta-9f27f.iam.gserviceaccount.com",
+    "uniqueId": "110752956317536684858",
+    "expectedDrivePermissionId": "06575248221544440100",
+    "requiresFreshPrincipalReadback": true,
+    "initialAndFinalDisabled": true,
+    "userManagedKeys": 0,
+    "projectRolesToAdd": [],
+    "attachedServicesToAdd": []
+  },
+  "destination": {
+    "fileId": "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A",
+    "expectedOwnerEmail": "testplusprojects@gmail.com",
+    "ownerCurrentlyVerified": true,
+    "version": "278",
+    "parentId": "0AK7v8_RQogQlUk9PVA",
+    "completeAclDigest": "shift-planning:v1:sha256:098de01c21e6064251583467557e7519559a61889a3bb196ff347a84cf122e84",
+    "originalWriterAuthorityVerified": false,
+    "preserveAllSixTabs": true,
+    "grantInheritedOrFolderAccess": false,
+    "productionAccess": false,
+    "observedAt": "2026-10-31T11:56:08.288Z",
+    "versionIsExecutionAuthorization": false,
+    "requiresFreshReadBeforeExecution": true
+  },
+  "ownerMetadataPreparation": {
+    "account": "testplusprojects@gmail.com",
+    "tool": "Google OAuth Playground",
+    "scope": "https://www.googleapis.com/auth/drive.metadata.readonly",
+    "accessType": "online",
+    "refreshToken": false,
+    "resources": [
+      "exact-develop-file",
+      "its-returned-parent"
+    ],
+    "readCompletePermissionPages": true,
+    "bracketFileVersion": true,
+    "revokeAndVerifySameToken401": true,
+    "authorized": false,
+    "authorizationState": "consumed-and-revoked",
+    "evidenceDigest": "shift-planning:v1:sha256:103ce5e615fda8b623bf6ec93864be94abbf1691f9eef419612447255bcae751",
+    "observedAt": "2026-10-31T11:56:08.288Z",
+    "revokeStatus": 200,
+    "sameTokenAfterRevocationStatus": 401
+  },
+  "futureTemporaryPermissions": {
+    "requiresSeparateApproval": true,
+    "file": {
+      "role": "writer",
+      "type": "user",
+      "emailAddress": "reguerta-develop-sheets-writer@reguerta-9f27f.iam.gserviceaccount.com",
+      "permissionId": null,
+      "ownerChannel": "native owner UI reviewed without saving; final removal confirmation requires live attempt",
+      "preserveEveryExistingPermission": true,
+      "requiresFreshCanEditCanModifyContentCanShare": true
+    },
+    "iam": {
+      "member": "user:drpuerk@gmail.com",
+      "role": "roles/iam.workloadIdentityUser",
+      "resourceUniqueId": "110752956317536684858",
+      "maximumWindowSeconds": 600,
+      "startsAt": null,
+      "endsAt": null,
+      "minimumGrantAgeSeconds": 120,
+      "preserveUnrelatedBindingsWithEtag": true
+    },
+    "writerToken": {
+      "maximumMintAttempts": 1,
+      "lifetimeSeconds": 300,
+      "scopes": [
+        "https://www.googleapis.com/auth/drive.metadata.readonly",
+        "https://www.googleapis.com/auth/spreadsheets"
+      ],
+      "retainToken": false,
+      "refresh": false,
+      "ambientCredentialFallback": false
+    }
+  },
+  "futureProbe": {
+    "authorized": false,
+    "ownerOnlineClosedNoOfflineEditsWindowSeconds": 600,
+    "noOtherTestsOrTokenIssuance": true,
+    "sheetId": 673721152,
+    "tabTitle": "turnos-reparto 2026-27",
+    "cell": "A1",
+    "expectedBefore": {
+      "stringValue": "Fecha"
+    },
+    "expectedAfter": {
+      "stringValue": "Fecha"
+    },
+    "maximumSdkBatches": 1,
+    "request": {
+      "updateCells": {
+        "start": {
+          "sheetId": 673721152,
+          "rowIndex": 0,
+          "columnIndex": 0
+        },
+        "rows": [
+          {
+            "values": [
+              {
+                "userEnteredValue": {
+                  "stringValue": "Fecha"
+                }
+              }
+            ]
+          }
+        ],
+        "fields": "userEnteredValue"
+      }
+    },
+    "expectedDriveVersionUnchanged": false,
+    "sameUnexpiredTokenDeniedAfterGrantRemoval": true,
+    "uncertainWrite": "retain-receipts-and-inspect-only-no-retry-or-inverse",
+    "readBeforeAfterSelectedRawSnapshotsOfSixTabs": true,
+    "businessDatesAndOrderMustRemainEqual": true,
+    "sharedFirestoreWrites": false,
+    "fcm": false,
+    "deploy": false
+  },
+  "cleanup": {
+    "removeOnlyCreatedFilePermission": true,
+    "removeOnlyExactTemporaryIamBinding": true,
+    "explicitlyDisableAccount": true,
+    "verifyOwnerAclAndIndependentIdentity": true,
+    "noSecondMintForVerification": true,
+    "noAutomaticRetry": true,
+    "leaveMaintenanceClosed": true
+  },
+  "remainingBeforeExecution": [
+    "renew-owner-version-parent-and-complete-permissions-at-execution",
+    "recheck-current-owner-ui-and-inspect-final-removal-confirmation-during-authorized-attempt",
+    "fresh-independent-controls-and-identity",
+    "separate-probe-permissions-and-one-write-authorization",
+    "fresh-owner-online-window",
+    "bind-fresh-baseline-controls-owner-channel-and-preparation-digests-to-new-approval"
+  ],
+  "stillRequiredBeforeMigration": [
+    "regenerate-package-with-new-original-ACL-and-Drive-version",
+    "fresh-business-source-census-and-separate-Firestore-authority",
+    "held-independent-controls-and-causal-risk-observations",
+    "separate-owner-administrator-risk-maintenance-window"
+  ],
+  "executorPreparation": {
+    "controller": "functions/scripts/prepare-develop-original-writer-check.cjs",
+    "provider": "functions/scripts/develop-original-writer-provider.cjs",
+    "liveEntryPoint": "runWithExplicitCredentials",
+    "cliMode": "offline-preparation-only",
+    "canonicalPrivateJournalRequired": true,
+    "cleanupReserveSeconds": 120,
+    "snapshotRanges": "A1:Z100 on five exact tabs; A1:Y100 on TORRE 2025-26 (25 columns)",
+    "ownerGrantRemovalChannel": "reviewed native Drive owner UI; metadata-only OAuth does not mutate permissions",
+    "tests": "functions/test/develop-original-writer-check.test.cjs",
+    "canExecute": false
+  },
+  "nativeOwnerChannelReview": {
+    "observedOn": "2026-10-31",
+    "ownerAccount": "testplusprojects@gmail.com",
+    "exactFileVerified": true,
+    "ownerAndFourReadersObserved": true,
+    "addEditorDraftReviewedAndCancelled": true,
+    "notificationUncheckedInCancelledDraft": true,
+    "removeAccessMenuObservedWithoutSelecting": true,
+    "writerPermissionCreated": false,
+    "grantOrRemovalExecuted": false,
+    "completeApiMetadataRenewalPending": false,
+    "executionStillRequiresApproval": true,
+    "metadataObservedAt": "2026-10-31T11:56:08.288Z",
+    "metadataEvidenceDigest": "shift-planning:v1:sha256:103ce5e615fda8b623bf6ec93864be94abbf1691f9eef419612447255bcae751"
+  }
+}

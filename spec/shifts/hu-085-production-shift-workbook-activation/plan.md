@@ -1,5 +1,122 @@
 # Plan - HU-085 (Controlled production shift workbook activation)
 
+## Develop inspection dependency — 2026-10-27
+
+HU-084's migration/inverse rehearsal is delivered in `0b5ceabb`; the new
+[read-only operational inspection](../../../docs/testing/hu084-develop-operative-inspection.md)
+is delivered as `4b179d10`. Its isolated identity/deployment preparation now uses
+dedicated inspection accounts and no direct project data roles. The runtime's
+reader grant and private deployment/read-back are verified: six tabs, stable
+Drive version 259, 63 local tests and real access/transport checks. Detailed ACL
+visibility remains explicitly unknown for the reader. The temporary OIDC binding
+is removed and a new token request is denied with 403. The earlier
+real observations identify absent recovery-operator authority,
+unverified Drive version/exclusive writing, undeployed Rules restrictions and
+unproved planning-index readiness. This inspection cannot issue a closed barrier
+checkpoint. Its 63 local backend passes do not complete any live gate below.
+Develop preparation authorizes no production business-data access, shared deploy,
+IAM/ACL mutation, migration or activation. Both stories remain open.
+
+## Reversible develop controls dependency — 2026-10-27
+
+The [local writer-control preparation](../../../docs/testing/hu084-develop-writer-controls.md)
+adds a captured-baseline all-develop client-write fence and 12 passing emulator
+cases for parity, stored-image preservation and pre-write Rules-only reversal.
+The active Rules release/prior ruleset and six immutable legacy sources were
+inspected read-only. Those deployed handlers have no selective develop or
+in-flight guard and use generic Sheets config fallback; shared shutdown or
+parameter deletion cannot be assumed safe for production.
+
+All 26 writer dispositions and reversal conditions are documented. Workbook
+permission IDs/inheritance, owner-lock copy rehearsal, selective bridge/drain
+and held control-plane authority remain unresolved. The maintainer's declaration
+of no other known automation is retained separately from technical proof. This
+new preparation is local, non-executable and does not complete an activation gate.
+
+The control preparation is now delivered in `f105ca5c`. The subsequent authorized
+selective-pause rehearsal has 20 local emulator passes against byte-pinned legacy
+callbacks, plus build/lint and independent review. It intentionally cannot certify
+old in-flight work or durable live event delivery; no deployment or maintenance
+entry occurs. The authorized isolated Sheets copy mechanism test now passes:
+owner/service-account positive, blocked and recovered writes, owner-only unlock
+denial, exact reversal and identical selected seven-tab images. The copy ACL is
+owner-only again, its test account is disabled without keys/project data roles,
+temporary IAM binding removed, new token generation denied and both temporary
+owner OAuth sessions revoked with actual 401 responses. No real-file control is
+applied. Held owner/runtime handoff remains unproved. See the
+[bounded rehearsal](../../../docs/testing/hu084-selective-develop-pause.md).
+
+The pause/copy mechanism group is delivered as `f5c3b5db`. The authorized local
+design/rehearsal of exclusive backend handoff covers pending events and old
+in-flight effects. It reuses current barrier/admission code; the later accepted
+owner-cooperation decision below amends only workbook owner exclusion and chooses
+no custody change. Refined provider metadata establishes actual timeout/traffic/retry
+configuration, not quiescence. No live collector, traffic, retry, IAM, workbook
+or business-data change is authorized by this new group.
+
+The [local handoff design](../../../docs/testing/hu084-backend-handoff-rehearsal.md)
+is accepted within that finite scope: 28 emulator passes (eight new plus 20
+unchanged pause/production cases), zero failures/skips, build/lint, focused CJS
+syntax and independent review, captured against baseline `f5c3b5db`.
+Only known-fixture reconciliation can become ready; `legacyUntracked:true`,
+`physicalHandoffReady:false`, `canApply:false` and `canClaimClosure:false` remain
+mandatory. Durable live delivery, effective old Admin-writer/effect control,
+complete authority bindings and revised maintenance admission are unresolved. The real
+barrier rejects fixture evidence. No activation gate below is marked complete.
+
+The maintainer provisionally believes the association uses personal accounts and
+explicitly accepted maintenance with owner cooperation on 2026-10-28. The
+[accepted ADR-0021](../../../docs/decisions/0021-use-cooperative-owner-maintenance-for-shift-workbooks.md)
+and updated specification replace absolute owner exclusion with a named-owner,
+bounded no-edit agreement. Keep the same file/link, dates and order; record the
+owner's retained technical capability and the limits of revision/digest checks.
+All other writer, admission/effect/notification gates remain intact. No Workspace
+purchase, custody move, permission change or real maintenance is authorized.
+Version 2 maintenance entry is now implemented and locally rehearsed on the same
+evidence/maintenance CAS path: 438 joint emulator passes, zero failures/skips,
+build/lint and independent source review. Version 1's strict default and digest
+remain exact. This group was validated against `3aafe4e8`.
+Historical receipts grant no renewed admission; fresh owner reports surround the
+callback and typed failure incidents retain the technical closure separately.
+The following local group connects the raw Google SDK observation sources and
+reviewed Sheets batch postimage guards through the existing consumer and receipts.
+The [updated handoff guide](../../../docs/testing/hu084-backend-handoff-rehearsal.md)
+records the copy-only packet, read/authority limits and independent current
+technical-control requirement. The copy procedure has not been executed; grants,
+owner window, real old-work drain and shared deployment remain pending. No live
+activation criterion is completed by these local checks. The final joint
+acceptance passes 622 tests with zero failures/skips, build/lint and independent
+review; the new batch group remains local/uncommitted against delivered
+`2690528e` and has performed no real Google write or grant.
+
+## Authorized copy-provider dependency checkpoint — 2026-10-28
+
+HU-084 has now executed the separately authorized isolated-copy procedure:
+one actual Google batch, 45 requests, ten synthetic market rows in one new tab,
+identical complete raw images of the seven previous tabs checked before command
+completion, and zero notification events. Its real emulator command completed
+and released the market lease. Schema 2 copy authority names the actual local
+runner separately from the human owner without claiming another human/IAM
+operator or fabricating a closed 27-group shared barrier. The shared/default
+barrier remains intact.
+
+The bounded keyless identity/token window was closed and read back: owner-only
+copy sharing, disabled identity, no keys/project roles/temporary bindings, rejected
+still-valid bearer and denied new token request. Exact metadata and evidence stay
+private. The copy-only owner-inheritance and short-token SDK fixes are covered
+without broadening shared authority. Final acceptance passes Functions build/full
+lint and 661 joint emulator/regression tests with zero failures/skips; the
+historical 622-case checkpoint above is unchanged. Repeated idempotent cleanup
+resolved an initially stale IAM read before final closure was reported.
+
+This is provider evidence for a copy, not production/develop activation. No
+original/production workbook I/O, shared Firebase data operation, deploy or
+notification release occurred. Durable shared intake and actual old-writer/effect
+control plus effective authority remain open; shared admission remains
+`canApply:false`. Both reviewed groups are included in the authorized delivery
+checkpoint, with exact Git/remote verification recorded in #268/#269 and draft
+PR #278. This delivery does not complete a shared activation criterion.
+
 ## 1. Delivery strategy
 
 Use one quiesced shared-project change window with explicit gates before:
@@ -136,7 +253,8 @@ diff, or revision invalidates approval.
   aliases, headers, formulas, protections, sharing, and configuration presence.
 - Resolve `driveId`, My Drive versus Shared Drive, owners, members/roles, effective
   capabilities, bound scripts, transitive group/domain membership, Domain-Wide
-  Delegation/OAuth scopes, Workspace admin paths, and the exact reversible fence.
+  Delegation/OAuth scopes, Workspace admin paths, all-other-writer controls and
+  named-owner cooperation. Record unavailable audit visibility explicitly.
 - Inventory human offline-edit state and require online/closed/no-pending confirmation;
   define controlled reauthorization, forced server reload, base-revision rejection,
   post-reopen observation, and the read-only fallback for unconfirmed writers.
@@ -163,11 +281,17 @@ diff, or revision invalidates approval.
 - Record every human editor/offline-edit acknowledgement, Apps Script trigger/
   deployment, add-on, API/OAuth client, service account, Shared Drive automation,
   transitive group/domain/DWD/Workspace-admin authority, recent execution/Drive or
-  Workspace event, and protected range. Prove an exact recoverable all-writer fence
-  plus revision/content-digest drift check.
-- If ordinary ACLs cannot fence a My Drive owner, stop and present a separate
-  transfer/move decision. Rehearse on a fixture and require same file ID/link,
-  bindings, permissions, and content read-back; never silently replace the workbook.
+  Workspace event, and protected range. Prove exact recoverable controls for all
+  other writers. Bind the named owner's no-edit/online/closed/no-pending-offline
+  confirmation to the file, bounded window/deadline and operator contact; expire
+  it on deadline or authority change. Record retained capability and race risk.
+- Keep the same file/link under the approved owner-cooperation route. If that
+  owner cannot confirm the procedure, stop for a separate custody decision.
+  Any later optional move/transfer needs fixture and same-ID/link, bindings,
+  permissions and content read-back; never silently replace the workbook.
+- Bind and rehearse the revised operational packet/adapter before live admission.
+  Cover expiry, owner-reported edit, observable drift, uncertain submission and
+  recovery; never fabricate technical-fence evidence or bypass other barrier gates.
 - Prove restore and exact cleanup of newly created objects without live overwrite.
 - Measure and rehearse both the forward activation transaction and the distinct
   inverse recovery transaction against every Firestore limit; block the window if
@@ -223,11 +347,15 @@ diff, or revision invalidates approval.
   causal-drain identity/revision. No migration or candidate data write starts until
   only the subsequently provisioned candidate runtime can write data.
 - After Sheets drain is terminal, provision the named Drive permission controller,
-  apply/read back the exact fence for every human/automated workbook writer, and
+  apply/read back the exact controls for every other human/automated workbook writer, and
   verify effective group/domain/DWD/Workspace authority and Drive/Workspace activity.
   Require every prior editor's online/closed/no-pending-offline acknowledgement.
-  Audit exact ACL/protection actions plus unchanged cell digest, then freeze/revoke
-  the controller and prove zero continuing workbook data-write paths.
+  Audit exact ACL/protection actions plus observed unchanged cell digest, then
+  freeze/revoke the controller workflow/temporary credentials. If the controller
+  is the owner, record that ownership/capability remains under the no-edit agreement.
+  No automated writer remains active before candidate admission; no physical zero
+  is claimed. Compare expected authority/revision/content before and after batches;
+  observed drift or uncertainty stops progression, not a blind retry/restore.
 - Reauthorize the keyless evidence auditor through a sealed exact-action packet and
   capture new post-drain Firestore backups and workbook copy/revision plus every
   present/absent object, hash, planner input, recovery manifest, and forward/inverse
@@ -242,8 +370,9 @@ diff, or revision invalidates approval.
   Do not yet assign a new Function `serviceAccount`; the deployer never grants workbook access.
 - Through a second sealed exact-action reauthorization of the Drive controller,
   grant only the candidate runtime's reviewed workbook role, audit unchanged cell
-  digest/activity, revoke/read back the controller, and prove the candidate is the
-  sole workbook data writer. Shared revisions retain minimum access to both stable
+  digest/activity, revoke/read back the controller workflow/temporary credentials,
+  and establish the candidate as the only authorized automated workbook writer
+  under the owner's still-valid agreement. Shared revisions retain minimum access to both stable
   workbooks with protected cross-route guards.
 - Provision the separate rollout operator principal
   `reguerta-shifts-operator@reguerta-9f27f.iam.gserviceaccount.com` for the exact
@@ -477,8 +606,9 @@ Functions TypeScript or operational gates.
 - complete privileged-writer inventory/freeze plus effective IAM ancestry/
   conditions/deny policies, SA IAM, WIF, transitive-group and key/job state, Drive/
   Workspace/DWD authority and Audit Logs, with chained checkpoints at every gate;
-- bootstrap Rules/ingress and current write-epoch proof, all-writer workbook fence/
-  offline-editor/revision guard, causal drain/abort evidence, allowlist,
+- bootstrap Rules/ingress and current write-epoch proof, all-other-writer controls,
+  bounded named-owner confirmation/retained capability and offline-editor/revision
+  guard with explicit race/detection limits, causal drain/abort evidence, allowlist,
   invoker-only operator/worker IAM with negative impersonation/direct-data proof,
   both-workbook runtime access, in-flight drain,
   phase deadlines, and queue snapshots;
@@ -651,9 +781,10 @@ incident residual while the story remains open for exact reconciliation.
 - **Concurrent workbook writes**: inventory/fence human editors, Apps Script,
   add-ons, API/OAuth clients, service accounts, and Shared Drive automation; verify
   execution/Drive activity and revision/digest before every Sheet mutation.
-- **Unfenceable owner**: resolve My Drive/Shared Drive ownership and capabilities;
-  stop for a separately proven same-ID transfer/move if no reversible owner fence
-  exists.
+- **Owner capability remains**: use the accepted bounded no-edit agreement while
+  controlling other writers; record that checks do not eliminate races or detect
+  every transient edit. Expiry, reported edit, drift or uncertainty stops automatic
+  progression for reconciliation. A different custody route needs a separate decision.
 - **Shared Functions/Rules project**: exact deploys and both-path smoke.
 - **Default account blast radius**: prefer dedicated runtime; approve fallback.
 - **Async indexes**: build additive indexes to `READY` before maintenance and
@@ -664,3 +795,207 @@ incident residual while the story remains open for exact reconciliation.
 - **Irreversible notifications**: separate release and idempotency evidence.
 - **Unbounded outage**: phase deadlines force rollback or an explicitly approved
   safe resume with the outbox still sealed and the story left open.
+
+## Develop intake compatibility preparation — 2026-10-28
+
+HU-084 prepares the actual legacy-source bridge and durable capture in the same
+worktree; see its living plan and the bilingual backend-handoff guide. Functions
+build/full lint, 697 joint tests and the separately installed legacy-SDK protobuf capture
+smoke pass locally. Fresh read-only metadata confirms the six old deployed source
+generations are unchanged. The prepared package preserves their production bodies,
+lockfile and runtime configuration and proposes four collectors before six
+compatibility updates. The maintainer separately authorizes the first four only:
+they are deployed with exact source/configuration read-back and the six original
+Functions remain unchanged. Four safe temporary probes are CAS-cleaned; their
+four create and two delete events survive the observed protobuf-boundary fault
+and provider retry after its narrow correction. No original/production Sheet I/O,
+production data change or trial notification send occurs. Old invocations, retry-disabled delivery gaps and submitted provider
+effects remain unresolved; the prepared intake cannot issue a trusted barrier or
+replace current authority evidence. HU-085 stays open and shared `canApply:false`
+is unchanged.
+
+## Selective legacy develop containment verified — 2026-10-28
+
+After delivery of `76a96826`, separate explicit authorization covers all six
+compatibility updates and four bounded develop probes. Dispatcher-first deployment
+preserves the exact accepted source package, runtime/environment/permissions and
+production callback bodies. All six new revisions serve 100% traffic; four
+collectors and 14 other Functions remain unchanged. Both HTTP develop paths return
+503, six event requests reach the updated revisions, six probe events are retained
+and all four probe sources are conditionally cleaned. No original/production
+workbook I/O, production business mutation or test FCM send occurs.
+
+The offline inspector verifies before/after common-readTime source/journal sets,
+hashes, identities and versions/content; all 183 business documents remain unchanged.
+There are no current planning requests. All 117 historical notices remain outside
+automatic resend, including three old administrative broadcasts without dispatch
+summaries. Twelve captures/deliveries/revision twelve are verified, without replay
+or journal/business edits. Sixteen new tests and Functions build/full lint pass;
+the nine unchanged accepted executable inputs retain their 697-test baseline.
+
+This proves containment of new executions through the six selected develop entry
+points, including **all** develop notifications, not historical drain or authority
+over direct clients/users/config/manual actors. Keep legacyUntracked true, earlier
+external outcomes unknown, shared maintenance/migration closed and #268/#269 open.
+The maintainer authorizes delivery of the new offline inspector/tests and
+operational documentation; exact Git/remote verification is recorded in the
+canonical issues/PR. Deployed bridge code is already included in `76a96826`.
+
+## Develop client/authority closeout in preparation — 2026-10-28
+
+The inspector continuation is delivered at `f141a902`. Fresh baseline Rules and
+the real IAM census are read back. A pinned Rules-only packet and reviewed
+one-account/one-document client probe are ready for separate live approval;
+production admission predicates and server privileges are preserved. The offline
+census gains a stable set identity, not permission to declare earlier work drained.
+Build/full lint and 159 joint tests pass without failures/skips. Negative existing
+barrier integration proves a census/retained state cannot replace trusted closure.
+
+[ADR-0022](../../../docs/decisions/0022-cooperate-with-develop-firebase-administrators.md)
+is a proposed develop-only decision, not accepted policy. The observed shared
+Editor runtime, two Owner user principals and other privileged writers cannot be
+declared technically fenced by client Rules. Any agreed human exception still
+excludes automation and leaves actual invocation/effect reconciliation mandatory.
+Current HU-085/ADR-0021 authority requirements and shared admission remain unchanged.
+
+The follow-up audit confirms three enabled develop-only reminder jobs, previously
+missing from the logical inventory. V4 now requires all three before a new hold;
+it does not certify them paused or drained. Their identities/cron/HTTP/OIDC bindings
+and all twelve source generations are retained privately. The access resolver is
+newer than the eight remaining legacy HTTP callbacks and cannot be replaced from
+their old archive. After the inventory correction, 394 planning tests and a
+separate 155-case control/regression run pass without failure/skip, with build/full
+lint green. Exact live job containment remains a separate authorized action.
+
+## Approved develop client-only phase — 2026-10-28
+
+The maintainer explicitly approves Rules/Auth/probe application and accepts
+develop-only administrator cooperation under ADR-0022. The exact Firestore Rules
+candidate is published/read back. The genuine Firebase-ID-token probe proves
+baseline create200 then update403/read200/delete403/create403; owned temporary
+Auth/source cleanup succeeds. The complete business/journal set is unchanged.
+Independent audit verifies 24 Function configurations/revisions/provenances, IAM
+and inspected account controls unchanged. Three jobs remain enabled. No production
+business, original/production Sheet or FCM operation is run.
+
+This closes direct develop client writes. ADR-0022 is accepted as policy only;
+its versioned contract and actual participant confirmations remain required.
+Server admission, Scheduler containment and historical-effect proof stay pending;
+shared maintenance and production activation remain closed. The maintainer
+authorizes this source delivery; exact Git/remote verification is recorded in the
+canonical issues/PR. Unchanged executable hashes preserve build/lint and 394/155 runs.
+
+### Grouped administrator/server closure — 2026-10-28
+
+Delivered `e29b6bdd` before starting the next grouped work. Implement explicit
+ADR-0022 v3 through the existing intake/Sheets paths while preserving v1/v2.
+Prepare exact-source HTTP packs (legacy eight/newer member resolver one), with
+both direct/effective develop routing closed and original production callbacks.
+Pause only the three actual develop-only reminders; retain receipts, source/config/
+authority comparisons and earlier-work uncertainty. All three pause operations are accepted (one attempt each), with fresh
+semantic config/source/IAM read-back and preserved earlier-work uncertainty. No native changes,
+production activation, replay or maintenance admission is implied. Detailed
+acceptance is maintained in the bilingual selective-pause guide.
+
+The maintainer separately authorizes the existing nine HTTP updates. Both scoped
+packs deploy and all nine immutable archives match reviewed files. Runtime/IAM/
+identity/environment/secrets/traffic and the other fifteen Function configurations
+are preserved. Seven real develop requests return application503; two existing
+private endpoints return IAM403 before the callback (no permission relaxation).
+Final reads preserve all three PAUSED jobs, accepted Rules and the complete
+183-document/twelve-event captured payloads. The maintainer authorizes this source delivery; exact commit/remote evidence is
+recorded in #268/#269 and draft PR #278. No maintenance/migration admission, old-work drain or production
+business/Sheets/FCM action is implied. Actual complete participant commitments,
+automated authority and earlier effects are the remaining operational boundary.
+
+### Prior develop operations: approved reconciliation — 2026-10-28
+
+Deliver the accepted administrator/server closure as `afbcd098` before beginning
+this grouped investigation. Reuse the current validated census and exact deployed
+source/receipts to classify every observed source and retained delivery offline.
+Bind conclusions to source versions, set digest and evidence bytes. Correlate the
+twelve captures with accepted synthetic probe receipts/cleanup and bounded real
+legacy logs; retain all 117 notifications as possibly delivered and unreplayable.
+Inspect the three develop-only reminder services and provider log retention with
+finite read-only queries. Distinguish current baseline, attributed terminal work,
+external uncertainty and missing historical evidence. No replay, new shared ledger,
+legacyUntracked reset or maintenance/migration admission is part of this group.
+Finish with a finite evidence-bound report, relevant regression tests and a clear
+residual list; ask for a human decision only if that concrete residual requires it.
+
+The approved read-only group is now accepted:12 captures bind to exact synthetic
+receipts;5 old-revision runtime logs confirm probe exits; one observed import62
+terminal/HTTP200 agrees with current versions;12 recent reminder terminals/HTTP200s
+agree with recent notices. All117 notices remain possibly delivered/unreplayable;
+75 reminders lie outside the observed30-day retention window. The four seasonal
+workbook grids retain399 exact typed literals. Before/after source/journal payloads
+are identical; all three jobs remain PAUSED. The bounded offline inspector passes
+40 tests and Functions build/full lint; independent receipt/census monotonicity
+finding is fixed. See `docs/testing/hu084-develop-legacy-reconciliation.md` and its
+Spanish counterpart for the finite residual list. Investigation completeness is
+not physical handoff: no admission/legacyUntracked flag is relaxed. Actual automated
+control/queue/in-flight evidence and the participant/window agreement are next.
+
+### Develop queues and maintenance-window preparation — 2026-10-28
+
+Deliver prior reconciliation as `4cb216824dc908293311a4f9c496fc2326c0f350`,
+with remote/PR verification and matching six-input validation (build/full/focused
+lint and40 offline tests). Inspect actual Eventarc/PubSub/service bindings and
+bounded provider metrics without pulling/ACKing/seeking messages or changing IAM.
+Prepare a concrete future window; preparation does not open maintenance.
+
+The first real observation finds four private collectors each with backlog1 and
+repeated event_payload_conflict/HTTP500. Shared subscriptions provide no series,
+which remains unknown. Existing canonical event/delivery keys collapse differing
+metadata observations; the exact conflicting field is not yet proven. Prepare a
+single lossless metadata-observation fix and four-only deployment packet under
+proposed ADR-0023: preserve twelve schema1 deliveries/first envelopes, append
+schema2 observations in the same collection only for identical core and immutable
+CloudEvent identity, and retain rejection/diagnostics for other conflicts. Reuse
+existing counters/CAS/inspector; never ACK without durable retention or run legacy
+business logic. Review/test/freeze the packet before requesting its scoped live
+authorization. After authorized update, inspect natural retries/journal/provider
+observations rather than manually consuming or replaying messages.
+
+The window remains NOT READY. Five exact planning-authority paths are absent;
+bootstrap cannot be replaced by epoch0. Shared ACTIVE production triggers cannot
+be reported physically disabled, and the existing v4 admission contract lacks the
+provider-backed capture-only scope. Future admission needs those explicit controls,
+actual participants/operator identity, refreshed source/IAM/workbook/set bindings
+and separate authorization. A provisional20-minute work plus20-minute recovery
+budget has no date, confirmation or live effect.
+
+Local preparation is complete: full Functions build/lint and147 joint tests pass
+with no failures/skips. The exact four-export/seven-file packet, backwards-compatible
+inspector and GET-only guard/post verifier pass independent review. Real archived
+SDK discovery confirms four retry-enabled exports; a fresh guard binds all24
+unchanged Functions and the final manifest. The bilingual queue/window guide fixes
+the future prerequisites and provisional budget. Scoped deployment approval is
+requested; no cloud update, natural-retry acceptance or maintenance entry is yet claimed.
+
+## Authorized four-collector update — 2026-10-29
+
+The authorized deployment succeeds for exactly four private collectors. Immutable
+source archives match the reviewed packet; runtime configuration, identity,
+permissions, filters, retries and traffic are preserved, as are the other twenty
+Functions. Natural retries retain four schema2 observations: each differs from
+its canonical record only in traceparent. The source183 documents, twelve original
+events/deliveries and chunks remain byte-equivalent including source versions.
+Root captureRevision/deliveryCount advance12→16; eventCount stays12 and
+legacyUntracked stays true. No business callback, Sheets write, FCM send, manual
+message consumption, maintenance entry or migration is performed.
+
+The 147-test/build/lint gate is reused with unchanged executable inputs. The
+Firebase CLI warns about the intentionally preserved archived SDK; this scoped
+update does not upgrade runtime dependencies. Native code is unchanged.
+
+## Delivered repair and residual reconciliation — 2026-10-29
+
+Repair delivered as `3977fd6f2df13d87748c7db1e3dd31ed36b8db1d`; remote and draft
+PR match. Read-only residual reconciliation observes one provider ack_204/push ACK
+in00:30–00:31 UTC and backlog/oldest-age0 at00:36/00:37 UTC for the private shift
+subscription. Fresh183-source/12-event/16-delivery census is unchanged; no new
+requests/errors in the later bounded query. Historical residual reconciled; recent
+missing metrics remain UNKNOWN and do not admit maintenance. Next: provider/sourceScope
+control and controlled bootstrap before participant/window commitments. See the
+bilingual queue/window guide. Only this new evidence documentation remains local.

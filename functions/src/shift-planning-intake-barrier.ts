@@ -1,4 +1,21 @@
 import {
+  DevelopHistoricalRisk, parseDevelopHistoricalRisk,
+  assertDevelopHistoricalRiskBinding, developHistoricalRiskDigest,
+} from "./shift-planning-historical-risk.js";
+import {
+  DEVELOP_CONTAINED_DELIVERY_POLICY,
+  ContainedDeliveryEvidence,
+  containedDeliveryCount,
+  parseContainedDeliveryEvidence,
+} from "./shift-planning-contained-delivery.js";
+import {
+  DEVELOP_CAPTURE_CONTROL_REVISION,
+  DEVELOP_CAPTURE_ROUTES,
+  developCaptureControlDigest,
+  parseShiftPlanningDevelopCaptureControl,
+  ShiftPlanningDevelopCaptureControl,
+} from "./shift-planning-develop-capture-control.js";
+import {
   ShiftPlanningError,
 } from "./shift-planning-contract.js";
 import {
@@ -16,15 +33,79 @@ import {
   SHIFT_PLANNING_AFFECTED_WRITERS,
   SHIFT_PLANNING_INTAKE_BARRIER_WRITERS,
   SHIFT_PLANNING_RULES_DENIED_WRITER_IDS,
+  SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS,
+  SHIFT_PLANNING_OWNER_AGREEMENT_INTAKE_WRITERS,
+  SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
+  SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST,
+  SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INTAKE_WRITERS,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_DIGEST,
+  SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID,
   SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
   SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
-  ShiftPlanningAffectedWriter,
   ShiftPlanningWriterControlState,
 } from "./shift-planning-writer-inventory.js";
 import {
   ShiftPlanningEnvironment,
   ShiftPlanningIntakeBarrier,
 } from "./shift-planning-wire.js";
+
+import {
+  parseShiftPlanningOwnerMaintenanceAgreement,
+  assertShiftPlanningOwnerMaintenanceObservation,
+  ShiftPlanningOwnerMaintenanceAgreement,
+} from "./shift-planning-owner-maintenance.js";
+import {
+  parseShiftPlanningAdministratorMaintenanceAgreement,
+  assertShiftPlanningAdministratorMaintenanceObservation,
+  ShiftPlanningAdministratorMaintenanceAgreement,
+} from "./shift-planning-administrator-maintenance.js";
+
+export type ShiftPlanningOwnerAgreementMode = {
+  schemaVersion: 2;
+  maintenanceMode: "owner-agreement";
+  expectedOwnerAgreementDigest: ShiftPlanningDigest;
+  expectedTechnicalControlManifestDigest: ShiftPlanningDigest;
+};
+export type ShiftPlanningAdministratorAgreementMode = Omit<
+  ShiftPlanningOwnerAgreementMode, "schemaVersion" | "maintenanceMode"
+> & {
+  schemaVersion: 3;
+  maintenanceMode: "develop-administrator-agreement";
+  expectedAdministratorAgreementDigest: ShiftPlanningDigest;
+  expectedAdministratorSourceRevision: string;
+  expectedAdministratorSourceDigest: ShiftPlanningDigest;
+  expectedEffectiveIamDigest: ShiftPlanningDigest;
+  expectedHistoricalRiskDigest?: ShiftPlanningDigest;
+};
+type ShiftPlanningStrictMode = {
+  schemaVersion?: never;
+  maintenanceMode?: never;
+  expectedOwnerAgreementDigest?: never;
+  expectedTechnicalControlManifestDigest?: never;
+};
+type MaintenanceMode =
+  ShiftPlanningStrictMode | ShiftPlanningOwnerAgreementMode |
+  ShiftPlanningAdministratorAgreementMode;
+type PolicyVersion = 1 | 2 | 3;
+const inventoryFor = (version: PolicyVersion) => version === 3 ? {
+  revision: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_DIGEST,
+  writers: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS,
+  intake: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INTAKE_WRITERS,
+} : version === 2 ? {
+  revision: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST,
+  writers: SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS,
+  intake: SHIFT_PLANNING_OWNER_AGREEMENT_INTAKE_WRITERS,
+} : {revision: SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
+  digest: SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
+  writers: SHIFT_PLANNING_AFFECTED_WRITERS,
+  intake: SHIFT_PLANNING_INTAKE_BARRIER_WRITERS};
+const versionOf = (value: {schemaVersion?: number}): PolicyVersion =>
+  value.schemaVersion === 3 ? 3 : value.schemaVersion === 2 ? 2 : 1;
 
 export const SHIFT_PLANNING_INTAKE_BARRIER_SCHEMA_VERSION = 1 as const;
 
@@ -40,7 +121,9 @@ export type ShiftPlanningBarrierTransitionBinding = {
 };
 
 export type ShiftPlanningBarrierInventoryBinding = {
-  revision: typeof SHIFT_PLANNING_WRITER_INVENTORY_REVISION;
+  revision: typeof SHIFT_PLANNING_WRITER_INVENTORY_REVISION |
+    typeof SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION |
+    typeof SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION;
   digest: ShiftPlanningDigest;
 };
 
@@ -64,7 +147,9 @@ export type ShiftPlanningRulesBarrierEvidence = {
 
 export type ShiftPlanningWriterControlEvidence = {
   writerId: string;
-  state: ShiftPlanningWriterControlState;
+  state: ShiftPlanningWriterControlState | "capture-only";
+  developCapture?: ShiftPlanningDevelopCaptureControl;
+  deliveryPolicy?: typeof DEVELOP_CONTAINED_DELIVERY_POLICY;
   controlRevision: string;
   controlDigest: ShiftPlanningDigest;
   initialReadBackRevision: string;
@@ -74,24 +159,27 @@ export type ShiftPlanningWriterControlEvidence = {
   closedAtMillis: number;
   initialReadBackAtMillis: number;
   finalReadBackAtMillis: number;
-  pendingWorkCount: number;
-  inFlightWorkCount: number;
+  /** Historical unknowns are null only for explicitly accepted predecessors. */
+  pendingWorkCount: number | null;
+  inFlightWorkCount: number | null;
 };
 
 export type ShiftPlanningCausalDrainEvidence = {
+  containedDelivery?: ContainedDeliveryEvidence;
+  historicalRisk?: DevelopHistoricalRisk;
   acceptedSetRevision: string;
   acceptedSetDigest: ShiftPlanningDigest;
   capturedAtMillis: number;
-  drainedAtMillis: number;
-  initialPendingWorkCount: number;
-  initialInFlightWorkCount: number;
-  initialPendingDeliveryCount: number;
-  initialInFlightDeliveryCount: number;
+  drainedAtMillis: number | null;
+  initialPendingWorkCount: number | null;
+  initialInFlightWorkCount: number | null;
+  initialPendingDeliveryCount: number | null;
+  initialInFlightDeliveryCount: number | null;
   initialQueueReadBackAtMillis: number;
-  finalPendingWorkCount: number;
-  finalInFlightWorkCount: number;
-  finalPendingDeliveryCount: number;
-  finalInFlightDeliveryCount: number;
+  finalPendingWorkCount: number | null;
+  finalInFlightWorkCount: number | null;
+  finalPendingDeliveryCount: number | null;
+  finalInFlightDeliveryCount: number | null;
   finalQueueReadBackAtMillis: number;
 };
 
@@ -114,8 +202,7 @@ export type ShiftPlanningQuietHorizonEvidence = {
   deliveryMutationCount: number;
 };
 
-export type ShiftPlanningIntakeBarrierEvidencePayload = {
-  schemaVersion: typeof SHIFT_PLANNING_INTAKE_BARRIER_SCHEMA_VERSION;
+type IntakeBarrierEvidenceCommon = {
   environment: ShiftPlanningEnvironment;
   barrierRevision: string;
   transition: ShiftPlanningBarrierTransitionBinding;
@@ -128,6 +215,25 @@ export type ShiftPlanningIntakeBarrierEvidencePayload = {
   quietHorizon: ShiftPlanningQuietHorizonEvidence;
   verifiedAtMillis: number;
 };
+export type ShiftPlanningIntakeBarrierEvidencePayload =
+  IntakeBarrierEvidenceCommon & ({
+    schemaVersion: 1;
+    maintenanceMode?: never;
+    ownerAgreement?: never;
+    ownerObservation?: never;
+  } | {
+    schemaVersion: 2;
+    maintenanceMode: "owner-agreement";
+    ownerAgreement: ShiftPlanningOwnerMaintenanceAgreement;
+    ownerObservation: unknown;
+  } | {
+    schemaVersion: 3;
+    maintenanceMode: "develop-administrator-agreement";
+    ownerAgreement: ShiftPlanningOwnerMaintenanceAgreement;
+    ownerObservation: unknown;
+    administratorAgreement: ShiftPlanningAdministratorMaintenanceAgreement;
+    administratorObservation: unknown;
+  });
 
 export type ShiftPlanningIntakeBarrierEvidenceEnvelope = {
   payload: ShiftPlanningIntakeBarrierEvidencePayload;
@@ -151,7 +257,7 @@ export type ShiftPlanningIntakeBarrierEvidenceRetentionRequest =
 };
 
 export type ShiftPlanningMaintenanceEntryRequest =
-  ShiftPlanningMaintenanceCas & {
+  ShiftPlanningMaintenanceCas & MaintenanceMode & {
     expectedBarrierRevision: string;
     expectedRulesRevision: string;
     expectedRulesDigest: ShiftPlanningDigest;
@@ -165,7 +271,7 @@ export type ShiftPlanningMaintenanceEntryRequest =
     maximumEvidenceAgeMillis: number;
   };
 
-export type ShiftPlanningClosedBarrierScope = {
+export type ShiftPlanningClosedBarrierScope = MaintenanceMode & {
   environment: ShiftPlanningEnvironment;
   transitionId: string;
   expectedAuthoritativeDigest: string;
@@ -184,7 +290,9 @@ export type ShiftPlanningClosedBarrierScope = {
   expectedCausalSetDigest: ShiftPlanningDigest;
   minimumQuietHorizonMillis: number;
   maximumEvidenceAgeMillis: number;
-  writerInventoryRevision: typeof SHIFT_PLANNING_WRITER_INVENTORY_REVISION;
+  writerInventoryRevision: typeof SHIFT_PLANNING_WRITER_INVENTORY_REVISION |
+    typeof SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION |
+    typeof SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION;
   writerInventoryDigest: ShiftPlanningDigest;
 };
 
@@ -201,6 +309,9 @@ export interface ShiftPlanningIntakeBarrierAdapter {
     scope: ShiftPlanningClosedBarrierScope,
     operation: (evidence: unknown) => Promise<Result>,
   ): Promise<Result>;
+  assertReadOnlyReplayAllowed?(
+    scope: ShiftPlanningClosedBarrierScope,
+  ): Promise<void>;
 }
 
 /**
@@ -356,6 +467,51 @@ const maintenanceEntryRequestKeys = [
   "maximumEvidenceAgeMillis",
 ] as const;
 
+const ownerMode = (value: UnknownRecord): ShiftPlanningOwnerAgreementMode => {
+  if (value.schemaVersion !== 2 ||
+      value.maintenanceMode !== "owner-agreement") {
+    return failBarrier("Cooperative owner maintenance mode is not explicit.");
+  }
+  return {
+    schemaVersion: 2, maintenanceMode: "owner-agreement",
+    expectedOwnerAgreementDigest: requireDigest(
+      value.expectedOwnerAgreementDigest, "owner agreement digest",
+    ),
+    expectedTechnicalControlManifestDigest: requireDigest(
+      value.expectedTechnicalControlManifestDigest, "technical controls digest",
+    ),
+  };
+};
+const administratorMode = (
+  value: UnknownRecord,
+): ShiftPlanningAdministratorAgreementMode => {
+  if (value.schemaVersion !== 3 || value.maintenanceMode !==
+      "develop-administrator-agreement" || value.environment !== "develop") {
+    return failBarrier("Administrator cooperation is explicit develop-only.");
+  }
+  return {...ownerMode({...value, schemaVersion: 2,
+    maintenanceMode: "owner-agreement"}), schemaVersion: 3,
+  maintenanceMode: "develop-administrator-agreement",
+  expectedAdministratorAgreementDigest: requireDigest(
+    value.expectedAdministratorAgreementDigest, "administrator agreement"),
+  expectedAdministratorSourceRevision: requireIdentifier(
+    value.expectedAdministratorSourceRevision, "administrator source revision"),
+  expectedAdministratorSourceDigest: requireDigest(
+    value.expectedAdministratorSourceDigest, "administrator source digest"),
+  expectedEffectiveIamDigest: requireDigest(
+    value.expectedEffectiveIamDigest, "effective IAM digest"),
+  ...(value.expectedHistoricalRiskDigest !== undefined ? {
+    expectedHistoricalRiskDigest: requireDigest(
+      value.expectedHistoricalRiskDigest,
+      "historical risk acceptance digest"),
+  } : {})};
+};
+const cooperativeKeys = ["schemaVersion", "maintenanceMode",
+  "expectedOwnerAgreementDigest", "expectedTechnicalControlManifestDigest"];
+const administratorKeys = ["expectedAdministratorAgreementDigest",
+  "expectedAdministratorSourceRevision", "expectedAdministratorSourceDigest",
+  "expectedEffectiveIamDigest"];
+
 const normalizeMaintenanceEntryRequest = (
   value: ShiftPlanningMaintenanceEntryRequest,
 ): ShiftPlanningMaintenanceEntryRequest => {
@@ -365,7 +521,12 @@ const normalizeMaintenanceEntryRequest = (
   );
   requireExactKeys(
     command,
-    maintenanceEntryRequestKeys,
+    command.schemaVersion === 3 ? [...maintenanceEntryRequestKeys,
+      ...cooperativeKeys, ...administratorKeys,
+      ...(command.expectedHistoricalRiskDigest !== undefined ?
+        ["expectedHistoricalRiskDigest"] : [])] : command.schemaVersion === 2 ?
+      [...maintenanceEntryRequestKeys, ...cooperativeKeys] :
+      maintenanceEntryRequestKeys,
     "maintenance entry request",
   );
   const expectedActiveRevision = requireNullableIdentifier(
@@ -379,7 +540,10 @@ const normalizeMaintenanceEntryRequest = (
   if ((expectedActiveRevision === null) !== (expectedActiveDigest === null)) {
     return failBarrier("Expected active lineage must change together.");
   }
+  const mode = command.schemaVersion === 3 ? administratorMode(command) :
+    command.schemaVersion === 2 ? ownerMode(command) : {};
   return Object.freeze({
+    ...mode,
     environment: requireEnvironment(command.environment),
     transitionId: requireIdentifier(command.transitionId, "transitionId"),
     expectedAuthoritativeDigest: requireDigest(
@@ -490,6 +654,7 @@ const parseTransition = (
 
 const parseInventory = (
   value: unknown,
+  version: PolicyVersion = 1,
 ): ShiftPlanningBarrierInventoryBinding => {
   const inventory = requireRecord(value, "writer inventory binding");
   requireExactKeys(
@@ -502,13 +667,12 @@ const parseInventory = (
     "writer inventory revision",
   );
   const digest = requireDigest(inventory.digest, "writer inventory digest");
-  if (
-    revision !== SHIFT_PLANNING_WRITER_INVENTORY_REVISION ||
-    digest !== SHIFT_PLANNING_WRITER_INVENTORY_DIGEST
-  ) {
+  const {revision: expectedRevision, digest: expectedDigest} =
+    inventoryFor(version);
+  if (revision !== expectedRevision || digest !== expectedDigest) {
     return failBarrier("Writer inventory binding does not match the runtime.");
   }
-  return {revision: SHIFT_PLANNING_WRITER_INVENTORY_REVISION, digest};
+  return {revision: expectedRevision, digest};
 };
 
 const parsePolicy = (value: unknown): ShiftPlanningBarrierPolicy => {
@@ -631,12 +795,10 @@ const parseRules = (value: unknown): ShiftPlanningRulesBarrierEvidence => {
   };
 };
 
-const writerById = new Map<string, ShiftPlanningAffectedWriter>(
-  SHIFT_PLANNING_AFFECTED_WRITERS.map((writer) => [writer.writerId, writer]),
-);
-
 const parseWriterControl = (
   value: unknown,
+  version: PolicyVersion = 1,
+  risk?: DevelopHistoricalRisk,
 ): ShiftPlanningWriterControlEvidence => {
   const control = requireRecord(value, "writer control evidence");
   requireExactKeys(control, [
@@ -653,13 +815,28 @@ const parseWriterControl = (
     "finalReadBackAtMillis",
     "pendingWorkCount",
     "inFlightWorkCount",
+    ...(control.state === "capture-only" ? ["developCapture"] : []),
+    ...(control.deliveryPolicy !== undefined ? ["deliveryPolicy"] : []),
   ], "writer control evidence");
   const writerId = requireIdentifier(control.writerId, "writerId");
-  const writer = writerById.get(writerId);
+  const writer = inventoryFor(version).writers.find(
+    (item) => item.writerId === writerId);
   if (!writer || writer.shutdownOrder === "activation-recheck") {
     return failBarrier(`Writer ${writerId} is not an intake-barrier writer.`);
   }
-  if (control.state !== writer.requiredState) {
+  const developCapture = control.state === "capture-only" ?
+    parseShiftPlanningDevelopCaptureControl(control.developCapture, writerId) :
+    undefined;
+  if (developCapture && (control.controlRevision !==
+      DEVELOP_CAPTURE_CONTROL_REVISION || control.controlDigest !==
+      developCaptureControlDigest(developCapture))) {
+    return failBarrier("Develop capture proof is not bound to its control.");
+  }
+  if (control.deliveryPolicy !== undefined && (!developCapture ||
+      control.deliveryPolicy !== DEVELOP_CONTAINED_DELIVERY_POLICY)) {
+    return failBarrier("Contained delivery needs an explicit capture control.");
+  }
+  if (!developCapture && control.state !== writer.requiredState) {
     return failBarrier(`Writer ${writerId} is not in its required state.`);
   }
   const controlRevision = requireIdentifier(
@@ -696,7 +873,11 @@ const parseWriterControl = (
   }
   return {
     writerId,
-    state: control.state as ShiftPlanningWriterControlState,
+    state: developCapture ? "capture-only" :
+      control.state as ShiftPlanningWriterControlState,
+    ...(developCapture ? {developCapture} : {}),
+    ...(control.deliveryPolicy !== undefined ?
+      {deliveryPolicy: DEVELOP_CONTAINED_DELIVERY_POLICY} : {}),
     controlRevision,
     controlDigest,
     initialReadBackRevision,
@@ -715,25 +896,30 @@ const parseWriterControl = (
       control.finalReadBackAtMillis,
       `writer ${writerId} final read-back instant`,
     ),
-    pendingWorkCount: requireNonNegativeInteger(
-      control.pendingWorkCount,
-      `writer ${writerId} pending work`,
-    ),
-    inFlightWorkCount: requireNonNegativeInteger(
-      control.inFlightWorkCount,
-      `writer ${writerId} in-flight work`,
-    ),
+    pendingWorkCount: risk?.predecessors.some((p) => p.writerId === writerId) &&
+      control.pendingWorkCount === null ? null : requireNonNegativeInteger(
+        control.pendingWorkCount,
+        `writer ${writerId} pending work`,
+      ),
+    inFlightWorkCount: risk?.predecessors.some((p) =>
+      p.writerId === writerId) &&
+      control.inFlightWorkCount === null ? null : requireNonNegativeInteger(
+        control.inFlightWorkCount,
+        `writer ${writerId} in-flight work`,
+      ),
   };
 };
 
 const parseWriterControls = (
   value: unknown,
   rules: ShiftPlanningRulesBarrierEvidence,
+  version: PolicyVersion = 1,
+  risk?: DevelopHistoricalRisk,
 ): ShiftPlanningWriterControlEvidence[] => {
   const controls = requireArray(value, "writer controls")
-    .map(parseWriterControl)
+    .map((control) => parseWriterControl(control, version, risk))
     .sort((left, right) => compareIdentifiers(left.writerId, right.writerId));
-  const expectedWriterIds = SHIFT_PLANNING_INTAKE_BARRIER_WRITERS
+  const expectedWriterIds = inventoryFor(version).intake
     .map((writer) => writer.writerId)
     .sort();
   const actualWriterIds = controls.map((control) => control.writerId);
@@ -741,7 +927,9 @@ const parseWriterControls = (
     return failBarrier("Writer controls do not match the complete inventory.");
   }
   for (const control of controls) {
-    if (control.pendingWorkCount !== 0 || control.inFlightWorkCount !== 0) {
+    if ((control.pendingWorkCount !== 0 && control.pendingWorkCount !== null) ||
+        (control.inFlightWorkCount !== 0 &&
+          control.inFlightWorkCount !== null)) {
       return failBarrier(`Writer ${control.writerId} is not drained.`);
     }
     if (
@@ -762,25 +950,33 @@ const parseWriterControls = (
 /**
  * Digests exact authorized controls independently of observation times.
  * @param {ShiftPlanningWriterControlEvidence[]} controls Controls.
+ * @param {string} mode Explicit cooperative inventory when selected.
  * @return {ShiftPlanningDigest} Canonical control-manifest digest.
  */
 export const createShiftPlanningControlManifestDigest = (
   controls: readonly ShiftPlanningWriterControlEvidence[],
+  mode?: "owner-agreement" | "develop-administrator-agreement",
 ): ShiftPlanningDigest => createShiftPlanningDigest({
   schemaVersion: SHIFT_PLANNING_INTAKE_BARRIER_SCHEMA_VERSION,
-  writerInventoryRevision: SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
+  writerInventoryRevision: inventoryFor(mode ===
+    "develop-administrator-agreement" ? 3 : mode === "owner-agreement" ? 2 : 1)
+    .revision,
   controls: controls
     .map((control) => ({
       writerId: control.writerId,
       state: control.state,
       controlRevision: control.controlRevision,
       controlDigest: control.controlDigest,
+      ...(control.deliveryPolicy ?
+        {deliveryPolicy: control.deliveryPolicy} : {}),
     }))
     .sort((left, right) => compareIdentifiers(left.writerId, right.writerId)),
 });
 
 const parseCausalDrain = (
   value: unknown,
+  controls: readonly ShiftPlanningWriterControlEvidence[],
+  historicalRisk?: DevelopHistoricalRisk,
 ): ShiftPlanningCausalDrainEvidence => {
   const drain = requireRecord(value, "causal drain evidence");
   requireExactKeys(drain, [
@@ -798,8 +994,35 @@ const parseCausalDrain = (
     "finalPendingDeliveryCount",
     "finalInFlightDeliveryCount",
     "finalQueueReadBackAtMillis",
+    ...(drain.containedDelivery !== undefined ? ["containedDelivery"] : []),
+    ...(historicalRisk ? ["historicalRisk"] : []),
   ], "causal drain evidence");
+  const containedControls = controls.filter((control) =>
+    control.deliveryPolicy);
+  const functions = containedControls.flatMap((control) =>
+    control.developCapture ?
+      [control.developCapture.shared.functionName,
+        control.developCapture.collector.functionName] : []);
+  if ((containedControls.length > 0) !==
+      (drain.containedDelivery !== undefined)) {
+    return failBarrier("Contained delivery must bind its authorized controls.");
+  }
+  const containedDelivery = drain.containedDelivery === undefined ? undefined :
+    parseContainedDeliveryEvidence(drain.containedDelivery, functions,
+      requireDigest(drain.acceptedSetDigest, "accepted causal set digest"));
+  const deliveryCount = (value: unknown, name: string): number | null =>
+    containedDelivery && value === null ? null :
+      requireNonNegativeInteger(value, name);
+  const workCount = (value: unknown, name: string): number | null =>
+    historicalRisk && value === null ? null :
+      requireNonNegativeInteger(value, name);
+  if (historicalRisk &&
+      (drain.drainedAtMillis !== null || !containedDelivery)) {
+    return failBarrier("Historical risk cannot assert a completed drain.");
+  }
   const parsed = {
+    ...(historicalRisk ? {historicalRisk} : {}),
+    ...(containedDelivery ? {containedDelivery} : {}),
     acceptedSetRevision: requireIdentifier(
       drain.acceptedSetRevision,
       "accepted causal set revision",
@@ -812,23 +1035,23 @@ const parseCausalDrain = (
       drain.capturedAtMillis,
       "causal capture instant",
     ),
-    drainedAtMillis: requireNonNegativeInteger(
+    drainedAtMillis: historicalRisk ? null : requireNonNegativeInteger(
       drain.drainedAtMillis,
       "causal drain instant",
     ),
-    initialPendingWorkCount: requireNonNegativeInteger(
+    initialPendingWorkCount: workCount(
       drain.initialPendingWorkCount,
       "initial pending causal work",
     ),
-    initialInFlightWorkCount: requireNonNegativeInteger(
+    initialInFlightWorkCount: workCount(
       drain.initialInFlightWorkCount,
       "initial in-flight causal work",
     ),
-    initialPendingDeliveryCount: requireNonNegativeInteger(
+    initialPendingDeliveryCount: deliveryCount(
       drain.initialPendingDeliveryCount,
       "initial pending deliveries",
     ),
-    initialInFlightDeliveryCount: requireNonNegativeInteger(
+    initialInFlightDeliveryCount: deliveryCount(
       drain.initialInFlightDeliveryCount,
       "initial in-flight deliveries",
     ),
@@ -836,19 +1059,19 @@ const parseCausalDrain = (
       drain.initialQueueReadBackAtMillis,
       "initial queue read-back instant",
     ),
-    finalPendingWorkCount: requireNonNegativeInteger(
+    finalPendingWorkCount: workCount(
       drain.finalPendingWorkCount,
       "final pending causal work",
     ),
-    finalInFlightWorkCount: requireNonNegativeInteger(
+    finalInFlightWorkCount: workCount(
       drain.finalInFlightWorkCount,
       "final in-flight causal work",
     ),
-    finalPendingDeliveryCount: requireNonNegativeInteger(
+    finalPendingDeliveryCount: deliveryCount(
       drain.finalPendingDeliveryCount,
       "final pending deliveries",
     ),
-    finalInFlightDeliveryCount: requireNonNegativeInteger(
+    finalInFlightDeliveryCount: deliveryCount(
       drain.finalInFlightDeliveryCount,
       "final in-flight deliveries",
     ),
@@ -857,17 +1080,24 @@ const parseCausalDrain = (
       "final queue read-back instant",
     ),
   };
-  if (
-    parsed.initialPendingWorkCount !== 0 ||
-    parsed.initialInFlightWorkCount !== 0 ||
-    parsed.initialPendingDeliveryCount !== 0 ||
-    parsed.initialInFlightDeliveryCount !== 0 ||
-    parsed.finalPendingWorkCount !== 0 ||
-    parsed.finalInFlightWorkCount !== 0 ||
-    parsed.finalPendingDeliveryCount !== 0 ||
-    parsed.finalInFlightDeliveryCount !== 0
-  ) {
-    return failBarrier("Causal work and delivery queues must be empty.");
+  if ([parsed.initialPendingWorkCount, parsed.initialInFlightWorkCount,
+    parsed.finalPendingWorkCount, parsed.finalInFlightWorkCount]
+    .some((value) => value !== 0 && value !== null)) {
+    return failBarrier("Prior causal business work must be drained.");
+  }
+  for (const stage of ["initial", "final"] as const) {
+    for (const [field, total] of [["pendingCount", "PendingDeliveryCount"],
+      ["inFlightCount", "InFlightDeliveryCount"]] as const) {
+      const expected = containedDelivery ?
+        containedDeliveryCount(containedDelivery[stage], field) : 0;
+      if (parsed[`${stage}${total}`] !== expected) {
+        return failBarrier("Delivery counts do not bind their exact routes.");
+      }
+    }
+    if (containedDelivery && containedDelivery[stage].observedAtMillis !==
+        parsed[`${stage}QueueReadBackAtMillis`]) {
+      return failBarrier("Contained delivery observation time is unbound.");
+    }
   }
   return parsed;
 };
@@ -978,6 +1208,52 @@ const validateCommandBinding = (
   command: ShiftPlanningMaintenanceEntryRequest,
 ): void => {
   const transition = payload.transition;
+  const risk = payload.causalDrain.historicalRisk;
+  if ((risk ? developHistoricalRiskDigest(risk) : undefined) !==
+      (command.schemaVersion === 3 ?
+        command.expectedHistoricalRiskDigest : undefined)) {
+    failBarrier("Historical risk differs from the authorized command.");
+  }
+  if (payload.schemaVersion !== 1) {
+    if (command.schemaVersion !== payload.schemaVersion ||
+        payload.ownerAgreement.digest !==
+          command.expectedOwnerAgreementDigest ||
+        createShiftPlanningControlManifestDigest(payload.writerControls.filter(
+          (control) => control.writerId !==
+            SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID &&
+            control.writerId !==
+              SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID,
+        ), payload.maintenanceMode) !==
+          command.expectedTechnicalControlManifestDigest ||
+        payload.writerControls.find((control) => control.writerId ===
+          SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID)?.controlDigest !==
+          payload.ownerAgreement.digest) {
+      failBarrier("Owner agreement does not bind its operation controls.");
+    }
+    if (payload.schemaVersion === 3 && (command.schemaVersion !== 3 ||
+        payload.administratorAgreement.digest !==
+          command.expectedAdministratorAgreementDigest ||
+        payload.writerControls.find((control) => control.writerId ===
+          SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID)?.controlDigest !==
+          payload.administratorAgreement.digest)) {
+      failBarrier("Administrator agreement does not bind its controls.");
+    }
+    if (payload.schemaVersion === 3) {
+      const administrator = payload.writerControls.find((control) =>
+        control.writerId === SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID);
+      const observed = requireRecord(payload.administratorObservation,
+        "historical administrator observation");
+      if (!administrator || payload.administratorAgreement.payload.confirmations
+        .some((confirmation) => confirmation.confirmedAtMillis >
+          administrator.closedAtMillis) ||
+        requireNonNegativeInteger(observed.observedAtMillis,
+          "administrator observation time") > payload.verifiedAtMillis) {
+        failBarrier("Administrator agreement was not recorded before capture.");
+      }
+    }
+  } else if (command.schemaVersion !== undefined) {
+    failBarrier("Strict evidence cannot authorize cooperative maintenance.");
+  }
   if (
     payload.environment !== command.environment ||
     payload.barrierRevision !== command.expectedBarrierRevision ||
@@ -996,7 +1272,8 @@ const validateCommandBinding = (
     ) ||
     payload.rules.finalReadBackRevision !== command.expectedRulesRevision ||
     payload.rules.finalReadBackDigest !== command.expectedRulesDigest ||
-    createShiftPlanningControlManifestDigest(payload.writerControls) !==
+    createShiftPlanningControlManifestDigest(payload.writerControls,
+      payload.maintenanceMode) !==
       command.expectedControlManifestDigest ||
     payload.workbook.fileId !== command.expectedWorkbookFileId ||
     payload.workbook.revision !== command.expectedWorkbookRevision ||
@@ -1020,6 +1297,15 @@ const validateChronology = (
   requireFreshness: boolean,
 ): void => {
   const {causalDrain, quietHorizon, rules, workbook} = payload;
+  const assessedOrDrainedAt = causalDrain.historicalRisk?.assessedAtMillis ??
+    causalDrain.drainedAtMillis;
+  if (assessedOrDrainedAt === null) {
+    return failBarrier("Missing drain boundary.");
+  }
+  if (requireFreshness && causalDrain.historicalRisk &&
+      nowMillis >= causalDrain.historicalRisk.expiresAtMillis) {
+    return failBarrier("Historical risk acceptance expired.");
+  }
   const oldestFinalObservation = oldestBarrierObservationMillis(payload);
   if (
     oldestFinalObservation >
@@ -1032,8 +1318,8 @@ const validateChronology = (
   if (
     rules.closedAtMillis > rules.initialReadBackAtMillis ||
     rules.initialReadBackAtMillis > causalDrain.capturedAtMillis ||
-    causalDrain.capturedAtMillis > causalDrain.drainedAtMillis ||
-    causalDrain.drainedAtMillis >
+    causalDrain.capturedAtMillis > assessedOrDrainedAt ||
+    assessedOrDrainedAt >
       causalDrain.initialQueueReadBackAtMillis ||
     causalDrain.initialQueueReadBackAtMillis > workbook.capturedAtMillis ||
     workbook.capturedAtMillis > quietHorizon.startedAtMillis ||
@@ -1054,14 +1340,17 @@ const validateChronology = (
     failBarrier("Barrier evidence chronology is invalid or stale.");
   }
   for (const control of payload.writerControls) {
-    const writer = writerById.get(control.writerId);
+    const writer = inventoryFor(versionOf(payload)).writers.find((item) =>
+      item.writerId === control.writerId);
     if (!writer) {
       return failBarrier("Barrier writer disappeared from inventory.");
     }
     const closureHasExpectedOrder =
       writer.shutdownOrder === "before-causal-capture" ?
         control.initialReadBackAtMillis <= causalDrain.capturedAtMillis :
-        control.closedAtMillis >= causalDrain.drainedAtMillis &&
+        (causalDrain.historicalRisk ?
+          control.closedAtMillis <= assessedOrDrainedAt :
+          control.closedAtMillis >= assessedOrDrainedAt) &&
           control.initialReadBackAtMillis <=
             causalDrain.initialQueueReadBackAtMillis;
     if (
@@ -1090,31 +1379,92 @@ const oldestBarrierObservationMillis = (
 
 const barrierEvidenceExpiresAtMillis = (
   payload: ShiftPlanningIntakeBarrierEvidencePayload,
-): number => oldestBarrierObservationMillis(payload) +
-  payload.policy.maximumEvidenceAgeMillis;
+): number => Math.min(
+  payload.causalDrain.historicalRisk?.expiresAtMillis ??
+    Number.MAX_SAFE_INTEGER,
+  oldestBarrierObservationMillis(payload) +
+    payload.policy.maximumEvidenceAgeMillis,
+  payload.schemaVersion !== 1 ?
+    payload.ownerAgreement.payload.intent.endsAtMillis :
+    Number.MAX_SAFE_INTEGER,
+  payload.schemaVersion === 3 ?
+    payload.administratorAgreement.payload.intent.endsAtMillis :
+    Number.MAX_SAFE_INTEGER,
+);
 
 const parsePayload = (
   value: unknown,
+  version: PolicyVersion = 1,
 ): ShiftPlanningIntakeBarrierEvidencePayload => {
   const payload = requireRecord(value, "intake barrier payload");
-  requireExactKeys(payload, payloadKeys, "intake barrier payload");
-  if (payload.schemaVersion !== SHIFT_PLANNING_INTAKE_BARRIER_SCHEMA_VERSION) {
+  const cooperative = version !== 1;
+  requireExactKeys(payload, cooperative ? [...payloadKeys, "maintenanceMode",
+    "ownerAgreement", "ownerObservation", ...(version === 3 ?
+      ["administratorAgreement", "administratorObservation"] : [])] :
+    payloadKeys,
+  "intake barrier payload");
+  if (payload.schemaVersion !== version ||
+      (cooperative && payload.maintenanceMode !== (version === 3 ?
+        "develop-administrator-agreement" : "owner-agreement")) ||
+      (version === 3 && payload.environment !== "develop")) {
     return failBarrier("Intake barrier schema version is unsupported.");
   }
   const rules = parseRules(payload.rules);
-  return {
-    schemaVersion: SHIFT_PLANNING_INTAKE_BARRIER_SCHEMA_VERSION,
+  const rawDrain = requireRecord(payload.causalDrain, "causal drain");
+  const risk = rawDrain.historicalRisk === undefined ? undefined :
+    parseDevelopHistoricalRisk(rawDrain.historicalRisk);
+  if (risk && version !== 3) {
+    return failBarrier("Historical risk requires develop administrator mode.");
+  }
+  const writerControls = parseWriterControls(payload.writerControls, rules,
+    version, risk);
+  const captures = writerControls.filter((control) => control.developCapture);
+  if (captures.length && (payload.environment !== "develop" ||
+      !exactStringSet(captures.map((control) => control.writerId).sort(),
+        DEVELOP_CAPTURE_ROUTES.map((route) => route[0]).sort()) ||
+      new Set(captures.map((control) => control.developCapture?.projectId))
+        .size !== 1)) {
+    return failBarrier("Develop capture needs all four exact source routes.");
+  }
+  if (captures.length && version === 3) {
+    const agreement = parseShiftPlanningAdministratorMaintenanceAgreement(
+      payload.administratorAgreement);
+    if (captures.some((control) => control.developCapture?.projectId !==
+        agreement.payload.intent.projectId)) {
+      return failBarrier("Capture and administrator project bindings differ.");
+    }
+  }
+  const causalDrain = parseCausalDrain(
+    payload.causalDrain, writerControls, risk);
+  const result: ShiftPlanningIntakeBarrierEvidencePayload = {
+    ...(cooperative ? {
+      ...(version === 3 ? {schemaVersion: 3 as const,
+        maintenanceMode: "develop-administrator-agreement" as const,
+        administratorAgreement:
+          parseShiftPlanningAdministratorMaintenanceAgreement(
+            payload.administratorAgreement),
+        administratorObservation: detachedCanonicalValue(
+          payload.administratorObservation, "administrator observation"),
+      } : {schemaVersion: 2 as const,
+        maintenanceMode: "owner-agreement" as const}),
+      ownerAgreement: parseShiftPlanningOwnerMaintenanceAgreement(
+        payload.ownerAgreement,
+      ),
+      ownerObservation: detachedCanonicalValue(
+        payload.ownerObservation, "owner observation",
+      ),
+    } : {schemaVersion: 1 as const}),
     environment: requireEnvironment(payload.environment),
     barrierRevision: requireIdentifier(
       payload.barrierRevision,
       "barrier revision",
     ),
     transition: parseTransition(payload.transition),
-    writerInventory: parseInventory(payload.writerInventory),
+    writerInventory: parseInventory(payload.writerInventory, version),
     policy: parsePolicy(payload.policy),
     rules,
-    writerControls: parseWriterControls(payload.writerControls, rules),
-    causalDrain: parseCausalDrain(payload.causalDrain),
+    writerControls,
+    causalDrain,
     workbook: parseWorkbook(payload.workbook),
     quietHorizon: parseQuietHorizon(payload.quietHorizon),
     verifiedAtMillis: requireNonNegativeInteger(
@@ -1122,6 +1472,8 @@ const parsePayload = (
       "barrier verification instant",
     ),
   };
+  assertDevelopHistoricalRiskBinding(result);
+  return result;
 };
 
 /**
@@ -1131,10 +1483,12 @@ const parsePayload = (
  * to maintenance admission, while immutable evidence storage must also read
  * terminal packets after their admission window has elapsed.
  * @param {unknown} value Untrusted evidence envelope.
+ * @param {number} version Explicit policy version.
  * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Normalized envelope.
  */
-export const parseShiftPlanningIntakeBarrierEvidenceEnvelope = (
+const parseEvidenceEnvelope = (
   value: unknown,
+  version: PolicyVersion = 1,
 ): ShiftPlanningIntakeBarrierEvidenceEnvelope => {
   const canonicalEnvelope = detachedCanonicalValue(
     value,
@@ -1145,7 +1499,7 @@ export const parseShiftPlanningIntakeBarrierEvidenceEnvelope = (
     "intake barrier envelope",
   );
   requireExactKeys(envelope, ["payload", "digest"], "intake barrier envelope");
-  const payload = parsePayload(envelope.payload);
+  const payload = parsePayload(envelope.payload, version);
   const digest = requireDigest(
     envelope.digest,
     "intake barrier evidence digest",
@@ -1154,6 +1508,48 @@ export const parseShiftPlanningIntakeBarrierEvidenceEnvelope = (
     return failBarrier("Intake barrier evidence digest does not match.");
   }
   return {payload, digest};
+};
+
+/**
+ * Parses strict v1 only; cooperative evidence never falls back to strict.
+ * @param {unknown} value Strict evidence envelope.
+ * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Exact strict evidence.
+ */
+export const parseShiftPlanningIntakeBarrierEvidenceEnvelope = (
+  value: unknown,
+): ShiftPlanningIntakeBarrierEvidenceEnvelope => parseEvidenceEnvelope(value);
+
+/**
+ * Parses the explicitly versioned cooperative owner contract.
+ * @param {unknown} value Cooperative evidence envelope.
+ * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Exact v2 evidence.
+ */
+export const parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope = (
+  value: unknown,
+): ShiftPlanningIntakeBarrierEvidenceEnvelope =>
+  parseEvidenceEnvelope(value, 2);
+
+/**
+ * Parses ADR-0022 only through its explicit develop-only policy version.
+ * @param {unknown} value Version 3 evidence.
+ * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Exact evidence.
+ */
+export const parseShiftPlanningAdministratorAgreementIntakeBarrierEvidence = (
+  value: unknown,
+): ShiftPlanningIntakeBarrierEvidenceEnvelope =>
+  parseEvidenceEnvelope(value, 3);
+
+/**
+ * Reads immutable retained evidence of either explicit version.
+ * @param {unknown} value Retained envelope, not an admission bypass.
+ * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Version-bound evidence.
+ */
+export const parseShiftPlanningMaintenanceBarrierEvidenceEnvelope = (
+  value: unknown,
+): ShiftPlanningIntakeBarrierEvidenceEnvelope => {
+  const envelope = requireRecord(value, "maintenance evidence");
+  const payload = requireRecord(envelope.payload, "maintenance payload");
+  return parseEvidenceEnvelope(value, versionOf(payload));
 };
 
 /**
@@ -1174,7 +1570,7 @@ const verifyIntakeBarrierEvidence = (
   requireFreshness: boolean,
 ): VerifiedShiftPlanningIntakeBarrier => {
   const {payload, digest} =
-    parseShiftPlanningIntakeBarrierEvidenceEnvelope(value);
+    parseEvidenceEnvelope(value, versionOf(command));
   const normalizedNow = requireNonNegativeInteger(
     nowMillis,
     "verification clock",
@@ -1182,6 +1578,46 @@ const verifyIntakeBarrierEvidence = (
   const normalizedCommand = normalizeMaintenanceEntryRequest(command);
   validateCommandBinding(payload, normalizedCommand);
   validateChronology(payload, normalizedNow, requireFreshness);
+  if (payload.schemaVersion !== 1) {
+    assertShiftPlanningOwnerMaintenanceObservation({
+      agreement: payload.ownerAgreement, observation: payload.ownerObservation,
+      environment: command.environment, operationId: command.transitionId,
+      workbookFileId: command.expectedWorkbookFileId,
+      workbookRevision: command.expectedWorkbookRevision,
+      workbookDigest: command.expectedWorkbookDigest,
+      writeEpoch: command.expectedWriteEpoch,
+      activeRevision: command.expectedActiveRevision,
+      activeDigest: command.expectedActiveDigest,
+      authoritativeDigest: command.expectedAuthoritativeDigest,
+      technicalControlManifestDigest:
+        command.expectedTechnicalControlManifestDigest as ShiftPlanningDigest,
+      nowMillis: normalizedNow,
+      maximumEvidenceAgeMillis: command.maximumEvidenceAgeMillis,
+      requireFreshWindow: requireFreshness,
+    });
+  }
+  if (payload.schemaVersion === 3 && command.schemaVersion === 3) {
+    assertShiftPlanningAdministratorMaintenanceObservation({
+      agreement: payload.administratorAgreement,
+      observation: payload.administratorObservation,
+      environment: command.environment,
+      ownerAgreementDigest: command.expectedOwnerAgreementDigest,
+      affectedScopeDigest: command.expectedAuthoritativeDigest,
+      writeEpoch: command.expectedWriteEpoch,
+      activeRevision: command.expectedActiveRevision,
+      activeDigest: command.expectedActiveDigest,
+      technicalControlManifestDigest:
+        command.expectedTechnicalControlManifestDigest,
+      sourceRevision: command.expectedAdministratorSourceRevision,
+      sourceDigest: command.expectedAdministratorSourceDigest,
+      effectiveIamDigest: command.expectedEffectiveIamDigest,
+      operationId: command.transitionId, operationKind: "maintenance-entry",
+      operationManifestDigest: command.expectedTechnicalControlManifestDigest,
+      nowMillis: normalizedNow,
+      maximumEvidenceAgeMillis: command.maximumEvidenceAgeMillis,
+      requireFreshWindow: requireFreshness,
+    });
+  }
   return {
     barrier: {
       revision: payload.barrierRevision,
@@ -1204,12 +1640,47 @@ export const verifyShiftPlanningIntakeBarrierEvidence = (
   value: unknown,
   command: ShiftPlanningMaintenanceEntryRequest,
   nowMillis: number,
-): VerifiedShiftPlanningIntakeBarrier => verifyIntakeBarrierEvidence(
-  value,
-  command,
-  nowMillis,
-  true,
-);
+): VerifiedShiftPlanningIntakeBarrier => {
+  if (command.schemaVersion !== undefined) {
+    return failBarrier("Strict admission cannot accept owner-agreement mode.");
+  }
+  return verifyIntakeBarrierEvidence(value, command, nowMillis, true);
+};
+
+/**
+ * Verifies explicit cooperative admission with original strong controls.
+ * @param {unknown} value Version 2 evidence.
+ * @param {ShiftPlanningMaintenanceEntryRequest} command Version 2 request.
+ * @param {number} nowMillis Trusted admission clock.
+ * @return {VerifiedShiftPlanningIntakeBarrier} Bound maintenance evidence.
+ */
+export const verifyShiftPlanningOwnerAgreementIntakeBarrierEvidence = (
+  value: unknown,
+  command: ShiftPlanningMaintenanceEntryRequest,
+  nowMillis: number,
+): VerifiedShiftPlanningIntakeBarrier => {
+  if (command.schemaVersion !== 2) {
+    return failBarrier("Cooperative admission requires explicit version 2.");
+  }
+  return verifyIntakeBarrierEvidence(value, command, nowMillis, true);
+};
+
+/**
+ * Admits explicit develop administration while preserving all technical gates.
+ * @param {unknown} value Version 3 evidence.
+ * @param {ShiftPlanningMaintenanceEntryRequest} command Version 3 command.
+ * @param {number} nowMillis Trusted current clock.
+ * @return {VerifiedShiftPlanningIntakeBarrier} Bound evidence.
+ */
+export const verifyShiftPlanningAdministratorAgreementIntakeBarrierEvidence = (
+  value: unknown, command: ShiftPlanningMaintenanceEntryRequest,
+  nowMillis: number,
+): VerifiedShiftPlanningIntakeBarrier => {
+  if (command.schemaVersion !== 3) {
+    return failBarrier("Administrator admission requires explicit version 3.");
+  }
+  return verifyIntakeBarrierEvidence(value, command, nowMillis, true);
+};
 
 const requireFreshBarrierEvidence = (
   verified: VerifiedShiftPlanningIntakeBarrier,
@@ -1218,7 +1689,10 @@ const requireFreshBarrierEvidence = (
   const now = requireNonNegativeInteger(nowMillis, "verification clock");
   if (
     verified.barrier.verifiedAtMillis > now ||
-    now > verified.expiresAtMillis
+    now > verified.expiresAtMillis ||
+    (verified.evidence.payload.schemaVersion !== 1 &&
+      now >= verified.evidence.payload.ownerAgreement.payload.intent
+        .endsAtMillis)
   ) {
     failBarrier("Barrier evidence is stale for a new maintenance attempt.");
   }
@@ -1286,6 +1760,37 @@ const requireCurrentReplayOwnership = async (
   }
 };
 
+const maintenanceScope = (
+  command: ShiftPlanningMaintenanceEntryRequest,
+): ShiftPlanningClosedBarrierScope => {
+  const common = {environment: command.environment,
+    transitionId: command.transitionId,
+    expectedAuthoritativeDigest: command.expectedAuthoritativeDigest,
+    expectedStateRevision: command.expectedStateRevision,
+    expectedWriteEpoch: command.expectedWriteEpoch,
+    expectedActiveRevision: command.expectedActiveRevision,
+    expectedActiveDigest: command.expectedActiveDigest,
+    expectedBarrierRevision: command.expectedBarrierRevision,
+    expectedRulesRevision: command.expectedRulesRevision,
+    expectedRulesDigest: command.expectedRulesDigest,
+    expectedControlManifestDigest:
+    command.expectedControlManifestDigest,
+    expectedWorkbookFileId: command.expectedWorkbookFileId,
+    expectedWorkbookRevision: command.expectedWorkbookRevision,
+    expectedWorkbookDigest: command.expectedWorkbookDigest,
+    expectedCausalSetRevision: command.expectedCausalSetRevision,
+    expectedCausalSetDigest: command.expectedCausalSetDigest,
+    minimumQuietHorizonMillis: command.minimumQuietHorizonMillis,
+    maximumEvidenceAgeMillis: command.maximumEvidenceAgeMillis,
+    writerInventoryRevision: inventoryFor(versionOf(command)).revision,
+    writerInventoryDigest: inventoryFor(versionOf(command)).digest};
+  return command.schemaVersion === 3 ? {
+    ...common, ...administratorMode(command as unknown as UnknownRecord),
+  } : command.schemaVersion === 2 ? {
+    ...common, ...ownerMode(command as unknown as UnknownRecord),
+  } : common;
+};
+
 /**
  * Establishes the no-gap ordering: the adapter holds the external fence while
  * evidence is verified and the backend state advances. No reopen capability is
@@ -1304,35 +1809,44 @@ export const enterShiftPlanningMaintenanceBehindIntakeBarrier = async (
   command: ShiftPlanningMaintenanceEntryRequest,
 ): Promise<ShiftPlanningMaintenanceTransitionResult> => {
   const stableCommand = normalizeMaintenanceEntryRequest(command);
+  const scope = maintenanceScope(stableCommand);
+  if (stableCommand.schemaVersion !== undefined) {
+    const terminal = await dependencies.statePersistence
+      .loadMaintenanceTransition({
+        environment: stableCommand.environment,
+        transitionId: stableCommand.transitionId,
+      });
+    if (terminal) {
+      if (!dependencies.barrierAdapter.assertReadOnlyReplayAllowed) {
+        return failBarrier("Owner receipt replay requires its adapter.");
+      }
+      await dependencies.barrierAdapter.assertReadOnlyReplayAllowed(scope);
+      const evidence = await dependencies.evidencePersistence.readExisting({
+        environment: stableCommand.environment,
+        transitionId: stableCommand.transitionId,
+      });
+      if (!evidence) return failBarrier("Terminal evidence is missing.");
+      const verified = verifyIntakeBarrierEvidence(
+        evidence, stableCommand, dependencies.readClockMillis(), false,
+      );
+      requireMatchingTerminalTransition(
+        terminal, stableCommand, verified.barrier, verified.expiresAtMillis,
+      );
+      const replay = {kind: "replayed" as const, transition: terminal};
+      await requireCurrentReplayOwnership(
+        dependencies.statePersistence, replay, verified.barrier,
+      );
+      await dependencies.barrierAdapter.assertReadOnlyReplayAllowed(scope);
+      return replay;
+    }
+  }
   let callbackInvocationCount = 0;
   let callbackResult: ShiftPlanningMaintenanceTransitionResult | undefined;
   let callbackDidFail = false;
   let callbackFailure: unknown;
   const adapterResult = await dependencies.barrierAdapter
     .withClosedIntakeBarrier<ShiftPlanningMaintenanceTransitionResult>(
-      {
-        environment: stableCommand.environment,
-        transitionId: stableCommand.transitionId,
-        expectedAuthoritativeDigest: stableCommand.expectedAuthoritativeDigest,
-        expectedStateRevision: stableCommand.expectedStateRevision,
-        expectedWriteEpoch: stableCommand.expectedWriteEpoch,
-        expectedActiveRevision: stableCommand.expectedActiveRevision,
-        expectedActiveDigest: stableCommand.expectedActiveDigest,
-        expectedBarrierRevision: stableCommand.expectedBarrierRevision,
-        expectedRulesRevision: stableCommand.expectedRulesRevision,
-        expectedRulesDigest: stableCommand.expectedRulesDigest,
-        expectedControlManifestDigest:
-          stableCommand.expectedControlManifestDigest,
-        expectedWorkbookFileId: stableCommand.expectedWorkbookFileId,
-        expectedWorkbookRevision: stableCommand.expectedWorkbookRevision,
-        expectedWorkbookDigest: stableCommand.expectedWorkbookDigest,
-        expectedCausalSetRevision: stableCommand.expectedCausalSetRevision,
-        expectedCausalSetDigest: stableCommand.expectedCausalSetDigest,
-        minimumQuietHorizonMillis: stableCommand.minimumQuietHorizonMillis,
-        maximumEvidenceAgeMillis: stableCommand.maximumEvidenceAgeMillis,
-        writerInventoryRevision: SHIFT_PLANNING_WRITER_INVENTORY_REVISION,
-        writerInventoryDigest: SHIFT_PLANNING_WRITER_INVENTORY_DIGEST,
-      },
+      scope,
       async (evidence) => {
         callbackInvocationCount += 1;
         if (callbackInvocationCount !== 1) {
@@ -1441,4 +1955,82 @@ export const enterShiftPlanningMaintenanceBehindIntakeBarrier = async (
     return failBarrier("Barrier adapter did not return its one CAS operation.");
   }
   return adapterResult;
+};
+
+
+/**
+ * Revalidates the strong technical evidence used by an explicit Sheets phase.
+ * This does not make a historical retained document a current control read;
+ * the caller must also obtain the same held checkpoint from its live reader.
+ * Owner validity and the current command lineage are separate batch gates.
+ * @param {unknown} value Versioned evidence read from trusted controls.
+ * @param {string} expectedDigest Reviewed evidence identity.
+ * @param {string} environment Exact phase environment.
+ * @param {string} workbookId Exact phase workbook.
+ * @param {number} nowMillis Current trusted clock.
+ * @param {object} administrator Explicit develop source and IAM binding.
+ * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Verified technical data.
+ */
+export const verifyShiftPlanningOwnerSheetsTechnicalEvidence = (
+  value: unknown,
+  expectedDigest: string,
+  environment: ShiftPlanningEnvironment,
+  workbookId: string,
+  nowMillis: number,
+  administrator?: {sourceRevision: string; sourceDigest: string;
+    effectiveIamDigest: string},
+): {evidence: ShiftPlanningIntakeBarrierEvidenceEnvelope;
+  technicalExpiresAtMillis: number} => {
+  const evidence = administrator ?
+    parseShiftPlanningAdministratorAgreementIntakeBarrierEvidence(value) :
+    parseShiftPlanningOwnerAgreementIntakeBarrierEvidenceEnvelope(value);
+  if (evidence.digest !== expectedDigest ||
+      evidence.payload.environment !== environment ||
+      evidence.payload.workbook.fileId !== workbookId) {
+    return failBarrier("Sheets technical control scope changed.");
+  }
+  if (administrator && (environment !== "develop" ||
+      evidence.payload.schemaVersion !== 3 ||
+      evidence.payload.administratorAgreement.payload.intent.sourceRevision !==
+        administrator.sourceRevision ||
+      evidence.payload.administratorAgreement.payload.intent.sourceDigest !==
+        administrator.sourceDigest ||
+      evidence.payload.administratorAgreement.payload.intent
+        .effectiveIamDigest !==
+        administrator.effectiveIamDigest)) {
+    return failBarrier("Sheets administrator source or IAM authority changed.");
+  }
+  if (evidence.payload.schemaVersion === 3) {
+    const payload = evidence.payload;
+    const intent = payload.administratorAgreement.payload.intent;
+    verifyIntakeBarrierEvidence(evidence, {
+      ...payload.transition, ...payload.policy,
+      environment: payload.environment, schemaVersion: 3,
+      maintenanceMode: "develop-administrator-agreement",
+      expectedBarrierRevision: payload.barrierRevision,
+      expectedRulesRevision: payload.rules.finalReadBackRevision,
+      expectedRulesDigest: payload.rules.finalReadBackDigest,
+      expectedControlManifestDigest: createShiftPlanningControlManifestDigest(
+        payload.writerControls, payload.maintenanceMode),
+      expectedWorkbookFileId: payload.workbook.fileId,
+      expectedWorkbookRevision: payload.workbook.revision,
+      expectedWorkbookDigest: payload.workbook.digest,
+      expectedCausalSetRevision: payload.causalDrain.acceptedSetRevision,
+      expectedCausalSetDigest: payload.causalDrain.acceptedSetDigest,
+      expectedOwnerAgreementDigest: payload.ownerAgreement.digest,
+      expectedTechnicalControlManifestDigest:
+        intent.technicalControlManifestDigest,
+      expectedAdministratorAgreementDigest:
+        payload.administratorAgreement.digest,
+      expectedAdministratorSourceRevision: intent.sourceRevision,
+      expectedAdministratorSourceDigest: intent.sourceDigest,
+      expectedEffectiveIamDigest: intent.effectiveIamDigest,
+      ...(payload.causalDrain.historicalRisk ? {expectedHistoricalRiskDigest:
+        developHistoricalRiskDigest(payload.causalDrain.historicalRisk)} : {}),
+    }, nowMillis, false);
+  }
+  validateChronology(evidence.payload, nowMillis, true);
+  return {evidence, technicalExpiresAtMillis:
+    oldestBarrierObservationMillis(evidence.payload) +
+      evidence.payload.policy.maximumEvidenceAgeMillis};
 };

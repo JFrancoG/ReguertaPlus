@@ -7,6 +7,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.reguerta.user.data.shiftcoverage.FirebaseShiftCoverageRepository
 import com.reguerta.user.data.access.AuthenticatedFirebaseFunctionsClient
 import com.reguerta.user.data.access.FirebaseAuthorizedMemberResolver
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
@@ -129,6 +130,11 @@ class SessionViewModelFactory(
             storage = FirebaseStorage.getInstance(),
         )
 
+        var sessionOwner: SessionViewModel? = null
+        val coverageRepository = FirebaseShiftCoverageRepository.create(
+            auth, firebaseApp, currentSession = { sessionOwner?.currentCoverageSession() },
+            functionCaller = authenticatedFunctionsClient,
+        )
         return SessionViewModel(
             repository = repository,
             newsRepository = newsRepository,
@@ -170,6 +176,7 @@ class SessionViewModelFactory(
             },
             developImpersonationEnabled = false,
             initialNowOverrideMillis = DevelopmentTimeMachine.overrideNowMillis(),
-        ) as T
+            shiftCoverageRepository = coverageRepository,
+        ).also { sessionOwner = it } as T
     }
 }

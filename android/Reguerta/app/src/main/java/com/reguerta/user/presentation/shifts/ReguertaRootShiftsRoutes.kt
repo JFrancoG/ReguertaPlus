@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -71,6 +72,7 @@ fun ShiftsRoute(
     onCancelShiftSwapRequest: (String) -> Unit,
     onConfirmShiftSwapRequest: (String, String) -> Unit,
     onDismissShiftSwapActivity: (String) -> Unit,
+    onOpenCoverage: (() -> Unit)? = null,
 ) {
     var selectedSegment by rememberSaveable { mutableStateOf(ShiftBoardSegment.DELIVERY) }
     val currentMemberId = currentMember?.id
@@ -105,6 +107,10 @@ fun ShiftsRoute(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        onOpenCoverage?.let { open ->
+            ReguertaButton(label = stringResource(R.string.coverage_title), variant = ReguertaButtonVariant.SECONDARY,
+                modifier = Modifier.testTag("shifts.coverage"), onClick = open)
+        }
         if (hasShiftSwapActivity) {
             ShiftSwapRequestsCard(
                 requests = shiftSwapRequests,

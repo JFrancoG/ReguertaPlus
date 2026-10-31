@@ -8,6 +8,8 @@ nonisolated enum FirebaseFunctionEndpoint: String, Sendable {
     case transitionDeliveryCalendarOverride
     case upsertMemberByAdmin
     case transitionShiftSwap
+    case resolveShiftCoverageAccess
+    case shiftCoverage
 }
 
 nonisolated struct FirebaseFunctionErrorPayload: Codable, Equatable {
@@ -43,7 +45,7 @@ struct URLSessionHTTPDataLoader: HTTPDataLoading {
     private let storedSession: URLSession
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        try await storedSession.data(for: request)
+        try await storedSession.data(for: request, delegate: FirebaseFunctionRedirectRefusal())
     }
 }
 
@@ -56,11 +58,17 @@ struct AuthenticatedFirebaseFunctionsClient {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
+    /// Scoped callers fence both presentation authority and SDK identity around token refresh and HTTP suspension.
+    /// The checks only refuse requests; the backend remains the authority for token and member verification.
     func post<Request: Encodable, Response: Decodable>(
         function: FirebaseFunctionEndpoint,
         body: Request,
-        response: Response.Type
+        response: Response.Type,
+        expectedAuthUID: String? = nil,
+        validateAuthorization: @MainActor () throws -> Void = {}
     ) async throws -> Response {
+        try validateAuthorization()
+        try requireCurrentUser(expectedAuthUID)
         let token: String
         do {
             try Task.checkCancellation()
@@ -69,6 +77,9 @@ struct AuthenticatedFirebaseFunctionsClient {
         } catch {
             throw mapTransportError(error)
         }
+        // The token refresh suspends. Reject a superseded intent before its first network effect.
+        try validateAuthorization()
+        try requireCurrentUser(expectedAuthUID)
         guard !token.isEmpty else { throw FirebaseFunctionClientError.missingIDToken }
 
         let endpointURL = storedBaseURL.appendingPathComponent(function.rawValue, isDirectory: false)
@@ -89,6 +100,8 @@ struct AuthenticatedFirebaseFunctionsClient {
         } catch {
             throw mapTransportError(error)
         }
+        try validateAuthorization()
+        try requireCurrentUser(expectedAuthUID)
         if Task.isCancelled {
             throw FirebaseFunctionClientError.cancelled
         }
@@ -103,6 +116,11 @@ struct AuthenticatedFirebaseFunctionsClient {
         } catch {
             throw FirebaseFunctionClientError.invalidResponse
         }
+    }
+
+    private func requireCurrentUser(_ expectedUID: String?) throws {
+        guard let expectedUID else { return }
+        guard tokenProvider.currentUserID == expectedUID else { throw FirebaseFunctionClientError.missingIDToken }
     }
 
     private func mapHTTPError(statusCode: Int, data: Data) -> FirebaseFunctionClientError {
@@ -144,6 +162,18 @@ struct AuthenticatedFirebaseFunctionsClient {
             }
         }
         return .transport(message: String(describing: error))
+    }
+}
+
+private final class FirebaseFunctionRedirectRefusal: NSObject, URLSessionTaskDelegate {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping @Sendable (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
     }
 }
 

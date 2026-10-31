@@ -1,5 +1,12 @@
+import {
+  parseShiftPlanningOwnerSheetsBinding, parseShiftPlanningOwnerSheetsIncident,
+  parseShiftPlanningOwnerSheetsProof,
+  ShiftPlanningOwnerSheetsBinding, ShiftPlanningOwnerSheetsIncident,
+  ShiftPlanningOwnerSheetsProof,
+} from "./shift-planning-owner-sheets-contract.js";
 import {Timestamp} from "@google-cloud/firestore";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
+import type {ShiftRotationType} from "./shift-planning-contract.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {
   ShiftPlanningProcessingSyncCommand,
@@ -13,6 +20,8 @@ import {ShiftSheetsHumanGenerationRow, shiftSheetsISOWeekKey} from
 
 import type {ShiftSheetsImportTab} from "./shift-sheets-import.js";
 import {parseShiftSheetsImportTabs} from "./shift-sheets-import-mapping.js";
+import {parseShiftSheetsOrdinarySubmission} from
+  "./shift-sheets-ordinary-writer.js";
 
 export type ShiftPlanningReadableSubmission = {
   environment: "develop" | "production";
@@ -23,7 +32,7 @@ export type ShiftPlanningReadableSubmission = {
 
 /** One possible external submission, never an authorization to retry it. */
 export type ShiftPlanningSheetsSubmission = {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   readable?: ShiftPlanningReadableSubmission;
   command: ShiftPlanningProcessingSyncCommand;
   projectionDigest: string;
@@ -31,11 +40,15 @@ export type ShiftPlanningSheetsSubmission = {
   beforeWorkbookRevision: string;
   submittedAt: Timestamp;
   evidence: ShiftPlanningSyncReadBackEvidence | null;
+  ownerMaintenance?: ShiftPlanningOwnerSheetsBinding;
+  ownerVerification?: ShiftPlanningOwnerSheetsProof | null;
+  guardIncident?: ShiftPlanningOwnerSheetsIncident | null;
 };
 
 export type ShiftPlanningSheetsSubmissionBinding = Pick<
   ShiftPlanningSheetsSubmission,
-  "projectionDigest" | "requestDigest" | "beforeWorkbookRevision" | "readable"
+  "projectionDigest" | "requestDigest" | "beforeWorkbookRevision" | "readable" |
+    "ownerMaintenance"
 >;
 
 export const failSheetsSubmission = (message: string): never => {
@@ -161,8 +174,10 @@ export const parseShiftPlanningSheetsSubmission = (
   const record = value as Record<string, unknown>;
   const keys = ["schemaVersion", "command", "projectionDigest",
     "requestDigest", "beforeWorkbookRevision", "submittedAt", "evidence",
-    ...(record.schemaVersion === 2 ? ["readable"] : [])];
-  if (![1, 2].includes(record.schemaVersion as number) ||
+    ...(record.schemaVersion === 2 ? ["readable"] : []),
+    ...(record.schemaVersion === 3 ? ["readable", "ownerMaintenance",
+      "ownerVerification", "guardIncident"] : [])];
+  if (![1, 2, 3].includes(record.schemaVersion as number) ||
     Object.keys(record).length !== keys.length ||
     Object.keys(record).some((key) => !keys.includes(key))) {
     return failSheetsSubmission("Sheets submission fields are not exact.");
@@ -182,8 +197,8 @@ export const parseShiftPlanningSheetsSubmission = (
     return digest;
   };
   const result: ShiftPlanningSheetsSubmission = {
-    schemaVersion: record.schemaVersion as 1 | 2,
-    ...(record.schemaVersion === 2 ?
+    schemaVersion: record.schemaVersion as 1 | 2 | 3,
+    ...([2, 3].includes(record.schemaVersion as number) ?
       {readable: parseReadableSubmission(record.readable, command)} : {}),
     command,
     projectionDigest: sheetDigest(record.projectionDigest),
@@ -194,6 +209,46 @@ export const parseShiftPlanningSheetsSubmission = (
     submittedAt: record.submittedAt,
     evidence: null,
   };
+  if (record.schemaVersion === 3) {
+    if (Buffer.byteLength(JSON.stringify(record)) > 900000) {
+      return failSheetsSubmission("Owner receipt exceeds the size limit.");
+    }
+    const binding =
+      parseShiftPlanningOwnerSheetsBinding(record.ownerMaintenance);
+    if (binding.batchIntent.commandId !== command.commandId ||
+        binding.batchIntent.commandDigest !== command.commandDigest ||
+        binding.batchIntent.operationId !== command.idempotencyKey ||
+        binding.batchIntent.workbookId !== command.workbookId ||
+        binding.batchIntent.writeEpoch !== command.writeEpoch ||
+        binding.batchIntent.activeRevision !== command.expectedActiveRevision ||
+        binding.batchIntent.activeDigest !== command.expectedActiveDigest ||
+        binding.batchIntent.projectionDigest !== result.projectionDigest ||
+        binding.batchIntent.requestDigest !== result.requestDigest ||
+        binding.batchIntent.beforeWorkbookRevision !==
+          result.beforeWorkbookRevision ||
+        binding.claim.workerId !== command.claim.workerId ||
+        binding.claim.attemptId !== command.claim.attemptId ||
+        binding.claim.fencingEpoch !== command.claim.fencingEpoch ||
+        binding.claim.acquiredAtMillis !==
+          command.claim.acquiredAt.toMillis() ||
+        binding.claim.expiresAtMillis !== command.claim.expiresAt.toMillis() ||
+        binding.preparedAtMillis > record.submittedAt.toMillis() ||
+        binding.batchIntent.environment !== result.readable?.environment) {
+      return failSheetsSubmission("Owner binding differs from submission.");
+    }
+    result.ownerMaintenance = binding;
+    result.ownerVerification = record.ownerVerification === null ? null :
+      parseShiftPlanningOwnerSheetsProof(record.ownerVerification);
+    result.guardIncident = record.guardIncident === null ? null :
+      parseShiftPlanningOwnerSheetsIncident(record.guardIncident);
+    if ((result.ownerVerification &&
+        (result.ownerVerification.bindingDigest !== binding.bindingDigest ||
+          result.ownerVerification.phase !== "readback")) ||
+        (result.guardIncident &&
+          result.guardIncident.bindingDigest !== binding.bindingDigest)) {
+      return failSheetsSubmission("Owner receipt control identity drifted.");
+    }
+  }
   if (record.evidence !== null) {
     if (typeof record.evidence !== "object" ||
       record.evidence === null || Array.isArray(record.evidence) ||
@@ -214,6 +269,9 @@ export const parseShiftPlanningSheetsSubmission = (
         projectionDigest: result.projectionDigest,
       })) {
       return failSheetsSubmission("Read-back is not bound to submission.");
+    }
+    if (record.schemaVersion === 3 && !result.ownerVerification) {
+      return failSheetsSubmission("Owner read-back has no guard proof.");
     }
     result.evidence = {
       workbookRevision: revision,
@@ -309,6 +367,112 @@ export const parseShiftSheetsImportSubmission = (
     evidence: evidence ? {...evidence} : null};
 };
 
+/** A reservation is reclaimable only while no possible batch is recorded. */
+export type ShiftCoverageSheetsSubmission = {
+  schemaVersion: 1;
+  kind: "coverageWriteBack";
+  environment: "develop" | "production";
+  workbookId: string;
+  operationId: string;
+  effectsDigest: string;
+  sourceDigest: string;
+  beforeWorkbookRevision: string;
+  claim: {
+    workerId: string;
+    attemptId: string;
+    acquiredAt: Timestamp;
+    expiresAt: Timestamp;
+    partitions: {
+      type: ShiftRotationType;
+      partitionKey: string;
+      stateRevision: number;
+      epoch: number;
+    }[];
+  };
+  batch: ShiftSheetsImportSubmission["batch"];
+  evidence: ShiftSheetsImportSubmission["evidence"];
+};
+
+/**
+ * The shared pointer retains the exact coverage claim and possible submission.
+ * Expiry never permits resending a recorded batch or replacing its reservation.
+ * @param {unknown} value Coverage receipt or shared workbook pointer.
+ * @return {ShiftCoverageSheetsSubmission} Exact validated detached receipt.
+ */
+export const parseShiftCoverageSheetsSubmission = (
+  value: unknown,
+): ShiftCoverageSheetsSubmission => {
+  const record = value as ShiftCoverageSheetsSubmission;
+  const exact = (candidate: unknown, keys: string[]) => candidate &&
+    typeof candidate === "object" && !Array.isArray(candidate) &&
+    Object.keys(candidate).length === keys.length &&
+    Object.keys(candidate).every((key) => keys.includes(key));
+  const id = (candidate: unknown) => typeof candidate === "string" &&
+    /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(candidate);
+  const planningDigest = (candidate: unknown) =>
+    typeof candidate === "string" &&
+    /^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(candidate);
+  const sheetsDigest = (candidate: unknown) =>
+    typeof candidate === "string" &&
+    /^shift-sheets:v1:sha256:[a-f0-9]{64}$/.test(candidate);
+  if (!exact(record, ["schemaVersion", "kind", "environment", "workbookId",
+    "operationId", "effectsDigest", "sourceDigest", "beforeWorkbookRevision",
+    "claim", "batch", "evidence"]) || record.schemaVersion !== 1 ||
+      record.kind !== "coverageWriteBack" ||
+      !["develop", "production"].includes(record.environment) ||
+      !id(record.workbookId) || !id(record.operationId) ||
+      !planningDigest(record.effectsDigest) ||
+      !planningDigest(record.sourceDigest)) {
+    return failSheetsSubmission("Coverage submission fields are not exact.");
+  }
+  const before = requireShiftSheetsWorkbookVersion(
+    record.beforeWorkbookRevision,
+  );
+  const claim = record.claim;
+  if (!exact(claim, ["workerId", "attemptId", "acquiredAt", "expiresAt",
+    "partitions"]) || !id(claim.workerId) || !id(claim.attemptId) ||
+      !(claim.acquiredAt instanceof Timestamp) ||
+      !(claim.expiresAt instanceof Timestamp) ||
+      claim.acquiredAt.toMillis() < 0 ||
+      claim.expiresAt.toMillis() <= claim.acquiredAt.toMillis() ||
+      !Array.isArray(claim.partitions) || !claim.partitions.length ||
+      claim.partitions.length > 2 ||
+      new Set(claim.partitions.map((p) => p?.type)).size !==
+        claim.partitions.length || claim.partitions.some((partition) =>
+    !exact(partition, ["type", "partitionKey", "stateRevision", "epoch"]) ||
+        !["delivery", "market"].includes(partition.type) ||
+        !id(partition.partitionKey) ||
+        !Number.isSafeInteger(partition.stateRevision) ||
+        partition.stateRevision < 1 || !Number.isSafeInteger(partition.epoch) ||
+        partition.epoch < 1)) {
+    return failSheetsSubmission("Coverage submission claim is invalid.");
+  }
+  const batch = record.batch;
+  if (batch !== null && (!exact(batch, ["projectionDigest", "requestDigest",
+    "submittedAt"]) || !sheetsDigest(batch.projectionDigest) ||
+      !sheetsDigest(batch.requestDigest) ||
+      !(batch.submittedAt instanceof Timestamp) ||
+      batch.submittedAt.toMillis() < claim.acquiredAt.toMillis() ||
+      batch.submittedAt.toMillis() >= claim.expiresAt.toMillis())) {
+    return failSheetsSubmission("Coverage batch identity is invalid.");
+  }
+  const evidence = record.evidence;
+  if (evidence !== null && (!batch ||
+      !exact(evidence, ["workbookRevision", "partitionDigest"]) ||
+      evidence.partitionDigest !== createShiftPlanningDigest({
+        projectionDigest: batch.projectionDigest,
+      }) || BigInt(requireShiftSheetsWorkbookVersion(
+    evidence.workbookRevision,
+  )) <= BigInt(before))) {
+    return failSheetsSubmission(
+      "Coverage read-back is not bound to its batch.",
+    );
+  }
+  return {...record, claim: {...claim,
+    partitions: claim.partitions.map((partition) => ({...partition}))},
+  batch: batch ? {...batch} : null, evidence: evidence ? {...evidence} : null};
+};
+
 /**
  * One workbook pointer serializes activation and import submissions. Legacy
  * schema-v1 canonical and schema-v2 readable receipts retain their identity.
@@ -317,11 +481,30 @@ export const parseShiftSheetsImportSubmission = (
  */
 export const parseShiftSheetsWorkbookSubmission = (value: unknown) => {
   if (value && typeof value === "object" && "kind" in value) {
+    if (value.kind === "ordinaryWriteBack") {
+      const receipt = parseShiftSheetsOrdinarySubmission(value);
+      return {workbookId: receipt.workbookId, evidence: receipt.evidence,
+        environment: receipt.environment,
+        importOperationId: null, coverageOperationId: null,
+        ordinaryOperationId: receipt.operationId};
+    }
+    if (value.kind === "coverageWriteBack") {
+      const receipt = parseShiftCoverageSheetsSubmission(value);
+      return {workbookId: receipt.workbookId, evidence: receipt.evidence,
+        environment: receipt.environment,
+        importOperationId: null, coverageOperationId: receipt.operationId,
+        ordinaryOperationId: null};
+    }
     const receipt = parseShiftSheetsImportSubmission(value);
     return {workbookId: receipt.workbookId, evidence: receipt.evidence,
-      importOperationId: receipt.operationId};
+      environment: receipt.environment,
+      importOperationId: receipt.operationId, coverageOperationId: null,
+      ordinaryOperationId: null};
   }
   const receipt = parseShiftPlanningSheetsSubmission(value);
-  return {workbookId: receipt.command.workbookId, evidence: receipt.evidence,
-    importOperationId: null};
+  return {workbookId: receipt.command.workbookId,
+    evidence: receipt.guardIncident ? null : receipt.evidence,
+    environment: receipt.readable?.environment ?? null,
+    importOperationId: null, coverageOperationId: null,
+    ordinaryOperationId: null};
 };

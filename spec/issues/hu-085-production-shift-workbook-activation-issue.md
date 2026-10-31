@@ -1,5 +1,57 @@
 # [HU-085] Controlled production shift workbook activation
 
+## Latest reconciliation checkpoint — 2026-10-28
+
+Delivered `afbcd098` and verified remote/draft PR heads. The subsequent approved
+read-only reconciliation is implemented locally:12 exact synthetic captures,
+observed import62 terminal/HTTP200 and12 recent reminder terminals/HTTP200s;
+all117 historical notices remain possibly delivered/unreplayable. Four seasonal
+grids retain399 exact typed literals. Before/after census and paused jobs preserve
+the accepted state. Build/full lint and40 offline regressions pass without failures/
+skips; independent receipt/census monotonicity finding is fixed. See the bilingual
+legacy-reconciliation acceptance guide. The maintainer authorizes this source delivery; complete
+automated authority/queue/in-flight evidence and the participant/window agreement
+still precede maintenance/migration admission. Both stories and draft PR stay open.
+
+
+## Latest grouped server checkpoint — 2026-10-28
+
+Delivered `e29b6bdd` and verified the remote/draft PR head. The explicit ADR-0022
+administrator v3 contract and two exact-source HTTP packs are implemented locally;
+Functions build/full lint, 400 planning tests and a separate 228-control run pass
+without failures/skips. Three develop-only reminder jobs are now PAUSED, with
+one attempt each and unchanged semantic configuration/Function sources/IAM.
+The nine shared HTTP updates are separately authorized, deployed and read back
+with exact source archives/controls: seven application503 and two existing IAM403. Actual complete participant confirmations, automated authority and
+prior-effect reconciliation still block maintenance; keep `legacyUntracked:true`
+and migration closed. Both issues and draft PR remain open. See the current
+story plan/tasks and bilingual selective-pause guides for acceptance details.
+
+
+## Current develop prerequisite — 2026-10-27
+
+HU-084 initial private-state source is delivered through `537188bd`. The maintainer
+next authorizes develop base preparation preserving published dates/order. Fresh
+read-only captures match the retained approved synthetic 72-turn/108-place
+scenario and corrected 32-member cohort. Its private semantic proposal carries
+no live operation authority. Preserve the 62 legacy source rows in the inventory;
+the old 139-write delete/recreate reset is not a current execution plan.
+
+There are 53 helper projection differences and two missing market months; all
+five planning-state paths and a real numeric Drive version remain absent.
+Exact governed migration/inverse and deployment/admission gates remain open.
+See `spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-planner-base-preparation.md`.
+No production read, shared write, deploy or activation is included.
+
+Subsequent authorized local rehearsal is complete after delivered `73001988`:
+203-write migration and 140-write inverse through existing admission/barriers,
+62 lossless legacy archives/restores, 72 unchanged published dates/108 ordered
+places, retained event evidence and closed epoch 2. All 91 local checks pass,
+including actual handlers, source/pointer conflicts and commit uncertainty.
+The 53 helper cells have a separate adapter inverse; no live Drive/atomicity or
+full-season readiness is inferred. Details: `docs/testing/hu084-develop-migration-rehearsal.md`.
+This implementation is local, and every shared runtime/control-plane gate remains open.
+
 ## Accepted HU-083 handoff — 2026-09-12
 
 The maintainer accepted HU-083's explicit zero-write deferral and authorized its
@@ -195,3 +247,40 @@ caller. The protected workbook ID, not either email, is the parameter.
 - `area:shifts`
 - `platform:backend`
 - `priority:P1`
+
+## Develop queue/window checkpoint — 2026-10-28
+
+Prior reconciliation is delivered as `4cb216824dc908293311a4f9c496fc2326c0f350`
+with exact remote/draft PR #278 head. Real inspection finds four private retry
+backlogs/payload conflicts; shared missing metrics remain UNKNOWN. A lossless
+schema2 metadata-observation repair preserves twelve original schema1 deliveries
+and all business data. Full Functions build/lint and147 joint tests pass with no
+failures/skips. The four-only packet is reviewed and24 live Function configurations
+remain unchanged; scoped deployment approval/natural-retry acceptance are pending.
+The [queue/window guide](../../docs/testing/hu084-develop-queues-and-maintenance-window.md)
+records five absent bootstrap paths, missing provider/sourceScope composition and
+participant requirements. Window NOT READY; no migration, legacyUntracked reset,
+Sheets/FCM/business operation or production activation is authorized by preparation.
+
+## Authorized capture repair accepted — 2026-10-29
+
+Acceptance on 2026-10-29: four natural HTTP2xx requests are correlated by exact
+CloudEvent ID/source labels, service and new revision; the bounded query has no
+HTTP4xx/5xx or application errors. Four metadata observations differ only in
+traceparent; original183 sources/twelve events/twelve V1 deliveries/chunks and
+versions are preserved. Revision/deliveryCount16, eventCount12. All four source
+archives and controls match; other20 Functions unchanged. Eight unchanged
+executable-input hashes retain build/lint and147 tests. Shared UNKNOWN and bootstrap/
+provider-sourceScope/participant requirements still block maintenance admission.
+The maintainer authorizes source delivery; exact Git/remote evidence is recorded in #268/#269 and draft PR #278.
+
+## Delivered repair and residual reconciliation — 2026-10-29
+
+Repair delivered as `3977fd6f2df13d87748c7db1e3dd31ed36b8db1d`; remote and draft
+PR match. Read-only residual reconciliation observes one provider ack_204/push ACK
+in00:30–00:31 UTC and backlog/oldest-age0 at00:36/00:37 UTC for the private shift
+subscription. Fresh183-source/12-event/16-delivery census is unchanged; no new
+requests/errors in the later bounded query. Historical residual reconciled; recent
+missing metrics remain UNKNOWN and do not admit maintenance. Next: provider/sourceScope
+control and controlled bootstrap before participant/window commitments. See the
+bilingual queue/window guide. Only this new evidence documentation remains local.

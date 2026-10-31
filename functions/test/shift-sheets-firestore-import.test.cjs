@@ -99,6 +99,19 @@ test("prepares trusted sources then atomically applies a cross-season lead/helpe
   assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
 });
 
+test("a shared coverage reservation blocks import before reading Sheets or writing its plan", async () => {
+  const f = await setup();
+  const {coverageWorkbookSubmission} = require("./shift-coverage-fixture.cjs");
+  const receipt = coverageWorkbookSubmission({workbookId: config.workbookId, beforeWorkbookRevision: "11"});
+  const pointer = firestore.doc(`${root}/shiftPlanningState/sheetsSubmission`);
+  await pointer.set(receipt);
+  const reads = f.service.reads.length;
+  await assert.rejects(f.prepared(), invalid);
+  assert.equal(f.service.reads.length, reads); assert.equal(f.service.mutations.length, 0);
+  assert.deepEqual((await pointer.get()).data(), receipt);
+  assert.equal((await f.commandRef().get()).exists, false);
+});
+
 test("concurrent apply commits once and exact replay does not re-read Sheets or mutate source", async () => {
   const f = await setup(); const {plan} = await f.prepared();
   const results = await Promise.all([f.api.apply("operation-1", plan.planDigest), f.api.apply("operation-1", plan.planDigest)]);
