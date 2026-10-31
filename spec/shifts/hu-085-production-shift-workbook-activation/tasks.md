@@ -1051,3 +1051,17 @@ and39 focused cases pass without skips/failures. Candidate/evidence uncommitted 
 not executed. Review/deliver then fresh authorized attempt; no owner/Sheets window.
 Maintenance closed, production/workbooks untouched, no native parity gap. Issues
 open; PR#278 draft. See bilingual writer-controls guide and retained retry-2 receipts.
+
+
+### IAM-only diagnostic succeeded and contained — 2026-10-30
+
+`ede1c71a` pushed/remote+PR verified; lint/build and39 focused passes. Authorized
+retry-3 waited124,975ms after grant; one 300s token issued, validated and discarded
+without use/storage/handoff. Result mint-observed-and-contained, no failures.
+Exact grant removed, explicit disable and independent read/audit confirm disabled,
+zero keys/direct bindings, project policy unchanged. Private retry-3 receipts and
+reconciliation retained. No copy/production/data access, maintenance or deployment.
+This validates IAM-only issuance, not Sheets or migration. Next integrate the tested
+waits into the synthetic-copy controller and validate locally before a separately
+authorized copy rehearsal. No owner action needed now. Outcome docs local/uncommitted;
+no new runtime changes. Native parity unchanged; HU-084/HU-085 open, PR #278 draft.

@@ -1344,3 +1344,37 @@ sin commit ni ejecución real; se conservan recibos y autorización consumida.
 Siguiente paso: revisar/entregar y nuevo intento IAM autorizado. No hace falta
 actuar como propietario ni cerrar hojas. Evidencia:2026-10-30-develop-writer-iam-only-retry-2.
 Mantenimiento cerrado; producción y hojas intactas; sin cambios de paridad nativa.
+
+
+### Emisión IAM correcta con antigüedad mínima; limpieza verificada — 2026-10-30
+
+Entregado `ede1c71a`, subido y verificado exactamente en remoto y en la PR.
+Lint/build y39 pruebas focalizadas repetidas correctamente antes de ejecutar.
+El retry-3 autorizado usó paquete/registro nuevos vinculados a fuentes y la ventana
+original de diez minutos. Tras124.975ms desde la concesión pasaron las comprobaciones
+de estado/autoridad y se emitió el único token solicitado. Se validó su duración de
+300s y se descartó sin registrarlo, guardarlo, usarlo ni entregarlo a otro proceso.
+Resultado: `mint-observed-and-contained`, sin fallo ni incidencias de limpieza.
+Sin otra reactivación, concesión o emisión.
+
+La limpieza retiró el permiso exacto y ordenó la desactivación explícita. Otra
+lectura independiente verifica cuenta exacta deshabilitada, cero claves/permisos
+directos y política del proyecto sin cambios. El registro administrativo confirma
+reactivación/concesión/retirada/desactivación por el usuario esperado; la última
+ocurrió a las19:49:05 UTC. Recibo original, metadatos del descarte, lectura final y
+conciliación separados en `2026-10-30-develop-writer-iam-only-retry-3`. Sin token guardado.
+
+Esto valida emisión y contención de IAM para esta ejecución, con misma cuenta,
+rol y ámbitos. Respalda la hipótesis de propagación, sin demostrar retrospectivamente
+la causa de todos los403 anteriores. No valida acceso a Sheets, pérdida de acceso
+con el mismo token, escritura sintética ni admisión de migración. Sin OAuth del
+propietario, peticiones a hojas, datos compartidos, FCM ni despliegues. Mantenimiento
+cerrado, producción intacta y sin cambios de paridad nativa.
+
+Siguiente paso: trasladar la antigüedad mínima y observación acotada del estado al
+controlador del ensayo completo en copia, validar localmente y preparar un ensayo
+nuevo antes de pedir por separado OAuth del propietario, ventana de hoja cerrada y
+autorización de ejecución. El controlador de copia todavía no incorpora esas esperas
+exclusivas de IAM. Ahora no hace falta otra acción del usuario. Esta documentación
+queda local y sin commit; no hay otra modificación funcional. HU-084/HU-085 abiertas
+y PR #278 en borrador.

@@ -1305,3 +1305,36 @@ uncommitted and unexecuted; previous live receipts/authorization stay consumed.
 Next review/deliver, then a fresh authorized IAM-only attempt. No owner action or
 closed-sheet window is needed. Private evidence:2026-10-30-develop-writer-iam-only-retry-2.
 Maintenance closed; production/all workbooks untouched; no native parity change.
+
+
+### IAM-only mint succeeded with minimum grant age; cleanup verified — 2026-10-30
+
+Delivered `ede1c71a`, pushed and exact remote HEAD/PR head verified. Lint/build and
+39 focused tests passed again before execution. The authorized retry-3 used a
+fresh source-bound packet/journal and the original ten-minute window. After
+124,975ms of grant age, all lifecycle/authority checks passed and the single actual
+mint succeeded. The 300s token was validated then discarded without logging,
+persistence, use or child handoff. Result: `mint-observed-and-contained`, no failure,
+no cleanup failures. No extra enable, grant or mint was attempted.
+
+Cleanup removed the exact temporary grant and sent explicit disable. An independent
+later read verifies the exact account disabled, zero user keys/direct bindings and
+unchanged project policy. Scoped Admin Activity confirms enable/grant/removal/disable
+by the expected caller; the final disable is at19:49:05 UTC. Original terminal,
+token-discarded metadata, final observation and separate reconciliation are retained
+in private `2026-10-30-develop-writer-iam-only-retry-3`. No bearer is retained.
+
+This establishes successful IAM-only issuance and containment for this execution
+with the same account/role/scopes. It supports the propagation explanation without
+retrospectively proving the cause of every prior403. It does not establish Sheets
+access, same-token access loss, successful synthetic write or migration admission.
+No owner OAuth, workbook request, shared business data, FCM or deployment occurred;
+maintenance stayed closed and production untouched. No native change/parity gap.
+
+Next: carry the tested minimum grant age and bounded lifecycle observation into
+the full synthetic-copy controller, validate that integration locally and prepare
+a fresh copy rehearsal before requesting its separate owner OAuth/closed-sheet
+window and execution approval. The existing copy controller must not be treated as
+already including these IAM-only waits. No further user action is needed now.
+This outcome documentation is local/uncommitted; there is no new runtime change.
+HU-084/HU-085 stay open and PR #278 draft.
