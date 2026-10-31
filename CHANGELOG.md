@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-11-01 | ✨ feat(shifts): bind Google reads to helper batches
+
 - 2026-10-31 | ✨ feat(shifts): persist controlled develop barrier acquisition
 
 - 2026-10-30 | 🔧 chore(shifts): prepare isolated writer rehearsal

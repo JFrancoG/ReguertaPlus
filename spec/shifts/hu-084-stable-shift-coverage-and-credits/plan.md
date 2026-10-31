@@ -3047,3 +3047,14 @@ Next request bounded authorization to create the identity and synthetic workbook
 run this exact session and verify cleanup. No phone action now. Original develop
 permission/current shared controls/maintenance remain separate. New implementation
 is uncommitted; HU-084/HU-085 open, PR #278 draft, production untouched.
+
+## Current develop integration gate — 2026-11-01
+
+Durable acquisition is delivered as `9ed3a9ef`. Actual Google read transports and
+complete 53-cell/two-marker batch preparation are validated locally, including a
+joint Firestore-emulator/Sheets-double forward/inverse on retained real observations.
+The live full-batch permission lifecycle and combined timing remain unproven; do not
+reuse A1/copy authorization or convert captured read evidence into current admission.
+The canonical next sequence and measured evidence are maintained in
+`docs/testing/hu084-develop-window-permissions.md` and its Spanish counterpart.
+No maintenance/production activation is authorized by this local preparation.

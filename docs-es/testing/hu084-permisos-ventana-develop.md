@@ -4,6 +4,72 @@ Estado: **solo preparación; sin fecha ni autorización de ejecución**. La evid
 del escritor original y su integración en admisión están publicadas en `d42ce7fe`.
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
+## Observaciones de Google y ensayo conjunto del lote — 2026-11-01
+
+El bloque de barrera persistente está commiteado y pusheado como `9ed3a9ef`, con HEAD
+remoto exacto comprobado. Los lectores, materializador y pruebas siguientes son locales
+posteriores a ese commit. Reutilizan el adaptador de Sheets, el manifiesto de conservación
+y los contratos de barrera/transacción de Firestore; no añaden otro registro ni CLI real.
+
+`develop-google-observations.cjs` lee la hoja y carpeta fijas de develop con credenciales
+explícitas. Compara dos capturas de las cuadrículas completas (valores, formatos escritos,
+notas, tramos de texto, validaciones, protecciones, celdas combinadas y metadatos de operación)
+y las dos capturas anteriores A1:Z100/Y100. Su proyección acotada debe coincidir con el
+paquete revisado. Las listas vacías omitidas por Google se normalizan únicamente para
+esa máscara completa; se conservan la captura original y los objetos vacíos de celda/formato.
+El lector comprueba también las 24 Functions revisadas, tres jobs pausados, Rules, IAM del
+proyecto y del invocador de inspección. Esto no aporta el inventario de ejecución/claves,
+la conciliación actual de fuentes/efectos ni los compromisos humanos de la ventana.
+
+La sesión de lectura autorizada observó la versión **287**, propietario y cuatro lectores,
+sin permiso del escritor y sin cambios en los controles revisados. Muestras medidas:
+captura del propietario **8.460ms**, lecturas Cloud **1.022ms**, limpieza OAuth **62.263ms**.
+La revocación devolvió 200; Drive denegó el mismo token inmediatamente, pero Sheets devolvió
+200 en seis consultas mínimas antes del 401. No se renovó ni solicitó otro token. Se revocó
+el acceso, limpiaron los campos y cerró Playground. Son tiempos individuales de lectura y
+limpieza, no una garantía del tiempo conjunto ni prueba de denegación al escritor.
+Este bloque no cambió IAM, permisos del archivo ni celdas de Google.
+
+`prepare-develop-helper-batch.cjs` materializa exactamente **53 cambios en F y dos
+marcadores** mediante el adaptador existente. El identificador de ida usa el prefijo
+`request-` existente de Firestore; la inversa usa su identificador revisado. Vincula paquete,
+captura, versión, imágenes previas, notas conservadas y hash de peticiones. La inversa
+verifica primero la imagen completa esperada. Rechaza fórmulas/protecciones gestionadas,
+cambios en celdas publicadas, revisión alterada, cambios lejanos o marcadores incorrectos.
+El control exclusivamente temporal exige más de **150s** antes de caducar token y ventana:
+30s de petición del adaptador y 120s reservados para limpieza. No concede autoridad,
+renueva credenciales ni amplía plazos implícitamente.
+
+El ensayo conjunto usa las cuadrículas recién capturadas y el paquete retenido con
+**transacciones del emulador Firestore y un doble de la API de Sheets con estado**.
+Pasan adquisición/admisión persistente, 203/140 escrituras de documentos y 55/55 peticiones
+Sheets, pérdida de respuesta y comprobación del resultado sin reenvío. Restaura los 62
+originales y los datos de las celdas observadas, conserva 117 avisos y versiones de guardas.
+Solo quedan actualizados los dos marcadores técnicos previstos. Cierran las 44 sesiones
+simuladas. Si caduca el tiempo o se interrumpe después de Firestore y antes de enviar Sheets,
+queda el recibo, Sheets no cambia y no se ejecuta inversa ni reintento automático.
+Esto no convierte las dos plataformas en una transacción atómica.
+
+Build/lint y comprobaciones de sintaxis/diff pasan: **247 pruebas focalizadas +68 de
+emulador**, sin fallos ni omisiones. Evidencia privada: `2026-11-01-google-batch-integration`,
+con capturas originales/normalizadas, consultas de revocación y
+`joint-results/joint-sheets-roundtrip.json`. Se conserva el diagnóstico inicial de
+normalización de marcadores; no se ejecutó ni falló una escritura real. Sin cambios
+nativos ni diferencia de paridad entre plataformas.
+
+Siguiente bloque pendiente: componer estos lectores con las observaciones restantes de
+autoridad, fuentes/riesgo y participantes; dar a la credencial del propietario un único
+ciclo de vida por ventana (no una autorización/revocación OAuth por cada lectura de la
+barrera); vincular la concesión/retirada existente del escritor a este lote exacto y ensayar
+los tiempos conjuntos en un destino aislado revisado explícitamente. Los ejecutores A1
+y de diez turnos conservan sus límites; no se reutilizan silenciosamente para este lote.
+Sus permisos anteriores no son concesiones vigentes. El ciclo real del lote completo,
+la retirada del acceso del escritor y sus tiempos **no quedan probados por el emulador**.
+Después, renovar/congelar el paquete y solicitar permisos/ventana concretos cuando pasen
+esos controles. Sin mantenimiento, producción, FCM ni despliegue. Ahora no hace falta
+cerrar la hoja ni realizar ninguna acción.
+
+
 ## Recursos y participantes exactos
 
 La única hoja es `1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A`,

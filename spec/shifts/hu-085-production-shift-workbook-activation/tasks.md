@@ -1366,10 +1366,34 @@ hashes. Documentation and private-script syntax checks pass; no native suite rep
   rehearse original-workbook batch/cleanup and combined timing, then refresh exact
   controls/sources/risk and request the separately authorized concrete window.
 
-Implementation/tests are local after `9e724da4`. Firestore persistence and business
+That acquisition implementation was subsequently committed/pushed as `9ed3a9ef`. Firestore persistence and business
 transactions use the real local SDK; provider/cleanup observations are test doubles.
 No live controls, permission changes, current OAuth revocation or total Google timing
 are proven by the emulator. A process kill cannot guarantee cleanup; uncertain
 resources require reconciliation. No maintenance, production, Sheets, FCM, deployment
 or native change; no platform parity gap. Private evidence:
 `2026-10-31-durable-barrier-acquisition`. #268/#269 open, #278 draft.
+
+## Google observations and joint batch — 2026-11-01
+
+- [x] Commit/push durable acquisition as `9ed3a9ef`; exact remote HEAD verified.
+- [x] Exercise fixed-resource Google read transports: version 287, complete grids and
+  ACL, 24 Functions, three paused jobs and reviewed Rules/IAM; revoke the authorized
+  owner OAuth session and verify same-token Drive/Sheets denial.
+- [x] Bind the complete capture to the existing package and materialize 53 helper
+  updates/two markers with the existing adapter and runtime operation identities.
+- [x] Jointly rehearse durable acquisition, Firestore forward/inverse and full Sheets
+  batch on retained real captures: restore 62 originals and observed cells, preserve
+  117 notices; cover lost acknowledgement, interruption and exhausted cleanup budget.
+- [x] Build/lint, syntax/diff, 247 focused and 68 emulator cases pass without skips.
+- [ ] Complete the remaining live observation/window composition and single owner
+  credential lifecycle; bind writer grant/removal and rehearse the exact full batch
+  plus total timing on an explicitly reviewed isolated destination. Then renew/freeze
+  evidence and request the concrete separately authorized maintenance window.
+
+New implementation remains local after `9ed3a9ef`. Google reads/OAuth cleanup were
+real; Sheets writes and barrier human observations in the joint rehearsal were
+simulated. Writer permission grant/removal was not exercised in this block. No current writer grant, real full-batch acceptance or
+combined timing guarantee. No maintenance, production, native change or parity gap.
+See the bilingual window-permissions guide for measurements, evidence and remaining
+scope. Private record: `2026-11-01-google-batch-integration`; #268/#269 open, #278 draft.

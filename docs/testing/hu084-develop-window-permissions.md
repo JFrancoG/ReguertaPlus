@@ -4,6 +4,70 @@ Status: **preparation only; not scheduled or authorized for execution**. Origina
 writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
+## Google observations and joint batch rehearsal — 2026-11-01
+
+The durable-barrier block is committed and pushed as `9ed3a9ef`; exact remote HEAD
+was verified. The following readers, batch materializer and tests are local after
+that commit. They reuse the existing Sheets adapter, preservation manifest and
+Firestore barrier/transaction contracts; no additional operation ledger or live CLI.
+
+`develop-google-observations.cjs` reads the fixed develop workbook and parent with
+explicit credentials. It compares two complete grid captures (values, entered formats,
+notes, text runs, validation, protected ranges, merges and operation metadata), plus
+the two former A1:Z100/Y100 captures. The bounded projection must match the retained
+review package. Google-omitted empty repeated arrays are normalized only for that
+complete field mask; raw evidence and empty cell/format objects are preserved.
+The reader also checks the exact 24 reviewed Functions, three paused jobs, Rules,
+project IAM and inspection-invoker IAM. These reads do not supply runtime/key
+inventory, current source/causal reconciliation or human window commitments.
+
+The separately authorized read session observed original version **287**, owner and
+four readers, no writer grant and unchanged reviewed controls. Measured samples:
+owner capture **8,460ms**, Cloud reads **1,022ms**, owner OAuth cleanup **62,263ms**.
+Revocation returned 200; Drive denied the same token immediately, while Sheets
+returned 200 for six minimal probes and then 401. No refresh/new token was requested.
+The access was revoked, fields cleared and Playground closed. These are individual
+read/cleanup samples, not a combined migration deadline guarantee or writer-denial
+proof. No IAM, file permissions or Google cells were changed in this block.
+
+`prepare-develop-helper-batch.cjs` materializes exactly **53 F-cell updates and two
+operation markers** through the existing adapter. The forward ID uses the existing
+Firestore `request-` mapping; inverse uses its reviewed recovery ID. It binds the
+package, raw observation, version, before-images, preserved notes and request digest.
+The inverse verifies the complete expected after-image before preparing any write.
+Managed formulas/protection, changed published cells, edited review, distant changes
+or wrong markers reject. The time-only fence requires more than **150s** before both
+token expiry and window end: the adapter's 30s request bound plus 120s cleanup reserve.
+It grants no authority and never renews credentials or silently extends a deadline.
+
+The joint rehearsal uses the actual newly captured grids and retained source package
+with **Firestore emulator transactions and a stateful Sheets API double**. Durable
+acquisition/admission, 203 forward/140 inverse document writes, 55/55 Sheets requests,
+lost Sheets acknowledgement and read-only result reconciliation succeed. It restores
+62 originals and all observed cell data, preserving 117 notices and guard versions.
+Only the two expected technical markers remain updated. All 44 simulated observation
+sessions close. If time expires or interruption occurs after Firestore commits but
+before Sheets submission, the receipt remains, Sheets is unchanged and no automatic
+inverse or retry runs. This explicitly does not provide cross-service atomicity.
+
+Build/lint and syntax/diff checks pass: **247 focused +68 emulator tests**, zero failures
+or skips. Private evidence: `2026-11-01-google-batch-integration`, including raw/normalized
+captures, revocation probes and `joint-results/joint-sheets-roundtrip.json`. The initial
+offline marker-normalization diagnostic is retained; no live write failed or ran.
+Native code is unchanged; there is no platform parity gap.
+
+Remaining grouped gate: compose these readers with the remaining current authority,
+source/risk and participant observations; give the owner credential one explicit
+window lifecycle (not one OAuth grant/revocation per barrier read); bind the existing
+writer grant/removal lifecycle to this exact batch and rehearse the combined timing
+on an explicitly reviewed isolated destination. Current A1 and ten-row copy runners
+remain narrowly scoped and must not be repurposed silently. Their previous permissions
+are not current grants. A real full-batch lifecycle, writer access withdrawal and its
+timing are **not proven by this emulator**. Refresh/freeze the resulting package and
+request the concrete permissions/window only when those checks pass. No maintenance,
+production, FCM or deployment. No sheet closure or user action is needed now.
+
+
 ## Exact resources and participants
 
 The only workbook is `1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A`,
@@ -114,7 +178,7 @@ new emulator cases cover acquisition/restart, forward/inverse, interruptions, cl
 failure, expiry, source/control drift and foreign package rejection. The regenerated
 package performs 203/140 local writes, restores 62 originals and preserves all 117
 notices and guard-document versions. Private results:
-`2026-10-31-durable-barrier-acquisition`. New code/tests remain local after `9e724da4`.
+`2026-10-31-durable-barrier-acquisition`. That acquisition block was subsequently committed/pushed as `9ed3a9ef`.
 No native changes or parity gap. No real maintenance, production, Sheets, FCM or deploy.
 
 ## Current evidence boundary

@@ -384,6 +384,78 @@ run("cleanup failure after retaining evidence is durably incident-closed when re
   assert.equal(retained.failure.phase,"initialReadBack");assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
   assert.deepEqual(await withoutJournal(),before);assert.equal(d.counts.opened,d.counts.closed);
 });
+
+// Full Sheets writes remain a stateful API fake. The source, durable barrier,
+// admission and transactions below use Firestore's emulator. No live writer is
+// accepted, even when the optional inputs are retained real read observations.
+async function jointHarness() {
+  const {batchFixture}=require("./develop-helper-batch-fixture.cjs");
+  const {sheetsService}=require("./shift-sheets-api-fixture.cjs");
+  const {FILE}=require("../scripts/develop-original-writer-provider.cjs");
+  const {createShiftSheetsAdapter}=require("../lib/shift-sheets.js");
+  const {createShiftSheetsConfig}=require("../lib/shift-sheets-config.js");
+  let f=batchFixture();
+  if(process.env.HU084_HELPER_OBSERVATION) {
+    assert.ok(process.env.HU084_REVIEW_MANIFEST);
+    const sourceInput=loadManifest(process.env.HU084_REVIEW_MANIFEST);
+    const observation=JSON.parse(fs.readFileSync(process.env.HU084_HELPER_OBSERVATION));
+    const sheets=sheetsService(FILE);sheets.state=structuredClone(observation.snapshot);
+    f={sourceInput,reviewPackage:prepareDevelopMigrationPackage(sourceInput),sheets,
+      observe:()=>({...observation,snapshot:structuredClone(sheets.state),snapshotDigest:digest(sheets.state)})};
+  }
+  const h=await harness(f.sourceInput),d=durable(h);
+  const api=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:"develop",workbooks:{develop:FILE}}),sheets:f.sheets});
+  return {...f,h,d,api};
+}
+run("durable barrier, exact Firestore migration and complete Sheets batch recover together after a lost Sheets acknowledgement",async()=>{
+  const {planBatch,assertHelperBatchTime}=require("../scripts/prepare-develop-helper-batch.cjs");
+  const {assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
+  const f=await jointHarness(),before=await businessSnapshot(),image=f.observe(),scope=await f.h.scope();
+  const forward=await planBatch({...f,observation:image});assert.equal(forward.operation.operationId,f.h.prepared.operationId);
+  await f.d.barrier.acquire({scope});const admission=await f.d.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);
+  const receipt=await f.d.executor.execute({scope,admission});
+  const budget={nowMillis:1000,tokenExpiresAtMillis:301000,windowEndsAtMillis:601000};
+  const exact=plan=>async binding=>{assert.equal(binding.requestDigest,plan.requestDigest);assert.deepEqual(binding.requests,plan.requests);};
+  f.sheets.loseAcknowledgement=true;
+  const written=await f.api.reconcile({...forward.operation,authorizeMutation:exact(forward),assertSubmissionNow:()=>assertHelperBatchTime(budget)});
+  assert.equal(written.kind,"verified");preserved({manifest:forward.preservation,after:f.sheets.state});
+  assert.equal(f.sheets.mutations.length,1);assert.equal((await saved("shifts")).length,72);
+  const inverse=await planBatch({...f,observation:f.observe(),direction:"inverse",forwardPlan:forward});
+  assert.equal(inverse.operation.operationId,f.h.prepared.recoveryOperationId);
+  // An inverse is a separately checked action, never an automatic catch/retry.
+  const inverseScope=await f.h.scope(true);await f.d.barrier.acquire({scope:inverseScope});
+  const inverseAdmission=await f.d.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+  assert.equal(inverseAdmission.checksPassed,true);
+  const restored=await f.api.reconcile({...inverse.operation,authorizeMutation:exact(inverse),assertSubmissionNow:()=>assertHelperBatchTime(budget)});
+  assert.equal(restored.kind,"verified");preserved({manifest:inverse.preservation,after:f.sheets.state});
+  await f.d.executor.execute({scope:inverseScope,admission:inverseAdmission,forwardReadBack:receipt});
+  const cells=structuredClone(f.sheets.state);cells.sheets.forEach(s=>{s.developerMetadata=image.snapshot.sheets.find(x=>x.properties.sheetId===s.properties.sheetId).developerMetadata;});
+  assert.deepEqual(cells,image.snapshot);assert.equal(f.sheets.mutations.length,2);
+  assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+  if(process.env.HU084_CONTROLLED_OUTPUT)fs.writeFileSync(path.join(process.env.HU084_CONTROLLED_OUTPUT,"joint-sheets-roundtrip.json"),JSON.stringify({
+    preparedDigest:f.h.prepared.preparedDigest,forwardPlanDigest:forward.planDigest,inversePlanDigest:inverse.planDigest,
+    firestoreWrites:[203,140],sheetsRequests:[55,55],sheetsSubmissions:f.sheets.mutations.length,
+    observationSessions:f.d.counts,originalsRestored:62,noticesPreserved:117,realGoogleWrites:false,
+    livePermissionsExercised:false,liveTimingCertified:false,canEnterMaintenance:false},null,2),{mode:0o600,flag:"wx"});
+});
+for(const phase of ["expired-budget","interrupted"])run(`joint ${phase} after Firestore retains its receipt without sending Sheets or automatically reverting`,async()=>{
+  const {planBatch,assertHelperBatchTime}=require("../scripts/prepare-develop-helper-batch.cjs");
+  const f=await jointHarness(),scope=await f.h.scope(),image=f.observe();
+  const plan=await planBatch({...f,observation:image});await f.d.barrier.acquire({scope});
+  const admission=await f.d.executor.inspectAdmission({scope});await f.d.executor.execute({scope,admission});
+  await assert.rejects(f.api.reconcile({...plan.operation,
+    signal:phase==="interrupted"?AbortSignal.abort():undefined,
+    authorizeMutation:async binding=>assert.equal(binding.requestDigest,plan.requestDigest),
+    assertSubmissionNow:()=>assertHelperBatchTime({nowMillis:151000,tokenExpiresAtMillis:301000,windowEndsAtMillis:601000})}));
+  assert.equal(f.sheets.mutations.length,0);assert.deepEqual(f.observe().snapshot,image.snapshot);
+  assert.equal((await saved("shifts")).length,72);assert.equal((await f.d.executor.readRetained({scope})).replayed,true);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+});
 run("failed recovery readback never claims a durable incident after a lost acknowledgement",async()=>{
   const h=await harness(),scope=await h.scope(),before=await withoutJournal();let failed=false;
   const d=durable(h,{firestore:afterEvidenceCommit(()=>{failed=true;throw new Error("acknowledgement lost");}),
