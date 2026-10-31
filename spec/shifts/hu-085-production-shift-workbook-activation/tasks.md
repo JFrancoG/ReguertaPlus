@@ -1294,3 +1294,19 @@ gap, maintenance, migration, production access or sheet writes. #268/#269 open; 
 
 Local preparation after fe08a9e0; no native parity gap, IAM/grant/token, maintenance
 or production access. Private `2026-10-31-original-writer-raw-baseline`.
+
+
+## Original raw-baseline rehearsal passed — 2026-10-31
+
+- [x] Publish preparation as d6a2dae9 and verify exact remote HEAD.
+- [x] Obtain explicit one-attempt/read-only OAuth approval and fresh owner closed-sheet window; reject stale capture before writer access and renew two exact raw GETs with owner/control brackets.
+- [x] Verify one token, one same-value A1 batch, identical raw before/after digests and six identical supplemental connector captures; preserve dates/order/formats.
+- [x] Remove exact file/IAM permissions, verify writer404/owner401, independently confirm disabled identity/no keys/grants/runtime assignments, restored ACL and unchanged controls. Version284→287.
+- [x] Retain all receipts, release active lock, clear OAuth fields/tabs/token references.
+- [ ] Incorporate successful original-destination evidence into the develop admission package and regenerate current version/ACL/source/control bindings before any separately authorized maintenance window.
+
+Historical pending preparation/attempt checklists are superseded by this outcome.
+No migration authority, maintenance, FCM or production access.44 focused tests pass;
+public runtime/native code unchanged. Outcome evidence is local after d6a2dae9.
+Private `2026-10-31-original-writer-raw-baseline/fresh-window`; canonical
+`original-writer-20261031-raw-baseline`. #268/#269 remain open; #278 remains draft.

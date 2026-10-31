@@ -363,3 +363,40 @@ Next authorize the concrete rehearsal and combined read-only scope; obtain curre
 metadata/raw capture/controls, then request the fresh ten-minute closed-sheet window.
 Private preparation: `2026-10-31-original-writer-raw-baseline`. This preparation does
 not establish original-file writing or migration admission.
+
+
+## Original-file rehearsal passed with independent raw capture — 2026-10-31
+
+Preparation was committed/pushed as `d6a2dae9`; exact remote HEAD was verified. The
+maintainer authorized this one attempt, renewed both Online read-only scopes and
+confirmed the ten-minute closed-sheet window. The first start was rejected before
+writer access because its capture was older than ten minutes. That evidence remains;
+an unchanged private session in `fresh-window` renewed controls, identity, complete
+owner metadata/version and two raw GETs within the same confirmed window. Both raw
+responses match exactly; version284 and owner/four readers are unchanged. No freshness
+threshold or comparison was relaxed, and no failed writer attempt was retried.
+
+Canonical receipt `original-writer-20261031-raw-baseline` records one300s writer token
+after the minimum120s IAM wait, one same-value A1 batch and verified completion.
+Independent baseline, writer-before and writer-after digests all equal `07c74039…`.
+The bounded comparison preserves values, notes and formats across3286 selected cell
+objects in six tabs; dates and order are unchanged. Fresh connector before/after
+captures also match exactly, retaining their separate representation. No normalization
+was introduced. This proves only the approved same-value request and access lifecycle
+on the original develop file, not a migration or full publication.
+
+Cleanup has no controller failures: exact file/IAM grants removed, same unexpired
+writer token denied404, owner OAuth revoked and same-token metadata probe401.
+Independent identity/runtime reads confirm disabled account, zero user keys/account
+bindings/runtime assignments. Complete owner ACL is restored to owner/four readers,
+parent owner-only; Drive version284→287. Independent technical-control digest is
+unchanged. OAuth fields cleared, tabs closed, token references discarded and journal
+lock released; every prior receipt remains. No maintenance, Firestore business write,
+FCM or production access occurred. Private evidence: `2026-10-31-original-writer-raw-baseline/fresh-window`.
+
+Next incorporate this successful original-destination evidence into the controlled
+develop admission package and regenerate its current version/ACL/source/control
+bindings. Admission remains closed: historical success does not supply future grants,
+authority, fresh business sources or an owner/administrator maintenance window.
+Outcome-only local changes after `d6a2dae9`;44 focused tests pass. Full build/native
+gates are not repeated for documentation/inert evidence; no native parity gap.

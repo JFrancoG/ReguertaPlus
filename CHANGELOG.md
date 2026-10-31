@@ -32,6 +32,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-31 | 📝 docs(shifts): record original writer rehearsal success
+
 - 2026-10-31 | 📝 docs(shifts): prepare independent raw baseline
 
 - 2026-10-31 | 📝 docs(shifts): diagnose Sheets snapshot fidelity

@@ -381,3 +381,42 @@ autorizar el ensayo concreto y ambos alcances de lectura, renovar metadatos/capt
 controles y después pedir la ventana nueva de diez minutos con la hoja cerrada.
 Preparación privada: `2026-10-31-original-writer-raw-baseline`. No demuestra todavía
 escritura en el original ni admisión de migración.
+
+
+## Ensayo correcto en el original con captura cruda independiente — 2026-10-31
+
+Preparación publicada en `d6a2dae9`, con HEAD remoto exacto verificado. El mantenedor
+autorizó un intento, renovó ambos alcances de lectura Online y confirmó diez minutos
+con la hoja cerrada. El primer inicio se rechazó antes de conceder acceso al escritor
+porque la captura superaba diez minutos. Se conserva esa evidencia; una sesión privada
+sin cambios en `fresh-window` renovó controles, identidad, metadatos completos/versión
+del propietario y dos GET crudos dentro de la misma ventana confirmada. Ambas lecturas
+coinciden; versión284 y propietario/cuatro lectores intactos. No se relajaron la
+vigencia ni la comparación, ni se repitió un intento de escritura fallido.
+
+El recibo canónico `original-writer-20261031-raw-baseline` registra un único token
+de300s tras la espera IAM mínima de120s, un lote A1 con el mismo valor y resultado
+verificado. La base independiente y las lecturas del escritor antes/después comparten
+el digest `07c74039…`. Se conservan valores, notas y formatos de3286 objetos de celda
+seleccionados en seis pestañas, sin cambios de fechas ni orden. Las capturas recientes
+del conector antes/después también coinciden exactamente, con su representación
+separada. Sin normalización. Esto demuestra la petición acotada y el ciclo de acceso
+en el archivo original de develop; no equivale a migración ni publicación completa.
+
+Limpieza sin fallos del controlador: retirados los permisos exactos de archivo/IAM,
+el mismo token del escritor aún vigente devuelve404 y el OAuth del propietario,
+revocado, devuelve401 en la consulta de metadatos con el mismo token. Lecturas
+independientes confirman cuenta deshabilitada, cero claves de usuario, concesiones
+en la cuenta y asignaciones de ejecución. ACL completa restaurada al propietario
+y cuatro lectores; carpeta solo del propietario. Versión Drive284→287 y digest de
+controles técnicos intacto. Campos OAuth vaciados, pestañas cerradas, referencias a
+tokens descartadas y bloqueo del diario liberado, conservando todos los recibos
+anteriores. Sin mantenimiento, escrituras de negocio Firestore, FCM ni producción.
+Evidencia privada: `2026-10-31-original-writer-raw-baseline/fresh-window`.
+
+Siguiente paso: incorporar este resultado del destino original al paquete de admisión
+controlada de develop y regenerar sus vínculos actuales de versión/ACL/fuentes/controles.
+La admisión sigue cerrada: este éxito histórico no concede permisos futuros, autoridad,
+fuentes de negocio vigentes ni ventana de mantenimiento del propietario/administradores.
+Cambios locales solo de resultado tras `d6a2dae9`; pasan44 pruebas acotadas. No se
+repiten build ni gates nativos por ser documentación/evidencia inerte; sin brecha nativa.
