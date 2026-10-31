@@ -362,7 +362,7 @@ its effective enforcement must be verified before it can support admission.
 
 The authority review above is committed/pushed as `048497d2`; this follow-up is local.
 After explicit authorization, an Online OAuth Playground session requested only
-`drive.metadata.readonly`. Two Google Drive `permissions.list` GETs returned200 for
+`drive.metadata.readonly`. Two Google Drive `permissions.list` GETs returned 200 for
 the exact develop file and its parent, with no nextPageToken. The private evidence
 retains the displayed JSON semantically, not as a byte-identical HTTP archive.
 
@@ -387,7 +387,7 @@ maintenance state changed. New software tests/builds are unnecessary for this
 documentation-only preparation; verify the manifest and bilingual diff instead.
 
 Cleanup verified: no refresh token was issued; the temporary Playground connection
-was removed, and the same session token returned401 UNAUTHENTICATED/invalid_token on
+was removed, and the same session token returned 401 UNAUTHENTICATED/invalid_token on
 the same parent GET. Code/token fields were cleared and Playground reset. The exact
 two-target manifest and documentation diff checks pass. No user action is required
 until separately authorizing the actual role changes and their recovery.
@@ -437,7 +437,7 @@ submitted external call, every owner/OAuth writer, or maintenance admission. Kee
 old-work/source/window gates and maintenance/migration NOT_READY.
 
 Final credential cleanup: both successful tokens expired and the same file GET
-returned401 UNAUTHENTICATED for each. They were discarded and the local probe
+returned 401 UNAUTHENTICATED for each. They were discarded and the local probe
 process closed; earlier token metadata has an earlier expiry. The two original
 empty account policies are restored. Operational evidence and bilingual diff checks
 pass; this follow-up remains local after `25ed6f63`.
@@ -896,7 +896,7 @@ and a new observation; do not recycle the original receipt or blank the ledger.
 **Later original-develop gate:** an exact original-file grant and effective write
 probe are separate from this copy test. Renew owner/parent/ACL/version, bind the new
 principal and ACL to freshly prepared Sheets manifests, preserve published dates/
-order and recheck the source census. Do not transplant the version278 packet or
+order and recheck the source census. Do not transplant the version 278 packet or
 copy authority. Identity success does not implement the missing shared external-
 control reader or admit the owner/admin/risk window. The Sheets account has no
 Firestore authority: the existing composition must receive separate explicit Google
@@ -1283,7 +1283,7 @@ No second mint, owner OAuth, workbook or business-data access.
 Read-only checks confirm IAM Credentials ENABLED and the selected role includes
 getAccessToken. The retained grant targets the expected caller and time condition.
 Mint intent was about 1.4s after the audit timestamp of grant application. Userinfo
-returned401 and does not independently establish bearer identity; expected caller
+returned 401 and does not independently establish bearer identity; expected caller
 is supported by the CLI account and scoped administrative audit. The combined
 IAM/Credentials audit query did not yield evidence; the successful scoped Admin
 Activity query provides the recorded mutation sequence, not mint-denial internals.
@@ -1470,7 +1470,7 @@ After its exact file grant was removed, the **same token** received404 with273,6
 of validity remaining. The exact IAM binding was CAS-removed; explicit disable and
 an independent later identity read confirm disabled, zero user-managed keys/direct
 bindings and unchanged project policy. The file ACL is exactly its named owner.
-Owner OAuth revocation returned200 and the same owner token then401. No additional
+Owner OAuth revocation returned 200 and the same owner token then401. No additional
 writer mint was attempted. Playground fields/references were cleared and its tab
 closed; the local controller stopped, and the demo emulator exported its receipts
 before graceful shutdown. The finished synthetic tab is retained, not deleted.
@@ -1541,3 +1541,81 @@ permissions and owner/admin/risk window. Separate Firestore authority is still
 required. No further synthetic replay is needed for these unchanged sources.
 Implementation/docs remain local, pending commit after `7d7a7da0`; HU-084/HU-085
 remain open, PR #278 draft.
+
+
+### Original-develop permission and writer check prepared — 2026-10-31
+
+Historical writer admission binding is delivered/pushed as `2376ff42`. Its unchanged
+source hashes match the accepted lint/build, 137 unit / 50 emulator validation. The
+next step is a non-executable [original-file plan](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-original-writer-check-plan.json),
+not another copy experiment or a modification of the original-protected copy runner.
+The plan binds the retained review and writer-evidence digests without regenerating
+original authority or changing the migration/recovery intent. All execution, grant
+and maintenance authorization fields remain false. Owner metadata is now bound as
+a dated read-only observation, requiring another fresh read before execution.
+
+Fresh read-only observations in private `2026-10-31-original-writer-preparation`:
+
+- All 24 known Functions remain unchanged; Rules release/source and project IAM match;
+  all three scheduled jobs remain PAUSED; six indexes are unchanged and READY.
+- Bracketed observations still establish 288 retired revisions across 24 services.
+  Four capture pairs match reviewed immutable deployed archives and eight transport
+  bindings. Five metric groups remain UNKNOWN; this does not establish causal drain.
+- The exact writer UID remains disabled, with zero user-managed keys/direct account
+  bindings and unchanged project policy. It is assigned to none of the 24 observed
+  Functions or 24 globally listed Run services. Global Run jobs/worker pools/instances
+  lists are exhausted and empty. The first instance query used an unsupported service
+  field mask (400); a separate metadata-only query succeeds (200), retaining both.
+  This is scoped provider inventory, not proof of absence of every external actor.
+- Six Sheet tabs and all 742 previously captured typed cell/note positions match;
+  dates/order are unchanged within those bounded ranges. No whole-grid claim.
+  The connector still omits numeric Drive version, parent, owner and complete ACL,
+  and reports the connected reader cannot share. These omissions remain unknown.
+
+Proposed future permissions: re-enable only the proven UID; exact temporary
+workloadIdentityUser binding for drpuerk on that account (UTC window at most 600s),
+120s minimum grant age and one 300s token with spreadsheets + drive.metadata.readonly.
+Add only direct writer access to the original file; preserve all existing readers.
+No project-data role, key, attached service or Firestore/FCM authority is proposed.
+IAM does not itself constrain requested scopes/count/lifetime; the existing scoped
+controller/operator limits still matter. Owner permission creation/removal must have
+a reviewed native Drive sharing channel; the reader connector and read-only owner
+OAuth cannot supply that mutation. No broader OAuth scope is implicitly authorized.
+
+The concrete positive write probe is one updateCells request at sheet 673721152,
+`turnos-reparto 2026-27!A1`: write the already observed string `Fecha`, restricting
+fields to userEnteredValue. It changes no dates/order, notes or formatting; Drive
+version may advance. It requires fresh principal/capabilities (canEdit,
+canModifyContent,canShare), full ACL/restrictions and before/after selected raw
+snapshots. Stop on drift; no blind retry/inverse on uncertain response. Then remove
+only the created file grant, prove denial with the same unexpired writer token,
+remove the exact IAM grant, explicitly disable and independently verify cleanup.
+This probe is **not authorized or executable yet** and leaves no standing editor.
+A later migration requires fresh authority and its own permissions/window.
+
+Owner-side preparation is now verified through the explicitly authorized Online-only
+drive.metadata.readonly session with testplusprojects: identical before/after
+metadata, version 278, named owner, four direct readers, no additional editor or
+content restriction, and the returned My Drive root with exactly its owner's
+permission. Full permission pages are exhausted. The file ACL matches the preceding
+observation; the isolated writer has no original-file grant. The plan now records
+version/parent/ACL digest and observation time, never execution authority.
+
+Private `owner-read/metadata-private.json` and `verification.json` retain the facts;
+evidence digest 83db4379…9cb0c0f, plan digest 5e06b852…a4d46e2. OAuth revocation
+returned 200, then the same token's GET returned 401. No refresh token was issued.
+Playground fields/references were cleared and its tab closed. Authorization is
+consumed and revoked, not standing access. No bearer is retained in evidence.
+
+Next finish the original-only probe composition/journal and review the owner
+grant/removal channel, then request separate execution approval and a fresh owner
+window. Shared Firestore source census/authority and live maintenance admission
+remain separate. No maintenance, grant, writer token, Sheets write, deployment,
+FCM or production-data access occurred. Apps unchanged; no parity gap.
+
+Local assertions verify scope, exact no-op payload, source/evidence bindings and
+current read-only observations. New tracked changes are documentation and an inert
+plan, so no build/native suite is repeated. This preparation remains uncommitted
+after `2376ff42`; HU-084/HU-085 open, PR #278 draft. Google references checked:
+[UpdateCellsRequest](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest)
+and [service-account authentication roles](https://docs.cloud.google.com/iam/docs/service-account-permissions).

@@ -822,7 +822,7 @@ local; maintenance NOT_READY. See bilingual develop-writer-controls guide.
 ### Develop permission-record checkpoint — 2026-10-29
 
 - [x] Deliver writer-authority review (`048497d2`); acquire exact file/parent ACL records through explicitly authorized metadata-only OAuth reads. Two service writers are direct grants; preserve owner inheritance and inspector reader.
-- [x] Prepare exact two-role demotion/recovery requests, sequential whole-ACL checks and unknown/partial-result handling; verify private manifest and revoke temporary access (original token denied401, no refresh token). New evidence/documentation remains local.
+- [x] Prepare exact two-role demotion/recovery requests, sequential whole-ACL checks and unknown/partial-result handling; verify private manifest and revoke temporary access (original token denied 401, no refresh token). New evidence/documentation remains local.
 - [x] Apply the separately authorized develop-only writer-to-reader changes. Both identities pass positive batch200 before and read200/canEdit=false/write403 after;742 values unchanged. Temporary account-scoped IAM grants removed; no recovery needed. New operational evidence remains local after `25ed6f63`.
 - [x] Join the observed two-account Sheets fence and credential cleanup to validated old/current censuses and owner-role observations in offline preparation; preserve unknown work and NOT_READY.114 focused tests pass; source/jobs/value refresh retained privately. Local after `e6d02cc2`.
 - [ ] Resolve earlier external-call completion/isolation and remaining automatic-writer authority; obtain consistent workbook-version/control evidence and fresh owner/admin agreements before proposing the maintenance window. The two-account preparation is not runtime admission.
@@ -1020,7 +1020,7 @@ Online metadata-only owner session confirms stable Drive version 278, all five f
 permissions and the returned owner-only My Drive root. Four direct readers; the only
 inherited writer detail is the owner itself. No extra writer or content restriction.
 Both the stalled first session and successful clean-tab retry were revoked; final
-connection absent and same GET denied401, no refresh token, Playground fields cleared.
+connection absent and same GET denied 401, no refresh token, Playground fields cleared.
 No controlled Sheets worker is deployed; existing runtime has general project data/FCM
 roles and no file grant. No service-account grant/token or write probe. See bilingual
 writer-controls guide and private `2026-10-30-technical-sheets-review`; owner evidence
@@ -1316,3 +1316,30 @@ Private evidence: `2026-10-31-writer-admission-binding`; original receipts uncha
 This integration remains local/uncommitted after `7d7a7da0`. No maintenance, Google
 resource change, shared data write, Sheets request, FCM or production access. No
 native change/parity gap. HU-084/HU-085 open, PR #278 draft; prior approvals consumed.
+
+
+### Original develop writer permissions/check prepared — 2026-10-31
+
+- [x] Commit/push historical rehearsal binding: `2376ff42`; unchanged validation
+  hashes accepted (lint/build, 137 unit / 50 emulator).
+- [x] Prepare inert original-file permissions and one same-value A1 probe; exact
+  UID/file/tab/cell, one 300s token, bounded grant and complete cleanup. No execution
+  authority or standing editor; preserve original-protected copy runner.
+- [x] Refresh 24 Functions, Rules/IAM, three paused jobs, six READY indexes,288 retired
+  revisions, four capture pairs/eight transports and isolated writer identity.
+  Five metric groups remain UNKNOWN. Global Run inventory finds 24 services and no
+  jobs/worker pools/instances; writer assigned to none of the observed services.
+- [x] Recheck six tabs and 742 typed-cell/note positions: unchanged within bounds.
+- [x] Complete authorized Online-only owner metadata read: version 278 unchanged,
+  expected owner/four readers, owner-only parent and complete ACL matching prior
+  observation. OAuth revoked 200; same token denied 401; no refresh credential.
+  Bind dated facts to inert plan (5e06b852…a4d46e2); require freshness at execution.
+- [ ] Review original-only execution/journal and owner grant/removal channel; obtain
+  separate permissions/one-write approval and fresh closed-file owner window.
+- [ ] Regenerate migration authority after any new ACL/version, refresh business
+  source census and separate Firestore authority, then seek owner/admin/risk window.
+
+Private evidence: `2026-10-31-original-writer-preparation`. New documentation/inert
+plan remain local after `2376ff42`; local scope/evidence checks pass. No maintenance,
+IAM/ACL mutation, writer token, Sheets write, deployment, FCM or production-data
+access. No native change/parity gap. HU-084/HU-085 open; PR #278 draft.

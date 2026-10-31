@@ -1591,3 +1591,84 @@ administradores y riesgo. Sigue pendiente la autoridad separada de Firestore. No
 hace falta repetir el ensayo sintético con estas fuentes sin cambios. Implementación
 y documentación locales pendientes de commit tras `7d7a7da0`; HU-084/HU-085 siguen
 abiertas y PR #278 en borrador.
+
+
+### Permisos y comprobación del escritor de develop original preparados — 2026-10-31
+
+La vinculación del ensayo está publicada en `2376ff42`. Sus fuentes coinciden con
+la validación aceptada: lint/build, 137 pruebas unitarias y 50 de emulador. El nuevo
+[plan de la hoja original](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-original-writer-check-plan.json)
+es inerte: no repite el ensayo ni modifica el ejecutor de copias que protege la hoja
+original. Vincula los digests revisados sin regenerar la autoridad ni cambiar la
+migración/reversión. Autorizaciones de concesión, ejecución y mantenimiento en false;
+versión, carpeta y ACL completas vinculadas ahora a una observación fechada de
+lectura, que habrá que renovar antes de ejecutar.
+
+Observaciones nuevas de lectura en `2026-10-31-original-writer-preparation`:
+
+- Las 24 Functions conocidas, las Rules y el IAM del proyecto siguen iguales; los tres
+  jobs siguen PAUSED y los seis índices permanecen iguales y READY.
+- Siguen acreditadas 288 revisiones retiradas en 24 servicios. Cuatro pares de
+  receptores coinciden con sus fuentes desplegadas inmutables y ocho enlaces de
+  transporte. Las cinco métricas siguen UNKNOWN: no acreditan vaciado de colas.
+- El UID exacto del escritor sigue deshabilitado, sin claves de usuario ni permisos
+  IAM directos. No está asignado a ninguna de las 24 Functions ni a los 24 servicios
+  Run de la consulta global completa. Jobs, worker pools e instancias Run: listas
+  completas vacías. Una consulta inicial de instancias devolvió 400 por pedir un
+  campo exclusivo de servicios; la consulta corregida de metadatos devuelve 200.
+  Se conservan ambas. Este inventario no descarta por sí solo todo actor externo.
+- Coinciden las seis pestañas y las 742 posiciones anteriores con valores tipados o
+  notas: fechas/orden conservados en los rangos acotados, sin afirmar toda la
+  cuadrícula. El conector omite versión numérica de Drive, carpeta, propietario y
+  ACL completas; el lector conectado no puede compartir. Se mantienen desconocidos.
+
+Permisos futuros propuestos: reactivar solo ese UID; workloadIdentityUser temporal
+para drpuerk sobre esa cuenta, con ventana UTC máxima de 600s, espera mínima de 120s
+y un token de 300s con spreadsheets + drive.metadata.readonly. Añadir editor directo
+solo a la hoja original y conservar sus lectores. Sin roles de datos, claves,
+servicios asociados ni autoridad Firestore/FCM. IAM no limita por sí mismo los
+scopes, cantidad o duración solicitados: siguen siendo límites del controlador y
+operador. Hay que revisar previamente la creación y retirada del permiso por la
+interfaz del propietario en Drive; ni el conector lector ni OAuth de lectura
+permiten esa mutación. No se autoriza implícitamente un scope más amplio.
+
+La prueba positiva concreta sería una sola petición updateCells en sheet 673721152,
+`turnos-reparto 2026-27!A1`: reenviar el texto ya observado `Fecha`, limitando los
+campos a userEnteredValue. Sin cambiar fechas/orden, notas ni formato; la versión
+de Drive puede avanzar. Exige identidad/capacidades actuales (canEdit,
+canModifyContent,canShare), ACL/restricciones completas y capturas seleccionadas
+antes/después. Cualquier cambio inexplicado detiene la prueba; una respuesta incierta
+se inspecciona sin reintentar ni revertir a ciegas. Después se retira solo el permiso
+creado, se comprueba denegación con el mismo token vigente, se retira la concesión
+IAM exacta y se deshabilita/verifica la cuenta. **Aún no está autorizada ni es
+ejecutable**; no deja un editor permanente ni admite la migración posterior.
+
+La lectura del propietario ya está comprobada mediante la sesión Online de
+drive.metadata.readonly autorizada: metadatos idénticos antes/después, versión 278,
+propietario esperado, cuatro lectores directos, sin editores adicionales ni
+restricción de contenido; la raíz Mi unidad devuelta conserva únicamente su
+propietario. Listas completas de permisos, sin páginas pendientes. La ACL coincide
+con la observación anterior y el escritor aislado no tiene permiso sobre la hoja
+original. El plan recoge versión, carpeta, digest de ACL y fecha de observación;
+ninguno de ellos autoriza la ejecución.
+
+Evidencia privada en `owner-read/metadata-private.json` y `verification.json`: digest
+83db4379…9cb0c0f; plan 5e06b852…a4d46e2. Revocación de OAuth con respuesta 200 y
+lectura posterior con el mismo token denegada con 401. No se emitió refresh token.
+Campos/referencias de Playground limpiados y pestaña cerrada. Autorización consumida
+y revocada, sin acceso permanente ni tokens en la evidencia.
+
+Siguiente: completar la composición/registro del ensayo exclusivo de la hoja
+original y revisar la concesión/retirada del permiso por el propietario; después,
+solicitar aprobación específica de ejecución y ventana nueva. Censo/autoridad de
+Firestore y admisión real de mantenimiento siguen siendo independientes. No se
+ha abierto mantenimiento, concedido permisos, emitido tokens del escritor, escrito
+en Sheets, desplegado, enviado FCM ni accedido a datos de producción. Apps sin
+cambios ni brecha de paridad.
+
+Comprobaciones locales correctas de alcance, petición sin cambio de valor,
+vinculaciones y observaciones actuales. Solo documentación y plan inerte: no se
+repiten build ni pruebas nativas. Preparación local sin commit tras `2376ff42`;
+HU-084/HU-085 abiertas y PR #278 en borrador. Referencias de Google comprobadas:
+[UpdateCellsRequest](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest)
+y [roles de autenticación de cuentas de servicio](https://docs.cloud.google.com/iam/docs/service-account-permissions).
