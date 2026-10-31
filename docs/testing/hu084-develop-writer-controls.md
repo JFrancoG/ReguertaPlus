@@ -1631,3 +1631,27 @@ controls and preserves every copy-runner exclusion. 83 focused cases pass (34 ne
 regressions), Functions build/lint and CJS syntax pass under Node 22.23.4. No live
 operation this step; preparation remains unauthorized and local. Original-file access
 still requires current owner-channel/control review, fresh digests/approval/window.
+
+
+### Native owner channel and refreshed controls — 2026-10-31
+
+Executor delivered in `3e494fc8`, exact pushed head verified. Read-only review of the
+owner sharing UI confirms the exact file, owner and four readers. The expected writer
+resolves in the Editor draft; notifications were unchecked and the draft cancelled.
+Remove access is available on an existing reader; no removal was selected. No writer
+grant/removal has been executed; its final confirmation remains for the authorized attempt.
+
+The real legacy grid has 25 columns. A local provider correction reads A1:Y100 there,
+retaining A1:Z100 on the other five tabs. 84 focused cases pass (35 original/49 IAM-copy),
+zero failures/skips; Node 22.23.4 build/lint and CJS syntax pass. Published typed values
+and notes match the previous bounded capture; formats are a newly captured baseline.
+24 Functions, three PAUSED jobs, six READY indexes and Rules/IAM match prior evidence.
+The writer is disabled, with no keys/direct grants/runtime assignment. This does not
+refresh business sources, causal queues or retired revisions, or prove global drain.
+
+Authorized owner metadata renewal completed at 11:56:08Z: version 278 stable,
+complete file/parent ACL unchanged (owner plus four readers; parent owner only).
+Temporary Online OAuth revoked 200, same token denied 401; no refresh credential,
+fields cleared and Playground closed. The connector itself omits these fields. No permission change, writer token, Sheets write, maintenance or
+production-data access occurred. New code/evidence remains local after `3e494fc8`.
+Apps unchanged/no parity gap. See the [original-writer guide](hu084-original-writer-check.md).

@@ -1684,3 +1684,28 @@ Reutiliza controles IAM y conserva las exclusiones del ejecutor de copias. 83 pr
 pasan (34 nuevas/49 regresiones), build/lint de Functions y sintaxis CJS correctos con
 Node 22.23.4. Sin operaciones reales; preparación local sin autorización de ejecución.
 Faltan revisión actual del canal/controles y digests/autorización/ventana nuevos.
+
+
+### Canal del propietario y controles renovados — 2026-10-31
+
+Ejecutor publicado en `3e494fc8`, con SHA remoto exacto comprobado. La revisión de
+Compartir confirma el archivo, propietario y cuatro lectores. El escritor esperado
+se resuelve en el borrador de Editor; se desmarcaron los avisos y se canceló el borrador.
+Quitar acceso está disponible en un lector existente; no se seleccionó. No se ha
+concedido/retirado acceso al escritor; su confirmación final queda para el intento autorizado.
+
+La cuadrícula histórica tiene 25 columnas: el proveedor local lee A1:Y100 allí y
+A1:Z100 en las otras cinco pestañas. 84 casos correctos (35 original/49 IAM-copia),
+cero fallos/omisiones; Node 22.23.4, build/lint y sintaxis CJS correctos. Valores tipados
+y notas coinciden con la captura acotada previa; los formatos tienen nueva captura base.
+24 Functions, tres jobs PAUSED, seis índices READY y Rules/IAM coinciden con evidencias
+previas. Escritor deshabilitado, sin claves/concesiones directas/asignación de ejecución.
+No se renuevan fuentes de negocio, colas causales ni revisiones retiradas; no prueba vaciado global.
+
+La lectura OAuth autorizada terminó a las 11:56:08Z: versión 278 estable y permisos
+completos sin cambios (propietario y cuatro lectores; carpeta solo del propietario).
+Acceso Online revocado 200, mismo token denegado 401; sin renovación, campos borrados
+y Playground cerrado. El conector omite esos campos. Sin cambios de permisos, token del escritor, escritura
+Sheets, mantenimiento ni acceso a datos de producción. Código/evidencias nuevos locales
+tras `3e494fc8`. Apps intactas/sin diferencia de paridad. Véase la
+[guía del escritor original](hu084-comprobacion-escritor-original.md).

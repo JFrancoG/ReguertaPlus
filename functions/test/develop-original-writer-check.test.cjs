@@ -21,7 +21,7 @@ function metadata() {
 }
 function grid() {
   return {spreadsheetId: FILE, properties: {locale: "es_ES"}, sheets: TABS.map((tab, index) => ({
-    properties: {sheetId: tab.id, title: tab.title, index},
+    properties: {sheetId: tab.id, title: tab.title, index, gridProperties: {rowCount: 1000, columnCount: tab.id === 1770956648 ? 25 : 26}},
     data: [{rowData: [{values: [{userEnteredValue: {stringValue: "Fecha"}, note: "preserve note"}]}]}],
   }))};
 }
@@ -282,4 +282,23 @@ test("explicit composition revokes owner OAuth even if the local journal lock re
     journalRoot: f.root, iamBearer: SECRET, ownerBearer: SECRET, ownerChannel: f.args.ownerChannel,
     readIndependentControls: f.args.readIndependentControls}), {code: "EEXIST"});
   assert.equal(calls.length, 2); assert.equal(f.state.mints + f.state.writes, 0);
+});
+
+
+test("bounded original snapshot respects the real 25-column legacy grid without expanding it", async () => {
+  const data = grid(), calls = [];
+  const access = createWorkbookAccess({writerBearer: SECRET, async fetchImpl(url, options) {
+    assert.equal(options.method, "GET"); calls.push(url);
+    const ranges = new URL(url).searchParams.getAll("ranges");
+    assert.equal(ranges.length, data.sheets.length);
+    for (const range of ranges) {
+      const match = /^'(.+)'!A1:([A-Z])100$/.exec(range); assert.ok(match);
+      const sheet = data.sheets.find(s => s.properties.title === match[1]); assert.ok(sheet);
+      assert.ok(match[2].charCodeAt(0) - 64 <= sheet.properties.gridProperties.columnCount, "Range exceeds grid");
+    }
+    assert.ok(ranges.includes("'TORRE 2025-26'!A1:Y100"));
+    return {status: 200, json: async () => data};
+  }});
+  assert.equal((await access.readSnapshot()).digest, snapshot(data).digest);
+  assert.equal(calls.length, 1); access.close();
 });

@@ -132,7 +132,7 @@ function createWorkbookAccess({writerBearer, fetchImpl = fetch}) {
       const params = new URLSearchParams({includeGridData: "true",
         fields: "spreadsheetId,properties,sheets(properties,data(startRow,startColumn,rowData(values(userEnteredValue,note,userEnteredFormat))))"});
       // Bounded six-tab image, not a whole-workbook snapshot.
-      TABS.forEach(tab => params.append("ranges", `'${tab.title}'!A1:Z100`));
+      TABS.forEach(tab => params.append("ranges", `'${tab.title}'!A1:${tab.id === 1770956648 ? "Y" : "Z"}100`));
       const data = ok(await request(fetchImpl, bearer, SHEETS + "?" + params));
       return snapshot(data);
     },

@@ -18,7 +18,7 @@ The only destination is original develop file
 `1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A`. The only write is one batch containing
 one `updateCells` to sheet 673721152/A1 with the already observed string `Fecha`, fields
 `userEnteredValue`. No date/order, note or format change is requested. Drive version
-may increase. All six tab identities and bounded `A1:Z100` snapshots of typed values,
+may increase. All six tab identities and bounded snapshots (`A1:Z100`, or `A1:Y100` for the 25-column TORRE 2025-26 tab) of typed values,
 notes and entered formats must match the reviewed baseline before and after. This is
 not a full-grid or immutable-history guarantee. No inverse write or automatic retry.
 
@@ -109,3 +109,42 @@ and its own owner/admin/risk maintenance authorization.
 
 Provider references: [UpdateCellsRequest](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest)
 and [complete permission pagination](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/list).
+
+
+## Native sharing review and refreshed evidence — 2026-10-31
+
+Executor delivery: `3e494fc8`, exact pushed head verified. Read-only native review
+confirms the named owner account and exact original file, owner/four readers and
+restricted access. The writer email resolves to the expected account; its pending
+Editor form supports turning notifications off. The draft was cancelled without
+Sharing/Sending. An existing reader's permission menu exposes Remove access; it was
+closed without selecting a change. The writer is absent afterward. This verifies
+the UI path, not a successful grant/removal of a writer that does not yet exist.
+Future actions must use fresh visible state, never retained AX indices. The final
+post-removal confirmation will be inspected only during the authorized attempt.
+
+Refreshed metadata confirms the legacy TORRE tab has 25 columns. The old uniform Z
+read would exceed that grid; the original-only provider now uses Y there, preserving
+Z on the other five tabs. A regression models real grid bounds. Snapshot masking,
+write budget, same-value request, IAM contract and copy exclusions are unchanged.
+The readonly connector supplies the new six-tab raw baseline. Its complete version/
+parent/ACL projection is unavailable in the connector. The authorized owner-only
+OAuth read completed at 11:56:08Z: version 278 stable, same complete five-entry file
+ACL and owner-only parent. Revocation returned 200 and the same token then returned
+401. No refresh token; fields cleared and Playground closed.
+
+24 Functions remain unchanged, three scheduler jobs PAUSED, six indexes READY;
+Rules and project/account policies match prior observations. The writer remains
+disabled with zero user keys/account grants and no assignment to the 24 observed
+Functions or 24 globally listed Run services. Global jobs/worker pools/instances are
+empty, with no continuation/unreachable locations. Business sources, causal queues
+and retired-revision evidence are not renewed or declared drained by this check.
+
+Private evidence: `2026-10-31-original-permission-channel`. No permission change,
+writer token, Sheets write, notification, maintenance or production-data access.
+Native apps unchanged. Local code/evidence updates remain uncommitted after
+`3e494fc8`; live execution still requires its separate approval and owner window.
+
+Validation of this correction: Node 22.23.4, 84 cases (35 original and 49 IAM/copy
+regressions), zero failures/skips; build, lint and CJS syntax pass. Native/emulator
+suites are not repeated because app/Firestore behavior is unchanged.

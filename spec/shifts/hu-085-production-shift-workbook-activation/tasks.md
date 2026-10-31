@@ -1193,3 +1193,26 @@ Sheets/business write, deployment, notification or maintenance change this step;
 production untouched. No native change/parity gap. Private validation:
 `2026-10-31-original-writer-executor`. Guide:
 `docs/testing/hu084-original-writer-check.md` and its Spanish counterpart.
+
+
+### Native owner channel checked without mutation — 2026-10-31
+
+- [x] Publish executor as `3e494fc8`; remote and draft PR head verified.
+- [x] Review exact owner/file sharing UI: writer Editor draft with notifications off,
+  cancelled; existing-reader Remove access menu inspected without selecting removal.
+  Owner plus four readers preserved. This is UI-path evidence, not executed permissions.
+- [x] Refresh bounded controls/identity/runtime and six-tab baseline. Correct legacy
+  25-column read to A1:Y100, with grid-bound regression; other five ranges unchanged.
+  Node 22.23.4: 84 focused passes (35 original/49 IAM-copy), no failures/skips; build,
+  lint and CJS syntax pass. No native/Firestore change requiring their suites.
+- [x] Complete authorized owner API metadata renewal at 11:56:08Z: version 278,
+  same complete file/parent ACL; revoke 200, same-token 401, no refresh credential.
+  Bind dated observations to the inert plan; clear fields and close Playground.
+- [ ] Bind fresh source/baseline/control/owner evidence to separate live probe
+  approval and the owner window; this read is not execution or maintenance authority.
+- [ ] Execute original writer check and inspect actual grant/removal/cleanup results.
+  Maintenance/migration remain separately gated; no global drain is inferred.
+
+New local work after `3e494fc8`. Private evidence: `2026-10-31-original-permission-channel`.
+No permission mutation, writer token, Sheets write, maintenance or production-data
+access. No native parity gap. HU-084/HU-085 remain open; PR #278 remains draft.

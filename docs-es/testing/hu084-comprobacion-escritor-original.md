@@ -18,7 +18,7 @@ notificaciones ni entrada de despliegue.
 `1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A`. Única escritura: un lote con un solo
 `updateCells` en sheet 673721152/A1, reenviando `Fecha`, limitado a `userEnteredValue`.
 No pide cambiar fechas/orden, notas ni formato; la versión de Drive puede aumentar.
-Las identidades de las seis pestañas y las capturas acotadas `A1:Z100` de valores
+Las identidades de las seis pestañas y las capturas acotadas (`A1:Z100`, o `A1:Y100` en TORRE 2025-26, de25 columnas) de valores
 tipados, notas y formato introducido deben coincidir con la base revisada antes y
 después. No garantiza toda la cuadrícula ni la historia inmutable. Sin escritura
 inversa ni reintento automático.
@@ -112,3 +112,43 @@ autoridad Firestore separada y autorización de mantenimiento propietario/admin/
 
 Referencias: [UpdateCellsRequest](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest)
 y [paginación completa de permisos](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/list).
+
+
+## Canal nativo y evidencias renovadas — 2026-10-31
+
+Ejecutor publicado en `3e494fc8`, comprobado en remoto. La revisión nativa de lectura
+confirma cuenta propietaria, archivo original exacto, propietario/cuatro lectores y
+acceso restringido. El correo del escritor se resuelve a la cuenta esperada; el
+formulario pendiente de Editor permite desmarcar notificaciones. Se canceló sin
+Compartir/Enviar. El menú de un lector existente ofrece Quitar acceso; se cerró sin
+seleccionar cambios. El escritor sigue ausente. Esto comprueba el recorrido de la
+interfaz, no una concesión/retirada efectiva de un escritor todavía inexistente.
+Las acciones futuras usarán estado visible nuevo, nunca índices AX conservados.
+La confirmación final posterior a quitar acceso se inspeccionará durante el intento
+autorizado.
+
+Los metadatos renovados confirman 25 columnas en TORRE histórica. Leer hasta Z
+superaría su cuadrícula: el proveedor original utiliza ahora Y allí y conserva Z en
+las otras cinco pestañas. Una regresión reproduce los límites reales. Máscara de
+captura, presupuesto de escritura, petición sin cambio de valor, IAM y exclusiones
+de copias intactos. El conector de lectura aporta la nueva base de las seis pestañas;
+sigue omitiendo versión/carpeta/ACL completas. La lectura OAuth autorizada terminó
+a las 11:56:08Z: versión 278 estable, mismos cinco permisos completos y carpeta solo
+del propietario. Revocación 200 y posterior 401 con el mismo token. Sin renovación;
+campos borrados y Playground cerrado.
+
+24 Functions sin cambios, tres jobs PAUSED y seis índices READY; Rules y políticas
+IAM coinciden con las observaciones anteriores. Escritor deshabilitado, sin claves
+ni concesiones directas, no asignado a las 24 Functions observadas ni a los 24 servicios
+Run listados globalmente. Jobs/worker pools/instancias vacíos, sin continuación ni
+ubicaciones inaccesibles. No se renuevan fuentes de negocio, colas causales ni
+revisiones retiradas, ni se deduce su vaciado de estas comprobaciones.
+
+Evidencias privadas: `2026-10-31-original-permission-channel`. Sin cambios de permisos,
+token del escritor, escritura Sheets, notificaciones, mantenimiento ni datos de
+producción. Apps intactas. Código/evidencias nuevos pendientes de commit después de
+`3e494fc8`; la ejecución real sigue requiriendo autorización y ventana propias.
+
+Validación de esta corrección: Node 22.23.4, 84 casos (35 del original y 49
+regresiones IAM/copia), cero fallos/omisiones; build, lint y sintaxis CJS correctos.
+Las pruebas nativas/emulador no se repiten: no cambia comportamiento de apps/Firestore.
