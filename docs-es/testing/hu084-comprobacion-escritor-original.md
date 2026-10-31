@@ -310,3 +310,42 @@ preparación, autorización separada y ventana nueva. Apps y código del control
 proveedor sin cambios; este resultado solo actualiza evidencias, plan inerte y tareas.
 Evidencias privadas: `2026-10-31-original-writer-owner-parent` y recibo canónico
 `original-writer-20261031-owner-parent`.
+
+
+## Diagnóstico de solo lectura: el conector omite objetos de formato vacíos — 2026-10-31
+
+El resultado del ensayo contenido está publicado en `b890d722`. Después se autorizó
+una sesión temporal Online con `spreadsheets.readonly` para la hoja exacta de develop.
+Dos GET directos usan los mismos campos y seis rangos acotados del escritor: su JSON
+crudo completo coincide y su digest `07c74039…` reproduce exactamente la observación
+del escritor del ensayo consumido. Las capturas nuevas del conector antes/después
+también coinciden y mantienen el digest `854e761f…`.
+
+La diferencia está completamente localizada: Sheets directo devuelve284 objetos
+vacíos de formato que el conector omite, en224 celdas (8 objetos en TORRE2025-26 y
+276 en MERCADO2025-26). Son campos `color`/`colorStyle` de bordes y `foregroundColor`
+de texto dentro de `userEnteredFormat`. Valores, notas y todos los demás campos
+comparados coinciden. El conector también añade `spreadsheetUrl`, ya excluido del
+snapshot. Añadir exclusivamente esos284 objetos a una copia local de la captura
+del conector reproduce exactamente el JSON directo completo. Esta reconstrucción
+solo sirve de diagnóstico: no es un normalizador de producción ni se envió a Sheets.
+No se afirma que cualquier formato ausente y vacío sea semánticamente equivalente.
+
+La próxima base debe proceder de un **GET crudo independiente y reciente de Sheets**,
+con exactamente los mismos campos/rangos del escritor y conservando los objetos
+vacíos. Se mantiene intacta la comparación estricta de digests y se usa el conector
+como contraste complementario de contenido. Así se corrige la fidelidad de entrada
+sin descartar formatos ni usar la propia observación del escritor para autorizar su
+escritura. Esta captura es evidencia, no admisión futura: habrá que renovarla con
+los controles y la ventana aprobados entonces. No hace falta cambiar el código del
+controlador/proveedor ni introducir normalización de producción.
+
+La revocación OAuth devolvió200; la prueba inmediata con el mismo token en Sheets
+seguía devolviendo200 y una comprobación acotada posterior devolvió401. Se conservan
+todos los estados. Google documenta que la revocación puede tardar en surtir efecto
+en su [guía OAuth](https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke).
+Campos vaciados, pestaña cerrada y referencias al token descartadas. Sin reactivar
+el escritor, modificar IAM/permisos del archivo, escribir en Sheets, abrir
+mantenimiento/migración ni acceder a producción. Capturas crudas, diferencias y
+recibos privados en `2026-10-31-snapshot-readonly-diagnostic`. Pasan44 pruebas del
+plan; no se repiten build ni gates nativos al ser cambios exclusivos de evidencia.

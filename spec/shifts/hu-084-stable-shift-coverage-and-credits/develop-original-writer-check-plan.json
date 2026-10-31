@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "non-executable-original-develop-writer-check",
-  "status": "original-snapshot-mismatch-cleanup-verified",
+  "status": "original-snapshot-representation-diagnosed-readonly",
   "projectId": "reguerta-9f27f",
   "environment": "develop",
   "canProvision": false,
@@ -142,7 +142,7 @@
     "leaveMaintenanceClosed": true
   },
   "remainingBeforeExecution": [
-    "identify-exact-connector-versus-direct-snapshot-difference-without-relaxing-content-comparison",
+    "capture-fresh-independent-raw-sheets-baseline-with-exact-writer-mask-and-ranges",
     "renew-owner-version-parent-and-complete-permissions-at-execution",
     "recheck-current-owner-ui-and-inspect-final-removal-confirmation-during-authorized-attempt",
     "fresh-independent-controls-and-identity",
@@ -257,5 +257,40 @@
       "requiresNewApprovalAndWindow": true,
       "localCorrection": "Use independently verified owner parent when writer omits it; reject visible conflicts and malformed fields"
     }
-  ]
+  ],
+  "snapshotDiagnosis": {
+    "observedOn": "2026-10-31",
+    "mode": "read-only",
+    "relatedConsumedReceipt": "original-writer-20261031-owner-parent",
+    "directSnapshotDigest": "shift-planning:v1:sha256:07c7403924681413f9314ec8a87b1a47e41f4bc5e400e037aa483919b7ce8735",
+    "connectorSnapshotDigest": "shift-planning:v1:sha256:854e761faff03f876f1b975470a96cb7034b977933d33e8248ef13741c2d7ab0",
+    "directReadsExactlyEqual": true,
+    "directDigestMatchesConsumedWriter": true,
+    "connectorBeforeAfterEqual": true,
+    "selectedCellCount": 3286,
+    "differingEmptyFormatObjectCount": 284,
+    "affectedCellCount": 224,
+    "differencesByTab": {
+      "TORRE 2025-26": 8,
+      "MERCADO 2025-26": 276
+    },
+    "differingFields": [
+      "userEnteredFormat.borders.<side>.color",
+      "userEnteredFormat.borders.<side>.colorStyle",
+      "userEnteredFormat.textFormat.foregroundColor"
+    ],
+    "valuesNotesAndRemainingFieldsEqual": true,
+    "strictRawReconstructionVerified": true,
+    "normalizationAdded": false,
+    "futureIndependentBaseline": "Raw Sheets GET under independently approved read-only credentials, exact writer mask/ranges, retain empty objects; connector is supplementary cross-check",
+    "freshBaselineRequired": true,
+    "notExecutionAuthority": true,
+    "oauthRevokeStatus": 200,
+    "oauthInitialSameTokenStatus": 200,
+    "oauthFinalSameTokenStatus": 401,
+    "iamChanges": 0,
+    "filePermissionChanges": 0,
+    "sheetWrites": 0,
+    "maintenanceOpened": false
+  }
 }

@@ -296,3 +296,41 @@ approval and fresh owner window. Native apps and controller/provider code are
 unchanged; this outcome updates only evidence, inert plan and tasks. Private
 receipts: `2026-10-31-original-writer-owner-parent` and canonical
 `original-writer-20261031-owner-parent`.
+
+
+## Read-only diagnosis: connector omits empty format objects — 2026-10-31
+
+The contained attempt outcome was published as `b890d722`. The maintainer then
+authorized a temporary Online `spreadsheets.readonly` session for the exact develop
+file. Two direct GETs use the writer's exact field mask and six bounded ranges;
+their complete raw JSON is identical and their digest `07c74039…` exactly reproduces
+the consumed writer observation. Fresh connector captures before/after also match
+exactly and retain digest `854e761f…`.
+
+The difference is fully isolated: direct Sheets returns284 empty format objects
+omitted by the connector, across224 cells (8 objects in TORRE2025-26,276 in
+MERCADO2025-26). Paths are border `color`/`colorStyle` and text `foregroundColor`
+inside `userEnteredFormat`. Values, notes and every other compared field match.
+The connector also adds `spreadsheetUrl`, which the snapshot already excludes.
+Adding only those284 objects to a detached connector capture reproduces the entire
+direct raw JSON exactly; this diagnostic reconstruction is not a production
+normalizer and was never sent to Sheets. No claim is made that all absent and empty
+format fields are semantically interchangeable.
+
+Use a **fresh independent raw Sheets GET** as the next rehearsal's baseline, with
+the exact writer field mask/ranges and all empty objects retained. Keep the existing
+strict digest check unchanged; retain the connector as a supplementary content
+cross-check. This fixes input fidelity without discarding format authority or
+using the writer's own observation to authorize its write. Current captured data
+is evidence only, not future admission; renew it with the future approved controls
+and window. No controller/provider or production normalization change is required.
+
+OAuth revocation returned200; the immediate same-token Sheets probe still returned
+200, and a later bounded probe returned401. Preserve all statuses, not just the
+last. Google documents that revocation can take time to have full effect in its
+[OAuth guide](https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke).
+Fields cleared, tab closed and token references discarded. No writer reactivation,
+IAM/file-permission change, Sheets mutation, maintenance, migration or production
+access occurred. Private raw captures, exact paths and cleanup receipts are under
+`2026-10-31-snapshot-readonly-diagnostic`. The44 focused plan tests pass; full
+build/native gates are not repeated for this evidence-only change.

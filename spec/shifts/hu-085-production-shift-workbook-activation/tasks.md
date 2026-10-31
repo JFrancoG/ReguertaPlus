@@ -1269,3 +1269,16 @@ Private `2026-10-31-original-writer-live`; current diagnostic code/docs local af
 Private evidence: `2026-10-31-original-writer-owner-parent`; canonical consumed receipt
 `original-writer-20261031-owner-parent`. Outcome-only local changes after44271c22;
 no native code/parity gap and no controller/provider change.
+
+
+## Read-only snapshot diagnosis — 2026-10-31
+
+- [x] Publish contained attempt outcome in `b890d722`; exact remote HEAD and clean checkout verified before diagnosis.
+- [x] Execute two explicitly authorized raw Sheets GETs with Online readonly OAuth; no writer token, IAM or file-permission change.
+- [x] Reproduce the consumed writer digest exactly and isolate284 empty format objects across224 cells, only in the two2025-26 tabs. Values/notes/remaining fields and connector before/after captures match; exact detached reconstruction passes.
+- [x] Revoke OAuth, preserve initial200 acceptance/200 probe and later same-token401, clear fields/close tab/discard token.
+- [x] Specify independent raw GET baseline fidelity with exact writer mask/ranges; preserve strict comparison and all formats. No runtime normalizer or controller/provider change.
+- [ ] Prepare a fresh independent raw baseline with renewed controls and a separately authorized rehearsal/window. Current diagnosis is not live admission or proof of original-file writing.
+
+Evidence-only local changes after b890d722;44 focused plan passes. No native parity
+gap, maintenance, migration, production access or sheet writes. #268/#269 open; #278 draft.
