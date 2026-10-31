@@ -1436,3 +1436,108 @@ con la hoja cerrada para el ensayo completo. Ahora no necesitas hacer nada.
 Sin peticiones reales IAM/OAuth/ACL, acceso a hojas, escrituras compartidas, FCM,
 despliegue, apertura de mantenimiento ni operaciones de producción. Sin cambios
 nativos ni nueva diferencia entre plataformas. HU-084/HU-085 abiertas; PR #278 draft.
+
+
+### Paquete preparado para la hoja sintética existente — 2026-10-31
+
+Integración publicada en `3f88c846`, coincidente con rama remota y HEAD de PR #278
+draft. Se reutilizan lint/build y los 63 casos distintos anteriores tras comprobar
+igualdad exacta de los resúmenes de preparación, plan, controlador, proveedor y
+runner. No cambia código ejecutable del repositorio; esta documentación es local.
+
+El directorio privado `2026-10-31-develop-writer-copy-ready` contiene composición
+regenerada, manifiesto de entradas sellado, plantillas inertes de autorización y
+ventana, plan y revisión local. Destino: la misma hoja sintética de siete pestañas
+y el UID exacto de la cuenta aislada. Las imágenes y política guardadas son
+históricas, no autorización actual: se releerán cuenta/claves/permisos y propietario,
+ACL completa e imagen de pestañas antes de activar la cuenta. No se crea otra hoja
+ni se reutilizan autorizaciones o registros del emulador anteriores.
+
+El ejecutor deja la propagación del estado al controlador validado, sin exigir una
+lectura inmediata de activación. Los fallos anteriores al controlador también
+provocan desactivación explícita. Cada etapa de limpieza conserva sus incidencias
+sin impedir las siguientes. Una respuesta perdida al crear el permiso de la copia
+requiere inspección, no adivinar qué permiso borrar. Al terminar se revoca OAuth y
+se comprueba 401 con ese mismo token; el servidor también revoca/cierra al vencer
+su admisión si está inactivo. No se solicita un segundo token del escritor.
+
+La autorización permite preparar la sesión durante como máximo 30 minutos. La
+confirmación posterior del propietario inicia una ventana aparte de 599 segundos,
+con al menos 540 disponibles antes de activar la cuenta. Así OAuth no consume los
+diez minutos con la hoja cerrada. La intención de ejecución de un solo uso y los
+resúmenes de fuentes/manifiesto impiden reutilizar el paquete. Se conservan revisión
+del lote, espera mínima de 120 segundos, retirada exacta, negativa con el mismo
+token y conservación de las siete pestañas.
+
+Ocho pruebas privadas locales pasan con el controlador real, reloj virtual y
+servicios IAM/propietario/hijo simulados: autorización ausente/caducada/fuentes
+alteradas, estado tardío, OAuth fuera de la ventana, segunda entrada, confirmación
+antigua, cambios de política/imagen, activación incierta y fallo al conceder acceso.
+También verifican que los recibos no guarden credenciales. Sintaxis correcta. No se
+han solicitado tokens reales, autorizado OAuth, cambiado IAM/ACL, leído hojas,
+usado Firestore compartido, enviado FCM ni desplegado. No hay autorización ejecutable
+ni puente activo. No demuestra acceso real del escritor. Apps sin cambios ni nueva
+brecha de paridad.
+
+Siguiente intervención: autorizar este intento concreto sobre la copia, reactivando
+solo la cuenta aislada, renovando OAuth Online drive.file del propietario para esa
+hoja, concediendo los permisos temporales exactos, solicitando un token de 300s y
+aplicando como máximo un lote de diez turnos con limpieza final. Después de preparar
+OAuth se pedirá una nueva confirmación de diez minutos en línea, hoja cerrada, sin
+ediciones, otras pruebas ni emisiones de tokens. Mantenimiento cerrado, originales
+de develop y producción fuera del alcance. HU-084/HU-085 abiertas; PR #278 draft.
+Las autorizaciones previas siguen consumidas.
+
+
+### Ensayo real de la copia completado y accesos retirados — 2026-10-31
+
+El mantenedor autorizó el intento preparado sobre la copia y después confirmó una
+ventana aparte de diez minutos en línea, hoja cerrada, sin ediciones, otras pruebas
+ni tokens. Se ejecutó el paquete sellado sin cambios sobre `3f88c846`: sin código
+nuevo, despliegues ni reintentos. OAuth usó Online drive.file sin renovación; la
+aplicación podía acceder a esa hoja sintética existente. Las lecturas actuales de
+propietario, ACL, imagen inicial e IAM coincidieron con el alcance retenido; la
+cuenta empezó deshabilitada, sin claves ni concesiones directas.
+
+Tras 126.484ms desde la concesión se emitió el **único token del escritor, de 300s**,
+entregado al hijo demo local. El padre aprobó 45 peticiones para una nueva pestaña
+de mercado y diez turnos ficticios. Se completó **un único lote SDK**; el comando y
+su recibo en el emulador quedaron completados, sin envíos en curso ni inciertos.
+Una comprobación local independiente confirma un comando de mercado completado y
+cero eventos de notificación. Las imágenes de los campos originales capturados en
+las siete pestañas coinciden exactamente antes/después, con resúmenes recalculados.
+La pestaña añadida es `ENSAYO HU084 Mercado develop-writer-identity-v1`; el resumen
+de las originales sigue siendo d92e818d…c3578. El navegador confirma la pestaña
+nueva, las siete BASE, el uso compartido privado y la cuenta del escritor como
+última modificadora.
+
+Resultado `completed-and-contained`, sin fallo principal ni de limpieza. Tras
+retirar el permiso exacto del archivo, el **mismo token** recibió404 cuando aún le
+quedaban273.626ms de vigencia. Se retiró por CAS la concesión IAM exacta y se envió
+la desactivación explícita. Una lectura posterior independiente confirma cuenta
+deshabilitada, cero claves/permisos directos y política de proyecto intacta. La ACL
+del archivo contiene únicamente al propietario previsto. Revocar OAuth devolvió200
+y usar después ese mismo token de propietario devolvió401. No hubo otra emisión
+del escritor. Se limpiaron campos/referencias de Playground y se cerró su pestaña,
+se detuvo el controlador y se exportaron las evidencias del emulador antes de
+cerrarlo ordenadamente. Se conserva la pestaña de resultado.
+
+Evidencia privada en `2026-10-31-develop-writer-copy-ready`: recibos originales,
+imágenes inicial/final, comprobaciones independientes, exportación del emulador y
+completed-copy.png. No se guardaron tokens. Autorizaciones consumidas: la copia ya
+tiene ocho pestañas y **no permite repetir** el ensayo que exige siete. No borrar
+pestañas ni reiniciar registros para aparentar un intento nuevo.
+
+Esto demuestra emisión real, publicación sintética revisada, conservación y retirada
+de accesos para esta ejecución. No autoriza la hoja original de develop ni admite
+mantenimiento o migración compartidos. Sin peticiones a hojas originales develop/
+producción, escrituras en Firestore compartido, FCM o despliegue. Apps sin cambios
+ni diferencia de paridad. Siguen vigentes las 63 pruebas distintas del repositorio
+y las ocho de composición; ahora solo cambia documentación, por lo que no se repiten
+compilaciones ni pruebas nativas.
+
+Siguiente: publicar estas evidencias y vincular el ensayo del escritor al paquete
+de admisión de develop, actualizando controles independientes y destino exacto,
+con permisos autorizados por separado. Mantenimiento cerrado y producción intacta.
+HU-084/HU-085 abiertas; PR #278 draft. La documentación de preparación/resultado
+permanece local y sin commit después de `3f88c846`.

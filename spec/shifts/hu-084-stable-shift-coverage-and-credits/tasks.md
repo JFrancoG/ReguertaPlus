@@ -1258,3 +1258,39 @@ in 2026-10-31-develop-writer-copy-integration-local; old execution packets stale
 Next deliver this integration, regenerate/review concrete existing-copy composition,
 then request fresh owner OAuth/window/execution authorization. No user action now.
 Both issues stay open and PR #278 draft. See bilingual writer-controls guide.
+
+
+### Concrete existing-copy execution preparation — 2026-10-31
+
+`3f88c846` pushed; remote/PR head verified. Previous lint/build and 63 distinct
+local cases reused after identical source/preparation digests. Private packet
+2026-10-31-develop-writer-copy-ready binds existing copy/account, historical images
+and current source hashes; it rereads actual owner/ACL/baseline/identity before enable.
+Wrapper removes immediate-enabled/conditional-disable assumptions, separates OAuth
+setup from fresh owner window and cleans stages independently with OAuth revocation.
+Eight offline composition cases and syntax pass; real controller plus simulated
+provider/child, no live Google/shared-data operations. No approved execution file
+or active bridge; preparation evidence remains local/uncommitted after delivery.
+Next obtain explicit copy-only execution/OAuth authorization, then a separate fresh
+ten-minute owner confirmation after setup. One token, one ten-row batch, seven tabs
+preserved, exact cleanup. No maintenance or production; native unchanged. Issues
+open, PR #278 draft. See bilingual writer guide for limits and private evidence.
+
+
+### Existing synthetic writer proved end to end — 2026-10-31
+
+Separately authorized execution/window completed with unchanged `3f88c846` packet.
+126,484ms grant age, one300s writer token, one45-request batch, ten fictional market
+turns in one new tab. Seven raw original-tab snapshots independently recomputed
+equal; emulator command completed, zero uncertain/in-flight submissions and zero
+notification events. Browser readback confirms the artifact. Same writer token
+lost copy access404 with273,626ms remaining. Exact IAM/file grants removed, account
+explicitly disabled/keyless/unbound and project policy unchanged (independent read).
+Owner-only file ACL, OAuth revoke200/same-token401; no second writer mint. Controller
+stopped; emulator exported and stopped. Outcome completed-and-contained, no failures.
+Private receipts/reconciliation in 2026-10-31-develop-writer-copy-ready. Copy retained
+with eight tabs; approvals consumed, no replay/reset allowed. Original develop and
+production untouched, maintenance closed, no shared Firestore/FCM/deploy/native
+change. Documentation-only; accepted local gates reused. Next deliver evidence and
+bind validated writer to refreshed original-develop admission controls/destination,
+with separately authorized grants. Issues open, PR draft; evidence docs uncommitted.

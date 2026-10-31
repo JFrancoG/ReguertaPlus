@@ -28,6 +28,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-10-31 | 📝 docs(shifts): record contained copy rehearsal
+
 - 2026-10-31 | 📝 docs(shifts): record contained IAM mint success
 
 - 2026-10-30 | 📝 docs(shifts): plan isolated develop Sheets writer

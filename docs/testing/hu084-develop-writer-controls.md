@@ -1394,3 +1394,104 @@ the full copy rehearsal. No user action is needed now.
 No live IAM/OAuth/ACL request, workbook access, shared data write, FCM, deployment,
 maintenance opening or production operation occurred in this step. No native
 source changed; no new parity gap. HU-084/HU-085 remain open and PR #278 draft.
+
+
+### Existing synthetic-copy execution packet prepared — 2026-10-31
+
+Integration delivered in `3f88c846`; remote branch and draft PR #278 head match.
+The prior lint/build and 63 distinct accepted local cases are reused after exact
+preparation/plan/controller/provider/runner digest equality; no executable repository
+source changed in this step. Documentation below is local after delivery.
+
+Private `2026-10-31-develop-writer-copy-ready` contains a regenerated composition,
+sealed input manifest, inert authorization/owner-window templates, execution plan
+and offline review. It targets only the existing seven-tab synthetic workbook and
+the exact isolated account UID. Retained baseline and project-policy observations
+are historical, not fresh live authority: the composition rechecks account/key/
+policy state and re-reads owner, complete ACL and original-tab digest before enable.
+No workbook is created and no old authorization or emulator ledger is reused.
+
+The wrapper no longer insists on an immediate enabled read; the validated controller
+handles lifecycle propagation. Pre-controller failures still trigger explicit
+disable; independent cleanup stages retain incidents instead of suppressing later
+cleanup. A lost copy-permission creation response remains inspection-required,
+never an inferred deletion. Owner OAuth is revoked and checked for same-token401
+at terminal; the local server also closes/revokes when its admission expires while
+idle. No second writer token is requested.
+
+Authorization admits setup for at most 30 minutes. The owner's separate fresh
+closed-sheet confirmation starts the 599-second execution window only after OAuth
+and copy preparation, with at least 540 seconds left before enable. The single-use
+execution intent and source/manifest checks prevent replay. Child batch review,
+120-second minimum grant age, exact grant removal, same-token copy denial and all
+original-tab preservation requirements stay intact.
+
+Eight private offline composition cases pass with the real controller, virtual
+clock and simulated IAM/owner/child ports. They cover unapproved/expired/changed
+packets, delayed lifecycle, OAuth setup outside the owner window, duplicate entry,
+stale owner confirmation, project/baseline drift, uncertain enable, copy-grant
+failure and credential-free receipts. Syntax checks pass. No live token request,
+OAuth, IAM/ACL mutation, workbook access, shared Firestore, FCM or deployment ran.
+The preparation has no approved execution file or running bridge. It does not prove
+live writer/Sheets access. Native code unchanged; no parity gap.
+
+Next user action is authorization for this concrete synthetic-copy attempt:
+reactivate only the isolated writer, renew owner Online drive.file OAuth for this
+copy only, grant the exact temporary IAM/file permissions, request one 300s token,
+run at most one ten-row batch and clean up. After OAuth preparation, obtain a new
+ten-minute online/closed/no-edits/no-other-tests/no-other-tokens confirmation.
+Maintenance stays closed; original develop and production remain outside scope.
+HU-084/HU-085 open; PR #278 draft. Prior approvals remain consumed.
+
+
+### Real synthetic-copy rehearsal completed and contained — 2026-10-31
+
+The maintainer authorized the prepared copy-only attempt and subsequently confirmed
+a separate ten-minute online/closed/no-edit/no-other-tests/no-other-tokens window.
+The unchanged source-bound packet ran after `3f88c846`; no new executable repository
+change, deployment or automatic retry was made. Owner OAuth used Online drive.file
+without refresh credentials, with the exact existing synthetic file already visible
+to that application. Fresh owner/ACL/raw-baseline and independent IAM preflight
+matched the retained scope; the writer initially remained disabled/keyless/unbound.
+
+After 126,484ms of grant age, the **single 300s writer token** was issued and handed
+to the existing local demo child. Parent review accepted 45 requests for one new
+market tab and ten fictional turns. Exactly **one SDK batch** completed; Firestore
+emulator command and external-submission receipt reached completed with zero
+in-flight/unknown submissions. A separate local check finds one completed market
+command and zero notification events. Selected raw snapshots of all seven original
+synthetic tabs are identical before/after, with digests recomputed independently.
+The new tab is `ENSAYO HU084 Mercado develop-writer-identity-v1`; original-tab snapshot
+digest remains d92e818d…c3578. Browser readback confirms the new tab, seven BASE tabs,
+private owner-only sharing and the isolated writer as the last modifier.
+
+Cleanup result is `completed-and-contained`, with no primary or cleanup failure.
+After its exact file grant was removed, the **same token** received404 with273,626ms
+of validity remaining. The exact IAM binding was CAS-removed; explicit disable and
+an independent later identity read confirm disabled, zero user-managed keys/direct
+bindings and unchanged project policy. The file ACL is exactly its named owner.
+Owner OAuth revocation returned200 and the same owner token then401. No additional
+writer mint was attempted. Playground fields/references were cleared and its tab
+closed; the local controller stopped, and the demo emulator exported its receipts
+before graceful shutdown. The finished synthetic tab is retained, not deleted.
+
+Private evidence is under `2026-10-31-develop-writer-copy-ready`: original receipts,
+before/after images, independent-final-identity, independent-reconciliation,
+final-scope-check, local-final-check, emulator export and completed-copy.png. No
+bearer was persisted. The preparation and execution approvals are now consumed;
+the copy has eight tabs and is **not eligible for replay** of the seven-tab fixture.
+Do not delete a tab or reset its ledger to manufacture a fresh attempt.
+
+This establishes real writer issuance, one reviewed synthetic Sheets publication,
+preservation and containment for this execution. It does not authorize access to
+the original develop workbook or admit shared maintenance/migration. No request to
+original develop/production Sheets, shared Firestore write, FCM or deployment was
+made. Apps unchanged, no parity gap. Accepted local validation is unchanged (63
+repository cases plus eight private composition cases); this step changes only
+outcome documentation, so no native/build suite is repeated.
+
+Next deliver the preparation/outcome evidence and bind this writer rehearsal into
+the original-develop admission packet, with refreshed independent controls, exact
+original destination and separately authorized permissions. Maintenance stays
+closed; production untouched. HU-084/HU-085 stay open and PR #278 draft. Current
+preparation/outcome documentation remains local/uncommitted after `3f88c846`.
