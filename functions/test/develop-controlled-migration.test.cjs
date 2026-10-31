@@ -5,6 +5,7 @@ const {prepareDevelopMigrationPackage}=require("../scripts/prepare-develop-migra
 const {materializeControlledDevelopMigrationPreparation:prepare}=require("../scripts/materialize-develop-migration-package.cjs");
 const {createControlledDevelopMigrationExecutor:create}=require("../scripts/controlled-develop-migration.cjs");
 const rehearsal=require("../scripts/rehearse-develop-shift-migration.cjs");
+const {withWriter}=require("./develop-writer-evidence-fixture.cjs");
 function input(){
   const sourceInput=fixture();return {sourceInput,reviewPackage:prepareDevelopMigrationPackage(sourceInput),sourceCapture:{
     projectId:"reguerta-9f27f",environment:"develop",documents:structuredClone(sourceInput.snapshot.collections.shifts),
@@ -45,4 +46,15 @@ test("invalid production scope is refused before SDK reads and absent providers 
   assert.equal(args.readCount(),0);
   const absent=await executor.inspectAdmission();assert.deepEqual(absent.blockers,["source_not_verified"]);assert.equal(absent.canApply,false);
   assert.equal(absent.canEnterMaintenance,false);assert.equal(args.readCount(),1);
+});
+test("historical writer proof reaches admission report but cannot replace held controls or a window",async()=>{
+  const original=input(),sourceInput=withWriter(original.sourceInput);
+  const prepared=prepare({...original,sourceInput,reviewPackage:prepareDevelopMigrationPackage(sourceInput)});
+  assert.equal(prepared.writerRehearsal.evidenceDigest,sourceInput.reviewedWriterRehearsalDigest);
+  const args=dependencies(), executor=create({...args,prepared});
+  const report=await executor.inspectAdmission();
+  assert.deepEqual(report.writerRehearsal,prepared.writerRehearsal);
+  assert.deepEqual(report.blockers,["source_not_verified"]);
+  assert.equal(report.checksPassed,false); assert.equal(report.canApply,false); assert.equal(report.canEnterMaintenance,false);
+  assert.equal(args.readCount(),1);
 });

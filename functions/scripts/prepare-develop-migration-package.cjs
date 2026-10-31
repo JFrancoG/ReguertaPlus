@@ -10,6 +10,7 @@ const {isEligibleForShiftRotation} = require("../lib/shift-eligibility.js");
 const {inspectCensus} = require("./inspect-develop-legacy-census.cjs");
 const {checkContentPositions, decodeRESTValue} = require("./rehearse-develop-shift-migration.cjs");
 const {reviewDevelopCaptureControls, PAIRS} = require("./prepare-develop-planner-entry.cjs");
+const {reviewWriterRehearsal} = require("./develop-writer-rehearsal-evidence.cjs");
 const PROJECT = "reguerta-9f27f", ROOT = "develop/plus-collections";
 const WORKBOOK = "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A";
 const PREFIX = `projects/${PROJECT}/databases/(default)/documents/`;
@@ -57,7 +58,10 @@ function literalCells(book) {
 }
 
 function prepareDevelopMigrationPackage(input) {
-  assert.deepEqual(Object.keys(input).sort(), [...FILES, "reviewedContentDigest", "reviewedProposalDigest"].sort());
+  const hasWriter = Object.hasOwn(input, "writerRehearsal");
+  const writerKeys = hasWriter ? ["writerRehearsal", "reviewedWriterRehearsalDigest"] : [];
+  assert.deepEqual(Object.keys(input).sort(), [...FILES, "reviewedContentDigest", "reviewedProposalDigest", ...writerKeys].sort());
+  const writerRehearsal = hasWriter ? reviewWriterRehearsal(input.writerRehearsal, input.reviewedWriterRehearsalDigest, WORKBOOK) : null;
   const {snapshot, proposal, controls, reviewedControls, indexes} = structuredClone(input);
   const {contentDigest, proposalDigest, ...proposalBody} = proposal;
   assert.equal(contentDigest, input.reviewedContentDigest); assert.equal(proposalDigest, input.reviewedProposalDigest);
@@ -193,15 +197,22 @@ function prepareDevelopMigrationPackage(input) {
     exactness:"captured-data-and-static-intent; runtime manifest still requires held evidence and receipts",
     status:"PREPARED_NOT_ADMITTED",liveExecutable:false,canApply:false,canEnterMaintenance:false,
     annualPlanningReady:false,operationRiskAcceptance:null,window:null};
+  // Supporting evidence changes the reviewed package, never the source policy,
+  // forward/inverse intent or operation IDs. It grants no runtime authority.
+  if (writerRehearsal) body.writerRehearsal = writerRehearsal;
   return {...body,packageDigest:digest(body)};
 }
 
 function loadManifest(filename) {
   const manifest = JSON.parse(fs.readFileSync(filename, "utf8"));
-  assert.deepEqual(Object.keys(manifest).sort(), ["files","reviewedContentDigest","reviewedProposalDigest"].sort());
-  assert.deepEqual(Object.keys(manifest.files).sort(), [...FILES].sort());
+  const hasWriter = Object.hasOwn(manifest.files, "writerRehearsal");
+  assert.deepEqual(Object.keys(manifest).sort(), ["files","reviewedContentDigest","reviewedProposalDigest",
+    ...(hasWriter ? ["reviewedWriterRehearsalDigest"] : [])].sort());
+  const files = [...FILES, ...(hasWriter ? ["writerRehearsal"] : [])];
+  assert.deepEqual(Object.keys(manifest.files).sort(), files.sort());
   const input = {reviewedContentDigest:manifest.reviewedContentDigest,reviewedProposalDigest:manifest.reviewedProposalDigest};
-  for (const key of FILES) {
+  if (hasWriter) input.reviewedWriterRehearsalDigest = manifest.reviewedWriterRehearsalDigest;
+  for (const key of files) {
     const entry = manifest.files[key]; assert.ok(path.isAbsolute(entry.path)); assert.ok(fs.statSync(entry.path).size <= 16 * 1024 * 1024);
     const bytes = fs.readFileSync(entry.path); assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.sha256, `${key} file changed`);
     input[key] = JSON.parse(bytes);

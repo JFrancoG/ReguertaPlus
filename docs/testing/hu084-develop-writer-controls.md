@@ -1495,3 +1495,49 @@ the original-develop admission packet, with refreshed independent controls, exac
 original destination and separately authorized permissions. Maintenance stays
 closed; production untouched. HU-084/HU-085 stay open and PR #278 draft. Current
 preparation/outcome documentation remains local/uncommitted after `3f88c846`.
+
+
+### Contained writer result bound into admission preparation — 2026-10-31
+
+Preparation and live outcome documentation are delivered as `7d7a7da0`. The new
+local integration consumes the retained receipts; it does not repeat the rehearsal.
+The existing migration manifest accepts an optional, separately reviewed writer
+evidence file pinned by SHA-256 and its content digest. The verifier checks exact
+rehearsed sources, account UID, synthetic destination, completed single batch, ten
+rows, identical selected snapshots of the seven original tabs, no in-flight/unknown
+effect, denial with the same unexpired token, disabled/keyless/unbound account,
+unchanged project policy, owner-only ACL, OAuth revocation and empty cleanup failures.
+These are operator-reviewed historical receipts, not cryptographic attestations or
+new observations of Google's current state. No bearer is retained in the packet.
+
+The summary travels through the existing review package, materializer and controlled
+admission report. It explicitly sets original-file authority/current controls and
+apply/maintenance claims to false. Its digest changes the review/preparation binding;
+the source policy binding, forward/inverse intents, operation IDs, public dates/order
+and helper-cell plan remain identical. Runtime admission, source/CAS checks, owner
+and administrator observations and recovery requirements are unchanged. Old packets
+without this optional historical evidence still require the same runtime controls.
+
+Private `2026-10-31-writer-admission-binding` retains the original receipt file hashes,
+review manifest, evidence bundle, regenerated review/shared preparation and emulator
+roundtrip. Review package: `67b0a3d0…f78093a`; shared preparation: `22f1c564…358b071`;
+writer evidence: `1db10f95…649af90`. Original observations remain the retained
+version 278/census/control snapshots; they were **not refreshed** or relabeled current.
+The synthetic file stays separate from the original develop destination. Consumed
+authorizations cannot be reused.
+
+Validation: Functions lint/build, 137 unit cases and 50 emulator cases pass, no
+skips/failures. The real retained evidence was loaded into the local clone: forward
+203 writes and inverse 140 restore 62 original records and preserve 117 notices.
+Read-only admission still rejects an absent window, missing controls, source drift
+and changed owner/admin facts with historical writer evidence attached. This is an
+emulator result, not a fresh shared-project admission inspection. No native change
+or parity gap; no Google resource mutation, maintenance, shared data write, Sheets
+request, FCM or production access in this step.
+
+Next prepare the concrete original-develop writer grant/capability verification and
+refresh independent source/ACL/control observations before requesting the relevant
+permissions and owner/admin/risk window. Separate Firestore authority is still
+required. No further synthetic replay is needed for these unchanged sources.
+Implementation/docs remain local, pending commit after `7d7a7da0`; HU-084/HU-085
+remain open, PR #278 draft.

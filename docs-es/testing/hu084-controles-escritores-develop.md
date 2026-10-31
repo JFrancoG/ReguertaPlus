@@ -1541,3 +1541,53 @@ de admisión de develop, actualizando controles independientes y destino exacto,
 con permisos autorizados por separado. Mantenimiento cerrado y producción intacta.
 HU-084/HU-085 abiertas; PR #278 draft. La documentación de preparación/resultado
 permanece local y sin commit después de `3f88c846`.
+
+
+### Resultado del escritor vinculado a la preparación de admisión — 2026-10-31
+
+La preparación y el resultado real están publicados en `7d7a7da0`. La integración
+local utiliza los recibos conservados, sin repetir el ensayo. El manifiesto existente
+admite un archivo opcional de evidencia del escritor, revisado por separado y
+vinculado por SHA-256 y digest de contenido. Se comprueban las fuentes ensayadas,
+UID de la cuenta, destino sintético, único lote completado, diez filas, igualdad de
+las capturas seleccionadas de las siete pestañas originales, ausencia de efectos en
+curso/desconocidos, denegación con el mismo token vigente, cuenta deshabilitada sin
+claves ni concesiones directas, política del proyecto sin cambios, ACL solo del
+propietario, revocación de OAuth y limpieza sin fallos. Son recibos históricos
+revisados por el operador; no son certificaciones criptográficas ni observaciones
+nuevas del estado actual de Google. El paquete no conserva tokens.
+
+El resumen atraviesa el paquete de revisión, el materializador y el informe de
+admisión controlada existentes. Mantiene en false la autoridad sobre la hoja
+original, los controles actuales y la capacidad de aplicar o abrir mantenimiento.
+Cambia la vinculación del paquete/preparación; conserva idénticos la política de
+fuentes, las instrucciones de migración/reversión, sus identificadores, fechas,
+orden y plan de celdas de ayudantes. No cambia la admisión efectiva, comprobaciones
+de fuentes/CAS, observaciones del propietario/administradores ni recuperación. Los
+paquetes antiguos sin esta evidencia opcional conservan los mismos controles.
+
+El directorio privado `2026-10-31-writer-admission-binding` conserva hashes de los
+recibos originales, manifiesto, evidencia, paquete/preparación regenerados y ensayo
+completo del emulador. Paquete: `67b0a3d0…f78093a`; preparación: `22f1c564…358b071`;
+evidencia: `1db10f95…649af90`. Se conservan las observaciones anteriores de versión 278,
+censo y controles: **no se han actualizado** ni presentado como actuales. La hoja
+sintética sigue separada del destino original. Las autorizaciones consumidas no se
+pueden reutilizar.
+
+Validación: lint/build de Functions, 137 casos unitarios y 50 de emulador correctos,
+sin omisiones ni fallos. La evidencia real conservada entra en la copia local:
+migración de 203 escrituras y reversión de 140, restaurando 62 registros originales y
+conservando 117 avisos. La admisión de lectura sigue rechazando falta de ventana,
+controles ausentes, cambios de fuentes y actividad del propietario/administradores,
+aunque el ensayo del escritor sea válido. Es un resultado de emulador, no una nueva
+inspección del proyecto compartido. Sin cambios nativos ni brecha de paridad; sin
+mutar recursos de Google, abrir mantenimiento, escribir datos compartidos, consultar
+Sheets, enviar FCM ni acceder a producción durante este paso.
+
+Siguiente: preparar la concesión concreta y la prueba de capacidades del escritor
+sobre la hoja original de develop y renovar las observaciones independientes de
+fuentes/ACL/controles, antes de solicitar los permisos y la ventana del propietario,
+administradores y riesgo. Sigue pendiente la autoridad separada de Firestore. No
+hace falta repetir el ensayo sintético con estas fuentes sin cambios. Implementación
+y documentación locales pendientes de commit tras `7d7a7da0`; HU-084/HU-085 siguen
+abiertas y PR #278 en borrador.

@@ -1294,3 +1294,25 @@ production untouched, maintenance closed, no shared Firestore/FCM/deploy/native
 change. Documentation-only; accepted local gates reused. Next deliver evidence and
 bind validated writer to refreshed original-develop admission controls/destination,
 with separately authorized grants. Issues open, PR draft; evidence docs uncommitted.
+
+
+### Historical writer evidence incorporated into admission preparation — 2026-10-31
+
+- [x] Deliver copy preparation/outcome documentation: `7d7a7da0`, pushed.
+- [x] Verify and bind real retained copy receipts into the existing review package,
+  materializer and controlled admission report; no new live execution.
+- [x] Preserve source policy and forward/inverse intents, including operation IDs,
+  dates/order and helper cells; keep current original-file authority unproven.
+- [x] Regenerate private review/shared preparation; retain source observations as
+  historical (version 278), with apply/maintenance flags false.
+- [x] Functions lint/build, 137 unit and 50 emulator cases pass. Retained-evidence
+  clone completes 203 forward / 140 inverse writes, restores 62 originals and preserves
+  117 notices. Negative admission tests still require current controls and a window.
+- [ ] Prepare original-develop writer permissions/capability check and refresh
+  independent source/ACL/control observations; obtain separate authorizations and
+  Firestore authority before any owner/admin/risk maintenance window.
+
+Private evidence: `2026-10-31-writer-admission-binding`; original receipts unchanged.
+This integration remains local/uncommitted after `7d7a7da0`. No maintenance, Google
+resource change, shared data write, Sheets request, FCM or production access. No
+native change/parity gap. HU-084/HU-085 open, PR #278 draft; prior approvals consumed.

@@ -8,6 +8,7 @@ const {createHash} = require("node:crypto");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {prepareDevelopMigrationPackage: prepare, loadManifest} = require("../scripts/prepare-develop-migration-package.cjs");
 const {fixture} = require("./develop-migration-package-fixture.cjs");
+const {withWriter} = require("./develop-writer-evidence-fixture.cjs");
 
 test("review packet preserves every legacy value and published position without admitting execution", () => {
   const input = fixture(), before = structuredClone(input), result = prepare(input);
@@ -92,10 +93,12 @@ test("all reviewed config values and versions bind the policy and both intents w
   }
 });
 
-test("manifest pins file bytes; CLI never overwrites a packet or accepts an apply option", () => {
+for (const includeWriter of [false,true]) test(`manifest pins file bytes and refuses overwrite/apply (writer evidence: ${includeWriter})`, () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(),"hu084-review-"));
   try {
-    const input = fixture(), manifest = {files:{},reviewedContentDigest:input.reviewedContentDigest,reviewedProposalDigest:input.reviewedProposalDigest};
+    const input = includeWriter ? withWriter(fixture()) : fixture();
+    const manifest = {files:{},reviewedContentDigest:input.reviewedContentDigest,reviewedProposalDigest:input.reviewedProposalDigest};
+    if (includeWriter) manifest.reviewedWriterRehearsalDigest = input.reviewedWriterRehearsalDigest;
     for (const [key,value] of Object.entries(input).filter(([key]) => !key.startsWith("reviewed") || key === "reviewedControls")) {
       const target = path.join(directory,`${key}.json`), bytes = JSON.stringify(value);
       fs.writeFileSync(target,bytes);manifest.files[key]={path:target,sha256:createHash("sha256").update(bytes).digest("hex")};
@@ -110,6 +113,9 @@ test("manifest pins file bytes; CLI never overwrites a packet or accepts an appl
     assert.equal(fs.statSync(output).mode & 0o777,0o600);
     assert.equal(run(args).status,1);assert.equal(fs.readFileSync(output,"utf8"),saved);
     assert.equal(run([...args,"--apply"]).status,1);
+    if (includeWriter) {
+      fs.appendFileSync(manifest.files.writerRehearsal.path," ");assert.throws(() => loadManifest(filename),/file changed/);
+    }
     fs.appendFileSync(manifest.files.snapshot.path," ");assert.throws(() => loadManifest(filename),/file changed/);
   } finally {fs.rmSync(directory,{recursive:true,force:true});}
 });
