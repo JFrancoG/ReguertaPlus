@@ -1,9 +1,10 @@
 # HU-084 — Comprobación del escritor sobre develop original
 
-Estado: el segundo intento autorizado se detuvo antes de escribir en la aserción
-de la carpeta visible para el escritor (proveedor, línea57 en `930959bd`). Limpieza
-correcta y verificada independientemente. Corrección local de visibilidad pendiente
-de publicar y comprobar en otro ensayo autorizado. Sin admisión de migración ni mantenimiento.
+Estado: ensayo del mismo valor sobre la hoja original y limpieza correctos; evidencia
+histórica integrada y publicada en `d42ce7fe`. Las nuevas observaciones del propietario
+y la preparación de permisos/ventana se siguen en
+[el plan actual](hu084-permisos-ventana-develop.md). Sin admisión de migración ni
+mantenimiento. Los apartados fechados conservan los intentos anteriores.
 
 ## Alcance y entrada
 

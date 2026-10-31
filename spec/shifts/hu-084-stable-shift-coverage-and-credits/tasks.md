@@ -1491,10 +1491,33 @@ Private `2026-10-31-original-writer-raw-baseline/fresh-window`; canonical
 - [x] Publish original rehearsal result as b08c6428 and verify remote HEAD.
 - [x] Bind separately reviewed original receipt/raw baseline/cleanup evidence alongside synthetic proof; carry it through materialization and passive admission without granting current authority.
 - [x] Refresh develop census/control/identity reads; preserve all business document versions and exact cell mutation intents. Retain clearly dated owner/Sheet observations from the successful rehearsal; do not imply renewed OAuth.
-- [x] Regenerate review and controlled package at retained version287; real source-only admission matches and refuses the absent window without writes.
-- [x] Validate Functions build/lint/CJS,146 focused and50 emulator tests, including the regenerated package forward/inverse (203/140 writes,62 originals restored,117 notices preserved).
+- [x] Regenerate review and controlled package at retained version 287; real source-only admission matches and refuses the absent window without writes.
+- [x] Validate Functions build/lint/CJS,146 focused and 50 emulator tests, including the regenerated package forward/inverse (203/140 writes,62 originals restored, 117 notices preserved).
 - [ ] Renew final owner observations and bind current writer/Firestore authority, causal-risk controls and a separately authorized owner/administrator window before maintenance admission.
 
 Local implementation after b08c6428. Private `2026-10-31-original-admission-binding`.
 No native changes, live grants, maintenance, migration, production, FCM or deploy.
 Historical success remains evidence, not current execution permission.
+
+
+## Owner observations and concrete permission/window preparation — 2026-10-31
+
+- [x] Commit/push original-writer admission integration as `d42ce7fe`; exact remote
+  HEAD verified, reusing the unchanged build/lint, 146 focused and 50 emulator gate.
+- [x] Prepare inert resource/permission/participant/operation bindings and bilingual
+  [ordered window checklist](../../../docs/testing/hu084-develop-window-permissions.md).
+  No grants, token mint, maintenance entry, migration or production access.
+- [x] Renew owner metadata/full ACL/parent and two direct bounded raw Sheets reads;
+  version 287 and exact 3286-cell image match. OAuth revoked; same-token Drive/Sheets
+  denial verified, with intermediate Sheets 200 retained before its eventual 401.
+- [x] Maintainer confirms exclusive control of both retained human Firebase Owner
+  accounts. This identifies the administrator participant, not future-window consent.
+- [ ] Complete/rehearse real held-barrier composition and combined timing/cleanup,
+  refresh final sources/controls/risk, then bind separately authorized permissions
+  and owner/operator/administrator commitments to a concrete window. Start/end and
+  confirmations remain absent; the provisional 20+20-minute proposal is not readiness.
+
+New documents/private preparation are local after d42ce7fe. No runtime/native change
+or parity gap. Build and 50 emulator cases pass on the renewed package; 62 originals restored, 117
+notices preserved. The 146 focused cases/lint are reused after matching executable
+hashes. Documentation and private-script syntax checks pass; no native suite repeated. #268/#269 remain open and #278 draft.

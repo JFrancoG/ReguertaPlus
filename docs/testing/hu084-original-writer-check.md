@@ -1,9 +1,10 @@
 # HU-084 — Original develop writer check
 
-Status: the second authorized original-file attempt stopped before writing at the
-writer-parent assertion (provider line57 in `930959bd`). Cleanup passed and was
-independently verified. A local parent-visibility correction awaits publication
-and another separately authorized real check. No migration or maintenance admission.
+Status: original-file same-value rehearsal and cleanup passed; its historical evidence
+is integrated and delivered in `d42ce7fe`. Fresh owner observations and the future
+permission/window preparation are tracked in
+[the current window plan](hu084-develop-window-permissions.md). No migration or
+maintenance admission. The dated sections below preserve the earlier attempts.
 
 ## Scope and entry point
 
