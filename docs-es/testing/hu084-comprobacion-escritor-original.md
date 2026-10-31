@@ -349,3 +349,35 @@ el escritor, modificar IAM/permisos del archivo, escribir en Sheets, abrir
 mantenimiento/migración ni acceder a producción. Capturas crudas, diferencias y
 recibos privados en `2026-10-31-snapshot-readonly-diagnostic`. Pasan44 pruebas del
 plan; no se repiten build ni gates nativos al ser cambios exclusivos de evidencia.
+
+
+## Preparación con captura cruda independiente — 2026-10-31
+
+El diagnóstico está publicado en `fe08a9e0`. La nueva sesión privada, todavía inerte,
+obtiene la base al vincular al propietario, antes de habilitar el escritor, conceder
+permisos o emitir su token. El OAuth aprobado necesitará lectura de metadatos y
+lectura de Sheets, Online sin renovación. El mismo token independiente realiza dos
+GET con los campos/rangos exactos, entre lecturas completas de ACL de archivo/padre
+y versión del propietario. Ambas respuestas crudas deben coincidir, conservando
+los objetos vacíos. La captura dura menos de60s y tiene menos de10 minutos al iniciar
+la ventana de propietario autorizada por separado. Un fallo no deja una base
+admisible y obliga a cerrar la sesión del propietario.
+
+Se mantienen los recibos y hashes anteriores, diario canónico, identificador nuevo,
+fuentes preparadas, controles y revisión de Compartir. Ninguna captura histórica
+se instala como base vigente. No cambian la petición A1 con el mismo valor, el único
+token de300s, la espera IAM mínima de120s, el único lote y la limpieza completa.
+El comentario del proveedor describe ahora el adaptador de lectura, sin afirmar
+que el token no pueda tener otro alcance aprobado también de lectura. No hay cambio
+funcional del controlador/proveedor.
+
+Pasan5 casos privados con dobles: preservación cruda, cambios entre lecturas,
+denegación HTTP, archivo distinto y captura caducada; cero peticiones reales.
+Pasan los44 casos existentes de plan/controlador y las comprobaciones de sintaxis y
+diff. No se repiten build ni gates nativos por el cambio público exclusivo de
+comentario/evidencia. Falta la nueva autorización: no se ha iniciado OAuth, IAM,
+permisos, token del escritor, mantenimiento ni acceso a producción. Siguiente paso:
+autorizar el ensayo concreto y ambos alcances de lectura, renovar metadatos/captura/
+controles y después pedir la ventana nueva de diez minutos con la hoja cerrada.
+Preparación privada: `2026-10-31-original-writer-raw-baseline`. No demuestra todavía
+escritura en el original ni admisión de migración.

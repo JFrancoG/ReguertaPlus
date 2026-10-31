@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "non-executable-original-develop-writer-check",
-  "status": "original-snapshot-representation-diagnosed-readonly",
+  "status": "independent-raw-baseline-rehearsal-prepared",
   "projectId": "reguerta-9f27f",
   "environment": "develop",
   "canProvision": false,
@@ -292,5 +292,25 @@
     "filePermissionChanges": 0,
     "sheetWrites": 0,
     "maintenanceOpened": false
+  },
+  "futureIndependentRawBaseline": {
+    "authorized": false,
+    "source": "direct Sheets GET with exact writer mask/ranges, independently approved owner OAuth",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.metadata.readonly",
+      "https://www.googleapis.com/auth/spreadsheets.readonly"
+    ],
+    "accessType": "online",
+    "refreshToken": false,
+    "readCount": 2,
+    "retainRawJsonPrivately": true,
+    "preserveEmptyFormatObjects": true,
+    "requireOwnerMetadataVersionBracket": true,
+    "maximumCaptureMillis": 60000,
+    "maximumAgeBeforeStartMillis": 600000,
+    "captureBeforeWriterEnableOrGrant": true,
+    "historicalDataIsFixtureOnly": true,
+    "connectorIsSupplementaryOnly": true,
+    "requiresNewExecutionApprovalAndOwnerWindow": true
   }
 }

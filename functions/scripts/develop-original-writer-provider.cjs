@@ -168,7 +168,8 @@ function createWorkbookAccess({writerBearer, fetchImpl = fetch}) {
 }
 
 // Mutations of permissions are deliberately supplied through reviewed native Drive
-// owner UI callbacks. This token can only read metadata and revoke itself.
+// owner UI callbacks. This adapter only reads metadata and revokes the supplied
+// token; independent baseline capture may also use approved Sheets-readonly scope.
 function createOwnerReader({ownerBearer, fetchImpl = fetch}) {
   let bearer = ownerBearer;
   return {read: () => readMetadata(fetchImpl, bearer), async close() {

@@ -1456,3 +1456,15 @@ no native code/parity gap and no controller/provider change.
 
 Evidence-only local changes after b890d722;44 focused plan passes. No native parity
 gap, maintenance, migration, production access or sheet writes. #268/#269 open; #278 draft.
+
+
+## Independent raw baseline preparation — 2026-10-31
+
+- [x] Publish diagnosis in fe08a9e0 and verify exact remote HEAD.
+- [x] Prepare inert owner-readonly two-GET capture with exact writer fields/ranges, strict raw equality, preserved empty formats and owner ACL/version bracket, before writer enable/grants/token.
+- [x] Preserve all consumed receipts and use a new receipt ID; bind refreshed preparation/source hashes and capture freshness without historical-baseline substitution.
+- [x] Validate5 private recording-transport cases plus44 existing plan/controller cases, with no real network or mutation. Public runtime unchanged.
+- [ ] New concrete rehearsal/combined-readonly-OAuth approval, fresh owner/controls/capture and separate ten-minute closed-sheet window. No execution authorized by preparation alone.
+
+Local preparation after fe08a9e0; no native parity gap, IAM/grant/token, maintenance
+or production access. Private `2026-10-31-original-writer-raw-baseline`.

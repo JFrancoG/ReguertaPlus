@@ -334,3 +334,32 @@ IAM/file-permission change, Sheets mutation, maintenance, migration or productio
 access occurred. Private raw captures, exact paths and cleanup receipts are under
 `2026-10-31-snapshot-readonly-diagnostic`. The44 focused plan tests pass; full
 build/native gates are not repeated for this evidence-only change.
+
+
+## Independent raw-baseline rehearsal preparation — 2026-10-31
+
+Diagnosis is published in `fe08a9e0`. A new inert private operator session now obtains
+its baseline during owner attachment, before writer enable, grants or minting.
+Approved owner OAuth will need both metadata-readonly and spreadsheets-readonly,
+Online without refresh. The same independent bearer brackets two exact-mask/range
+Sheets GETs with complete owner file/parent ACL and version observations. Both raw
+responses must match exactly; all empty objects remain. Capture takes under60s and
+must be younger than10 minutes when starting the separately approved owner window.
+A failure leaves no admissible baseline and requires closing the owner session.
+
+Previous receipts/hashes, canonical journal, distinct receipt ID, prepared sources,
+controls and reviewed owner UI remain bound. No historical capture is installed as
+a live baseline. The controller's exact same-value A1 request, one300s writer token,
+minimum120s IAM age, one batch and complete cleanup stay unchanged. The provider's
+comment now accurately describes its read-only adapter rather than claiming its
+bearer can have no other approved read-only scope; there is no runtime code change.
+
+Private fixture checks pass5 cases: exact raw preservation, between-read drift,
+HTTP denial, wrong file and expired capture; zero real requests. The existing44
+plan/controller cases pass, and syntax/diff checks pass. Build/native gates are
+omitted for the public comment/evidence-only change. The new approval is still
+absent; no OAuth, IAM, grants, writer token, maintenance or production access started.
+Next authorize the concrete rehearsal and combined read-only scope; obtain current
+metadata/raw capture/controls, then request the fresh ten-minute closed-sheet window.
+Private preparation: `2026-10-31-original-writer-raw-baseline`. This preparation does
+not establish original-file writing or migration admission.
