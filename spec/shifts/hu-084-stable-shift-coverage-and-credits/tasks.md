@@ -1390,3 +1390,23 @@ production untouched. No native change/parity gap. Private validation:
 New local work after `3e494fc8`. Private evidence: `2026-10-31-original-permission-channel`.
 No permission mutation, writer token, Sheets write, maintenance or production-data
 access. No native parity gap. HU-084/HU-085 remain open; PR #278 remains draft.
+
+
+### Authorized original attempt and contained cleanup — 2026-10-31
+
+- [x] Deliver preceding preparation as `b52e75a8`; bind exact controls/baselines and
+  the maintainer's authorization/ten-minute closed-file window to one attempt.
+- [x] Grant/remove the exact writer permission through native owner UI; one token
+  after120s IAM wait, positive Drive read and same-live-token404 after removal.
+- [x] Verify IAM removal, disabled identity, zero keys/grants/runtime assignments,
+  owner-token401, cleared/closed Playground and unchanged six-tab/control snapshots.
+  Preserve terminal receipt/lock; record independent cleanup reconciliation.
+- [x] Improve local diagnostic phases, comparison digests/pinned source locations and
+  OAuth HTTP receipts without secret leakage or retry.86 focused passes; build/lint.
+- [ ] Establish original-file write capability: this attempt stopped before write
+  intent in broad `positive-read`; the exact assertion was not retained. Review and
+  publish diagnostic correction, explicitly reconcile retained lock, then obtain a
+  new single-attempt approval/window. No migration/maintenance authority follows.
+
+Private `2026-10-31-original-writer-live`; current diagnostic code/docs local after
+`b52e75a8`. No native change/parity gap. HU-084/HU-085 open; PR278 draft.

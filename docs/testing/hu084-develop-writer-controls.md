@@ -1655,3 +1655,16 @@ Temporary Online OAuth revoked 200, same token denied 401; no refresh credential
 fields cleared and Playground closed. The connector itself omits these fields. No permission change, writer token, Sheets write, maintenance or
 production-data access occurred. New code/evidence remains local after `3e494fc8`.
 Apps unchanged/no parity gap. See the [original-writer guide](hu084-original-writer-check.md).
+
+
+### Original-file attempt stopped before writing — 2026-10-31
+
+`b52e75a8` delivered the preceding grid/owner evidence. One authorized attempt minted
+one token, passed its positive Drive read, then stopped on an unclassified pre-write
+assertion: zero Sheets writes. File ACL/IAM restored, writer disabled; same live writer
+token denied404. Owner token independently denied401, UI fields cleared and tab closed.
+Six bounded tab images and independent control digest match. The original receipt/lock
+remain retained with separate cleanup reconciliation. Local diagnostics now record
+precise stages, bounded hashes/source locations and OAuth statuses;86 cases and
+build/lint pass. See [the full outcome](hu084-original-writer-check.md). Another attempt
+needs new approval/window; maintenance/migration remain closed and production untouched.

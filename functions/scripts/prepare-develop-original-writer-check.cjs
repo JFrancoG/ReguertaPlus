@@ -14,6 +14,20 @@ const IDENTITY = Object.freeze({email: WRITER, uniqueId: "110752956317536684858"
 const hashPattern = /^shift-planning:v1:sha256:[a-f0-9]{64}$/;
 const receiptPattern = /^[A-Za-z0-9_-]{6,128}$/;
 
+// Keep only a location in pinned first-party source, never a raw stack/message.
+function diagnosticLocation(error) {
+  const files = [__filename, path.join(__dirname, "develop-original-writer-provider.cjs")];
+  for (const frame of String(error?.stack ?? "").split("\n").slice(1)) {
+    for (const file of files) {
+      const index = frame.indexOf(file + ":");
+      if (index < 0) continue;
+      const match = /^(\d+):(\d+)/.exec(frame.slice(index + file.length + 1));
+      if (match) return {file: path.basename(file), line: Number(match[1]), column: Number(match[2])};
+    }
+  }
+  return null;
+}
+
 function prepare() {
   const plan = JSON.parse(fs.readFileSync(PLAN)), previous = prepareCopy();
   assert.equal(plan.destination.fileId, FILE); assert.equal(plan.identity.uniqueId, IDENTITY.uniqueId);
@@ -153,14 +167,29 @@ async function runCheck({input, iam, owner, ownerChannel, openWorkbook, readInde
     record("token-issued", {expiresAtMillis: expiry, tokenRetained: false});
     phase = "positive-read";
     const access = await workbook.probeAccess(); assert.equal(access.status, 200); assert.equal(access.id, FILE); positiveRead = true;
+    phase = "owner-granted-metadata";
     const ownerGranted = await ownerObservation(true);
     // The file-only writer has no permission on the owner's My Drive root.
     // Parent authority comes from the independent owner metadata reader.
-    const metadata = {...ownerGranted, ...await workbook.readMetadata()}; validateMetadata(metadata, true);
+    phase = "writer-metadata-read";
+    const metadata = {...ownerGranted, ...await workbook.readMetadata()};
+    phase = "writer-metadata-validation"; validateMetadata(metadata, true);
+    phase = "writer-capabilities";
+    record("writer-capabilities", Object.fromEntries(["canEdit", "canModifyContent", "canShare"]
+      .map(key => [key, typeof metadata.file.capabilities?.[key] === "boolean" ? metadata.file.capabilities[key] : null])));
     for (const capability of ["canEdit", "canModifyContent", "canShare"]) assert.equal(metadata.file.capabilities?.[capability], true);
-    assert.equal(metadataFingerprint(metadata), metadataFingerprint(await ownerObservation(true)));
-    const beforeCells = await workbook.readSnapshot(); assert.equal(beforeCells.digest, a.baselineSnapshotDigest);
+    phase = "writer-owner-metadata-comparison";
+    const independentMetadataDigest = metadataFingerprint(await ownerObservation(true));
+    record("writer-metadata-comparison", {writerDigest: metadataFingerprint(metadata), ownerDigest: independentMetadataDigest});
+    assert.equal(metadataFingerprint(metadata), independentMetadataDigest);
+    phase = "baseline-snapshot-read";
+    const beforeCells = await workbook.readSnapshot();
+    phase = "baseline-snapshot-comparison";
+    record("baseline-snapshot-comparison", {expectedDigest: a.baselineSnapshotDigest, actualDigest: beforeCells.digest});
+    assert.equal(beforeCells.digest, a.baselineSnapshotDigest);
+    phase = "pre-write-controls";
     await controls(); await observe(false, [binding], expiry - 120000);
+    phase = "pre-write-owner-recheck";
     assert.equal(metadataFingerprint(await ownerObservation(true)), metadataFingerprint(metadata)); current(120000);
     phase = "write"; record("write-intent", {fileId: FILE, requestDigest: prepared.requestDigest, baseline: beforeCells.digest});
     writeAttempted = true;
@@ -175,7 +204,7 @@ async function runCheck({input, iam, owner, ownerChannel, openWorkbook, readInde
     await ownerObservation(true); current(90000); writeVerified = true;
   } catch (error) {
     failure = {phase, httpStatus: Number.isInteger(error?.httpStatus) ? error.httpStatus : null,
-      providerReason: safeProviderReason(error?.providerReason)};
+      providerReason: safeProviderReason(error?.providerReason), sourceLocation: diagnosticLocation(error)};
   } finally {
     if (fileGrantAttempted) {
       try {
@@ -210,7 +239,14 @@ async function runCheck({input, iam, owner, ownerChannel, openWorkbook, readInde
     try { workbook?.close(); } catch { cleanupFailures.push("writer_session_discard_unproven"); }
     try {
       assert.deepEqual(await owner.close(), {revoked: true, sameTokenStatus: 401});
-    } catch { cleanupFailures.push("owner_oauth_cleanup_unproven"); }
+      record("owner-oauth-cleanup", {verified: true, sameTokenStatus: 401});
+    } catch (error) {
+      const code = value => Number.isInteger(value) && value >= 100 && value <= 599 ? value : null;
+      record("owner-oauth-cleanup", {verified: false,
+        revocationStatus: code(error?.ownerCleanup?.revocationStatus),
+        sameTokenStatus: code(error?.ownerCleanup?.sameTokenStatus)});
+      cleanupFailures.push("owner_oauth_cleanup_unproven");
+    }
   }
   const result = {kind: failure || cleanupFailures.length ? "inspection_required" : "original-probe-contained",
     failure, cleanupFailures, mintAttempted, writeAttempted, writeVerified,

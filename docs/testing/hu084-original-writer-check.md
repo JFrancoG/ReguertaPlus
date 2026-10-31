@@ -1,8 +1,9 @@
 # HU-084 — Original develop writer check
 
-Status: executor prepared and locally tested, **not authorized or executed live**.
-The preceding owner/control preparation is delivered in `ac24e5ce`; the new executor
-is local. This is a bounded permissions check, not migration or maintenance admission.
+Status: one authorized original-file attempt stopped before writing; cleanup
+independently reconciled. The exact failed assertion remains unknown. Diagnostic
+follow-up is local after `b52e75a8`; see the dated outcome below. This check does not
+admit migration or maintenance.
 
 ## Scope and entry point
 
@@ -148,3 +149,49 @@ Native apps unchanged. Local code/evidence updates remain uncommitted after
 Validation of this correction: Node 22.23.4, 84 cases (35 original and 49 IAM/copy
 regressions), zero failures/skips; build, lint and CJS syntax pass. Native/emulator
 suites are not repeated because app/Firestore behavior is unchanged.
+
+
+## Authorized original-file attempt — 2026-10-31
+
+The maintainer authorized one original-file attempt and confirmed the ten-minute
+closed-file window. Prior grid/control evidence is delivered in `b52e75a8`. Before
+execution, the provider's response field mask was aligned with the independent
+connector's workbook/tab projection; the 84-case suite and build/lint passed.
+
+The attempt enabled the exact identity, granted the exact conditional IAM member
+and one direct Editor permission, waited at least 120 seconds, and minted one 300s
+token. Its positive Drive read succeeded. It then failed an assertion in the old
+`positive-read` phase, **before any write intent or Sheets batch**. The old diagnostic
+did not preserve the specific assertion or source location; the cause is unresolved.
+Do not infer a capability, ACL, format or snapshot mismatch from that broad phase.
+
+Cleanup removed the exact file permission and verified the complete owner/four-reader
+ACL. The same still-valid writer token was denied404. Exact IAM binding removal,
+explicit disable, zero user keys/account grants and absent runtime assignment were
+independently verified. The controller initially marked owner OAuth cleanup unproven;
+a subsequent independent GET with that same owner token returned401. Reapplying
+revocation returned400 with the already invalid token, followed by401 again. The
+first revocation/probe statuses were not retained, so no propagation cause or initial
+HTTP200 is claimed. OAuth fields were cleared, its tab closed and RAM references
+discarded. Initial terminal receipt and per-file lock remain unchanged; a separate
+manual reconciliation records verified cleanup and consumed authorization.
+
+The six bounded connector snapshots before/after match (3286 selected cell objects,
+including entered values, notes and formats). Refreshed Functions/jobs/Rules/IAM/Run/
+index controls match the same digest. One post-cleanup control read was unavailable;
+the subsequent complete matching read passed. No Sheets write, FCM, business-data
+write, maintenance or production-data access occurred. The file's post-permission
+Drive version was not retained; version278 is historical, not a current execution fence.
+
+Local follow-up diagnostics split pre-write stages, retain only capability booleans,
+comparison hashes and pinned-source locations, and preserve numeric OAuth cleanup
+statuses without raw errors or secrets. They add no retry, token or write. Node
+22.23.4: **86 focused passes**, zero failures/skips, build/lint and CJS syntax pass.
+Native apps/Firestore behavior unchanged; their suites are not repeated.
+
+Private evidence: `2026-10-31-original-writer-live`, canonical receipt
+`original-develop-writer-journal/original-writer-20261031-one-attempt`. Writer capability
+on the original file remains unproved. Next review/publish diagnostics and reconcile
+the retained lock explicitly before a separately authorized new attempt and fresh
+owner window. Never erase or reuse this consumed attempt. New follow-up code/docs
+remain local after `b52e75a8`; migration and maintenance are still closed.

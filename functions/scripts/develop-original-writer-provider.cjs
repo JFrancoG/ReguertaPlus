@@ -130,7 +130,7 @@ function createWorkbookAccess({writerBearer, fetchImpl = fetch}) {
     readMetadata: () => readMetadata(fetchImpl, bearer, false),
     async readSnapshot() {
       const params = new URLSearchParams({includeGridData: "true",
-        fields: "spreadsheetId,properties,sheets(properties,data(startRow,startColumn,rowData(values(userEnteredValue,note,userEnteredFormat))))"});
+        fields: "spreadsheetId,properties(title,locale,timeZone),sheets(properties(sheetId,title,index,sheetType,gridProperties),data(startRow,startColumn,rowData(values(userEnteredValue,note,userEnteredFormat))))"});
       // Bounded six-tab image, not a whole-workbook snapshot.
       TABS.forEach(tab => params.append("ranges", `'${tab.title}'!A1:${tab.id === 1770956648 ? "Y" : "Z"}100`));
       const data = ok(await request(fetchImpl, bearer, SHEETS + "?" + params));
@@ -154,13 +154,19 @@ function createWorkbookAccess({writerBearer, fetchImpl = fetch}) {
 function createOwnerReader({ownerBearer, fetchImpl = fetch}) {
   let bearer = ownerBearer;
   return {read: () => readMetadata(fetchImpl, bearer), async close() {
+    let revocationStatus = null, sameTokenStatus = null;
     try {
       const revoked = await fetchImpl("https://oauth2.googleapis.com/revoke", {method: "POST", redirect: "error",
         headers: {"Content-Type": "application/x-www-form-urlencoded"},
         body: new URLSearchParams({token: bearer}).toString(), signal: AbortSignal.timeout(15000)});
+      revocationStatus = revoked.status;
       const probe = await request(fetchImpl, bearer, query(DRIVE + FILE, {fields: "id"}));
+      sameTokenStatus = probe.status;
       assert.equal(revoked.status, 200); assert.equal(probe.status, 401);
       return {revoked: true, sameTokenStatus: 401};
+    } catch {
+      // Never propagate request bodies, bearer values or provider error messages.
+      throw Object.assign(Error("Owner OAuth cleanup requires inspection"), {ownerCleanup: {revocationStatus, sameTokenStatus}});
     } finally { bearer = null; }
   }};
 }

@@ -1709,3 +1709,16 @@ y Playground cerrado. El conector omite esos campos. Sin cambios de permisos, to
 Sheets, mantenimiento ni acceso a datos de producción. Código/evidencias nuevos locales
 tras `3e494fc8`. Apps intactas/sin diferencia de paridad. Véase la
 [guía del escritor original](hu084-comprobacion-escritor-original.md).
+
+
+### Intento sobre el original detenido antes de escribir — 2026-10-31
+
+`b52e75a8` publica la preparación previa. Un intento autorizado emitió un token y pasó
+la lectura positiva de Drive, pero se detuvo en una aserción previa sin diagnóstico
+concreto: cero escrituras Sheets. ACL/IAM restaurados y escritor deshabilitado; mismo
+token válido denegado404. Token del propietario denegado401, campos borrados y pestaña
+cerrada. Las seis capturas y el hash de controles coinciden. Se conservan recibo/bloqueo
+con conciliación separada de limpieza. Diagnóstico local ampliado con fases, hashes,
+ubicación de código y estados OAuth;86 casos y build/lint correctos. Véase el
+[resultado completo](hu084-comprobacion-escritor-original.md). Otro intento requiere
+nueva autorización/ventana; mantenimiento/migración cerrados y producción intacta.

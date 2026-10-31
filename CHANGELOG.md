@@ -327,6 +327,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-10-31 | 🐛 fix(shifts): diagnose original writer preflight
+
 - 2026-10-31 | 🐛 fix(shifts): respect original workbook grid bounds
 
 - 2026-10-31 | 🐛 fix(shifts): integrate copy rehearsal IAM controls

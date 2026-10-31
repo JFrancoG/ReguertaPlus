@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "non-executable-original-develop-writer-check",
-  "status": "executor-prepared-locally-validated-not-authorized",
+  "status": "original-attempt-stopped-before-write-cleanup-reconciled",
   "projectId": "reguerta-9f27f",
   "environment": "develop",
   "canProvision": false,
@@ -181,5 +181,21 @@
     "executionStillRequiresApproval": true,
     "metadataObservedAt": "2026-10-31T11:56:08.288Z",
     "metadataEvidenceDigest": "shift-planning:v1:sha256:103ce5e615fda8b623bf6ec93864be94abbf1691f9eef419612447255bcae751"
+  },
+  "lastOriginalAttempt": {
+    "receiptId": "original-writer-20261031-one-attempt",
+    "observedOn": "2026-10-31",
+    "mintAttempts": 1,
+    "writeAttempts": 0,
+    "failurePhase": "positive-read",
+    "exactInvariantKnown": false,
+    "cleanupIndependentlyReconciled": true,
+    "sameUnexpiredWriterTokenDenied": 404,
+    "ownerSameTokenDenied": 401,
+    "journalLockRetained": true,
+    "canRetry": false,
+    "writerCapabilityProven": false,
+    "requiresNewApprovalAndWindow": true,
+    "postAttemptDriveVersionUnknown": true
   }
 }

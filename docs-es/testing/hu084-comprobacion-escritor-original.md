@@ -1,8 +1,9 @@
 # HU-084 — Comprobación del escritor sobre develop original
 
-Estado: ejecutor preparado y probado localmente, **sin autorización ni ejecución real**.
-La preparación anterior de propietario/controles está publicada en `ac24e5ce`; este
-ejecutor es local. Comprueba permisos; no admite migración ni abre mantenimiento.
+Estado: un intento autorizado se detuvo antes de escribir; limpieza conciliada
+independientemente. No se conoce la aserción concreta que falló. El diagnóstico
+posterior queda local tras `b52e75a8`; véase el resultado fechado al final. Esta
+comprobación no admite migración ni abre mantenimiento.
 
 ## Alcance y entrada
 
@@ -152,3 +153,51 @@ producción. Apps intactas. Código/evidencias nuevos pendientes de commit despu
 Validación de esta corrección: Node 22.23.4, 84 casos (35 del original y 49
 regresiones IAM/copia), cero fallos/omisiones; build, lint y sintaxis CJS correctos.
 Las pruebas nativas/emulador no se repiten: no cambia comportamiento de apps/Firestore.
+
+
+## Intento autorizado sobre el original — 2026-10-31
+
+El usuario autorizó un intento y confirmó diez minutos con la hoja cerrada. La
+preparación de cuadrícula/controles está publicada en `b52e75a8`. Antes del ensayo,
+se alineó la máscara de respuesta con los campos de libro/pestañas del conector
+independiente; pasaron 84 casos, build y lint.
+
+Se habilitó la identidad exacta, se concedieron el miembro IAM condicionado y un
+permiso directo de Editor, se esperaron al menos 120 segundos y se emitió un único
+token de 300s. La lectura positiva de Drive funcionó. Después falló una aserción en
+la antigua fase `positive-read`, **antes de registrar una intención de escritura o
+enviar un lote a Sheets**. El diagnóstico no conservaba la aserción concreta ni su
+línea: la causa sigue sin determinarse. No se deduce un fallo de capacidades, ACL,
+formatos o captura a partir de una fase tan amplia.
+
+Se retiró el permiso exacto y se verificó la lista completa de propietario/cuatro
+lectores. El mismo token del escritor, todavía válido, recibió404. Se comprobaron
+independientemente la retirada IAM, deshabilitación explícita, cero claves/concesiones
+directas y ausencia de asignaciones de ejecución. El ejecutor marcó inicialmente la
+limpieza OAuth como no acreditada; una consulta independiente con el mismo token del
+propietario recibió401. Repetir su revocación devolvió400 con el token ya inválido y
+la siguiente consulta recibió401. No quedaron registrados los estados originales,
+por lo que no se afirma una causa de propagación ni un HTTP200 inicial. Se borraron
+campos, cerró Playground y descartaron referencias en memoria. El recibo original y
+el bloqueo se conservan; una conciliación separada acredita limpieza y autorización
+consumida.
+
+Las capturas acotadas de las seis pestañas coinciden antes/después (3286 objetos de
+celda seleccionados con valores, notas y formatos). Functions/jobs/Rules/IAM/Run e
+índices mantienen el mismo hash de controles. Una lectura final no estuvo disponible;
+la siguiente lectura completa y coincidente pasó. Sin escritura Sheets, FCM, datos
+de negocio, mantenimiento ni datos de producción. No quedó registrada la versión de
+Drive posterior a los cambios de permisos;278 es histórica, no una garantía actual.
+
+El diagnóstico local separa fases previas a escribir y conserva solo booleanos de
+capacidades, hashes comparados, ubicación en código verificado y estados HTTP de
+limpieza OAuth, sin errores brutos ni secretos. No añade reintentos, tokens o escrituras.
+Node22.23.4: **86 casos correctos**, cero fallos/omisiones; build/lint y sintaxis CJS
+correctos. Apps/Firestore sin cambios; no se repiten sus suites.
+
+Evidencias privadas: `2026-10-31-original-writer-live`; recibo canónico
+`original-develop-writer-journal/original-writer-20261031-one-attempt`. La capacidad de
+escritura sobre el original sigue sin probarse. Siguiente paso: revisar/publicar el
+diagnóstico y conciliar explícitamente el bloqueo conservado antes de otro intento
+con autorización y ventana nuevas. No borrar ni reutilizar este intento consumido.
+Código/documentación nuevos locales tras `b52e75a8`; migración y mantenimiento cerrados.

@@ -153,6 +153,16 @@ for (const variant of ["lost-enable", "lost-iam-grant", "lost-file-grant", "mint
     assert.equal(f.state.disabled, true); assert.deepEqual(f.state.policy.bindings, []);
     assert.equal(f.state.metadata.filePermissions.length, 5); assert.equal(f.state.revoked, true);
     assert.equal(f.receipts().includes(SECRET), false);
+    if (variant === "changed-cell") {
+      assert.equal(result.failure.phase, "baseline-snapshot-comparison");
+      assert.ok(f.receipts().includes("actualDigest"));
+    }
+    if (variant === "writer-cannot-share") {
+      assert.equal(result.failure.phase, "writer-capabilities");
+      assert.ok(f.receipts().includes('"canShare": false'));
+      assert.equal(result.failure.sourceLocation.file, "prepare-develop-original-writer-check.cjs");
+      assert.ok(Number.isInteger(result.failure.sourceLocation.line));
+    }
   });
 }
 
@@ -289,6 +299,10 @@ test("bounded original snapshot respects the real 25-column legacy grid without 
   const data = grid(), calls = [];
   const access = createWorkbookAccess({writerBearer: SECRET, async fetchImpl(url, options) {
     assert.equal(options.method, "GET"); calls.push(url);
+    // Match the independently captured connector projection; extra API defaults
+    // must not make an unchanged workbook look like a different baseline.
+    assert.equal(new URL(url).searchParams.get("fields"),
+      "spreadsheetId,properties(title,locale,timeZone),sheets(properties(sheetId,title,index,sheetType,gridProperties),data(startRow,startColumn,rowData(values(userEnteredValue,note,userEnteredFormat))))");
     const ranges = new URL(url).searchParams.getAll("ranges");
     assert.equal(ranges.length, data.sheets.length);
     for (const range of ranges) {
@@ -302,3 +316,25 @@ test("bounded original snapshot respects the real 25-column legacy grid without 
   assert.equal((await access.readSnapshot()).digest, snapshot(data).digest);
   assert.equal(calls.length, 1); access.close();
 });
+
+for (const mode of ["denial-not-yet-visible", "probe-transport-error"]) {
+  test(`owner cleanup ${mode} retains bounded diagnosis without retry or secret leakage`, async t => {
+    const f = fixture(t), calls = [];
+    const owner = createOwnerReader({ownerBearer: SECRET, async fetchImpl(url, options) {
+      calls.push({url, method: options.method});
+      if (url === "https://oauth2.googleapis.com/revoke") return {status: 200};
+      if (mode === "probe-transport-error") throw Error(SECRET);
+      return {status: 200, json: async () => ({id: FILE, unsafeMessage: SECRET})};
+    }});
+    f.args.owner.close = owner.close;
+    const result = await runCheck(f.args);
+    assert.deepEqual(result.cleanupFailures, ["owner_oauth_cleanup_unproven"]);
+    const receipt = JSON.parse(fs.readFileSync(path.join(f.root, f.args.input.receiptId, "owner-oauth-cleanup.json")));
+    assert.deepEqual(receipt, {verified: false, revocationStatus: 200,
+      sameTokenStatus: mode === "probe-transport-error" ? null : 200});
+    assert.equal(calls.length, 2); assert.equal(f.state.mints, 1); assert.equal(f.state.writes, 1);
+    assert.equal(f.state.disabled, true); assert.equal(f.state.metadata.filePermissions.length, 5);
+    assert.equal(f.receipts().includes(SECRET), false);
+    await assert.rejects(owner.read()); assert.equal(calls.length, 2);
+  });
+}
