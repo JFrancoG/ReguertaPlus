@@ -22,6 +22,7 @@ const {loadManifest,prepareDevelopMigrationPackage} = require("../scripts/prepar
 const {materializeDevelopMigrationPreparation} = require("../scripts/materialize-develop-migration-package.cjs");
 const migration = require("../scripts/rehearse-develop-shift-migration.cjs");
 const {createControlledDevelopMigrationEmulator}=require("../scripts/controlled-develop-migration.cjs");
+const {createControlledDevelopBarrierEmulator}=require("../scripts/controlled-develop-barrier.cjs");
 const ROOT = "develop/plus-collections";
 const enabled = process.env.GCLOUD_PROJECT === migration.PROJECT_ID && process.env.FIRESTORE_EMULATOR_HOST === migration.HOST;
 const run = (name,fn) => test(name,{skip:!enabled},fn);
@@ -253,4 +254,151 @@ run("changed public config blocks inverse admission without altering the committ
   assert.equal(result.checksPassed,false);assert.equal(result.finalManifest,null);
   assert.deepEqual(await businessSnapshot(),before);assert.equal((await saved("shifts")).length,72);
   assert.deepEqual(h.counts,{close:0,incident:0});
+});
+
+// Provider observations remain explicit test doubles. The acquisition, journal,
+// source reads, admission and forward/inverse transactions use the real emulator.
+function durable(h,{firestore=db,onRead=()=>{},onClose=()=>{}}={}) {
+  const counts={opened:0,closed:0};
+  const create=()=>createControlledDevelopBarrierEmulator({firestore,prepared:h.prepared,nowMillis:h.clock,
+    openObservationSession:async scope=>{
+      counts.opened++;
+      const read=async name=>{await onRead(name,scope);return structuredClone(name==="evidence"?h.current().evidence:h.current().evidence.payload[name]);};
+      return {readEvidence:()=>read("evidence"),readOwnerObservation:()=>read("ownerObservation"),
+        readAdministratorObservation:()=>read("administratorObservation"),close:async()=>{counts.closed++;await onClose();}};
+    }});
+  const barrier=create(),executor=createControlledDevelopMigrationEmulator({firestore:db,prepared:h.prepared,
+    controlPlane:barrier.controlPlane,failurePersistence:barrier.failurePersistence,nowMillis:h.clock});
+  return {barrier,executor,create,counts};
+}
+const withoutJournal=async()=>{const snapshot=await businessSnapshot();delete snapshot.shiftPlanningOperations;return snapshot;};
+const evidenceKey=scope=>({environment:"develop",transitionId:scope.transitionId});
+// Commit on the emulator, then inject a lost acknowledgement or interruption.
+function afterEvidenceCommit(effect) {
+  let pending=true;
+  return new Proxy(db,{get(target,name){
+    if(name==="runTransaction")return async(...args)=>{
+      const result=await target.runTransaction(...args);
+      if(pending&&result?.operationKind==="intakeBarrierEvidence"){pending=false;await effect();}
+      return result;
+    };
+    const value=Reflect.get(target,name);return typeof value==="function"?value.bind(target):value;
+  }});
+}
+run("durable acquisition survives composition restart and drives exact migration and recovery",async()=>{
+  const input=process.env.HU084_REVIEW_MANIFEST?loadManifest(process.env.HU084_REVIEW_MANIFEST):withOriginalWriter(withWriter(fixture()));
+  const h=await harness(input),scope=await h.scope(),d=durable(h),before=await withoutJournal();
+  assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  const acquired=await d.barrier.acquire({scope});
+  assert.equal(acquired.acquired,true);assert.equal(acquired.canEnterMaintenance,false);
+  assert.equal(acquired.maintenanceStateChanged,false);assert.deepEqual(await withoutJournal(),before);
+  const restarted=d.create(),retained=await restarted.inspectRetained({scope});
+  assert.deepEqual(retained.checkpoint,acquired.checkpoint);assert.equal(retained.failure,null);
+  assert.equal(retained.historical,true);assert.equal(retained.canApply,false);
+  assert.deepEqual(await restarted.controlPlane.readBackClosed(scope),acquired.checkpoint);
+  await assert.rejects(restarted.acquire({scope}),/already_retained/);
+  const admission=await d.executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+  const receipt=await d.executor.execute({scope,admission});assert.equal(receipt.measurement.documentWriteCount,203);
+  const inverseScope=await h.scope(true);await restarted.acquire({scope:inverseScope});
+  const inverse=await d.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+  assert.equal(inverse.checksPassed,true);
+  assert.equal((await d.executor.execute({scope:inverseScope,admission:inverse,forwardReadBack:receipt})).measurement.documentWriteCount,140);
+  assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  const state=(await db.doc(`${ROOT}/shiftPlanningState/current`).get()).data();
+  assert.equal(state.maintenanceStatus,"closed");assert.equal(state.writeEpoch,2);
+  assert.equal(d.counts.opened,d.counts.closed);assert.ok(d.counts.opened>0);
+  if(process.env.HU084_CONTROLLED_OUTPUT)fs.writeFileSync(path.join(process.env.HU084_CONTROLLED_OUTPUT,"durable-barrier-roundtrip.json"),
+    JSON.stringify({preparedDigest:h.prepared.preparedDigest,acquired,admissionDigest:admission.admissionDigest,
+      inverseAdmissionDigest:inverse.admissionDigest,counts:d.counts,originalsRestored:62,noticesPreserved:117,liveExecutable:false},null,2),{mode:0o600,flag:"wx"});
+});
+run("abort before acquisition performs no observation or journal write",async()=>{
+  const h=await harness(),scope=await h.scope(),d=durable(h),before=await businessSnapshot();
+  await assert.rejects(d.barrier.acquire({scope,signal:AbortSignal.abort()}),/interrupted/);
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(d.counts,{opened:0,closed:0});
+});
+for(const mode of ["read-failure","cleanup-failure","abort-during-read"])run(`${mode} attempts session cleanup and cannot acquire`,async()=>{
+  const h=await harness(),scope=await h.scope(),controller=new AbortController(),before=await businessSnapshot();
+  const d=durable(h,{onRead:()=>{
+    if(mode==="read-failure")throw new Error("read failed");
+    if(mode==="abort-during-read")controller.abort();
+  },onClose:()=>{if(mode==="cleanup-failure")throw new Error("cleanup unverified");}});
+  await assert.rejects(d.barrier.acquire({scope,signal:controller.signal}));
+  assert.equal(d.counts.opened,1);assert.equal(d.counts.closed,1);
+  assert.deepEqual(await businessSnapshot(),before);
+  assert.equal((await d.barrier.inspectRetained({scope})).failure,null);
+});
+for(const mode of ["lost-acknowledgement","abort-after-commit"])run(`${mode} retains evidence and incident without business writes or automatic retry`,async()=>{
+  const h=await harness(),scope=await h.scope(),controller=new AbortController(),before=await withoutJournal();
+  const d=durable(h,{firestore:afterEvidenceCommit(()=>{
+    if(mode==="lost-acknowledgement")throw new Error("acknowledgement lost");controller.abort();
+  })});
+  await assert.rejects(d.barrier.acquire({scope,signal:controller.signal}));
+  const retained=await d.create().inspectRetained({scope});assert.ok(retained.checkpoint);assert.ok(retained.failure);
+  assert.equal(retained.canApply,false);assert.deepEqual(await withoutJournal(),before);
+  const journal=await saved("shiftPlanningOperations",true);
+  await assert.rejects(d.create().acquire({scope}),/already_retained/);
+  assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await saved("shiftPlanningOperations",true),journal);
+  assert.equal(d.counts.opened,d.counts.closed);
+});
+run("restart after expiry exposes only historical evidence and cannot revive admission",async()=>{
+  const h=await harness(),scope=await h.scope(),d=durable(h);await d.barrier.acquire({scope});
+  const before=await businessSnapshot();h.setClock(10_000_000);
+  const restarted=d.create(),retained=await restarted.inspectRetained({scope});assert.ok(retained.checkpoint);
+  const count=d.counts.opened;
+  await assert.rejects(restarted.controlPlane.readBackClosed(scope));
+  assert.equal(d.counts.opened,count);assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await businessSnapshot(),before);
+});
+for(const phase of ["ownerObservation","administratorObservation"])run(`cancellation during final ${phase} retains a blocking incident`,async()=>{
+  const h=await harness(),scope=await h.scope(),controller=new AbortController(),before=await withoutJournal();let reads=0;
+  const d=durable(h,{onRead:name=>{if(name===phase&&++reads===2)controller.abort();}});
+  await assert.rejects(d.barrier.acquire({scope,signal:controller.signal}));
+  assert.equal(reads,2);const retained=await d.create().inspectRetained({scope});
+  assert.ok(retained.checkpoint);assert.ok(retained.failure);assert.equal(retained.failure.phase,"finalReadBack");
+  assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await withoutJournal(),before);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("source drift during observation is preserved and prevents evidence retention",async()=>{
+  const h=await harness(),scope=await h.scope(),d=durable(h,{onRead:async()=>{
+    await db.doc(`${ROOT}/config/public`).update({late:true});
+  }});
+  await assert.rejects(d.barrier.acquire({scope}));
+  assert.equal(await h.journal.readExisting(evidenceKey(scope)),null);
+  assert.equal((await db.doc(`${ROOT}/config/public`).get()).get("late"),true);
+  assert.equal((await saved("shifts")).length,62);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("current observation drift blocks a retained checkpoint without falsely certifying cleanup or closure",async()=>{
+  const h=await harness(),scope=await h.scope();let drift=false;
+  const d=durable(h,{onRead:()=>{if(drift)throw new Error("controls unavailable");}});
+  await d.barrier.acquire({scope});const before=await businessSnapshot();drift=true;
+  assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await businessSnapshot(),before);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("cleanup failure after retaining evidence is durably incident-closed when readback recovers",async()=>{
+  const h=await harness(),scope=await h.scope(),before=await withoutJournal();let closes=0;
+  const d=durable(h,{onClose:()=>{if(++closes===2)throw new Error("cleanup unverified");}});
+  await assert.rejects(d.barrier.acquire({scope}));
+  const retained=await d.create().inspectRetained({scope});assert.ok(retained.checkpoint);assert.ok(retained.failure);
+  assert.equal(retained.failure.phase,"initialReadBack");assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await withoutJournal(),before);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("failed recovery readback never claims a durable incident after a lost acknowledgement",async()=>{
+  const h=await harness(),scope=await h.scope(),before=await withoutJournal();let failed=false;
+  const d=durable(h,{firestore:afterEvidenceCommit(()=>{failed=true;throw new Error("acknowledgement lost");}),
+    onRead:()=>{if(failed)throw new Error("provider unavailable");}});
+  await assert.rejects(d.barrier.acquire({scope}),/could not be durably proven/);
+  const retained=await d.create().inspectRetained({scope});assert.ok(retained.checkpoint);assert.equal(retained.failure,null);
+  assert.equal(retained.canApply,false);assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  await assert.rejects(d.create().acquire({scope}),/already_retained/);
+  assert.deepEqual(await withoutJournal(),before);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("evidence from another prepared package cannot be acquired even with a rehashed risk binding",async()=>{
+  const h=await harness(),scope=await h.scope(),d=durable(h);
+  const risk=h.current().evidence.payload.causalDrain.historicalRisk;
+  risk.migrationPlanDigest=digest({wrong:"package"});scope.expectedHistoricalRiskDigest=digest(risk);
+  h.current().evidence.digest=digest(h.current().evidence.payload);const before=await businessSnapshot();
+  await assert.rejects(d.barrier.acquire({scope}));assert.deepEqual(await businessSnapshot(),before);
+  assert.equal(d.counts.opened,d.counts.closed);
 });

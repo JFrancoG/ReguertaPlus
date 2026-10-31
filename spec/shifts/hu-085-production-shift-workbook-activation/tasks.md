@@ -1347,3 +1347,29 @@ New documents/private preparation are local after d42ce7fe. No runtime/native ch
 or parity gap. Build and 50 emulator cases pass on the renewed package; 62 originals restored, 117
 notices preserved. The 146 focused cases/lint are reused after matching executable
 hashes. Documentation and private-script syntax checks pass; no native suite repeated. #268/#269 remain open and #278 draft.
+
+
+## Durable develop barrier acquisition — 2026-10-31
+
+- [x] Commit/push permission/window preparation as `9e724da4`; remote HEAD verified.
+- [x] Connect controlled acquisition to the existing Firestore evidence/failure
+  repository and admission executor. Bind closed policy, exact package/operations,
+  source versions, workbook and historical-risk plans; no extra journal or reopen API.
+- [x] Reconstruct held evidence from persistent storage; inspect consumed keys without
+  automatically reacquiring or renewing expired human commitments.
+- [x] Locally rehearse acquisition and exact forward/inverse with the renewed package,
+  interruption before/after retention and final human checks, lost acknowledgement,
+  cleanup failures, expiry, source/control drift and foreign-package rejection.
+- [x] Verify build/lint, 166 focused and 65 emulator cases without failures/skips;
+  203/140 local writes, 62 originals restored, 117 notices and guard versions preserved.
+- [ ] Connect the trusted observation sessions to actual bounded provider readers,
+  rehearse original-workbook batch/cleanup and combined timing, then refresh exact
+  controls/sources/risk and request the separately authorized concrete window.
+
+Implementation/tests are local after `9e724da4`. Firestore persistence and business
+transactions use the real local SDK; provider/cleanup observations are test doubles.
+No live controls, permission changes, current OAuth revocation or total Google timing
+are proven by the emulator. A process kill cannot guarantee cleanup; uncertain
+resources require reconciliation. No maintenance, production, Sheets, FCM, deployment
+or native change; no platform parity gap. Private evidence:
+`2026-10-31-durable-barrier-acquisition`. #268/#269 open, #278 draft.

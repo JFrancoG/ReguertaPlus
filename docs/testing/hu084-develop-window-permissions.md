@@ -44,12 +44,14 @@ or request another token implicitly.
 1. Renew owner observations; compare two exact raw captures with the retained
    baseline. Bind current file version, complete ACL and parent to the package.
    Keep Firestore/control observation ages separate; owner reads do not refresh them.
-2. Complete the real control-plane composition that acquires and persists the held
-   barrier, reads back owner/admin observations and records failure/recovery. The
-   existing `controlled-develop-migration.cjs` only consumes an already-held barrier;
-   its passive check must still reject a missing window.
-3. Rehearse that composition locally against the exact regenerated forward/inverse
-   package, including interruption and cleanup. Review the original-workbook batch
+2. Bind fresh provider observations to `controlled-develop-barrier.cjs`. Durable
+   acquisition and its connection to admission have passed the local rehearsal below;
+   live observation providers and a real window have not been exercised together.
+   `controlled-develop-migration.cjs` still only consumes an already-held barrier;
+   its passive check rejects a missing window.
+3. Rehearse the combined provider/writer lifecycle and timing. The exact regenerated
+   forward/inverse package already passes durable acquisition locally, including
+   interruption and observation-session cleanup. Review the original-workbook batch
    separately: same-value A1 success proves access, not the 53 helper cells and two
    technical markers. Do not repurpose the copy-only runner for the original file.
 4. Refresh technical controls, source census and retained causal-risk bindings;
@@ -71,6 +73,49 @@ The earlier 20-minute work plus 20-minute recovery proposal remains a **provisio
 reservation**, not a measured executable window. Start/end/recovery timestamps,
 participant confirmations and execution authorization remain absent until the
 composition and timing checks pass. Preparing this document cannot fill those fields.
+
+## Durable acquisition rehearsal — 2026-10-31
+
+`controlled-develop-barrier.cjs` composes the existing Firestore evidence/failure
+repository and trusted administrator adapter with the controlled migration executor.
+It pins the project, develop environment, closed source policy, prepared digest,
+workbook revision, forward/inverse identities and historical-risk plan bindings.
+Source/version reads bracket the first evidence collection. Subsequent technical,
+owner and administrator readbacks verify the same scope; evidence is immutable.
+There is no new journal, provider deployment, maintenance-state write or reopen API.
+
+Acquisition writes only the existing barrier evidence/incident records. A reconstructed
+composition reads the checkpoint from Firestore instead of trusting process memory.
+A consumed evidence key is inspect-only: no automatic second acquisition. Historical
+inspection never grants admission or renews an expired agreement. Admission and the
+business transaction still require independent fresh control/source checks and CAS.
+This record certifies already-closed controls; it is not a new distributed mutex.
+
+Observation sessions are explicit trusted dependencies. Every successfully opened
+session reaches `close`, including read failure and cancellation. An opener must
+clean any partial open before rejecting; an unverifiable cleanup rejects acquisition.
+Cancellation before retention writes nothing. Lost acknowledgement and cancellation
+after retention, including the final human checks, retain an incident when closed
+controls can still be independently proven. If that proof or the journal fails, the
+operation fails closed without claiming durable closure. The final administrator
+read is the cancellation boundary; a later abort cannot undo completed acquisition.
+Abrupt process termination cannot promise a `finally` cleanup: inspect retained
+evidence and reconcile actual resources before any further authorized operation.
+
+Validation uses the real loopback Firestore SDK/repository, with **test doubles for
+Google/provider observations and session cleanup**. No live account permission,
+OAuth revocation, current Google control or combined provider timing is proven by
+this test. The production-shaped factory requires explicitly supplied Firestore,
+trusted observation sessions and clock; it has no executable live CLI or credentials.
+The local test constructs fresh synthetic commitments, never real user consent.
+
+Build/lint pass; 166 focused and 65 emulator tests pass, no failures/skips. Fifteen
+new emulator cases cover acquisition/restart, forward/inverse, interruptions, cleanup
+failure, expiry, source/control drift and foreign package rejection. The regenerated
+package performs 203/140 local writes, restores 62 originals and preserves all 117
+notices and guard-document versions. Private results:
+`2026-10-31-durable-barrier-acquisition`. New code/tests remain local after `9e724da4`.
+No native changes or parity gap. No real maintenance, production, Sheets, FCM or deploy.
 
 ## Current evidence boundary
 
@@ -106,7 +151,7 @@ retained from the previous package; this owner-only read does not renew them. Th
 window plan names the new package/operation IDs, with no start/end/confirmations or
 execution authorization. A later execution must refresh observations again.
 
-Validation: build and 50 emulator tests pass with zero failures/skips on the regenerated
+Previous owner-renewal block: build and 50 emulator tests pass with zero failures/skips on the regenerated
 package; 203 forward/140 inverse writes, 62 originals restored, 117 notices preserved.
 All eight previously accepted executable/test hashes are unchanged; the 146 focused
 cases and lint are reused. Private scripts pass syntax and docs pass diff checks. This group changes only documentation and private preparation, with no

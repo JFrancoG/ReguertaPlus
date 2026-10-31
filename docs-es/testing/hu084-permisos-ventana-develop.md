@@ -46,12 +46,14 @@ No se amplían ni se solicita otro token implícitamente.
    con la referencia conservada. Vincular versión, ACL completa y carpeta actuales
    al paquete. Mantener separadas las edades de Firestore/controles: estas lecturas
    del propietario no las renuevan.
-2. Completar la composición real del plano de control que adquiere y conserva la
-   barrera, relee observaciones del propietario/administradores y registra fallos y
-   recuperación. `controlled-develop-migration.cjs` solo consume una barrera ya
-   adquirida; su inspección pasiva debe seguir rechazando la ausencia de ventana.
-3. Ensayar localmente esa composición con el paquete regenerado exacto y su reversión,
-   incluidas interrupciones y limpieza. Revisar aparte el lote de la hoja original:
+2. Conectar las observaciones actuales de los proveedores a `controlled-develop-barrier.cjs`.
+   La adquisición persistente y su conexión a admisión superan el ensayo local descrito
+   abajo; todavía no se han ejercitado juntos los proveedores y una ventana real.
+   `controlled-develop-migration.cjs` solo consume una barrera ya adquirida;
+   su inspección pasiva rechaza la ausencia de ventana.
+3. Ensayar el ciclo conjunto de proveedores/escritor y sus tiempos. El paquete exacto
+   regenerado de ida/vuelta ya supera la adquisición persistente local, incluidas
+   interrupciones y limpieza de sesiones de lectura. Revisar aparte el lote original:
    escribir el mismo valor en A1 demuestra acceso, no las 53 celdas de ayudantes y dos
    marcadores técnicos. No reutilizar para la original el ejecutor limitado a copias.
 4. Renovar controles técnicos, censo y vínculos del riesgo causal conservado; verificar
@@ -74,6 +76,53 @@ La propuesta anterior de 20 minutos de trabajo y 20 de recuperación sigue siend
 **reserva provisional**, no una ventana ejecutable cronometrada. Inicio, fin, límite
 de recuperación, confirmaciones y autorización quedan sin completar hasta validar
 la composición y sus tiempos. Este documento no puede rellenarlos por sí mismo.
+
+## Ensayo de adquisición persistente — 2026-10-31
+
+`controlled-develop-barrier.cjs` conecta el repositorio Firestore de evidencias/fallos
+y el adaptador administrativo existentes con el ejecutor controlado de migración.
+Fija proyecto, entorno develop, política cerrada, huella del paquete, versión de la
+hoja, identidades de ida/vuelta y vínculos del riesgo histórico. Las lecturas de
+fuentes/versiones rodean la primera captura de evidencia. Las relecturas técnicas,
+del propietario y de administradores comprueban el mismo alcance; la evidencia es
+inmutable. No añade otro registro, despliegue, escritura de estado de mantenimiento
+ni operación de reapertura.
+
+La adquisición solo escribe los registros de evidencia/incidencia existentes. Al
+reconstruir la composición, el comprobante se lee de Firestore, no de la memoria del
+proceso. Una clave con evidencia conservada solo admite inspección, sin repetir
+automáticamente la adquisición. La inspección histórica no concede admisión ni
+renueva un acuerdo caducado. La admisión y la transacción de negocio siguen exigiendo
+comprobaciones actuales independientes y CAS. El registro acredita controles ya
+cerrados; no constituye un nuevo cerrojo distribuido.
+
+Las sesiones de observación son dependencias confiables explícitas. Toda sesión
+abierta alcanza `close`, incluso ante fallo de lectura o cancelación. Quien abre debe
+limpiar una apertura parcial antes de rechazar; una limpieza no comprobada impide
+adquirir. Cancelar antes de conservar evidencia no escribe nada. La respuesta perdida
+y la cancelación posterior, incluidas las últimas comprobaciones humanas, conservan
+una incidencia si aún puede acreditarse el cierre de forma independiente. Si falla
+esa prueba o el registro, se rechaza sin afirmar que el cierre quedó documentado.
+La última lectura administrativa marca el límite de cancelación; una posterior no
+deshace una adquisición terminada. Un cierre abrupto del proceso no garantiza ejecutar
+`finally`: hay que inspeccionar la evidencia y conciliar los recursos reales antes
+de continuar con otra operación autorizada.
+
+La validación usa el SDK/repositorio Firestore real contra el emulador local, con
+**dobles de prueba para observaciones de Google/proveedores y limpieza de sesiones**.
+No demuestra permisos reales, revocación OAuth, controles actuales de Google ni
+tiempos conjuntos. La factoría prevista para develop exige Firestore, sesiones
+confiables y reloj explícitos; no incorpora credenciales ni CLI de ejecución real.
+Los compromisos del ensayo son sintéticos; nunca se presentan como consentimiento real.
+
+Build/lint correctos; 166 pruebas focalizadas y 65 de emulador, sin fallos/omisiones.
+Quince casos nuevos cubren adquisición/reconstrucción, ida/vuelta, interrupciones,
+fallos de limpieza, caducidad, cambios de fuentes/controles y rechazo de otro paquete.
+El paquete regenerado realiza 203/140 escrituras locales, restaura 62 originales y
+conserva los 117 avisos y las versiones de los documentos protegidos. Evidencia privada:
+`2026-10-31-durable-barrier-acquisition`. Código/pruebas nuevos locales tras `9e724da4`.
+Sin cambios nativos ni diferencia entre plataformas. Sin mantenimiento real,
+producción, Sheets, FCM ni despliegue.
 
 ## Límite de las evidencias actuales
 
@@ -112,7 +161,7 @@ renueva. El plan identifica el nuevo paquete y sus operaciones, sin inicio, fin,
 confirmaciones ni autorización de ejecución. Una ejecución posterior deberá renovar
 las observaciones otra vez.
 
-Validación: build y 50 pruebas de emulador correctas, sin fallos/omisiones, con el
+Bloque anterior de renovación del propietario: build y 50 pruebas de emulador correctas, sin fallos/omisiones, con el
 paquete regenerado; 203 escrituras de ida/140 de vuelta, 62 originales restaurados y
 117 avisos conservados. Coinciden las ocho huellas de código/pruebas aceptadas; se
 reutilizan las 146 pruebas focalizadas y lint. Sintaxis privada y diff correctos. Este bloque solo cambia documentación y preparación privada,
