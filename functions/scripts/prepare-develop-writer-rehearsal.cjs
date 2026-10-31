@@ -28,6 +28,10 @@ function prepare() {
   assert.deepEqual(plan.temporaryMintGrant.readiness, {method: "testIamPermissions",
     permission: "iam.serviceAccounts.getAccessToken", maximumWaitSeconds: 180, pollSeconds: 5,
     minimumRemainingWindowSeconds: 360, isAuthorizationProof: false});
+  assert.equal(plan.temporaryMintGrant.minimumGrantAgeSeconds, 120);
+  assert.deepEqual(plan.temporaryMintGrant.lifecycleObservation, {maximumWaitSeconds: 60, pollSeconds: 5});
+  assert.equal(plan.temporaryMintGrant.maximumRequestedTokens, 1);
+  assert.equal(plan.cleanup.verifyNewTokenMintDenied, false);
   const workbook = {properties: {title: "HU-084 — ENSAYO SINTETICO DEL ESCRITOR DEVELOP", locale: "es_ES", timeZone: "Europe/Madrid"},
     sheets: plan.copyRehearsal.initialTabTitles.map((title, index) => ({
       properties: {sheetId: 100 + index, title, gridProperties: plan.copyRehearsal.initialGrid},
@@ -41,6 +45,8 @@ function prepare() {
     workbookCreate: workbook, filePermissionCreate: {type: "user", role: "writer", emailAddress: EMAIL},
     tokenRequest: {scope: [...SCOPES], lifetime: "300s"},
     mintReadiness: plan.temporaryMintGrant.readiness,
+    minimumGrantAgeSeconds: plan.temporaryMintGrant.minimumGrantAgeSeconds,
+    lifecycleObservation: plan.temporaryMintGrant.lifecycleObservation,
     runtime: {runId: plan.copyRehearsal.runId, demoProjectId: DEMO, firestoreHost: HOST, mode: "execute"},
     unresolved: ["explicit-authorization", "created-copy-id-owner-parent-and-raw-baseline", "created-account-unique-id",
       "created-copy-permission-id", "fresh-owner-confirmation", "exact-UTC-window", "protected-file-ids",
@@ -126,21 +132,47 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
   let primaryFailure = null, ownedVerified = false, planReviewed = false;
   let failureDetails = null, phase = "verify-identity";
   const assertSources = () => assert.equal(prepare().preparationDigest, owned.approval.preparationDigest);
-  const cleanupFailures = [];
+  const cleanupFailures = [], observations = [];
+  let projectBaseline = null;
+  function checkAuthority(observation, bindings) {
+    // Lifecycle may lag, but identity, keys and authority must never drift while waiting.
+    const authority = checkIdentity({...observation, account: {...observation.account, disabled: false}}, owned, bindings);
+    if (projectBaseline !== null) assert.equal(digest(observation.projectPolicy), projectBaseline);
+    if (bindings.length && baseline !== null) assert.equal(authority, baseline);
+    return authority;
+  }
+  async function observeState(disabled, bindings, outerDeadline = owned.window.endsAtMillis - 360000) {
+    const deadline = Math.min(nowMillis() + prepared.lifecycleObservation.maximumWaitSeconds * 1000, outerDeadline);
+    while (true) {
+      if (!disabled) assertSources();
+      assert.ok(nowMillis() < deadline, "Account lifecycle observation deadline exceeded");
+      const observation = await provider.readIdentity();
+      checkAuthority(observation, bindings);
+      const matched = (observation.account.disabled === true) === disabled;
+      observations.push({phase, expectedDisabled: disabled, observedDisabled: observation.account.disabled === true});
+      assert.ok(nowMillis() < deadline, "Account lifecycle observation arrived too late");
+      if (matched) return observation;
+      await sleep(Math.min(prepared.lifecycleObservation.pollSeconds * 1000, deadline - nowMillis()));
+    }
+  }
   const packet = {schemaVersion: 1, copyWorkbookId: owned.copy.fileId, runId: prepared.runtime.runId,
     demoProjectId: DEMO, protectedWorkbookIds: owned.protectedWorkbookIds, mode: "execute",
     ownerConfirmation: {...owned.owner, ...owned.window}, requireParentPlanReview: true};
   try {
     const before = await provider.readIdentity();
-    checkIdentity(before, owned, []);
+    checkAuthority(before, []);
+    projectBaseline = digest(before.projectPolicy);
     ownedVerified = true;
+    // The approved parent enables this identity; never repeat enable here.
+    const enabled = await observeState(false, []);
     phase = "verify-owner-copy";
     await verifyOwnerCopy();
-    await record("grant-intent", {binding, beforePolicy: before.policy, identity: owned.identity});
+    await record("grant-intent", {binding, beforePolicy: enabled.policy, identity: owned.identity});
     phase = "grant-identity";
-    await provider.setPolicy({...before.policy, version: 3, bindings: [binding]});
-    phase = "verify-grant";
-    baseline = checkIdentity(await provider.readIdentity(), owned, [binding]);
+    assertSources();
+    assert.ok(nowMillis() + 360000 < owned.window.endsAtMillis);
+    await provider.setPolicy({...enabled.policy, version: 3, bindings: [binding]});
+    const grantedAtMillis = nowMillis();
     phase = "wait-token-permission";
     const readinessStarted = nowMillis(), readiness = prepared.mintReadiness;
     const readinessDeadline = Math.min(readinessStarted + readiness.maximumWaitSeconds * 1000,
@@ -150,15 +182,16 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
     while (true) {
       assert.ok(nowMillis() < readinessDeadline, "Mint permission not ready within the current window");
       assertSources();
-      assert.equal(checkIdentity(await provider.readIdentity(), owned, [binding]), baseline);
+      const observation = await observeState(false, [binding], readinessDeadline);
+      if (baseline === null) baseline = checkAuthority(observation, [binding]);
       const ready = await provider.hasMintPermission();
       assert.equal(typeof ready, "boolean");
       assert.ok(nowMillis() < readinessDeadline, "Readiness response arrived after its deadline");
-      if (ready) break;
+      if (ready && nowMillis() >= grantedAtMillis + prepared.minimumGrantAgeSeconds * 1000) break;
       await sleep(Math.min(readiness.pollSeconds * 1000, readinessDeadline - nowMillis()));
     }
     await record("mint-permission-ready", {observedAtMillis: nowMillis(), waitedMillis: nowMillis() - readinessStarted,
-      isAuthorizationProof: false});
+      grantAgeMillis: nowMillis() - grantedAtMillis, isAuthorizationProof: false});
     phase = "start-child";
     outcome = await runChild({packet, async openSession(context) {
       phase = "validate-token-admission";
@@ -169,7 +202,9 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
       assert.equal(context.runnerInstanceId, `copy-runner:${packet.runId}`);
       assert.ok(context.runnerStartedAtMillis <= nowMillis());
       assert.ok(nowMillis() + 300000 < owned.window.endsAtMillis, "Insufficient token/cleanup window");
-      assert.equal(checkIdentity(await provider.readIdentity(), owned, [binding]), baseline);
+      await observeState(false, [binding], owned.window.endsAtMillis - 300000);
+      assertSources();
+      assert.ok(nowMillis() + 300000 < owned.window.endsAtMillis, "Insufficient token/cleanup window");
       phase = "mint-token";
       const token = await provider.mint(prepared.tokenRequest);
       phase = "validate-token-response";
@@ -179,7 +214,7 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
       assert.ok(Number.isSafeInteger(expiry) && issued >= context.runnerStartedAtMillis && issued <= nowMillis());
       assert.ok(expiry > nowMillis() && expiry <= owned.window.endsAtMillis);
       phase = "verify-identity-after-mint";
-      assert.equal(checkIdentity(await provider.readIdentity(), owned, [binding]), baseline);
+      await observeState(false, [binding], Math.min(expiry, owned.window.endsAtMillis));
       phase = "probe-copy-access";
       const probe = await provider.probeCopy(bearer);
       if (probe.status !== 200) throw Object.assign(Error("Copy read failed"), {httpStatus: probe.status});
@@ -196,8 +231,7 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
       return {accessToken: bearer, tokenExpiresAtMillis: expiry, authority};
     }, async readIdentity() {
       phase = "verify-child-identity";
-      const current = await provider.readIdentity();
-      assert.equal(checkIdentity(current, owned, [binding]), baseline);
+      await observeState(false, [binding], Math.min(expiry, owned.window.endsAtMillis));
       return {observedAtMillis: nowMillis(), serviceAccountEmail: EMAIL, serviceAccountUniqueId: owned.identity.uniqueId,
         serviceAccountDisabled: false, userManagedKeyCount: 0, directProjectRoleCount: 0, grantPolicyDigest: baseline};
     }, async reviewPlan(review) {
@@ -212,7 +246,7 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
       assert.equal(review.runtimePermissionId, owned.copy.permissionId);
       assert.equal(review.expectedRows, 10); assert.equal(review.requests, 45);
       assert.ok(nowMillis() < expiry && nowMillis() < owned.window.endsAtMillis);
-      assert.equal(checkIdentity(await provider.readIdentity(), owned, [binding]), baseline);
+      await observeState(false, [binding], Math.min(expiry, owned.window.endsAtMillis));
       await record("reviewed-batch", review);
       planReviewed = true;
       phase = "execute-reviewed-batch";
@@ -247,18 +281,16 @@ async function runSession({input, provider, runChild, verifyOwnerCopy, removeCop
       } catch { cleanupFailures.push("iam_binding_removal_unproven"); }
       try { await provider.disableOwned(); } catch { cleanupFailures.push("identity_disablement_unproven"); }
       try {
-        const terminal = await provider.readIdentity();
-        assert.equal(terminal.account.email, EMAIL); assert.equal(terminal.account.uniqueId, owned.identity.uniqueId);
-        assert.equal(terminal.account.disabled, true); assert.deepEqual(terminal.keys.keys ?? [], []);
-        assert.deepEqual(terminal.policy.bindings ?? [], []);
-        assert.ok(!(terminal.projectPolicy.bindings ?? []).some(b => b.members?.includes(`serviceAccount:${EMAIL}`)));
-        assert.ok([403, 404].includes(await provider.probeMintDenied(prepared.tokenRequest)));
-      } catch { cleanupFailures.push("terminal_identity_denial_unproven"); }
+        phase = "verify-disabled-identity";
+        await observeState(true, [], nowMillis() + prepared.lifecycleObservation.maximumWaitSeconds * 1000);
+        // Never issue a second mint to test denial. Containment is evidenced by
+        // the original token's copy denial, exact grant removal and disable/readback.
+      } catch { cleanupFailures.push("terminal_identity_unproven"); }
     }
     bearer = null;
   }
   const result = {kind: primaryFailure || cleanupFailures.length ? "inspection_required" : "completed-and-contained",
-    outcome, cleanupFailures, primaryFailure, failureDetails, mintAttempted, canRetry: false, canEnterMaintenance: false};
+    outcome, cleanupFailures, primaryFailure, failureDetails, observations, mintAttempted, canRetry: false, canEnterMaintenance: false};
   await record("terminal", result);
   return result;
 }

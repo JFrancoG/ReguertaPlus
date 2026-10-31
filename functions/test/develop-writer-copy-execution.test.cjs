@@ -36,7 +36,6 @@ function fixture() {
     async probeCopy(token) { assert.equal(token, "synthetic-secret"); state.calls.push("probe-copy");
       return state.copyPermission ? {status: 200, id: input.copy.fileId} : {status: 404}; },
     async disableOwned() { state.calls.push("disable"); state.disabled = true; },
-    async probeMintDenied() { state.calls.push("probe-mint"); assert.ok(state.disabled); return 403; },
   };
   const review = {originalTabsDigest: input.copy.baselineDigest, workbookId: input.copy.fileId,
     ownerEmail: input.copy.ownerEmail, ownerPermissionId: input.copy.ownerPermissionId,
@@ -88,7 +87,7 @@ test("one mint, reviewed batch and same unexpired-token denial finish with no gr
   const f = fixture(); const result = await run(f);
   assert.equal(result.kind, "completed-and-contained"); assert.equal(f.state.mintCount, 1);
   assert.deepEqual(f.state.policy.bindings, []); assert.equal(f.state.disabled, true); assert.equal(f.state.copyPermission, false);
-  assert.deepEqual(f.state.calls.slice(-5), ["remove-copy", "probe-copy", "set-policy", "disable", "probe-mint"]);
+  assert.deepEqual(f.state.calls.slice(-4), ["remove-copy", "probe-copy", "set-policy", "disable"]);
   assert.equal(JSON.stringify(f.state.records).includes("synthetic-secret"), false);
   assert.equal(result.canRetry || result.canEnterMaintenance, false);
   const grant = f.state.records[0].body.binding;
@@ -132,7 +131,7 @@ test("cleanup preserves concurrent foreign grants and reports unresolved authori
   assert.equal(result.kind, "inspection_required"); assert.equal(f.state.disabled, true);
   assert.deepEqual(f.state.policy.bindings[0].members, ["user:concurrent@example.test"]);
   assert.equal(f.state.policy.bindings[1].role, "roles/viewer");
-  assert.ok(result.cleanupFailures.includes("terminal_identity_denial_unproven"));
+  assert.ok(result.cleanupFailures.includes("terminal_identity_unproven"));
 });
 
 test("ACL removal failure and IAM conflict do not suppress account containment or erase foreign updates", async () => {
@@ -305,11 +304,11 @@ test("permission propagation is read-only until ready and mints exactly once wit
   const f = fixture(), end = f.args.input.window.endsAtMillis; let reads = 0;
   f.args.provider.hasMintPermission = async () => ++reads >= 3;
   const result = await run(f);
-  assert.equal(result.kind, "completed-and-contained"); assert.equal(reads, 3);
-  assert.equal(f.state.now, NOW + 10000); assert.equal(f.state.mintCount, 1);
+  assert.equal(result.kind, "completed-and-contained"); assert.equal(reads, 25);
+  assert.equal(f.state.now, NOW + 120000); assert.equal(f.state.mintCount, 1);
   assert.equal(f.args.input.window.endsAtMillis, end);
   assert.deepEqual(f.state.records.find(r => r.kind === "mint-permission-ready").body,
-    {observedAtMillis: NOW + 10000, waitedMillis: 10000, isAuthorizationProof: false});
+    {observedAtMillis: NOW + 120000, waitedMillis: 120000, grantAgeMillis: 120000, isAuthorizationProof: false});
 });
 
 test("unpropagated permission times out before mint and still removes grants and disables the account", async () => {
@@ -399,4 +398,117 @@ test("recognized mint denial is retained without a retry and unknown reasons are
     assert.equal(f.state.mintCount, 1); assert.equal(f.state.disabled, true); assert.equal(result.canRetry, false);
     assert.equal(JSON.stringify({result, records: f.state.records}).includes("synthetic-secret"), false);
   }
+});
+
+test("copy and IAM-only preparations share timing and invalidate old approval packets", () => {
+  const p = prepare();
+  const diagnostic = require("../scripts/prepare-develop-writer-iam-diagnostic.cjs").prepareDiagnostic(fixture().args.input.identity);
+  assert.equal(p.minimumGrantAgeSeconds, 120);
+  assert.deepEqual(p.lifecycleObservation, {maximumWaitSeconds: 60, pollSeconds: 5});
+  assert.equal(diagnostic.minimumGrantAgeSeconds, p.minimumGrantAgeSeconds);
+  assert.deepEqual(diagnostic.lifecycleObservation, p.lifecycleObservation);
+  const f = fixture(); f.args.input.approval.preparationDigest = digest("previous-copy-controller");
+  assert.throws(() => bind(f.args.input, NOW));
+});
+
+test("grant age starts after the grant response and waiting never consumes child execution time", async () => {
+  const f = fixture(), set = f.args.provider.setPolicy, child = f.args.runChild;
+  f.args.provider.setPolicy = async policy => { await set(policy); if (policy.bindings.length) f.state.now += 15000; };
+  f.args.runChild = async ports => {
+    assert.equal(f.state.now, NOW + 135000); assert.equal(f.state.mintCount, 0);
+    f.context.runnerStartedAtMillis = f.state.now;
+    return child(ports);
+  };
+  const result = await run(f);
+  assert.equal(result.kind, "completed-and-contained"); assert.equal(f.state.mintCount, 1);
+  assert.equal(f.state.records.find(r => r.kind === "mint-permission-ready").body.grantAgeMillis, 120000);
+});
+
+test("stale lifecycle before grant and after explicit disable is observed without repeated mutations", async () => {
+  const f = fixture(), read = f.args.provider.readIdentity;
+  let preGrantReads = 0, terminalReads = 0;
+  f.args.provider.readIdentity = async () => {
+    const value = await read();
+    if (!f.state.calls.includes("set-policy") && ++preGrantReads <= 3) value.account.disabled = true;
+    if (f.state.calls.includes("disable") && ++terminalReads <= 2) value.account.disabled = false;
+    return value;
+  };
+  const result = await run(f);
+  assert.equal(result.kind, "completed-and-contained"); assert.equal(f.state.now, NOW + 140000);
+  assert.equal(f.state.calls.filter(c => c === "disable").length, 1);
+  assert.equal(f.state.calls.filter(c => c === "set-policy").length, 2);
+  assert.equal(f.state.mintCount, 1);
+  assert.ok(result.observations.some(o => o.expectedDisabled !== o.observedDisabled));
+});
+
+test("bounded lifecycle observation also protects token admission inside the child", async () => {
+  const f = fixture(), read = f.args.provider.readIdentity, child = f.args.runChild;
+  let childStarted = false, staleReads = 0;
+  f.args.runChild = async ports => { childStarted = true; f.context.runnerStartedAtMillis = f.state.now; return child(ports); };
+  f.args.provider.readIdentity = async () => {
+    const value = await read();
+    if (childStarted && !f.state.mintCount && ++staleReads <= 2) value.account.disabled = true;
+    return value;
+  };
+  assert.equal((await run(f)).kind, "completed-and-contained");
+  assert.equal(f.state.now, NOW + 130000); assert.equal(f.state.mintCount, 1);
+});
+
+test("lifecycle timeout before grant contains the verified account without starting the child", async () => {
+  const f = fixture(); f.state.disabled = true;
+  f.args.runChild = async () => { throw Error("must not start"); };
+  const result = await run(f);
+  assert.equal(result.failureDetails.phase, "verify-identity"); assert.equal(f.state.now, NOW + 60000);
+  assert.equal(f.state.mintCount, 0); assert.equal(f.state.calls.includes("set-policy"), false);
+  assert.equal(f.state.calls.filter(c => c === "disable").length, 1);
+});
+
+test("a positive lifecycle response after the deadline cannot admit a grant", async () => {
+  const f = fixture(), read = f.args.provider.readIdentity; let reads = 0;
+  f.args.provider.readIdentity = async () => { const value = await read(); if (++reads === 2) f.state.now += 60001; return value; };
+  const result = await run(f);
+  assert.equal(result.kind, "inspection_required"); assert.equal(result.failureDetails.phase, "verify-identity");
+  assert.equal(f.state.mintCount, 0); assert.equal(f.state.calls.includes("set-policy"), false);
+  assert.equal(f.state.disabled, true);
+});
+
+test("keys, identity and project drift are rejected immediately even with a stale disabled read", async () => {
+  for (const change of [v => v.keys.keys.push({name: "unexpected-user-key"}),
+    v => { v.account.uniqueId = "99999999999999"; },
+    v => v.projectPolicy.bindings.push({role: "roles/viewer", members: ["user:foreign@example.test"]})]) {
+    const f = fixture(), read = f.args.provider.readIdentity; let reads = 0;
+    f.args.provider.readIdentity = async () => {
+      const value = await read(); if (++reads === 2) { value.account.disabled = true; change(value); } return value;
+    };
+    const result = await run(f);
+    assert.equal(result.kind, "inspection_required"); assert.equal(f.state.now, NOW);
+    assert.equal(f.state.mintCount, 0); assert.equal(f.state.calls.includes("set-policy"), false);
+  }
+});
+
+test("minimum grant age cannot borrow the reserved token and cleanup window", async () => {
+  const f = fixture(); f.args.input.window.endsAtMillis = NOW + 460000;
+  let started = false; f.args.runChild = async () => { started = true; };
+  const result = await run(f);
+  assert.equal(result.kind, "inspection_required"); assert.equal(f.state.now, NOW + 100000);
+  assert.equal(started, false); assert.equal(f.state.mintCount, 0); assert.equal(f.state.disabled, true);
+});
+
+test("unconfirmed disable is bounded and never calls a second mint to test denial", async () => {
+  const f = fixture();
+  f.args.provider.disableOwned = async () => { f.state.calls.push("disable"); };
+  f.args.provider.probeMintDenied = async () => { throw Error("a second mint must never be requested"); };
+  const result = await run(f);
+  assert.equal(result.kind, "inspection_required"); assert.equal(f.state.now, NOW + 180000);
+  assert.deepEqual(result.cleanupFailures, ["terminal_identity_unproven"]);
+  assert.equal(f.state.mintCount, 1); assert.deepEqual(f.state.policy.bindings, []);
+  assert.equal(f.state.records.find(r => r.kind === "copy-access-removed").body.originalTokenUnexpired, true);
+});
+
+test("terminal project-policy drift remains unresolved even after successful token access removal", async () => {
+  const f = fixture(), disable = f.args.provider.disableOwned;
+  f.args.provider.disableOwned = async () => { await disable(); f.state.projectBindings.push({role: "roles/viewer", members: ["user:foreign@example.test"]}); };
+  const result = await run(f);
+  assert.equal(result.kind, "inspection_required"); assert.deepEqual(result.cleanupFailures, ["terminal_identity_unproven"]);
+  assert.equal(f.state.mintCount, 1); assert.equal(f.state.disabled, true);
 });

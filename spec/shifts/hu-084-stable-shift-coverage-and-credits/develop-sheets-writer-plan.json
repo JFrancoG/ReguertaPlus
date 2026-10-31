@@ -55,6 +55,8 @@
     "refreshToken": false,
     "ambientCredentialFallbackInChild": false,
     "iamEnforcesRequestedScopesAndTokenCount": false,
+    "minimumGrantAgeSeconds": 120,
+    "lifecycleObservation": {"maximumWaitSeconds": 60, "pollSeconds": 5},
     "readiness": {
       "method": "testIamPermissions",
       "permission": "iam.serviceAccounts.getAccessToken",
@@ -82,7 +84,7 @@
     "disableNewServiceAccount": true,
     "keepSyntheticWorkbookAndEvidence": true,
     "verifyOriginalTokenDeniedAfterAclRemoval": true,
-    "verifyNewTokenMintDenied": true,
+    "verifyNewTokenMintDenied": false,
     "uncertainWrite": "inspect-only; no retry, inverse or cleanup content deletion",
     "futureReenable": "separate approval after token-expiry and unresolved-operation reconciliation"
   },

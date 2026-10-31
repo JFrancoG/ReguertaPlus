@@ -74,10 +74,6 @@ function createIamProvider({identity, iamBearer, fetchImpl = fetch}) {
       // A stale disabled=true read must never suppress the containment request.
       await requireSuccess(resource + ":disable", "POST", {});
     },
-    async probeMintDenied(body) {
-      assert.deepEqual(body, tokenRequest);
-      return (await request(mintUrl, "POST", body)).status;
-    },
   };
 }
 

@@ -921,7 +921,7 @@ lote SDK permitido.
 | Proyección protegida correcta | Una pestaña nueva de mercado, diez turnos ficticios, un lote SDK; siete pestañas intactas | Copia autorizada y recibos de emulador |
 | Pérdida de respuesta, cambio de datos o caducidad | Conservar incidente e inspeccionar, sin reintento/inversa ciegos | Pruebas locales existentes; sin inyectar fallos en Google real |
 | Retirada del permiso | El mismo token aún vigente pierde acceso; 403/404 solo valen tras lectura positiva | Copia autorizada, inmediatamente después de quitar el permiso |
-| Limpieza de identidad | Binding exacto retirado, cuenta deshabilitada, cero claves/roles de datos y emisión nueva denegada | Solo la cuenta nueva autorizada |
+| Limpieza de identidad | Binding exacto retirado, cuenta deshabilitada, cero claves/roles de datos y política de proyecto intacta; sin segunda emisión | Solo la cuenta nueva autorizada |
 
 Conservar el resultado sintético para revisarlo. Retirar únicamente permiso/binding
 creados por este ensayo, con IDs exactos y mezcla de política usando etag tras lectura
@@ -1014,7 +1014,8 @@ no copia socios, turnos publicados ni contenido de producción.
 6. Tras terminar el hijo, también si falla: retirar el permiso exacto de la copia,
    probar negativa con el mismo token **aún vigente**, retirar mediante CAS solo el
    miembro/condición IAM de esta sesión, deshabilitar la cuenta y comprobar ausencia
-   de claves/permisos directos y negativa de nueva emisión. Las etapas continúan
+   de claves/permisos directos y política de proyecto intacta, sin segunda emisión
+   (contrato de intento único actualizado abajo el 2026-10-31). Las etapas continúan
    aunque otra falle. Un permiso concurrente ajeno se conserva y se comunica; no
    se elimina. Caducidad, retirada fallida o respuesta incierta no son éxito.
 
@@ -1378,3 +1379,60 @@ autorización de ejecución. El controlador de copia todavía no incorpora esas 
 exclusivas de IAM. Ahora no hace falta otra acción del usuario. Esta documentación
 queda local y sin commit; no hay otra modificación funcional. HU-084/HU-085 abiertas
 y PR #278 en borrador.
+
+
+### Controles IAM integrados en el ensayo de la copia sintética — 2026-10-31
+
+Commit de evidencias `a3b43fc7` publicado; rama remota y HEAD de la PR #278 draft
+coinciden. El controlador, plan, pruebas y documentación siguientes son cambios
+locales posteriores: todavía sin commit ni ejecución contra Google.
+
+El controlador de la copia incorpora los 120 segundos mínimos desde la respuesta
+de concesión IAM y la observación acotada del estado de la cuenta (60 segundos,
+consultas cada cinco). Ambas preparaciones obtienen estos valores del mismo plan
+sellado. Se conservan el máximo de 180 segundos para disponibilidad del permiso,
+la reserva de 360 segundos y la ventana original de diez minutos. La espera mínima
+ocurre antes de crear el hijo, fuera de sus cuatro minutos de ejecución. Que la
+consulta previa vea el permiso no demuestra autorización para emitir. Si no queda
+tiempo se aborta, sin ampliar ventana/permiso ni reintentar la emisión.
+
+Identidad, claves, permisos exactos y política del proyecto se comprueban incluso
+cuando la lectura del estado tarda en reflejar activación/desactivación. Después
+de emitir, las observaciones también quedan limitadas por la caducidad del token y
+la ventana. La limpieza envía siempre la desactivación y espera una lectura terminal
+acotada: deshabilitada, sin claves ni permisos directos y política intacta. El padre
+sigue siendo responsable de la activación inicial; el controlador no la repite.
+
+**Corrección del intento único:** la limpieza antigua llamaba otra vez a
+`generateAccessToken` para probar su rechazo y podía emitir durante la propagación.
+Se elimina esa operación y `verifyNewTokenMintDenied` pasa a false. Hay como máximo
+un intento de emisión, también ante respuesta incierta. Esto no demuestra una nueva
+emisión rechazada. Se mantiene la lectura positiva de la copia seguida de negativa
+con el **mismo token aún vigente**, la retirada exacta del permiso del archivo,
+la retirada por CAS solo de nuestra concesión IAM, la desactivación explícita y
+la comprobación terminal. Una limpieza no demostrada sigue en `inspection_required`.
+Se conservan permisos ajenos y no se añaden reintentos, inversas, eliminación de
+pestañas originales ni admisión de mantenimiento.
+
+Validación: lint/build de Functions y sintaxis de los cuatro CJS modificados
+correctos. **49 casos** focalizados de controlador/IAM y **48** en el emulador de
+la copia, sin fallos ni omisiones. Comparten 34 casos del controlador: son **63
+casos distintos**, diez nuevos sobre tiempos, estado y limpieza. Las pruebas del
+runner conservan revisión del lote por el padre, una pestaña con diez turnos
+ficticios, siete pestañas originales, token corto explícito, ausencia de credenciales
+ambientales y tratamiento de escrituras inciertas. IAM/Drive/Sheets son dobles de
+prueba; solo Firestore usa el emulador demo. No demuestra éxito real ni admisión
+de la migración.
+
+Preparación inerte nueva y logs privados en
+`2026-10-31-develop-writer-copy-integration-local`. Los indicadores de aplicación,
+provisión y mantenimiento siguen en false. Los paquetes anteriores ya no coinciden
+con las fuentes y las autorizaciones previas siguen consumidas. Siguiente paso:
+commit/push de la integración y regenerar/revisar la composición privada concreta
+para la hoja sintética existente, con fuentes, imagen inicial y canales de limpieza
+actualizados. Después se pedirá OAuth del propietario y una nueva ventana autorizada
+con la hoja cerrada para el ensayo completo. Ahora no necesitas hacer nada.
+
+Sin peticiones reales IAM/OAuth/ACL, acceso a hojas, escrituras compartidas, FCM,
+despliegue, apertura de mantenimiento ni operaciones de producción. Sin cambios
+nativos ni nueva diferencia entre plataformas. HU-084/HU-085 abiertas; PR #278 draft.

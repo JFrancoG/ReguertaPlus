@@ -882,7 +882,7 @@ ACL, exact batch and all seven original raw tabs before the single allowed SDK b
 | Successful guarded projection | One new market tab, ten fictitious turns, one SDK batch; seven original tabs identical | Authorized copy + local demo receipts |
 | Lost acknowledgement, drift, expired authority | Retain incident and inspect; never blind retry/inverse | Existing local tests; do not inject faults into real Google writes |
 | Permission removal | Same still-valid token loses copy access; 403/404 only accepted after a successful positive read | Authorized copy, immediately after removing its grant |
-| Identity cleanup | Exact temporary binding removed, account disabled, zero user keys/data grants; fresh mint denied | Authorized new account only |
+| Identity cleanup | Exact temporary binding removed, account disabled, zero user keys/data grants and unchanged project policy; no second mint | Authorized new account only |
 
 Keep the synthetic output for review. Remove only the permission/binding created by
 this experiment, using exact IDs and an etag-aware merge after a fresh policy read;
@@ -973,7 +973,8 @@ members, published turns or production content.
 6. After child termination, including failure, remove the exact copy permission,
    demonstrate denial with the same token **before it expires**, CAS-remove only
    this session's IAM member/condition, disable the owned identity, and check
-   disabled/keyless/no direct grants plus denied mint. Cleanup stages run even
+   disabled/keyless/no direct grants and unchanged project policy without a second mint
+   (single-attempt contract updated below on 2026-10-31). Cleanup stages run even
    when another stage fails. A concurrent foreign grant is preserved and reported,
    never erased. A failed removal, expired token or uncertain response cannot pass.
 
@@ -1338,3 +1339,58 @@ window and execution approval. The existing copy controller must not be treated 
 already including these IAM-only waits. No further user action is needed now.
 This outcome documentation is local/uncommitted; there is no new runtime change.
 HU-084/HU-085 stay open and PR #278 draft.
+
+
+### IAM controls integrated into the synthetic-copy rehearsal — 2026-10-31
+
+Evidence-only commit `a3b43fc7` is pushed; remote branch and draft PR #278 HEAD
+match. The following controller, plan, tests and documentation are local after
+that commit, not yet committed or executed against Google.
+
+The copy controller now uses the successful diagnostic's minimum grant age of
+120 seconds, counted after the grant response, and bounded account-state
+observations (60 seconds, five-second polls). Both preparations derive these
+values from the same sealed plan. The original 180-second permission-readiness
+limit, 360-second remaining-window reserve and ten-minute owner window stay fixed.
+The minimum wait runs before child creation, outside its four-minute execution
+budget. Advisory permission success does not prove mint authorization. Insufficient
+time aborts; it never extends the grant/window or retries issuance.
+
+Identity, keys, exact account bindings and project-policy stability are checked
+even during stale lifecycle reads. Post-mint observations also stop at token/window
+expiry. Cleanup sends the existing unconditional disable and waits for a bounded
+terminal read: disabled, keyless, no direct bindings, unchanged project authority.
+The parent still owns initial enable; the controller never repeats that mutation.
+
+**Single-attempt cleanup correction:** the old full-copy cleanup requested another
+`generateAccessToken` to test rejection, which could itself mint during propagation.
+That transport operation is removed and `verifyNewTokenMintDenied` is false. The
+controller makes at most one mint attempt, including ambiguous failure. This is
+not evidence of a newly attempted mint being rejected. The required positive copy
+read followed by denial with the **same unexpired token** remains, as do exact file
+permission removal, CAS removal of only this IAM grant, explicit disable and
+terminal authority verification. Unproven cleanup remains `inspection_required`.
+Foreign grants are preserved. No blind retry, inverse, original-tab deletion or
+maintenance admission is introduced.
+
+Validation: Functions lint/build and four touched CJS syntax checks pass. The
+focused controller/IAM run passes **49 cases**; the copy emulator run passes **48**
+with zero skips/failures in either. Their 34 controller cases overlap: **63 distinct
+cases**, including ten new timing/lifecycle/containment cases. Existing local runner
+checks retain parent batch review, one synthetic ten-row market tab, seven original
+tabs, explicit short-token transport, no ambient fallback and uncertain-write
+recovery. Google IAM/Drive/Sheets are test doubles; only the demo Firestore emulator
+runs. These results do not establish live copy success or migration readiness.
+
+Fresh inert preparation and validation logs are retained privately under
+`2026-10-31-develop-writer-copy-integration-local`. All apply/provision/maintenance
+flags stay false. Old source-bound execution packets are stale and previous
+approvals remain consumed. Next commit/deliver this integration, then regenerate
+and review the concrete private composition for the existing synthetic workbook
+with fresh source hashes, owner/file baseline and cleanup channels. Only after that
+preparation request fresh owner OAuth and the authorized closed-sheet window for
+the full copy rehearsal. No user action is needed now.
+
+No live IAM/OAuth/ACL request, workbook access, shared data write, FCM, deployment,
+maintenance opening or production operation occurred in this step. No native
+source changed; no new parity gap. HU-084/HU-085 remain open and PR #278 draft.

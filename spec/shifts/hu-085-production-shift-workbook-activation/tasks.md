@@ -1065,3 +1065,22 @@ This validates IAM-only issuance, not Sheets or migration. Next integrate the te
 waits into the synthetic-copy controller and validate locally before a separately
 authorized copy rehearsal. No owner action needed now. Outcome docs local/uncommitted;
 no new runtime changes. Native parity unchanged; HU-084/HU-085 open, PR #278 draft.
+
+
+### Synthetic-copy IAM controls validated locally — 2026-10-31
+
+Evidence-only `a3b43fc7` pushed; exact remote and draft PR #278 head verified.
+New local/uncommitted integration shares sealed timing with IAM-only preparation:
+120s minimum grant age, bounded 60s lifecycle polls, unchanged 180s readiness and
+360s reserve. Wait precedes child launch; identity/keys/bindings/project authority
+remain strict during stale state. Explicit disable plus bounded terminal read.
+The old cleanup mint probe is removed to enforce one actual mint attempt; this
+is not fresh-mint-denial evidence. Same unexpired-token copy denial, exact ACL/CAS
+cleanup, parent-reviewed single batch and seven-tab preservation stay required.
+Lint/build, four CJS syntax checks, 49 focused and 48 emulator passes, no skips or
+failures (34 overlap; 63 distinct cases, ten new). No live external execution,
+maintenance or production access. Native unchanged. Inert preparation/logs private
+in 2026-10-31-develop-writer-copy-integration-local; old execution packets stale.
+Next deliver this integration, regenerate/review concrete existing-copy composition,
+then request fresh owner OAuth/window/execution authorization. No user action now.
+Both issues stay open and PR #278 draft. See bilingual writer-controls guide.
