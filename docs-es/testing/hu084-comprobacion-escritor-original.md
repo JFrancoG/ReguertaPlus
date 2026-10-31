@@ -1,9 +1,9 @@
 # HU-084 — Comprobación del escritor sobre develop original
 
-Estado: un intento autorizado se detuvo antes de escribir; limpieza conciliada
-independientemente. No se conoce la aserción concreta que falló. El diagnóstico
-posterior queda local tras `b52e75a8`; véase el resultado fechado al final. Esta
-comprobación no admite migración ni abre mantenimiento.
+Estado: el segundo intento autorizado se detuvo antes de escribir en la aserción
+de la carpeta visible para el escritor (proveedor, línea57 en `930959bd`). Limpieza
+correcta y verificada independientemente. Corrección local de visibilidad pendiente
+de publicar y comprobar en otro ensayo autorizado. Sin admisión de migración ni mantenimiento.
 
 ## Alcance y entrada
 
@@ -201,3 +201,74 @@ escritura sobre el original sigue sin probarse. Siguiente paso: revisar/publicar
 diagnóstico y conciliar explícitamente el bloqueo conservado antes de otro intento
 con autorización y ventana nuevas. No borrar ni reutilizar este intento consumido.
 Código/documentación nuevos locales tras `b52e75a8`; migración y mantenimiento cerrados.
+
+## Preparación del nuevo intento con diagnóstico — 2026-10-31
+
+Diagnóstico publicado como `930959bd`; las huellas de fuentes coinciden con la
+validación de 86 casos/build/lint. La sesión privada
+`2026-10-31-original-writer-diagnostic-retry` está inerte, con identificador nuevo y
+autorización explícita vinculada a su huella de preparación. No se ha iniciado
+sesión del propietario, cambio IAM, token del escritor ni petición a Sheets.
+
+Fijar las huellas de todos los recibos anteriores, conservando el terminal fallido
+y su conciliación separada. Solo tras nueva autorización de ejecución, comprobar
+que no queda ningún proceso y renovar identidad/ACL del propietario/controles, el
+operador podrá renombrar el bloqueo vacío conservado a
+`original-develop-reconciled-20261031-one-attempt` en el mismo registro canónico.
+Registrar la acción en las nuevas evidencias; no borrar recibos, cambiar la raíz
+del registro ni reutilizar el intento consumido. El renombrado **no se ha realizado**.
+La sesión nueva rechaza el bloqueo retenido, recibos cambiados e intentos inesperados.
+
+Renovar captura de seis pestañas, revisión del canal del propietario y metadatos/
+versión completos; la versión278 es histórica. Usar OAuth del propietario Online
+con lectura de metadatos y autorización nueva. Preparar Compartir antes de pedir
+otra ventana de diez minutos con la hoja cerrada. Mantener un token de300s, espera
+IAM mínima120s, un lote sobre A1 con el mismo valor y reserva para limpieza.
+Ante fallo, conservar fase/ubicación precisa y recibos seguros sin reintentar.
+Verificar la limpieza de forma independiente. Migración y mantenimiento cerrados.
+
+
+## Intento con diagnóstico y límite de la carpeta — 2026-10-31
+
+Nueva autorización y ventana de diez minutos del propietario para un único intento.
+Antes de empezar se archivó el bloqueo vacío anterior con el nombre revisado;
+se conservaron todos sus recibos y el terminal fallido. En la preparación de solo
+lectura hubo un fallo de conexión y una colisión de recibos; ambos precedieron al
+intento, permisos y token del escritor. Se conservaron los recibos numerados.
+
+Se emitió un token de300s tras esperar al menos120s desde el permiso IAM. La lectura
+positiva de Drive pasó. El diagnóstico se detuvo en `writer-metadata-read`, línea57
+del proveedor en `930959bd`: `parents` del escritor no coincidía con la carpeta
+configurada del propietario. No hubo intención de escritura ni lote. No se retuvo
+el valor bruto devuelto: el recibo no permite afirmar si faltaba o tenía otra forma.
+La aserción concreta del primer intento sigue desconocida; no equipararla retroactivamente.
+
+El controlador no registra fallos de limpieza: permisos exactos de archivo/IAM
+retirados, mismo token todavía válido del escritor404, desactivación explícita y
+mismo token OAuth del propietario401. Verificación independiente de identidad y
+servicios: cuenta deshabilitada, sin claves de usuario, concesiones ni asignación
+a servicios. ACL completa restaurada a propietario y cuatro lectores; carpeta
+solo del propietario. Versión280 antes,282 tras los cambios de permisos. Coinciden
+exactamente las seis capturas seleccionadas (3286 objetos de celda). Controles
+independientes con la misma huella; sin acceso a datos de negocio de Firestore ni escrituras en Sheets,
+mantenimiento, migración, FCM ni cambios de producción. Campos OAuth vacíos,
+pestaña cerrada y referencias de sesión liberadas. Limpieza correcta libera el
+bloqueo activo; ambos intentos siguen consumidos.
+
+Corrección local: admitir únicamente `parents` omitido/vacío del escritor,
+conservando comprobación estricta e independiente de carpeta/ACL con el propietario
+y rechazo de campos malformados o carpetas visibles diferentes. Combinar archivo,
+ACL y capacidades propios del escritor solo con la autoridad de carpeta verificada
+del propietario, releyéndola antes de escribir. No se concede acceso a la carpeta.
+Corrige un supuesto excesivo; no acredita éxito real. Google documenta restricciones
+de visibilidad de padres en su [guía de diferencias de Drive](https://developers.google.com/workspace/drive/api/guides/shared-drives-diffs).
+Esa referencia trata unidades compartidas; no es la respuesta capturada de Mi unidad.
+
+Validación: Node22.23.4,93 casos correctos (44 original +49 IAM/copia), cero fallos/
+omisiones; build/lint y sintaxis CJS correctos. Casos nuevos: padre omitido/vacío,
+malformado/distinto, padre obligatorio del propietario y limpieza. Sin cambios de
+apps/Firestore, no se repiten sus suites. Cambios locales tras `930959bd` pendientes
+de publicar. Otro ensayo requiere autorización/ventana nuevas, observaciones frescas
+y huella de preparación regenerada; no se reintenta en esta ventana.
+Evidencia privada: `2026-10-31-original-writer-diagnostic-retry`, recibo canónico
+`original-writer-20261031-diagnostic-attempt`.

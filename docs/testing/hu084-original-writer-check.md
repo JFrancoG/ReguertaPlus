@@ -1,9 +1,9 @@
 # HU-084 — Original develop writer check
 
-Status: one authorized original-file attempt stopped before writing; cleanup
-independently reconciled. The exact failed assertion remains unknown. Diagnostic
-follow-up is local after `b52e75a8`; see the dated outcome below. This check does not
-admit migration or maintenance.
+Status: the second authorized original-file attempt stopped before writing at the
+writer-parent assertion (provider line57 in `930959bd`). Cleanup passed and was
+independently verified. A local parent-visibility correction awaits publication
+and another separately authorized real check. No migration or maintenance admission.
 
 ## Scope and entry point
 
@@ -195,3 +195,69 @@ on the original file remains unproved. Next review/publish diagnostics and recon
 the retained lock explicitly before a separately authorized new attempt and fresh
 owner window. Never erase or reuse this consumed attempt. New follow-up code/docs
 remain local after `b52e75a8`; migration and maintenance are still closed.
+
+## New diagnostic attempt preparation — 2026-10-31
+
+Diagnostics are published as `930959bd`; unchanged source hashes match the accepted
+86-case/build/lint evidence. Private session `2026-10-31-original-writer-diagnostic-retry`
+is inert, with a new receipt ID and an explicit approval bound to its preparation
+digest. No owner session, IAM change, writer token or Sheets request was started.
+
+Pin every old receipt, preserve the original failed terminal and its separate cleanup
+reconciliation. Only after new execution approval, confirmation that no process is
+running and fresh identity/owner-ACL/control readbacks may the operator rename the
+empty retained lock to `original-develop-reconciled-20261031-one-attempt` in the same
+canonical journal. Record that action in the new evidence; never delete old receipts,
+change journal roots or reuse the consumed attempt. Rollover has **not** occurred.
+The new session rejects the retained lock, changed receipts and unexpected attempts.
+
+Renew the six-tab snapshot, owner-channel review and complete owner metadata/version;
+version278 is historical. Use a newly authorized Online metadata-readonly owner OAuth
+session. Prepare sharing before requesting a fresh ten-minute closed-sheet window.
+Keep one300s token, minimum120s IAM age, one same-value A1 batch and cleanup reserve.
+After failure retain the precise phase/location and safe diagnostic receipts without
+retry. Verify cleanup independently. Maintenance and migration remain closed.
+
+
+## Diagnostic attempt and parent boundary — 2026-10-31
+
+New approval and a fresh ten-minute owner window admitted exactly one attempt.
+Before starting, the previous empty lock was archived under the reviewed name;
+all previous receipts and the failed terminal were preserved. Read-only setup
+had one connection failure and a receipt collision; both preceded the attempt,
+permissions and writer-token mint. Numbered control receipts were preserved.
+
+One300s token was issued after the minimum120s IAM age. Positive Drive read passed.
+The expanded diagnostic stopped at `writer-metadata-read`, specifically provider
+line57 in `930959bd`: the writer's `parents` did not equal the configured owner
+parent. No write intent or batch occurred. The raw returned parent value was not
+retained, so absence versus another shape cannot be asserted from this receipt.
+The first attempt's specific assertion remains unknown; do not retroactively equate it.
+
+The controller reports no cleanup failures: exact file/IAM grants removed, same
+unexpired writer token404, explicit account disable and owner OAuth same-token401.
+Independent identity/runtime checks confirm disabled, zero user keys/account
+bindings and no service assignment. Complete file ACL is restored to owner and
+four readers; parent owner-only. Version280 before,282 after permission changes.
+All six selected snapshots match exactly (3286 cell objects). Independent controls
+match the baseline digest; no Firestore business-data access, Sheets writes, maintenance, migration,
+FCM or production changes. OAuth fields cleared/tab closed, session references
+released; active lock released by successful cleanup. Both attempts remain consumed.
+
+Local correction: accept omitted/empty writer `parents` only, while retaining
+strict independent owner folder/ACL verification and refusing malformed fields or
+visible conflicting parents. Combine the writer's own file/ACL/capabilities with
+only the owner's verified parent authority; recheck owner observations before the
+write. No parent access is granted to the writer. This addresses an overly strict
+assumption, not a claimed real-provider success. Google documents parent visibility
+restrictions in its [Drive API differences guide](https://developers.google.com/workspace/drive/api/guides/shared-drives-diffs).
+That reference discusses shared drives; it is not a captured personal-Drive response.
+
+Validation: Node22.23.4,93 passes (44 original +49 IAM/copy), zero failures/skips;
+build/lint and CJS syntax pass. New cases cover omitted/empty writer parents,
+malformed/conflicting parents, mandatory owner parent and cleanup. Native/Firestore
+behavior unchanged, so those suites were not repeated. Local changes after
+`930959bd` need publication. A future real attempt requires new approval and window,
+fresh observations and a regenerated preparation digest; no retry under this window.
+Private evidence: `2026-10-31-original-writer-diagnostic-retry`, canonical receipt
+`original-writer-20261031-diagnostic-attempt`.

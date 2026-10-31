@@ -78,6 +78,10 @@ function fixture(t) {
     else if (u.pathname.startsWith("/drive/")) {
       data = u.searchParams.get("fields") === "id" ? {id: FILE} : structuredClone(state.metadata.file);
       if (data.owners) data.owners.forEach(o => { o.me = false; });
+      if (data.owners && Object.hasOwn(state, "writerParents")) {
+        if (state.writerParents === undefined) delete data.parents;
+        else data.parents = structuredClone(state.writerParents);
+      }
     }
     else { assert.equal(u.searchParams.getAll("ranges").length, 6); data = state.grid; }
     return {status: 200, json: async () => structuredClone(data)};
@@ -109,6 +113,37 @@ test("exact provider performs one same-value write, preserves six tabs and revok
   assert.equal(f.receipts().includes(SECRET), false);
   const calls = f.state.calls.length;
   await assert.rejects(runCheck(f.args), {code: "EEXIST"}); assert.equal(f.state.calls.length, calls);
+});
+
+for (const [name, parents] of [["omitted", undefined], ["empty", []]]) {
+  test(`file-only writer with ${name} parents uses independently checked owner authority`, async t => {
+    const f = fixture(t); f.state.writerParents = parents;
+    const result = await runCheck(f.args);
+    assert.equal(result.kind, "original-probe-contained"); assert.equal(f.state.writes, 1);
+    assert.equal(f.state.mints, 1); assert.deepEqual(result.cleanupFailures, []);
+    const receipt = JSON.parse(fs.readFileSync(path.join(f.root, f.args.input.receiptId, "writer-parent-visibility.json")));
+    assert.deepEqual(receipt, {present: parents !== undefined, count: parents === undefined ? null : 0});
+    assert.ok(f.state.calls.every(call => !call.includes(PARENT)));
+  });
+}
+
+for (const parents of [null, PARENT, ["unexpected-parent"], [PARENT, "unexpected-parent"]]) {
+  test(`writer parent conflict ${JSON.stringify(parents)} stops before writing and cleans up`, async t => {
+    const f = fixture(t); f.state.writerParents = parents;
+    const result = await runCheck(f.args);
+    assert.equal(result.kind, "inspection_required"); assert.equal(result.failure.phase, "writer-metadata-read");
+    assert.equal(f.state.writes, 0); assert.equal(f.state.mints, 1);
+    assert.equal(f.state.disabled, true); assert.deepEqual(result.cleanupFailures, []);
+    assert.equal(f.state.metadata.filePermissions.length, 5);
+  });
+}
+
+test("owner parent remains mandatory even when the file-only writer cannot see it", async t => {
+  const f = fixture(t); f.state.writerParents = undefined;
+  delete f.state.metadata.file.parents;
+  const result = await runCheck(f.args);
+  assert.equal(result.kind, "inspection_required"); assert.equal(f.state.mints, 0); assert.equal(f.state.writes, 0);
+  assert.equal(f.state.disabled, true);
 });
 
 test("active per-file lock prevents a different approval from concurrent use", async t => {

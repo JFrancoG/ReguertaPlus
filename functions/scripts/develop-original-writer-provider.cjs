@@ -38,6 +38,12 @@ function ok(result) {
 }
 const query = (url, entries) => url + "?" + new URLSearchParams(entries);
 
+function validateWriterParents(parents) {
+  // A file-only grantee may not see its parent's ID. Any visible ID must still match.
+  if (parents === undefined || (Array.isArray(parents) && parents.length === 0)) return;
+  assert.deepEqual(parents, [PARENT], "Unexpected writer-visible parent");
+}
+
 async function readMetadata(fetchImpl, bearer, includeParent = true) {
   const file = id => request(fetchImpl, bearer, query(DRIVE + id, {fields: FILE_FIELDS})).then(ok);
   async function permissions(id) {
@@ -54,7 +60,8 @@ async function readMetadata(fetchImpl, bearer, includeParent = true) {
     return result.sort((a, b) => a.id.localeCompare(b.id));
   }
   const before = await file(FILE);
-  assert.deepEqual(before.parents, [PARENT], "Unexpected parent is never queried");
+  if (includeParent) assert.deepEqual(before.parents, [PARENT], "Unexpected parent is never queried");
+  else validateWriterParents(before.parents);
   const filePermissions = await permissions(FILE);
   const parent = includeParent ? await file(PARENT) : undefined;
   const parentPermissions = includeParent ? await permissions(PARENT) : undefined;
@@ -95,6 +102,17 @@ function validateMetadata(value, writerPresent) {
   if (writerPresent) {
     assert.equal(writers[0].id, PERMISSION); assert.equal(writers[0].emailAddress, WRITER);
   }
+}
+
+// Parent authority always comes from the independently validated owner observation.
+// Do not infer it from an inaccessible writer view or discard a visible conflict.
+function combineWriterMetadata(owner, writer) {
+  validateMetadata(owner, true);
+  validateWriterParents(writer.file.parents);
+  const value = {...owner, file: {...writer.file, parents: [...owner.file.parents]},
+    filePermissions: writer.filePermissions};
+  validateMetadata(value, true);
+  return value;
 }
 
 // Excludes viewer-dependent capabilities, but binds the complete permission records.
@@ -171,5 +189,5 @@ function createOwnerReader({ownerBearer, fetchImpl = fetch}) {
   }};
 }
 module.exports = {FILE, PARENT, OWNER, WRITER, PERMISSION, TABS, REQUEST, READERS,
-  validateMetadata, metadataFingerprint, snapshot, createWorkbookAccess, createOwnerReader};
+  validateMetadata, combineWriterMetadata, metadataFingerprint, snapshot, createWorkbookAccess, createOwnerReader};
 if (require.main === module) { console.error("Explicit reviewed composition only; no live CLI."); process.exitCode = 1; }

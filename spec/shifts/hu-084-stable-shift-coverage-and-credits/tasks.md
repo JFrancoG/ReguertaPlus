@@ -1410,3 +1410,22 @@ access. No native parity gap. HU-084/HU-085 remain open; PR #278 remains draft.
 
 Private `2026-10-31-original-writer-live`; current diagnostic code/docs local after
 `b52e75a8`. No native change/parity gap. HU-084/HU-085 open; PR278 draft.
+
+
+## Original writer diagnostic retry preparation — 2026-10-31
+
+- [x] Publish expanded diagnostics and prior cleanup evidence as `930959bd`; exact remote HEAD verified. Reuse 86 passing tests/build/lint with matching source hashes.
+- [x] Prepare an inert new private session with pinned prior receipts, a distinct receipt ID, fresh evidence inputs and explicit preparation-bound approval.
+- [x] Verify locally that the retained lock rejects startup before credentials/network; original journal unchanged.
+- [ ] New execution/OAuth approval, fresh identity/owner ACL/version/controls and explicit journal-lock reconciliation; no rollover performed yet.
+- [ ] Fresh closed-sheet window, single token/same-value batch and independently verified cleanup. Original-file writing remains unproved.
+- [ ] Separate maintenance/migration admission; neither is opened by this preparation.
+
+
+## Original diagnostic attempt outcome — 2026-10-31
+
+- [x] Execute one newly authorized attempt/window; preserve old receipt and archived lock.
+- [x] Identify writer-parent assertion (provider line57 in930959bd), one token and zero writes; raw parent value not retained.
+- [x] Verify exact grant removal, disabled identity, writer404/owner401, restored ACL, unchanged bounded snapshots and independent controls. Version280→282; no maintenance/production.
+- [x] Correct writer-parent visibility locally without adding parent access; retain strict independent owner authority and reject conflicts.93 tests/build/lint pass.
+- [ ] Publish local correction and regenerate preparation; another real attempt needs new approval/window. Original-file write capability remains unproved.

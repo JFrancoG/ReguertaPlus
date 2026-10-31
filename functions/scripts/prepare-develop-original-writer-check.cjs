@@ -7,7 +7,7 @@ const path = require("node:path");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {prepare: prepareCopy, grantFor, removeOwnGrant, checkIdentity, safeProviderReason} =
   require("./prepare-develop-writer-rehearsal.cjs");
-const {FILE, OWNER, WRITER, PERMISSION, REQUEST, validateMetadata, metadataFingerprint} =
+const {FILE, OWNER, WRITER, PERMISSION, REQUEST, validateMetadata, combineWriterMetadata, metadataFingerprint} =
   require("./develop-original-writer-provider.cjs");
 const PLAN = path.resolve(__dirname, "../../spec/shifts/hu-084-stable-shift-coverage-and-credits/develop-original-writer-check-plan.json");
 const IDENTITY = Object.freeze({email: WRITER, uniqueId: "110752956317536684858"});
@@ -172,8 +172,11 @@ async function runCheck({input, iam, owner, ownerChannel, openWorkbook, readInde
     // The file-only writer has no permission on the owner's My Drive root.
     // Parent authority comes from the independent owner metadata reader.
     phase = "writer-metadata-read";
-    const metadata = {...ownerGranted, ...await workbook.readMetadata()};
-    phase = "writer-metadata-validation"; validateMetadata(metadata, true);
+    const writerMetadata = await workbook.readMetadata();
+    record("writer-parent-visibility", {present: Object.hasOwn(writerMetadata.file, "parents"),
+      count: Array.isArray(writerMetadata.file.parents) ? writerMetadata.file.parents.length : null});
+    phase = "writer-metadata-validation";
+    const metadata = combineWriterMetadata(ownerGranted, writerMetadata);
     phase = "writer-capabilities";
     record("writer-capabilities", Object.fromEntries(["canEdit", "canModifyContent", "canShare"]
       .map(key => [key, typeof metadata.file.capabilities?.[key] === "boolean" ? metadata.file.capabilities[key] : null])));

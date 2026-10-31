@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "non-executable-original-develop-writer-check",
-  "status": "original-attempt-stopped-before-write-cleanup-reconciled",
+  "status": "original-parent-check-identified-cleanup-verified",
   "projectId": "reguerta-9f27f",
   "environment": "develop",
   "canProvision": false,
@@ -183,19 +183,47 @@
     "metadataEvidenceDigest": "shift-planning:v1:sha256:103ce5e615fda8b623bf6ec93864be94abbf1691f9eef419612447255bcae751"
   },
   "lastOriginalAttempt": {
-    "receiptId": "original-writer-20261031-one-attempt",
+    "receiptId": "original-writer-20261031-diagnostic-attempt",
     "observedOn": "2026-10-31",
     "mintAttempts": 1,
     "writeAttempts": 0,
-    "failurePhase": "positive-read",
-    "exactInvariantKnown": false,
-    "cleanupIndependentlyReconciled": true,
+    "failurePhase": "writer-metadata-read",
+    "failedInvariant": "writer parent must equal configured owner parent",
+    "sourceAtExecution": {
+      "commit": "930959bde83a989e6da0c93c659d7bee6a553b3e",
+      "file": "develop-original-writer-provider.cjs",
+      "line": 57
+    },
+    "rawWriterParentsRetained": false,
+    "cleanupFailures": [],
+    "cleanupIndependentlyVerified": true,
     "sameUnexpiredWriterTokenDenied": 404,
     "ownerSameTokenDenied": 401,
-    "journalLockRetained": true,
+    "versionBefore": "280",
+    "versionAfter": "282",
+    "journalLockRetained": false,
+    "previousAttemptAndArchivedLockPreserved": true,
     "canRetry": false,
     "writerCapabilityProven": false,
     "requiresNewApprovalAndWindow": true,
-    "postAttemptDriveVersionUnknown": true
-  }
+    "localCorrection": "Use independently verified owner parent when writer omits it; reject visible conflicts and malformed fields"
+  },
+  "originalAttemptHistory": [
+    {
+      "receiptId": "original-writer-20261031-one-attempt",
+      "observedOn": "2026-10-31",
+      "mintAttempts": 1,
+      "writeAttempts": 0,
+      "failurePhase": "positive-read",
+      "exactInvariantKnown": false,
+      "cleanupIndependentlyReconciled": true,
+      "sameUnexpiredWriterTokenDenied": 404,
+      "ownerSameTokenDenied": 401,
+      "journalLockRetained": true,
+      "canRetry": false,
+      "writerCapabilityProven": false,
+      "requiresNewApprovalAndWindow": true,
+      "postAttemptDriveVersionUnknown": true
+    }
+  ]
 }
