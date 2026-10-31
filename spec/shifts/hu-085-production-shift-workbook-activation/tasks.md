@@ -1169,3 +1169,27 @@ Private evidence: `2026-10-31-original-writer-preparation`. New documentation/in
 plan remain local after `2376ff42`; local scope/evidence checks pass. No maintenance,
 IAM/ACL mutation, writer token, Sheets write, deployment, FCM or production-data
 access. No native change/parity gap. HU-084/HU-085 open; PR #278 draft.
+
+
+### Original develop writer executor prepared — 2026-10-31
+
+- [x] Publish preceding original-file/control/owner-read preparation in `ac24e5ce`;
+  exact remote HEAD verified. No maintenance or live writer approval inferred.
+- [x] Prepare the fixed original-only provider and explicit real-provider composition,
+  consumed approval/per-file lock, current controls, one 300s token after 120s minimum
+  grant age, same-value A1 write and 120s cleanup reserve. Preserve copy exclusions.
+- [x] Rehearse owner grant/removal protocol, independent IAM cleanup/disable, lost
+  responses, authority/content drift, concurrent grants, expired denial and OAuth
+  revocation with real transport fixtures:83 passes (34 new/49 regressions), no skips.
+  Functions lint/build and new CJS syntax checks pass under Node 22.23.4.
+- [ ] Verify the real native owner sharing channel/callbacks, refresh current
+  independent controls and baseline, bind fresh preparation/source digests, obtain
+  separate live permissions/token/write/cleanup authorization and owner window.
+- [ ] Execute the one original-file check and inspect its final evidence. Migration
+  authority/business census and maintenance approval remain separate.
+
+Local uncommitted executor after `ac24e5ce`. No live Google calls, permissions/token,
+Sheets/business write, deployment, notification or maintenance change this step;
+production untouched. No native change/parity gap. Private validation:
+`2026-10-31-original-writer-executor`. Guide:
+`docs/testing/hu084-original-writer-check.md` and its Spanish counterpart.

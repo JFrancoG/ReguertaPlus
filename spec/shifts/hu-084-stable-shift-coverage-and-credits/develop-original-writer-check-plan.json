@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "non-executable-original-develop-writer-check",
-  "status": "prepared-owner-metadata-verified-not-executable",
+  "status": "executor-prepared-locally-validated-not-authorized",
   "projectId": "reguerta-9f27f",
   "environment": "develop",
   "canProvision": false,
@@ -144,16 +144,27 @@
   "remainingBeforeExecution": [
     "renew-owner-version-parent-and-complete-permissions-at-execution",
     "reviewed-owner-grant-and-removal-channel",
-    "original-only-provider-and-consumed-approval-journal-composition",
-    "exact-source-and-request-digests-and-cleanup-reserve",
     "fresh-independent-controls-and-identity",
     "separate-probe-permissions-and-one-write-authorization",
-    "fresh-owner-online-window"
+    "fresh-owner-online-window",
+    "bind-fresh-baseline-controls-owner-channel-and-preparation-digests-to-new-approval"
   ],
   "stillRequiredBeforeMigration": [
     "regenerate-package-with-new-original-ACL-and-Drive-version",
     "fresh-business-source-census-and-separate-Firestore-authority",
     "held-independent-controls-and-causal-risk-observations",
     "separate-owner-administrator-risk-maintenance-window"
-  ]
+  ],
+  "executorPreparation": {
+    "controller": "functions/scripts/prepare-develop-original-writer-check.cjs",
+    "provider": "functions/scripts/develop-original-writer-provider.cjs",
+    "liveEntryPoint": "runWithExplicitCredentials",
+    "cliMode": "offline-preparation-only",
+    "canonicalPrivateJournalRequired": true,
+    "cleanupReserveSeconds": 120,
+    "snapshotRanges": "six exact tabs, A1:Z100",
+    "ownerGrantRemovalChannel": "reviewed native Drive owner UI; metadata-only OAuth does not mutate permissions",
+    "tests": "functions/test/develop-original-writer-check.test.cjs",
+    "canExecute": false
+  }
 }

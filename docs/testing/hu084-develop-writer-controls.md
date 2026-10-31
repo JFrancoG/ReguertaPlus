@@ -1619,3 +1619,15 @@ plan, so no build/native suite is repeated. This preparation remains uncommitted
 after `2376ff42`; HU-084/HU-085 open, PR #278 draft. Google references checked:
 [UpdateCellsRequest](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest)
 and [service-account authentication roles](https://docs.cloud.google.com/iam/docs/service-account-permissions).
+
+
+### Original-file executor locally prepared — 2026-10-31
+
+The preceding preparation/owner read is delivered in `ac24e5ce`. The new local
+[executor guide](hu084-original-writer-check.md) defines the fixed original provider,
+explicit real-provider composition, one-use journal, reviewed native owner permission
+channel, single same-value request and independent cleanup. It reuses existing IAM
+controls and preserves every copy-runner exclusion. 83 focused cases pass (34 new/49
+regressions), Functions build/lint and CJS syntax pass under Node 22.23.4. No live
+operation this step; preparation remains unauthorized and local. Original-file access
+still requires current owner-channel/control review, fresh digests/approval/window.

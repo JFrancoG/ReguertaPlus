@@ -1672,3 +1672,15 @@ repiten build ni pruebas nativas. Preparación local sin commit tras `2376ff42`;
 HU-084/HU-085 abiertas y PR #278 en borrador. Referencias de Google comprobadas:
 [UpdateCellsRequest](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest)
 y [roles de autenticación de cuentas de servicio](https://docs.cloud.google.com/iam/docs/service-account-permissions).
+
+
+### Ejecutor original preparado localmente — 2026-10-31
+
+La preparación/lectura anterior está publicada en `ac24e5ce`. La nueva
+[guía del ejecutor](hu084-comprobacion-escritor-original.md) define proveedor original
+fijo, composición explícita de proveedores reales, registro de un uso, canal nativo
+revisado de permisos, petición única sin cambio de valor y limpieza independiente.
+Reutiliza controles IAM y conserva las exclusiones del ejecutor de copias. 83 pruebas
+pasan (34 nuevas/49 regresiones), build/lint de Functions y sintaxis CJS correctos con
+Node 22.23.4. Sin operaciones reales; preparación local sin autorización de ejecución.
+Faltan revisión actual del canal/controles y digests/autorización/ventana nuevos.
