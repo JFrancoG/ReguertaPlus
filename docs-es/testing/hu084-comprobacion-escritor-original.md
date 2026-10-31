@@ -272,3 +272,41 @@ de publicar. Otro ensayo requiere autorización/ventana nuevas, observaciones fr
 y huella de preparación regenerada; no se reintenta en esta ventana.
 Evidencia privada: `2026-10-31-original-writer-diagnostic-retry`, recibo canónico
 `original-writer-20261031-diagnostic-attempt`.
+
+
+## Corrección del padre comprobada; discrepancia de capturas contenida — 2026-10-31
+
+La corrección y el resultado anterior están publicados en `44271c22`, con HEAD
+remoto exacto verificado. Un nuevo intento autorizado y una ventana de diez minutos
+con la hoja cerrada usaron un único token de300 segundos tras la espera IAM mínima
+de120 segundos. La vista real del escritor omitió `parents`; pasaron la comprobación
+estricta del padre/ACL por el propietario y la comparación de metadatos combinados.
+Esta observación corresponde únicamente a este intento.
+
+La siguiente barrera detuvo el ensayo en `baseline-snapshot-comparison`, línea192
+del controlador en ese commit. El digest del conector `854e761f…` difiere del digest
+de Sheets directo `07c74039…`. No hubo intención de escritura ni lote. Solo se
+conservaron los dos digests, no la captura cruda del escritor: el campo distinto y
+su causa siguen sin identificarse. No se puede deducir un cambio de contenido ni
+una diferencia inocua de representación, ni sustituir la base por el digest del escritor.
+
+Limpieza sin fallos del controlador y verificada independientemente: permisos
+exactos de archivo/IAM retirados, cuenta deshabilitada, cero claves de usuario,
+concesiones de cuenta o asignaciones de ejecución; mismo token del escritor aún
+vigente denegado404 y token del propietario revocado y denegado401. ACL restaurada
+a propietario/cuatro lectores y padre solo propietario; versión282 antes y284
+después de cambiar permisos. Las seis capturas acotadas del conector coinciden
+exactamente antes/después (3286 objetos de celda). Controles técnicos independientes
+sin cambios. Campos OAuth vaciados, pestañas cerradas, referencias descartadas y
+bloqueo activo liberado; se conservan los tres intentos consumidos y el bloqueo
+histórico archivado. Sin escritura de Sheets, mantenimiento, migración, FCM ni
+acceso a datos de producción.
+
+Siguiente paso: localizar la diferencia exacta mediante diagnóstico de solo lectura
+antes de otro ensayo de escritura. Se conserva la comparación completa de valores,
+notas y formatos; todavía no procede normalizar ni ampliar permisos. La escritura
+sobre la hoja original sigue sin demostrarse. Otro intento requiere regenerar la
+preparación, autorización separada y ventana nueva. Apps y código del controlador/
+proveedor sin cambios; este resultado solo actualiza evidencias, plan inerte y tareas.
+Evidencias privadas: `2026-10-31-original-writer-owner-parent` y recibo canónico
+`original-writer-20261031-owner-parent`.

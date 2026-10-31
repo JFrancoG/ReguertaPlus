@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "non-executable-original-develop-writer-check",
-  "status": "original-parent-check-identified-cleanup-verified",
+  "status": "original-snapshot-mismatch-cleanup-verified",
   "projectId": "reguerta-9f27f",
   "environment": "develop",
   "canProvision": false,
@@ -142,6 +142,7 @@
     "leaveMaintenanceClosed": true
   },
   "remainingBeforeExecution": [
+    "identify-exact-connector-versus-direct-snapshot-difference-without-relaxing-content-comparison",
     "renew-owner-version-parent-and-complete-permissions-at-execution",
     "recheck-current-owner-ui-and-inspect-final-removal-confirmation-during-authorized-attempt",
     "fresh-independent-controls-and-identity",
@@ -183,30 +184,35 @@
     "metadataEvidenceDigest": "shift-planning:v1:sha256:103ce5e615fda8b623bf6ec93864be94abbf1691f9eef419612447255bcae751"
   },
   "lastOriginalAttempt": {
-    "receiptId": "original-writer-20261031-diagnostic-attempt",
+    "receiptId": "original-writer-20261031-owner-parent",
     "observedOn": "2026-10-31",
+    "sourceAtExecution": {
+      "commit": "44271c2234316501ff30a892c60851031e5b8071",
+      "file": "prepare-develop-original-writer-check.cjs",
+      "line": 192
+    },
     "mintAttempts": 1,
     "writeAttempts": 0,
-    "failurePhase": "writer-metadata-read",
-    "failedInvariant": "writer parent must equal configured owner parent",
-    "sourceAtExecution": {
-      "commit": "930959bde83a989e6da0c93c659d7bee6a553b3e",
-      "file": "develop-original-writer-provider.cjs",
-      "line": 57
-    },
-    "rawWriterParentsRetained": false,
+    "failurePhase": "baseline-snapshot-comparison",
+    "writerParentsPresent": false,
+    "independentOwnerWriterMetadataMatched": true,
+    "expectedSnapshotDigest": "shift-planning:v1:sha256:854e761faff03f876f1b975470a96cb7034b977933d33e8248ef13741c2d7ab0",
+    "actualSnapshotDigest": "shift-planning:v1:sha256:07c7403924681413f9314ec8a87b1a47e41f4bc5e400e037aa483919b7ce8735",
+    "rawWriterSnapshotRetained": false,
+    "exactSnapshotDifferenceKnown": false,
     "cleanupFailures": [],
     "cleanupIndependentlyVerified": true,
     "sameUnexpiredWriterTokenDenied": 404,
     "ownerSameTokenDenied": 401,
-    "versionBefore": "280",
-    "versionAfter": "282",
+    "versionBefore": "282",
+    "versionAfter": "284",
     "journalLockRetained": false,
-    "previousAttemptAndArchivedLockPreserved": true,
+    "previousAttemptsAndArchivedLockPreserved": true,
+    "sixConnectorSnapshotsExactlyEqual": true,
+    "independentControlsUnchanged": true,
     "canRetry": false,
     "writerCapabilityProven": false,
-    "requiresNewApprovalAndWindow": true,
-    "localCorrection": "Use independently verified owner parent when writer omits it; reject visible conflicts and malformed fields"
+    "requiresNewApprovalAndWindow": true
   },
   "originalAttemptHistory": [
     {
@@ -224,6 +230,32 @@
       "writerCapabilityProven": false,
       "requiresNewApprovalAndWindow": true,
       "postAttemptDriveVersionUnknown": true
+    },
+    {
+      "receiptId": "original-writer-20261031-diagnostic-attempt",
+      "observedOn": "2026-10-31",
+      "mintAttempts": 1,
+      "writeAttempts": 0,
+      "failurePhase": "writer-metadata-read",
+      "failedInvariant": "writer parent must equal configured owner parent",
+      "sourceAtExecution": {
+        "commit": "930959bde83a989e6da0c93c659d7bee6a553b3e",
+        "file": "develop-original-writer-provider.cjs",
+        "line": 57
+      },
+      "rawWriterParentsRetained": false,
+      "cleanupFailures": [],
+      "cleanupIndependentlyVerified": true,
+      "sameUnexpiredWriterTokenDenied": 404,
+      "ownerSameTokenDenied": 401,
+      "versionBefore": "280",
+      "versionAfter": "282",
+      "journalLockRetained": false,
+      "previousAttemptAndArchivedLockPreserved": true,
+      "canRetry": false,
+      "writerCapabilityProven": false,
+      "requiresNewApprovalAndWindow": true,
+      "localCorrection": "Use independently verified owner parent when writer omits it; reject visible conflicts and malformed fields"
     }
   ]
 }

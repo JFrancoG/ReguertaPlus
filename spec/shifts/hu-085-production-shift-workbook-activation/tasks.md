@@ -1255,3 +1255,17 @@ Private `2026-10-31-original-writer-live`; current diagnostic code/docs local af
 - [x] Verify exact grant removal, disabled identity, writer404/owner401, restored ACL, unchanged bounded snapshots and independent controls. Version280→282; no maintenance/production.
 - [x] Correct writer-parent visibility locally without adding parent access; retain strict independent owner authority and reject conflicts.93 tests/build/lint pass.
 - [ ] Publish local correction and regenerate preparation; another real attempt needs new approval/window. Original-file write capability remains unproved.
+
+
+## Original writer parent-fix attempt — 2026-10-31
+
+- [x] Publish parent correction as `44271c22`; bind new approval, current controls/ACL and fresh closed-sheet window to one attempt.
+- [x] Verify real omitted writer parent with strict independent owner authority; metadata comparison passes.
+- [x] Stop before write intent on unequal connector/direct snapshot digests; one token, zero batches. Raw writer snapshot not retained, exact differing field unknown.
+- [x] Independently verify restored ACL, disabled/no-key/no-grant/unassigned writer, same-token404/owner401, exact unchanged six-tab connector snapshots and controls. Version282→284; cleanup has zero failures and releases active lock.
+- [ ] Isolate the exact snapshot difference through read-only diagnostics before another write rehearsal; do not relax comparison or replace the independent baseline.
+- [ ] Establish original-file writing under separately authorized new preparation/window. Maintenance/migration remain closed; #268/#269 open and #278 draft.
+
+Private evidence: `2026-10-31-original-writer-owner-parent`; canonical consumed receipt
+`original-writer-20261031-owner-parent`. Outcome-only local changes after44271c22;
+no native code/parity gap and no controller/provider change.

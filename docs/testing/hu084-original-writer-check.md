@@ -261,3 +261,38 @@ behavior unchanged, so those suites were not repeated. Local changes after
 fresh observations and a regenerated preparation digest; no retry under this window.
 Private evidence: `2026-10-31-original-writer-diagnostic-retry`, canonical receipt
 `original-writer-20261031-diagnostic-attempt`.
+
+
+## Parent correction exercised; snapshot mismatch contained — 2026-10-31
+
+The correction and previous outcome are published in `44271c22` (exact remote HEAD
+verified). A newly authorized attempt and ten-minute closed-sheet window used one
+300-second writer token after the minimum120-second IAM age. The real writer view
+omitted `parents`; the strict independent owner parent/ACL and combined metadata
+comparison passed. This observation belongs to this attempt only.
+
+The next guard stopped at `baseline-snapshot-comparison`, controller line192 in that
+commit. Connector digest `854e761f…` differs from direct Sheets digest `07c74039…`.
+No write intent or batch occurred. Only the two digests were retained from this
+comparison, not the writer's raw snapshot; the differing field and its cause remain
+unknown. Do not infer content drift, harmless serialization or a correction from
+hash inequality alone, and do not substitute the writer digest as the baseline.
+
+Cleanup has zero controller failures and independent confirmation: exact file/IAM
+permissions removed, account disabled, zero user keys/account bindings/runtime
+assignments, same unexpired writer token404 and revoked owner token401. File ACL
+restored to owner/four readers, parent owner-only; version282 before and284 after
+permission changes. All six bounded connector captures match exactly before/after
+(3286 selected cell objects). Independent technical-control digest is unchanged.
+OAuth fields were cleared, tabs closed, session references discarded and active
+lock released; all three consumed attempts and archived historical lock remain.
+No Sheets write, maintenance, migration, FCM or production-data access occurred.
+
+Next isolate the exact snapshot difference through read-only diagnostics before
+another write rehearsal. Retain the complete value/note/format comparison; no
+normalization or permission expansion is justified yet. Original-file writing
+remains unproved. A later real attempt needs regenerated preparation, separate
+approval and fresh owner window. Native apps and controller/provider code are
+unchanged; this outcome updates only evidence, inert plan and tasks. Private
+receipts: `2026-10-31-original-writer-owner-parent` and canonical
+`original-writer-20261031-owner-parent`.
