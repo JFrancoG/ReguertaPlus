@@ -6,6 +6,7 @@ const {materializeControlledDevelopMigrationPreparation:prepare}=require("../scr
 const {createControlledDevelopMigrationExecutor:create}=require("../scripts/controlled-develop-migration.cjs");
 const rehearsal=require("../scripts/rehearse-develop-shift-migration.cjs");
 const {withWriter}=require("./develop-writer-evidence-fixture.cjs");
+const {withOriginalWriter}=require("./develop-original-writer-evidence-fixture.cjs");
 function input(){
   const sourceInput=fixture();return {sourceInput,reviewPackage:prepareDevelopMigrationPackage(sourceInput),sourceCapture:{
     projectId:"reguerta-9f27f",environment:"develop",documents:structuredClone(sourceInput.snapshot.collections.shifts),
@@ -57,4 +58,14 @@ test("historical writer proof reaches admission report but cannot replace held c
   assert.deepEqual(report.blockers,["source_not_verified"]);
   assert.equal(report.checksPassed,false); assert.equal(report.canApply,false); assert.equal(report.canEnterMaintenance,false);
   assert.equal(args.readCount(),1);
+});
+
+test("original writer proof reaches materializer and admission without replacing live checks",async()=>{
+ const original=input(),sourceInput=withOriginalWriter(withWriter(original.sourceInput));
+ const prepared=prepare({...original,sourceInput,reviewPackage:prepareDevelopMigrationPackage(sourceInput)});
+ const args=dependencies(),report=await create({...args,prepared}).inspectAdmission();
+ assert.equal(prepared.originalWriterCheck.evidenceDigest,sourceInput.reviewedOriginalWriterCheckDigest);
+ assert.deepEqual(report.originalWriterCheck,prepared.originalWriterCheck);
+ assert.deepEqual(report.blockers,["source_not_verified"]);assert.equal(report.checksPassed,false);
+ assert.equal(report.canApply,false);assert.equal(report.canEnterMaintenance,false);assert.equal(args.readCount(),1);
 });

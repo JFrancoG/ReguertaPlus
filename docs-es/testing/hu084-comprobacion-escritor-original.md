@@ -420,3 +420,59 @@ La admisión sigue cerrada: este éxito histórico no concede permisos futuros, 
 fuentes de negocio vigentes ni ventana de mantenimiento del propietario/administradores.
 Cambios locales solo de resultado tras `d6a2dae9`; pasan44 pruebas acotadas. No se
 repiten build ni gates nativos por ser documentación/evidencia inerte; sin brecha nativa.
+
+
+## Evidencia del escritor original vinculada a la admisión — 2026-10-31
+
+Resultado del ensayo publicado en `b08c6428`, con HEAD remoto exacto verificado.
+El manifiesto existente acepta ahora `originalWriterCheck`, revisado por separado,
+junto al ensayo de la copia. El lector local comprueba el hash revisado, preparación
+retenida, contrato de controlador/proveedor/IAM, petición exacta con el mismo valor,
+base cruda independiente, digests antes/después, recibo correcto, limpieza de archivo/
+IAM/OAuth, identidad e inventario completo de ejecución. Se permite que cambie el
+digest del plan inerte porque se le añaden resultados; las fuentes de ejecución,
+petición y límites deben seguir coincidiendo exactamente. Sin normalización genérica.
+
+El resumen histórico pasa por el paquete, materializador e informe de admisión ya
+existentes. Solo acredita el ensayo terminado: autoridad actual del escritor,
+controles actuales, permiso de migración, aplicación y mantenimiento siguen en false.
+Añadir la evidencia por sí sola conserva política de fuentes y ambas intenciones de
+mutación; renovar fuentes/controles/versión regenera sus vínculos e identificadores
+de operación conservando exactamente las modificaciones de negocio previstas.
+
+La lectura de 2026-10-31T18:46:37.285Z confirma documentos y versiones intactos:
+62 turnos antiguos,48 usuarios,4 calendarios,117 avisos,3 configuraciones y ninguna
+autoridad inicial del planificador/coberturas. Siguen iguales24 Functions,3 jobs
+pausados,6 índices listos, Rules, IAM y asignaciones de ejecución. Escritor deshabilitado,
+sin claves, concesiones en la cuenta ni servicios asignados. Son lecturas actuales
+de configuración, no una prueba nueva del drenaje ni un mantenimiento admitido.
+Sin modificaciones IAM/ACL.
+
+El paquete regenerado usa los últimos metadatos **retenidos** de la lectura comprobada
+del propietario al terminar el ensayo: versión287, propietario y cuatro lectores,
+junto a la captura cruda independiente y su digest posterior idéntico. No se ha
+reabierto OAuth. Fechas y procedencia explícitas; el nombre de la raíz del propietario
+se conserva de la observación anterior, no de una consulta nueva. Nada sustituye una
+futura lectura vigente del propietario. Una comparación local inicial incluyó por
+error la versión que se actualizaba278→287; la comprobación final separa esa versión
+de las peticiones exactas de celdas y conserva el diagnóstico. Sin reintento remoto.
+
+Paquete `shift-planning:v1:sha256:624380cfcedbac39d90c6f43c491242de3d3f554e849c74813eba8265c07d718`; preparación controlada `shift-planning:v1:sha256:7ac7daf6a04e125292c0f693d22ef32a5d707cfd674ec9dc5e23aac349f3ca10`; evidencia original `shift-planning:v1:sha256:74afa42b70a5577974f5e7a2163b1239399b41e949cf177dbb1ef344f458b925`.
+Manifiestos, hashes, censo, observaciones y recibos privados en
+`2026-10-31-original-admission-binding`. La admisión pasiva real hace una transacción
+Firestore de solo lectura, reconoce las fuentes y devuelve `window_scope_missing`: 
+cero adquisiciones de controles, registros de incidentes o escrituras de negocio.
+Mantenimiento cerrado.
+
+Validación: build/lint Functions, comprobaciones CJS,146 pruebas acotadas y50 de
+emulador, sin fallos ni omisiones. El paquete real regenerado migra/revierte solo en
+el emulador demo:203 escrituras de ida/140 de vuelta,62 originales restaurados y117
+avisos conservados, sin adquirir controles. Sin cambios ni brecha Android/iOS.
+
+Siguiente paso: renovar las observaciones del propietario en Drive/Sheets para el
+paquete de ventana final y vincular permisos vigentes del escritor, autoridad
+Firestore separada, controles/riesgo causal y ventana del propietario/administradores.
+La ventana y cualquier concesión necesitan su autorización concreta. No hace falta
+cerrar la hoja para este trabajo ya terminado de lectura/preparación local. Sin
+producción, escrituras reales en Sheets, FCM ni despliegue. Implementación y paquete
+locales tras b08c6428; #268/#269 abiertos y #278 en borrador.

@@ -20,6 +20,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-10-31 | 🔧 chore(shifts): bind original writer proof to admission
+
 - 2026-10-31 | 🔧 chore(shifts): prepare original writer executor
 
 - 2026-10-31 | 🔧 chore(shifts): bind writer evidence to admission

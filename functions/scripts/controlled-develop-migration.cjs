@@ -40,6 +40,7 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
       startedAtMillis,observedAtMillis:clock(),readOnly:true,canApply:false,canEnterMaintenance:false,
       checksPassed:blocker===null,blockers:blocker?[blocker]:[],finalManifest};
     if (prepared.writerRehearsal) value.writerRehearsal = structuredClone(prepared.writerRehearsal);
+    if (prepared.originalWriterCheck) value.originalWriterCheck = structuredClone(prepared.originalWriterCheck);
     return {...value,admissionDigest:digest(value)};
   }
   return {

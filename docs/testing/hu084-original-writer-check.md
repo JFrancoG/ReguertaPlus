@@ -400,3 +400,57 @@ bindings. Admission remains closed: historical success does not supply future gr
 authority, fresh business sources or an owner/administrator maintenance window.
 Outcome-only local changes after `d6a2dae9`;44 focused tests pass. Full build/native
 gates are not repeated for documentation/inert evidence; no native parity gap.
+
+
+## Original writer evidence bound to develop admission — 2026-10-31
+
+The original-file outcome is committed/pushed as `b08c6428`; exact remote HEAD
+verified. The existing manifest now accepts separately reviewed `originalWriterCheck`
+evidence alongside the synthetic-copy rehearsal. Its offline reader verifies the
+review pin, retained preparation, controller/provider/IAM contract, exact same-value
+request, independent raw baseline, matched before/after digests, successful terminal,
+file/IAM/OAuth cleanup, identity and complete runtime inventory. The retained inert
+plan digest may differ because subsequent outcomes are appended; execution source,
+request and limits must still match exactly. No general JSON normalization is added.
+
+The bounded historical summary travels through the existing review package,
+materializer and passive admission report. It certifies the completed original-file
+probe only; current writer authority/controls, migration permission, apply and
+maintenance flags stay false. Adding evidence alone preserves source policy and both
+mutation intents; refreshing source/control/version observations regenerates their
+bindings and operation identities while preserving the exact business mutations.
+
+Read-only refresh at 2026-10-31T18:46:37.285Z confirms the same document payloads and
+versions:62 legacy shifts,48 users,4 calendars,117 notices,3 config documents and no
+initial planning/coverage authority.24 Functions,3 paused jobs,6 ready indexes, Rules,
+project IAM and runtime assignments remain unchanged; the writer is disabled with
+no keys/account bindings/service assignments. These are current configuration reads,
+not a new causal-drain proof or maintenance checkpoint. No IAM/ACL mutation occurred.
+
+The regenerated package uses the latest **retained** owner-bracketed cleanup metadata
+(version287, owner/four readers) and independent raw capture plus equal post-write
+digest from the authorized rehearsal. Owner OAuth was not reopened. Observation ages
+and provenance are explicit; the parent root display name is retained from the earlier
+owner observation, not newly queried. These records cannot stand in for a future fresh
+owner observation. The initial local comparison incorrectly included the intentionally
+updated observedVersion278→287; the completion check verifies exact helper-cell
+requests separately and retains that diagnostic. No remote retry or mutation occurred.
+
+Package `shift-planning:v1:sha256:624380cfcedbac39d90c6f43c491242de3d3f554e849c74813eba8265c07d718`; controlled preparation `shift-planning:v1:sha256:7ac7daf6a04e125292c0f693d22ef32a5d707cfd674ec9dc5e23aac349f3ca10`; original evidence `shift-planning:v1:sha256:74afa42b70a5577974f5e7a2163b1239399b41e949cf177dbb1ef344f458b925`.
+Private manifests, input hashes, source capture, retained observations and receipts:
+`2026-10-31-original-admission-binding`. A real passive admission performs one read-only
+Firestore transaction, matches the reviewed source, then reports `window_scope_missing`;
+zero control acquisitions, incident writes or business writes. No maintenance opens.
+
+Validation: Functions build/lint, scoped CJS checks,146 focused tests and50 emulator
+tests pass without skips/failures. The actual regenerated package migrates/reverses
+only in the fixed demo emulator:203 forward/140 inverse writes,62 originals restored,
+117 notices preserved and no control acquisition. No iOS/Android changes or parity gap.
+
+Next renew the owner-side original Drive/Sheets observations for the final window
+package, then bind current writer permissions, separate Firestore authority, causal
+risk/control observations and the owner/administrator window before admission. The
+window and any grants remain separately authorized; no need to close the sheet for
+this completed read-only/offline work. No production, live Sheets write, FCM or deploy.
+Implementation and refreshed package are local after b08c6428; #268/#269 remain open,
+#278 draft.

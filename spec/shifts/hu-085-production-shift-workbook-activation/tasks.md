@@ -1310,3 +1310,17 @@ No migration authority, maintenance, FCM or production access.44 focused tests p
 public runtime/native code unchanged. Outcome evidence is local after d6a2dae9.
 Private `2026-10-31-original-writer-raw-baseline/fresh-window`; canonical
 `original-writer-20261031-raw-baseline`. #268/#269 remain open; #278 remains draft.
+
+
+## Original writer admission binding — 2026-10-31
+
+- [x] Publish original rehearsal result as b08c6428 and verify remote HEAD.
+- [x] Bind separately reviewed original receipt/raw baseline/cleanup evidence alongside synthetic proof; carry it through materialization and passive admission without granting current authority.
+- [x] Refresh develop census/control/identity reads; preserve all business document versions and exact cell mutation intents. Retain clearly dated owner/Sheet observations from the successful rehearsal; do not imply renewed OAuth.
+- [x] Regenerate review and controlled package at retained version287; real source-only admission matches and refuses the absent window without writes.
+- [x] Validate Functions build/lint/CJS,146 focused and50 emulator tests, including the regenerated package forward/inverse (203/140 writes,62 originals restored,117 notices preserved).
+- [ ] Renew final owner observations and bind current writer/Firestore authority, causal-risk controls and a separately authorized owner/administrator window before maintenance admission.
+
+Local implementation after b08c6428. Private `2026-10-31-original-admission-binding`.
+No native changes, live grants, maintenance, migration, production, FCM or deploy.
+Historical success remains evidence, not current execution permission.

@@ -13,6 +13,7 @@ const {createFirestoreShiftPlanningIntakeBarrierRepository:repository} = require
 const {historicalFixture} = require("./develop-historical-risk-fixture.cjs");
 const {fixture:reviewFixture} = require("./develop-migration-package-fixture.cjs");
 const {withWriter} = require("./develop-writer-evidence-fixture.cjs");
+const {withOriginalWriter} = require("./develop-original-writer-evidence-fixture.cjs");
 // Firestore stores field timestamps at microsecond precision. The offline tests
 // retain arbitrary nanoseconds; a clone must reject, never hide, any rounding.
 const fixture = () => reviewFixture({timestampNanoseconds:"123456000"});
@@ -151,7 +152,7 @@ run("clone precision loss is rejected instead of silently changing a retained pa
   await assert.rejects(harness(reviewFixture()),/clone payload drift/);
 });
 
-async function controlled(sourceInput=withWriter(fixture())) {
+async function controlled(sourceInput=withOriginalWriter(withWriter(fixture()))) {
   const h=await harness(sourceInput),counts={close:0,incident:0};
   const controlPlane={...h.controlPlane,closeAndCollect:async()=>{counts.close++;throw new Error("must not close controls");}};
   const failurePersistence={readExistingFailure:i=>h.journal.readExistingFailure(i),retainFailureAndReadBack:async i=>{
@@ -167,16 +168,19 @@ run("controlled read-only admission reports the absent window without acquiring 
   const h=await controlled(),before=await businessSnapshot();
   const result=await h.executor.inspectAdmission();assert.equal(result.checksPassed,false);
   assert.deepEqual(result.writerRehearsal,h.prepared.writerRehearsal);
+  assert.deepEqual(result.originalWriterCheck,h.prepared.originalWriterCheck);
+  assert.equal(result.originalWriterCheck.currentWriterAuthorityVerified,false);
   assert.equal(result.writerRehearsal.originalFileAuthorityVerified,false);
   assert.deepEqual(result.blockers,["window_scope_missing"]);assert.equal(result.canApply,false);assert.equal(result.canEnterMaintenance,false);
   assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
 });
 run("controlled admission and execution reuse exact forward/inverse manifests and held controls",async()=>{
-  const sourceInput=process.env.HU084_REVIEW_MANIFEST?loadManifest(process.env.HU084_REVIEW_MANIFEST):withWriter(fixture());
+  const sourceInput=process.env.HU084_REVIEW_MANIFEST?loadManifest(process.env.HU084_REVIEW_MANIFEST):withOriginalWriter(withWriter(fixture()));
   const h=await controlled(sourceInput),original=await saved("shifts"),notices=await saved("notificationEvents",true),scope=await h.hold();
   const before=await businessSnapshot(),admission=await h.executor.inspectAdmission({scope});
   assert.equal(admission.checksPassed,true);assert.equal(admission.canApply,false);assert.deepEqual(await businessSnapshot(),before);
   assert.deepEqual(admission.writerRehearsal,h.prepared.writerRehearsal);
+  assert.deepEqual(admission.originalWriterCheck,h.prepared.originalWriterCheck);
   const receipt=await h.executor.execute({scope,admission});assert.equal(receipt.measurement.documentWriteCount,203);
   assert.equal((await h.executor.readRetained({scope})).replayed,true);
   const inverseScope=await h.hold(true),afterForward=await businessSnapshot();
