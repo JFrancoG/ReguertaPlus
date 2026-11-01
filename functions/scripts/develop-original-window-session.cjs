@@ -21,7 +21,7 @@ const descriptor=c=>({sessionId:c.sessionId,credentialDigest:createHash("sha256"
 const id=v=>assert.match(v,/^[A-Za-z0-9_-]{6,100}$/);
 
 function createOriginalWindowSessions({expectedBinding,authorization,ownerCredential,iamBearer,ownerChannel,
-  sourceInput,reviewPackage,forwardPlan=null,forwardReadBack=null,recoveryWriterCredential=null,barrier,executor,nowMillis=Date.now,sleep=ms=>new Promise(r=>setTimeout(r,ms))}) {
+  sourceInput,reviewPackage,forwardPlan=null,forwardReadBack=null,recoveryWriterCredential=null,barrier,executor,composeServices=null,nowMillis=Date.now,sleep=ms=>new Promise(r=>setTimeout(r,ms))}) {
   expectedBinding=structuredClone(expectedBinding);authorization=structuredClone(authorization);ownerChannel={...ownerChannel};
   sourceInput=structuredClone(sourceInput);reviewPackage=structuredClone(reviewPackage);forwardPlan=structuredClone(forwardPlan);
   forwardReadBack=structuredClone(forwardReadBack);ownerCredential={...ownerCredential};
@@ -60,6 +60,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
       checkIdentity({...own.iam,account:{...own.iam.account,disabled:false}},{identity:IDENTITY},[]);
       assert.equal(own.iam.account.disabled,true);return own;
     }
+    let services={barrier,executor},servicesClosed=false,servicesReady=false,servicesCloseError=false;
     const current=()=>{timeBudget.assertStage();assert.ok(nowMillis()<credential.expiresAtMillis);};
     async function identity(disabled,bindings){
       const end=nowMillis()+60000;
@@ -71,10 +72,22 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
     }
     async function isolated(){const v=await isolation();assert.equal(v.writerIsolated,true);return v;}
     async function observeSheets(){current();return owner.capture(true);}
+    function ensureServices(){
+      if(servicesReady)return;
+      if(composeServices){
+      assert.equal(barrier,undefined);assert.equal(executor,undefined);
+      services=composeServices({timeBudget,owner,iam,nowMillis,record:note,getPermissionTransition:()=>structuredClone(transition),
+        assertWriterAuthority:async()=>{current();await identity(false,[grant]);await isolated();current();}});
+      assert.equal(typeof services.barrier?.acquire,"function");assert.equal(typeof services.executor?.inspectAdmission,"function");
+      assert.equal(typeof services.close,"function");
+      }
+      servicesReady=true;
+    }
     const readOnlySheets=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:"develop",workbooks:{develop:FILE}}),sheets:owner.sheets});
     const cleanup={
       async file(){
-        if(!intent("google-file-grant-intent"))return {verified:true,kind:"not-attempted"};
+        if(!servicesClosed){try{await services.close?.();}catch{servicesCloseError=true;/* ACL containment must still run. */}servicesClosed=true;}
+        if(!intent("google-file-grant-intent")){assert.equal(servicesCloseError,false,"Observation cleanup unverified");return {verified:true,kind:"not-attempted"};}
         const own=ownership();let logged=true,value=await owner.read();assert.equal(value.file.id,FILE);
         const found=value.filePermissions.find(p=>p.id===PERMISSION);
         if(found){assert.equal(found.emailAddress,WRITER);assert.equal(found.type,"user");assert.equal(found.role,"writer");
@@ -101,7 +114,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
           if(!prior?.sameUnexpiredToken)throw Error("writer_token_denial_unverified_after_restart");
           assert.deepEqual(prior.permission,permission);denial=prior.denial;
         }
-        const receipt={verified:true,permission,denial,sameUnexpiredToken:denial!==null};logged=await cleanupRecord({phase:"google-file-closed",...receipt})&&logged;assert.equal(logged,true,"File cleanup evidence unavailable");return receipt;
+        const receipt={verified:true,permission,denial,sameUnexpiredToken:denial!==null};logged=await cleanupRecord({phase:"google-file-closed",...receipt})&&logged;assert.equal(logged,true,"File cleanup evidence unavailable");assert.equal(servicesCloseError,false,"Observation cleanup unverified");return receipt;
       },
       async iam(){
         if(!intent("google-enable-intent"))return {verified:true,kind:"not-attempted"};
@@ -118,7 +131,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
       async oauth(){
         // Every descriptor belongs to this journal; a new credential can never
         // satisfy a prior descriptor's cleanup obligation, even with the same ID.
-        let closed=null;try{closed=await owner.close();assert.equal(closed.verified,true);
+        let closed=null;try{if(!servicesClosed){try{await services.close?.();}catch{/* Revocation is independent. */}servicesClosed=true;}closed=await owner.close();assert.equal(closed.verified,true);
           assert.equal(await cleanupRecord({phase:"google-owner-closed",credential,cleanup:closed}),true);}finally{writer?.close();ownerCredential.bearer=null;iamBearer=null;recoveryWriterCredential=null;}
         assert.equal(registrationValid,true,"Owner registration incomplete");
         const pending=matching("google-owner-session").filter(open=>!matching("google-owner-closed").some(done=>
@@ -128,8 +141,8 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
       },
     };
     const session={cleanup,observeSheets,inspect:{
-      barrier:()=>barrier.inspectRetained({scope:expectedBinding.scope}),
-      firestore:()=>executor.inspectUncertain({scope:expectedBinding.scope,direction:expectedBinding.direction,forwardReadBack}),
+      barrier:()=>{ensureServices();return services.barrier.inspectRetained({scope:expectedBinding.scope});},
+      firestore:()=>{ensureServices();return services.executor.inspectUncertain({scope:expectedBinding.scope,direction:expectedBinding.direction,forwardReadBack});},
       sheets:async saved=>{
         const plan=values(saved).findLast(v=>v.phase==="intent")?.plan;if(!plan)return {kind:"not-started"};
         assert.equal(plan.reviewPackageDigest,reviewPackage.packageDigest);
@@ -147,7 +160,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
     }
     return {session,timeBudget,registerOwner,records,note,owner,iam,current,identity,isolated,ownership,
       async start(){
-        await registerOwner();current();await isolated();const initialIam=await iam.readIdentity();
+        await registerOwner();ensureServices();current();await isolated();const initialIam=await iam.readIdentity();
         checkIdentity({...initialIam,account:{...initialIam.account,disabled:false}},{identity:IDENTITY},[]);
         assert.equal(initialIam.account.disabled,true,"Pre-existing active writer requires separate recovery");
         const before=await owner.capture(false);
@@ -176,7 +189,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
         }finally{token=null;}
         await note({phase:"google-writer-issued",expiresAtMillis:expiry,credentialDigest:writerDigest});assert.equal((await writer.probe()).status,200);positive=true;
         await note({phase:"google-writer-positive",credentialDigest:writerDigest});
-        session.tokenExpiresAtMillis=expiry;session.permissionTransition=transition;session.barrier=barrier;session.executor=executor;
+        session.tokenExpiresAtMillis=expiry;session.permissionTransition=transition;session.barrier=services.barrier;session.executor=services.executor;
         session.sheetsAdapter=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:"develop",workbooks:{develop:FILE}}),sheets:writer.sheets});
         return session;
       }};

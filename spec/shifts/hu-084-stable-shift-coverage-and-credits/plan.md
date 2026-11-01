@@ -3273,3 +3273,21 @@ open and PR #278 draft; new documentation/preparation is local, not yet committe
 Validation: 82 local tests and 90 emulator cases pass, zero skips/failures; five
 concrete journals re-read. Runtime unchanged: exact source hashes permit reuse of
 the prior build/lint. Passive real source read and inert invocation verified.
+
+## Barrier observation/native permission composition — 2026-11-01
+
+Preparation published as `40e32c6c`; new adapters remain local pending commit.
+The concrete Cloud/census/owner composition now shares the original window budget
+and lease. Initial agreements, closure and historical-risk dates remain immutable;
+fresh human reports are mandatory. The CUA channel binds exact file/writer actions,
+checks time before final mutation and verifies ACLs independently. No real grant
+or maintenance occurred; the reviewed Share form was cancelled.
+
+175 local tests and 90 emulator cases pass with zero failures/skips; build/lint
+and focused CJS lint pass. Emulator results are retained
+in `2026-11-01-barrier-native-composition`. Next: freeze the initial complete reviewed
+barrier and new code hashes with actual operation/window commitments before asking
+for execution. Prior evidence ages and unknown delivery counts remain explicit;
+Google/UI joint wall-clock timing is not yet certified. See the bilingual
+[concrete invocation](../../../docs/testing/hu084-develop-concrete-invocation.md).
+Both stories remain open, PR #278 draft; no production/native-app change.

@@ -89,3 +89,21 @@ test(`concrete factory rejects mismatched ${drift} before accessing providers`,(
   if(drift==="workbook")data.scope.expectedWorkbookFileId="production-workbook";
   assert.throws(()=>f.sessions(data,"owner-rejected",ports));assert.equal(f.state.calls.length,0);assert.equal(f.state.permission,false);
 });
+
+for(const variant of ["normal","slow-acquisition","factory-failure","close-failure"])
+test(`composed services share the original budget and containment: ${variant}`,async t=>{
+  const f=originalWindowFixture(),data={...f.args(),receiptId:"composed-window"};let closed=0,observed=false;
+  const sessions=f.sessions(data,"composed-owner",{barrier:undefined,executor:undefined,
+    composeServices:({timeBudget,owner,assertWriterAuthority,getPermissionTransition})=>{
+      if(variant==="factory-failure")throw Error("invalid reviewed observation");
+      return {barrier:{...f.barrier,acquire:async()=>{
+        await assertWriterAuthority();const image=await owner.capture(true);assert.equal(image.snapshotDigest,getPermissionTransition().after.snapshotDigest);observed=true;
+        if(variant==="slow-acquisition")f.state.now+=151000;timeBudget.assertStage();return {acquired:true};
+      }},executor:f.executor,close:async()=>{closed++;if(variant==="close-failure")throw Error("observation close failed");}};
+    }});
+  const result=await run({...data,...sessions,root:root(t),nowMillis:()=>f.state.now,fetchImpl:f.fetchImpl});
+  assert.equal(observed,variant!=="factory-failure");assert.equal(f.state.disabled,true);assert.equal(f.state.permission,false);assert.equal(f.state.revoked.size,1);
+  assert.equal(f.batch.sheets.mutations.length,["normal","close-failure"].includes(variant)?1:0);
+  assert.equal(result.kind,variant==="normal"?"direction-verified-and-contained":"inspection-required");
+  assert.equal(closed,variant==="factory-failure"?0:1);
+});

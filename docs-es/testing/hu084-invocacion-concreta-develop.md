@@ -1,5 +1,68 @@
 # HU-084 — Preparación de la invocación concreta de develop
 
+## Composición de observaciones y permisos nativos — 2026-11-01
+
+La preparación anterior está publicada en `40e32c6c`. La nueva implementación
+permanece local, pendiente de commit. No abre mantenimiento ni cambia producción.
+
+`composeDevelopWindowServices` conecta el lector real de Google Cloud, el censo
+atómico mediante GET, la imagen independiente del propietario, las comprobaciones
+de autoridad del escritor, los informes humanos explícitos, la barrera persistente
+y el ejecutor controlado. La sesión original aporta el mismo reloj, presupuesto HTTP
+y sesión del propietario. Cerrar una lectura de la barrera espera sus peticiones
+sin revocar el token del propietario; la limpieza exterior conserva esa obligación.
+Los fallos de composición/cierre no impiden retirar ACL/IAM/OAuth y mantienen las
+evidencias no resueltas pendientes de inspección.
+
+La barrera inicial completa y su relación con las observaciones originales requieren
+revisión explícita. El adaptador valida ese paquete y su ámbito exacto, conserva las
+fechas de cierre, quietud, consentimiento y riesgo, y solo renueva campos respaldados
+por lecturas nuevas. No crea acuerdos desde datos de prueba ni deduce inactividad
+humana de IAM/ACL. Los contadores de entrega permanecen desconocidos en las ocho
+rutas de captura revisadas; el censo completo verifica la identidad del negocio y
+que el historial solo crezca. El ejecutor lee además toda la fuente del planificador
+en su transacción. El cambio de versión de Drive debido al permiso queda vinculado
+a las imágenes reales anterior/posterior de la sesión, sin sustituir a escondidas
+la revisión o digest del dominio de la barrera.
+
+`createNativeOwnerChannel` vincula las acciones nativas admitidas por CUA a la hoja
+original, propietario, escritor y acción revisados. Resuelve índices de accesibilidad
+nuevos, comprueba el plazo inmediatamente antes de Compartir/Guardar, espera la acción
+y verifica la ACL independiente. No reenvía una concesión con respuesta perdida.
+Exige autorización explícita de la acción mediante el callback suministrado; no añade
+escrituras por API del navegador, notificaciones, credenciales por defecto ni una
+autorización autónoma. Se inspeccionó el diálogo real en español hasta la selección
+pendiente de Editor sin notificación y se canceló. No se concedió acceso. La retirada
+y los clics finales están probados sobre una superficie nativa sintética; el adaptador
+nuevo todavía no los ha ejecutado contra Google.
+
+Los tiempos no cambian: 180s de preparación (incluidos al menos 120s de propagación
+IAM), 150s de trabajo con adquisición/admisión, 60/90/120s de limpieza y un único
+token de 300s. Todas las llamadas usan el presupuesto exterior. Las acciones nativas
+se esperan, sin abandonarlas mediante una carrera de timeout; una respuesta tardía
+impide admitir/verificar y conserva la limpieza. Una adquisición lenta bloquea el
+lote de negocio. Las pruebas locales no certifican la duración conjunta real de
+Google y la interfaz.
+
+Validación: 175 casos locales correctos, cero fallos/omitidos; build, lint completo y
+lint CJS focalizado correctos. Los 90 casos de regresión con Firestore emulado también pasan, sin fallos ni
+omitidos; sus registros de sesiones concretas se han releído de forma independiente.
+HTTP de Google y acciones nativas finales siguen siendo sintéticos en estas pruebas. Evidencias privadas: `2026-11-01-barrier-native-composition`.
+Sin cambios iOS/Android ni brecha de paridad. Sin nueva sesión OAuth, concesión IAM,
+despliegue, escritura en Sheets ni envío FCM.
+
+Siguiente paso: fijar la revisión inicial completa de observaciones y el código de
+la operación exacta, incluidos informes reales del propietario y de todos los
+administradores y aceptación del riesgo histórico para esa operación. Las respuestas
+anteriores identifican participantes, pero no autorizan una ventana futura. Los 333
+hashes anteriores son históricos; la nueva receta privada fija 337 archivos y la
+revisión del canal nativo, con revisión inicial de observaciones y autorización
+de ejecución aún ausentes. Después, solicitar la ventana concreta de ejecución. No necesitas cerrar
+la hoja ni intervenir durante este bloque local. HU-084/HU-085 siguen abiertas y la
+PR #278 continúa en borrador.
+
+## Preparación anterior (40e32c6c)
+
 Estado a 2026-11-01: **preparado, no ejecutable ni listo para autorizar la ventana**.
 Los adaptadores anteriores están publicados en `5b24be80`. Este documento y la nueva
 preparación privada constituyen el siguiente bloque local. No cambia el código de

@@ -1,5 +1,64 @@
 # HU-084 — Concrete develop invocation preparation
 
+## Composed observation and native-permission adapters — 2026-11-01
+
+The previous preparation is committed/pushed as `40e32c6c`. The new implementation
+is local and pending commit. It does not open maintenance or change production.
+
+`composeDevelopWindowServices` now connects the concrete Google Cloud reader,
+GET-only atomic census, independent owner image, exact writer-authority checks,
+explicit human reports, durable barrier and controlled executor. The original
+window session supplies the same clock, HTTP budget and owner lease. Closing a
+barrier observation settles its reads without revoking the outer owner's token;
+final cleanup retains responsibility for revocation. Factory/observation-close
+failures still run ACL/IAM/OAuth containment and retain unresolved evidence.
+
+The complete initial barrier and its mapping to raw reviewed observations must be
+reviewed explicitly. The adapter verifies that envelope and exact scope, preserves
+closure/quiet-horizon/consent/risk dates, and only renews fields backed by new reads.
+It does not create the first agreement from a fixture or infer human inactivity
+from IAM/ACLs. Delivery counts remain explicitly unknown on the eight reviewed
+capture routes; complete census comparison verifies business identity and append-only
+history. The executor separately reads the complete planner source transactionally.
+Permission-only Drive version movement is bound to the session's actual before/after
+images, not silently substituted into the barrier's domain revision/digest.
+
+`createNativeOwnerChannel` binds supported CUA native actions to the exact original
+file, owner, writer and reviewed action. It resolves fresh accessibility indices,
+checks the deadline immediately before final Share/Save, awaits the action and
+verifies the independent ACL. Lost grant responses are not resent. It requests
+explicit action authorization through the supplied callback; no browser API write,
+notification, default credential or autonomous permission authorization is added.
+The current Spanish Share dialog was inspected through the final pending Editor
+choice with notifications off, then cancelled. No access was granted. Removal and
+final click paths are locally tested with a synthetic native surface; they have not
+been executed with the new adapter against Google.
+
+Timing is unchanged: 180s preparation (including at least 120s IAM propagation),
+150s work including acquisition/admission, 60/90/120s cleanup, one 300s token.
+All provider calls use the outer budget. Native calls are awaited, not abandoned
+by a timeout race; a late return fails admission/verification and preserves cleanup.
+A slow acquisition blocks the business batch. Local delay/failure tests are not a
+certificate of joint Google/UI wall-clock duration.
+
+Validation: 175 local cases passed, zero failures/skips; build, full lint and focused
+CJS lint pass. All 90 Firestore emulator regression cases also pass, zero failures/skips; the
+existing concrete-session journals were re-read independently. Google HTTP and
+final native actions remain synthetic in these tests.
+Private evidence: `2026-11-01-barrier-native-composition`. No iOS/Android change or
+parity gap. No new OAuth session, IAM grant, deployment, Sheets write or FCM send.
+
+Next: freeze the initial complete observation review and code binding for the exact
+operation, including actual owner/all-administrator reports and operation-specific
+historical-risk acceptance. Existing human confirmations identify participants but
+do not authorize a future window. The old invocation's 333 code hashes are historical; the new private recipe
+pins 337 files and the native channel review, with initial observation review and
+execution authorization still absent. Then request the concrete execution
+window; no sheet closure or user action is needed for this local block. HU-084/HU-085
+remain open and PR #278 remains draft.
+
+## Previous preparation (40e32c6c)
+
 Status on 2026-11-01: **prepared, not executable or ready for window authorization**.
 The previous adapter implementation is committed/pushed as `5b24be80`. This document
 and the refreshed private preparation are the next local block. No runtime source,
