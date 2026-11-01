@@ -1,6 +1,6 @@
 # HU-084 — Preparación de la invocación concreta de develop
 
-Preparación actual (2026-11-02): [evidencia inicial y ventana propuesta](hu084-evidencia-inicial-ventana-develop.md). Adaptadores publicados en `658b7e9c`; se detecta una corrección del orden de cierre inicial antes de autorizar la ventana. Los apartados siguientes son hitos anteriores.
+Preparación actual (2026-11-02): [evidencia inicial y ventana propuesta](hu084-evidencia-inicial-ventana-develop.md). Preparación publicada en `cb92b367`; corrección del orden ensayada localmente y pendiente de commit, sin recogida ni autorización de ventana real. Los apartados siguientes son hitos anteriores.
 
 ## Composición de observaciones y permisos nativos — 2026-11-01
 

@@ -7,16 +7,18 @@ const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.j
 const {createCopyTimeBudget}=require("./develop-copy-time-budget.cjs");
 const {createWindowJournal,claimWindowRecovery}=require("./develop-window-journal.cjs");
 
-function bind({prepared,scope,direction,window,reviewPackage,forwardReadBack=null,forwardPlan=null}) {
+function bind({prepared,scope,direction,window,reviewPackage,forwardReadBack=null,forwardPlan=null,initialEvidencePlan}) {
   const {preparedDigest,...body}=prepared;assert.equal(digest(body),preparedDigest);
   assert.ok(["reguerta-9f27f","demo-reguerta-hu084-migration"].includes(prepared.projectId));
   assert.equal(prepared.environment,"develop");assert.equal(prepared.liveExecutable,false);
   assert.ok(["forward","inverse"].includes(direction));assert.equal(scope.environment,"develop");
   assert.equal(scope.transitionId,direction==="forward"?prepared.operationId:prepared.recoveryOperationId);
   assert.equal(reviewPackage.packageDigest,prepared.reviewPackageDigest);
-  return {projectId:prepared.projectId,environment:"develop",preparedDigest,scope,direction,window,
+  const binding={projectId:prepared.projectId,environment:"develop",preparedDigest,scope,direction,window,
     reviewPackageDigest:reviewPackage.packageDigest,forwardReceiptDigest:forwardReadBack===null?null:digest(forwardReadBack),
-    forwardPlanDigest:forwardPlan===null?null:digest(forwardPlan)};
+    forwardPlanDigest:forwardPlan===null?null:digest(forwardPlan),...(initialEvidencePlan?{initialEvidencePlan}: {})};
+  if(initialEvidencePlan)require("./develop-initial-evidence-seal.cjs").validateInitialEvidencePlan(initialEvidencePlan,binding);
+  return binding;
 }
 async function cleanup(session,budget,note) {
   const failures=[];
@@ -46,14 +48,20 @@ async function runControlledWindow(args) {
   let session=null,result=null,failure=null,clean=null,openAttempted=false;
   try {
     const stage=()=>{if(signal?.aborted)throw Error("window interrupted");budget.assertStage();};
-    stage();note({phase:"session-intent"});openAttempted=true;session=await openSession({binding:structuredClone(binding),timeBudget:budget,record:note,receiptId});stage();
+    stage();note({phase:"session-intent"});openAttempted=true;session=await openSession({binding:structuredClone(binding),timeBudget:budget,record:note,receiptId,signal});stage();
     assert.notEqual(session.setupFailed,true,"Provider setup requires cleanup");
+    let scope=binding.scope;
+    if(binding.initialEvidencePlan) {
+      const seal=require("./develop-initial-evidence-seal.cjs").verifyInitialEvidenceSeal(session.initialSeal,binding,receiptId,session.initialSeal.nativeReviewDigest,nowMillis());
+      const saved=journal.read().records.filter(r=>r.value.phase==="google-initial-evidence-sealed");
+      assert.equal(saved.length,1);assert.deepEqual(saved[0].value.seal,seal);scope=seal.scope;
+    }
     budget.beginWork(session.tokenExpiresAtMillis);
-    note({phase:"acquisition-intent"});const acquired=await session.barrier.acquire({scope:binding.scope,signal});
+    note({phase:"acquisition-intent"});const acquired=await session.barrier.acquire({scope,signal});
     note({phase:"acquired",acquired});stage();assert.equal(acquired.acquired,true);
-    const admission=await session.executor.inspectAdmission({scope:binding.scope,direction:binding.direction,forwardReadBack:frozen.forwardReadBack});
+    const admission=await session.executor.inspectAdmission({scope,direction:binding.direction,forwardReadBack:frozen.forwardReadBack});
     note({phase:"admission",admission});stage();assert.equal(admission.checksPassed,true);
-    result=await session.executor.executeJoint({scope:binding.scope,admission,sourceInput:frozen.sourceInput,reviewPackage:frozen.reviewPackage,
+    result=await session.executor.executeJoint({scope,admission,sourceInput:frozen.sourceInput,reviewPackage:frozen.reviewPackage,
       forwardReadBack:frozen.forwardReadBack,forwardPlan:frozen.forwardPlan,observeSheets:session.observeSheets,sheetsAdapter:session.sheetsAdapter,
       timeBudget:budget,record:note,signal,permissionTransition:session.permissionTransition});
     note({phase:"joint-result",result});

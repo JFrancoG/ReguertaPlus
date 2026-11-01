@@ -41,14 +41,19 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
   if(expectedBinding.projectId==="reguerta-9f27f"||expectedBinding.scope.expectedWorkbookFileId!==undefined)
     assert.equal(expectedBinding.scope.expectedWorkbookFileId,FILE);
   const credential=descriptor(ownerCredential),permission={fileId:FILE,permissionId:PERMISSION,type:"user",role:"writer",emailAddress:WRITER};
+  if(expectedBinding.projectId==="reguerta-9f27f")assert.ok(expectedBinding.initialEvidencePlan,"Original develop requires post-permission evidence");
+  if(expectedBinding.initialEvidencePlan) {
+    require("./develop-initial-evidence-seal.cjs").validateInitialEvidencePlan(expectedBinding.initialEvidencePlan,expectedBinding);
+    assert.equal(typeof composeServices,"function");
+  }
   let consumed=false,cached=null;
   function values(saved){return saved.records.map(r=>r.value);}
-  function context({binding,timeBudget,record,saved=null}) {
+  function context({binding,timeBudget,record,saved=null,signal}) {
     assert.equal(digest(binding),bindingDigest);if(saved){assert.equal(digest(saved.binding),bindingDigest);assert.equal(path.basename(saved.directory),authorization.receiptId);}
     const iam=createIamProvider({identity:IDENTITY,iamBearer,fetchImpl:timeBudget.fetch});
     const isolation=createIsolationReader({iamBearer,fetchImpl:timeBudget.fetch,nowMillis});
     const owner=createOriginalWindowOwner({ownerBearer:ownerCredential.bearer,fetchImpl:timeBudget.fetch,nowMillis,sleep});
-    let records=saved?values(saved):[],writer=null,expiry=0,positive=false,transition=null,registrationValid=false;
+    let records=saved?values(saved):[],writer=null,expiry=0,positive=false,transition=null,permissionReceipt=null,initialSeal=null,registrationValid=false;
     const note=async value=>{await record(value);records.push(structuredClone(value));};
     const cleanupRecord=async value=>{try{await note(value);return true;}catch{return false;}};
     const matching=phase=>records.filter(v=>v.phase===phase);
@@ -61,7 +66,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
       assert.equal(own.iam.account.disabled,true);return own;
     }
     let services={barrier,executor},servicesClosed=false,servicesReady=false,servicesCloseError=false;
-    const current=()=>{timeBudget.assertStage();assert.ok(nowMillis()<credential.expiresAtMillis);};
+    const current=()=>{if(signal?.aborted)throw Error("window interrupted");timeBudget.assertStage();assert.ok(nowMillis()<credential.expiresAtMillis);};
     async function identity(disabled,bindings){
       const end=nowMillis()+60000;
       for(;;){timeBudget.assertStage();assert.ok(nowMillis()<end);
@@ -72,14 +77,25 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
     }
     async function isolated(){const v=await isolation();assert.equal(v.writerIsolated,true);return v;}
     async function observeSheets(){current();return owner.capture(true);}
-    function ensureServices(){
+    async function ensureServices(recovery=false){
       if(servicesReady)return;
       if(composeServices){
       assert.equal(barrier,undefined);assert.equal(executor,undefined);
-      services=composeServices({timeBudget,owner,iam,nowMillis,record:note,getPermissionTransition:()=>structuredClone(transition),
+      if(recovery&&expectedBinding.initialEvidencePlan){
+        const sealed=matching("google-initial-evidence-sealed");assert.equal(sealed.length,1,"No final evidence; recovery remains cleanup-only");
+        initialSeal=require("./develop-initial-evidence-seal.cjs").verifyInitialEvidenceSeal(sealed[0].seal,expectedBinding,authorization.receiptId,ownerChannel.reviewDigest);
+        transition=initialSeal.transition;permissionReceipt=initialSeal.permissionReceipt;
+      }
+      services=await composeServices({timeBudget,owner,iam,nowMillis,record:note,getPermissionTransition:()=>structuredClone(transition),
+        binding:structuredClone(expectedBinding),receiptId:authorization.receiptId,permissionReceipt:structuredClone(permissionReceipt),
+        nativeReviewDigest:ownerChannel.reviewDigest,retainedSeal:recovery?structuredClone(initialSeal):null,
         assertWriterAuthority:async()=>{current();await identity(false,[grant]);await isolated();current();}});
       assert.equal(typeof services.barrier?.acquire,"function");assert.equal(typeof services.executor?.inspectAdmission,"function");
       assert.equal(typeof services.close,"function");
+      }
+      if(expectedBinding.initialEvidencePlan){
+        initialSeal=require("./develop-initial-evidence-seal.cjs").verifyInitialEvidenceSeal(services.initialSeal,expectedBinding,authorization.receiptId,ownerChannel.reviewDigest);
+        if(!recovery){assert.deepEqual(initialSeal.permissionReceipt,permissionReceipt);assert.deepEqual(initialSeal.transition,transition);current();await note({phase:"google-initial-evidence-sealed",seal:initialSeal});}
       }
       servicesReady=true;
     }
@@ -141,8 +157,8 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
       },
     };
     const session={cleanup,observeSheets,inspect:{
-      barrier:()=>{ensureServices();return services.barrier.inspectRetained({scope:expectedBinding.scope});},
-      firestore:()=>{ensureServices();return services.executor.inspectUncertain({scope:expectedBinding.scope,direction:expectedBinding.direction,forwardReadBack});},
+      barrier:async()=>{await ensureServices(true);return services.barrier.inspectRetained({scope:initialSeal?.scope??expectedBinding.scope});},
+      firestore:async()=>{await ensureServices(true);return services.executor.inspectUncertain({scope:initialSeal?.scope??expectedBinding.scope,direction:expectedBinding.direction,forwardReadBack});},
       sheets:async saved=>{
         const plan=values(saved).findLast(v=>v.phase==="intent")?.plan;if(!plan)return {kind:"not-started"};
         assert.equal(plan.reviewPackageDigest,reviewPackage.packageDigest);
@@ -160,7 +176,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
     }
     return {session,timeBudget,registerOwner,records,note,owner,iam,current,identity,isolated,ownership,
       async start(){
-        await registerOwner();ensureServices();current();await isolated();const initialIam=await iam.readIdentity();
+        await registerOwner();current();await isolated();const initialIam=await iam.readIdentity();
         checkIdentity({...initialIam,account:{...initialIam.account,disabled:false}},{identity:IDENTITY},[]);
         assert.equal(initialIam.account.disabled,true,"Pre-existing active writer requires separate recovery");
         const before=await owner.capture(false);
@@ -169,13 +185,22 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
         await note({phase:"google-session-ownership",receiptId:authorization.receiptId,bindingDigest,identity:IDENTITY,grant,baseline:before,iam:initialIam});
         await note({phase:"google-enable-intent",identity:IDENTITY});await iam.enableOwned();const enabled=await identity(false,[]);current();
         await note({phase:"google-iam-grant-intent",grant});await iam.setPolicy({...enabled.policy,version:3,bindings:[grant]});const grantedAt=nowMillis();
-        await note({phase:"google-file-grant-intent",permission});await ownerChannel.grant(structuredClone(permission),{assertActive:timeBudget.assertStage});current();
-        const end=Math.min(grantedAt+180000,expectedBinding.window.endsAtMillis-420000);
-        for(;;){current();await identity(false,[grant]);const ready=await iam.hasMintPermission();assert.ok(nowMillis()<end);
-          if(ready&&nowMillis()>=grantedAt+120000)break;await sleep(Math.min(5000,end-nowMillis()));}
+        await note({phase:"google-file-grant-intent",permission});const native=await ownerChannel.grant(structuredClone(permission),{assertActive:current});current();
         await isolated();const after=await owner.capture(true);transition={before,after};
         const plan=await planOriginalWindowBatch({sourceInput,reviewPackage,observation:after,direction:expectedBinding.direction,forwardPlan,permissionTransition:transition});
         current();await note({phase:"google-permission-transition",transition,planDigest:plan.planDigest});
+        if(expectedBinding.initialEvidencePlan){
+          permissionReceipt={kind:"develop-owned-native-grant",receiptId:authorization.receiptId,bindingDigest,transitionDigest:digest(transition),native};
+          await note({phase:"google-permission-receipt",receipt:permissionReceipt});
+        }
+        await ensureServices();current();
+        const end=Math.min(grantedAt+180000,expectedBinding.window.endsAtMillis-420000);
+        for(;;){current();await identity(false,[grant]);const ready=await iam.hasMintPermission();assert.ok(nowMillis()<end);
+          if(ready&&nowMillis()>=grantedAt+120000)break;await sleep(Math.min(5000,end-nowMillis()));}
+        await isolated();const readyImage=await owner.capture(true);
+        assert.equal(readyImage.metadataDigest,after.metadataDigest);assert.equal(readyImage.snapshotDigest,after.snapshotDigest);
+        current();
+        if(initialSeal)require("./develop-initial-evidence-seal.cjs").verifyInitialEvidenceSeal(initialSeal,expectedBinding,authorization.receiptId,ownerChannel.reviewDigest,nowMillis());
         await note({phase:"google-mint-intent",request:prepare().tokenRequest,attempt:1});
         let token=await iam.mint(prepare().tokenRequest),writerDigest=null;
         try{assert.ok(typeof token.accessToken==="string"&&token.accessToken.length);writerDigest=createHash("sha256").update(token.accessToken).digest("hex");expiry=Date.parse(token.expireTime);assert.ok(Number.isSafeInteger(expiry)&&expiry<=nowMillis()+300000&&expiry>nowMillis()+210000);
@@ -189,7 +214,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
         }finally{token=null;}
         await note({phase:"google-writer-issued",expiresAtMillis:expiry,credentialDigest:writerDigest});assert.equal((await writer.probe()).status,200);positive=true;
         await note({phase:"google-writer-positive",credentialDigest:writerDigest});
-        session.tokenExpiresAtMillis=expiry;session.permissionTransition=transition;session.barrier=services.barrier;session.executor=services.executor;
+        session.initialSeal=initialSeal;session.tokenExpiresAtMillis=expiry;session.permissionTransition=transition;session.barrier=services.barrier;session.executor=services.executor;
         session.sheetsAdapter=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:"develop",workbooks:{develop:FILE}}),sheets:writer.sheets});
         return session;
       }};

@@ -1,8 +1,8 @@
 # HU-084 — Evidencia inicial y propuesta de ventana de develop
 
-Preparación a 2026-11-02; **NOT_READY_INITIAL_SEAL_ORDER**. No hay mantenimiento abierto.
-Los adaptadores de observaciones/permisos están publicados en `658b7e9c`. Este bloque
-prepara evidencias y una ventana propuesta; no autoriza ejecutarla.
+Preparación publicada en `cb92b367`; corrección del arranque **ensayada localmente**
+el 2026-11-02 y pendiente de commit. No hay mantenimiento abierto. La preparación
+histórica conserva sus horas reales; esta corrección no renueva esas observaciones.
 
 ## Evidencias y operación exactas
 
@@ -56,7 +56,7 @@ condición IAM reales.
 
 | Desde la futura confirmación | Finalidad máxima |
 | --- | --- |
-| 0–5 minutos | Conciliación de lectura, compromisos nominativos y entradas iniciales; sin permisos ni mantenimiento |
+| 0–5 minutos | Conciliación de lectura, plan revisado y compromisos preliminares; sin permisos ni mantenimiento |
 | 5–8 minutos | Permisos exactos, propagación IAM mínima de 120s, completar evidencia inicial real y un token |
 | 8–10:30 minutos | Barrera/admisión y una dirección de ida |
 | 10:30–11:30 minutos | Retirar permiso de hoja y comprobar negativa con el mismo token |
@@ -69,41 +69,76 @@ estrictas de margen pueden rechazar antes del límite de la tabla. Incumplir un 
 de preparación o ejecución detiene el avance; nunca amplía la ventana en silencio.
 
 Valores propuestos del comando: 30s de quietud observada, antigüedad máxima de evidencia
-de 600s y fin de quietud inicial a no más de 30s del inicio del ciclo del escritor.
+de 600s. La captura inicial y la quietud pasan a ocurrir después del cierre real de
+permisos y de las confirmaciones finales, dentro del presupuesto de preparación.
+Queda sustituida la propuesta anterior de terminar la quietud antes de iniciar
+el ciclo del escritor.
 Ese fin de quietud sigue siendo inmutable para comprobar antigüedad; las relecturas
 no pueden cambiarle la fecha. Son propuestas, no valores desplegados ni prueba de
 terminación histórica. El horario no genera consentimientos ni fechas del proveedor.
 
-## Problema concreto de orden detectado
+## Arranque y recuperación corregidos
 
-La excepción prevista para el propietario como controlador de permisos en ADR-0021
-debe vincular la acción ACL exacta y su cierre real. Este intento todavía no tiene
-ese recibo. `createOriginalWindowSessions.start` llama a `ensureServices` **antes**
-de la acción de permisos. `composeDevelopWindowServices` construye inmediatamente
-el observador, que exige la evidencia inicial completa y validada; la transición
-real del permiso se produce después. Usar el recibo de otro intento, una fecha
-futura, una excepción nula o un éxito sintético falsearía esa excepción.
+El registro guarda primero la operación/paquete, ventana, ámbito previsto, intención
+del propietario y administradores, aceptación del riesgo histórico y entradas
+revisadas. Solo quedan nulos cuatro hashes derivados: acuerdo del propietario,
+acuerdo administrativo, controles conjuntos y evaluación histórica. No pueden cambiar
+participantes, autoridad, fuentes, operaciones, plazos, fecha de aceptación del riesgo
+ni su identificador de confirmación. El último hash solo admite completar la hora
+real de evaluación.
 
-Siguiente implementación: conservar el plan inmutable de acciones/paquete antes de
-cualquier efecto y completar y fijar la evidencia/vinculación inicial después de
-verificar la acción nativa exacta y su cierre, antes del token/admisión. Reutilizar
-el registro persistente y las limpiezas independientes; una preparación parcial debe
-poder recuperarse aunque falte el paquete final. No se propone otro motor, inversa
-automática, relajar validadores ni alargar el token. Debe probarse ese orden localmente
-antes de solicitar la ventana real. Por eso los 15 minutos aún no están listos para
-autorización de ejecución.
+Tras conceder el permiso exacto, el canal nativo cierra el diálogo de Compartir,
+comprueba que ha desaparecido, relee los permisos de forma independiente y devuelve
+el recibo de cierre. La capacidad de conceder se consume una sola vez y el adaptador
+no crea credenciales temporales de escritura del propietario. Su sesión personal
+sigue siendo una capacidad humana conservada bajo ADR-0021; cerrar el diálogo no
+revoca la propiedad ni acredita el cierre de otras automatizaciones del propietario.
+Una respuesta perdida o un diálogo que continúa abierto no produce recibo válido.
 
-## Validación y entrega
+La sesión vincula el recibo a este intento, al plan previo y a la transición completa
+de permisos. El puerto explícito `readInitialReview` aporta entonces confirmaciones
+finales reales y evidencia inicial; recibe el mismo transporte/reloj acotados, la
+captura del propietario y el control de autoridad. Debe esperar todas las lecturas.
+El sellador no inventa confirmaciones, horas, quietud ni hechos de cierre. Las
+confirmaciones deben vincular la intención completa después de cerrar esta concesión;
+la captura y la quietud siguen a esas confirmaciones. Se rechazan recibos anteriores,
+fechas futuras, participantes/plazos/fuentes cambiados, entradas sustituidas y caducidad.
 
-Pasan siete comprobaciones locales: archivos/fuentes exactos, rechazo del borrador
-antes de acceder a proveedores, reparto de tiempos, límites estrictos de envío/
-preparación, reservas completas de limpieza, normalización del inventario completo
-y conservación de desconocidos/evidencias anteriores. Los archivos de ejecución y
-337 hashes no cambian respecto a las 175 pruebas locales y 90 de emulador publicadas;
-se reutilizan build/lint. Este bloque solo cambia documentación y preparación privada,
-por lo que no se repiten compilaciones ni suites nativas/emuladas.
+`google-initial-evidence-sealed` se guarda de forma persistente antes de solicitar
+el único token del escritor. Los servicios se construyen después de disponer de ese
+recibo. La espera mínima IAM comienza en la concesión real e incluye el tiempo usado
+para completar la evidencia; no se añaden otros 120s ni se amplía la ventana. Después
+de la propagación se vuelve a comprobar la hoja y la vigencia de la evidencia antes
+de pedir el token. La admisión recibe exclusivamente el ámbito sellado y validado,
+nunca el plan con campos nulos.
 
-Sin cambios IAM/ACL, renovación OAuth del propietario, escrituras Sheets, FCM,
-despliegues, mantenimiento ni acceso a datos de negocio de producción. Sin brecha
-nativa nueva. HU-084/HU-085 siguen abiertas y PR #278 en borrador. No necesitas cerrar
-la hoja ni hacer nada ahora.
+La recuperación relee ese mismo sello como evidencia histórica: no recoge nuevas
+confirmaciones, concede permisos, emite tokens ni reanuda la ejecución. Si el arranque
+se interrumpió antes del sello, la inspección de barrera/negocio queda no disponible
+y siguen las limpiezas independientes de hoja/IAM/OAuth. Un fallo al guardar conserva
+el estado de inspección pendiente. Cancelar durante la recogida espera su terminación
+y limpia sin pedir token. No se relajan validadores de negocio, rutas de producción,
+formato del registro ni límites de permisos/tokens; tampoco se añade inversa automática.
+
+## Validación y siguiente paso
+
+Validación: **115 casos locales distintos** (91 regresiones sin cambios de la ejecución de 113 casos y los 15 casos finales del sello y nueve del canal nativo), **90 casos de emulador**, cero fallos/omisiones. Pasan build, lint completo, lint CJS específico y comprobación del diff.
+
+Evidencia privada: `2026-11-02-startup-seal`. Pasan build/lint completos de Functions
+y lint CJS específico. Las pruebas locales cubren sellado correcto, la fábrica real
+de servicios, recibos cambiados/antiguos/ausentes, confirmaciones anteriores, caducidad
+durante propagación IAM, interrupciones de recogida/disco y reinicio solo para limpiar.
+Las respuestas Google y la interfaz nativa de estas pruebas son sintéticas; la regresión
+con emulador usa Firestore local real. No certifican los tiempos conjuntos de Google/UI
+ni el cierre real del diálogo español. Las apps Android/iOS no cambian.
+
+Siguiente paso: preparar el plan previo exacto y la recogida concreta de evidencia
+inicial para la ventana propuesta, conservando el paquete y renovando solo las
+observaciones necesarias. Comprobar que las confirmaciones finales, captura y quietud
+caben en el mismo plazo antes de pedir ejecutar. Hay que regenerar los hashes de
+revisión para este código cambiado. El borrador histórico incompleto sigue sin ser
+ejecutable; este ensayo no genera recibos ni una ventana reales.
+
+Sin cambios IAM/ACL, renovación OAuth, escrituras Sheets, FCM, despliegues,
+mantenimiento ni acceso a producción en esta corrección. HU-084/HU-085 siguen
+abiertas y PR #278 en borrador. No necesitas cerrar la hoja ni hacer nada ahora.

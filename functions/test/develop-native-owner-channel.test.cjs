@@ -11,14 +11,15 @@ function fixture(){
   const ui={stage:"list",typed:false,notify:true,clicks:[],records:[],expire:false,lost:false,wrongFile:false,wrongRole:false,authorized:true,duplicate:false};
   const tab={async getAXState(){
     const start=`0 AXWebArea drive.google.com/drivesharing/driveshare?id=${ui.wrongFile?"wrong":FILE}&hl=es\n 1 text Compartir "Regüerta — DEVELOP — Turnos de prueba"\n`;
-    if(ui.stage==="list")return start+` 2 text ${OWNER}. Propietario.\n 3 combo box (settable) Description: Añadir personas, grupos y eventos de calendario${ui.typed?`, Value: ${WRITER}`:""}\n`+
+    if(ui.stage==="closed")return `0 AXWebArea Drive\n 1 row (selected) Regüerta — DEVELOP — Turnos de prueba Hojas de cálculo de Google file\n 2 Cuenta de Google: Plus Projects Test (${OWNER})\n 13 button Compartir archivo`;
+    if(ui.stage==="list")return start+` 14 button Hecho\n 2 text ${OWNER}. Propietario.\n 3 combo box (settable) Description: Añadir personas, grupos y eventos de calendario${ui.typed?`, Value: ${WRITER}`:""}\n`+
       (f.state.permission?` 4 ${WRITER} ${WRITER}. Editor. Cambiar permiso\n   5 pop up button (collapsed) Description: Editor. Cambiar permiso`:"");
     if(ui.stage==="menu")return start+" 6 Quitar acceso";
     if(ui.stage==="remove")return start+" 7 button Guardar";
     return start+` 8 row Quitar a ${WRITER}, ID: recipient\n 9 pop up button (collapsed) Description: ${ui.wrongRole?"Lector":"Editor"}. Cambiar permiso\n 10 checkbox (settable) Description: Notificar a los usuarios, Value: ${ui.notify?1:0}\n 11 button ${ui.notify?"Enviar":"Compartir"}`+(ui.duplicate?"\n 12 button Compartir":"");
   },async typeText(id,text){assert.equal(id,3);assert.equal(text,WRITER);ui.typed=true;},async pressKey(id,key){assert.equal(id,3);assert.equal(key,"Return");ui.stage="grant";},
-  async click(id){ui.clicks.push(id);if(id===10){ui.notify=false;return;}if(id===5){ui.stage="menu";return;}if(id===6){ui.stage="remove";return;}
-    assert.ok([7,11].includes(id));f.state.permission=id===11;f.state.version++;ui.stage="list";ui.typed=false;if(ui.lost)throw Error("Native acknowledgement lost");}};
+  async click(id){ui.clicks.push(id);if(id===14){if(!ui.closeFault)ui.stage="closed";return;}if(id===13){ui.stage="list";return;}if(id===10){ui.notify=false;return;}if(id===5){ui.stage="menu";return;}if(id===6){ui.stage="remove";return;}
+    assert.ok([7,11].includes(id));f.state.permission=id===11;f.state.version++;ui.stage=ui.autoDismiss?"closed":"list";ui.typed=false;if(ui.lost)throw Error("Native acknowledgement lost");}};
   const owner=createOriginalWindowOwner({ownerBearer:"fixture-owner-native",fetchImpl:f.fetchImpl,nowMillis:()=>f.state.now,sleep:async()=>{}});
   const args={tab,review,reviewDigest:digest(review),readMetadata:owner.read,authorizeAction:async()=>assert.equal(ui.authorized,true),
     record:async v=>{ui.records.push(v);if(ui.expire&&v.phase.endsWith("dispatch"))f.state.now+=600000;},nowMillis:()=>f.state.now};
@@ -26,7 +27,7 @@ function fixture(){
   return {f,ui,args,p,control,channel:createNativeOwnerChannel(args)};
 }
 test("native actions use fresh AX indices, exact owner/file/writer and independent ACL readbacks",async()=>{
-  const t=fixture();await t.channel.grant(t.p,t.control);assert.equal(t.f.state.permission,true);assert.equal(t.ui.notify,false);
+  const t=fixture();const receipt=await t.channel.grant(t.p,t.control);assert.equal(receipt.closure.grantCapability,"consumed");assert.equal(t.ui.stage,"closed");assert.equal(t.f.state.permission,true);assert.equal(t.ui.notify,false);
   await t.channel.remove(t.p,t.control);assert.equal(t.f.state.permission,false);
   assert.deepEqual(t.ui.records.map(r=>r.phase),["native-grant-dispatch","native-grant-verified","native-remove-dispatch","native-remove-verified"]);
   assert.equal(t.f.state.calls.filter(c=>c.method!=="GET").length,0);await assert.rejects(t.channel.grant(t.p,t.control));
@@ -42,4 +43,16 @@ test("lost native grant acknowledgement is not resent; independently observed ac
   const t=fixture();t.ui.lost=true;await assert.rejects(t.channel.grant(t.p,t.control));assert.equal(t.f.state.permission,true);
   await assert.rejects(t.channel.grant(t.p,t.control));assert.equal(t.ui.clicks.filter(id=>id===11).length,1);
   t.ui.lost=false;await t.channel.remove(t.p,t.control);assert.equal(t.f.state.permission,false);
+});
+
+test("grant workflow must be dismissed before a closure receipt; failed dismissal never repeats the grant",async()=>{
+  const t=fixture();t.ui.closeFault=true;await assert.rejects(t.channel.grant(t.p,t.control),/still open/);
+  assert.equal(t.f.state.permission,true);assert.equal(t.ui.records.some(r=>r.closure),false);
+  await assert.rejects(t.channel.grant(t.p,t.control));await t.channel.remove(t.p,t.control);assert.equal(t.f.state.permission,false);
+});
+
+test("an already dismissed grant is verified without reopening the sharing workflow",async()=>{
+  const t=fixture();t.ui.autoDismiss=true;const receipt=await t.channel.grant(t.p,t.control);
+  assert.equal(receipt.closure.grantCapability,"consumed");assert.equal(t.ui.stage,"closed");assert.ok(!t.ui.clicks.includes(14));
+  await t.channel.remove(t.p,t.control);assert.equal(t.f.state.permission,false);
 });

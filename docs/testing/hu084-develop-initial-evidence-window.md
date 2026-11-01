@@ -1,8 +1,8 @@
 # HU-084 — Initial evidence and proposed develop window
 
-Preparation on 2026-11-02; **NOT_READY_INITIAL_SEAL_ORDER**. No maintenance is open.
-The observation/native-permission adapters are published as `658b7e9c`. This block
-prepares evidence and a proposed window; it does not authorize execution.
+Preparation published as `cb92b367`; startup correction **locally rehearsed** on
+2026-11-02 and pending commit. No maintenance is open. The historical preparation
+below retains its actual observation times; this correction does not renew them.
 
 ## Exact evidence and unchanged operation
 
@@ -53,7 +53,7 @@ ready before that confirmation. No actual start/end or IAM condition is filled n
 
 | Offset from future confirmation | Maximum purpose |
 | --- | --- |
-| 0–5 minutes | Read-only reconciliation, named commitments and initial inputs; no grants or maintenance |
+| 0–5 minutes | Read-only reconciliation, reviewed plan and preliminary commitments; no grants or maintenance |
 | 5–8 minutes | Exact owned permissions, minimum 120s IAM propagation, actual initial-evidence completion, one token |
 | 8–10:30 minutes | Barrier/admission and one forward direction |
 | 10:30–11:30 minutes | File permission withdrawal and same-token denial |
@@ -66,40 +66,72 @@ may reject before a displayed boundary. Missing an initial-input or execution
 boundary stops progression; it never silently extends the window.
 
 Proposed command-level values: a 30s observed quiet interval, at most 600s evidence
-age, and initial quiet-end no more than 30s before starting the writer cycle.
+age. The initial capture and quiet interval now follow the actual permission closure
+and final agreement confirmations, within the existing preparation budget. The older
+proposal to finish that interval before starting the writer cycle is superseded.
 The immutable quiet-end remains part of freshness; later readbacks must not redate
 it. These values are proposals, not deployed defaults or proof of historical drain.
 No agreement, risk acceptance or provider timestamp is generated from this schedule.
 
-## Concrete ordering issue found during preparation
+## Corrected startup and recovery
 
-The planned owner permission-controller exception under ADR-0021 must bind the
-actual exact ACL action and its closure. The new attempt has no such receipt yet.
-`createOriginalWindowSessions.start` currently calls `ensureServices` **before**
-the permission action. `composeDevelopWindowServices` immediately constructs the
-observer, which requires the complete verified initial envelope. The actual owned
-permission transition is produced later. Filling that missing receipt with an old
-attempt, future timestamp, null exception or synthetic success would misstate the
-exception and is not an admission solution.
+The journal first records the immutable operation/package, window, planned scope,
+owner/admin intent, historical-risk acceptance and reviewed observation inputs. Only
+four derived scope hashes remain null: owner agreement, administrator agreement,
+combined controls and the historical assessment. The intended participants, authority,
+source, operations, deadlines, risk acceptance time and confirmation ID cannot change.
+The latter hash may change only because the actual assessment time is now observed.
 
-Next implementation: retain the reviewed immutable action/package plan before any
-effect, then complete and freeze the initial evidence/binding after the exact native
-action and its closure are verified, before mint/admission. Reuse the existing
-persistent journal and independent cleanup; partial setup must remain recoverable
-without a valid final envelope. No second workflow engine, automatic inverse,
-relaxed verifier or longer writer token is proposed. This ordering must be locally
-validated before requesting the real window. The 15-minute schedule is consequently
-not ready for execution authorization yet.
+After granting the exact permission, the native channel closes the sharing dialog,
+checks that it is dismissed, independently reads the ACL and returns a closure receipt.
+Its grant capability is single-use; it creates no temporary owner write credential.
+The named owner's login remains a retained human capability under ADR-0021; dismissing
+a dialog does not claim to revoke ownership or close unrelated owner automation.
+A lost acknowledgement or a dialog that stays open yields no successful closure.
 
-## Validation and handoff
+The original session binds that receipt to this attempt, its pre-effect binding and
+the complete before/after permission transition. The explicit `readInitialReview`
+port then supplies real final confirmations and the initial evidence; it receives
+the same bounded fetch/clock, owner capture and authority guard. It must await all
+reads. The sealer does not synthesize confirmations, timestamps, quiet intervals or
+closure facts. Confirmations must bind the completed intent after this grant closes;
+the capture and quiet interval follow them. Old receipts, future dates, changed
+participants/windows/sources, substituted inputs or stale evidence fail closed.
 
-Seven offline preparation checks pass: exact pins/source identity, draft rejection
-before providers, time allocation, strict submission/preparation limits, complete
-cleanup reserves, full inventory normalization and preservation of unknown/retained
-facts. Runtime files and 337 code/package hashes are unchanged after the delivered
-175-local/90-emulator pass; build/lint are reused. This block changes documentation
-and private preparation only, so native/build/emulator suites are not repeated.
+`google-initial-evidence-sealed` is durably appended before requesting the single
+writer token. Service construction now occurs after that receipt exists. The IAM
+minimum wait still starts at the actual grant and includes time spent completing
+the evidence; no additional 120-second wait or larger permission window is added.
+After propagation, the session rechecks the workbook and evidence freshness before
+minting. Admission uses only the verified sealed scope, never the nullable plan.
+
+Recovery reads the same seal historically and never recollects confirmations,
+regrants permissions, mints or resumes execution. If setup stopped before the seal,
+barrier/business inspection remains unavailable and independent ACL/IAM/OAuth cleanup
+still proceeds. An interrupted journal append retains inspection-required status.
+Abort during collection awaits settlement, then cleans without requesting a token.
+No business validator, production path, journal format, auto-inverse or runtime
+permission/token limit was relaxed.
+
+## Validation and next step
+
+Validation: **115 distinct local passes** (91 unchanged regressions from the 113-case run plus the final 15 seal and nine native-channel cases), **90 emulator passes**, zero failures/skips. Build, full lint, focused CJS lint and diff checks pass.
+
+Private correction evidence: `2026-11-02-startup-seal`. Functions build/full lint and
+focused CJS lint pass. Local tests cover successful ordered sealing, the actual
+service factory, changed/old/missing receipts, stale confirmations, expiry during
+IAM propagation, interrupted collection/disk writes and cleanup-only restart.
+The Google HTTP and native UI results in these new tests are synthetic; the emulator
+regression uses real local Firestore. They do not certify joint Google/UI latency or
+actual closure of the live Spanish dialog. Android/iOS app sources are unchanged.
+
+Next prepare the exact pre-effect plan and the concrete initial-review collection
+for the proposed window, retaining the package and refreshing only the evidence
+that requires renewal. Verify that final confirmations, capture and quiet interval
+fit the same preparation deadline before requesting execution. Existing live review
+hashes must be regenerated for this changed code. The historical incomplete draft
+remains non-executable; no real receipt or window is manufactured by this rehearsal.
 
 No IAM/ACL mutation, owner OAuth renewal, Sheets write, FCM, deployment, maintenance
-or production business-data access. Native parity is unchanged. HU-084/HU-085 stay
-open and PR #278 stays draft. No sheet closure or user action is required now.
+or production access in this correction. HU-084/HU-085 stay open and PR #278 stays
+draft. No sheet closure or user action is required now.

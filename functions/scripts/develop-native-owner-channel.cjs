@@ -57,10 +57,25 @@ function createNativeOwnerChannel({tab,review,reviewDigest,readMetadata,authoriz
       assertActive();if(kind==="grant")grantAttempted=true;
       await tab.click(target.id);
       // Settle the native action before reading independent ACLs, even on expiry.
-      await tab.getAXState({disableDiffing:true,emit:false});
+      const settled=lines(await tab.getAXState({disableDiffing:true,emit:false}));
+      if(kind==="grant") {
+        // Dismiss the completed sharing workflow; the named owner keeps their
+        // human login, but this channel's one-shot grant capability is consumed.
+        // No temporary owner write credential is ever created by this adapter.
+        let dismissed=settled;
+        if(settled.some(r=>r.text.includes("drive.google.com/drivesharing/driveshare?id="))) {
+          assertFile(settled);await tab.click(button(settled,"Hecho").id);
+          dismissed=lines(await tab.getAXState({disableDiffing:true,emit:false}));
+        }
+        assert.ok(!dismissed.some(r=>r.text.includes("drive.google.com/drivesharing/driveshare?id=")),"Sharing workflow still open");
+        one(dismissed,r=>r.text.startsWith("row (selected) Regüerta — DEVELOP — Turnos de prueba Hojas de cálculo de Google "));
+        assert.ok(dismissed.some(r=>r.text.includes(`Cuenta de Google: Plus Projects Test (${OWNER})`)));
+      }
       const after=await readMetadata();validateMetadata(after,kind==="grant");assertActive();
       const receipt={phase:`native-${kind}-verified`,permission:{...permission},reviewDigest,startedAtMillis,finishedAtMillis:nowMillis(),
         beforeDigest:digest(before),afterDigest:digest(after)};
+      if(kind==="grant")receipt.closure={kind:"native-owner-grant-workflow-closed",owner:OWNER,actionDigest:digest(receipt),
+        closedAtMillis:receipt.finishedAtMillis,temporaryWriteCredentials:"not-created",grantCapability:"consumed"};
       await record(receipt);assertActive();return receipt;
     } finally {active=false;}
   }

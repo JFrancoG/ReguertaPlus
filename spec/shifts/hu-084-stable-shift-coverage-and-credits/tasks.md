@@ -1837,3 +1837,26 @@ do not request the real window or manufacture a future receipt. Seven offline
 preparation checks pass; runtime hashes and prior 175/90 validation remain unchanged.
 See [initial evidence/window](../../../docs/testing/hu084-develop-initial-evidence-window.md).
 No maintenance, production, native-app or permission mutation; stories/PR stay open.
+
+## Post-permission initial seal — locally rehearsed, 2026-11-02
+
+Preparation committed/pushed as `cb92b367`. The new local correction binds a fixed
+pre-effect plan to this attempt's real native permission-action/closure receipt.
+Final owner/admin confirmations, capture and quiet horizon precede the durable
+initial seal and single token. Only four derived scope hashes and the risk assessment
+time are completed; participants, operations, source, deadlines and risk acceptance
+stay fixed. Admission receives the final sealed scope. The same journal preserves
+partial setup; recovery never recollects confirmations, regrants or mints. Missing
+seal, lost native acknowledgement, expired evidence, cancellation or failed append
+retain containment/inspection semantics. Actual native grant dismisses the sharing
+dialog and checks dismissal; it does not claim owner logout or revoked ownership.
+
+Validation: 115 distinct local passes (91 unchanged plus final 15 seal and nine native-channel cases), 90
+Firestore emulator passes, zero failures/skips; build/full lint/focused CJS lint pass.
+Google/native surfaces are synthetic in the new tests; the real service factory is
+exercised through seal construction, and Firestore regressions use localhost demo
+only. Evidence: `2026-11-02-startup-seal`. No shared read/write, IAM/ACL/OAuth change,
+maintenance, production or native-app change. Existing package/operation identities
+remain; final live plan/review/code pins and actual window commitments are pending.
+Next prepare that exact collection against the unchanged preparation deadline before
+requesting execution. Stories remain open and PR #278 draft; no user action now.

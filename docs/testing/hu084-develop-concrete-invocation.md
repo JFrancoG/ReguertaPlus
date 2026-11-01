@@ -1,6 +1,6 @@
 # HU-084 — Concrete develop invocation preparation
 
-Current preparation (2026-11-02): [initial evidence and proposed window](hu084-develop-initial-evidence-window.md). Adapters published as `658b7e9c`; the new preparation identifies an initial-seal ordering gap before window authorization. Earlier sections below are historical checkpoints.
+Current preparation (2026-11-02): [initial evidence and proposed window](hu084-develop-initial-evidence-window.md). Preparation published as `cb92b367`; the initial-seal ordering correction is locally rehearsed and pending commit, with actual window collection/authorization still absent. Earlier sections below are historical checkpoints.
 
 ## Composed observation and native-permission adapters — 2026-11-01
 
