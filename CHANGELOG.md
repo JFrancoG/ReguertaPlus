@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-11-01 | ✨ feat(shifts): bind copy recovery admission evidence
+
 - 2026-11-01 | ✨ feat(shifts): prepare inverse-only copy recovery
 
 - 2026-11-01 | ✨ feat(shifts): rehearse full copy permission lifecycle

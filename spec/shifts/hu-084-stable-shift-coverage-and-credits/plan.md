@@ -3081,3 +3081,21 @@ Next incorporate measured receipts into admission preparation and review the rem
 uninterrupted real roundtrip/integrated-window timing. Neither is proved by this separate
 recovery. Authorization is consumed. Only outcome docs remain local/uncommitted; issues
 stay open and PR #278 draft. See the bilingual window guide and current tasks.
+
+
+### Recovery admission evidence and timing review — 2026-11-01
+
+`82029bf8` delivers outcome documentation. Local code now binds the digest-pinned
+53-cell recovery through review package, materializer and admission reporting without
+authorizing execution. Offline retained-data regeneration preserves source policy,
+forward/inverse business intents, operation identities and original observation ages.
+The older ten-row/A1 exact-code proofs no longer match backend src/lib; they are
+retained untouched and separately indexed, not silently recertified or rehashed.
+Build/lint and152 tests pass, including21 new evidence rejection/integration cases.
+
+Timing review: IAM122,346ms, inverse verified142,992ms, total194,571ms, OAuth42,288ms.
+These are one recovery, not a combined cycle. OAuth alone may take120s, so the120s
+cleanup reserve cannot bound every cleanup phase. Next group historical compatibility
+review with a complete deadline budget and slow/failure local rehearsals, before any
+new real copy run. No live maintenance, new provider calls or production access.
+The integration remains local/uncommitted; HU-084/HU-085 and draft PR #278 stay open.

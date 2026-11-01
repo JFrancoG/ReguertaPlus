@@ -5,6 +5,64 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
+## Recibos de recuperación incorporados a la preparación de admisión — 2026-11-01
+
+La documentación del resultado está commiteada y pusheada como `82029bf8`. El código
+nuevo revisa autorización, fuentes exactas, intención inversa, lectura íntegra,
+marcadores/conservación, única emisión, tiempos y limpieza independiente. Reutiliza
+paquete, materializador e inspección de admisión; no añade otro ejecutor ni cliente
+real. El manifiesto fija la huella de la evidencia. Rechaza contenido alterado,
+accesos residuales, fuentes distintas o tiempos incoherentes; el éxito histórico
+no acredita permisos ni controles actuales.
+
+Paquete privado: `2026-11-01-helper-recovery-admission`. Huella de evidencia terminada
+en `247e0f75b4d41`, paquete de revisión
+`fc6baf6f6a5502a2376f117151c10eccc18423a1818fc78bf4e97e4ec55db4ee`, preparación
+`50a4e1bc48d27cb9e1e7800bf31b9c21bbb601c7c4452ccd3c9ba7c196e06471`.
+Regeneración sin conexión sobre fuentes conservadas: política, cambios de ida/inversa,
+identidades de operación y antigüedad de las observaciones originales sin cambios.
+Se mantienen `canApply:false` y `canEnterMaintenance:false`.
+
+La primera regeneración rechazó correctamente las pruebas antiguas de diez filas
+y A1 original: su vínculo abarca todos los bytes src/lib del backend, anteriores
+a la corrección del validador de marcadores. Sus archivos, huellas y paquete previo
+se conservan en `retained-prior-evidence-private.json`, indexado junto al paquete nuevo.
+**No se certifican de nuevo para el código actual** ni se sustituyen sus huellas.
+La evidencia compatible con la ejecución actual es la recuperación de 53 celdas.
+Queda pendiente revisar la compatibilidad histórica de esas fuentes; la copia
+sintética no acredita permisos de la hoja original ni controles actuales.
+
+### Revisión de tiempos y controles pendientes
+
+| Fase | Recibo real de recuperación | Límite o evidencia pendiente |
+| --- | --- | --- |
+| Propagación IAM | 122.346ms, antes del token | Mínimo120s / máximo180s actuales, sin ampliación implícita |
+| Inversa verificada | 142.992ms desde el arranque | Solo inversa; no mide ida y vuelta juntas |
+| Ejecución y limpieza | 194.571ms | Incluye IAM y OAuth; sumar otros intentos no prueba una sola ventana |
+| Limpieza OAuth | 42.288ms | El proveedor admite hasta120s; una lectura anterior necesitó unos89s |
+| Token del escritor | Una solicitud de300s | Antes de cada lote deben quedar más de150s de token y ventana |
+| Barrera, lecturas frescas, Firestore y Sheets | Sin medida real conjunta | Emulador/dobles no acreditan latencias de Google |
+
+**Hallazgo:** los120s reservados no garantizan el peor caso de toda la limpieza.
+Solo OAuth puede consumir120s, además de retirada/lectura del permiso, denegación
+con el token aún válido, retirada IAM, desactivación/lectura de identidad e inventario.
+El control previo de150s (30s de petición +120s de reserva) no demuestra que todo ello
+quepa. No se han ampliado tiempos, alcance del token ni concesiones.
+
+Siguiente bloque agrupado: revisar la compatibilidad histórica y fijar un presupuesto
+de tiempo de extremo a extremo, separando la denegación del token del escritor,
+OAuth del propietario y el fin de la ventana. Ensayar localmente lentitud, fallos y
+ciclo de dos lotes antes de pedir otro ensayo real en copia. Mantener un solo token
+y detener antes de escribir si no queda margen. El mantenimiento original necesitará
+después observaciones frescas, admisión y una ventana autorizada por separado.
+
+Validación: build/lint, lint CJS focalizado y **152 pruebas**, sin fallos ni omisiones;
+21 casos nuevos generan recibos con ejecutor/adaptador reales y proveedores en memoria.
+La evidencia real retenida pasa la revisión sin conexión; se rechazan alteraciones,
+segunda emisión, limpieza incompleta y tiempos falsos. Sin nuevas llamadas a Google,
+IAM, Sheets, Firestore ni producción; sin cambios nativos ni diferencia de paridad.
+Integración local, sin commit. No se repiten los emuladores de migración sin cambios.
+
 ## Inversa autorizada completada y accesos retirados — 2026-11-01
 
 El ejecutor está commiteado y pusheado como `a2a0b963`; rama, remoto y PR #278 en

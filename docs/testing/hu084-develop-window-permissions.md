@@ -5,6 +5,63 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Recovery receipts bound to admission preparation — 2026-11-01
+
+Recovery outcome documentation is delivered/pushed as `82029bf8`. New local code
+reviews the retained approval, exact execution sources, inverse intent, complete
+readback, marker/preservation manifest, single-mint receipt, timing and independent
+cleanup evidence. It uses the existing package/materializer/admission path; no
+second executor or live client is added. The raw evidence is digest-pinned in the
+manifest. Invalid content, leftover access, changed sources or inconsistent times
+reject; no historical result makes current controls or writer authority true.
+
+Private packet: `2026-11-01-helper-recovery-admission`. Evidence digest ends
+`247e0f75b4d41`, review package `fc6baf6f6a5502a2376f117151c10eccc18423a1818fc78bf4e97e4ec55db4ee`,
+controlled preparation `50a4e1bc48d27cb9e1e7800bf31b9c21bbb601c7c4452ccd3c9ba7c196e06471`.
+Regeneration is offline from retained sources; source policy, forward/inverse business
+intents, operation identities and original observation ages remain unchanged.
+`canApply:false` and `canEnterMaintenance:false` remain explicit.
+
+The first regeneration correctly rejected the older ten-row and original-A1 proofs:
+their source binding includes all backend src/lib bytes, preceding the later
+Sheets marker-validator correction. Their original files/digests and previous review
+package are preserved in `retained-prior-evidence-private.json`, indexed alongside
+the new package. They are **not recertified for current execution** or silently
+rehash-replaced. The new executable-code-compatible evidence is the 53-cell recovery.
+The separate historical source-compatibility review remains pending; no original-file
+permission or current-control claim follows from this synthetic-copy result.
+
+### Timing review and remaining gates
+
+| Stage | Actual recovery receipt | Remaining limit or missing evidence |
+| --- | --- | --- |
+| IAM propagation | 122,346ms, before token | Existing minimum120s / maximum180s; no implicit extension |
+| Inverse verified | 142,992ms from runner start | One inverse only; not the combined forward/inverse duration |
+| Full attempt and cleanup | 194,571ms | Includes IAM and OAuth; do not add other attempts to claim one-window proof |
+| OAuth cleanup | 42,288ms | Provider allows up to120s; earlier owner read needed about89s |
+| Writer token | One requested300s token | Before **each** batch, remaining token and owner window must exceed150s |
+| Shared barrier, fresh reads, Firestore and Sheets | No joint live measurement | Emulator/doubles do not establish Google timing |
+
+**Finding:** the120s reserve is not a proven worst-case allowance for the entire
+cleanup. Owner OAuth alone can consume120s, in addition to file removal/readback,
+same-unexpired-token denial, IAM removal, identity disable/readback and runtime checks.
+The150s submission fence (30s request +120s reserve) therefore must not be advertised
+as proof that all cleanup fits. No timing limits, token scope or grant were extended.
+
+Next group the remaining local work: review historical source compatibility and
+bind an end-to-end deadline budget, separating writer-token denial from owner OAuth
+and the overall window deadline. Rehearse slow/error paths and a complete two-batch
+cycle with that budget before requesting another live copy run. Keep a single token;
+stop before a write if the remaining budget is insufficient. Original maintenance
+requires its own fresh observations, admission and explicit window afterward.
+
+Validation: build/lint, focused CJS lint and **152 tests**, zero failures/skips;
+21 new cases use actual runner/adapter receipts with in-memory providers. The real
+retained receipts pass independent offline review; altered content, second mint,
+cleanup failures and false timing reject. No new Google, IAM, Sheets, Firestore or
+production calls; no native changes/parity gap. This integration remains local and
+uncommitted. Existing emulator migration engines are unchanged and were not rerun.
+
 ## Authorized inverse completed and contained — 2026-11-01
 
 The recovery runner is committed/pushed as `a2a0b963`; branch, remote and draft

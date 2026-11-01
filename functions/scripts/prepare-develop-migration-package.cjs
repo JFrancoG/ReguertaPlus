@@ -12,6 +12,7 @@ const {checkContentPositions, decodeRESTValue} = require("./rehearse-develop-shi
 const {reviewDevelopCaptureControls, PAIRS} = require("./prepare-develop-planner-entry.cjs");
 const {reviewWriterRehearsal} = require("./develop-writer-rehearsal-evidence.cjs");
 const {reviewOriginalWriterCheck} = require("./develop-original-writer-evidence.cjs");
+const {reviewHelperRecovery} = require("./develop-helper-recovery-evidence.cjs");
 const PROJECT = "reguerta-9f27f", ROOT = "develop/plus-collections";
 const WORKBOOK = "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A";
 const PREFIX = `projects/${PROJECT}/databases/(default)/documents/`;
@@ -61,11 +62,14 @@ function literalCells(book) {
 function prepareDevelopMigrationPackage(input) {
   const hasWriter = Object.hasOwn(input, "writerRehearsal");
   const hasOriginal = Object.hasOwn(input, "originalWriterCheck");
+  const hasRecovery = Object.hasOwn(input, "helperCopyRecovery");
+  const recoveryKeys = hasRecovery ? ["helperCopyRecovery", "reviewedHelperCopyRecoveryDigest"] : [];
   const originalKeys = hasOriginal ? ["originalWriterCheck", "reviewedOriginalWriterCheckDigest"] : [];
   const writerKeys = hasWriter ? ["writerRehearsal", "reviewedWriterRehearsalDigest"] : [];
-  assert.deepEqual(Object.keys(input).sort(), [...FILES, "reviewedContentDigest", "reviewedProposalDigest", ...writerKeys, ...originalKeys].sort());
+  assert.deepEqual(Object.keys(input).sort(), [...FILES, "reviewedContentDigest", "reviewedProposalDigest", ...writerKeys, ...originalKeys, ...recoveryKeys].sort());
   const writerRehearsal = hasWriter ? reviewWriterRehearsal(input.writerRehearsal, input.reviewedWriterRehearsalDigest, WORKBOOK) : null;
   const originalWriterCheck = hasOriginal ? reviewOriginalWriterCheck(input.originalWriterCheck, input.reviewedOriginalWriterCheckDigest, WORKBOOK) : null;
+  const helperCopyRecovery = hasRecovery ? reviewHelperRecovery(input.helperCopyRecovery, input.reviewedHelperCopyRecoveryDigest, WORKBOOK) : null;
   const {snapshot, proposal, controls, reviewedControls, indexes} = structuredClone(input);
   const {contentDigest, proposalDigest, ...proposalBody} = proposal;
   assert.equal(contentDigest, input.reviewedContentDigest); assert.equal(proposalDigest, input.reviewedProposalDigest);
@@ -205,6 +209,7 @@ function prepareDevelopMigrationPackage(input) {
   // forward/inverse intent or operation IDs. It grants no runtime authority.
   if (writerRehearsal) body.writerRehearsal = writerRehearsal;
   if (originalWriterCheck) body.originalWriterCheck = originalWriterCheck;
+  if (helperCopyRecovery) body.helperCopyRecovery = helperCopyRecovery;
   return {...body,packageDigest:digest(body)};
 }
 
@@ -212,14 +217,17 @@ function loadManifest(filename) {
   const manifest = JSON.parse(fs.readFileSync(filename, "utf8"));
   const hasWriter = Object.hasOwn(manifest.files, "writerRehearsal");
   const hasOriginal = Object.hasOwn(manifest.files, "originalWriterCheck");
+  const hasRecovery = Object.hasOwn(manifest.files, "helperCopyRecovery");
   assert.deepEqual(Object.keys(manifest).sort(), ["files","reviewedContentDigest","reviewedProposalDigest",
     ...(hasWriter ? ["reviewedWriterRehearsalDigest"] : []),
-    ...(hasOriginal ? ["reviewedOriginalWriterCheckDigest"] : [])].sort());
-  const files = [...FILES, ...(hasWriter ? ["writerRehearsal"] : []), ...(hasOriginal ? ["originalWriterCheck"] : [])];
+    ...(hasOriginal ? ["reviewedOriginalWriterCheckDigest"] : []),
+    ...(hasRecovery ? ["reviewedHelperCopyRecoveryDigest"] : [])].sort());
+  const files = [...FILES, ...(hasWriter ? ["writerRehearsal"] : []), ...(hasOriginal ? ["originalWriterCheck"] : []), ...(hasRecovery ? ["helperCopyRecovery"] : [])];
   assert.deepEqual(Object.keys(manifest.files).sort(), files.sort());
   const input = {reviewedContentDigest:manifest.reviewedContentDigest,reviewedProposalDigest:manifest.reviewedProposalDigest};
   if (hasWriter) input.reviewedWriterRehearsalDigest = manifest.reviewedWriterRehearsalDigest;
   if (hasOriginal) input.reviewedOriginalWriterCheckDigest = manifest.reviewedOriginalWriterCheckDigest;
+  if (hasRecovery) input.reviewedHelperCopyRecoveryDigest = manifest.reviewedHelperCopyRecoveryDigest;
   for (const key of files) {
     const entry = manifest.files[key]; assert.ok(path.isAbsolute(entry.path)); assert.ok(fs.statSync(entry.path).size <= 16 * 1024 * 1024);
     const bytes = fs.readFileSync(entry.path); assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.sha256, `${key} file changed`);

@@ -45,6 +45,7 @@ function prepareForTarget({sourceInput,reviewPackage,cloneCapture}, targetProjec
     reviewPackageDigest:reviewPackage.packageDigest,reviewForwardDigest:reviewPackage.forwardDigest,reviewInverseDigest:reviewPackage.inverseDigest});
   if (reviewPackage.writerRehearsal) body.writerRehearsal = structuredClone(reviewPackage.writerRehearsal);
   if (reviewPackage.originalWriterCheck) body.originalWriterCheck = structuredClone(reviewPackage.originalWriterCheck);
+  if (reviewPackage.helperCopyRecovery) body.helperCopyRecovery = structuredClone(reviewPackage.helperCopyRecovery);
   return {...body,preparedDigest:digest(body)};
 }
 const materializeDevelopMigrationPreparation = input => prepareForTarget(input,migration.PROJECT_ID);

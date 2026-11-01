@@ -1427,8 +1427,12 @@ scope. Private record: `2026-11-01-google-batch-integration`; #268/#269 open, #2
   ten-minute window; restore 53 cells/update two markers in one batch with full preservation.
 - [x] Verify permission removal, same-token denial, empty temporary IAM, disabled identity
   and OAuth denial in both APIs; cleanup complete in the 194,571ms attempt.
-- [ ] Incorporate inverse receipts into admission preparation and review remaining
-  uninterrupted roundtrip / integrated-window timing; no maintenance authorization.
+- [x] Bind reviewed inverse receipts through package, materializer and admission;
+  preserve original business intents and fail closed on malformed or uncontained proof.
+- [x] Review measured timing and identify the120s cleanup allowance mismatch: OAuth
+  alone permits120s; combined lifecycle remains unmeasured.
+- [ ] Review prior ten-row/A1 exact-source compatibility and bound/rehearse complete
+  cleanup deadlines locally before another real two-batch copy lifecycle.
 
 Historical forward execution stopped before inverse. The separately authorized recovery
 now restores the copy with complete preservation and cleanup verified. No uninterrupted
@@ -1445,3 +1449,11 @@ retains its receipts and independent checks. No maintenance, original workbook, 
 or native change. Only outcome documentation remains local/uncommitted. The preparation
 request stays unchanged as a historical unauthorized template; execution has a separate
 consumed authorization receipt. See the bilingual window guide for measured timings.
+
+### Recovery receipt integration — 2026-11-01
+
+Outcome docs delivered as `82029bf8`. New local integration and offline regeneration
+pass build/lint and152 tests. Old ten-row/A1 proofs are retained separately with exact
+hashes, not recertified against changed backend sources. Real recovery receipts are
+bound; original source policy/intents and observation ages remain unchanged. No live
+calls, maintenance or production. See the bilingual window guide for all timing gates.
