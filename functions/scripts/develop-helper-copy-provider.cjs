@@ -74,8 +74,8 @@ function createCopyOwner({fileId,protectedWorkbookIds,ownerBearer,fetchImpl=fetc
     finally{bearer=null;ownerBearer=null;}
   })();}};
 }
-function openCopyWriter({fileId,protectedWorkbookIds,bearer,expiresAtMillis,fetchImpl=fetch,nowMillis=Date.now}) {
-  destination(fileId,protectedWorkbookIds);const u=urls(fileId);let batches=0;
+function openCopyWriter({fileId,protectedWorkbookIds,bearer,expiresAtMillis,maximumBatches=2,fetchImpl=fetch,nowMillis=Date.now}) {
+  destination(fileId,protectedWorkbookIds);assert.ok([1,2].includes(maximumBatches));const u=urls(fileId);let batches=0;
   const request=async(url,method,body,timeout)=>{assert.ok(nowMillis()<expiresAtMillis);return http(fetchImpl,bearer,url,method,body,timeout);};
   return {probe:async()=>{const r=await request(u.drive+"?fields=id");if(r.status===200)assert.equal(r.data.id,fileId);return {status:r.status};},close(){bearer=null;},sheets:{
     async get(params,options) {
@@ -83,7 +83,7 @@ function openCopyWriter({fileId,protectedWorkbookIds,bearer,expiresAtMillis,fetc
       const q=new URLSearchParams({fields:params.fields});for(const r of params.ranges??[])q.append("ranges",r);
       const result=await request(u.sheets+"?"+q);if(result.status!==200)throw Error("copy_read_unavailable");return {data:result.data};
     },async batchUpdate(params,options) {
-      assert.equal(params.spreadsheetId,fileId);assert.equal(options.retry,false);assert.ok(batches<2);batches++;
+      assert.equal(params.spreadsheetId,fileId);assert.equal(options.retry,false);assert.ok(batches<maximumBatches);batches++;
       const requests=params.requestBody.requests;assert.equal(requests.length,55);
       assert.equal(requests.filter(r=>r.updateCells).length,53);
       assert.ok(requests.every(r=>r.updateCells||r.createDeveloperMetadata||r.updateDeveloperMetadata));

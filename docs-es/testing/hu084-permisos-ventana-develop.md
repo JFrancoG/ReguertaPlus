@@ -5,6 +5,51 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
+## Recuperación mediante inversa preparada — 2026-11-01
+
+La corrección y la conciliación anteriores están commiteadas y pusheadas como
+`eae86a89` y `61fe86e9`, con HEAD remoto comprobado. Esta nueva preparación es local
+posterior a esa entrega. Aquí no se ha ejecutado ninguna operación de Google, IAM o Sheets.
+
+`prepareCopyRecovery` reutiliza el ejecutor de copia y el adaptador de Sheets.
+Comprueba la preparación consumida, la petición/manifiesto de ida, su limpieza final
+y la imagen completa conservada. Regenera la receta con el código actual y mantiene
+la identidad histórica del código como evidencia. Rechaza cambios en la receta,
+limpieza incompleta, marcadores incorrectos o cambios ajenos de celdas/formato.
+El paquete vincula código actual, peticiones exactas, imagen y versión revisada.
+
+La versión revisada de esta copia es **14**. El único lote inverso incluye
+**53 restauraciones de ayudantes y dos actualizaciones de marcadores existentes**
+(55 peticiones). Conserva fechas, orden, nombres, notas, fórmulas y formato; los dos
+marcadores permanecen como constancia de la inversa. El modo nuevo no ejecuta la ida
+y el transporte concreto permite como máximo un intento.
+
+La ejecución exige nueva autorización explícita de la inversa y una confirmación
+separada de diez minutos del propietario. Antes de permisos se releen acceso exclusivo
+del propietario, imagen, versión, identidad deshabilitada y aislamiento de ejecución.
+Cualquier diferencia detiene para conciliar. Tras conceder acceso se comprueba otra
+vez la imagen antes del único token de 300s, con espera IAM mínima de 120s y margen
+de 150s para envío/limpieza antes de escribir. Se verifica el lote/manifiesto exacto y
+se guarda la lectura completa antes de validarla. La incertidumbre detiene sin repetir.
+Se retira el permiso creado, se prueba denegación con el mismo token todavía válido,
+se retira solo la condición IAM propia, se deshabilita/relee la cuenta y se revoca
+OAuth comprobando las dos APIs. No se reutilizan permisos ni ventanas anteriores.
+
+Se ejecutará en un proceso Node nuevo, sin módulos antiguos en caché. El paquete
+privado `2026-11-01-copy-inverse-preparation` contiene el plan exacto y una solicitud
+de ejecución **sin autorizar**, sin credenciales. El ensayo local, con la red bloqueada,
+aplica la inversa a la imagen real guardada, simula pérdida de respuesta, verifica
+lectura/restauración y limpieza con dobles. Cero llamadas a Google; no restaura la copia real.
+
+Validación: build/lint, sintaxis/diff y **133 pruebas focalizadas**, sin fallos ni omisiones,
+más el ensayo sin conexión sobre la captura real. Nueve casos nuevos cubren alcance
+solo inversa, recibos consumidos, cambios antes/después de permisos, versión/marcadores,
+resultado incierto y límite de un intento. Sin cambios nativos ni diferencia de paridad.
+Las nueve pruebas anteriores de emulador Firestore no cambian y no se repiten para
+esta preparación exclusiva de Sheets. Siguen pendientes inversa real, ciclo completo
+sin interrupciones, mantenimiento y activación. El siguiente paso es autorizar esta
+inversa, preparar OAuth y pedir la ventana con la copia cerrada justo antes de ejecutar.
+
 ## Ciclo completo de permisos en copia sintética — 2026-11-01
 
 El bloque de lecturas/lote está publicado como `a2ba5dfa`. La nueva composición

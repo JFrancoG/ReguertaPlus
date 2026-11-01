@@ -5,6 +5,51 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Inverse-only recovery prepared — 2026-11-01
+
+The preceding correction and full-copy reconciliation are committed and pushed as
+`eae86a89` and `61fe86e9`; remote HEAD was verified. This new recovery preparation is
+local after that delivery. No Google, IAM or Sheets operation was executed here.
+
+`prepareCopyRecovery` reuses the existing copy runner and Sheets adapter. It verifies
+the consumed preparation, forward request/manifest, terminal cleanup and complete
+retained image. It regenerates the business recipe with current code while retaining
+the historical source identity as evidence. A changed recipe, incomplete cleanup,
+wrong marker or unrelated cell/format change rejects preparation. The package binds
+the current adapter/validator code, exact inverse requests, image and reviewed version.
+
+For this copy the reviewed version is **14**. The single inverse batch contains
+**53 helper-cell restorations and two existing-marker updates** (55 requests).
+Dates, order, names, notes, formulas and formatting are preserved; the two markers
+remain as receipts of the inverse, rather than being deleted. The new runner mode
+never executes the forward operation and the concrete transport permits one attempt.
+
+Execution still requires new explicit inverse authorization and a separate confirmed
+ten-minute owner window. Before permissions, reread owner-only ACL, full image and
+version, disabled identity and runtime isolation. Any drift stops for reconciliation.
+Recheck the image after the grant and before the sole 300s token, wait at least 120s
+for IAM, and retain 150s for submission/cleanup before writing. Reuse the exact batch
+and preservation manifest; save full readback before validation. An uncertain result
+stops without retry. Remove the created copy permission, prove denial with the same
+unexpired token, remove only the own IAM condition, disable/read identity and revoke
+owner OAuth with denial in both APIs. Prior approvals/windows are not reused.
+
+Run a fresh Node process with current modules; do not use a persistent module cache
+from earlier code. The private `2026-11-01-copy-inverse-preparation` packet contains
+the exact plan and an **unauthorized** execution request, with no credentials. Its
+network-trapped rehearsal applies the inverse to the saved real image, loses the
+response, verifies readback/restoration and exercises cleanup entirely with doubles.
+It makes zero Google calls and does not restore the real copy.
+
+Validation: build/lint, CJS syntax/diff, **133 focused tests**, zero failures/skips,
+plus the offline rehearsal on the retained real image. The nine new cases cover
+inverse-only scope, consumed receipts, pre/post-grant drift, version/marker changes,
+unknown result and one-attempt transport. No native change/parity gap. The previous
+nine Firestore-emulator cases are unchanged and were not rerun for this Sheets-only
+preparation. Real inverse, uninterrupted roundtrip, maintenance and activation remain
+pending. Next authorize this exact inverse, then prepare owner OAuth and request the
+closed-copy window immediately before execution.
+
 ## Full synthetic-copy permission lifecycle — 2026-11-01
 
 The Google-read/batch block is delivered as `a2ba5dfa`. The new explicit copy

@@ -124,3 +124,84 @@ test("runtime inventory rejects incomplete pages, unreachable resources and any 
     await assert.rejects(read());
   }
 });
+
+async function recoveryFixture(t) {
+  const f=await fixture(t);
+  const {createShiftSheetsAdapter}=require('../lib/shift-sheets.js');
+  const {createShiftSheetsConfig}=require('../lib/shift-sheets-config.js');
+  const {createShiftSheetsOwnerPreservationManifest:manifest}=require('../lib/shift-sheets-owner-manifest.js');
+  const {prepareCopyRecovery}=require('../scripts/rehearse-develop-helper-copy.cjs');
+  const api=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:'develop',workbooks:{develop:f.prepared.fileId}}),sheets:f.sheets});
+  let forwardIntent;
+  f.sheets.onMutation=async()=>{for(const s of f.sheets.state.sheets)for(const m of s.developerMetadata)m.location.locationType='SHEET';};
+  assert.equal((await api.reconcile({...f.prepared.forward,authorizeMutation:async batch=>{
+    forwardIntent={requestDigest:batch.requestDigest,requests:batch.requests,preservation:manifest({before:f.prepared.baseline,requests:batch.requests})};
+  }})).kind,'verified');
+  const evidence={original:f.prepared,forwardIntent,consumedReceiptId:'consumed-forward',
+    terminal:{kind:'inspection_required',failure:{phase:'forward'},mintAttempted:true,completedBatches:0,cleanupFailures:[],canRetry:false},
+    observation:await f.args.owner.observe(false)};
+  const recovery=await prepareCopyRecovery(evidence);
+  f.args.prepared=recovery;f.args.input={...f.args.input,inverseOnly:true,preparationDigest:recovery.preparationDigest,receiptId:'explicit-inverse'};
+  f.sheets.mutations.length=0;
+  return {...f,recovery,evidence};
+}
+test('inverse-only recovery restores the retained copy with one batch and keeps the inverse receipt markers',async t=>{
+  const f=await recoveryFixture(t);f.sheets.loseAcknowledgement=true;
+  const open=f.args.openWriter;f.args.openWriter=async args=>{assert.equal(args.maximumBatches,1);return open(args);};
+  const result=await runCopy(f.args);
+  assert.equal(result.kind,'inverse-copy-restored-and-contained');assert.equal(result.completedBatches,1);
+  assert.equal(f.state.mintCount,1);assert.equal(f.sheets.mutations.length,1);
+  const requests=f.sheets.mutations[0].requestBody.requests;
+  assert.equal(requests.filter(r=>r.updateCells).length,53);assert.equal(requests.filter(r=>r.updateDeveloperMetadata).length,2);
+  const markers=f.sheets.state.sheets.flatMap(s=>s.developerMetadata);
+  assert.equal(markers.length,2);markers.forEach(m=>assert.equal(JSON.parse(m.metadataValue).operationId,f.prepared.inverse.operationId));
+  const restored=structuredClone(f.sheets.state);restored.sheets.forEach(s=>{s.developerMetadata=[];});assert.deepEqual(restored,f.prepared.baseline);
+  assert.equal(f.state.disabled,true);assert.equal(f.state.permission,false);assert.deepEqual(f.state.policy.bindings,[]);assert.equal(f.state.closed,1);
+  const names=fs.readdirSync(path.join(f.args.journalRoot,f.args.input.receiptId));assert.ok(names.includes('inverse-readback.json'));assert.ok(!names.includes('forward-intent.json'));
+  await assert.rejects(runCopy(f.args),{code:'EEXIST'});assert.equal(f.state.mintCount,1);
+});
+test('recovery preparation rejects changed cells, markers, historical recipe, unclosed cleanup and inverse attempts',async t=>{
+  const {prepareCopyRecovery}=require('../scripts/rehearse-develop-helper-copy.cjs');
+  const {createShiftPlanningDigest:digest}=require('../lib/shift-planning-digest.js');
+  const f=await recoveryFixture(t);
+  for(const change of [
+    e=>{e.observation.snapshot.sheets[0].data[0].rowData[150].values[0].note='unrelated edit';},
+    e=>{e.observation.snapshot.sheets[0].developerMetadata[0].metadataValue='wrong marker';},
+    e=>{e.original.inverse.rows[0].helperUserId='unreviewed';const {preparationDigest,...body}=e.original;e.original.preparationDigest=digest(body);},
+    e=>{e.terminal.cleanupFailures=['unknown'];},
+    e=>{e.terminal.failure.phase='inverse';},
+    e=>{e.forwardIntent.requests.pop();},
+  ]){const evidence=structuredClone(f.evidence);change(evidence);await assert.rejects(prepareCopyRecovery(evidence));}
+  assert.equal(f.state.enabled,0);assert.equal(f.state.mintCount,0);
+});
+for(const drift of ['version','before-grant','after-grant','marker-after-mint'])test(`inverse recovery refuses ${drift} drift and cleans owned permissions`,async t=>{
+  const f=await recoveryFixture(t),observe=f.args.owner.observe,open=f.args.openWriter;
+  if(drift==='version')f.args.owner.observe=async writer=>({...await observe(writer),version:'999'});
+  if(drift==='before-grant')f.sheets.state.sheets[0].data[0].rowData[0].values[0].note='changed';
+  if(drift==='after-grant'){const grant=f.args.owner.grant;f.args.owner.grant=async()=>{const r=await grant();f.sheets.state.sheets[0].data[0].rowData[0].values[0].note='changed';return r;};}
+  if(drift==='marker-after-mint')f.args.openWriter=async args=>{f.sheets.state.sheets[0].developerMetadata[0].metadataId+=123;return open(args);};
+  const result=await runCopy(f.args);assert.equal(result.kind,'inspection_required');assert.equal(f.sheets.mutations.length,0);
+  if(['version','before-grant'].includes(drift))assert.equal(f.state.enabled,0);
+  if(drift!=='marker-after-mint')assert.equal(f.state.mintCount,0);
+  assert.equal(f.state.disabled,true);assert.equal(f.state.permission,false);assert.deepEqual(f.state.policy.bindings,[]);assert.equal(f.state.closed,1);
+});
+test('inverse requires its own explicit approval and a different consumed receipt',async t=>{
+  for(const change of [f=>{f.args.input.inverseOnly=false;},f=>{f.args.input.receiptId=f.evidence.consumedReceiptId;},f=>{f.args.prepared.maximumBatches=2;}]){
+    const f=await recoveryFixture(t);change(f);await assert.rejects(runCopy(f.args));assert.equal(f.state.enabled,0);assert.equal(f.state.mintCount,0);
+  }
+});
+test('uncertain inverse stops without replay and keeps cleanup independent',async t=>{
+  const f=await recoveryFixture(t);f.sheets.rejectBeforeApply=true;
+  const result=await runCopy(f.args);assert.equal(result.kind,'inspection_required');assert.equal(result.failure.phase,'inverse');
+  assert.equal(result.completedBatches,0);assert.equal(f.sheets.mutations.length,1);assert.equal(result.canRetry,false);
+  assert.equal(f.state.permission,false);assert.equal(f.state.disabled,true);assert.deepEqual(f.state.policy.bindings,[]);
+  await assert.rejects(runCopy(f.args));assert.equal(f.sheets.mutations.length,1);
+});
+test('copy transport enforces one inverse attempt even after an unknown network result',async()=>{
+  let calls=0;const fileId='synthetic-copy-only';
+  const writer=openCopyWriter({fileId,protectedWorkbookIds:[FILE,'1bBJX9VqadOTFJ_HyKHLcsikFjytLr7jPu9GyFUJ1nwE'],
+    bearer:'private-test-token',expiresAtMillis:999999,maximumBatches:1,nowMillis:()=>1,
+    fetchImpl:async()=>{calls++;throw Error('unknown');}});
+  const body={spreadsheetId:fileId,requestBody:{requests:[...Array.from({length:53},()=>({updateCells:{}})),{updateDeveloperMetadata:{}},{updateDeveloperMetadata:{}}]}};
+  await assert.rejects(writer.sheets.batchUpdate(body,{retry:false}));await assert.rejects(writer.sheets.batchUpdate(body,{retry:false}));assert.equal(calls,1);writer.close();
+});

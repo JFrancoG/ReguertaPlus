@@ -3070,6 +3070,9 @@ owner preservation; its inverse was not sent. All temporary access was removed a
 the identity disabled. A complete owner-only read now verifies the retained forward
 manifest under stable version14. The old/new validator comparison isolates the
 derived SHEET metadata difference in this current real capture; OAuth was revoked.
-Next prepare separately authorized inverse-only recovery, without resending forward.
+Inverse-only recovery is now prepared locally after delivered `61fe86e9`: one exact
+55-request batch, original business recipe, current code, version14 and full-image
+fences. Build/lint,133 focused tests and network-trapped retained-image rehearsal pass.
+Next obtain separate execution authorization and a fresh owner window; no forward replay.
 The real inverse and complete uninterrupted roundtrip remain unproved.
 See the bilingual window-permissions guide and current tasks for the exact scope.
