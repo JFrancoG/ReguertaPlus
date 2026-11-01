@@ -46,6 +46,7 @@ function prepareForTarget({sourceInput,reviewPackage,cloneCapture}, targetProjec
   if (reviewPackage.writerRehearsal) body.writerRehearsal = structuredClone(reviewPackage.writerRehearsal);
   if (reviewPackage.originalWriterCheck) body.originalWriterCheck = structuredClone(reviewPackage.originalWriterCheck);
   if (reviewPackage.helperCopyRecovery) body.helperCopyRecovery = structuredClone(reviewPackage.helperCopyRecovery);
+  if (reviewPackage.helperCopyCycle) body.helperCopyCycle = structuredClone(reviewPackage.helperCopyCycle);
   return {...body,preparedDigest:digest(body)};
 }
 const materializeDevelopMigrationPreparation = input => prepareForTarget(input,migration.PROJECT_ID);

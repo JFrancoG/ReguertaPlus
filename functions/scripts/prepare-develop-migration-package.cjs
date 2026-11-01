@@ -12,6 +12,7 @@ const {checkContentPositions, decodeRESTValue} = require("./rehearse-develop-shi
 const {reviewDevelopCaptureControls, PAIRS} = require("./prepare-develop-planner-entry.cjs");
 const {reviewWriterRehearsal} = require("./develop-writer-rehearsal-evidence.cjs");
 const {reviewOriginalWriterCheck} = require("./develop-original-writer-evidence.cjs");
+const {reviewHelperCycle} = require("./develop-helper-cycle-evidence.cjs");
 const {reviewHelperRecovery} = require("./develop-helper-recovery-evidence.cjs");
 const PROJECT = "reguerta-9f27f", ROOT = "develop/plus-collections";
 const WORKBOOK = "1O7VKs7S4wZHVvTfNBehAd5EzF3Mgw2q9LweK68Gm76A";
@@ -62,14 +63,17 @@ function literalCells(book) {
 function prepareDevelopMigrationPackage(input) {
   const hasWriter = Object.hasOwn(input, "writerRehearsal");
   const hasOriginal = Object.hasOwn(input, "originalWriterCheck");
+  const hasCycle = Object.hasOwn(input, "helperCopyCycle");
+  const cycleKeys = hasCycle ? ["helperCopyCycle", "reviewedHelperCopyCycleDigest"] : [];
   const hasRecovery = Object.hasOwn(input, "helperCopyRecovery");
   const recoveryKeys = hasRecovery ? ["helperCopyRecovery", "reviewedHelperCopyRecoveryDigest"] : [];
   const originalKeys = hasOriginal ? ["originalWriterCheck", "reviewedOriginalWriterCheckDigest"] : [];
   const writerKeys = hasWriter ? ["writerRehearsal", "reviewedWriterRehearsalDigest"] : [];
-  assert.deepEqual(Object.keys(input).sort(), [...FILES, "reviewedContentDigest", "reviewedProposalDigest", ...writerKeys, ...originalKeys, ...recoveryKeys].sort());
+  assert.deepEqual(Object.keys(input).sort(), [...FILES, "reviewedContentDigest", "reviewedProposalDigest", ...writerKeys, ...originalKeys, ...recoveryKeys, ...cycleKeys].sort());
   const writerRehearsal = hasWriter ? reviewWriterRehearsal(input.writerRehearsal, input.reviewedWriterRehearsalDigest, WORKBOOK) : null;
   const originalWriterCheck = hasOriginal ? reviewOriginalWriterCheck(input.originalWriterCheck, input.reviewedOriginalWriterCheckDigest, WORKBOOK) : null;
   const helperCopyRecovery = hasRecovery ? reviewHelperRecovery(input.helperCopyRecovery, input.reviewedHelperCopyRecoveryDigest, WORKBOOK) : null;
+  const helperCopyCycle = hasCycle ? reviewHelperCycle(input.helperCopyCycle, input.reviewedHelperCopyCycleDigest, WORKBOOK) : null;
   const {snapshot, proposal, controls, reviewedControls, indexes} = structuredClone(input);
   const {contentDigest, proposalDigest, ...proposalBody} = proposal;
   assert.equal(contentDigest, input.reviewedContentDigest); assert.equal(proposalDigest, input.reviewedProposalDigest);
@@ -210,6 +214,7 @@ function prepareDevelopMigrationPackage(input) {
   if (writerRehearsal) body.writerRehearsal = writerRehearsal;
   if (originalWriterCheck) body.originalWriterCheck = originalWriterCheck;
   if (helperCopyRecovery) body.helperCopyRecovery = helperCopyRecovery;
+  if (helperCopyCycle) body.helperCopyCycle = helperCopyCycle;
   return {...body,packageDigest:digest(body)};
 }
 
@@ -217,17 +222,20 @@ function loadManifest(filename) {
   const manifest = JSON.parse(fs.readFileSync(filename, "utf8"));
   const hasWriter = Object.hasOwn(manifest.files, "writerRehearsal");
   const hasOriginal = Object.hasOwn(manifest.files, "originalWriterCheck");
+  const hasCycle = Object.hasOwn(manifest.files, "helperCopyCycle");
   const hasRecovery = Object.hasOwn(manifest.files, "helperCopyRecovery");
   assert.deepEqual(Object.keys(manifest).sort(), ["files","reviewedContentDigest","reviewedProposalDigest",
     ...(hasWriter ? ["reviewedWriterRehearsalDigest"] : []),
     ...(hasOriginal ? ["reviewedOriginalWriterCheckDigest"] : []),
-    ...(hasRecovery ? ["reviewedHelperCopyRecoveryDigest"] : [])].sort());
-  const files = [...FILES, ...(hasWriter ? ["writerRehearsal"] : []), ...(hasOriginal ? ["originalWriterCheck"] : []), ...(hasRecovery ? ["helperCopyRecovery"] : [])];
+    ...(hasRecovery ? ["reviewedHelperCopyRecoveryDigest"] : []),
+    ...(hasCycle ? ["reviewedHelperCopyCycleDigest"] : [])].sort());
+  const files = [...FILES, ...(hasWriter ? ["writerRehearsal"] : []), ...(hasOriginal ? ["originalWriterCheck"] : []), ...(hasRecovery ? ["helperCopyRecovery"] : []), ...(hasCycle ? ["helperCopyCycle"] : [])];
   assert.deepEqual(Object.keys(manifest.files).sort(), files.sort());
   const input = {reviewedContentDigest:manifest.reviewedContentDigest,reviewedProposalDigest:manifest.reviewedProposalDigest};
   if (hasWriter) input.reviewedWriterRehearsalDigest = manifest.reviewedWriterRehearsalDigest;
   if (hasOriginal) input.reviewedOriginalWriterCheckDigest = manifest.reviewedOriginalWriterCheckDigest;
   if (hasRecovery) input.reviewedHelperCopyRecoveryDigest = manifest.reviewedHelperCopyRecoveryDigest;
+  if (hasCycle) input.reviewedHelperCopyCycleDigest = manifest.reviewedHelperCopyCycleDigest;
   for (const key of files) {
     const entry = manifest.files[key]; assert.ok(path.isAbsolute(entry.path)); assert.ok(fs.statSync(entry.path).size <= 16 * 1024 * 1024);
     const bytes = fs.readFileSync(entry.path); assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.sha256, `${key} file changed`);

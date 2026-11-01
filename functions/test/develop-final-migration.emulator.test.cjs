@@ -474,3 +474,90 @@ run("evidence from another prepared package cannot be acquired even with a rehas
   await assert.rejects(d.barrier.acquire({scope}));assert.deepEqual(await businessSnapshot(),before);
   assert.equal(d.counts.opened,d.counts.closed);
 });
+
+for(const scenario of ["complete","before-firestore","after-firestore","before-inverse","cleanup-overrun"])
+run(`joint deadline cycle: ${scenario}`,async()=>{
+  const {planBatch}=require("../scripts/prepare-develop-helper-batch.cjs");
+  const {createCopyTimeBudget}=require("../scripts/develop-copy-time-budget.cjs");
+  const {assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
+  const f=await jointHarness(),before=await businessSnapshot(),image=f.observe(),scope=await f.h.scope();
+  // The emulator fixtures keep their own authority timestamps. This separate
+  // injected elapsed clock tests scheduling fences, not live observation age or
+  // Google's latency. No live IAM, OAuth or Sheets provider is constructed.
+  let elapsed=1000000;
+  const startsAtMillis=elapsed,endsAtMillis=elapsed+600000;
+  const budget=createCopyTimeBudget({startsAtMillis,endsAtMillis,nowMillis:()=>elapsed,
+    fetchImpl:async()=>{throw Error("joint test cannot call Google");}});
+  elapsed+=141500;budget.beginWork(elapsed+300000);
+  const plan=await planBatch({...f,observation:image});
+  const exact=p=>async binding=>{assert.equal(binding.requestDigest,p.requestDigest);assert.deepEqual(binding.requests,p.requests);};
+  let receipt=null,forwardApplied=false,inverseApplied=false,report=null,rejected=false;
+  try {
+    await f.d.barrier.acquire({scope});elapsed+=5000;
+    const admission=await f.d.executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+    if(scenario==="before-firestore")elapsed+=76000;
+    // Reserve both the Sheets submission and its independent readback before
+    // committing the first service, not only when entering the Sheets adapter.
+    budget.assertSubmission();receipt=await f.d.executor.execute({scope,admission});elapsed+=5000;
+    if(scenario==="after-firestore")elapsed+=76000;
+    f.sheets.loseAcknowledgement=true;
+    const result=await f.api.reconcile({...plan.operation,authorizeMutation:exact(plan),assertSubmissionNow:budget.assertSubmission});
+    assert.equal(result.kind,"verified");forwardApplied=true;elapsed+=5000;
+    preserved({manifest:plan.preservation,after:f.sheets.state});
+    const inverse=await planBatch({...f,observation:f.observe(),direction:"inverse",forwardPlan:plan});
+    const inverseScope=await f.h.scope(true);await f.d.barrier.acquire({scope:inverseScope});elapsed+=5000;
+    const admissionInverse=await f.d.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+    assert.equal(admissionInverse.checksPassed,true);
+    if(scenario==="before-inverse")elapsed+=76000;
+    const restored=await f.api.reconcile({...inverse.operation,authorizeMutation:exact(inverse),assertSubmissionNow:budget.assertSubmission});
+    assert.equal(restored.kind,"verified");inverseApplied=true;elapsed+=5000;
+    preserved({manifest:inverse.preservation,after:f.sheets.state});budget.assertStage();
+    await f.d.executor.execute({scope:inverseScope,admission:admissionInverse,forwardReadBack:receipt});elapsed+=5000;
+  } catch(error) {
+    assert.match(error.message,/copy_batch_readback_budget_exhausted|copy_stage_deadline_exhausted/);rejected=true;
+  } finally {
+    // Simulated provider cleanup costs are explicit. Its ordering and terminal
+    // deadline use the real controller; this does not certify real revocation.
+    await budget.beginCleanup("file");elapsed+=5000;
+    await budget.beginCleanup("iam");elapsed+=5000;
+    await budget.beginCleanup("oauth");elapsed+=scenario==="cleanup-overrun"?270000:42000;
+    if(scenario==="cleanup-overrun")assert.throws(()=>budget.complete(),/copy_deadline_breach_requires_inspection/);
+    else report=budget.complete();
+  }
+  const failed=["before-firestore","after-firestore","before-inverse"].includes(scenario);
+  assert.equal(rejected,failed);assert.equal(f.d.counts.opened,f.d.counts.closed);
+  assert.equal(f.sheets.mutations.length,scenario==="before-inverse"?1:failed?0:2);
+  if(scenario==="before-firestore"){
+    assert.equal(receipt,null);assert.deepEqual(await withoutJournal(),Object.fromEntries(Object.entries(before).filter(([k])=>k!=="shiftPlanningOperations")));
+  } else {
+    assert.equal((await f.d.executor.readRetained({scope})).replayed,true);
+    assert.equal((await saved("shifts")).length,failed?72:62);
+    assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+  }
+  if(!forwardApplied)assert.deepEqual(f.sheets.state,image.snapshot);
+  if(inverseApplied){
+    const restored=structuredClone(f.sheets.state);restored.sheets.forEach(s=>{s.developerMetadata=image.snapshot.sheets.find(x=>x.properties.sheetId===s.properties.sheetId).developerMetadata;});
+    assert.deepEqual(restored,image.snapshot);assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+  }
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  // A failed attempt leaves its exact committed state intact. Recovery below
+  // is a separate explicit local action after inspection and a new budget.
+  let recoveredSeparately=false;
+  if(scenario==="before-inverse"){
+    assert.equal(forwardApplied,true);assert.equal(inverseApplied,false);
+    const inverse=await planBatch({...f,observation:f.observe(),direction:"inverse",forwardPlan:plan});
+    const inverseScope=await f.h.scope(true),retained=await f.d.barrier.inspectRetained({scope:inverseScope});assert.ok(retained.checkpoint);
+    const fresh=createCopyTimeBudget({startsAtMillis:elapsed,endsAtMillis:elapsed+600000,nowMillis:()=>elapsed});
+    elapsed+=120000;fresh.beginWork(elapsed+300000);
+    const admission=await f.d.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});assert.equal(admission.checksPassed,true);
+    assert.equal((await f.api.reconcile({...inverse.operation,authorizeMutation:exact(inverse),assertSubmissionNow:fresh.assertSubmission})).kind,"verified");
+    fresh.assertStage();await f.d.executor.execute({scope:inverseScope,admission,forwardReadBack:receipt});
+    for(const stage of ["file","iam","oauth"])await fresh.beginCleanup(stage);fresh.complete();
+    assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));assert.equal(f.sheets.mutations.length,2);
+    preserved({manifest:inverse.preservation,after:f.sheets.state});recoveredSeparately=true;
+  }
+  if(process.env.HU084_CONTROLLED_OUTPUT)fs.writeFileSync(path.join(process.env.HU084_CONTROLLED_OUTPUT,`joint-deadline-${scenario}.json`),JSON.stringify({
+    scenario,preparedDigest:f.h.prepared.preparedDigest,copyEvidenceDigest:f.h.prepared.helperCopyCycle?.evidenceDigest??null,
+    receiptRetained:receipt!==null,forwardApplied,inverseApplied,rejected,recoveredSeparately,report,
+    realFirestoreEmulator:true,injectedElapsedClock:true,simulatedGoogleCleanup:true,liveTimingCertified:false,canEnterMaintenance:false},null,2),{mode:0o600,flag:"wx"});
+});

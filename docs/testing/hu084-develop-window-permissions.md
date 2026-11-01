@@ -5,6 +5,59 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Full-cycle receipts and joint local rehearsal — 2026-11-01
+
+The previous real-copy outcome is committed and pushed as `2ef610b3`. The new local
+`helperCopyCycle` evidence travels through the pinned review manifest, materializer
+and read-only admission report. Its reviewer checks both exact 55-request plans,
+full owner snapshots, restoration, one-token receipts, all five deadline stages,
+OAuth denials and independent final identity isolation. A successful isolated cycle
+sets only `uninterruptedRoundtripVerified`; current controls, writer authority,
+combined maintenance timing and execution permission remain false.
+
+The retained execution baseline is Drive version **9**, after the separate preparation
+capture at version 8. Forward and inverse reads both report version **11**: exact
+restored cells and inverse markers prove recovery even without another version increment.
+The OAuth receipt measures **31,668ms**; the enclosing cleanup phase is **31,686ms**.
+These are distinct measurements, not contradictory results.
+
+Private package: `339726666096f37235087d0705ebcd6daee378face5ce0c13764c37488bfd8aa`;
+controlled preparation: `c9adc4eae52fca6769fe95b97c217c6787679fb20cbd42204664d8e7f19ee653`;
+full-cycle evidence: `b6a57516f454204ecd44a71864afd44d99d3f687e9098407c39b291021582b23`.
+The three older evidence pins, source policy, business intents, operation IDs and
+observation ages are unchanged. Raw receipts remain private in
+`2026-11-01-full-cycle-admission`; no credentials were incorporated.
+
+The joint rehearsal uses actual Firestore emulator transactions and durable barrier
+journals, the real Sheets adapter with an in-memory service, and the real deadline
+controller with injected elapsed time. It covers the complete forward/inverse,
+exhaustion before Firestore, exhaustion after Firestore, a stopped inverse followed
+by separately admitted recovery, and cleanup overrun. It reserves Sheets/readback
+capacity before the first Firestore write, preserves committed receipts on a stop,
+and refuses to report clean completion when cleanup exceeds its deadline. Both
+services recover their original cells/rows; users, configuration, calendars and 117
+notification events are preserved. It creates no new live orchestration entry point.
+
+The elapsed clock is separate from the authority-fixture clock. Provider cleanup is
+simulated: these tests prove scheduling and retained-state behavior, not real Google
+latency, current observation age or combined live timing. Original/shared maintenance
+remains closed. No Google calls, live Firestore, IAM, deployment, FCM, original
+workbook or production access occurred in this block. No native changes or parity gap.
+
+Validation: Node 22.23.4 build/full lint and focused CJS lint pass; **252 distinct
+local tests** (251-test suite plus the final 29-test reviewer rerun) and **73 emulator
+tests** pass with zero skips. The initial run had overlapping TypeScript builds and
+an incorrect raw observation input; after serializing compilation and selecting the
+retained normalized observation, both reruns passed. The test harness was not weakened.
+Native gates were not rerun because no Android/iOS source changed.
+
+**Next:** connect this tested joint scheduling order to the controlled composition,
+including its Firestore deadlines and post-commit inspection path, before refreshing
+current controls or requesting a concrete maintenance window. The successful copy
+receipt alone cannot authorize that window. New implementation remains local;
+HU-084/HU-085 remain open and PR #278 draft.
+
+
 ## Full budgeted copy cycle completed — 2026-11-01
 
 The budget/compatibility implementation is delivered as `08b3098b`. The authorized

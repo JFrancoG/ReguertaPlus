@@ -42,6 +42,7 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
     if (prepared.writerRehearsal) value.writerRehearsal = structuredClone(prepared.writerRehearsal);
     if (prepared.originalWriterCheck) value.originalWriterCheck = structuredClone(prepared.originalWriterCheck);
     if (prepared.helperCopyRecovery) value.helperCopyRecovery = structuredClone(prepared.helperCopyRecovery);
+    if (prepared.helperCopyCycle) value.helperCopyCycle = structuredClone(prepared.helperCopyCycle);
     return {...value,admissionDigest:digest(value)};
   }
   return {

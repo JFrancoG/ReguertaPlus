@@ -1663,3 +1663,25 @@ locally. Original controls were not refreshed; no shared maintenance, original
 workbook/production access, FCM or deployment. Issues open, PR #278 draft. Outcome
 docs remain local; see the bilingual window guide and private
 `2026-11-01-budgeted-copy-execution` receipts.
+
+
+### Full-cycle admission evidence and joint local rehearsal — 2026-11-01
+
+Previous outcome docs committed/pushed as `2ef610b3`. New local `helperCopyCycle`
+review binds exact raw full-cycle receipts, deadlines and final cleanup through the
+review package, materializer and passive admission. Existing source policy, business
+intents, operation IDs and three earlier evidence pins are unchanged; no observation
+is refreshed and no historical result grants current writer authority.
+
+The real Firestore emulator plus in-memory Sheets exercises complete recovery,
+budget rejection before/after Firestore, stopped inverse with separately admitted
+recovery and cleanup deadline failure. The deadline clock and provider cleanup are
+simulated; authority fixtures retain their own clock. This is not a combined live
+timing certificate. See the bilingual window guide for hashes, validation and limits.
+Next connect the tested scheduling order and Firestore deadlines to controlled
+composition, then refresh current controls before a separately authorized window.
+No live Google/Firestore, IAM, FCM, maintenance, original workbook or production access.
+No native changes. New work local; both issues open, PR #278 draft.
+
+Validation: Node22 build/full lint/focused CJS lint; 252 distinct local tests and
+73 emulator tests pass, zero skips. No native gates needed for this scripts-only block.

@@ -5,6 +5,59 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
+## Recibos del ciclo completo y ensayo conjunto local — 2026-11-01
+
+El resultado real anterior está commiteado y publicado como `2ef610b3`. La nueva
+evidencia local `helperCopyCycle` pasa por el manifiesto revisado, el materializador
+y el informe de admisión de solo lectura. Su validador comprueba los dos lotes exactos
+de 55 peticiones, las capturas completas, la restauración, el único token, las cinco
+fases de plazos, las negativas OAuth y la identidad aislada final. El éxito aislado
+solo marca `uninterruptedRoundtripVerified`; siguen a falso los controles actuales,
+la autoridad del escritor, los tiempos conjuntos y el permiso de ejecución.
+
+La captura inicial de la ejecución tiene versión de Drive **9**, posterior a la
+captura de preparación con versión 8. Ida e inversa devuelven ambas versión **11**:
+la comparación exacta de celdas y marcadores acredita la restauración aunque no aumente
+otra vez la versión. El recibo OAuth mide **31.668ms**; la fase completa que lo contiene,
+**31.686ms**. Son dos mediciones distintas.
+
+Paquete privado: `339726666096f37235087d0705ebcd6daee378face5ce0c13764c37488bfd8aa`;
+preparación controlada: `c9adc4eae52fca6769fe95b97c217c6787679fb20cbd42204664d8e7f19ee653`;
+evidencia del ciclo: `b6a57516f454204ecd44a71864afd44d99d3f687e9098407c39b291021582b23`.
+Se conservan las tres evidencias anteriores, la política de fuentes, las operaciones,
+sus identificadores y la antigüedad de las observaciones. Recibos completos privados
+en `2026-11-01-full-cycle-admission`, sin credenciales.
+
+El ensayo conjunto utiliza transacciones y registros de barrera del emulador real de
+Firestore, el adaptador real de Sheets con un servicio en memoria y el controlador
+real de plazos con tiempo transcurrido simulado. Cubre ida/inversa completas, agotamiento
+antes de Firestore, agotamiento después de Firestore, inversa detenida con recuperación
+posterior admitida por separado y exceso de tiempo durante la limpieza. Reserva tiempo
+para Sheets y su verificación antes de la primera escritura en Firestore, conserva los
+recibos ya confirmados cuando se detiene y no declara cierre limpio si se supera el
+plazo. Ambos servicios recuperan sus celdas/filas originales; se conservan usuarios,
+configuración, calendarios y los 117 avisos. No añade una entrada de ejecución real.
+
+El reloj de duración está separado del reloj de las autorizaciones ficticias. La
+retirada de permisos es simulada: se comprueba el orden, los límites y el estado
+conservado, no la latencia de Google, la vigencia actual ni los tiempos conjuntos reales.
+El mantenimiento compartido sigue cerrado. Este bloque no llama a Google, Firestore
+real, IAM ni FCM; no despliega ni accede a las hojas originales o a producción.
+Sin cambios nativos ni diferencias nuevas entre plataformas.
+
+Validación: build/lint completo y lint CJS focalizado correctos con Node 22.23.4;
+**252 pruebas locales distintas** (batería de 251 y repetición final de los 29 casos del
+validador) y **73 pruebas del emulador**, sin omitidas. La primera ejecución solapó dos
+compilaciones TypeScript y recibió una captura cruda incorrecta; con compilación
+estabilizada y la captura normalizada retenida, ambas repeticiones pasan. No se han
+relajado las pruebas. No se repiten los controles nativos porque no hay cambios iOS/Android.
+
+**Siguiente:** conectar este orden conjunto al ejecutor controlado, incluidos los
+plazos de Firestore y la inspección después de una confirmación incierta, antes de
+renovar controles o pedir una ventana concreta. El recibo de la copia no autoriza esa
+ventana. Implementación nueva local; HU-084/HU-085 abiertas y PR #278 en borrador.
+
+
 ## Ciclo completo en copia con presupuesto verificado — 2026-11-01
 
 La implementación del presupuesto y compatibilidad está publicada en `08b3098b`.
