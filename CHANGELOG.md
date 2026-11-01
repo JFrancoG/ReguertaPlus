@@ -510,6 +510,8 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-11-01 | ✅ test(shifts): verify concrete window adapters
+
 - 2026-10-28 | ✅ test(shifts): rehearse backend handoff
 
 - 2026-10-28 | ✅ test(shifts): rehearse develop pause and copy lock

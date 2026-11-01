@@ -3198,3 +3198,25 @@ New code local; both stories open and PR #278 draft.
 Validation: Node22 build/full lint/CJS lint; 270 distinct local tests and 86 distinct
 emulator cases pass. Five retained journals re-read successfully. Admission packet
 unchanged; no current controls refreshed or native validation required.
+
+
+### Concrete session/recovery verification — 2026-11-01
+
+Persistent-window block committed/pushed as `d8b99067`; this review remains local.
+Actual adapter code was verified using synthetic HTTP, not live credentials. Exact
+IAM cleanup and joining pending reads are reusable. Three grouped connections remain:
+original-file lifecycle observations/exact batch transport; durable ownership and
+per-session cleanup evidence (a new OAuth token cannot close the lost session);
+concrete normal/recovery factories, including Firestore, native owner channel and
+one common deadline budget. No factory currently supplies those complete real ports.
+Do not substitute the header probe/copy adapter, relax the baseline reader or label
+fresh-session revocation as old-session cleanup. Keep unknown cleanup fenced.
+Next implement/test these connections together locally, then renew observations for
+a separately authorized window. This supersedes the previous suggestion to renew
+controls immediately after this verification. No user action, maintenance, live
+provider access, production changes or native parity gap. See the bilingual window
+permissions document and private `2026-11-01-window-provider-review` validation.
+
+Validation: Node22 build/full lint/CJS lint and 150 tests passed (zero skips).
+Eight committed runtime source hashes match; the admission package was regenerated
+and equals its retained value. Prior 86 emulator cases reused; no runtime/native change.

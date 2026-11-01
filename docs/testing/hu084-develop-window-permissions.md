@@ -5,6 +5,44 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Concrete session/recovery adapter verification — 2026-11-01
+
+Persistent window composition is delivered in `d8b99067` (remote verified). This
+review is local and does **not** certify a live window. The concrete adapters were
+checked against the original-writer plan, the retained package, and the new window
+ports. Only tests, the test command and documentation change; provider code and
+historical executable hashes remain unchanged.
+
+| Boundary | Verified behavior | Remaining connection |
+| --- | --- | --- |
+| Original owner observation | `createOwnerReader` reads the exact file and parent with the temporary writer present. `createDevelopOwnerObservationSession.capture` requires the owner/four-reader baseline and rejects that grant before reading cells. | A lifecycle-aware observation must validate the exact owned grant while it exists and its absence after removal, preserving every other permission and the independent full snapshot. Do not relax the existing read-only capture globally. |
+| Original Sheets execution | `createWorkbookAccess` exposes only one same-value `Fecha` probe. Copy owner/writer transports reject the original file; their successful batch evidence does not widen this scope. | Bind the original destination and exact reviewed forward/inverse batch to a concrete transport. Reuse the existing Sheets adapter and budget; do not repurpose the probe or remove the copy exclusion. |
+| IAM cleanup | The actual HTTP adapter can read current policy, remove only the exact retained conditional grant with its current etag, explicitly disable the fixed UID, and re-read it without enable/mint calls. A CAS conflict remains unresolved even when disabling succeeds. | The recovery factory must obtain an explicitly supplied cleanup credential, verify durable ownership and retain incomplete cleanup; account disablement alone is insufficient. |
+| Lost owner OAuth session | Closing a replacement session revokes only the supplied credential in the adapter contract. A new successful cleanup receipt cannot certify the earlier session. | Preserve credential-free session identity/expiry and cleanup receipts before effects. If the old credential or a matching verified revocation receipt is unavailable, keep OAuth cleanup unverified; no mint/refresh/replay or automatic claim of expiry containment. |
+| Pending HTTP | With `timeBudget.fetch`, real parallel IAM reads (including response bodies) settle before the cleanup phase begins even after a sibling fails. | Every concrete Google transport must receive this common wrapper; raw fetch bypasses its accounting. |
+| Firestore/session factory | The executor and durable barrier accept explicit scoped dependencies; `openSession` and `openRecoverySession` for the complete window exist only as injected ports/test compositions. | Compose the actual Firestore/control readers, native owner grant/removal channel and Google lifecycle. Recovery must expose inspection/cleanup only, never acquire/execute/inverse. |
+
+The five new adversarial checks use **real adapter implementations with synthetic
+HTTP responses**: active-writer observation rejection, old-versus-new OAuth cleanup,
+exact IAM removal preserving another grant, a stale-policy conflict followed by
+independent disablement, and pending-body settlement. These tests verify limits as
+well as supported behavior; passing them is not an activation result. No credentials
+were requested or consulted, no Google calls were made and no observations refreshed.
+
+**Readiness decision:** the session/recovery connection is not ready for a real
+window. Finish it as one grouped implementation block: (1) original-file observation
+and exact batch transport, (2) durable ownership plus per-session cleanup accounting,
+(3) concrete normal/recovery composition with one shared deadline budget. Validate
+that block with synthetic HTTP and the Firestore emulator, including lost responses
+and process interruption. Only then renew live observations and request a concrete
+window. There is no reason to reopen OAuth or ask the owner to close a sheet now.
+
+Validation results are retained in `2026-11-01-window-provider-review`; see the
+private validation summary: Node 22.23.4 build, full lint, focused CJS lint and
+**150 tests passed, zero failures/skips**. Earlier 86 emulator cases are reused because no
+runtime source changed. No native changes or parity gap. HU-084/HU-085 remain open
+and PR #278 remains draft; this verification is local/uncommitted.
+
 ## Persistent controlled-window composition — 2026-11-01
 
 Joint deadline/uncertain-response integration is delivered as `4dfa4946`. New local
@@ -54,7 +92,7 @@ for the four final emulator scenarios. Google permissions, token minting, Sheets
 transport and elapsed time remain doubles; Firestore transactions and barrier journals
 use the real local emulator. No live Google/Firestore, production/original workbook,
 IAM, FCM or deployment access. No native changes/parity gap. New implementation remains
-local; issues open and PR #278 draft.
+delivered in `d8b99067`; issues open and PR #278 draft.
 
 Validation: Node22.23.4 build/full lint and focused CJS lint pass; **270 distinct
 local tests** (267-suite plus final14 window tests) and **86 distinct emulator cases**

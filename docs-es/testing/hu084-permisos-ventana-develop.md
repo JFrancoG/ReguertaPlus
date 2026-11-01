@@ -5,6 +5,45 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
+
+## Verificación de adaptadores reales de sesión y recuperación — 2026-11-01
+
+La composición persistente está publicada en `d8b99067` (remoto comprobado). Esta
+revisión es local y **no** certifica una ventana real. Se han contrastado los
+adaptadores concretos con el plan de la prueba del escritor original, el paquete
+retenido y los puertos de la ventana. Solo cambian pruebas, su comando y documentación;
+el código de los proveedores y sus hashes históricos permanecen iguales.
+
+| Frontera | Comportamiento comprobado | Conexión pendiente |
+| --- | --- | --- |
+| Observación del propietario | `createOwnerReader` lee la hoja y su carpeta exactas con el escritor temporal presente. `createDevelopOwnerObservationSession.capture` exige propietario/cuatro lectores y rechaza ese permiso antes de leer celdas. | La observación del ciclo debe validar el permiso exacto durante su vigencia y su ausencia tras retirarlo, conservando todos los demás permisos y la captura completa independiente. No se debe relajar globalmente la captura de solo lectura. |
+| Escritura en la hoja original | `createWorkbookAccess` solo permite una prueba con el mismo valor «Fecha». Los transportes de copia rechazan la hoja original; el ensayo de lote no amplía ese alcance. | Vincular destino original y lote exacto revisado de ida/inversa al transporte concreto, reutilizando adaptador de Sheets y presupuesto. No reutilizar la prueba de cabecera ni eliminar la exclusión de originales. |
+| Limpieza IAM | El adaptador HTTP real permite leer la política, retirar solo el permiso condicional retenido con su etag actual, deshabilitar explícitamente el UID fijo y releerlo sin activar ni emitir tokens. Un conflicto CAS sigue pendiente aunque se consiga deshabilitar. | La recuperación necesita una credencial de limpieza suministrada explícitamente, comprobar la titularidad registrada y conservar la limpieza incompleta. Deshabilitar no demuestra retirada del permiso. |
+| Pérdida de sesión OAuth | El contrato del adaptador revoca solo la credencial suministrada al cerrar la sesión de sustitución. Su recibo satisfactorio no certifica el cierre de la anterior. | Registrar identidad/caducidad de sesión sin secretos y recibos antes de los efectos. Si falta la credencial anterior o un recibo verificado correspondiente, OAuth queda sin verificar; sin emitir/renovar tokens, repetir operaciones ni dar por demostrada la contención por caducidad. |
+| HTTP pendiente | Con `timeBudget.fetch`, las lecturas IAM paralelas reales, incluidos sus cuerpos, terminan antes de entrar en limpieza aunque otra falle. | Todos los transportes concretos de Google deben recibir ese mismo envoltorio; `fetch` directo elude su contabilidad. |
+| Firestore y sesión | Ejecutor y barrera reciben dependencias explícitas acotadas; `openSession` y `openRecoverySession` de la ventana completa solo existen como puertos inyectados/composiciones de prueba. | Conectar Firestore/controles, el canal nativo de concesión/retirada del propietario y el ciclo Google. La recuperación solo expone inspección/limpieza, nunca adquisición/ejecución/inversa. |
+
+Las cinco pruebas nuevas usan **implementaciones reales de los adaptadores con
+respuestas HTTP sintéticas**: rechazo con escritor presente, distinción entre OAuth
+anterior/nuevo, retirada IAM exacta conservando otro permiso, conflicto de política
+con deshabilitación independiente y espera del cuerpo HTTP pendiente. Verifican
+límites además de capacidades; pasarlas no significa activación. No se solicitaron
+ni consultaron credenciales, no hubo llamadas Google ni renovación de observaciones.
+
+**Conclusión de admisión:** falta la conexión real de sesión/recuperación. Completarla
+en un bloque agrupado: (1) observación y transporte del lote exacto en la original,
+(2) titularidad persistente y limpieza de cada sesión, (3) composición normal y de
+recuperación con presupuesto único. Validarlo con HTTP sintético y emulador Firestore,
+incluidas respuestas perdidas e interrupción del proceso. Solo después renovar las
+observaciones reales y solicitar la ventana concreta. Ahora no hace falta reabrir
+OAuth ni pedir al propietario que cierre una hoja.
+
+Evidencias en `2026-11-01-window-provider-review`; resultados en el resumen de
+validación privado: Node 22.23.4, build, lint completo, lint CJS y **150 pruebas
+correctas, sin fallos ni omisiones**. Se reutilizan los 86 casos previos de emulador porque no cambian
+fuentes de ejecución. Sin cambios nativos ni diferencia entre plataformas. HU-084 y
+HU-085 abiertas, PR #278 borrador; esta verificación queda local/sin commit.
+
 ## Ventana controlada con registro persistente — 2026-11-01
 
 El control conjunto de tiempos y respuestas inciertas está publicado como `4dfa4946`.
