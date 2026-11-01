@@ -28,7 +28,7 @@ function guardFirestore(firestore,assertMutation) {
 }
 
 async function executeJointStep({prepared,scope,admission,forwardReadBack=null,sourceInput,reviewPackage,
-  forwardPlan=null,observeSheets,sheetsAdapter,timeBudget,record,signal,executeFirestore,inspectFirestore}) {
+  forwardPlan=null,observeSheets,sheetsAdapter,timeBudget,record,signal,executeFirestore,inspectFirestore,permissionTransition=null}) {
   const direction=admission.direction;
   assert.ok(["forward","inverse"].includes(direction));
   assert.equal(reviewPackage.packageDigest,prepared.reviewPackageDigest);
@@ -51,7 +51,9 @@ async function executeJointStep({prepared,scope,admission,forwardReadBack=null,s
   };
   try {
     stage();const observation=await observeSheets();stage();
-    plan=await planBatch({sourceInput,reviewPackage,observation,direction,forwardPlan});stage();
+    plan=permissionTransition
+      ?await require("./develop-original-window-provider.cjs").planOriginalWindowBatch({sourceInput,reviewPackage,observation,direction,forwardPlan,permissionTransition})
+      :await planBatch({sourceInput,reviewPackage,observation,direction,forwardPlan});stage();
     assert.equal(plan.operation.operationId,direction==="forward"?prepared.operationId:prepared.recoveryOperationId);
     assert.equal(plan.reviewPackageDigest,prepared.reviewPackageDigest);
     await record({phase:"intent",preparedDigest:prepared.preparedDigest,admissionDigest:admission.admissionDigest,plan});stage();

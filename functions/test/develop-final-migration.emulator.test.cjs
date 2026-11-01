@@ -739,3 +739,72 @@ run("SIGKILL after the actual Firestore commit preserves the receipt and permits
   for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
   assert.equal(fs.existsSync(path.join(root,"controlled-window-active")),false);
 });
+
+for(const scenario of ["roundtrip","abort-after-firestore","write-read"])
+run(`concrete original Google sessions and Firestore emulator: ${scenario}`,async t=>{
+  const os=require("node:os"),{originalWindowFixture}=require("./develop-original-window-fixture.cjs");
+  const {runControlledWindow,recoverControlledWindow}=require("../scripts/develop-controlled-window.cjs");
+  const {readWindowJournal}=require("../scripts/develop-window-journal.cjs");
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"concrete-google-window-"));t.after(()=>{
+    if(process.env.HU084_CONTROLLED_OUTPUT)fs.cpSync(root,path.join(process.env.HU084_CONTROLLED_OUTPUT,"concrete-google-"+scenario),{recursive:true,errorOnExist:true,force:false});
+    fs.rmSync(root,{recursive:true,force:true});
+  });
+  const f=await jointHarness(),g=originalWindowFixture({batch:f,fault:scenario==="write-read"?"write-read":null});
+  const before=await businessSnapshot(),image=structuredClone(f.sheets.state),controller=new AbortController();
+  const executor={...f.d.executor,executeJoint:args=>f.d.executor.executeJoint({...args,record:async value=>{
+    await args.record(value);if(scenario==="abort-after-firestore"&&value.phase==="firestore-receipt")controller.abort();
+  }})};
+  const data={...g.args(),receiptId:"concrete-forward",prepared:f.h.prepared,scope:await f.h.scope()};
+  const first=await runControlledWindow({...data,...g.sessions(data,"concrete-first-owner",{barrier:f.d.barrier,executor}),root,receiptId:"concrete-forward",
+    fetchImpl:g.fetchImpl,nowMillis:()=>g.state.now,signal:controller.signal});
+  assert.equal(first.kind,scenario==="roundtrip"?"direction-verified-and-contained":"inspection-required");
+  assert.equal((await saved("shifts")).length,72);assert.equal(g.state.mints,1);assert.equal(g.state.permission,false);assert.equal(g.state.disabled,true);
+  if(scenario==="roundtrip"){
+    const inverse={...g.args("inverse",first.result),receiptId:"concrete-inverse",prepared:f.h.prepared,scope:await f.h.scope(true)};
+    const second=await runControlledWindow({...inverse,...g.sessions(inverse,"concrete-inverse-owner",{barrier:f.d.barrier,executor:f.d.executor}),root,
+      receiptId:"concrete-inverse",fetchImpl:g.fetchImpl,nowMillis:()=>g.state.now});
+    assert.equal(second.kind,"direction-verified-and-contained");assert.equal(g.state.mints,2);assert.equal(f.sheets.mutations.length,2);
+    assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+    const restored=structuredClone(f.sheets.state);restored.sheets.forEach(s=>{s.developerMetadata=image.sheets.find(x=>x.properties.sheetId===s.properties.sheetId).developerMetadata;});assert.deepEqual(restored,image);
+  }else{
+    const committed=await businessSnapshot(),count=f.sheets.mutations.length,journal=readWindowJournal(first.directory);
+    const recovered=await recoverControlledWindow({directory:first.directory,recoveryId:"concrete-recovery",expectedBindingDigest:digest(journal.binding),
+      window:{startsAtMillis:g.state.now,endsAtMillis:g.state.now+600000},fetchImpl:g.fetchImpl,nowMillis:()=>g.state.now,
+      ...g.sessions(data,"concrete-recovery-owner",{barrier:f.d.barrier,executor:f.d.executor})});
+    assert.equal(recovered.records.at(-1).value.kind,"cleanup-verified-inspection-only");
+    assert.deepEqual(await businessSnapshot(),committed);assert.equal(f.sheets.mutations.length,count);assert.equal(g.state.mints,1);
+    if(scenario==="abort-after-firestore"){assert.equal(count,0);assert.deepEqual(f.sheets.state,image);}else assert.equal(count,1);
+  }
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+});
+
+run("concrete Google session SIGKILL recovery contains grants but retains missing credential evidence",async t=>{
+  const os=require("node:os"),{spawn}=require("node:child_process"),{once}=require("node:events");
+  const {originalWindowFixture}=require("./develop-original-window-fixture.cjs");
+  const {readWindowJournal}=require("../scripts/develop-window-journal.cjs");
+  const {recoverControlledWindow}=require("../scripts/develop-controlled-window.cjs");
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"concrete-google-kill-"));t.after(()=>{
+    if(process.env.HU084_CONTROLLED_OUTPUT)fs.cpSync(root,path.join(process.env.HU084_CONTROLLED_OUTPUT,"concrete-google-sigkill"),{recursive:true,errorOnExist:true,force:false});
+    fs.rmSync(root,{recursive:true,force:true});
+  });
+  const f=await jointHarness(),scope=await f.h.scope(),before=await businessSnapshot(),remoteState=path.join(root,"synthetic-remote.json"),config=path.join(root,"child.json");
+  fs.writeFileSync(config,JSON.stringify({root,remoteState,prepared:f.h.prepared,scope,evidence:f.h.current().evidence,image:f.observe(),sourceInput:f.sourceInput,reviewPackage:f.reviewPackage}),{mode:0o600});
+  const child=spawn(process.execPath,[path.join(__dirname,"develop-original-window-crash-child.cjs"),config],{env:process.env,stdio:["ignore","pipe","pipe","ipc"]});
+  t.after(()=>{if(child.exitCode===null)child.kill("SIGKILL");});
+  const [message]=await once(child,"message",{signal:AbortSignal.timeout(30000)});assert.equal(message,"committed");
+  const directory=path.join(root,"concrete-crash"),journal=readWindowJournal(directory);
+  assert.ok(journal.records.some(r=>r.value.phase==="firestore-receipt"));assert.ok(journal.records.some(r=>r.value.phase==="google-writer-positive"));
+  const exited=once(child,"exit");child.kill("SIGKILL");await exited;const committed=await businessSnapshot();
+  const g=originalWindowFixture({batch:f}),data={...g.args(),receiptId:"concrete-crash",prepared:f.h.prepared,scope};Object.assign(g.state,JSON.parse(fs.readFileSync(remoteState)));g.state.now=2000000;
+  const result=await recoverControlledWindow({directory,recoveryId:"after-concrete-kill",expectedBindingDigest:digest(journal.binding),
+    window:{startsAtMillis:g.state.now,endsAtMillis:g.state.now+600000},nowMillis:()=>g.state.now,fetchImpl:g.fetchImpl,
+    ...g.sessions(data,"fresh-recovery-owner",{barrier:f.d.barrier,executor:f.d.executor})});
+  const terminal=result.records.at(-1).value;assert.equal(terminal.kind,"inspection-required");
+  assert.ok(terminal.cleanup.failures.includes("file-unverified"));assert.ok(terminal.cleanup.failures.includes("oauth-unverified"));
+  assert.equal(g.state.permission,false);assert.equal(g.state.disabled,true);assert.deepEqual(g.state.policy.bindings,[]);assert.equal(g.state.mints,0);
+  assert.equal(result.records.findLast(r=>r.value.phase==="recovery-inspection").value.results.firestore.kind,"committed-and-readback-verified");
+  assert.deepEqual(await businessSnapshot(),committed);assert.equal(f.sheets.mutations.length,0);
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.ok(fs.existsSync(path.join(root,"controlled-window-active")));assert.equal(terminal.canResumeExecution,false);
+});

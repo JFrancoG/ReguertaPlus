@@ -5,7 +5,82 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Original-file observation, batch and session recovery connected — 2026-11-01
+
+Validation completed: Node 22.23.4 build/full lint/CJS lint; **397 local tests and 90 emulator cases pass**, zero skips. Five concrete journals were re-read successfully. The final three constructor rejection checks were added after the emulator pass and covered by the final local suite, including unchanged successful roundtrip/recovery paths. Package and preparation are exactly unchanged.
+
+The adapter review was committed/pushed as `559e6b20`. This implementation remains
+local. `createOriginalWindowSessions` now supplies normal and cleanup-only recovery
+ports to the existing persistent window; it composes the existing IAM, Sheets,
+Firestore executor/barrier and deadline mechanisms. It does not create a second
+planner, default credentials, CLI, deployment or maintenance switch.
+
+- **Observation:** the new owner adapter validates the fixed original develop file,
+  parent, owner and four readers, with precisely the owned writer during work and
+  without it during cleanup. Full six-tab images are read twice between complete
+  metadata observations; values, formats, notes, validation, merges and metadata are
+  preserved. The existing read-only observer and copy exclusions are unchanged.
+- **Permission/version transition:** planning first checks the exact reviewed image
+  before granting access. A grant may change Drive version; the retained before/after
+  transition must have identical complete cell images and no authority change other
+  than that writer. The execution plan records the actual post-grant version and
+  transition digest. Fresh owner reads and IAM/runtime checks guard the exact batch;
+  an unexplained version/cell/permission change stops execution.
+- **One original batch:** the normal Google transport pins the original file and the
+  reviewed 53 helper cells plus two markers. The existing adapter performs forward
+  or separately admitted inverse reconciliation. The attempt is consumed before
+  suspension/dispatch, including concurrent calls and lost responses. Independent
+  readback may verify a lost response; it never authorizes a second submission.
+- **Ownership and credentials:** the exact receipt ID, binding, fixed identity,
+  baseline ACL/IAM policy and grant intent are recorded before effects. A writer
+  already enabled or bearing another grant is rejected rather than borrowed. One
+  300-second writer token follows the minimum IAM age; owner session IDs, credential
+  fingerprints and expiries are persisted, never bearer/refresh tokens. All Google
+  HTTP, including response bodies, uses the window's single budget.
+- **Recovery:** only inspection and file/IAM/OAuth cleanup are returned. Existing
+  receipts remain bound to their credential and window. Recovery removes only the
+  owned file grant and IAM member/condition, preserves unrelated authority, disables
+  the fixed UID and verifies readback. A separately supplied *same* unexpired writer
+  token can prove denial only if its fingerprint/expiry and earlier positive access
+  match the journal. It is never minted or refreshed in recovery. A fresh owner
+  token closes only its own session; previous owner sessions need their matching
+  credential or already verified closure receipt. Missing proof keeps the root fence
+  and requires inspection, even after grants have been removed. Expiry alone is not
+  silently reclassified as verified revocation.
+- **Interruption:** partial setup returns its cleanup ports. A failed journal append
+  cannot suppress exact permission removal, explicit disablement or OAuth revocation;
+  missing cleanup evidence still prevents a clean terminal. Native owner callbacks
+  are explicit reviewed UI actions, receive `assertActive` for the final mutation and
+  must settle before cleanup; no Drive permission-writing scope is inferred from
+  read-only OAuth. Recovery credentials and UI control are supplied explicitly by
+  the operator, not recovered from an environment variable or a secret-bearing journal.
+
+The window entry accepts an explicit HTTP implementation for tests; the existing
+Firestore/barrier dependencies retain their project/source/authority checks. Native
+permission UI and Google responses are simulated in this block. Firestore uses only
+the loopback emulator. Neither this connection nor the boolean fields of a local
+preparation are a live execution authorization.
+
+Validation: see `2026-11-01-original-window-integration/validation-summary.json` for
+final test counts, source hashes, package equivalence and retained interruption
+journals. The first emulator run overlapped the final receipt-binding edit and had
+four mixed-version failures; it is retained as diagnosis and excluded from the final
+validation. No runtime provider files pinned by historical copy/original evidence
+were changed. No live observations, credentials, permissions, Sheets/Firestore/FCM
+writes, maintenance or production access; no native change or parity gap.
+
+**Next:** prepare the concrete operator invocation with these adapters, the current
+source/control/owner observations and scoped permissions, then obtain the specific
+live window authorization. The earlier three code-connection gaps are addressed;
+a live joint timing/cleanup outcome remains unverified. If a process loses the only
+credential before its closure receipt, recovery reports that gap and does not resume
+execution. No OAuth renewal or sheet closure is needed from the user for this local
+block. HU-084/HU-085 remain open and PR #278 draft.
+
+
 ## Concrete session/recovery adapter verification — 2026-11-01
+
+Historical review: the missing connections described here are implemented in the section above.
 
 Persistent window composition is delivered in `d8b99067` (remote verified). This
 review is local and does **not** certify a live window. The concrete adapters were

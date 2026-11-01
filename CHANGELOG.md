@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-11-01 | ✨ feat(shifts): connect original window sessions
+
 - 2026-11-01 | ✨ feat(shifts): persist controlled window recovery
 
 - 2026-11-01 | ✨ feat(shifts): guard joint migration execution

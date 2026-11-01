@@ -3220,3 +3220,31 @@ permissions document and private `2026-11-01-window-provider-review` validation.
 Validation: Node22 build/full lint/CJS lint and 150 tests passed (zero skips).
 Eight committed runtime source hashes match; the admission package was regenerated
 and equals its retained value. Prior 86 emulator cases reused; no runtime/native change.
+
+
+### Original observation/batch/session recovery connected — 2026-11-01
+
+Previous review delivered as `559e6b20`. The three connections are now implemented
+locally together: lifecycle-aware full owner capture, exact original helper batch,
+and explicit normal/recovery Google sessions composed with the persistent window,
+existing Firestore/barrier and common deadline budget. Owned permission-only version
+movement is retained, never hidden. One token/batch per direction; inverse separately
+admitted. Recovery exposes inspection/cleanup only, scopes removal to durable ownership
+and matches credential fingerprints/expiries to earlier sessions. A new owner credential
+does not certify an old session. Missing credential/denial/closure evidence retains
+the fence after best-effort independent containment. Disk interruption cannot suppress
+cleanup, but it cannot produce a verified terminal either.
+
+Native permission actions and Google HTTP remain synthetic in validation; Firestore
+is the local emulator. No live authorization, observation renewal, permission change,
+maintenance, production access or native changes. Private evidence and final counts:
+`2026-11-01-original-window-integration`; bilingual window-permissions docs describe the
+concrete adapter contract and limits. New implementation remains uncommitted.
+Next prepare the concrete operator invocation and refresh current evidence when needed
+before separately authorizing a live window. No user action required for this block;
+HU-084/HU-085 remain open and PR #278 draft.
+
+Validation: build/full lint/CJS lint, 397 local tests and 90 emulator cases pass
+with zero skips. Five concrete journals re-read; package/preparation unchanged.
+Final pre-effect argument rejection checks are covered by the final local suite;
+the emulator pass precedes only those rejection checks. No native gates needed.

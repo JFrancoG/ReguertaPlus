@@ -39,14 +39,15 @@ async function inspect(session,saved) {
   return results;
 }
 async function runControlledWindow(args) {
-  const {openSession,openRecoverySession,nowMillis=Date.now,signal,root,receiptId,...data}=args;
+  const {openSession,openRecoverySession,nowMillis=Date.now,fetchImpl=fetch,signal,root,receiptId,...data}=args;
   const frozen=structuredClone(data),binding=bind(frozen);
-  const budget=createCopyTimeBudget({...binding.window,nowMillis});
+  const budget=createCopyTimeBudget({...binding.window,nowMillis,fetchImpl});
   const journal=createWindowJournal({root,receiptId,binding}),note=value=>journal.append(value);
   let session=null,result=null,failure=null,clean=null,openAttempted=false;
   try {
     const stage=()=>{if(signal?.aborted)throw Error("window interrupted");budget.assertStage();};
-    stage();note({phase:"session-intent"});openAttempted=true;session=await openSession({binding:structuredClone(binding),timeBudget:budget,record:note});stage();
+    stage();note({phase:"session-intent"});openAttempted=true;session=await openSession({binding:structuredClone(binding),timeBudget:budget,record:note,receiptId});stage();
+    assert.notEqual(session.setupFailed,true,"Provider setup requires cleanup");
     budget.beginWork(session.tokenExpiresAtMillis);
     note({phase:"acquisition-intent"});const acquired=await session.barrier.acquire({scope:binding.scope,signal});
     note({phase:"acquired",acquired});stage();assert.equal(acquired.acquired,true);
@@ -54,7 +55,7 @@ async function runControlledWindow(args) {
     note({phase:"admission",admission});stage();assert.equal(admission.checksPassed,true);
     result=await session.executor.executeJoint({scope:binding.scope,admission,sourceInput:frozen.sourceInput,reviewPackage:frozen.reviewPackage,
       forwardReadBack:frozen.forwardReadBack,forwardPlan:frozen.forwardPlan,observeSheets:session.observeSheets,sheetsAdapter:session.sheetsAdapter,
-      timeBudget:budget,record:note,signal});
+      timeBudget:budget,record:note,signal,permissionTransition:session.permissionTransition});
     note({phase:"joint-result",result});
   }catch{failure="window-inspection-required";}
   finally {
@@ -69,8 +70,8 @@ async function runControlledWindow(args) {
   try{note(terminal);return {...terminal,journalVerified:true,directory:journal.directory};}
   finally{journal.release({cleanupVerified:!openAttempted||clean?.failures.length===0});}
 }
-async function recoverControlledWindow({directory,recoveryId,expectedBindingDigest,window,nowMillis=Date.now,openRecoverySession}) {
-  const budget=createCopyTimeBudget({...window,nowMillis});
+async function recoverControlledWindow({directory,recoveryId,expectedBindingDigest,window,nowMillis=Date.now,fetchImpl=fetch,openRecoverySession}) {
+  const budget=createCopyTimeBudget({...window,nowMillis,fetchImpl});
   const journal=claimWindowRecovery({directory,recoveryId,expectedBindingDigest});
   let session=null,results=null,clean=null;
   try {
@@ -85,5 +86,5 @@ async function recoverControlledWindow({directory,recoveryId,expectedBindingDige
   }
   return journal.read();
 }
-module.exports={runControlledWindow,recoverControlledWindow};
+module.exports={runControlledWindow,recoverControlledWindow,bindWindow:bind};
 if(require.main===module){console.error("explicit_window_composition_required_no_apply_cli");process.exitCode=1;}

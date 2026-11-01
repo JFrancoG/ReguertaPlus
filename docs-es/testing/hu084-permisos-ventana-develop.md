@@ -6,7 +6,79 @@ Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
 
+## Conectadas observación, lote original y recuperación de sesiones — 2026-11-01
+
+Validación terminada: Node 22.23.4, build, lint completo y CJS; **397 pruebas locales y 90 casos de emulador correctos**, sin omisiones. Cinco registros concretos releídos correctamente. Las tres últimas comprobaciones de rechazo en el constructor se añadieron después del emulador y se probaron en la suite local final, incluida la ida/inversa y recuperación correctas. Paquete y preparación exactamente iguales.
+
+La revisión de adaptadores está publicada en `559e6b20`. Esta implementación queda
+local. `createOriginalWindowSessions` proporciona las sesiones normal y de recuperación
+al ciclo persistente existente, reutilizando IAM, Sheets, ejecutor/barrera Firestore y
+presupuesto temporal. No crea otro planificador, credenciales por defecto, CLI,
+despliegue ni operación para abrir mantenimiento.
+
+- **Observación:** valida la hoja original de develop, carpeta, propietario y cuatro
+  lectores exactos, con el escritor propio durante el trabajo y sin él al limpiar.
+  Lee dos veces las seis pestañas completas entre lecturas de metadatos y permisos;
+  conserva valores, formatos, notas, validaciones, combinaciones y metadatos. No se
+  relaja el observador de solo lectura ni la exclusión de originales en las copias.
+- **Permiso y versión:** comprueba la imagen revisada antes de conceder acceso. Si
+  cambia la versión de Drive por el permiso, conserva la transición antes/después y
+  exige celdas idénticas y ningún otro cambio de autoridad. El plan registra la versión
+  real posterior y el digest de la transición. Relecturas del propietario y controles
+  IAM/runtime protegen el lote exacto; un cambio inexplicado detiene la ejecución.
+- **Un lote original:** el transporte fija la hoja original y las 53 celdas de ayudantes
+  más dos marcadores revisados. El adaptador existente aplica ida o inversa admitida
+  por separado. Consume el intento antes de suspender/enviar, incluso ante concurrencia
+  o respuesta perdida. La relectura independiente puede comprobar lo aplicado, pero
+  nunca autoriza un segundo envío.
+- **Titularidad y credenciales:** registra antes de los efectos el intento exacto,
+  vínculo al paquete, identidad fija, permisos iniciales e intención de concesión.
+  Rechaza un escritor ya activo o con otro permiso. Emite como máximo un token de 300
+  segundos tras la espera mínima IAM. Persiste identificadores, huellas y caducidades
+  de sesión; nunca tokens ni credenciales de renovación. Todo HTTP Google, incluidos
+  los cuerpos de respuesta, comparte el presupuesto de la ventana.
+- **Recuperación:** devuelve solo inspección y limpieza de archivo/IAM/OAuth. Retira
+  únicamente el permiso propio y su miembro/condición IAM, conserva autoridad ajena,
+  deshabilita el UID fijo y comprueba el resultado. Un token anterior suministrado
+  explícitamente puede probar la negativa solo si sigue vigente y coinciden huella,
+  caducidad y lectura positiva registrada. No se emite ni renueva durante recuperación.
+  Una credencial nueva del propietario solo cierra su sesión; las anteriores requieren
+  su credencial correspondiente o un recibo de cierre ya verificado. Si falta prueba,
+  conserva el bloqueo aunque haya retirado permisos. No convierte automáticamente la
+  caducidad en prueba de revocación.
+- **Interrupción:** la apertura parcial devuelve sus operaciones de limpieza. Fallar
+  al escribir el registro no impide retirar el permiso exacto, deshabilitar ni revocar
+  OAuth; la falta de recibos sigue impidiendo declarar cierre correcto. Las acciones
+  nativas de Compartir son callbacks explícitos revisados: reciben `assertActive` para
+  la última mutación y deben terminar antes de limpiar. No se deduce edición de
+  permisos a partir de OAuth de lectura. El operador aporta explícitamente credenciales
+  de recuperación y control de la UI; no salen de variables de entorno ni del registro.
+
+El ciclo permite inyectar HTTP para pruebas. Las dependencias Firestore/barrera
+conservan sus controles de proyecto, fuentes y autoridad. La UI de permisos y Google
+se simulan aquí; Firestore utiliza exclusivamente el emulador local. Esta conexión y
+los indicadores de preparación no autorizan una ejecución real.
+
+Validación final, hashes, equivalencia del paquete y registros retenidos en
+`2026-11-01-original-window-integration/validation-summary.json`. La primera ejecución
+emulada coincidió con el ajuste final del vínculo al intento y tuvo cuatro fallos por
+mezcla de versiones: se conserva como diagnóstico y no cuenta como validación final.
+No cambian los proveedores cuyos hashes están ligados a los ensayos históricos.
+Sin renovar observaciones, pedir credenciales, cambiar permisos ni escribir en
+Sheets/Firestore/FCM reales; sin mantenimiento, producción ni cambios nativos.
+
+**Siguiente:** preparar la invocación concreta con estos adaptadores, observaciones
+actuales de fuentes/controles/propietario y permisos acotados; después obtener la
+ventana real específica. Las tres conexiones de código anteriores quedan resueltas;
+el tiempo y cierre del ciclo real conjunto siguen sin certificar. Perder la única
+credencial antes de su recibo de cierre deja ese punto pendiente de inspección y no
+reanuda la ejecución. Ahora no hace falta renovar OAuth ni cerrar hojas. HU-084 y
+HU-085 abiertas; PR #278 borrador.
+
+
 ## Verificación de adaptadores reales de sesión y recuperación — 2026-11-01
+
+Revisión histórica: las conexiones pendientes descritas aquí se implementan en la sección anterior.
 
 La composición persistente está publicada en `d8b99067` (remoto comprobado). Esta
 revisión es local y **no** certifica una ventana real. Se han contrastado los
