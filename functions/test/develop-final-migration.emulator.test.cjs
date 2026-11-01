@@ -561,3 +561,87 @@ run(`joint deadline cycle: ${scenario}`,async()=>{
     receiptRetained:receipt!==null,forwardApplied,inverseApplied,rejected,recoveredSeparately,report,
     realFirestoreEmulator:true,injectedElapsedClock:true,simulatedGoogleCleanup:true,liveTimingCertified:false,canEnterMaintenance:false},null,2),{mode:0o600,flag:"wx"});
 });
+
+for(const fault of ["none","late-fence","lost-forward-ack","lost-forward-readback","lost-inverse-ack","expired-after-commit","owner-drift","inspection-unavailable","sheets-unavailable"])
+run(`controlled joint executor and uncertain-write inspection: ${fault}`,async()=>{
+  const {createCopyTimeBudget}=require("../scripts/develop-copy-time-budget.cjs");
+  const f=await jointHarness(),original=await saved("shifts"),guards={};
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])guards[name]=await saved(name,true);
+  let now=1000000,commits=0,readbackFailed=false;
+  const budget=createCopyTimeBudget({startsAtMillis:now,endsAtMillis:now+600000,nowMillis:()=>now});now+=120000;budget.beginWork(now+300000);
+  const proxy=new Proxy(db,{get(target,key){
+    if(key==="runTransaction")return async(callback,options)=>{
+      if(fault==="inspection-unavailable"&&commits)throw Error("inspection unavailable");
+      const result=await target.runTransaction(async tx=>{
+        const wrapped=new Proxy(tx,{get(transaction,name){
+          if(name==="getAll")return async(...args)=>{
+            const rows=await transaction.getAll(...args);
+            if(fault==="late-fence"&&args.some(r=>r.path.includes("/shiftPlanningNotificationFences/")))now+=80000;
+            return rows;
+          };
+          const value=Reflect.get(transaction,name);return typeof value==="function"?value.bind(transaction):value;
+        }});
+        return callback(wrapped);
+      },options);
+      if(result?.measurement&&result?.operation){
+        commits++;
+        if(["lost-forward-ack","inspection-unavailable"].includes(fault)&&commits===1||fault==="lost-inverse-ack"&&commits===2)throw Error("lost commit response");
+        if(fault==="expired-after-commit")now+=160000;
+      } else if(fault==="lost-forward-readback"&&commits===1&&!readbackFailed&&Array.isArray(result)&&result.some(r=>r.path)){
+        readbackFailed=true;throw Error("lost readback response");
+      }
+      return result;
+    };
+    const value=Reflect.get(target,key);return typeof value==="function"?value.bind(target):value;
+  }});
+  const executor=createControlledDevelopMigrationEmulator({firestore:proxy,prepared:f.h.prepared,
+    controlPlane:f.d.barrier.controlPlane,failurePersistence:f.d.barrier.failurePersistence,nowMillis:f.h.clock});
+  const scope=await f.h.scope();await f.d.barrier.acquire({scope});const admission=await executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+  const records=[];
+  const common={sourceInput:f.sourceInput,reviewPackage:f.reviewPackage,observeSheets:async()=>f.observe(),sheetsAdapter:f.api,timeBudget:budget,
+    record:async value=>{records.push(structuredClone(value));}};
+  if(fault==="owner-drift")f.sheets.onMutation=async()=>{f.sheets.state.sheets[0].data[0].rowData[0].values[0].note="external change";};
+  if(fault==="sheets-unavailable")f.sheets.onMutation=async()=>{f.sheets.get=async()=>{throw Error("read unavailable");};};
+  f.sheets.loseAcknowledgement=true;
+  if(fault==="none"){
+    const invalid=structuredClone(admission);invalid.preparedDigest="other";
+    await assert.rejects(executor.executeJoint({...common,scope,admission:invalid}));
+    assert.equal(commits,0);assert.equal(f.sheets.mutations.length,0);assert.equal(records.length,0);
+  }
+  const forward=await executor.executeJoint({...common,scope,admission});
+  if(["none","lost-inverse-ack"].includes(fault)) {
+    assert.equal(forward.kind,"joint-step-verified");assert.equal(forward.cleanupVerified,false);
+    const inverseScope=await f.h.scope(true);await f.d.barrier.acquire({scope:inverseScope});
+    const inverseAdmission=await executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:forward.firestoreReceipt});
+    if(fault==="none"){
+      const other=createControlledDevelopMigrationEmulator({firestore:db,prepared:f.h.prepared,
+        controlPlane:f.d.barrier.controlPlane,failurePersistence:f.d.barrier.failurePersistence,nowMillis:f.h.clock});
+      const bad=structuredClone(forward.firestoreReceipt);bad.receiptDigest="wrong";
+      await assert.rejects(other.executeJoint({...common,scope:inverseScope,admission:inverseAdmission,forwardReadBack:bad,forwardPlan:forward.plan}),/inverse preflight/);
+      assert.equal(f.sheets.mutations.length,1);
+    }
+    const inverse=await executor.executeJoint({...common,scope:inverseScope,admission:inverseAdmission,
+      forwardReadBack:forward.firestoreReceipt,forwardPlan:forward.plan});
+    assert.equal(inverse.kind,fault==="none"?"joint-step-verified":"joint-inspection-required");
+    if(fault==="lost-inverse-ack"){
+      assert.equal(inverse.inspection.firestore.kind,"committed-terminal-only");assert.equal(inverse.inspection.firestore.readBackVerified,false);
+      assert.equal(inverse.inspection.sheets.kind,"verified");
+    }
+    assert.equal(commits,2);assert.equal(f.sheets.mutations.length,2);assert.deepEqual(await saved("shifts"),original);
+  } else {
+    assert.equal(forward.kind,"joint-inspection-required");assert.equal(forward.canRetry,false);
+    const expected=fault==="late-fence"?"not-observed":fault==="inspection-unavailable"?"unavailable":"committed-and-readback-verified";
+    assert.equal(forward.inspection.firestore.kind,expected);assert.equal(commits,fault==="late-fence"?0:1);
+    assert.equal(f.sheets.mutations.length,["owner-drift","sheets-unavailable"].includes(fault)?1:0);
+    assert.equal((await saved("shifts")).length,fault==="late-fence"?62:72);
+    if(fault==="owner-drift")assert.equal(forward.inspection.sheets.kind,"unavailable-or-drifted");
+    if(fault==="sheets-unavailable")assert.equal(forward.inspection.sheets.kind,"ambiguous");
+    assert.ok(records.some(r=>r.phase==="inspection-required"));
+  }
+  await assert.rejects(executor.executeJoint({...common,scope,admission}),fault==="expired-after-commit"?/deadline_exhausted/:/consumed or active/);
+  for(const [name,rows]of Object.entries(guards))assert.deepEqual(await saved(name,true),rows);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);
+  const maintenance=await db.doc(`${ROOT}/shiftPlanningState/current`).get();if(maintenance.exists)assert.equal(maintenance.get("maintenanceStatus"),"closed");
+  for(const stage of ["file","iam","oauth"])await budget.beginCleanup(stage);
+  if(fault==="expired-after-commit")assert.throws(()=>budget.complete());else budget.complete();
+});

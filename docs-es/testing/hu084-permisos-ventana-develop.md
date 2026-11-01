@@ -5,6 +5,66 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
+## Control conjunto conectado al ejecutor — 2026-11-01
+
+La integración de recibos y el ensayo conjunto anterior están publicados como
+`f01c40c0`. El nuevo `executeJoint` local conecta la admisión y el motor transaccional
+existentes con `planBatch` y el adaptador de Sheets. No crea Function, CLI, credenciales,
+permisos ni entrada de mantenimiento. La ida escribe Firestore y después Sheets;
+la inversa restaura Sheets y después Firestore. Antes de modificar Sheets en la
+inversa se valida de nuevo la admisión y el recibo de ida. Los datos del llamante
+se copian antes de la primera suspensión.
+
+El controlador de tiempos se comprueba antes/después de las llamadas, antes de
+escribir en Firestore, después de las últimas lecturas de bloqueos, en cada mutación
+y al terminar el callback transaccional. Se limita a un intento de transacción del
+SDK. Sheets conserva su lote exacto, la captura/versión actual del propietario y la
+comprobación justo antes del envío. Cada dirección se consume una vez por ejecutor;
+no admite llamadas conjuntas simultáneas ni repetidas. El registro inyectado recibe
+intención, recibos y capturas independientes. Si no puede guardar un resultado
+incierto, propaga el fallo y no afirma haberlo conservado.
+
+`inspectUncertain` solo lee, también en las opciones de transacción de Firestore,
+y puede comprobar una confirmación aunque exista un incidente de barrera. En la
+ida verifica imágenes posteriores y versiones exactas. Un recibo de inversa prueba
+su confirmación, pero se informa como **solo terminal**, sin asegurar que todas las
+filas recuperadas sigan intactas. Un recibo ausente o inaccesible nunca habilita una
+repetición. Ante un fallo incierto se detiene el ciclo, se inspeccionan ambos servicios
+y se registra el resultado, sin reintento ni reversión automática. Una respuesta
+perdida de Sheets solo permite continuar si el adaptador comprueba la imagen exacta
+y aún queda tiempo. Los cambios ajenos en notas/celdas impiden esa conclusión.
+
+**Límite temporal:** son controles antes de admitir/enviar escrituras, no cancelación
+remota. Las opciones públicas de transacción del SDK instalado ofrecen `maxAttempts`,
+pero no cancelación ni timeout por transacción. Una confirmación/lectura ya enviada
+se espera; no hay Promise.race ni escritura abandonada. Un exceso de tiempo detiene
+lo siguiente y puede invalidar el plazo de limpieza; no acredita limpieza puntual.
+El llamante sigue siendo responsable de retirar permisos y ejecutar `budget.complete()`.
+El paso verificado devuelve expresamente `cleanupVerified:false`. Los ensayos usan
+un reloj de duración separado del reloj de autorización ficticio; no miden todavía
+la latencia real conjunta de Google y Firestore.
+
+Evidencias en `2026-11-01-joint-controlled-execution`. Sin llamadas a Google/Firestore
+reales, IAM, FCM, despliegues, hojas originales o producción. Sin cambios nativos ni
+diferencias entre plataformas. Se conservan el paquete y los recibos históricos;
+no se renuevan controles actuales. Implementación nueva local, sin commit.
+
+Validación: build/lint completo y lint CJS focalizado correctos con Node22.23.4.
+**256 pruebas locales distintas** (batería de 255 más repetición final de 18) y
+**82 casos distintos de emulador**, tras repetir los nueve casos conjuntos. Se corrigieron
+dos expectativas de prueba: el rechazo previo por plazo agotado y el resultado
+`ambiguous` del adaptador al fallar la lectura; no se relajó ningún control. La vía
+antigua de ejecución compartida ahora rechaza llamadas sin el control conjunto.
+Esta última condición exclusiva de develop compartido no modifica la rama de emulador.
+No se repiten las validaciones nativas porque no hay cambios en las apps.
+
+**Siguiente:** montar la invocación concreta de la ventana con los adaptadores ya
+existentes de adquisición, ejecución conjunta y limpieza, y ensayar interrupción y
+reinicio con su registro persistente. Solo después se renovarán controles y se pedirá
+la ventana real. No hace falta ninguna acción del usuario para el trabajo local;
+HU-084/HU-085 siguen abiertas y PR #278 en borrador.
+
+
 ## Recibos del ciclo completo y ensayo conjunto local — 2026-11-01
 
 El resultado real anterior está commiteado y publicado como `2ef610b3`. La nueva

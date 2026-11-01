@@ -5,6 +5,65 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Joint scheduling connected to controlled execution — 2026-11-01
+
+The receipt integration and previous joint rehearsal are delivered/pushed as
+`f01c40c0`. New local `executeJoint` on the existing controlled executor composes
+its current admission/transaction engine with `planBatch` and the Sheets adapter.
+It creates no Firebase export, CLI, credentials, permission grant or maintenance
+entry. Forward order is Firestore then Sheets; inverse order is Sheets then
+Firestore, with an additional fresh inverse admission/forward-receipt validation
+before the first Sheets mutation. Caller-owned inputs are detached before awaiting.
+
+The existing deadline controller is checked before/after provider work, before
+Firestore's first write, after late fence reads, at every queued mutation and when
+the transaction callback finishes. Read-write transactions use one SDK attempt.
+Sheets retains its exact request digest, fresh owner snapshot/version and immediate
+submission fence. A direction is consumed once per executor; concurrent or repeated
+joint calls are refused; inspection remains available. An injected evidence sink receives the intent,
+receipts and independent owner readbacks; failure to record an uncertain outcome
+propagates rather than claiming it was retained.
+
+`inspectUncertain` is explicitly read-only, including Firestore transaction options,
+and can inspect a committed terminal even when barrier failure evidence exists.
+Forward inspection verifies exact afterimages and service versions. A retained
+inverse terminal proves its commit but is reported as **terminal-only**, not proof
+that every recovered row is still current. Missing/unavailable receipts never
+permit replay. After any uncertain failure the cycle stops, inspects both services,
+records its result, and performs no automatic retry or inverse. Lost Sheets replies
+may continue only when the existing adapter independently verifies the exact image
+and the budget remains valid. External note/cell drift blocks that claim.
+
+**Timing limit:** these are admission/submission fences, not remote cancellation.
+The installed Firestore SDK exposes `maxAttempts` but no per-transaction cancellation
+or timeout in its public transaction options. A dispatched commit/read is awaited;
+there is no Promise.race or abandoned write. An overrun stops subsequent work and
+can invalidate the cleanup deadline; it does not become a claim of timely cleanup.
+The caller still owns permission cleanup and `budget.complete()`. A verified joint
+step deliberately returns `cleanupVerified:false`; it cannot certify the whole
+maintenance lifecycle. Scheduling tests inject elapsed time separately from the
+fixture's authority clock; real Google/Firestore combined latency remains unmeasured.
+
+Validation evidence: `2026-11-01-joint-controlled-execution`. No live Google or
+Firestore call, IAM change, FCM, deployment, original workbook or production access.
+No native changes/parity gap. The review packet and historical receipts are retained;
+current controls have not been refreshed. New implementation is local/uncommitted.
+
+Validation: Node22.23.4 build/full lint and focused CJS lint pass. **256 distinct
+local tests** (255-suite plus final18 guard/composition rerun) and **82 distinct
+emulator cases** pass after the final focused nine-case rerun. Two test assertions
+were corrected to expect the actual earlier deadline rejection and the adapter's
+`ambiguous` read failure; no runtime guard was relaxed. The shared-develop legacy
+execute path now refuses calls without the joint mutation guard. The final shared-only
+check does not alter the emulator branch. Native gates were not run: no native edits.
+
+**Next:** assemble the existing acquisition, joint executor and permission-cleanup
+adapters into the concrete reviewed window invocation, then rehearse interruption
+and restart using its durable evidence sink. Refresh current controls and request
+the actual window only after that composition is verified. No user action is needed
+for the local work; HU-084/HU-085 remain open and PR #278 draft.
+
+
 ## Full-cycle receipts and joint local rehearsal — 2026-11-01
 
 The previous real-copy outcome is committed and pushed as `2ef610b3`. The new local

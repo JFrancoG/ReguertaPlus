@@ -3157,3 +3157,24 @@ No native changes. New work local; both issues open, PR #278 draft.
 
 Validation: Node22 build/full lint/focused CJS lint; 252 distinct local tests and
 73 emulator tests pass, zero skips. No native gates needed for this scripts-only block.
+
+
+### Controlled joint scheduling and uncertain response inspection — 2026-11-01
+
+Previous full-cycle evidence delivered as `f01c40c0`. Local `executeJoint` now connects
+the existing migration and Sheets adapters with deadline checks at transaction
+mutations/callback completion and exact Sheets submission. Fresh inverse admission
+precedes Sheets recovery. One SDK transaction attempt, no concurrent/repeated joint
+direction, no abandoned promises. Uncertain results stop and inspect read-only even
+when a barrier incident exists; absence is never retry authority. Inverse terminal
+proof remains distinct from current recovered-row verification. The caller owns the
+persistent evidence sink and cleanup; step success does not certify timely revocation.
+No live calls, maintenance, original workbook, production or native changes. Next
+compose acquisition/joint execution/cleanup for the concrete window and rehearse
+interruption/restart before refreshing controls or requesting its authorization.
+See the bilingual window guide and private `2026-11-01-joint-controlled-execution`.
+New work uncommitted; HU-084/HU-085 open and PR #278 draft.
+
+Validation: build/full lint/CJS lint; 256 distinct local tests and 82 distinct
+emulator cases pass after focused final reruns. Shared execution without the
+joint deadline guard is refused. No native changes or parity gap.

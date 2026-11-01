@@ -69,3 +69,15 @@ test("original writer proof reaches materializer and admission without replacing
  assert.deepEqual(report.blockers,["source_not_verified"]);assert.equal(report.checksPassed,false);
  assert.equal(report.canApply,false);assert.equal(report.canEnterMaintenance,false);assert.equal(args.readCount(),1);
 });
+
+test("shared develop refuses the legacy unbounded execute path before provider access",async()=>{
+  const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.js");
+  const args=dependencies(),p=args.prepared,part=p.policyDraft.document.sync.partitions.delivery;
+  const scope={schemaVersion:3,environment:"develop",transitionId:p.operationId,
+    expectedWorkbookFileId:part.workbookId,expectedWorkbookRevision:part.workbookRevision};
+  const value={kind:"develop-migration-admission-inspection",preparedDigest:p.preparedDigest,projectId:"reguerta-9f27f",environment:"develop",
+    direction:"forward",scopeDigest:digest(scope),readOnly:true,canApply:false,canEnterMaintenance:false,checksPassed:true,
+    blockers:[],finalManifest:{},startedAtMillis:100,observedAtMillis:100};
+  await assert.rejects(create(args).execute({scope,admission:{...value,admissionDigest:digest(value)}}),/requires joint deadline guard/);
+  assert.equal(args.readCount(),0);
+});

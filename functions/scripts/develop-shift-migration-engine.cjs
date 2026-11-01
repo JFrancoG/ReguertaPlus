@@ -385,7 +385,7 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
     if (inverse) requireValue(recovery.inverseManifestDigest === inverseDigest(scope, receipt), "inverse replay intent changed");
     if (!inverse) requireValue(baseline.scopeDigest === digest(scope), "replay scope changed");
     return {operation: recovery ?? activation, baseline};
-  });
+  }, {readOnly: true});
   const requireNoFailure = async (transitionId) => requireValue(await failurePersistence.readExistingFailure({environment: "develop", transitionId}) === null,
     "retained barrier failure requires governed inspection");
   const runHeld = async (scope, callback) => barrier.withClosedIntakeBarrier(scope, async (evidence) => {
@@ -410,6 +410,20 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
   return {
     close: () => db.terminate(),
     retentionPolicy,
+    async inspectRetained({scope, direction = "forward", forwardReadBack = null}) {
+      requireValue(["forward", "inverse"].includes(direction), "inspection direction");
+      // Deliberately bypass requireNoFailure: an incident can coexist with a
+      // committed transaction. This path only reads and never grants replay.
+      const found = await retained(scope, direction === "inverse", forwardReadBack);
+      if (!found) return {kind: "not-observed", canRetry: false};
+      if (direction === "forward" && found.operation.operationKind !== "activationRecovery") {
+        const receipt = await snapshotReceipt("forward", forwardDescriptors(found.baseline), null, found.operation, true);
+        return {kind: "committed-and-readback-verified", receipt, canRetry: false};
+      }
+      // The terminal proves the commit, not that all its afterimages are still
+      // current. Preserve that distinction for recovered/historical operations.
+      return {kind: "committed-terminal-only", operation: encode(found.operation), readBackVerified: false, canRetry: false};
+    },
     async inspect({initial = false} = {}) {
       const source = await db.runTransaction(async tx => { const found = await capture(tx); if (initial) checkInitialSource(found); return found; }, {readOnly:true});
       return {sourceDigest:source.sourceDigest,maintenance:source.maintenance};

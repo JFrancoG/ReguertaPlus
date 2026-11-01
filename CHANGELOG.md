@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-11-01 | ✨ feat(shifts): guard joint migration execution
+
 - 2026-11-01 | ✨ feat(shifts): bind full cycle admission evidence
 
 - 2026-11-01 | ✨ feat(shifts): bound the complete copy lifecycle
