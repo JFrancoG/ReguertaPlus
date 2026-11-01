@@ -1431,8 +1431,12 @@ scope. Private record: `2026-11-01-google-batch-integration`; #268/#269 open, #2
   preserve original business intents and fail closed on malformed or uncontained proof.
 - [x] Review measured timing and identify the120s cleanup allowance mismatch: OAuth
   alone permits120s; combined lifecycle remains unmeasured.
-- [ ] Review prior ten-row/A1 exact-source compatibility and bound/rehearse complete
-  cleanup deadlines locally before another real two-batch copy lifecycle.
+- [x] Reconstruct/review ten-row/A1 source compatibility and preserve all original
+  receipts through exact pinned transitions; no current-authority claim.
+- [x] Bind complete copy deadlines:150s work plus60/90/120s cleanup slots; one300s token,
+  same600s window. Rehearse slow/error paths and real transports on synthetic HTTP.
+- [ ] Separately prepare/authorize a fresh synthetic copy for uninterrupted real timing;
+  then refresh shared develop evidence and its combined maintenance-window admission.
 
 Historical forward execution stopped before inverse. The separately authorized recovery
 now restores the copy with complete preservation and cleanup verified. No uninterrupted
@@ -1457,3 +1461,11 @@ pass build/lint and152 tests. Old ten-row/A1 proofs are retained separately with
 hashes, not recertified against changed backend sources. Real recovery receipts are
 bound; original source policy/intents and observation ages remain unchanged. No live
 calls, maintenance or production. See the bilingual window guide for all timing gates.
+
+### Complete budget and compatibility — 2026-11-01
+
+Receipt integration delivered as `3aa1b467`. New local budget and historical transition
+review pass build/lint and166 tests on Node22.23.4, including14 new cases. Three original
+evidence pins are restored in the offline package without rewriting receipts or
+refreshing observations. Real uninterrupted provider timing and shared maintenance
+remain unproved/unauthorized. Bilingual window guide contains exact deadlines and limits.

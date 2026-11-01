@@ -6,6 +6,7 @@ const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-diges
 const {prepare, IDENTITY} = require("./prepare-develop-original-writer-check.cjs");
 const {checkIdentity} = require("./prepare-develop-writer-rehearsal.cjs");
 const {FILE, TABS, REQUEST, validateMetadata, metadataFingerprint, snapshot} = require("./develop-original-writer-provider.cjs");
+const {reviewIamPreparationDigest} = require("./develop-historical-source-compatibility.cjs");
 const equal = (a, b, message) => assert.equal(digest(a), digest(b), message);
 
 function reviewOriginalWriterCheck(e, reviewedDigest, originalWorkbookId) {
@@ -14,9 +15,10 @@ function reviewOriginalWriterCheck(e, reviewedDigest, originalWorkbookId) {
   const {preparationDigest, ...preparation} = e.preparation;
   assert.equal(digest(preparation), preparationDigest);
   const current = prepare();
-  // The inert plan accumulates later outcomes. Only its digest may differ;
-  // controller/provider/IAM sources, request and all execution limits must match.
-  for (const key of Object.keys(current).filter(k => !["planDigest", "preparationDigest"].includes(k)))
+  const iamCompatibility = reviewIamPreparationDigest(e.preparation.reusedIamPreparationDigest);
+  // The inert plan may accumulate outcomes. The IAM preparation has its own
+  // exact reviewed transition; all other execution fields must still match.
+  for (const key of Object.keys(current).filter(k => !["planDigest", "preparationDigest", "reusedIamPreparationDigest"].includes(k)))
     equal(e.preparation[key], current[key], "original writer execution contract changed");
   const a = e.approval, r = e.receipts;
   assert.equal(a.preparationDigest, preparationDigest);
@@ -88,7 +90,7 @@ function reviewOriginalWriterCheck(e, reviewedDigest, originalWorkbookId) {
     preparationDigest, receiptId:a.receiptId, originalWorkbookId:FILE, identity:IDENTITY,
     snapshotDigest:raw.digest, selectedCells:raw.selectedCells, submittedBatches:1,
     requestDigest:digest(REQUEST()), versionBefore:e.ownerBefore.file.version, versionAfter:e.ownerAfter.file.version,
-    independentlyObservedAtMillis:cleaned, sourceCompatibility:"exact-execution-contract-inert-plan-history-excluded",
+    independentlyObservedAtMillis:cleaned, sourceCompatibility:iamCompatibility === "exact-reviewed-sources" ? "exact-execution-contract-inert-plan-history-excluded" : iamCompatibility,
     sameValueWriteVerified:true, currentWriterAuthorityVerified:false, currentControlsVerified:false,
     grantsMigrationAuthority:false, canApply:false, canEnterMaintenance:false};
 }

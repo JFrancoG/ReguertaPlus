@@ -7,6 +7,7 @@ const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.j
 const {createShiftSheetsOwnerPreservationManifest:manifest,assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
 const {EMAIL,checkIdentity,prepare:iamPreparation}=require("./prepare-develop-writer-rehearsal.cjs");
 const {PROTECTED_FILES}=require("./develop-helper-copy-provider.cjs");
+const {reviewHelperExecutionDigest}=require("./develop-historical-source-compatibility.cjs");
 const equal=(a,b,why)=>assert.equal(digest(a),digest(b),why);
 const millis=value=>assert.ok(Number.isSafeInteger(value)&&value>=0,"invalid receipt time");
 
@@ -15,12 +16,12 @@ function reviewHelperRecovery(e,reviewedDigest,originalWorkbookId) {
   const {input:a,prepared:p}=e.approval;
   const {preparationDigest,...body}=p;assert.equal(digest(body),preparationDigest);
   assert.equal(p.kind,"isolated-helper-copy-recovery-preparation");
-  // Same source set as the consumed runner; changes require a new compatibility
-  // review instead of silently certifying today's code with yesterday's receipts.
+  // Same source set as the consumed runner. Only an exact reviewed historical
+  // transition can retain older receipts; it does not prove the new deadlines.
   const sources=["rehearse-develop-helper-copy.cjs","develop-helper-copy-provider.cjs","prepare-develop-helper-batch.cjs",
     "develop-google-observations.cjs","develop-writer-copy-provider.cjs","prepare-develop-writer-rehearsal.cjs",
     "../lib/shift-sheets.js","../lib/shift-sheets-owner-manifest.js"];
-  equal(p.sourceDigest,digest(sources.map(s=>fs.readFileSync(path.join(__dirname,s),"utf8"))),"recovery execution sources changed");
+  const sourceCompatibility=reviewHelperExecutionDigest(p.sourceDigest,digest(sources.map(s=>fs.readFileSync(path.join(__dirname,s),"utf8"))));
   assert.equal(p.parentPreparationDigest,iamPreparation().preparationDigest);
   assert.ok(PROTECTED_FILES.includes(originalWorkbookId));
   assert.ok(PROTECTED_FILES.every(id=>p.protectedWorkbookIds.includes(id)));
@@ -80,7 +81,7 @@ function reviewHelperRecovery(e,reviewedDigest,originalWorkbookId) {
   [wait,verified,total].forEach(millis);
   assert.ok(wait>=120000&&wait<180000&&wait<=verified&&verified<=total&&total<=a.endsAtMillis-a.startsAtMillis);
   return {kind:"historical-contained-helper-copy-recovery",evidenceDigest:reviewedDigest,preparationDigest,
-    syntheticWorkbookId:p.fileId,originalWorkbookId,receiptId:a.receiptId,sourceCompatibility:"exact-reviewed-execution-sources",
+    syntheticWorkbookId:p.fileId,originalWorkbookId,receiptId:a.receiptId,sourceCompatibility,
     restoredHelperCells:53,updatedMarkers:2,submittedBatches:1,versionBefore:p.reviewedVersion,versionAfter:after.version,
     restoredSnapshotDigest:digest(after.snapshot),independentlyObservedAtMillis:times.at(-1),
     measuredTiming:{iamPropagationMillis:wait,inverseVerifiedElapsedMillis:verified,totalWithCleanupMillis:total,

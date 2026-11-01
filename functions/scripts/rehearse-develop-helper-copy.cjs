@@ -91,7 +91,7 @@ function checkPrepared(prepared) {
   assert.ok(!prepared.protectedWorkbookIds.includes(prepared.fileId));
 }
 
-async function runCopy({prepared,input,iam,owner,openWriter,readIsolation,journalRoot,nowMillis=Date.now,sleep=ms=>new Promise(r=>setTimeout(r,ms))}) {
+async function runCopy({prepared,input,iam,owner,openWriter,readIsolation,journalRoot,nowMillis=Date.now,sleep=ms=>new Promise(r=>setTimeout(r,ms)),timeBudget=null}) {
   prepared=structuredClone(prepared);input=structuredClone(input);checkPrepared(prepared);
   // Recompute the recipe, not just a caller-supplied hash, before any provider I/O.
   const recovery=prepared.kind==="isolated-helper-copy-recovery-preparation";
@@ -148,6 +148,7 @@ async function runCopy({prepared,input,iam,owner,openWriter,readIsolation,journa
     let token=await iam.mint(iamPreparation().tokenRequest);
     try{bearer=token.accessToken;expiry=Date.parse(token.expireTime);assert.ok(typeof bearer==="string"&&bearer.length);
       assert.ok(Number.isSafeInteger(expiry)&&expiry<=nowMillis()+300000&&expiry<=input.endsAtMillis);budget();}finally{token=null;}
+    timeBudget?.beginWork(expiry);
     record("token-issued",{expiresAtMillis:expiry,tokenRetained:false});writer=await openWriter({bearer,expiresAtMillis:expiry,maximumBatches:prepared.maximumBatches});
     assert.equal((await writer.probe()).status,200);record("positive-copy-access",{status:200});
     const api=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:"develop",workbooks:{develop:prepared.fileId}}),sheets:writer.sheets});
@@ -155,7 +156,7 @@ async function runCopy({prepared,input,iam,owner,openWriter,readIsolation,journa
     for(const direction of recovery?["inverse"]:["forward","inverse"]) {
       phase=direction;budget();const before=await owner.observe(true);assert.deepEqual(before.snapshot,expected);
       let preservation=null;
-      const result=await api.reconcile({...prepared[direction],assertSubmissionNow:budget,authorizeMutation:async batch=>{
+      const result=await api.reconcile({...prepared[direction],assertSubmissionNow:()=>{budget();timeBudget?.assertSubmission();},authorizeMutation:async batch=>{
         budget();assert.equal(batch.workbookId,prepared.fileId);assert.equal(batch.requests.length,55);
         const updates=batch.requests.filter(r=>r.updateCells);assert.equal(updates.length,53);
         const targets=new Map(prepared[direction].humanRows.map(r=>[`${r.sheetId}:${r.rowNumber-1}`,r.after[0].values[5]]));
@@ -167,7 +168,7 @@ async function runCopy({prepared,input,iam,owner,openWriter,readIsolation,journa
           assert.deepEqual(batch.requests,prepared.inversePlan.requests);assert.deepEqual(preservation,prepared.inversePlan.preservation);}
         await identity(false,[binding],Math.min(nowMillis()+60000,expiry-150000));await isolated();
         const final=await owner.observe(true);assert.equal(final.version,before.version);assert.deepEqual(final.snapshot,before.snapshot);
-        budget();record(direction+"-intent",{requestDigest:batch.requestDigest,requests:batch.requests,preservation});
+        budget();timeBudget?.assertSubmission();record(direction+"-intent",{requestDigest:batch.requestDigest,requests:batch.requests,preservation});
       }});
       assert.ok(preservation,"Consumed operation is inspect-only; cannot start a new run");assert.equal(result.kind,"verified");
       const after=await owner.observe(true);record(direction+"-readback",{result,observation:after});
@@ -181,10 +182,12 @@ async function runCopy({prepared,input,iam,owner,openWriter,readIsolation,journa
     const location=frame?.slice(frame.indexOf(__filename+":")+__filename.length+1).match(/^(\d+):(\d+)/);
     failure={phase,httpStatus:Number.isInteger(e?.httpStatus)?e.httpStatus:null,sourceLine:location?Number(location[1]):null};}
   finally {
+    await timeBudget?.beginCleanup("file");
     if(grantAttempted)try{await owner.remove(permission);await owner.observe(false);
       if(bearer){assert.ok(writer&&nowMillis()<expiry);const denied=await writer.probe();assert.ok([403,404].includes(denied.status)&&nowMillis()<expiry);
         record("copy-denied",{status:denied.status,sameUnexpiredToken:true});}}
     catch{cleanupFailures.push("file_removal_or_live_token_denial_unproven");}
+    await timeBudget?.beginCleanup("iam");
     if(owned){
       try{const v=await iam.readIdentity();assert.equal(v.account.uniqueId,IDENTITY.uniqueId);assert.equal(v.account.email,EMAIL);
         const next=removeOwnGrant(v.policy,binding);if(digest(next.bindings)!==digest(v.policy.bindings??[]))await iam.setPolicy(next);}
@@ -193,8 +196,10 @@ async function runCopy({prepared,input,iam,owner,openWriter,readIsolation,journa
       try{await identity(true,[],nowMillis()+60000);await isolated();}catch{cleanupFailures.push("terminal_identity_unproven");}
     }
     try{writer?.close();}catch{cleanupFailures.push("writer_discard_unproven");}bearer=null;
+    await timeBudget?.beginCleanup("oauth");
     try{const cleanup=await owner.close();assert.equal(cleanup.verified,true);record("owner-oauth-cleanup",cleanup);}catch{cleanupFailures.push("owner_oauth_cleanup_unproven");}
   }
+  if(timeBudget)try{record("deadline-report",timeBudget.complete());}catch{cleanupFailures.push("deadline_budget_unproven");}
   const result={kind:failure||cleanupFailures.length?"inspection_required":recovery?"inverse-copy-restored-and-contained":"full-copy-restored-and-contained",failure,cleanupFailures,
     completedBatches,mintAttempted,elapsedMillis:nowMillis()-started,canRetry:false,canEnterMaintenance:false,productionAccess:false};
   record("terminal",result);if(!cleanupFailures.length)fs.rmdirSync(lock);return result;

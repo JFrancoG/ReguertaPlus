@@ -5,6 +5,72 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Complete copy deadline budget and historical compatibility — 2026-11-01
+
+Admission-receipt integration is delivered/pushed as `3aa1b467`. New local work
+composes the existing copy runner and Google transports through `runBudgetedCopy`.
+It requires an exact `budgetDigest` bound to the copy preparation and budget source.
+No live CLI, credential lookup, token renewal or new migration executor is introduced.
+The next live copy composition must use this entry; bare `runCopy` remains the core
+for focused fixtures and historical receipt interpretation, not proof of this budget.
+
+| Deadline allocation | Bound |
+| --- | --- |
+| Confirmed owner window | At most600s, unchanged |
+| Preparation/IAM readiness | Must finish while more than420s of the window remain; existing120s IAM minimum remains |
+| Work after mint | At most150s, shared by both batches and their observations |
+| File removal, owner readback and same-token denial |60s reserved; always before writer-token expiry |
+| IAM removal, disable, identity/runtime readback |90s reserved |
+| Owner OAuth revocation and both API denials |120s reserved |
+| Total cleanup reserve |270s, separate from work; unused earlier capacity may carry forward |
+| Writer token | One300s token; no grant or token extension |
+
+These are enforced ceilings, not predicted provider latencies. Before each batch,
+75s must still fit in the work slot (30s request and45s bounded readback), while the
+existing150s token fence still applies. HTTP deadlines cover body consumption and
+combine with each transport's own timeout. Exhaustion rejects the next write; after
+an already verified forward it may leave an inspectable forward state, never an
+automatic inverse or replay. A late/aborted HTTP request is not proof of non-execution.
+
+Cleanup stages have absolute deadlines and remain independent. The composition
+joins outstanding sibling HTTP reads after an early `Promise.all` rejection before
+changing phase; it does not race or abandon an in-flight operation. Breaches or
+unverified cleanup produce `inspection_required` and retain the local lock. OAuth
+cleanup also runs if runner preflight fails after the owner session is constructed.
+A process crash still requires receipt/resource reconciliation; no finally guarantee
+or universal provider-response guarantee is claimed.
+
+Historical compatibility is now reviewed rather than merely deferred. Rebuilding
+`eae86a89^`'s manifest validator using the installed TypeScript compiler reproduces
+the old full backend digest `2c63c31b…ce669`; current digest is `049fe823…d741`.
+Only `src/shift-sheets-owner-manifest.ts` and its compiled `.js` differ. A narrow
+pinned transition preserves the older ten-row and original-A1 outcomes; every other
+preparation field and source transition still rejects. The separately pinned copy
+runner transition retains the previous53-cell inverse as **pre-deadline history**,
+not evidence that the new budget was exercised live. No raw receipt is rehashed or
+rewritten. Unknown future code changes require another compatibility review.
+
+Private packet `2026-11-01-complete-copy-budget` restores all three original evidence
+pins into the review package. Package `1bb66f7931ee94184fc5b7e7ef6316126fcfa8bc00563defd87e5c4cc2df8dab`;
+controlled preparation `79e90ac1b26e386bc2dae27f40be92606ef34be2d211b703db9cfbbfd5d21074`.
+Source policy, original business intents, operation identities and observation ages
+remain unchanged; admission remains false. A separate budget template uses only a
+local placeholder destination; it is not an executable live-copy authorization.
+
+Validation: Node22.23.4, build/full lint, focused CJS lint and **166 tests**, zero
+failures/skips. Fourteen new cases cover historical compatibility, slow OAuth, work
+exhaustion before first/second batch, each cleanup overrun, lost-response inverse,
+exact budget binding, late HTTP settlement, joining sibling reads and a complete
+real-transport composition against synthetic HTTP. Dates/order/content restore in
+that local roundtrip. No external provider call occurred. Existing Firestore emulator
+engines and native apps are unchanged; no new emulator or physical-app claim.
+
+Next: prepare and separately authorize one fresh synthetic-copy full-cycle run with
+this exact budget, then measure actual uninterrupted provider timing. Shared develop
+maintenance still needs fresh controls/source/owner observations, held admission and
+its own combined Firestore/Sheets window; these local tests do not authorize it.
+No maintenance, production or native parity change. New work remains local/uncommitted.
+
 ## Recovery receipts bound to admission preparation — 2026-11-01
 
 Recovery outcome documentation is delivered/pushed as `82029bf8`. New local code

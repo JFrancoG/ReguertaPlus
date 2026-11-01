@@ -3,7 +3,8 @@
 // Historical, locally reviewed evidence only. No clients, grants or admission.
 const assert = require("node:assert/strict");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
-const {prepare, PROJECT, EMAIL, DEMO} = require("./prepare-develop-writer-rehearsal.cjs");
+const {PROJECT, EMAIL, DEMO} = require("./prepare-develop-writer-rehearsal.cjs");
+const {reviewIamPreparation} = require("./develop-historical-source-compatibility.cjs");
 const equal = (a, b, why) => assert.equal(digest(a), digest(b), why);
 
 function reviewWriterRehearsal(evidence, reviewedDigest, originalWorkbookId) {
@@ -11,8 +12,7 @@ function reviewWriterRehearsal(evidence, reviewedDigest, originalWorkbookId) {
   const {preparation, input, result, terminal, reviewedBatch, tokenIssued, accessRemoved,
     before, after, child, identityBefore, identityAfter, permissionsAfter, oauthRevoked,
     wrapperCleanup, localFinal} = evidence;
-  // Evidence cannot certify a changed runner, controller, provider or plan.
-  equal(preparation, prepare(), "writer rehearsal sources changed; review required");
+  const sourceCompatibility = reviewIamPreparation(preparation);
   assert.equal(input.approval.preparationDigest, preparation.preparationDigest);
   assert.equal(input.approval.kind, "authorized-single-synthetic-copy-rehearsal");
   assert.equal(input.identity.email, EMAIL);
@@ -79,7 +79,7 @@ function reviewWriterRehearsal(evidence, reviewedDigest, originalWorkbookId) {
     preparationDigest:preparation.preparationDigest, identity:structuredClone(input.identity),
     syntheticWorkbookId:input.copy.fileId, originalWorkbookId, completedAtMillis:terminal.at,
     independentlyObservedAtMillis:identityAfter.observedAtMillis, originalTabsDigest:before.digest,
-    submittedBatches:1, syntheticRows:10, preservedOriginalTabs:7, sourceCompatibility:"exact-reviewed-sources",
+    submittedBatches:1, syntheticRows:10, preservedOriginalTabs:7, sourceCompatibility,
     originalFileAuthorityVerified:false, currentControlsVerified:false, canApply:false, canEnterMaintenance:false,
     remainingBindings:["fresh-original-source-version-and-complete-ACL", "authorized-original-writer-and-capabilities",
       "independent-current-controls-and-drain", "separate-Firestore-authority", "owner-admin-risk-window"]};

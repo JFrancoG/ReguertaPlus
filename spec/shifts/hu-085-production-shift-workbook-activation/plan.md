@@ -1051,3 +1051,19 @@ cleanup reserve cannot bound every cleanup phase. Next group historical compatib
 review with a complete deadline budget and slow/failure local rehearsals, before any
 new real copy run. No live maintenance, new provider calls or production access.
 The integration remains local/uncommitted; HU-084/HU-085 and draft PR #278 stay open.
+
+
+### Complete copy budget and reviewed source compatibility — 2026-11-01
+
+`3aa1b467` delivers receipt admission integration. New local composition binds an exact
+budget to the existing runner/transports: one300s token, window<=600s, work<=150s and
+cleanup reservations60/90/120s. HTTP/body reads have phase deadlines; independent cleanup
+joins outstanding calls. A breach retains inspection/lock, never automatic replay.
+The previous ten-row/A1 evidence is accepted only through the reproduced exact
+eae86a89 validator transition; pre-budget53-cell recovery stays historical. Original
+receipts, source policy, business intents and observation ages remain unchanged.
+Node22.23.4 build/lint and166 tests pass, including14 new budget/compatibility cases.
+Real transports ran against synthetic HTTP only. Next prepare/separately authorize a
+fresh-copy real full-cycle measurement; shared Firestore/Sheets timing and fresh
+maintenance admission remain separate. No live provider calls, maintenance, production
+or native changes. New work stays local/uncommitted; issues open, PR #278 draft.

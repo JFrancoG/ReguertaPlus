@@ -5,6 +5,76 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
+## Presupuesto completo de la copia y compatibilidad histórica — 2026-11-01
+
+La integración de recibos está commiteada y pusheada como `3aa1b467`. El trabajo
+nuevo conecta el ejecutor y los transportes de Google existentes mediante
+`runBudgetedCopy`. Exige un `budgetDigest` exacto que vincula preparación de copia
+y código del presupuesto. No añade CLI real, búsqueda de credenciales, renovación
+de tokens ni otro motor de migración. El siguiente ensayo real debe usar esta entrada;
+`runCopy` sigue siendo el núcleo para pruebas focalizadas e interpretación histórica,
+pero por sí solo no acredita el presupuesto nuevo.
+
+| Asignación de tiempo | Límite |
+| --- | --- |
+| Ventana confirmada del propietario | Máximo600s, sin ampliación |
+| Preparación y disponibilidad IAM | Deben terminar cuando aún queden más de420s; se mantiene el mínimo IAM de120s |
+| Trabajo tras emitir el token | Máximo150s compartidos entre ambos lotes y sus lecturas |
+| Retirada de permiso, lectura del propietario y denegación del mismo token | Reserva60s, siempre antes de caducar el token |
+| Retirada IAM, desactivación y lectura de identidad/inventario | Reserva90s |
+| Revocación OAuth y denegación en ambas APIs | Reserva120s |
+| Limpieza total | Reserva270s separada del trabajo; el margen anterior no gastado puede aprovecharse |
+| Token del escritor | Uno de300s; sin ampliar token ni concesión |
+
+Son límites aplicados, no predicciones de latencia. Antes de cada lote deben caber
+75s en el tramo de trabajo (30s de petición y45s de lectura acotada), manteniendo
+además el control previo de150s del token. El plazo HTTP incluye consumir el cuerpo
+y se combina con el timeout propio del transporte. Si se agota el margen se rechaza
+la siguiente escritura; tras una ida verificada puede quedar ese estado pendiente
+de inspección, sin inversa ni repetición automáticas. Cancelar una petición tardía
+no demuestra que Google no la haya ejecutado.
+
+Las fases de limpieza tienen plazos absolutos y son independientes. Si `Promise.all`
+rechaza antes de terminar otras lecturas HTTP, se espera a que estas concluyan antes
+de cambiar de fase; no se abandona ninguna operación en curso. Exceder un plazo o no
+poder verificar la limpieza produce `inspection_required` y conserva el bloqueo local.
+También se limpia OAuth si falla la comprobación inicial después de construir la
+sesión del propietario. Un cierre del proceso sigue exigiendo conciliar recibos y
+recursos; no se garantiza ejecutar `finally` ante un cierre ni la respuesta de Google.
+
+La compatibilidad histórica queda revisada. Reconstruir el validador de `eae86a89^`
+con el compilador TypeScript instalado reproduce la huella antigua de todo el backend
+`2c63c31b…ce669`; la actual es `049fe823…d741`. Solo difieren
+`src/shift-sheets-owner-manifest.ts` y su `.js` compilado. Una transición acotada por
+esas huellas conserva los resultados de diez filas y A1; cualquier otro cambio de
+preparación o fuentes se rechaza. La transición específica del ejecutor de copia
+conserva la inversa de53 celdas como **historial anterior al presupuesto**, no como
+ensayo real del presupuesto nuevo. No se reescriben recibos ni se sustituyen sus
+huellas. Los cambios futuros desconocidos exigirán otra revisión de compatibilidad.
+
+Paquete privado `2026-11-01-complete-copy-budget`: incorpora de nuevo las tres huellas
+originales. Paquete `1bb66f7931ee94184fc5b7e7ef6316126fcfa8bc00563defd87e5c4cc2df8dab`;
+preparación `79e90ac1b26e386bc2dae27f40be92606ef34be2d211b703db9cfbbfd5d21074`.
+Política, cambios de negocio, identidades de operación y antigüedad de observaciones
+sin cambios; admisión bloqueada. La plantilla de presupuesto usa un identificador
+local ficticio y no autoriza ninguna copia real.
+
+Validación: Node22.23.4, build/lint completo, lint CJS focalizado y **166 pruebas**,
+sin fallos ni omisiones. Catorce casos nuevos cubren compatibilidad, OAuth lento,
+falta de margen antes de primer/segundo lote, excesos en cada limpieza, inversa con
+respuesta perdida, vínculo exacto del presupuesto, respuestas HTTP tardías, espera de
+lecturas paralelas y ciclo completo con transportes reales ante HTTP simulado.
+Ese ciclo local restaura fechas, orden y contenido. Sin llamadas a proveedores reales.
+Motores de emulador Firestore y apps sin cambios; no se atribuyen nuevas pruebas de
+emulador ni pruebas físicas.
+
+Siguiente paso: preparar y autorizar por separado un ciclo completo en una copia
+sintética nueva con este presupuesto y medir tiempos reales sin interrupciones.
+El mantenimiento compartido de develop seguirá necesitando controles/fuentes/lecturas
+del propietario frescos, admisión y ventana conjunta de Firestore/Sheets. Estas pruebas
+locales no lo autorizan. Sin mantenimiento, producción ni diferencia de paridad nativa.
+Trabajo nuevo local, sin commit.
+
 ## Recibos de recuperación incorporados a la preparación de admisión — 2026-11-01
 
 La documentación del resultado está commiteada y pusheada como `82029bf8`. El código

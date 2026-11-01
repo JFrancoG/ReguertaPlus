@@ -167,7 +167,7 @@ test('recovery preparation rejects changed cells, markers, historical recipe, un
   for(const change of [
     e=>{e.observation.snapshot.sheets[0].data[0].rowData[150].values[0].note='unrelated edit';},
     e=>{e.observation.snapshot.sheets[0].developerMetadata[0].metadataValue='wrong marker';},
-    e=>{e.original.inverse.rows[0].helperUserId='unreviewed';const {preparationDigest,...body}=e.original;e.original.preparationDigest=digest(body);},
+    e=>{e.original.inverse.rows[0].helperUserId='unreviewed';const {preparationDigest,...body}=e.original;void preparationDigest;e.original.preparationDigest=digest(body);},
     e=>{e.terminal.cleanupFailures=['unknown'];},
     e=>{e.terminal.failure.phase='inverse';},
     e=>{e.forwardIntent.requests.pop();},
@@ -204,4 +204,108 @@ test('copy transport enforces one inverse attempt even after an unknown network 
     fetchImpl:async()=>{calls++;throw Error('unknown');}});
   const body={spreadsheetId:fileId,requestBody:{requests:[...Array.from({length:53},()=>({updateCells:{}})),{updateDeveloperMetadata:{}},{updateDeveloperMetadata:{}}]}};
   await assert.rejects(writer.sheets.batchUpdate(body,{retry:false}));await assert.rejects(writer.sheets.batchUpdate(body,{retry:false}));assert.equal(calls,1);writer.close();
+});
+
+const {createCopyTimeBudget,prepareCopyTimeBudget,runBudgetedCopy}=require('../scripts/develop-copy-time-budget.cjs');
+function budgetFixture(f) {
+  const b=createCopyTimeBudget({...f.args.input,nowMillis:f.args.nowMillis});f.args.timeBudget=b;return b;
+}
+test('full deadline composition completes two batches and slow OAuth with one short token',async t=>{
+  const f=await fixture(t);budgetFixture(f);
+  const close=f.args.owner.close;f.args.owner.close=async()=>{f.state.now+=119000;return close();};
+  const result=await runCopy(f.args);assert.equal(result.kind,'full-copy-restored-and-contained');
+  assert.equal(result.completedBatches,2);assert.equal(f.state.mintCount,1);assert.equal(f.state.permission,false);assert.equal(f.state.disabled,true);
+  const report=JSON.parse(fs.readFileSync(path.join(f.args.journalRoot,f.args.input.receiptId,'deadline-report.json')));
+  assert.deepEqual(report.breaches,[]);assert.equal(report.inFlight,0);assert.ok(report.finishedAtMillis<f.args.input.endsAtMillis);
+});
+for(const stage of ['before-first','after-forward','file-cleanup','IAM-cleanup','OAuth-cleanup'])
+ test(`deadline overrun in ${stage} retains uncertainty and still attempts independent cleanup`,async t=>{
+  const f=await fixture(t);budgetFixture(f);
+  if(stage==='before-first') {
+    const observe=f.args.owner.observe;let delayed=false;
+    f.args.owner.observe=async(...args)=>{if(f.state.mintCount&&!delayed){f.state.now+=80000;delayed=true;}return observe(...args);};
+  }
+  if(stage==='after-forward')f.sheets.onMutation=async()=>{f.state.now+=80000;};
+  if(stage==='file-cleanup'){const remove=f.args.owner.remove;f.args.owner.remove=async(...args)=>{f.state.now+=61000;return remove(...args);};}
+  if(stage==='IAM-cleanup'){const disable=f.args.iam.disableOwned;f.args.iam.disableOwned=async()=>{f.state.now+=151000;return disable();};}
+  if(stage==='OAuth-cleanup'){const close=f.args.owner.close;f.args.owner.close=async()=>{f.state.now+=271000;return close();};}
+  const result=await runCopy(f.args);assert.equal(result.kind,'inspection_required');assert.equal(result.canRetry,false);
+  assert.equal(f.state.disabled,true);assert.deepEqual(f.state.policy.bindings,[]);assert.equal(f.state.permission,false);assert.equal(f.state.closed,1);
+  assert.equal(f.state.mintCount,1);
+  if(stage==='before-first')assert.equal(f.sheets.mutations.length,0);
+  if(stage==='after-forward')assert.equal(f.sheets.mutations.length,1);
+  if(stage.endsWith('cleanup')){assert.ok(result.cleanupFailures.includes('deadline_budget_unproven'));assert.ok(fs.existsSync(path.join(f.args.journalRoot,'helper-copy-active')));}
+ });
+test('approved inverse recovery uses the same complete budget without resending forward',async t=>{
+  const f=await recoveryFixture(t);budgetFixture(f);f.sheets.loseAcknowledgement=true;
+  const result=await runCopy(f.args);assert.equal(result.kind,'inverse-copy-restored-and-contained');
+  assert.equal(f.sheets.mutations.length,1);assert.equal(f.state.mintCount,1);
+});
+test('budgeted entry requires exact reviewed budget before any live transport',async t=>{
+  const f=await fixture(t);let calls=0;
+  const preparedBudget=prepareCopyTimeBudget(f.prepared);assert.equal(preparedBudget.cleanupMillis,270000);assert.equal(preparedBudget.minimumWindowAtMintMillis,420000);
+  await assert.rejects(runBudgetedCopy({prepared:f.prepared,input:{...f.args.input,budgetDigest:'wrong'},fetchImpl:async()=>{calls++;}}));assert.equal(calls,0);
+});
+test('late HTTP settlement is awaited, marked unknown and cannot authorize another call',async()=>{
+  let now=1000,finish,calls=0;
+  const b=createCopyTimeBudget({startsAtMillis:1000,endsAtMillis:601000,nowMillis:()=>now,
+    fetchImpl:async()=>{calls++;return new Promise(resolve=>{finish=()=>resolve(new Response('{}',{status:200}));});}});
+  const pending=b.fetch('https://example.test');now=181001;assert.throws(()=>b.complete());
+  finish();await assert.rejects(pending);await assert.rejects(b.fetch('https://example.test'));assert.equal(calls,1);
+  await b.beginCleanup('file');await b.beginCleanup('iam');await b.beginCleanup('oauth');assert.throws(()=>b.complete());
+});
+
+test('concrete budgeted composition runs real transports on synthetic HTTP, verifies rollback and removes temporary access',async t=>{
+ const f=await fixture(t),{PARENT,OWNER,WRITER}=require('../scripts/develop-original-writer-provider.cjs');
+ let revoked=false,requests=0,mints=0;
+ const input={...f.args.input,budgetDigest:prepareCopyTimeBudget(f.prepared).budgetDigest};
+ const fetchImpl=async(url,o)=>{
+  requests++;f.state.now+=100;assert.ok(o.signal);assert.equal(o.redirect,'error');
+  const u=new URL(url),body=o.body?JSON.parse(String(o.body).startsWith('{')?o.body:'{}'):null;
+  const reply=(data,status=200)=>new Response(JSON.stringify(data),{status});
+  const ownerToken=o.headers?.Authorization==='Bearer fixture-owner';
+  if(u.hostname==='oauth2.googleapis.com'){revoked=true;return reply({});}
+  if(ownerToken&&revoked)return reply({},401);
+  if(u.hostname==='iamcredentials.googleapis.com'){mints++;return reply({accessToken:'fixture-writer',expireTime:new Date(f.state.now+300000).toISOString()});}
+  if(u.hostname==='iam.googleapis.com'){
+   if(u.pathname.endsWith(':enable')){f.state.disabled=false;return reply({});}
+   if(u.pathname.endsWith(':disable')){f.state.disabled=true;return reply({});}
+   if(u.pathname.endsWith(':setIamPolicy')){f.state.policy={...body.policy,etag:'next'};return reply(f.state.policy);}
+   if(u.pathname.endsWith(':getIamPolicy'))return reply(f.state.policy);
+   if(u.pathname.endsWith(':testIamPermissions'))return reply({permissions:['iam.serviceAccounts.getAccessToken']});
+   if(u.pathname.endsWith('/keys'))return reply({});
+   return reply({...IDENTITY,disabled:f.state.disabled});
+  }
+  if(u.hostname==='cloudresourcemanager.googleapis.com')return reply(u.pathname.endsWith(':getIamPolicy')?{bindings:[]}:{projectId:'reguerta-9f27f'});
+  if(['cloudfunctions.googleapis.com','run.googleapis.com'].includes(u.hostname))return reply({});
+  assert.ok(u.pathname.includes(f.prepared.fileId));
+  if(u.hostname==='www.googleapis.com'){
+   if(!ownerToken)return reply({id:f.prepared.fileId},f.state.permission?200:404);
+   if(o.method==='POST'){f.state.permission=true;return reply({id:'writer'});}
+   if(o.method==='DELETE'){f.state.permission=false;return new Response(null,{status:204});}
+   if(u.pathname.endsWith('/permissions'))return reply({permissions:[{id:'owner',type:'user',role:'owner',emailAddress:OWNER},
+    ...(f.state.permission?[{id:'writer',type:'user',role:'writer',emailAddress:WRITER}]:[])]});
+   return reply({id:f.prepared.fileId,mimeType:'application/vnd.google-apps.spreadsheet',trashed:false,version:String(f.sheets.revision),parents:[PARENT],owners:[{permissionId:'owner',emailAddress:OWNER,me:true}]});
+  }
+  assert.equal(u.hostname,'sheets.googleapis.com');
+  if(o.method==='POST'){const result=await f.sheets.batchUpdate({spreadsheetId:f.prepared.fileId,requestBody:body},{retry:false});return reply(result.data);}
+  if(ownerToken){const raw=structuredClone(f.sheets.state);raw.sheets.forEach(s=>{delete s.dataCoverage;delete s.protectedRanges;delete s.merges;});return reply(raw);}
+  return reply((await f.sheets.get({spreadsheetId:f.prepared.fileId,fields:u.searchParams.get('fields'),...(u.searchParams.has('ranges')?{ranges:u.searchParams.getAll('ranges')}:{})},{retry:false})).data);
+ };
+ const result=await runBudgetedCopy({prepared:f.prepared,input,iamBearer:'fixture-iam',ownerBearer:'fixture-owner',fetchImpl,
+  nowMillis:f.args.nowMillis,sleep:f.args.sleep,journalRoot:f.args.journalRoot});
+ assert.equal(result.kind,'full-copy-restored-and-contained',JSON.stringify(result));assert.equal(result.completedBatches,2);
+ assert.equal(mints,1);assert.equal(f.state.disabled,true);assert.equal(f.state.permission,false);assert.deepEqual(f.state.policy.bindings,[]);assert.equal(revoked,true);assert.ok(requests>30);
+ const restored=structuredClone(f.sheets.state);restored.sheets.forEach(s=>{s.developerMetadata=[];});assert.deepEqual(restored,f.prepared.baseline);
+});
+
+test('cleanup joins sibling HTTP reads after early Promise.all rejection',async()=>{
+ let finish;
+ const b=createCopyTimeBudget({startsAtMillis:1000,endsAtMillis:601000,nowMillis:()=>1000,fetchImpl:async url=>{
+  if(url.endsWith('fail'))throw Error('unavailable');
+  return new Promise(resolve=>{finish=()=>resolve(new Response('{}',{status:200}));});
+ }});
+ const slow=b.fetch('https://example.test/slow');await assert.rejects(Promise.all([b.fetch('https://example.test/fail'),slow]));
+ let cleaned=false;const cleanup=b.beginCleanup('file').then(()=>{cleaned=true;});await Promise.resolve();assert.equal(cleaned,false);
+ finish();await slow;await cleanup;assert.equal(cleaned,true);assert.equal(b.complete().inFlight,0);
 });
