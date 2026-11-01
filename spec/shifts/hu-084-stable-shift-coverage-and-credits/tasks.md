@@ -1571,3 +1571,34 @@ simulated. Writer permission grant/removal was not exercised in this block. No c
 combined timing guarantee. No maintenance, production, native change or parity gap.
 See the bilingual window-permissions guide for measurements, evidence and remaining
 scope. Private record: `2026-11-01-google-batch-integration`; #268/#269 open, #278 draft.
+
+## Full copy lifecycle preparation — 2026-11-01
+
+- [x] Commit/push Google observations and helper-batch integration as `a2ba5dfa`;
+  exact remote HEAD verified, prior six executable validation hashes unchanged.
+- [x] Compose the full synthetic 53-helper forward/inverse with existing IAM checks,
+  one short token, complete image preservation, cleanup reserve and independent
+  removal/disable/OAuth cleanup; no original-file transport or Firestore writer.
+- [x] Verify read-only identity preflight: disabled, no user keys, no temporary IAM,
+  absent from the reviewed global Functions/Cloud Run runtime inventory.
+- [x] Build/lint, syntax/diff checks and 117 focused tests pass without skips.
+- [x] Obtain explicit copy/IAM/OAuth authorization in chat.
+- [x] Create the new synthetic copy and independently verify all six grids against
+  the exact baseline; owner-only permissions, no writer grant.
+- [x] Confirm the fresh ten-minute owner window and execute the authorized attempt.
+  Forward adapter readback passed; complete owner preservation rejected; no inverse.
+- [x] Verify removal with the same unexpired token (404), empty IAM, disabled identity
+  and owner OAuth denial in both APIs. Preserve the consumed attempt and partial copy.
+- [x] Reproduce and narrowly correct derived SHEET metadata-location rejection; retain
+  future owner readbacks before preservation checks.
+- [x] Reconcile the exact copy through a complete owner-only read: stable version14,
+  53 helpers/two markers and preservation verified; old/new validator comparison
+  isolates derived SHEET fields on the current capture. Both OAuth sessions revoked.
+- [ ] Prepare and separately authorize inverse-only recovery; never resend the forward
+  batch. Real inverse and complete uninterrupted roundtrip remain unproved.
+
+New code is local after `a2ba5dfa`. The live attempt stopped after the forward submission; cleanup is proven, but the
+copy remains at its forward state. No complete roundtrip or admission success claim. Existing A1 and
+ten-row runners retain their scope. No maintenance, production, deployment, FCM or
+native change/parity gap. Bilingual window-permissions guide contains the exact
+recipe and boundaries. Private packet: `2026-11-01-helper-copy-lifecycle`.

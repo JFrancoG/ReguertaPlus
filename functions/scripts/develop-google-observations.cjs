@@ -15,8 +15,8 @@ const stable=x=>digest(canonical(x));
 const clock=now=>{const n=now();assert.ok(Number.isSafeInteger(n)&&n>=0);return n;};
 // Only for a response to the complete preservation field mask/ranges above.
 // Google omits empty repeated fields. Retain cell objects and unknown properties.
-function normalizePreservationSnapshot(raw) {
-  assert.equal(raw.spreadsheetId,FILE);
+function normalizePreservationSnapshot(raw,expectedFileId=FILE) {
+  assert.equal(raw.spreadsheetId,expectedFileId);
   return {...structuredClone(raw),sheets:raw.sheets.map(s=>({...structuredClone(s),dataCoverage:"complete",
     protectedRanges:structuredClone(s.protectedRanges??[]),merges:structuredClone(s.merges??[]),developerMetadata:structuredClone(s.developerMetadata??[]),
     data:(s.data??[]).map(d=>({...structuredClone(d),rowData:(d.rowData??[]).map(r=>({...structuredClone(r),values:structuredClone(r.values??[])}))}))}))};

@@ -4,6 +4,118 @@ Estado: **solo preparación; sin fecha ni autorización de ejecución**. La evid
 del escritor original y su integración en admisión están publicadas en `d42ce7fe`.
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
+
+## Ciclo completo de permisos en copia sintética — 2026-11-01
+
+El bloque de lecturas/lote está publicado como `a2ba5dfa`. La nueva composición
+explícita reutiliza proveedor y comprobaciones IAM, espera mínima de 120s, un único
+token de 300s, adaptador Sheets y manifiesto de conservación. Prepara 53 ayudantes
+ficticios de reparto en seis pestañas de una nueva copia de la plantilla sintética;
+no copia datos personales de develop. Los dos identificadores de hojas originales
+están prohibidos en los transportes de propietario y escritor antes de acceder a red.
+
+La autorización consumida y un bloqueo local exclusivo vinculan código, copia,
+imagen inicial, operaciones y ventana confirmada de diez minutos como máximo.
+El operador habilita solo la cuenta dedicada existente, concede IAM condicionado y
+Editor solo de la copia, y espera antes de la única emisión. Dos lotes como máximo
+aplican y revierten 53 valores F y dos marcadores. Cada lote verifica identidad,
+inventario de ejecución aislado, imagen/versión completa del propietario y margen
+de 150s justo antes de enviar. Las respuestas perdidas se comprueban por lectura;
+la incertidumbre detiene sin inversa ni reenvío automático. La inversa forma parte
+de la receta autorizada y solo sigue a una ida verificada.
+
+La limpieza intenta por separado retirar el permiso creado en la copia, demostrar
+su denegación con el mismo token todavía válido, retirar la condición IAM propia,
+deshabilitar explícitamente y releer la identidad, y revocar la única sesión OAuth
+del propietario. Exige denegación tanto en Drive como en Sheets; no renueva OAuth en
+cada observación. Un fallo de limpieza conserva el bloqueo y el recibo de inspección.
+Un cierre abrupto exige conciliar las intenciones guardadas; no se garantiza finally.
+
+La copia se prepara antes de confirmar los diez minutos, con una sesión Online
+`drive.file` del propietario. El controlador limita ese permiso a la plantilla sintética
+existente y la copia nueva. La preparación permite inicializar únicamente la copia;
+la plantilla se conserva. La ventana se confirma por separado antes de permisos IAM
+o de archivo. El ejecutor no tiene operaciones reales de Firestore, mantenimiento,
+despliegue o avisos. El emulador anterior cubre la migración conjunta; este ensayo
+mide por separado el ciclo real de copia y permisos.
+
+Las pruebas locales cubren ida/vuelta, fallos al habilitar/conceder/emitir/escribir/limpiar,
+agotamiento del tiempo tras la ida, límites de token/lotes, pérdida de respuesta al
+compartir, destinos prohibidos, normalización completa e inventario incompleto.
+La comprobación real de solo lectura encuentra la cuenta deshabilitada, sin claves
+ni concesiones temporales y sin asignación en el inventario global revisado de
+Functions/Cloud Run.
+
+### Intento real autorizado y parada contenida
+
+Se inicializó la copia de seis pestañas y se comprobó su imagen completa, con solo
+el propietario de pruebas. La sesión del propietario caducó mientras se esperaba la
+respuesta: la admisión rechazó antes de IAM o del token del escritor. Se renovó el
+mismo permiso Online y se confirmó una nueva ventana explícita de diez minutos.
+El intento autorizado esperó **121.616ms** desde la concesión IAM, emitió **un token
+de 300s** y envió el lote de 53 ayudantes y dos marcadores. La lectura del adaptador
+pasó, pero la observación/conservación completa posterior del propietario rechazó
+en la línea 121 registrada de la fase de ida. No se envió la inversa.
+`completedBatches: 0` indica cero lotes con conservación completamente verificada,
+no cero escrituras. La copia conserva los datos de ida; no está restaurada ni se debe
+repetir el envío. La revisión visual posterior confirma ayudantes visibles y acceso
+privado del propietario, pero no demuestra la conservación completa de la captura.
+
+La limpieza terminó correctamente: permiso de la copia retirado, **404 con el mismo
+token del escritor todavía válido**, condición IAM retirada y cuenta deshabilitada,
+con comprobación independiente de cero concesiones e inventario revisado sin uso.
+OAuth se revocó; Drive denegó inmediatamente y Sheets tras **41.937ms**, usando el
+mismo token. El intento duró **197.363ms**, incluida la limpieza. Se liberó el bloqueo
+local, se cerraron transportes y se limpiaron los campos y pestañas del navegador.
+Sin hojas originales, escrituras reales de Firestore, mantenimiento, despliegue,
+FCM ni acceso a producción.
+
+La lectura del propietario no se guardaba antes de validar su conservación, por lo
+que no se puede reconstruir la diferencia exacta de este intento. Una regresión local
+reproduce el rechazo del campo de solo lectura `locationType: SHEET` que Google
+incluye en los metadatos nuevos. La corrección acepta solo ese tipo derivado para
+el marcador y la hoja exactos; sigue rechazando otros tipos, ubicaciones, valores,
+visibilidad, campos adicionales y cambios de metadatos ya existentes. Se ajusta al
+[contrato de ubicación de metadatos de Google](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets.developerMetadata#DeveloperMetadataLocation).
+Es un defecto demostrado del validador, no prueba de que fuera la única diferencia
+real. El ejecutor guarda ahora la lectura completa antes de comprobarla; una prueba
+de rechazo demuestra que no lanza inversa y sí limpia. El doble de ida/vuelta ya
+incluye el tipo derivado de Google.
+
+Validación tras la corrección local: build/lint, sintaxis/diff, **124 pruebas
+focalizadas y 9 de emulador** correctas, sin fallos ni omisiones. La regresión fallaba
+antes del arreglo. Una ejecución intermedia coincidió con un build y rechazó dos
+comprobaciones ligadas al código; la suite completa pasó con el build ya estable.
+Sin cambios nativos ni diferencia de paridad. Implementación nueva local tras `a2ba5dfa`.
+
+### Conciliación de solo lectura de la copia conservada
+
+La inspección autorizada del propietario capturó las seis cuadrículas completas con
+versión de Drive **14** estable y únicamente el propietario de pruebas en los permisos.
+El validador corregido acepta la captura sin modificarla contra el manifiesto de
+conservación de ida; el adaptador verifica además los 53 ayudantes y los dos marcadores.
+El validador anterior rechaza esta misma captura y la acepta al quitar únicamente los
+dos campos derivados `locationType: SHEET`. Queda aislada la diferencia en la respuesta
+real actual; la captura histórica posterior al envío sigue sin estar disponible.
+
+El primer inspector privado falló antes de guardar la captura porque la sesión Node
+persistente conservaba un módulo anterior sin `normalizePreservationSnapshot`.
+La lectura de diagnóstico, con el mismo alcance autorizado, guardó cada respuesta;
+un proceso Node nuevo verificó esas respuestas y el manifiesto original sin conexión.
+Ambas sesiones quedaron revocadas y denegadas en Drive/Sheets (62.399ms y 63.176ms).
+No se activó el escritor, concedió IAM, emitió token de servicio ni escribió en Sheets.
+Se limpiaron los campos OAuth y se cerró la pestaña. La captura completa ya está
+conservada: las comparaciones siguientes no necesitan otra sesión de Google.
+
+Siguiente paso: preparar una recuperación explícita de esta copia mediante la inversa,
+con comprobaciones actuales, permisos y ventana del escritor autorizados por separado.
+No reenviar la ida. La inversa real y un ciclo completo sin interrupciones siguen
+pendientes; esta lectura correcta no reabre el intento consumido ni admite mantenimiento.
+Evidencia privada: `2026-11-01-helper-copy-lifecycle`, incluidas respuestas de Google,
+imagen normalizada, comparación de validadores y los dos recibos de limpieza.
+Esta inspección no cambia ejecutables del repositorio; siguen vigentes build/lint y
+las 124 pruebas focalizadas + 9 de emulador anteriores; se repite la revisión del diff.
+
 ## Observaciones de Google y ensayo conjunto del lote — 2026-11-01
 
 El bloque de barrera persistente está commiteado y pusheado como `9ed3a9ef`, con HEAD

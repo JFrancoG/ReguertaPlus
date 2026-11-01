@@ -1010,3 +1010,18 @@ reuse A1/copy authorization or convert captured read evidence into current admis
 The canonical next sequence and measured evidence are maintained in
 `docs/testing/hu084-develop-window-permissions.md` and its Spanish counterpart.
 No maintenance/production activation is authorized by this local preparation.
+
+### Next execution: full synthetic-copy lifecycle
+
+The Google observation/batch block is delivered as `a2ba5dfa`. A separate explicit
+copy composition now binds the existing IAM provider and 53-helper batch to one
+short token and two maximum submissions, with independent cleanup and a ten-minute
+confirmed window. Both original workbook IDs are denied before HTTP access.
+The authorized live attempt submitted the forward batch and then stopped at full
+owner preservation; its inverse was not sent. All temporary access was removed and
+the identity disabled. A complete owner-only read now verifies the retained forward
+manifest under stable version14. The old/new validator comparison isolates the
+derived SHEET metadata difference in this current real capture; OAuth was revoked.
+Next prepare separately authorized inverse-only recovery, without resending forward.
+The real inverse and complete uninterrupted roundtrip remain unproved.
+See the bilingual window-permissions guide and current tasks for the exact scope.

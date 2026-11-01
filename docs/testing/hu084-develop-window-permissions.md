@@ -4,6 +4,116 @@ Status: **preparation only; not scheduled or authorized for execution**. Origina
 writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
+
+## Full synthetic-copy permission lifecycle — 2026-11-01
+
+The Google-read/batch block is delivered as `a2ba5dfa`. The new explicit copy
+composition uses the existing IAM provider/checks, 120s minimum propagation wait,
+one 300s token, existing Sheets adapter and preservation manifest. It prepares
+53 fictitious delivery helpers on six tabs in a new copy of the existing synthetic
+template; no personal develop content is copied. Both original workbook IDs are
+hard-denied by the owner and writer transports, before network access.
+
+A consumed approval and exclusive local lock bind the exact code, copy ID, baseline,
+operations and a confirmed maximum ten-minute window. The operator enables only
+the existing dedicated account, grants conditional IAM and copy-only Editor, then
+waits before the single mint. Two batches at most apply and reverse 53 F values and
+two markers. Each batch checks identity, isolated runtime inventory, full owner
+image/version and the 150s time fence immediately before submission. Lost responses
+use readback; ambiguity stops without automatic inverse or replay. The inverse is
+part of the explicitly approved recipe, and runs only after verified forward content.
+
+Independent cleanup steps remove only the newly granted copy permission, prove denial
+with the same still-valid token, remove the owned IAM condition, explicitly disable
+and read back the identity, and revoke the single owner OAuth session. Drive and
+Sheets denial are both required; owner OAuth is not renewed per observation. A failed
+cleanup retains the local lock and an inspection-required receipt. Abrupt process loss
+still requires reconciliation using recorded intents; no finally guarantee is claimed.
+
+The copy is prepared before the ten-minute confirmation, using one Online `drive.file`
+session with the owner. This scope covers the existing synthetic template and the new
+copy only in the controller. The complete preparation permits initialization of the
+new copy; it never modifies the template. A separately confirmed window precedes IAM
+or file grants. No real Firestore, maintenance, deployment or notification operation
+exists in this copy runner. The earlier emulator already covers joint migration;
+this run measures the real copy/permission lifecycle separately.
+
+Local tests cover successful roundtrip, enable/grant/mint/write/cleanup failures,
+expired budget after forward, one-token/two-attempt limits, grant reply loss, protected
+destinations, complete raw read normalization and incomplete runtime inventory. The
+real read-only preflight finds the account disabled, no keys or temporary bindings,
+and no assignment in the reviewed global Functions/Cloud Run inventory.
+
+### Authorized live attempt and contained stop
+
+The six-tab copy was initialized and independently matched its complete baseline,
+with only the test account owner. After the initial owner session expired while
+waiting for the reply, execution rejected before IAM or a writer token. The same
+Online scope was renewed and a new explicit ten-minute owner window was confirmed.
+The approved attempt waited **121,616ms** after IAM grant, minted **one 300s token**,
+and submitted the forward batch of 53 helper values and two operation markers.
+The adapter's readback passed, but the next full-owner observation/preservation
+check rejected at the recorded forward-stage line 121. The inverse was never sent.
+`completedBatches: 0` means no fully preservation-verified batch, not zero writes.
+The synthetic copy retains the forward data and must not be replayed or treated as
+restored. Browser review after cleanup confirms visible helper values and private
+owner-only sharing; it cannot establish full raw preservation.
+
+All cleanup completed: copy permission removed, **404 with the same unexpired
+writer token**, owned IAM binding removed, account explicitly disabled and verified
+independently with zero bindings and clear reviewed runtime inventory. OAuth
+revocation returned successfully; Drive denied immediately, Sheets denied after
+**41,937ms** with the same token. The run took **197,363ms** including cleanup.
+The local lock was released, transports stopped and browser credential fields reset
+and tabs closed. No original workbook, real Firestore write, maintenance, deployment,
+FCM or production access occurred.
+
+The owner readback was not persisted before the failing preservation assertion, so
+its precise mismatch cannot be reconstructed from this attempt. A local regression
+reproduces rejection of Google's read-only `locationType: SHEET` on newly created
+metadata. The narrow correction accepts only that derived type for the exact
+expected sheet marker; wrong types, locations, values, visibility, extra fields and
+changes to existing metadata still reject. This follows the
+[Google metadata-location contract](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets.developerMetadata#DeveloperMetadataLocation).
+It is a verified validator defect, not proof that it was the only live mismatch.
+The runner now journals the complete owner readback before asserting preservation;
+a rejection test proves no inverse and full cleanup, and the roundtrip fixture now
+returns Google's derived location type.
+
+Validation after the local correction: build/lint, syntax/diff, **124 focused tests
+and 9 emulator tests** pass with zero failures/skips. The expected regression failed
+before the fix. An intermediate run overlapped a build and rejected two source-bound
+checks; the complete focused suite passed once the build was stable. Native apps are
+unchanged, with no parity gap. All new implementation remains local after `a2ba5dfa`.
+
+### Read-only reconciliation of the retained copy
+
+The authorized owner-only inspection captured all six complete grids under stable
+Drive version **14**, with only the test owner in the ACL. The corrected validator
+accepts the unchanged capture against the retained forward preservation manifest;
+the adapter independently verifies all 53 helper values and both operation markers.
+The previous validator rejects this same capture and accepts it after removing only
+the two derived `locationType: SHEET` fields. This isolates the mismatch in the
+current real response; the historical after-image is still unavailable.
+
+The first private inspector failed before retaining its capture because the persistent
+Node session held an older cached module without `normalizePreservationSnapshot`.
+A diagnostic read under the same authorized scope saved every provider response;
+a fresh Node process verified those saved responses and the original manifest offline.
+Both sessions were revoked and denied in Drive/Sheets (62,399ms and 63,176ms).
+No writer activation, IAM grant, service token or spreadsheet write occurred.
+OAuth fields were reset and the tab closed. The full capture is now retained, so
+further comparison does not require another Google session.
+
+Next: prepare an explicit inverse-only recovery of this reconciled copy, with fresh
+preconditions, permissions and a separately authorized writer/window. Do not resend
+the forward batch. The real inverse and a complete uninterrupted roundtrip remain
+pending; current read acceptance does not reopen the consumed attempt or admit
+maintenance. Private evidence: `2026-11-01-helper-copy-lifecycle`, including provider
+responses, normalized image, old/new validator comparison and both cleanup receipts.
+This inspection adds no repository executable changes; the prior build/lint and
+124 focused + 9 emulator passes remain applicable, with document/diff checks repeated.
+
 ## Google observations and joint batch rehearsal — 2026-11-01
 
 The durable-barrier block is committed and pushed as `9ed3a9ef`; exact remote HEAD
