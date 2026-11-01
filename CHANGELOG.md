@@ -56,6 +56,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-11-02 | 📝 docs(shifts): prepare initial evidence and window
+
 - 2026-11-01 | 📝 docs(shifts): prepare concrete develop invocation
 
 - 2026-11-01 | 📝 docs(shifts): record complete copy cycle evidence

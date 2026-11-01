@@ -1819,3 +1819,21 @@ for execution. Prior evidence ages and unknown delivery counts remain explicit;
 Google/UI joint wall-clock timing is not yet certified. See the bilingual
 [concrete invocation](../../../docs/testing/hu084-develop-concrete-invocation.md).
 Both stories remain open, PR #278 draft; no production/native-app change.
+
+## Initial evidence and concrete window preparation — 2026-11-02
+
+`658b7e9c` publishes the observation/native-permission block. Fresh develop source
+versions and Cloud controls match; passive admission makes one read-only transaction
+and correctly rejects `window_scope_missing`. Owner evidence remains retained.
+The same package/operation IDs are preserved; the initial draft covers 25 controls
+and eight routes without inventing agreements, zero counts or closure timestamps.
+
+Proposed reservation: up to five minutes of initial read-only preparation plus the
+unchanged ten-minute writer cycle. Status remains NOT_READY_INITIAL_SEAL_ORDER:
+service composition demands the complete initial envelope before the native action
+whose verified closure must bind the permission-controller exception. Next correct
+that ordering with the existing durable journal and cleanup, then rehearse locally;
+do not request the real window or manufacture a future receipt. Seven offline
+preparation checks pass; runtime hashes and prior 175/90 validation remain unchanged.
+See [initial evidence/window](../../../docs/testing/hu084-develop-initial-evidence-window.md).
+No maintenance, production, native-app or permission mutation; stories/PR stay open.
