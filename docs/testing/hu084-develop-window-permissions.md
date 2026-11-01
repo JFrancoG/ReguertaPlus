@@ -5,6 +5,71 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Persistent controlled-window composition — 2026-11-01
+
+Joint deadline/uncertain-response integration is delivered as `4dfa4946`. New local
+`runControlledWindow` composes session preparation, durable barrier acquisition,
+passive admission, one already-authorized joint direction, and independent file/IAM/
+OAuth cleanup. It uses the existing executor and budget; it does not create an SDK
+client, deployment, CLI, permission choice or maintenance-opening operation. Forward
+and inverse remain separately admitted invocations, never automatic compensation.
+
+The local journal publishes numbered immutable JSON records with file and directory
+fsync, exclusive creation, a digest chain and bounded sizes. It binds the exact
+prepared packet, scope, direction, window and forward evidence before opening a
+session. Provider setup receives the same evidence sink for its grant/token intents;
+credentials are excluded from records. A shared root fence prevents another window
+from taking over while cleanup is unverified. Receipt IDs are consumed permanently.
+The trusted session opener must use that sink before external changes and scope its
+cleanup to the recorded ownership; these ports have only been exercised with local
+doubles in this block, not newly authorized live IAM/OAuth access.
+
+Cancellation waits for pending provider calls. Cleanup attempts file, IAM and OAuth
+independently, including after partial setup or evidence-write failure. A successful
+terminal requires verified execution, all cleanup receipts and the deadline report.
+Partial/corrupt records cannot authorize replay or a clean terminal. Evidence write
+failure propagates; uncertain cleanup keeps the root fence for inspection.
+
+`recoverControlledWindow` verifies the existing chain/binding and acquires a separate
+recovery lock. It rejects a still-active invocation or a live external process,
+including one that just published a terminal. A completed inactive call in the same
+process can be inspected safely. Recovery can inspect the barrier/Firestore/Sheets
+and repeat exact cleanup, but has no acquisition, execution, token-mint or inverse
+path. Missing evidence never grants permission to replay. A crashed recovery lock
+or corrupt/incomplete binding requires separate operator inspection; it is not
+silently reclaimed. The filesystem is trusted local evidence storage, not a signature
+or a substitute for current technical/owner/administrator authority.
+
+Tests include successful acquisition/forward plus separately admitted inverse,
+interruption after Firestore before Sheets, failed cleanup followed by explicit
+recovery, partial setup, disk-write interruption, concurrency fencing and a real
+SIGKILL of a child **after a Firestore emulator commit**. A fresh recovery reads the
+persisted receipt, verifies the committed afterimages and cleans synthetic access;
+it leaves all business documents untouched. Users/config/calendars/117 notices stay
+unchanged and maintenance stays closed. The SIGKILL test stops before Sheets; it does
+not claim crash durability of Google or the local disk under power failure.
+
+Private evidence: `2026-11-01-persistent-controlled-window`, including copied journals
+for the four final emulator scenarios. Google permissions, token minting, Sheets
+transport and elapsed time remain doubles; Firestore transactions and barrier journals
+use the real local emulator. No live Google/Firestore, production/original workbook,
+IAM, FCM or deployment access. No native changes/parity gap. New implementation remains
+local; issues open and PR #278 draft.
+
+Validation: Node22.23.4 build/full lint and focused CJS lint pass; **270 distinct
+local tests** (267-suite plus final14 window tests) and **86 distinct emulator cases**
+(85-suite plus final4 persistent/crash cases), zero skips. The final unique-recovery-ID
+check is covered by the window rerun and does not change successful emulator paths.
+Five retained journals were independently re-read: valid chains, no partial files,
+settled providers and no execution-resume authority. The reviewed admission package
+is unchanged; no observations were refreshed. Native gates were unnecessary.
+
+**Next:** verify the concrete session/recovery adapters against the retained identity,
+permission and source plan, including how a new process obtains cleanup-only access.
+Then renew the current observations and prepare the exact window for authorization.
+No sheet closure or other user action is needed for the local work just completed.
+
+
 ## Joint scheduling connected to controlled execution — 2026-11-01
 
 The receipt integration and previous joint rehearsal are delivered/pushed as

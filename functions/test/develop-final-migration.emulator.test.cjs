@@ -645,3 +645,97 @@ run(`controlled joint executor and uncertain-write inspection: ${fault}`,async()
   for(const stage of ["file","iam","oauth"])await budget.beginCleanup(stage);
   if(fault==="expired-after-commit")assert.throws(()=>budget.complete());else budget.complete();
 });
+
+for(const scenario of ["roundtrip","abort-after-firestore","cleanup-failure"])
+run(`persistent window acquisition, execution, cleanup and recovery: ${scenario}`,async t=>{
+  const os=require("node:os");
+  const {runControlledWindow,recoverControlledWindow}=require("../scripts/develop-controlled-window.cjs");
+  const {readWindowJournal}=require("../scripts/develop-window-journal.cjs");
+  const {assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"joint-window-emulator-"));t.after(()=>{
+    if(process.env.HU084_CONTROLLED_OUTPUT){fs.mkdirSync(process.env.HU084_CONTROLLED_OUTPUT,{recursive:true,mode:0o700});
+      fs.cpSync(root,path.join(process.env.HU084_CONTROLLED_OUTPUT,"persistent-"+scenario),{recursive:true,errorOnExist:true,force:false});}
+    fs.rmSync(root,{recursive:true,force:true});
+  });
+  const f=await jointHarness(),before=await businessSnapshot(),image=f.observe();let now=1000000,opens=0;
+  const controller=new AbortController(),events=[],permissions={file:false,iam:false,oauth:false};
+  let firstCleanup=true;
+  const scope=await f.h.scope();
+  function sessionFor(currentScope,direction,forwardReadBack=null){
+    const executor={...f.d.executor,executeJoint:async input=>f.d.executor.executeJoint({...input,record:async value=>{
+      await input.record(value);if(scenario==="abort-after-firestore"&&value.phase==="firestore-receipt")controller.abort();
+    }})};
+    const cleanup=Object.fromEntries(["file","iam","oauth"].map(stage=>[stage,async()=>{
+      events.push("cleanup-"+stage);
+      if(stage==="file"&&scenario==="cleanup-failure"&&firstCleanup){firstCleanup=false;throw Error("file cleanup unavailable");}
+      permissions[stage]=false;return {verified:true};
+    }]));
+    return {barrier:f.d.barrier,executor,observeSheets:async()=>f.observe(),sheetsAdapter:f.api,tokenExpiresAtMillis:now+300000,cleanup,
+      inspect:{barrier:()=>f.d.barrier.inspectRetained({scope:currentScope}),
+        firestore:()=>f.d.executor.inspectUncertain({scope:currentScope,direction,forwardReadBack}),
+        sheets:async saved=>{
+          const plan=saved.records.find(r=>r.value.phase==="intent")?.value.plan;
+          if(!plan)return {kind:"not-started"};const result=await f.api.inspect(plan.operation);
+          if(result.kind==="verified")preserved({manifest:plan.preservation,after:f.sheets.state});return result;
+        }}};
+  }
+  const base={root,prepared:f.h.prepared,sourceInput:f.sourceInput,reviewPackage:f.reviewPackage,nowMillis:()=>now};
+  const open=async context=>{void context;opens++;now+=120000;for(const k of Object.keys(permissions))permissions[k]=true;return sessionFor(scope,"forward");};
+  const result=await runControlledWindow({...base,receiptId:"forward-window",scope,direction:"forward",window:{startsAtMillis:now,endsAtMillis:now+600000},
+    signal:controller.signal,openSession:open,openRecoverySession:async()=>sessionFor(scope,"forward")});
+  const journal=readWindowJournal(result.directory);assert.equal(journal.records[0].value.binding.preparedDigest,f.h.prepared.preparedDigest);
+  assert.ok(journal.records.some(r=>r.value.phase==="acquired"));assert.equal(journal.records.at(-1).value.providerCallsSettled,true);
+  assert.equal(result.kind,scenario==="roundtrip"?"direction-verified-and-contained":"inspection-required");
+  assert.equal((await saved("shifts")).length,72);
+  if(scenario==="abort-after-firestore"){assert.equal(f.sheets.mutations.length,0);assert.deepEqual(f.sheets.state,image.snapshot);}
+  if(scenario!=="roundtrip"){
+    const snapshot=await businessSnapshot(),mutations=f.sheets.mutations.length;
+    const recovered=await recoverControlledWindow({directory:result.directory,recoveryId:"cleanup-review",expectedBindingDigest:digest(journal.binding),
+      window:{startsAtMillis:now,endsAtMillis:now+600000},nowMillis:()=>now,openRecoverySession:async()=>sessionFor(scope,"forward")});
+    assert.equal(recovered.records.at(-1).value.kind,"cleanup-verified-inspection-only");
+    assert.deepEqual(await businessSnapshot(),snapshot);assert.equal(f.sheets.mutations.length,mutations);assert.equal(opens,1);
+  } else {
+    const forward=result.result,inverseScope=await f.h.scope(true);
+    const inverse=await runControlledWindow({...base,receiptId:"inverse-window",scope:inverseScope,direction:"inverse",
+      forwardReadBack:forward.firestoreReceipt,forwardPlan:forward.plan,window:{startsAtMillis:now,endsAtMillis:now+600000},
+      openSession:async()=>{opens++;now+=120000;for(const k of Object.keys(permissions))permissions[k]=true;return sessionFor(inverseScope,"inverse",forward.firestoreReceipt);},
+      openRecoverySession:async()=>sessionFor(inverseScope,"inverse",forward.firestoreReceipt)});
+    assert.equal(inverse.kind,"direction-verified-and-contained");
+    const restored=structuredClone(f.sheets.state);restored.sheets.forEach(s=>{s.developerMetadata=image.snapshot.sheets.find(x=>x.properties.sheetId===s.properties.sheetId).developerMetadata;});
+    assert.deepEqual(restored,image.snapshot);assert.equal(f.sheets.mutations.length,2);
+    assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+  }
+  assert.deepEqual(permissions,{file:false,iam:false,oauth:false});
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+  assert.ok(events.length>=6);
+});
+
+run("SIGKILL after the actual Firestore commit preserves the receipt and permits only restart inspection/cleanup",async t=>{
+  const os=require("node:os"),{spawn}=require("node:child_process"),{once}=require("node:events");
+  const {readWindowJournal}=require("../scripts/develop-window-journal.cjs");
+  const {recoverControlledWindow}=require("../scripts/develop-controlled-window.cjs");
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"window-firestore-crash-"));t.after(()=>{
+    if(process.env.HU084_CONTROLLED_OUTPUT){fs.mkdirSync(process.env.HU084_CONTROLLED_OUTPUT,{recursive:true,mode:0o700});
+      fs.cpSync(root,path.join(process.env.HU084_CONTROLLED_OUTPUT,"persistent-sigkill"),{recursive:true,errorOnExist:true,force:false});}
+    fs.rmSync(root,{recursive:true,force:true});
+  });
+  const f=await jointHarness(),scope=await f.h.scope(),before=await businessSnapshot(),accessFile=path.join(root,"synthetic-access.txt"),config=path.join(root,"child.json");
+  fs.writeFileSync(config,JSON.stringify({root,accessFile,prepared:f.h.prepared,scope,evidence:f.h.current().evidence,image:f.observe(),sourceInput:f.sourceInput,reviewPackage:f.reviewPackage}),{mode:0o600});
+  const child=spawn(process.execPath,[path.join(__dirname,"develop-window-crash-child.cjs"),config],{env:process.env,stdio:["ignore","pipe","pipe","ipc"]});
+  t.after(()=>{if(child.exitCode===null)child.kill("SIGKILL");});
+  const [message]=await once(child,"message",{signal:AbortSignal.timeout(30000)});assert.equal(message,"committed");
+  const directory=path.join(root,"crash-after-commit"),savedJournal=readWindowJournal(directory);
+  assert.ok(savedJournal.records.some(r=>r.value.phase==="firestore-receipt"));assert.equal(fs.readFileSync(accessFile,"utf8"),"granted");
+  const exit=once(child,"exit");child.kill("SIGKILL");await exit;
+  assert.equal((await saved("shifts")).length,72);const committed=await businessSnapshot();
+  const result=await recoverControlledWindow({directory,recoveryId:"after-killed-writer",expectedBindingDigest:digest(savedJournal.binding),
+    window:{startsAtMillis:2000000,endsAtMillis:2600000},nowMillis:()=>2000000,openRecoverySession:async()=>({
+      inspect:{barrier:()=>f.d.barrier.inspectRetained({scope}),firestore:()=>f.d.executor.inspectUncertain({scope}),sheets:async()=>({kind:"not-submitted"})},
+      cleanup:Object.fromEntries(["file","iam","oauth"].map(k=>[k,async()=>{fs.writeFileSync(accessFile,"clean");return {verified:true};}]))})});
+  const inspected=result.records.find(r=>r.value.phase==="recovery-inspection").value.results;
+  assert.equal(inspected.firestore.kind,"committed-and-readback-verified");assert.equal(result.records.at(-1).value.canResumeExecution,false);
+  assert.deepEqual(await businessSnapshot(),committed);assert.equal(fs.readFileSync(accessFile,"utf8"),"clean");
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.equal(fs.existsSync(path.join(root,"controlled-window-active")),false);
+});

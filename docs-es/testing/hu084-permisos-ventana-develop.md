@@ -5,6 +5,71 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
+## Ventana controlada con registro persistente — 2026-11-01
+
+El control conjunto de tiempos y respuestas inciertas está publicado como `4dfa4946`.
+El nuevo `runControlledWindow` local une preparación de sesión, adquisición persistente
+de la barrera, admisión, una dirección ya autorizada y limpieza independiente de
+permisos de archivo/IAM/OAuth. Reutiliza ejecutor y presupuesto; no crea cliente SDK,
+CLI, despliegue, elección de permisos ni apertura de mantenimiento. Ida e inversa
+siguen siendo invocaciones admitidas por separado, sin compensación automática.
+
+El registro local publica JSON numerados e inmutables, sincroniza archivo y directorio,
+usa creación exclusiva, encadena huellas y limita tamaños. Vincula paquete, alcance,
+dirección, ventana y pruebas de ida antes de abrir sesión. El preparador recibe el
+mismo registro para las intenciones de permisos/token; no se guardan credenciales.
+Un bloqueo común impide empezar otra ventana mientras la limpieza siga sin verificar.
+Los identificadores de intento no se reutilizan. El adaptador de sesión debe registrar
+antes de cada cambio externo y limitar su limpieza a lo que le pertenece; en este
+bloque esos adaptadores solo se han probado con dobles locales, sin IAM/OAuth real.
+
+La cancelación espera las llamadas pendientes. Se intenta retirar archivo, IAM y
+OAuth de forma independiente, también tras un alta parcial o un fallo de escritura
+del registro. El éxito exige ejecución comprobada, todos los recibos de limpieza y
+el informe de tiempos. Los archivos parciales/corruptos no habilitan repeticiones ni
+un cierre correcto. Si falla el registro, se propaga el error; una limpieza incierta
+mantiene el bloqueo para su inspección.
+
+`recoverControlledWindow` comprueba cadena y vinculación y toma un bloqueo separado.
+Rechaza una invocación activa o un proceso externo todavía vivo, aunque acabe de
+publicar un resultado. Una llamada terminada e inactiva del mismo proceso sí puede
+inspeccionarse. La recuperación lee barrera/Firestore/Sheets y repite únicamente la
+limpieza exacta: no adquiere otra barrera, ejecuta migraciones, emite tokens del escritor
+ni revierte datos. La falta de evidencia nunca autoriza una repetición. Un bloqueo de
+recuperación abandonado o un registro corrupto/incompleto exige inspección específica;
+no se elimina automáticamente. El disco local es evidencia de confianza, no una firma
+ni un sustituto de la autoridad técnica, del propietario o del administrador.
+
+Los ensayos cubren ida e inversa admitidas por separado, interrupción después de
+Firestore y antes de Sheets, limpieza fallida y recuperación explícita, alta parcial,
+fallo de escritura, exclusión de ventanas y un **SIGKILL real de un proceso hijo tras
+confirmar en el emulador Firestore**. La recuperación lee el recibo persistido, verifica
+las imágenes confirmadas y retira accesos ficticios sin cambiar documentos de negocio.
+Se conservan usuarios/configuración/calendarios/117 avisos; mantenimiento cerrado.
+El SIGKILL ocurre antes de Sheets: no acredita durabilidad de Google ni un apagón del disco.
+
+Evidencias privadas: `2026-11-01-persistent-controlled-window`, con copia de los registros
+de los cuatro escenarios finales. Permisos, tokens, transporte Sheets y duración siguen
+simulados; las transacciones y la barrera usan Firestore local real. Sin llamadas reales
+a Google/Firestore, producción, hojas originales, IAM, FCM o despliegues. Sin cambios en
+las apps ni diferencias entre plataformas. Trabajo nuevo local; issues abiertas y PR
+#278 en borrador.
+
+Validación: build/lint completo y lint CJS focalizado correctos con Node22.23.4;
+**270 pruebas locales distintas** (batería de 267 más los 14 casos finales de ventana)
+y **86 casos distintos de emulador** (batería de 85 más los cuatro casos persistentes
+finales), sin omitidas. La unicidad del identificador de recuperación se comprobó en
+la repetición local y no cambia los caminos correctos del emulador. Se releyeron los
+cinco registros retenidos: cadenas válidas, sin archivos parciales, llamadas terminadas
+y sin permiso de reanudar escrituras. Paquete de admisión intacto; observaciones sin
+renovar. No hacen falta controles nativos para este bloque.
+
+**Siguiente:** comprobar los adaptadores concretos de sesión y recuperación contra el
+plan retenido de identidad/permisos/fuentes, incluido cómo obtiene un proceso nuevo
+acceso exclusivo de limpieza. Después se renovarán observaciones y se preparará la
+ventana exacta para autorizarla. Ahora no hace falta cerrar hojas ni ninguna otra acción.
+
+
 ## Control conjunto conectado al ejecutor — 2026-11-01
 
 La integración de recibos y el ensayo conjunto anterior están publicados como

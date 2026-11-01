@@ -3178,3 +3178,23 @@ New work uncommitted; HU-084/HU-085 open and PR #278 draft.
 Validation: build/full lint/CJS lint; 256 distinct local tests and 82 distinct
 emulator cases pass after focused final reruns. Shared execution without the
 joint deadline guard is refused. No native changes or parity gap.
+
+
+### Persistent acquisition/execution/cleanup composition — 2026-11-01
+
+Prior joint executor delivered as `4dfa4946`. New local window composition binds a
+numbered fsynced digest-chain journal before setup, acquires the existing barrier,
+admits one direction, executes jointly and attempts file/IAM/OAuth cleanup independently.
+An unverified cleanup fences other windows. Recovery only inspects and cleans after
+process/ownership checks; it never resumes migration or automatically runs the inverse.
+Corrupt evidence or abandoned recovery lock requires inspection, not automatic takeover.
+Real SIGKILL after Firestore emulator commit retains the receipt and recovery leaves
+business data unchanged. Google/session permissions remain test doubles. Private
+journals: `2026-11-01-persistent-controlled-window`. No live maintenance, provider,
+production/original workbook, FCM, deployment or native changes. Next verify concrete
+session/recovery adapters, then renew controls for a separately authorized window.
+New code local; both stories open and PR #278 draft.
+
+Validation: Node22 build/full lint/CJS lint; 270 distinct local tests and 86 distinct
+emulator cases pass. Five retained journals re-read successfully. Admission packet
+unchanged; no current controls refreshed or native validation required.
