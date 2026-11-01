@@ -54,6 +54,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-11-01 | 📝 docs(shifts): prepare concrete develop invocation
+
 - 2026-11-01 | 📝 docs(shifts): record complete copy cycle evidence
 
 - 2026-11-01 | 📝 docs(shifts): record verified copy recovery

@@ -1,5 +1,18 @@
 # HU-084 — Preparación de permisos y ventana de develop
 
+## Preparación actual — 2026-11-01
+
+Las conexiones de la ventana original están publicadas en `5b24be80`. La nueva
+[preparación concreta local](hu084-invocacion-concreta-develop.md) renueva evidencias
+reales de Firestore, Cloud, escritor y propietario y regenera el paquete exacto.
+No cambian los datos publicados, sus versiones ni las operaciones de negocio; sí
+cambian los identificadores de operación al actualizar las evidencias. La inspección
+real rechaza `window_scope_missing`. OAuth está revocado con negativa del mismo token
+en Drive y Sheets. Sin mantenimiento, permiso al escritor, migración ni producción.
+Quedan agrupadas la composición real de observaciones de la barrera y la conexión
+nativa de permisos antes de solicitar ventana; las lecturas aisladas no son una barrera.
+
+
 Estado: **solo preparación; sin fecha ni autorización de ejecución**. La evidencia
 del escritor original y su integración en admisión están publicadas en `d42ce7fe`.
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.

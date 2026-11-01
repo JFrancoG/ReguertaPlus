@@ -1,5 +1,18 @@
 # HU-084 — Develop permissions and maintenance window preparation
 
+## Current preparation — 2026-11-01
+
+Original-window connections are delivered as `5b24be80`. The new local
+[concrete invocation preparation](hu084-develop-concrete-invocation.md) renews real
+Firestore, Cloud, writer and owner evidence and regenerates the exact package.
+Published data/service versions and business intents are unchanged; operation IDs
+change with the evidence. Passive live admission rejects `window_scope_missing`.
+The owner session is revoked with same-token Drive/Sheets denial. No maintenance,
+writer grant, migration or production access occurred. The real barrier observation
+composition and native owner callback binding remain the grouped technical work
+before requesting a window; standalone observations are not a held barrier.
+
+
 Status: **preparation only; not scheduled or authorized for execution**. Original
 writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.

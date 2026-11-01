@@ -1776,3 +1776,28 @@ Validation: build/full lint/CJS lint, 397 local tests and 90 emulator cases pass
 with zero skips. Five concrete journals re-read; package/preparation unchanged.
 Final pre-effect argument rejection checks are covered by the final local suite;
 the emulator pass precedes only those rejection checks. No native gates needed.
+
+
+### Concrete develop invocation and renewed evidence — 2026-11-01
+
+Original-file lifecycle delivered/pushed as `5b24be80`. The next local preparation
+pins the refreshed packet, code and exact batch, retaining absent scope/window/
+authorization fields. Real read-only census, Cloud controls, writer identity/runtime
+and owner captures match the reviewed state; OAuth revocation verified in Drive and
+Sheets. No published changes, write grants, maintenance, FCM or production access.
+The new packet regenerates operation IDs (`68e09b87cef3ef75a357`) while preserving
+business intents and historical rehearsals. Passive live admission matches sources
+and rejects only the absent window, with one read-only transaction and zero writes.
+See `docs/testing/hu084-develop-concrete-invocation.md` and its Spanish counterpart.
+
+Next grouped technical work: connect complete real technical/causal/owner/admin
+observation sessions to the barrier and bind reviewed native permission callbacks;
+verify their shared timing before requesting the concrete live window. The emulator
+still supplies synthetic complete barrier evidence. Do not equate these refreshed
+isolated captures with held admission. No user action or native parity gap now.
+Private preparation/validation: `2026-11-01-concrete-develop-preparation`. Issues remain
+open and PR #278 draft; new documentation/preparation is local, not yet committed.
+
+Validation: 82 local tests and 90 emulator cases pass, zero skips/failures; five
+concrete journals re-read. Runtime unchanged: exact source hashes permit reuse of
+the prior build/lint. Passive real source read and inert invocation verified.
