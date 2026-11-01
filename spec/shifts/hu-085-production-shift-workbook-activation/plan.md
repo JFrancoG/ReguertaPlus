@@ -1022,9 +1022,14 @@ owner preservation; its inverse was not sent. All temporary access was removed a
 the identity disabled. A complete owner-only read now verifies the retained forward
 manifest under stable version14. The old/new validator comparison isolates the
 derived SHEET metadata difference in this current real capture; OAuth was revoked.
-Inverse-only recovery is now prepared locally after delivered `61fe86e9`: one exact
-55-request batch, original business recipe, current code, version14 and full-image
-fences. Build/lint,133 focused tests and network-trapped retained-image rehearsal pass.
-Next obtain separate execution authorization and a fresh owner window; no forward replay.
-The real inverse and complete uninterrupted roundtrip remain unproved.
-See the bilingual window-permissions guide and current tasks for the exact scope.
+Inverse-only recovery is delivered as `a2a0b963`; build/lint,133 focused tests and
+network-trapped retained-image rehearsal pass. The explicitly authorized live inverse
+then restored 53 cells and updated two markers in one batch, without replaying forward.
+Complete preservation passes independently; readback version16. IAM wait122,346ms,
+verification at142,992ms, total194,571ms including all cleanup. Same unexpired token
+is denied, temporary IAM removed, identity disabled and OAuth revoked in both APIs.
+The copy is restored; original workbooks, maintenance and production were not accessed.
+Next incorporate measured receipts into admission preparation and review the remaining
+uninterrupted real roundtrip/integrated-window timing. Neither is proved by this separate
+recovery. Authorization is consumed. Only outcome docs remain local/uncommitted; issues
+stay open and PR #278 draft. See the bilingual window guide and current tasks.

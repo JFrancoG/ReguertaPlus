@@ -5,7 +5,43 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
-## Inverse-only recovery prepared — 2026-11-01
+## Authorized inverse completed and contained — 2026-11-01
+
+The recovery runner is committed/pushed as `a2a0b963`; branch, remote and draft
+PR #278 agree. After explicit inverse authorization and a fresh ten-minute closed-copy
+confirmation, one batch restored **53 helper cells** and updated **two existing markers**
+in `HU-084 — ENSAYO LOTE COMPLETO — 20261101-full-batch`. The forward was not resent.
+The complete owner readback and a separate offline verification of retained receipts
+confirm preservation of dates, names, order, notes, formulas, formatting and structure.
+The two markers remain as inverse receipts; this is not byte-identical metadata to the
+original baseline. Reviewed preflight version was **14**; batch readback version **16**.
+
+IAM propagation waited **122,346ms** before the sole **300s** token. Full inverse
+verification completed at **142,992ms**; the attempt including cleanup took **194,571ms**.
+The created copy permission was removed and the same unexpired writer token denied
+with **404**. Independent identity read confirms disabled account, no temporary IAM
+bindings and no user keys. Owner OAuth denied in both Drive and Sheets after cleanup
+(**42,288ms**); the local lock was released and the private execution server stopped.
+There were no execution or cleanup failures. Browser review confirms restored helper
+cells in both affected tabs and private owner-only sharing; full preservation is
+established by the retained raw image, not by screenshots alone.
+
+Private evidence: `2026-11-01-copy-inverse-execution`, including the consumed approval,
+window receipt, inverse intent/readback, independent content and identity verification,
+terminal result and visual captures. The preparation request remains an unchanged,
+unauthorized historical template; actual authorization is a separate execution receipt.
+No original workbook, shared maintenance, business Firestore, deployment, FCM or
+production access occurred. No native changes or parity gap.
+
+This proves recovery after the interrupted forward attempt; it does **not** prove an
+uninterrupted real forward/inverse lifecycle or combined maintenance-window timing.
+Next incorporate these measured receipts into develop admission preparation and review
+those remaining timing gates before proposing any new execution. Current authorization
+is consumed (`canRetry:false`, `canEnterMaintenance:false`). Build/lint and 133 focused
+passes from the exact delivered code are reused; this result update changes docs only.
+HU-084/HU-085 remain open and PR #278 draft. The outcome documentation is local/uncommitted.
+
+## Historical preparation: inverse-only recovery — 2026-11-01
 
 The preceding correction and full-copy reconciliation are committed and pushed as
 `eae86a89` and `61fe86e9`; remote HEAD was verified. This new recovery preparation is
@@ -46,9 +82,9 @@ plus the offline rehearsal on the retained real image. The nine new cases cover
 inverse-only scope, consumed receipts, pre/post-grant drift, version/marker changes,
 unknown result and one-attempt transport. No native change/parity gap. The previous
 nine Firestore-emulator cases are unchanged and were not rerun for this Sheets-only
-preparation. Real inverse, uninterrupted roundtrip, maintenance and activation remain
-pending. Next authorize this exact inverse, then prepare owner OAuth and request the
-closed-copy window immediately before execution.
+preparation. At that point, real inverse, uninterrupted roundtrip, maintenance and
+activation remained pending. The subsequent authorized inverse and its limits are
+recorded above; this preparation record does not grant another execution.
 
 ## Full synthetic-copy permission lifecycle — 2026-11-01
 

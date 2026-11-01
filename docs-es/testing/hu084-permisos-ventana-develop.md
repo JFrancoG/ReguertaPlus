@@ -5,7 +5,45 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
-## Recuperación mediante inversa preparada — 2026-11-01
+## Inversa autorizada completada y accesos retirados — 2026-11-01
+
+El ejecutor está commiteado y pusheado como `a2a0b963`; rama, remoto y PR #278 en
+borrador coinciden. Tras la autorización expresa y una nueva ventana de diez minutos
+con la copia cerrada, un único lote restauró **53 celdas de ayudantes** y actualizó
+**dos marcadores existentes** en `HU-084 — ENSAYO LOTE COMPLETO — 20261101-full-batch`.
+No se reenvió la ida. La lectura completa del propietario y una comprobación independiente
+sin conexión de los recibos confirman conservación de fechas, nombres, orden, notas,
+fórmulas, formato y estructura. Los dos marcadores quedan como recibos de la inversa;
+los metadatos no son idénticos byte a byte al original. Versión previa revisada **14**;
+versión de la lectura posterior al lote **16**.
+
+Se esperaron **122.346ms** de propagación IAM antes del único token de **300s**.
+La inversa quedó verificada a los **142.992ms**; ejecución y limpieza duraron **194.571ms**.
+Se retiró el permiso creado y el mismo token del escritor todavía válido recibió **404**.
+La lectura independiente confirma cuenta deshabilitada, sin concesiones IAM temporales
+ni claves de usuario. OAuth quedó denegado en Drive y Sheets tras la limpieza
+(**42.288ms**); se liberó el bloqueo local y se detuvo el servidor privado de ejecución.
+No hubo fallos de ejecución ni de limpieza. La revisión visual confirma los ayudantes
+restaurados en las dos pestañas afectadas y acceso privado del propietario; la prueba
+de conservación completa procede de la captura íntegra, no solo de las imágenes.
+
+Evidencia privada: `2026-11-01-copy-inverse-execution`, con autorización consumida,
+confirmación de ventana, intención/lectura inversa, comprobaciones independientes,
+resultado final y capturas visuales. La solicitud de preparación se conserva como
+plantilla histórica sin autorizar; la autorización real está en un recibo separado.
+No se accedió a hojas originales, mantenimiento compartido, Firestore de negocio,
+despliegues, FCM ni producción. Sin cambios nativos ni diferencias de paridad.
+
+Queda probada la recuperación tras la ida interrumpida, pero **no** el ciclo real de
+ida/vuelta sin interrupciones ni los tiempos conjuntos de mantenimiento. El siguiente
+paso es incorporar estos recibos a la preparación de admisión de develop y revisar
+esos controles de tiempo pendientes antes de proponer otra ejecución. La autorización
+está consumida (`canRetry:false`, `canEnterMaintenance:false`). Se reutilizan build/lint
+y las 133 pruebas aprobadas del código exacto publicado: esta actualización solo cambia
+documentación. HU-084/HU-085 siguen abiertas y PR #278 en borrador. Los documentos del
+resultado quedan locales, sin commit.
+
+## Preparación histórica de la recuperación mediante inversa — 2026-11-01
 
 La corrección y la conciliación anteriores están commiteadas y pusheadas como
 `eae86a89` y `61fe86e9`, con HEAD remoto comprobado. Esta nueva preparación es local
@@ -46,9 +84,9 @@ más el ensayo sin conexión sobre la captura real. Nueve casos nuevos cubren al
 solo inversa, recibos consumidos, cambios antes/después de permisos, versión/marcadores,
 resultado incierto y límite de un intento. Sin cambios nativos ni diferencia de paridad.
 Las nueve pruebas anteriores de emulador Firestore no cambian y no se repiten para
-esta preparación exclusiva de Sheets. Siguen pendientes inversa real, ciclo completo
-sin interrupciones, mantenimiento y activación. El siguiente paso es autorizar esta
-inversa, preparar OAuth y pedir la ventana con la copia cerrada justo antes de ejecutar.
+esta preparación exclusiva de Sheets. En ese momento seguían pendientes la inversa
+real, el ciclo sin interrupciones, mantenimiento y activación. La ejecución posterior
+y sus límites figuran arriba; este registro no autoriza otra ejecución.
 
 ## Ciclo completo de permisos en copia sintética — 2026-11-01
 

@@ -1597,18 +1597,25 @@ scope. Private record: `2026-11-01-google-batch-integration`; #268/#269 open, #2
 - [x] Prepare inverse-only recovery with the existing runner: bind historical forward
   evidence, current code, exact55 requests and version14; offline real-image rehearsal
   and133 focused tests pass. Current transport permits one attempt, cleanup is reused.
-- [ ] Separately authorize this inverse, renew scoped owner access and confirm a new
-  ten-minute closed-copy window. Real inverse and uninterrupted roundtrip remain unproved.
+- [x] Separately authorize the inverse, renew scoped owner access and confirm a fresh
+  ten-minute window; restore 53 cells/update two markers in one batch with full preservation.
+- [x] Verify permission removal, same-token denial, empty temporary IAM, disabled identity
+  and OAuth denial in both APIs; cleanup complete in the 194,571ms attempt.
+- [ ] Incorporate inverse receipts into admission preparation and review remaining
+  uninterrupted roundtrip / integrated-window timing; no maintenance authorization.
 
-New code is local after `a2ba5dfa`. The live attempt stopped after the forward submission; cleanup is proven, but the
-copy remains at its forward state. No complete roundtrip or admission success claim. Existing A1 and
+Historical forward execution stopped before inverse. The separately authorized recovery
+now restores the copy with complete preservation and cleanup verified. No uninterrupted
+roundtrip or admission success claim. Existing A1 and
 ten-row runners retain their scope. No maintenance, production, deployment, FCM or
 native change/parity gap. Bilingual window-permissions guide contains the exact
 recipe and boundaries. Private packet: `2026-11-01-helper-copy-lifecycle`.
 
-### Inverse preparation delivery boundary
+### Inverse execution and delivery boundary
 
-Prior correction/lifecycle are delivered as `eae86a89` / `61fe86e9` with exact remote
-HEAD verified. Inverse-only preparation is new local work. No live Google/IAM/Sheets
-call, maintenance, production or native change. Private packet:
-`2026-11-01-copy-inverse-preparation`; concrete execution request remains unauthorized.
+Recovery implementation is delivered as `a2a0b963`, with exact remote/PR head verified.
+The authorized live inverse is complete; private packet `2026-11-01-copy-inverse-execution`
+retains its receipts and independent checks. No maintenance, original workbook, production
+or native change. Only outcome documentation remains local/uncommitted. The preparation
+request stays unchanged as a historical unauthorized template; execution has a separate
+consumed authorization receipt. See the bilingual window guide for measured timings.
