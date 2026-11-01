@@ -163,3 +163,33 @@ test("rejects unsupported or unbounded requests, masked formatting, overlap and 
   manifest.policy.writes[0].column = 2;
   rejected(() => parse(manifest));
 });
+
+test("accepts Google's derived SHEET location type only for an exact newly created marker", () => {
+  const before = fixture();
+  before.sheets[0].developerMetadata = [];
+  const creation = {metadataKey: "reguerta.shiftSheets.v1",
+    metadataValue: "new marker", visibility: "DOCUMENT", location: {sheetId: 1}};
+  const manifest = create({before, requests: [update,
+    {createDeveloperMetadata: {developerMetadata: creation}}]});
+  const after = expected(before);
+  after.sheets[0].developerMetadata = [{...clone(creation), metadataId: 8,
+    location: {sheetId: 1, locationType: "SHEET"}}];
+  verify({manifest, after});
+  for (const change of [
+    (m) => { m.location.locationType = "ROW"; },
+    (m) => { m.location.sheetId = 2; },
+    (m) => { m.location.spreadsheet = true; },
+    (m) => { m.location.unknown = true; },
+    (m) => { m.metadataValue = "unrequested"; },
+    (m) => { m.visibility = "PROJECT"; },
+  ]) {
+    const drift = clone(after); change(drift.sheets[0].developerMetadata[0]);
+    rejected(() => verify({manifest, after: drift}));
+  }
+  const existing = fixture();
+  existing.sheets[0].developerMetadata[0].location.locationType = "SHEET";
+  const existingManifest = create({before: existing, requests: [update]});
+  const changed = expected(existing);
+  delete changed.sheets[0].developerMetadata[0].location.locationType;
+  rejected(() => verify({manifest: existingManifest, after: changed}));
+});

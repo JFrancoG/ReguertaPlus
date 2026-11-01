@@ -80,6 +80,13 @@ const dimensions = (properties: Data): Data => {
 };
 const metadata = (sheet: Data): Data[] =>
   list(sheet.developerMetadata).map(record);
+// Google adds this read-only discriminator to sheet metadata responses.
+// Only the exact derived type is equivalent to a create-request location.
+const createdMarkerLocationMatches = (value: unknown, expected: unknown) => {
+  const location = record(clean(value));
+  if (location.locationType === "SHEET") delete location.locationType;
+  return same(location, expected);
+};
 const cells = (sheet: Data): Map<string, Data> => {
   const output = new Map<string, Data>();
   const grid = dimensions(record(sheet.properties));
@@ -252,13 +259,15 @@ const fingerprint = (snapshot: unknown, policy: Policy, after: boolean) => {
     if (after) {
       entries = entries.filter((item) => {
         const create = policy.creates.find((expected) =>
-          same(clean(item.location), expected.location) &&
+          createdMarkerLocationMatches(item.location, expected.location) &&
         item.metadataKey === expected.metadataKey);
         if (!create) return true;
         integer(item.metadataId);
         const {metadataId: ignored, ...rest} = item;
         void ignored;
-        if (!same(clean(rest), create)) return fail();
+        if (!same(clean({...rest, location: create.location}), create)) {
+          return fail();
+        }
         return false;
       });
     }
@@ -313,7 +322,7 @@ const fingerprint = (snapshot: unknown, policy: Policy, after: boolean) => {
     for (const create of policy.creates) {
       const matches = observed.flatMap(metadata).filter((item) =>
         item.metadataKey === create.metadataKey &&
-      same(clean(item.location), create.location));
+      createdMarkerLocationMatches(item.location, create.location));
       if (matches.length !== 1) return fail();
     }
   }

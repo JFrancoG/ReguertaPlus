@@ -343,6 +343,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-11-01 | 🐛 fix(shifts): verify derived Sheets marker locations
+
 - 2026-10-31 | 🐛 fix(shifts): verify parent through workbook owner
 
 - 2026-10-31 | 🐛 fix(shifts): diagnose original writer preflight
