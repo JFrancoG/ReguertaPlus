@@ -5,6 +5,56 @@ del escritor original y su integración en admisión están publicadas en `d42ce
 Este plan no concede acceso, abre mantenimiento, migra datos ni activa las apps.
 
 
+## Ciclo completo en copia con presupuesto verificado — 2026-11-01
+
+La implementación del presupuesto y compatibilidad está publicada en `08b3098b`.
+La copia sintética nueva ha completado una ejecución continua de `runBudgetedCopy`:
+**201.376ms en total**, un único token de escritor de 300s y dos lotes de 55 peticiones
+cada uno (53 celdas de ayudante y dos marcadores). Pasan ambos manifiestos de
+conservación de ida/vuelta; una comparación independiente de las capturas confirma
+que los datos de celda y propiedades de las seis pestañas coinciden con la base tras
+la reversión. Se conservan intencionadamente los dos marcadores de la inversa;
+no son cambios en las celdas del usuario.
+
+| Fase | Duración medida |
+| --- | --- |
+| Preparación, incluida la espera IAM de 124.619ms | 141.418ms |
+| Ida, vuelta y observaciones tras emitir el token | 19.661ms |
+| Retirada del permiso de copia, relectura y denegación del mismo token | 4.491ms |
+| Retirada IAM, desactivación explícita y comprobaciones | 4.254ms |
+| Fase de limpieza OAuth | 31.686ms |
+
+No quedan incumplimientos de plazo ni peticiones HTTP pendientes. El mismo token del
+escritor, aún vigente, recibió 404 tras retirar su acceso a la copia. Drive y Sheets
+respondieron 401 al token revocado del propietario. Las lecturas finales independientes
+de IAM y servicios confirman el escritor deshabilitado, sin claves de usuario ni
+concesiones temporales y sin uso por servicios. El bloqueo local se ha liberado.
+El propietario ya puede volver a abrir la copia.
+
+Antes de la ventana confirmada, se inicializó esta misma copia nueva, pero falló su
+primera lectura de verificación; el recibo saneado no permite establecer la causa.
+La sesión se revocó con denegación en ambas APIs. Una recuperación de la preparación,
+registrada aparte y solo de lectura, verificó la base exacta en versión 8 sin repetir
+la inicialización. No hubo token del escritor ni concesión IAM temporal antes de la
+ejecución finalmente confirmada. Esta preparación queda fuera de los 201.376ms del ciclo.
+
+Evidencia privada: `2026-11-01-budgeted-copy-execution`, recibo
+`single-budgeted-copy-1793555719144`; preparación `ef471969…d80d5`, presupuesto
+`dd44fd97…955d2`. Se conservan capturas completas, intenciones, informe de plazos y
+verificación independiente sin credenciales. La revisión visual nativa conserva
+los anchos fijos del fixture (las etiquetas sintéticas largas siguen recortadas).
+Se reutilizan build/lint y 166 pruebas de las mismas huellas publicadas; este registro
+solo cambia documentación. No añade validación nativa ni de emulador.
+
+**Siguiente:** vincular el recibo del ciclo completo y su presupuesto al paquete de
+admisión existente, y ensayar localmente los tiempos conjuntos de barrera/Firestore/Sheets.
+El ciclo aislado de Google no mide esa ejecución conjunta ni renueva las fuentes y
+controles de la hoja original. El mantenimiento compartido sigue cerrado y exige
+observaciones actuales y autorización propias. No se han tocado hojas originales,
+producción, FCM ni despliegues. HU-084/HU-085 siguen abiertas y PR #278 en borrador;
+esta documentación de resultado queda local.
+
+
 ## Presupuesto completo de la copia y compatibilidad histórica — 2026-11-01
 
 La integración de recibos está commiteada y pusheada como `3aa1b467`. El trabajo

@@ -1643,3 +1643,23 @@ review pass build/lint and166 tests on Node22.23.4, including14 new cases. Three
 evidence pins are restored in the offline package without rewriting receipts or
 refreshing observations. Real uninterrupted provider timing and shared maintenance
 remain unproved/unauthorized. Bilingual window guide contains exact deadlines and limits.
+
+
+### Full budgeted synthetic-copy execution — 2026-11-01
+
+`08b3098b` delivers the complete budget and compatibility block. One authorized
+real `runBudgetedCopy` roundtrip now passes in 201,376ms with one300s token, two
+55-request batches and all53 cells restored. Both full preservation manifests and
+an independent six-tab cell/property comparison pass. No deadline breaches or
+pending requests; owner-only copy access, same-token404, disabled/keyless/unbound
+writer, both OAuth401 and released lock verified. Pre-window initialization had a
+failed verification read; revoked session and read-only resumption are recorded
+separately, with no initialization replay or writer token consumed.
+
+Existing166 tests/build/lint reused at exact published hashes; outcome docs only,
+no new native/emulator claim. Next bind this full-cycle receipt and budget to the
+existing admission packet and rehearse combined barrier/Firestore/Sheets timing
+locally. Original controls were not refreshed; no shared maintenance, original
+workbook/production access, FCM or deployment. Issues open, PR #278 draft. Outcome
+docs remain local; see the bilingual window guide and private
+`2026-11-01-budgeted-copy-execution` receipts.

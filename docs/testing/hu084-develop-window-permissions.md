@@ -5,6 +5,53 @@ writer evidence and admission integration are delivered in `d42ce7fe`. This plan
 does not grant access, open maintenance, migrate data or activate either app.
 
 
+## Full budgeted copy cycle completed — 2026-11-01
+
+The budget/compatibility implementation is delivered as `08b3098b`. The authorized
+fresh synthetic copy completed one uninterrupted `runBudgetedCopy` execution:
+**201,376ms total**, one 300s writer token and two batches of 55 requests each
+(53 helper cells and two markers). The forward and inverse owner-preservation
+manifests both pass; an independent retained-image comparison confirms all six
+sheets' cell data and properties match the baseline after recovery. The two inverse
+receipt markers remain intentionally; they are not user-cell changes.
+
+| Phase | Measured duration |
+| --- | --- |
+| Preparation/readiness, including IAM wait of 124,619ms | 141,418ms |
+| Forward, inverse and observations after mint | 19,661ms |
+| Copy permission removal, readback and same-token denial | 4,491ms |
+| IAM removal, explicit disable and checks | 4,254ms |
+| OAuth cleanup phase | 31,686ms |
+
+No deadline breach or pending HTTP request remains. The same unexpired writer token
+received 404 after its copy access was removed. Drive and Sheets both returned 401
+for the revoked owner token. Independent final IAM/runtime reads confirm the writer
+is disabled, has no user keys or temporary bindings and is not used by a runtime.
+The local lock was released. The owner may reopen the copy.
+
+Before the confirmed window, initialization of this same new copy succeeded but its
+first verification read failed; the sanitized receipt does not establish the root
+cause. That session was revoked with both API denials. A separately recorded,
+read-only preparation resumption verified the exact baseline at version 8 without
+replaying initialization. No writer token or temporary IAM grant preceded the final
+confirmed execution. These setup observations are excluded from the 201,376ms cycle.
+
+Private evidence: `2026-11-01-budgeted-copy-execution`, receipt
+`single-budgeted-copy-1793555719144`; preparation `ef471969…d80d5`, budget
+`dd44fd97…955d2`. Complete raw snapshots, intents, deadline report and independent
+verification are retained without credentials. Native visual inspection preserves
+the fixture's fixed column widths (long synthetic labels remain clipped as before).
+Build/lint and 166 tests are reused from the exact published source hashes; this
+outcome update changes documentation only. No additional native/emulator claim.
+
+**Next:** bind this full-cycle receipt and its budget to the existing admission packet,
+then rehearse the combined barrier/Firestore/Sheets timing locally. The isolated Google
+cycle does not measure that combined execution or refresh the original workbook's
+sources/controls. Shared maintenance remains closed and requires its own current
+observations and authorization. No original workbook, production, FCM or deployment
+was touched. HU-084/HU-085 stay open, PR #278 draft; these outcome docs are local.
+
+
 ## Complete copy deadline budget and historical compatibility — 2026-11-01
 
 Admission-receipt integration is delivered/pushed as `3aa1b467`. New local work
