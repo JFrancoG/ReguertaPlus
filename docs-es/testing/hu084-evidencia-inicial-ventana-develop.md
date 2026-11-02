@@ -1,5 +1,93 @@
 # HU-084 — Evidencia inicial y propuesta de ventana de develop
 
+## Renovación de autoridad y propietario; revisión fechada — 2026-11-02
+
+El bloque de recibos y entradas humanas tiene commit y push `8edfc7df`; coinciden
+la rama remota y la cabecera de la PR #278 en borrador. Se reutilizaron las 126 pruebas
+locales, tres comprobaciones privadas y build/lint tras verificar los 346 hashes de
+archivos de ejecución/paquete. Esta renovación de lecturas y documentación queda
+local, pendiente de commit.
+
+Evidencia privada: `2026-11-02-authority-owner-refresh`. Horas reales UTC:
+Cloud `2026-11-02T08:07:46.878Z`, censo atómico de develop `2026-11-02T08:07:40.706Z`,
+propietario/Sheets `2026-11-02T08:11:33.635Z` (Madrid es UTC+1 en esta fecha).
+
+- Coinciden las 24 configuraciones de Functions y los 24 servicios Run con sus
+  nombres, revisiones e identidades; también Rules, IAM del proyecto/invocador,
+  tres jobs pausados y seis índices READY. Inventarios globales de jobs, worker pools
+  e instancias Run vacíos. Scheduler cubre 34 regiones; las 88 consultas de triggers/
+  builds activos en 44 ubicaciones explícitas tienen éxito y están vacías.
+  Sin servicios App Engine, Extensions ni pools de identidad de cargas de trabajo.
+- Diez cuentas de servicio, cuatro deshabilitadas, cero claves de usuario y cero
+  concesiones IAM propias. La única añadida desde las nueve de octubre es el escritor
+  de Sheets de develop ya revisado: deshabilitado y ausente de los runtimes.
+  Cloud Asset sigue deshabilitado; se consultan las APIs individuales. La enumeración
+  de ubicaciones de Cloud Build no está disponible: la cobertura son las 44 ubicaciones
+  indicadas, sin interpretar el fallo de descubrimiento como ausencia de recursos.
+- Coinciden exactamente contenido y versiones de todas las colecciones/singletons
+  revisadas de Firestore y del registro privado: 12 eventos y 16 entregas. El ejecutor
+  real realiza una transacción de lectura, cero llamadas a controles/escrituras y
+  rechaza la admisión únicamente por `window_scope_missing`. No prueba drenaje histórico.
+- La hoja original de develop conserva versión 287, propietario y cuatro lectores;
+  su carpeta solo tiene propietario. Dos lecturas directas completas de conservación
+  y dos de las seis zonas acotadas coinciden entre sí y con la evidencia anterior.
+  Fechas, orden, valores y formato revisado permanecen iguales; escritor sin permiso.
+- OAuth del propietario autorizado expresamente, solo metadatos/Sheets de lectura,
+  Online y sin token de renovación. Revocación aceptada y 401 en Drive y Sheets con
+  el mismo token tras seis comprobaciones (53,492 s); credencial temporal local retirada.
+
+La vinculación renovada de 23 controles usa las horas reales y fija 25 archivos de
+recibos/fuentes, incluidos diez archivos de código desplegado conservados y verificados.
+Los cierres históricos mantienen sus fechas originales. Siguen desconocidos los 23
+contadores de trabajo anterior. Declaración de automatizaciones, observaciones y
+consentimiento futuro son independientes. El paquete se reproduce exactamente con sus
+17 entradas fijadas; no cambian identidades de paquete/preparado/avance/inversa ni las
+203 escrituras Firestore de avance / 140 de inversa, 53 celdas de ayudantes y dos
+marcadores. No se añade algoritmo ni control de proveedor.
+
+### Propuesta concreta para revisar, sin autorización
+
+**2 de noviembre de 2026, 10:00–10:15 Europe/Madrid (09:00–09:15 UTC).**
+OAuth y el canal nativo de permisos deben estar preparados antes. La comprobación
+previa de cinco minutos es independiente del presupuesto de diez minutos del escritor.
+
+| Hora de Madrid | Límite propuesto |
+| --- | --- |
+| 10:00–10:05 | Conciliación final de lectura y revisión expresa de operación/riesgo |
+| 10:05–10:08 | Ciclo exacto de permisos, espera IAM mínima de 120 s y evidencia inicial; recogida terminada antes de 10:07:30 |
+| 10:08–10:10:30 | Una dirección de avance, solo tras admisión correcta |
+| 10:10:30–10:11:30 | Retirar acceso al archivo y comprobar denegación |
+| 10:11:30–10:13 | Retirar IAM y deshabilitar expresamente el escritor |
+| 10:13–10:15 | Revocar OAuth del propietario y comprobar denegación |
+
+Fechas solo en `dated-inputs-private.json` / `dated-review-private.json`. No se inventa
+recibo, aceptación de riesgo, confirmación ni informe del propietario/administradores.
+Los formularios normales sin fechas siguen sin confirmar. No se concedió permiso ni
+se emitió token del escritor. Se conserva un único token futuro de 300 s, límites de
+180/150/60/90/120 s y 600 s totales. Son máximos, no esperas obligatorias ni garantías
+para llamadas de proveedor/humanas no cancelables; el margen exigido puede rechazar antes.
+Las capturas de esta mañana serán demasiado antiguas para la ventana propuesta:
+recoger evidencia inicial nueva y 30 s de quietud después del cierre real de permisos,
+junto a compromisos/informes nuevos del propietario y administradores. Antigüedad
+máxima de 600 s. Si pasa el horario, hay que fechar/revisar de nuevo y confirmar otra
+ventana; nunca empezar tarde ni ampliar sus límites.
+
+Validación: tres comprobaciones privadas renovadas correctas, plan fechado aceptado
+por el validador real, presupuesto válido y expiración rechazada, plantilla sin
+confirmar rechazada por la barrera real. Reproducción del paquete y 17 entradas correctas.
+Lectura Cloud 1,113 s, captura del propietario 8,246 s; estas medidas aisladas y los
+53,492 s de revocación no certifican la duración del ciclo completo Google/humano.
+Sin cambios de código ejecutable ni apps: build/lint y 126 pruebas reutilizados con
+hashes coincidentes; no se repiten emuladores ni pruebas nativas para evidencias/docs.
+Sin diferencia de paridad entre apps.
+
+Siguiente: revisar propuesta, autorizar operación/permisos temporales/riesgo exactos,
+preparar el canal y después pedir la ventana real al propietario/administradores.
+No se abrió mantenimiento ni hubo migración, escritura Sheets, FCM, despliegue, cambio
+IAM/ACL ni acceso a producción. No hace falta cerrar la hoja. HU abiertas y PR en borrador.
+
+## Hitos anteriores (historial conservado)
+
 Recogedor concreto con commit y push en `4dd7bb54` (2026-11-02). La vinculación de
 recibos y las entradas humanas siguientes están **locales, pendientes de commit**.
 No hay mantenimiento abierto. Las observaciones conservan sus horas reales.

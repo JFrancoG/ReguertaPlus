@@ -1,6 +1,6 @@
 # HU-084 — Concrete develop invocation preparation
 
-Current preparation (2026-11-02): [initial evidence and proposed window](hu084-develop-initial-evidence-window.md). Concrete collector published as `4dd7bb54`; retained technical receipts and explicit human input adapters are local, pending commit. Fresh authority/owner observations and actual window commitments remain pending. Earlier sections below are historical checkpoints.
+Current preparation (2026-11-02): [renewed authority/owner evidence and dated proposal](hu084-develop-initial-evidence-window.md). Technical/human binding published as `8edfc7df`. Read-only renewals match; proposed 10:00–10:15 Madrid interval remains unconfirmed and requires fresh entry observations. New evidence/docs local, pending commit; earlier sections are historical checkpoints.
 
 ## Composed observation and native-permission adapters — 2026-11-01
 

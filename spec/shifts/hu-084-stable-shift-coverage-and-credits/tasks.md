@@ -1902,3 +1902,24 @@ The detached synthetic completion passes the real codec; operational forms remai
 unconfirmed. No live provider/IAM/ACL/OAuth/maintenance/production/native action.
 Next renew identified evidence and review the dated packet before execution approval.
 See the bilingual initial-evidence/window guide and private `2026-11-02-technical-receipts`.
+
+## Renewed authority/owner observations and dated review — local, 2026-11-02
+
+Receipt/human inputs delivered in `8edfc7df`, remote and draft PR head verified.
+New read-only evidence at 08:07 UTC (Cloud/census), 08:11 UTC (owner): unchanged
+24 Functions, 24 Run services, three paused jobs, Rules/IAM, six indexes and source
+census. Ten service accounts: the additional one since October is the reviewed,
+disabled develop Sheets writer; no user keys or direct account bindings.
+Owner/parent ACL and version 287 unchanged; two full and two bounded direct Sheets
+reads match. Owner OAuth revoked, same token denied by both APIs in 53.492s.
+Package reproduced exactly from 17 pinned inputs; new 23-control receipt binding
+retains all predecessor counts unknown and all human acceptance unconfirmed.
+Three private checks and dated-plan/budget/rejection checks pass. Prior 126 tests
+and build/lint reused after 346 file hashes match; evidence/docs only, no native gap.
+Review-only proposal: 2 November 10:00–10:15 Madrid (09:00–09:15 UTC), including
+five-minute read-only preflight and ten-minute writer budget. Fresh observations,
+actual permission receipt and explicit operation/risk/owner/admin consent still required.
+Do not start late; missed proposal must be redated/reviewed. No maintenance, provider
+IAM/ACL changes, Sheets/Firestore business writes, FCM or production access.
+Next review and authorize the concrete operation before requesting the real window.
+See bilingual initial-evidence/window guide; private `2026-11-02-authority-owner-refresh`.

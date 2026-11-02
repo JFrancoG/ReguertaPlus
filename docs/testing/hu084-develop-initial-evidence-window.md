@@ -1,5 +1,88 @@
 # HU-084 — Initial evidence and proposed develop window
 
+## Authority and owner refresh; dated review — 2026-11-02
+
+The receipt/human-input block is committed and pushed as `8edfc7df`; exact remote
+and draft PR #278 head match. Its 126 local tests, three private checks and build/lint
+results were reused after all 346 execution/package file hashes matched.
+The following read-only renewal and documentation are local, pending commit.
+
+Private evidence: `2026-11-02-authority-owner-refresh`. Actual UTC observations:
+Cloud `2026-11-02T08:07:46.878Z`, atomic develop census `2026-11-02T08:07:40.706Z`,
+owner/Sheets `2026-11-02T08:11:33.635Z` (Madrid is UTC+1 on this date).
+
+- All 24 Function configurations and 24 Run service names/revisions/identities
+  match; Rules, project/invoker IAM, three paused jobs and six READY indexes match.
+  Global Run jobs/worker pools/instances are empty. Scheduler covers 34 regions;
+  all 88 trigger/active-build queries in 44 explicit locations succeed and are empty.
+  App Engine services, Extensions and workload identity pools are empty.
+- Ten service accounts, four disabled, zero user-managed keys and zero direct
+  account IAM bindings. The only addition since the nine-account October inventory
+  is the reviewed develop Sheets writer; it is disabled and absent from runtimes.
+  Cloud Asset remains disabled; inventories use the individual provider APIs.
+  Cloud Build has no usable locations listing here: coverage is the 44 named locations,
+  not a claim that a failed discovery call proves no resources.
+- All reviewed Firestore collections/singletons and private intake contents/service
+  versions match exactly, including 12 events and 16 deliveries. The real executor
+  performs one read-only source transaction, zero control calls/writes, and rejects
+  admission solely with `window_scope_missing`. This is not a historical drain proof.
+- The original develop workbook remains version 287 with its owner and four readers;
+  its parent has only the owner. Two direct full-preservation reads and two bounded
+  six-zone reads agree with each other and the previous evidence. Dates, order,
+  values and reviewed formatting are unchanged. No writer permission is present.
+- Explicitly authorized owner OAuth used only metadata/Sheets read scopes, Online,
+  no refresh token. Revocation was accepted and the same token returned 401 from
+  both Drive and Sheets after six probes (53.492s); temporary local credential removed.
+
+The renewed 23-control binding uses these actual observation times and pins the
+25 receipt/source files (including ten retained verified source archives). Historical
+closure receipts retain their original dates. All 23 predecessor work counts remain
+unknown. Current disclosure, authority observations and future human consent remain
+separate. The package reproduces exactly from its 17 pinned inputs; package/prepared/
+forward/inverse identities and the 203 forward / 140 inverse Firestore writes,
+53 helper cells and two markers are unchanged. No new algorithm or provider control.
+
+### Concrete proposal for review, not authorization
+
+**2 November 2026, 10:00–10:15 Europe/Madrid (09:00–09:15 UTC).**
+OAuth and the native permission channel must be ready before this interval. The
+five-minute read-only preflight is separate from the ten-minute writer budget.
+
+| Madrid time | Proposed boundary |
+| --- | --- |
+| 10:00–10:05 | Final read-only reconciliation and explicit operation/risk review |
+| 10:05–10:08 | Exact permission lifecycle, minimum 120s IAM wait and initial evidence; collection must finish before 10:07:30 |
+| 10:08–10:10:30 | One forward direction, only after successful admission |
+| 10:10:30–10:11:30 | Withdraw file access and verify denial |
+| 10:11:30–10:13 | Withdraw IAM and explicitly disable writer |
+| 10:13–10:15 | Revoke owner OAuth and verify denial |
+
+The dates exist only in `dated-inputs-private.json` / `dated-review-private.json`.
+No receipt, risk acceptance, owner/admin confirmation or report was fabricated.
+The normal undated input forms remain unconfirmed. No grant or writer token was made.
+Exactly one future 300s token, 180/150/60/90/120s stage caps and 600s total remain.
+These boundaries are maxima, not sleep targets or guarantees about noncancellable
+provider/human calls. Strict submission/headroom checks can reject earlier.
+The morning snapshots will be too old for this proposed window: collect fresh initial
+observations and the 30s quiet interval after actual permission closure, together with
+new owner/admin commitments/reports. Maximum evidence age remains 600s. If the date
+is missed, redate/review and obtain a new explicit confirmation; never start late.
+
+Validation: three renewed private offline checks pass, the dated plan passes the real
+initial-plan validator, the budget accepts the proposed interval and rejects expiry,
+and the actual barrier rejects the unconfirmed template. Package reproduction and
+17 input pins pass. Cloud read 1.113s, owner capture 8.246s; these isolated measurements
+and the 53.492s cleanup do not certify the complete Google/human cycle.
+No runtime code/native changes: full build/lint and 126 tests reused as pinned above;
+no emulator/native gates rerun for this evidence/docs-only block, no parity gap.
+
+Next review this proposal, authorize the exact operation/temporary permissions/risk,
+then prepare the access channel and request the actual owner/admin quiet window.
+No maintenance, migration, Sheets write, FCM, deployment, IAM/ACL change or production
+access occurred. No need to close the workbook now. HU-084/HU-085 remain open; PR draft.
+
+## Previous checkpoints (retained history)
+
 Concrete initial collector committed/pushed as `4dd7bb54` (2026-11-02). The retained
 technical-receipt binding and human input adapters below are **local, pending commit**.
 No maintenance is open. Retained observations keep their actual times.

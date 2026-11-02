@@ -1,6 +1,6 @@
 # HU-084 — Preparación de la invocación concreta de develop
 
-Preparación actual (2026-11-02): [evidencia inicial y ventana propuesta](hu084-evidencia-inicial-ventana-develop.md). Recogedor publicado en `4dd7bb54`; vinculación de recibos técnicos y entradas humanas locales pendientes de commit. Faltan observaciones actuales de autoridad/propietario y compromisos de ventana real. Los apartados siguientes son hitos anteriores.
+Preparación actual (2026-11-02): [observaciones renovadas y propuesta fechada](hu084-evidencia-inicial-ventana-develop.md). Vinculación técnica/humana publicada en `8edfc7df`. Lecturas renovadas coincidentes; horario propuesto 10:00–10:15 Madrid sin confirmar y pendiente de observaciones nuevas al entrar. Evidencias/docs nuevas locales pendientes de commit; apartados posteriores históricos.
 
 ## Composición de observaciones y permisos nativos — 2026-11-01
 
