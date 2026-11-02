@@ -1,5 +1,7 @@
 # Tasks - HU-085 (Controlled production shift workbook activation)
 
+> 2026-11-02 09:39 UTC: second authorized develop attempt consumed and stopped before native grant (unattended 20s queue). No writer token, maintenance or business writes. All 21 journal entries and file/IAM/OAuth cleanup verified; user quiet window released. Private launch now uses an attended start/reply interface, with no raw run/answer entry points. Correction and bilingual evidence remain local after `874146e3`; another execution needs a new receipt/authorization. See the initial-evidence window guide.
+
 > 2026-11-02 09:06 UTC: authorized develop attempt stopped before native Sheets grant; no maintenance/business write/writer token. File/IAM/OAuth cleanup verified. Private browser-context connection corrected and checked read-only; a new dated attempt remains pending. See the initial-evidence window guide.
 
 ## Accepted HU-083 handoff — 2026-09-12

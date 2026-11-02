@@ -1,5 +1,70 @@
 # HU-084 — Initial evidence and proposed develop window
 
+## Second authorized attempt: stopped and cleaned up — 2026-11-02
+
+After renewed access and matching workbook/batch/control/source preflight, the
+maintainer confirmed ten minutes from the immediately announced start. Receipt
+`develop-original-20261102-active-context-02` binds **09:37:55.386–09:47:55.386 UTC**
+(**10:37:55–10:47:55 Europe/Madrid**). The all-day closed-workbook statement does not
+extend the window or permission lifetime. The single attempt is consumed.
+
+The executor enabled the writer and added its temporary IAM grant. It queued the
+native editor grant, but the launching invocation returned without attending it;
+the 20s wait expired. Retained events and the code path identify this coordination
+failure. The attempt journal retains only the generic terminal reason; it is not
+credited with a diagnostic it did not record. Native dispatch never occurred. No
+workbook editor grant, writer token, post-grant human agreements, maintenance entry,
+business writes, FCM, inverse, replay or production access occurred.
+
+Cleanup finished at **09:39:03.593 UTC (10:39:03 Madrid)**: owner/four readers,
+temporary IAM removed, writer explicitly disabled and isolation verified. Online
+owner OAuth without refresh was revoked; the same token returned 401 from both
+Drive and Sheets after two probes. The verified journal has 21 entries, no pending
+files, zero in-flight calls and no stage-budget breaches. Native-action expiry is
+the setup failure, not successful migration. Local exclusion is released and the
+maintainer's quiet window has ended. Develop migration remains pending; HU-084 and
+HU-085 stay open and PR #278 draft.
+
+The exact executed composition and its SHA-256 are retained privately under
+`2026-11-02-native-context-retry-preparation`, alongside events, preflight, visual
+capture and receipts. The real journal reader verifies the full chain. The package
+is unchanged: 17 pinned inputs, 203 Firestore writes, 53 helper cells and two markers.
+The workbook was version 287 before launch; this session did not write it.
+
+The subsequent local correction puts foreground attendance in the actual interface:
+`startAndAttend` launches and attends native actions in the same active invocation;
+`answerAndAttend` resolves an actual human reply and attends its continuation.
+Separate public `run`/`answer` entry points are removed. `attend` resumes a provider
+wait. It hands back a human question, terminal state or explicit provider wait after
+up to 45s between actions; an already-started action settles before handback under
+its existing stage deadline. Unattended expiry now records its own diagnostic.
+There is no deadline extension, invented reply or repeated action.
+
+This fixes the concrete launch mistake; arbitrary interruptions between invocations
+can still expire the operation, with containment retained. Before another attempt,
+prepare a fresh receipt/authorization and use the attended interface directly.
+Consumed approval does not permit execution now. No workbook closure is needed for
+local preparation.
+
+The eight preceding tests predated this execution and did not establish the actual
+launch path. Subsequent local validation passes **16 tests, zero failures/skips**,
+with focused lint clean. Independent review found and corrected diagnostic-write
+failures interrupting containment; both paths have regression coverage. Private
+tests ran with Node 23.11.0, not a new deployed Node 22 runtime gate. An actual browser
+read through the new driver completed successfully without granting permission or
+writing. It uses the same driver as the concrete interface and covers grant/removal
+success and failures, unattended expiry, slice boundaries, human replies and action
+settlement. Native/emulator builds are not repeated for documentation/private
+composition; no Android/iOS changes or new parity gap. New documentation remains
+local after `874146e3`.
+
+Historical preparation: the maintainer authorized a single new attempt; one read
+session was retired while waiting for the window reply. An earlier session whose
+credential accidentally appeared in diagnostic output was revoked and verified by
+401 from both APIs before renewal. Receipts contain no credentials. Those preflight
+reads neither granted writer access nor opened maintenance. The later authorization
+was consumed by the attempt described above.
+
 ## Authorized 2 November attempt: stopped and cleaned up
 
 The preceding review is delivered in `86af466b`. The maintainer authorized the forward

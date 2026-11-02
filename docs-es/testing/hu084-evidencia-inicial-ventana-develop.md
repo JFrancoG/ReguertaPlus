@@ -1,5 +1,72 @@
 # HU-084 — Evidencia inicial y propuesta de ventana de develop
 
+## Segundo intento autorizado: detenido y limpiado — 2026-11-02
+
+Tras renovar el acceso y comprobar de nuevo hoja, lote, controles y fuentes, el
+usuario confirmó diez minutos desde el anuncio inmediato del inicio. El recibo
+`develop-original-20261102-active-context-02` fija **09:37:55.386–09:47:55.386 UTC**
+(**10:37:55–10:47:55 Europe/Madrid**). La declaración de hoja cerrada durante el día
+no amplía esa ventana ni la vigencia de los permisos. El intento único está consumido.
+
+El ejecutor reactivó el escritor y concedió su permiso IAM temporal. Dejó pendiente
+la concesión nativa de edición, pero la llamada que lo arrancó devolvió el control
+sin atenderla; venció la espera de 20 s. Los eventos conservados y el recorrido de
+código identifican ese fallo de coordinación. El diario del intento solo conserva
+el motivo terminal genérico; no se le atribuye un diagnóstico que no registró.
+La acción nativa no llegó a despacharse. No hubo permiso de edición de la hoja,
+token del escritor, confirmaciones posteriores al permiso, mantenimiento, escrituras
+de negocio, FCM, inversa, repetición ni acceso a producción.
+
+La limpieza terminó a las **09:39:03.593 UTC (10:39:03 Madrid)**: propietario/cuatro
+lectores, permiso IAM retirado, escritor explícitamente deshabilitado y aislamiento
+verificado. OAuth Online sin renovación fue revocado; el mismo token devolvió 401
+en Drive y Sheets tras dos comprobaciones. El diario íntegro contiene 21 registros,
+ningún archivo pendiente, cero llamadas en curso y cero incumplimientos del presupuesto
+de etapas. La expiración de la acción nativa es el fallo de preparación, no un éxito
+de migración. La exclusión local quedó liberada y la ventana del usuario terminada.
+La migración de develop sigue pendiente; HU-084/HU-085 abiertas y PR #278 en borrador.
+
+La composición ejecutada se conserva íntegra y por SHA-256 en el directorio privado
+`2026-11-02-native-context-retry-preparation`, junto a eventos, lectura previa,
+captura visual y recibos. Se validó la cadena del diario con el lector real. El
+paquete sigue idéntico: 17 entradas fijadas, 203 escrituras Firestore, 53 celdas y dos
+marcadores. La hoja estaba en versión 287 antes del arranque; esta sesión no la escribió.
+
+La corrección local posterior incorpora el bucle de atención a la interfaz real:
+`startAndAttend` arranca y atiende las acciones en la misma llamada activa;
+`answerAndAttend` resuelve una respuesta humana real y atiende la continuación.
+Se elimina la exposición separada de `run`/`answer`. `attend` reanuda una espera de
+proveedor. Devuelve una petición humana, estado terminal o espera explícita tras
+hasta 45 s entre acciones; una acción ya iniciada termina antes de devolver control,
+bajo el plazo existente de su etapa. La expiración sin despacho guarda ahora su
+propio diagnóstico. No amplía plazos, inventa respuestas ni repite acciones.
+
+Esto corrige el arranque concreto que falló; una interrupción arbitraria entre
+llamadas aún puede hacer expirar la operación, que conserva su contención. Antes de
+otro intento hay que preparar un recibo/autorización nuevos y utilizar directamente
+la interfaz atendida. La aprobación consumida no permite ejecutarlo ahora. No se
+necesita mantener cerrada la hoja para la preparación local.
+
+Las ocho pruebas anteriores precedían a esta ejecución y no acreditaban el arranque
+real. La validación local posterior pasa **16 pruebas sin fallos ni omitidas**, con lint
+focalizado sin avisos. La revisión independiente detectó y se corrigió que un fallo
+al guardar el diagnóstico pudiera interrumpir la limpieza; ambos caminos tienen
+regresión. Las pruebas privadas se ejecutaron con Node 23.11.0; no se presentan
+como un nuevo gate del runtime desplegado Node 22. Una lectura real de navegador
+a través del nuevo driver terminó correctamente, sin concesión ni escritura. Usa el
+mismo driver que la interfaz concreta e incluye concesión/retirada correctas y
+fallidas, expiración sin UI, límite entre
+llamadas, respuesta humana y espera hasta finalizar la acción. Builds de apps y
+emuladores no se repiten por documentación y composición privada; no hay cambios ni
+nueva diferencia Android/iOS. La documentación nueva queda local tras `874146e3`.
+
+Preparación histórica: el usuario autorizó un solo intento nuevo; una primera sesión
+de lectura se cerró mientras se esperaba la confirmación de ventana. Otra sesión
+previa cuya credencial apareció por error en un diagnóstico fue revocada y comprobada
+con 401 en ambos servicios antes de renovarla. No se conservan credenciales en los
+recibos. Ninguna de esas lecturas previas concedió acceso al escritor ni abrió
+mantenimiento. La autorización posterior sí quedó consumida por el intento descrito.
+
 ## Intento autorizado del 2 de noviembre: detenido y limpiado
 
 La revisión anterior está publicada en `86af466b`. El usuario autorizó el avance y
