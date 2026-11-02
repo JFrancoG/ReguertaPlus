@@ -70,6 +70,6 @@ function sealFixture({scopeOverrides={},before,window,nowMillis,advance,evidence
       expectedHistoricalRiskDigest:digest(payload.causalDrain.historicalRisk),expectedControlManifestDigest:manifest(payload.writerControls,payload.maintenanceMode)};
     copy.scopeDigest=digest(scope);return {scope,review:copy};
   }
-  return {initialEvidencePlan,collect};
+  return {initialEvidencePlan,collect,review:structuredClone(review)};
 }
 module.exports={sealFixture};

@@ -1,8 +1,9 @@
 # HU-084 — Evidencia inicial y propuesta de ventana de develop
 
-Preparación publicada en `cb92b367`; corrección del arranque **ensayada localmente**
-el 2026-11-02 y pendiente de commit. No hay mantenimiento abierto. La preparación
-histórica conserva sus horas reales; esta corrección no renueva esas observaciones.
+Corrección del arranque con commit y push en `25109ad4`. El recogedor concreto de
+evidencia inicial está **ensayado localmente, pendiente de commit** (2026-11-02).
+No hay mantenimiento abierto. Las observaciones conservan sus horas reales; no se
+han renovado con lecturas en vivo.
 
 ## Evidencias y operación exactas
 
@@ -120,7 +121,7 @@ el estado de inspección pendiente. Cancelar durante la recogida espera su termi
 y limpia sin pedir token. No se relajan validadores de negocio, rutas de producción,
 formato del registro ni límites de permisos/tokens; tampoco se añade inversa automática.
 
-## Validación y siguiente paso
+## Validación de la corrección del arranque (publicada en `25109ad4`)
 
 Validación: **115 casos locales distintos** (91 regresiones sin cambios de la ejecución de 113 casos y los 15 casos finales del sello y nueve del canal nativo), **90 casos de emulador**, cero fallos/omisiones. Pasan build, lint completo, lint CJS específico y comprobación del diff.
 
@@ -142,3 +143,63 @@ ejecutable; este ensayo no genera recibos ni una ventana reales.
 Sin cambios IAM/ACL, renovación OAuth, escrituras Sheets, FCM, despliegues,
 mantenimiento ni acceso a producción en esta corrección. HU-084/HU-085 siguen
 abiertas y PR #278 en borrador. No necesitas cerrar la hoja ni hacer nada ahora.
+
+## Recogida concreta y ensayo de tiempos — 2026-11-02
+
+`develop-initial-review-collector.cjs` conecta la recogida inicial con los lectores
+existentes. Su plantilla revisada debe contener ya los recibos técnicos de cierre
+y el manifiesto; las fechas dinámicas de lectura, acuerdos humanos e intervalo de
+quietud deben estar vacíos. La composición comprueba el paquete preparado/revisado
+exacto antes de llamar a proveedores. No descubre credenciales ni inicia ejecución real.
+
+Tras el recibo nativo de permisos verificado, recoge la confirmación del propietario
+para ese acuerdo completo y después la administrativa, vinculada al acuerdo del
+propietario. Lee controles Cloud/autoridad, el censo de cuatro rutas, todas las fuentes
+mediante una transacción SDK de solo lectura y la captura directa de la hoja. Tras
+el intervalo mínimo de quietud repite las observaciones y obtiene informes humanos
+finales explícitos. La igualdad de contenido no sustituye un informe humano. El
+comparador causal admite solo las adiciones revisadas al registro de capturas y
+conserva los contadores desconocidos. El validador real debe aceptar el resultado
+antes del sellado. Cada grupo espera todas sus operaciones antes de avanzar o limpiar.
+
+La recogida debe terminar antes de **inicio de ventana +150 segundos**, reservando
+30 segundos dentro de los 180 existentes para las comprobaciones restantes. La
+concesión nativa y ambas confirmaciones consumen ese mismo plazo. Los dos minutos
+mínimos de IAM siguen contando desde la concesión real e incluyen la recogida; no
+se añaden otra espera ni más duración a permisos o token. HTTP recibe el límite más
+estricto. La cancelación se propaga a la recogida y a la espera de quietud.
+
+| Escenario simulado | Duración de recogida | Resultado |
+| --- | ---: | --- |
+| Normal: dos confirmaciones de 10 s, dos lecturas de fuente de 3 s, dos de hoja de 2 s y 30 s de quietud | 60,400 s | Aceptado; quedan 79,470 s hasta el límite de recogida |
+| Dos confirmaciones de 60 s | 125,200 s | Rechazado: no cabe el intervalo de quietud |
+| Lecturas de fuente de 80 s | 212,200 s | Rechazado al terminar la lectura SDK pendiente; supera el límite en 72,330 s |
+| Concesión tarda 145 s | 10,000 s | Rechazado tras confirmar; supera el límite en 5,130 s |
+
+Son tiempos deterministas **simulados, no latencias medidas de Google o la interfaz**.
+Una petición SDK o confirmación humana iniciada puede no admitir cancelación. Se espera
+su terminación y se impide emitir el token; no se garantiza terminar la limpieza en
+diez minutos ante cualquier demora externa. Los callbacks reciben plazo y comprobador
+de cancelación. Un intento vencido exige inspección/contención; no demuestra limpieza
+correcta ni autoriza repetir escrituras.
+
+El archivo privado `2026-11-02-initial-collection/collection-preparation-private.json`
+vincula siete entradas conservadas sin cambios, paquete/operaciones exactos, orden de
+lectores, mapa de 25 controles, recibos de tiempos y campos pendientes. Las 23 filas
+técnicas del borrador anterior siguen sin fechas/huellas de cierre revisadas; esta
+preparación no las convierte en hechos verificados. Las otras dos filas requieren
+confirmaciones humanas de la ventana real. No se copian datos de las pruebas a esa
+preparación real, que sigue sin permitir ejecución.
+
+Validación actual: 106 pruebas locales y 90 con Firestore local, cero fallos/omitidas;
+build/lint completos de Functions, lint CJS focalizado y diff correctos. El caso nuevo
+de composición verifica rechazo de paquete distinto antes de proveedores y fallo de
+inspección SDK de solo lectura antes del sellado; el caso positivo del recogedor usa
+fuentes/Google/personas simulados. La regresión del emulador no certifica el ciclo
+completo real del recogedor y migración. Android/iOS sin cambios ni nueva diferencia.
+
+Siguiente: completar la plantilla técnica revisada y la conexión final de lecturas/
+confirmaciones con los recibos conservados, renovar solo evidencias/credenciales que
+requieran actualidad y comprobar el mismo presupuesto antes de pedir ventana real.
+No hay mantenimiento ni autorización de esa ejecución. No debes hacer nada ni cerrar
+la hoja ahora.

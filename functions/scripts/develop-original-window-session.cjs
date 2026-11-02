@@ -86,7 +86,7 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
         initialSeal=require("./develop-initial-evidence-seal.cjs").verifyInitialEvidenceSeal(sealed[0].seal,expectedBinding,authorization.receiptId,ownerChannel.reviewDigest);
         transition=initialSeal.transition;permissionReceipt=initialSeal.permissionReceipt;
       }
-      services=await composeServices({timeBudget,owner,iam,nowMillis,record:note,getPermissionTransition:()=>structuredClone(transition),
+      services=await composeServices({timeBudget,owner,iam,nowMillis,assertActive:current,record:note,getPermissionTransition:()=>structuredClone(transition),
         binding:structuredClone(expectedBinding),receiptId:authorization.receiptId,permissionReceipt:structuredClone(permissionReceipt),
         nativeReviewDigest:ownerChannel.reviewDigest,retainedSeal:recovery?structuredClone(initialSeal):null,
         assertWriterAuthority:async()=>{current();await identity(false,[grant]);await isolated();current();}});

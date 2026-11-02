@@ -1,8 +1,8 @@
 # HU-084 — Initial evidence and proposed develop window
 
-Preparation published as `cb92b367`; startup correction **locally rehearsed** on
-2026-11-02 and pending commit. No maintenance is open. The historical preparation
-below retains its actual observation times; this correction does not renew them.
+Startup correction committed and pushed as `25109ad4`. The concrete initial-review
+collector is **locally rehearsed, pending commit** (2026-11-02). No maintenance is
+open. Retained observations below keep their actual times; no live read renewed them.
 
 ## Exact evidence and unchanged operation
 
@@ -113,7 +113,7 @@ Abort during collection awaits settlement, then cleans without requesting a toke
 No business validator, production path, journal format, auto-inverse or runtime
 permission/token limit was relaxed.
 
-## Validation and next step
+## Startup-correction validation (published in `25109ad4`)
 
 Validation: **115 distinct local passes** (91 unchanged regressions from the 113-case run plus the final 15 seal and nine native-channel cases), **90 emulator passes**, zero failures/skips. Build, full lint, focused CJS lint and diff checks pass.
 
@@ -135,3 +135,61 @@ remains non-executable; no real receipt or window is manufactured by this rehear
 No IAM/ACL mutation, owner OAuth renewal, Sheets write, FCM, deployment, maintenance
 or production access in this correction. HU-084/HU-085 stay open and PR #278 stays
 draft. No sheet closure or user action is required now.
+
+## Concrete collection and timing rehearsal — 2026-11-02
+
+`develop-initial-review-collector.cjs` replaces the generic initial-review input
+with explicit existing read adapters. Its reviewed template must already contain
+the technical closure receipts and manifest; dynamic readback dates, human agreements
+and the quiet interval must be absent. The factory checks the exact prepared/review
+package before any provider call. Nothing discovers credentials or starts a live run.
+
+After the verified native permission receipt, it collects the owner's confirmation
+for that completed intent, then the administrator confirmation bound to the owner
+agreement. It reads Cloud controls/authority, the four-route census, the whole source
+through a read-only SDK transaction, and the owner's direct workbook image. After
+the minimum quiet interval it repeats those observations and obtains explicit final
+human reports. Unchanged contents never substitute for a human report. The existing
+causal comparator permits only the reviewed append-only capture history and preserves
+unknown delivery counters. The real evidence validator must accept the resulting
+scope before sealing. Every group settles before the next phase or cleanup.
+
+The collection deadline is **window start +150 seconds** in the ten-minute window,
+leaving 30 seconds inside the existing 180-second preparation allowance for remaining
+checks. Native grant time and both confirmation challenges consume this same allowance.
+The two-minute IAM wait still runs from the actual grant, including collection time;
+there is no additional wait or expanded token/permission lifetime. HTTP receives the
+stricter deadline. Cancellation propagates through collection and its quiet wait.
+
+| Synthetic scenario | Collection elapsed | Result |
+| --- | ---: | --- |
+| Normal: two 10-second confirmations, two 3-second source reads, two 2-second workbook reads, 30-second quiet interval | 60.400 s | Accepted; 79.470 s before collection deadline |
+| Two 60-second confirmations | 125.200 s | Rejected: quiet interval cannot fit |
+| 80-second source reads | 212.200 s | Rejected after the pending SDK read settles; deadline exceeded by 72.330 s |
+| Grant consumes 145 seconds | 10.000 s | Rejected after confirmation; deadline exceeded by 5.130 s |
+
+These are deterministic simulated durations, **not measured Google/UI latency**.
+An already-started SDK request or human callback may not be cancellable. The collector
+waits for settlement and denies token issuance; it cannot guarantee cleanup completes
+within ten minutes under arbitrary external latency. Callbacks receive the deadline
+and cancellation guard. A timed-out attempt remains an inspection/containment case,
+not evidence of successful cleanup or a reason to repeat a write.
+
+Private `2026-11-02-initial-collection/collection-preparation-private.json` binds seven
+unchanged retained inputs, the exact existing package/operations, provider order,
+25 control mappings, timing receipts and outstanding fields. The 23 technical control
+rows in the earlier draft still lack reviewed closure dates/digests: this preparation
+does not promote them to verified facts. The two human rows require actual window
+confirmations. No fixture values enter that real preparation; it stays non-executable.
+
+Current validation: 106 local cases and 90 local Firestore emulator cases, zero
+failures/skips; Functions build/full lint, focused CJS lint and diff checks pass.
+The added factory case verifies package mismatch before providers and a failed
+read-only SDK inspection before sealing; the successful collector test uses synthetic
+source/Google/human providers. Emulator regression does not certify a full live
+collector-to-migration run. Android/iOS are unchanged; no parity gap is introduced.
+
+Next complete the concrete reviewed technical template and final read/confirmation
+wiring against the retained receipts, renew only the evidence/credentials requiring
+freshness, and check the same budget before requesting a real window. Neither real
+maintenance nor its authorization is present. No user action or sheet closure now.

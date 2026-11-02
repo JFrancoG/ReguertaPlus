@@ -1860,3 +1860,28 @@ maintenance, production or native-app change. Existing package/operation identit
 remain; final live plan/review/code pins and actual window commitments are pending.
 Next prepare that exact collection against the unchanged preparation deadline before
 requesting execution. Stories remain open and PR #278 draft; no user action now.
+
+## Concrete initial collector and timing — local, 2026-11-02
+
+Startup correction is committed/pushed as `25109ad4` (remote verified). The new
+collector connects existing Cloud/census/source/workbook/authority readers and
+explicit receipt-bound owner/admin confirmation and final-report ports. A fixed
+reviewed technical template precedes collection; fresh reads bracket the actual
+quiet interval. Unknown delivery counters remain unknown. Package mismatch fails
+before provider access. Passive source inspection uses a read-only SDK transaction.
+
+Within the unchanged 180-second preparation cap, collection ends by window +150s,
+reserving 30s for remaining checks. The normal deterministic scenario takes 60.400s;
+slow confirmations/source/grant fail before token issuance. Pending SDK/human calls
+must settle: real joint latency and bounded cleanup under arbitrary delay are not
+certified. Tests cover failure, cancellation, settlement and package binding.
+
+Validation: 106 local / 90 Firestore-emulator passes, zero failures/skips; build,
+full/focused lint and diff checks pass. Google/human timing remains synthetic. Private
+`2026-11-02-initial-collection` pins seven retained real inputs and the exact unchanged
+package; its 25-control map still requires reviewed technical closure values for 23
+rows and actual future commitments for two human rows. No synthetic authority is
+inserted. The concrete technical template/final provider wiring and renewed evidence
+are next, before any real window request. No live reads/writes, IAM/ACL/OAuth changes,
+maintenance, production or native changes. New work is uncommitted; stories remain
+open and PR #278 draft. No user action or sheet closure now.

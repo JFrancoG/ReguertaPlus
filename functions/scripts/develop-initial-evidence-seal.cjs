@@ -17,7 +17,8 @@ function plannedRisk(risk){return {...structuredClone(risk),assessedAtMillis:nul
 function observationInputs(review){return {cloud:review.cloud,classifiedCaptures:review.classifiedCaptures,deliveries:review.deliveries,
   ownerSnapshotDigest:review.owner.snapshotDigest,ownerMetadataDigest:review.owner.metadataDigest};}
 function validateInitialEvidencePlan(plan,binding) {
-  assert.deepEqual(Object.keys(plan).sort(),["kind","scope","ownerIntent","administratorIntent","historicalRisk","observationInputsDigest"].sort());
+  assert.deepEqual(Object.keys(plan).sort(),["kind","scope","ownerIntent","administratorIntent","historicalRisk","observationInputsDigest",...(plan.collectionReviewDigest===undefined?[]:["collectionReviewDigest"])].sort());
+  if(plan.collectionReviewDigest!==undefined)assert.match(plan.collectionReviewDigest,/^shift-planning:v1:sha256:[a-f0-9]{64}$/);
   assert.equal(plan.kind,"develop-post-permission-initial-evidence");
   assert.deepEqual(plan.scope,plannedScope(plan.scope));assert.deepEqual(plan.scope,binding.scope);
   assert.equal(plan.scope.schemaVersion,3);assert.equal(plan.scope.maintenanceMode,"develop-administrator-agreement");
@@ -84,4 +85,4 @@ function verifyInitialEvidenceSeal(seal,binding,receiptId,nativeReviewDigest,atM
   verify(body.review.evidence,command(body.scope),atMillis);
   return structuredClone(seal);
 }
-module.exports={validateInitialEvidencePlan,sealInitialEvidence,verifyInitialEvidenceSeal,plannedScope,plannedOwner,plannedAdmin,plannedRisk,observationInputs};
+module.exports={validateInitialEvidencePlan,verifyPermissionReceipt,sealInitialEvidence,verifyInitialEvidenceSeal,plannedScope,plannedOwner,plannedAdmin,plannedRisk,observationInputs};
