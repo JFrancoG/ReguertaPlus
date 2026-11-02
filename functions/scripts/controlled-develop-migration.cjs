@@ -19,10 +19,13 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
   for(const name of ["readExistingFailure","retainFailureAndReadBack"])assert.equal(typeof failurePersistence[name],"function");
   assert.equal(typeof nowMillis,"function");
   // Never pass a provider's potentially mutating closeAndCollect to either path.
-  const heldReaders={closeAndCollect:scope=>controlPlane.readBackClosed(scope),
+  const coherent=typeof controlPlane.readBackCooperativeObservation==="function";
+  assert.equal(typeof controlPlane.readRetainedClosed==="function",coherent,"Coherent reads require explicit retained checkpoint access");
+  const heldReaders={closeAndCollect:scope=>coherent?controlPlane.readRetainedClosed(scope):controlPlane.readBackClosed(scope),
     readBackClosed:scope=>controlPlane.readBackClosed(scope),
     readBackOwnerObservation:scope=>controlPlane.readBackOwnerObservation(scope),
-    readBackAdministratorObservation:scope=>controlPlane.readBackAdministratorObservation(scope)};
+    readBackAdministratorObservation:scope=>controlPlane.readBackAdministratorObservation(scope),
+    ...(coherent?{readBackCooperativeObservation:(scope,context)=>controlPlane.readBackCooperativeObservation(scope,context)}:{})};
   const readOnlyFailures={readExistingFailure:input=>failurePersistence.readExistingFailure(input),
     retainFailureAndReadBack:async()=>{throw new Error("read_only_admission_does_not_persist_incidents");}};
   const dependencies={firestore,prepared,controlPlane:heldReaders,nowMillis,historicalRiskMode:true};

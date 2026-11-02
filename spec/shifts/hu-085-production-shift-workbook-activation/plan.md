@@ -1347,3 +1347,16 @@ Do not start late; missed proposal must be redated/reviewed. No maintenance, pro
 IAM/ACL changes, Sheets/Firestore business writes, FCM or production access.
 Next review and authorize the concrete operation before requesting the real window.
 See bilingual initial-evidence/window guide; private `2026-11-02-authority-owner-refresh`.
+
+
+## Interactive timing and real afterimage gate — 2026-11-02
+
+ADR-0027 prepares an explicit forward-only original-develop twenty-minute mode,
+coherent phases, delayed mint and independently verified owned afterimages. The
+historical checkpoint does not replace fresh checks. Real observer/SDK validation
+accepts only exact canonical rows/versions and owned capture cores; unrelated drift
+rejects, unknown deliveries remain unknown. Final local gates: 358 repository + 14
+private passes, no failures/skips, build/lint clean. Google/human/IAM ports remain
+doubles; no live-provider latency is claimed. READY_FOR_FRESH_AUTHORIZATION only:
+renew authority/source/workbook evidence, obtain new approval and dated window.
+No maintenance, provider mutation or production access. See ADR-0027 and guide.

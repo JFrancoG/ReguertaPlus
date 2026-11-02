@@ -1,5 +1,73 @@
 # HU-084 — Initial evidence and proposed develop window
 
+## Interactive twenty-minute preparation — local, 2026-11-02
+
+The second stopped attempt and attended private-launch evidence are delivered in
+`d7d11eaf`; exact remote HEAD was verified before this work. The maintainer offered
+20 or 30 minutes. **Twenty minutes is the reviewed maximum for a new explicit
+original-develop variant; thirty is not supported.** No actual dated window or new
+execution authorization has been collected.
+
+[ADR-0027](../decisions/0027-collect-coherent-develop-observations-before-writer-token.md)
+records the local correction. A complete phase observation now supplies its owner
+and administrator projections together, with fresh independent phases before/after
+the callback. Held entry reads its immutable checkpoint separately. Acquisition,
+admission and execution use 3 + 3 + 2 full observations instead of 7 + 8 + 7.
+`original-develop-deferred-writer-v1` is bound to the exact operation/journal and
+moves acquisition/admission before the single writer token. Default/copy ten-minute
+behavior remains unchanged. Preparation may use 780 s, initial collection 750 s;
+IAM waits at least 120 s there. Token 300 s, work 150 s, cleanup 60/90/120 s,
+manifest age 60 s and evidence age ten minutes remain unchanged. An unanswered
+human request expires at the current stage deadline, not the outer window end.
+
+The new private operator uses the attended start/reply interface. Each actual human
+reply keeps its own request/response identity and observed time; unchanged report
+facts keep a stable administrator revision. This prevents fresh acknowledgements
+from being mistaken for administrative identity drift. Outer technical-template
+package/preparation/plan bindings are checked against the regenerated packet.
+
+Historical evidence compatibility is explicit: all 285 backend-source entries
+reconstruct the previous digest by replacing only the barrier adapter TS/compiled
+JS. The default historical budget is reconstructed by replacing only its reviewed
+source hash; deadlines and receipts are not changed. All 17 raw input files remain
+pinned. Package `7201f1cf…f257715` replaces `9d528701…b8f` solely through historical
+provenance summaries; source policy, forward/inverse intents/digests, operation IDs,
+203/140 Firestore writes, 53 helper cells, two markers and published dates/order
+remain identical. Materialized preparation is `373ee000…faced`.
+
+Final local readiness is **READY_FOR_FRESH_AUTHORIZATION**, never live admission.
+The real-observer regression first proved that frozen source-set equality rejects
+the owned 62-to-72-row commit before Sheets. The final phase now independently
+inspects the committed receipt and verifies exact source afterimages/service
+versions, unchanged unrelated rows and append-only capture history. New observed
+cores must match exact owned create/delete transitions. The actual current-source
+digest remains separate from historical causal identity; unknown deliveries stay
+unknown and unreplayed. The strict path still rejects drift. The new proof and
+twenty-minute mode are forward-only; they do not enable another inverse.
+
+Final Node 22.23.4 validation: **328 repository regressions + 30 owned-transition
+unit/SDK-emulator cases + 14 private tests**, zero failures/skips. Full Functions
+build/lint, scoped CJS lint and diff checks pass. The decisive emulator gate uses
+the real observer, actual Firestore snapshots/versions and independent retained
+inspection. Its 98.702s positive cycle includes eight real 12s waits and asserts
+post-mint work below 150s. Field drift, version ABA, unrelated source/capture,
+slow mint/response and unanswered-human expiry preserve stop/cleanup behavior.
+All 553 code/script/test/compiled files stayed identical during the final SDK gate.
+Google/human/IAM lifecycle ports remain explicit doubles: no live latency or actual
+human/browser execution is certified. The initial collector separately accepts
+slower challenge replies under twenty minutes and rejects them under default ten.
+An initial raw-payload hash discrepancy was corrected with the existing production
+public materializer and production-built fixtures; the failed gate is retained.
+
+Private evidence: `2026-11-02-interactive-window-preparation` and
+`2026-11-02-interactive-window-local`. Both preceding 21-entry journals and their
+cleanup validate. The fresh receipt `develop-original-20261102-interactive-03` is
+unconsumed; approval, dates and human commitments remain empty. Its local execution
+readiness guard binds the validated forward variant and exact packet; actual
+approval and the dated quiet window remain mandatory. No Google/IAM/OAuth/Sheets/production action or
+maintenance entry was performed in this preparation. No Android/iOS change or new
+parity gap. No app rebuild is needed for backend-only changes.
+
 ## Second authorized attempt: stopped and cleaned up — 2026-11-02
 
 After renewed access and matching workbook/batch/control/source preflight, the

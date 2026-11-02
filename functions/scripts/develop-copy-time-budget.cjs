@@ -6,6 +6,8 @@ const assert=require("node:assert/strict"),fs=require("node:fs");
 const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.js");
 const LIMITS=Object.freeze({window:600000,work:150000,fileCleanup:60000,iamCleanup:90000,oauthCleanup:120000});
 const CLEANUP=LIMITS.fileCleanup+LIMITS.iamCleanup+LIMITS.oauthCleanup;
+const ORIGINAL_DEVELOP_MODE="original-develop-deferred-writer-v1";
+const ORIGINAL_DEVELOP_WINDOW_MILLIS=1200000;
 
 function prepareCopyTimeBudget(prepared) {
   const value={kind:"isolated-copy-deadline-budget",copyPreparationDigest:prepared.preparationDigest,
@@ -14,9 +16,9 @@ function prepareCopyTimeBudget(prepared) {
     tokenLifetimeMillis:300000,maximumTokens:1,canExecute:false,canEnterMaintenance:false};
   return {...value,budgetDigest:digest(value)};
 }
-function createCopyTimeBudget({startsAtMillis,endsAtMillis,nowMillis=Date.now,fetchImpl=fetch}) {
+function createTimeBudget({startsAtMillis,endsAtMillis,nowMillis=Date.now,fetchImpl=fetch},maximumWindowMillis) {
   assert.ok([startsAtMillis,endsAtMillis,nowMillis()].every(Number.isSafeInteger));
-  assert.ok(startsAtMillis<=nowMillis()&&endsAtMillis>nowMillis()&&endsAtMillis-startsAtMillis<=LIMITS.window);
+  assert.ok(startsAtMillis<=nowMillis()&&endsAtMillis>nowMillis()&&endsAtMillis-startsAtMillis<=maximumWindowMillis);
   let phase="preparation",deadline=endsAtMillis-LIMITS.work-CLEANUP,expiry=null,cleanupStart=null,inFlight=0;
   const breaches=[],stages=[{phase,startedAtMillis:nowMillis(),deadlineMillis:deadline}],pending=new Set();
   function observe() {
@@ -28,6 +30,7 @@ function createCopyTimeBudget({startsAtMillis,endsAtMillis,nowMillis=Date.now,fe
   function enter(name,end) {observe();phase=name;deadline=end;stages.push({phase,startedAtMillis:nowMillis(),deadlineMillis:deadline});}
   return {
     assertStage,
+    currentStageDeadlineMillis:()=>deadline,
     beginWork(tokenExpiresAtMillis) {
       assertStage();expiry=tokenExpiresAtMillis;
       assert.ok(Number.isSafeInteger(expiry)&&expiry<=nowMillis()+300000&&expiry<=endsAtMillis);
@@ -70,6 +73,13 @@ function createCopyTimeBudget({startsAtMillis,endsAtMillis,nowMillis=Date.now,fe
     },
   };
 }
+function createCopyTimeBudget(input) {return createTimeBudget(input,LIMITS.window);}
+// Only the exact mode retained in the original-develop operation binding selects
+// the longer preparation slot. Token/work/cleanup fences remain identical.
+function createOriginalDevelopTimeBudget(input) {
+  assert.equal(input.reviewedMode,ORIGINAL_DEVELOP_MODE);
+  return createTimeBudget(input,ORIGINAL_DEVELOP_WINDOW_MILLIS);
+}
 
 async function runBudgetedCopy(args) {
   const {prepared,input,iamBearer,ownerBearer,fetchImpl=fetch,nowMillis=Date.now,sleep,journalRoot}=args;
@@ -92,5 +102,5 @@ async function runBudgetedCopy(args) {
     throw Object.assign(Error("budgeted_copy_preflight_failed"),{cleanupVerified});
   }
 }
-module.exports={LIMITS,prepareCopyTimeBudget,createCopyTimeBudget,runBudgetedCopy};
+module.exports={LIMITS,ORIGINAL_DEVELOP_MODE,ORIGINAL_DEVELOP_WINDOW_MILLIS,prepareCopyTimeBudget,createCopyTimeBudget,createOriginalDevelopTimeBudget,runBudgetedCopy};
 if(require.main===module){console.error("explicit_reviewed_copy_budget_required");process.exitCode=1;}

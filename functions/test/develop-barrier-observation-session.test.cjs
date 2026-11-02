@@ -73,6 +73,38 @@ test("observation close waits for pending siblings even when another provider fa
   const read=lease.readEvidence(),rejected=assert.rejects(read);let closed=false;const close=lease.close().catch(()=>{}).then(()=>{closed=true;});
   await new Promise(resolve=>setImmediate(resolve));assert.equal(closed,false);settle();await rejected;await close;assert.equal(finished,true);
 });
+test("cooperative phase method collects once per call, sharing no capture across later phases",async()=>{
+  const f=fixture();let reports=0;
+  const original=f.args.readHumanReports;f.args.readHumanReports=async(...args)=>{reports++;return original(...args);};
+  // Construct after installing the counted human port.
+  const counted=f.make(),first=await counted.openObservationSession(f.scope);
+  const initial=await first.readCooperativeObservation({phase:"initial"}),before=initial.evidence;assert.equal(initial.kind,"complete-develop-barrier-observation");assert.equal(reports,1);assert.equal(f.state.calls,31);
+  assert.equal(before.payload.ownerObservation.observedAtMillis,before.payload.administratorObservation.observedAtMillis);
+  await first.close();f.state.now++;
+  const final=await counted.openObservationSession(f.scope),after=(await final.readCooperativeObservation({phase:"final"})).evidence;
+  assert.equal(reports,2);assert.equal(f.state.calls,62);
+  assert.ok(after.payload.ownerObservation.observedAtMillis>before.payload.ownerObservation.observedAtMillis);
+  await final.close();await counted.close();
+});
+test("a callback receipt cannot fall back to an unchanged-source capture without its owned package",async()=>{
+  const f=fixture(),sessions=f.make(),lease=await sessions.openObservationSession(f.scope);
+  await assert.rejects(lease.readCooperativeObservation({phase:"final",operationResult:{receiptDigest:digest("not a retained receipt")}}),
+    /exact prepared package/);
+  assert.equal(f.state.records.length,0);assert.equal(f.state.calls,31);
+  await lease.close();await sessions.close();
+});
+test("phase close awaits the independent committed inspection before releasing its lease",async()=>{
+  const f=fixture();let settle,finished=false;
+  f.args.prepared={};f.args.inspectCommitted=()=>new Promise(resolve=>{
+    settle=()=>{finished=true;resolve({kind:"not-observed"});};
+  });
+  const sessions=f.make(),lease=await sessions.openObservationSession(f.scope);
+  const read=lease.readCooperativeObservation({phase:"final",operationResult:{receiptDigest:digest("invalid receipt")}}),rejected=assert.rejects(read);
+  while(!settle)await new Promise(resolve=>setImmediate(resolve));
+  let closed=false;const close=lease.close().catch(()=>{}).then(()=>{closed=true;});
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(closed,false);
+  settle();await rejected;await close;assert.equal(finished,true);await sessions.close();
+});
 test("GET-only census uses one snapshot, checks all pages and refuses external document names",async()=>{
   const f=fixture(),calls=[],reader=createDevelopCensusReader({bearer:"fixture-only"});
   const fetchImpl=async(url,options)=>{calls.push(url);assert.equal(options.method,"GET");const name=new URL(url).pathname.slice(4),c=f.census;

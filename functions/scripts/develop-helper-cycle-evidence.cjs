@@ -10,6 +10,7 @@ const {createShiftSheetsOwnerPreservationManifest:manifest,assertShiftSheetsOwne
 const {EMAIL,checkIdentity,prepare:iamPreparation}=require("./prepare-develop-writer-rehearsal.cjs");
 const {PROTECTED_FILES}=require("./develop-helper-copy-provider.cjs");
 const {prepareCopyTimeBudget,LIMITS}=require("./develop-copy-time-budget.cjs");
+const {reviewIamPreparationDigest,reviewCopyTimeBudget}=require("./develop-historical-source-compatibility.cjs");
 const equal=(a,b,why)=>assert.equal(digest(a),digest(b),why);
 const millis=v=>assert.ok(Number.isSafeInteger(v)&&v>=0,"invalid receipt time");
 const sources=["rehearse-develop-helper-copy.cjs","develop-helper-copy-provider.cjs","prepare-develop-helper-batch.cjs",
@@ -22,8 +23,8 @@ function reviewHelperCycle(e,reviewedDigest,originalWorkbookId) {
   const {preparationDigest,...body}=p;assert.equal(digest(body),preparationDigest);
   assert.equal(p.kind,"isolated-helper-copy-preparation");
   assert.equal(p.sourceDigest,digest(sources.map(s=>fs.readFileSync(path.join(__dirname,s),"utf8"))),"unreviewed cycle source transition");
-  assert.equal(p.parentPreparationDigest,iamPreparation().preparationDigest);
-  equal(e.budget,prepareCopyTimeBudget(p),"unreviewed deadline source or limits");
+  const parentSourceCompatibility=reviewIamPreparationDigest(p.parentPreparationDigest);
+  const budgetSourceCompatibility=reviewCopyTimeBudget(e.budget,prepareCopyTimeBudget(p));
   assert.equal(a.budgetDigest,e.budget.budgetDigest);assert.equal(a.preparationDigest,preparationDigest);
   assert.ok(PROTECTED_FILES.includes(originalWorkbookId)&&PROTECTED_FILES.every(id=>p.protectedWorkbookIds.includes(id)));
   assert.ok(!p.protectedWorkbookIds.includes(p.fileId));
@@ -101,7 +102,8 @@ function reviewHelperCycle(e,reviewedDigest,originalWorkbookId) {
   // setup interval, but never an elapsed total preceding either verified batch.
   assert.ok(total<=d.finishedAtMillis-a.startsAtMillis&&total>=d.finishedAtMillis-e.baseline.observedAtMillis);
   return {kind:"historical-contained-helper-copy-cycle",evidenceDigest:reviewedDigest,preparationDigest,budgetDigest:e.budget.budgetDigest,
-    syntheticWorkbookId:p.fileId,originalWorkbookId,receiptId:a.receiptId,restoredHelperCells:53,updatedMarkers:2,submittedBatches:2,
+    syntheticWorkbookId:p.fileId,originalWorkbookId,receiptId:a.receiptId,parentSourceCompatibility,budgetSourceCompatibility,
+    restoredHelperCells:53,updatedMarkers:2,submittedBatches:2,
     versionBefore:versions[0],versionAfter:versions[2],restoredSnapshotDigest:digest(before),
     measuredTiming:{iamPropagationMillis:wait,forwardVerifiedElapsedMillis:f,inverseVerifiedElapsedMillis:i,totalWithCleanupMillis:total,
       oauthCleanupMillis:o.finishedAtMillis-o.startedAtMillis},deadlineReportDigest:digest(d),

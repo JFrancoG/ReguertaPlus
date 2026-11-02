@@ -5,17 +5,19 @@ function retainTiming(name,f){if(!process.env.HU084_INITIAL_COLLECTION_OUTPUT)re
 const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.js");
 const {createInitialReviewCollector}=require("../scripts/develop-initial-review-collector.cjs");
 const {sealInitialEvidence}=require("../scripts/develop-initial-evidence-seal.cjs");
-const {createCopyTimeBudget}=require("../scripts/develop-copy-time-budget.cjs");
+const {createCopyTimeBudget,createOriginalDevelopTimeBudget,ORIGINAL_DEVELOP_MODE}=require("../scripts/develop-copy-time-budget.cjs");
 const {bindWindow}=require("../scripts/develop-controlled-window.cjs");
 const {originalWindowFixture}=require("./develop-original-window-fixture.cjs");
 const {sealFixture}=require("./develop-initial-evidence-seal-fixture.cjs");
 const {createOriginalWindowOwner}=require("../scripts/develop-original-window-provider.cjs");
 const {OWNER,FILE,WRITER,PERMISSION}=require("../scripts/develop-original-writer-provider.cjs");
 const censusFixture=require("./develop-legacy-census-fixture.cjs");
-async function fixture({confirmationDelay=10000,sourceDelay=3000,sheetsDelay=2000,grantDelay=10000,fault=null}={}) {
+async function fixture({confirmationDelay=10000,sourceDelay=3000,sheetsDelay=2000,grantDelay=10000,fault=null,interactive=false}={}) {
   const g=originalWindowFixture();g.state.now=Date.parse(censusFixture.fixture().readTime);
   const owner=createOriginalWindowOwner({ownerBearer:"fixture-owner-collector",fetchImpl:g.fetchImpl,nowMillis:()=>g.state.now,sleep:async()=>{}});
-  const before=await owner.capture(false),data=g.args(),f=sealFixture({scopeOverrides:{transitionId:data.prepared.operationId},before,window:data.window,nowMillis:()=>g.state.now,advance:ms=>{g.state.now+=ms;}});
+  const before=await owner.capture(false),data=g.args();
+  if(interactive){data.window.endsAtMillis=data.window.startsAtMillis+1200000;data.executionMode=ORIGINAL_DEVELOP_MODE;}
+  const f=sealFixture({scopeOverrides:{transitionId:data.prepared.operationId},before,window:data.window,nowMillis:()=>g.state.now,advance:ms=>{g.state.now+=ms;}});
   const reviewed={kind:"develop-initial-review-template",cloud:f.review.cloud,owner:before,classifiedCaptures:f.review.classifiedCaptures,deliveries:f.review.deliveries,payload:structuredClone(f.review.evidence.payload)};
   const p=reviewed.payload;
   for(const k of ["ownerAgreement","administratorAgreement","ownerObservation","administratorObservation","quietHorizon","verifiedAtMillis"])p[k]=null;
@@ -39,7 +41,8 @@ async function fixture({confirmationDelay=10000,sourceDelay=3000,sheetsDelay=200
     if(fault==="cloud"&&url.includes("/jobs/"))value={...value,state:"ENABLED"};
     return new Response(JSON.stringify(value));
   };
-  const budget=createCopyTimeBudget({...data.window,nowMillis:()=>g.state.now,fetchImpl});
+  const budget=interactive?createOriginalDevelopTimeBudget({...data.window,reviewedMode:ORIGINAL_DEVELOP_MODE,nowMillis:()=>g.state.now,fetchImpl}):
+    createCopyTimeBudget({...data.window,nowMillis:()=>g.state.now,fetchImpl});
   const args={reviewed,reviewDigest,iamBearer:"synthetic-read-token",
     readSource:async()=>{const start=g.state.now;g.state.now+=sourceDelay;state.sources++;const s=plan.scope;
       return {startedAtMillis:start,observedAtMillis:g.state.now,source:{sourceDigest:fault==="source"&&state.sources>1?digest("drift"):s.expectedAuthoritativeDigest,
@@ -76,6 +79,21 @@ test("concrete collector binds actual confirmation challenges, reads and quiet i
   assert.equal(p.causalDrain.initialPendingDeliveryCount,null);assert.equal(p.causalDrain.finalInFlightWorkCount,null);
   assert.ok(f.state.http.every(r=>r.method==="GET"||r.url.endsWith(":getIamPolicy")));
   assert.equal(f.g.state.mints,0);assert.equal(f.g.batch.sheets.mutations.length,0);retainTiming("normal",f);await assert.rejects(collector(f.context),/already consumed/);
+});
+
+test("explicit twenty-minute collector accepts slower actual-challenge replies without consuming work or cleanup reserve",async()=>{
+  const f=await fixture({interactive:true,confirmationDelay:100000}),result=await f.make()(f.context);
+  const seal=sealInitialEvidence({...f.context,scope:result.scope,review:result.review,nowMillis:f.g.state.now});
+  assert.equal(seal.receiptId,"collector-window");
+  const report=f.state.records.at(-1),start=f.context.binding.window.startsAtMillis;
+  assert.equal(report.deadlineMillis,start+750000);assert.ok(report.finishedAtMillis>start+180000);
+  assert.ok(report.finishedAtMillis<report.deadlineMillis);assert.equal(report.postCollectionReserveMillis,30000);
+  assert.equal(f.g.state.mints,0);assert.equal(f.state.human.length,2);assert.equal(f.state.sources,2);
+});
+
+test("the same slow replies still reject under the unchanged default ten-minute collector",async()=>{
+  const f=await fixture({confirmationDelay:100000});await assert.rejects(f.make()(f.context));
+  assert.equal(f.state.records.at(-1).result,"rejected");assert.equal(f.g.state.mints,0);assert.equal(f.state.sources,0);
 });
 for(const fault of ["cloud","census","source","sheets","confirmation","old-confirmation","withdrawn","stale-report","short-wait"])
 test(`initial collector rejects ${fault} without manufacturing a usable envelope`,async()=>{

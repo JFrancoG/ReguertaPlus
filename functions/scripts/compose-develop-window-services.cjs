@@ -45,11 +45,16 @@ function composeDevelopWindowServices({firestore,prepared,scope,review,reviewDig
       }
       currentScope=sealed.scope;currentReview=sealed.review;currentDigest=sealed.reviewDigest;
     }else assert.ok(!binding?.initialEvidencePlan,"Deferred evidence requires the planned composition");
+    let executor;
     const observations=createBarrierObservationSessions({scope:currentScope,review:currentReview,reviewDigest:currentDigest,timeBudget,owner,iamBearer,
-      assertWriterAuthority,getPermissionTransition,readCensus:createDevelopCensusReader({bearer:iamBearer}),readHumanReports,nowMillis,record});
+      assertWriterAuthority,getPermissionTransition,readCensus:createDevelopCensusReader({bearer:iamBearer}),readHumanReports,nowMillis,record,prepared,
+      inspectCommitted:({scope,receipt})=>{
+        assert.ok(executor,"Independent committed-state reader is unavailable");
+        return executor.inspectUncertain({scope,direction:receipt.direction});
+      }});
     try {
-      const barrier=createControlledDevelopBarrier({firestore,prepared,openObservationSession:observations.openObservationSession,nowMillis});
-      const executor=createControlledDevelopMigrationExecutor({firestore,prepared,controlPlane:barrier.controlPlane,
+      const barrier=createControlledDevelopBarrier({firestore,prepared,openObservationSession:observations.openObservationSession,nowMillis,coherentObservations:true});
+      executor=createControlledDevelopMigrationExecutor({firestore,prepared,controlPlane:barrier.controlPlane,
         failurePersistence:barrier.failurePersistence,nowMillis});
       return {barrier,executor,initialSeal:sealed,async close(){try{await observations.close();}finally{iamBearer=null;}}};
     }catch(error){try{await observations.close();}finally{iamBearer=null;}throw error;}

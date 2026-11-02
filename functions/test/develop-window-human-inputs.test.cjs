@@ -36,6 +36,8 @@ test('explicit replies complete collector and a later report requires a new chal
  assert.equal(result.review.evidence.payload.workbook.pendingOfflineEditorCount,0);assert.deepEqual(requests.map(r=>r.kind),['owner','administrator','reports']);
  assert.ok(requests[0].responseTemplate.confirmations.every(c=>c.confirmedAtMillis===null&&c.onlineClosedNoOfflineEdits===null));
  assert.equal(requests[2].responseTemplate.reports.ownerObservation.ownerActivity,null);
+ assert.ok(requests[1].prompt.includes('ajenas a la operación revisada'));
+ assert.ok(requests[2].prompt.includes('esta respuesta no acredita sus resultados'));
  const before=f.g.state.now,report=await human.readHumanReports(result.scope);assert.ok(report.ownerObservation.observedAtMillis>before);assert.equal(requests.length,4);assert.equal(records.length,8);
  human.close();await assert.rejects(human.readHumanReports(result.scope));
 });

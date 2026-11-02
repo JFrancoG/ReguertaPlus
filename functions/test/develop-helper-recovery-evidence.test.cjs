@@ -13,6 +13,8 @@ const {materializeControlledDevelopMigrationPreparation:materialize}=require("..
 const {createControlledDevelopMigrationExecutor:create}=require("../scripts/controlled-develop-migration.cjs");
 const {fixture}=require("./develop-migration-package-fixture.cjs");
 const {sheetsService}=require("./shift-sheets-api-fixture.cjs");
+const {historicalIamPreparation}=require("../scripts/develop-historical-source-compatibility.cjs");
+const {prepare:prepareIam}=require("../scripts/prepare-develop-writer-rehearsal.cjs");
 const FILE=PROTECTED_FILES[0];let evidence;
 
 // Generate successful receipts with the actual runner and Sheets adapter, using
@@ -103,4 +105,20 @@ test("manifest preserves recovery pin and rejects missing pin or changed raw fil
   delete m.reviewedHelperCopyRecoveryDigest;fs.writeFileSync(f,JSON.stringify(m));assert.throws(()=>loadManifest(f));
   m.reviewedHelperCopyRecoveryDigest=input.reviewedHelperCopyRecoveryDigest;fs.writeFileSync(f,JSON.stringify(m));
   fs.appendFileSync(m.files.helperCopyRecovery.path," ");assert.throws(()=>loadManifest(f));
+});
+
+for(const [runner,label]of [
+  ["shift-planning:v1:sha256:2c63c31b681ef4b8b96c00d1f0f79225e5883d50785cb04fc2a29956b29ce669","historical-eae86a89-validator-transition"],
+  ["shift-planning:v1:sha256:049fe823dbd8a7c75f371566cc435892c719a88805d3692a0996ebf72e2ed741","historical-pre-coherent-barrier-phase"],
+])test(`recovery retains the exact ${label} parent without promoting authority`,()=>{
+  const e=structuredClone(evidence),p=e.approval.prepared;
+  p.parentPreparationDigest=historicalIamPreparation(prepareIam(),runner).preparationDigest;
+  const {preparationDigest,...body}=p;void preparationDigest;p.preparationDigest=digest(body);
+  e.approval.input.preparationDigest=p.preparationDigest;
+  const saved=structuredClone(e),result=review(e,digest(e),FILE);
+  assert.deepEqual(e,saved);assert.equal(result.parentSourceCompatibility,label);
+  assert.equal(result.currentWriterAuthorityVerified,false);assert.equal(result.canEnterMaintenance,false);
+  p.parentPreparationDigest=digest('unknown parent');
+  const {preparationDigest:old,...changed}=p;void old;p.preparationDigest=digest(changed);e.approval.input.preparationDigest=p.preparationDigest;
+  assert.throws(()=>review(e,digest(e),FILE));
 });

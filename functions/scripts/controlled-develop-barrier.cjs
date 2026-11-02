@@ -11,9 +11,10 @@ const {createShiftPlanningAdministratorBarrierCheckpoint:checkpoint,
 const {createFirestoreShiftPlanningIntakeBarrierRepository:repository} = require("../lib/shift-planning-firestore-intake-barrier-repository.js");
 const {createDevelopShiftMigrationEngine,historicalMigrationPlanBindings,PROJECT_ID:DEMO,HOST} = require("./develop-shift-migration-engine.cjs");
 const {verifyClosedPolicy,KIND} = require("./develop-closed-migration-policy.cjs");
+const {assertDevelopOwnedTransitionObservation,isOwnedTransitionReceipt}=require("./develop-owned-transition-observation.cjs");
 const PROJECT = "reguerta-9f27f";
 
-function compose({firestore,prepared:original,openObservationSession,nowMillis}, projectId) {
+function compose({firestore,prepared:original,openObservationSession,nowMillis,coherentObservations=false}, projectId) {
   assert.equal(firestore.projectId,projectId);assert.equal(firestore.databaseId,"(default)");
   const prepared=structuredClone(original),{preparedDigest,...body}=prepared;
   assert.equal(digest(body),preparedDigest);assert.equal(prepared.projectId,projectId);
@@ -21,6 +22,7 @@ function compose({firestore,prepared:original,openObservationSession,nowMillis},
   assert.equal(prepared.scope,projectId===PROJECT?"controlled_develop_preparation":"loopback_emulator_only");
   assert.equal(prepared.policyDraft.document.kind,KIND);verifyClosedPolicy(prepared.policyDraft);
   assert.equal(typeof openObservationSession,"function");assert.equal(typeof nowMillis,"function");
+  assert.equal(typeof coherentObservations,"boolean");
   const clock=()=>{const n=nowMillis();assert.ok(Number.isSafeInteger(n)&&n>=0);return n;};
   const journal=repository(firestore,()=>Timestamp.fromMillis(clock()));
   const key=scope=>({environment:"develop",transitionId:scope.transitionId});
@@ -49,13 +51,13 @@ function compose({firestore,prepared:original,openObservationSession,nowMillis},
   // A session owns only its read credentials/resources. Its opener must clean a
   // partial open on rejection. close must verify credential cleanup or reject.
   // A static retained packet is not an implementation of this trusted live port.
-  async function observe(scope,method,signal) {
+  async function observe(scope,method,signal,context) {
     stopped(signal);direction(scope);
     const session=await openObservationSession(structuredClone(scope));
     assert.equal(typeof session?.close,"function","observation session must own cleanup");
     try {
       assert.equal(typeof session[method],"function");stopped(signal);
-      return structuredClone(await session[method]());
+      return structuredClone(await session[method](context));
     } finally {await session.close();}
   }
   async function retained(scope) {
@@ -75,9 +77,35 @@ function compose({firestore,prepared:original,openObservationSession,nowMillis},
     validated(saved.evidence,scope);
     return saved;
   }
+  async function readRetainedClosed(originalScope) {
+    const scope=structuredClone(originalScope),saved=await retained(scope);
+    assert.ok(saved,"develop_barrier_not_acquired");validated(saved.evidence,scope);return saved;
+  }
+  async function readBackCooperativeObservation(originalScope,context) {
+    const scope=structuredClone(originalScope),saved=await readRetainedClosed(scope);
+    assert.ok(context&&["initial","final"].includes(context.phase),"A cooperative phase is required");
+    const startedAt=clock(),observation=await observe(scope,"readCooperativeObservation",undefined,context);
+    let facts;
+    if(observation.kind==="owned-develop-transition-observation") {
+      assert.equal(context.phase,"final");assert.equal(isOwnedTransitionReceipt(context.operationResult),true);
+      assert.deepEqual(Object.keys(observation).sort(),["kind","proof","ownerObservation","administratorObservation"].sort());
+      assertDevelopOwnedTransitionObservation(observation.proof,{prepared,scope,callbackReceipt:context.operationResult});
+      assert.ok(observation.proof.observedAtMillis>=startedAt&&observation.proof.observedAtMillis<=clock(),"Owned source observation is stale or future");
+      facts=observation;
+    }else {
+      assert.equal(observation.kind,"complete-develop-barrier-observation");
+      assert.deepEqual(Object.keys(observation).sort(),["kind","evidence"].sort());
+      assert.equal(context.phase==="final"&&isOwnedTransitionReceipt(context.operationResult),false,"Owned receipt requires its verified postimage proof");
+      const fresh=validated(observation.evidence,scope);facts=fresh.payload;
+    }
+    validated(saved.evidence,scope);
+    return {checkpoint:saved,ownerObservation:structuredClone(facts.ownerObservation),
+      administratorObservation:structuredClone(facts.administratorObservation)};
+  }
   const controlPlane={readBackClosed,
     readBackOwnerObservation:scope=>observe(structuredClone(scope),"readOwnerObservation"),
-    readBackAdministratorObservation:scope=>observe(structuredClone(scope),"readAdministratorObservation")};
+    readBackAdministratorObservation:scope=>observe(structuredClone(scope),"readAdministratorObservation"),
+    ...(coherentObservations?{readRetainedClosed,readBackCooperativeObservation}:{})};
   const inspection=createDevelopShiftMigrationEngine({firestore,prepared,
     controlPlane:{...controlPlane,closeAndCollect:async()=>{throw new Error("explicit_acquisition_required");}},
     failurePersistence:journal,nowMillis:clock,historicalRiskMode:true});
@@ -103,12 +131,13 @@ function compose({firestore,prepared:original,openObservationSession,nowMillis},
       // A consumed key is inspect-only, including lost commit acknowledgements.
       // There is no automatic second attempt or update of the original evidence.
       assert.equal(await journal.readExisting(key(scope)),null,"develop_barrier_already_retained_inspect_only");
-      const acquisitionObservation=method=>async currentScope=>{
-        stopped(signal);const value=await controlPlane[method](currentScope);stopped(signal);return value;
+      const acquisitionObservation=method=>async (currentScope,context)=>{
+        stopped(signal);const value=await controlPlane[method](currentScope,context);stopped(signal);return value;
       };
       const acquiring={...controlPlane,
         readBackOwnerObservation:acquisitionObservation("readBackOwnerObservation"),
         readBackAdministratorObservation:acquisitionObservation("readBackAdministratorObservation"),
+        ...(coherentObservations?{readBackCooperativeObservation:acquisitionObservation("readBackCooperativeObservation")}:{ }),
         async closeAndCollect() {
         await assertSource(scope);stopped(signal);
         const evidence=validated(await observe(scope,"readEvidence",signal),scope);

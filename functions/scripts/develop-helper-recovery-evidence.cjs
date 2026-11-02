@@ -7,7 +7,7 @@ const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.j
 const {createShiftSheetsOwnerPreservationManifest:manifest,assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
 const {EMAIL,checkIdentity,prepare:iamPreparation}=require("./prepare-develop-writer-rehearsal.cjs");
 const {PROTECTED_FILES}=require("./develop-helper-copy-provider.cjs");
-const {reviewHelperExecutionDigest}=require("./develop-historical-source-compatibility.cjs");
+const {reviewHelperExecutionDigest,reviewIamPreparationDigest}=require("./develop-historical-source-compatibility.cjs");
 const equal=(a,b,why)=>assert.equal(digest(a),digest(b),why);
 const millis=value=>assert.ok(Number.isSafeInteger(value)&&value>=0,"invalid receipt time");
 
@@ -22,7 +22,7 @@ function reviewHelperRecovery(e,reviewedDigest,originalWorkbookId) {
     "develop-google-observations.cjs","develop-writer-copy-provider.cjs","prepare-develop-writer-rehearsal.cjs",
     "../lib/shift-sheets.js","../lib/shift-sheets-owner-manifest.js"];
   const sourceCompatibility=reviewHelperExecutionDigest(p.sourceDigest,digest(sources.map(s=>fs.readFileSync(path.join(__dirname,s),"utf8"))));
-  assert.equal(p.parentPreparationDigest,iamPreparation().preparationDigest);
+  const parentSourceCompatibility=reviewIamPreparationDigest(p.parentPreparationDigest);
   assert.ok(PROTECTED_FILES.includes(originalWorkbookId));
   assert.ok(PROTECTED_FILES.every(id=>p.protectedWorkbookIds.includes(id)));
   assert.ok(!p.protectedWorkbookIds.includes(p.fileId));
@@ -81,7 +81,7 @@ function reviewHelperRecovery(e,reviewedDigest,originalWorkbookId) {
   [wait,verified,total].forEach(millis);
   assert.ok(wait>=120000&&wait<180000&&wait<=verified&&verified<=total&&total<=a.endsAtMillis-a.startsAtMillis);
   return {kind:"historical-contained-helper-copy-recovery",evidenceDigest:reviewedDigest,preparationDigest,
-    syntheticWorkbookId:p.fileId,originalWorkbookId,receiptId:a.receiptId,sourceCompatibility,
+    syntheticWorkbookId:p.fileId,originalWorkbookId,receiptId:a.receiptId,sourceCompatibility,parentSourceCompatibility,
     restoredHelperCells:53,updatedMarkers:2,submittedBatches:1,versionBefore:p.reviewedVersion,versionAfter:after.version,
     restoredSnapshotDigest:digest(after.snapshot),independentlyObservedAtMillis:times.at(-1),
     measuredTiming:{iamPropagationMillis:wait,inverseVerifiedElapsedMillis:verified,totalWithCleanupMillis:total,

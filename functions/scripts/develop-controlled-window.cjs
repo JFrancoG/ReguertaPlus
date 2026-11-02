@@ -4,21 +4,33 @@
 // SDK construction, permission selection, automatic inverse or execution resume.
 const assert=require("node:assert/strict");
 const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.js");
-const {createCopyTimeBudget}=require("./develop-copy-time-budget.cjs");
-const {createWindowJournal,claimWindowRecovery}=require("./develop-window-journal.cjs");
+const {createCopyTimeBudget,createOriginalDevelopTimeBudget,ORIGINAL_DEVELOP_MODE}=require("./develop-copy-time-budget.cjs");
+const {createWindowJournal,claimWindowRecovery,readWindowJournal}=require("./develop-window-journal.cjs");
 
-function bind({prepared,scope,direction,window,reviewPackage,forwardReadBack=null,forwardPlan=null,initialEvidencePlan}) {
+function bind({prepared,scope,direction,window,reviewPackage,forwardReadBack=null,forwardPlan=null,initialEvidencePlan,executionMode}) {
   const {preparedDigest,...body}=prepared;assert.equal(digest(body),preparedDigest);
   assert.ok(["reguerta-9f27f","demo-reguerta-hu084-migration"].includes(prepared.projectId));
   assert.equal(prepared.environment,"develop");assert.equal(prepared.liveExecutable,false);
   assert.ok(["forward","inverse"].includes(direction));assert.equal(scope.environment,"develop");
   assert.equal(scope.transitionId,direction==="forward"?prepared.operationId:prepared.recoveryOperationId);
   assert.equal(reviewPackage.packageDigest,prepared.reviewPackageDigest);
+  if(executionMode!==undefined) {
+    assert.equal(executionMode,ORIGINAL_DEVELOP_MODE);
+    assert.equal(direction,"forward","Interactive original-develop mode admits only the reviewed forward transition");
+    assert.equal(scope.expectedWorkbookFileId,require("./develop-original-writer-provider.cjs").FILE);
+    if(prepared.projectId==="reguerta-9f27f")assert.ok(initialEvidencePlan,"Original develop mode requires actual post-permission evidence");
+  }
   const binding={projectId:prepared.projectId,environment:"develop",preparedDigest,scope,direction,window,
     reviewPackageDigest:reviewPackage.packageDigest,forwardReceiptDigest:forwardReadBack===null?null:digest(forwardReadBack),
-    forwardPlanDigest:forwardPlan===null?null:digest(forwardPlan),...(initialEvidencePlan?{initialEvidencePlan}: {})};
+    forwardPlanDigest:forwardPlan===null?null:digest(forwardPlan),...(initialEvidencePlan?{initialEvidencePlan}: {}),
+    ...(executionMode===undefined?{}:{executionMode})};
   if(initialEvidencePlan)require("./develop-initial-evidence-seal.cjs").validateInitialEvidencePlan(initialEvidencePlan,binding);
   return binding;
+}
+function timeBudgetFor(executionMode,options) {
+  if(executionMode===undefined)return createCopyTimeBudget(options);
+  assert.equal(executionMode,ORIGINAL_DEVELOP_MODE);
+  return createOriginalDevelopTimeBudget({...options,reviewedMode:executionMode});
 }
 async function cleanup(session,budget,note) {
   const failures=[];
@@ -43,7 +55,7 @@ async function inspect(session,saved) {
 async function runControlledWindow(args) {
   const {openSession,openRecoverySession,nowMillis=Date.now,fetchImpl=fetch,signal,root,receiptId,...data}=args;
   const frozen=structuredClone(data),binding=bind(frozen);
-  const budget=createCopyTimeBudget({...binding.window,nowMillis,fetchImpl});
+  const budget=timeBudgetFor(binding.executionMode,{...binding.window,nowMillis,fetchImpl});
   const journal=createWindowJournal({root,receiptId,binding}),note=value=>journal.append(value);
   let session=null,result=null,failure=null,clean=null,openAttempted=false;
   try {
@@ -56,11 +68,22 @@ async function runControlledWindow(args) {
       const saved=journal.read().records.filter(r=>r.value.phase==="google-initial-evidence-sealed");
       assert.equal(saved.length,1);assert.deepEqual(saved[0].value.seal,seal);scope=seal.scope;
     }
-    budget.beginWork(session.tokenExpiresAtMillis);
+    const deferred=binding.executionMode===ORIGINAL_DEVELOP_MODE;
+    if(deferred) {
+      assert.equal(session.tokenExpiresAtMillis,undefined,"Deferred session cannot arrive with an issued writer");
+      assert.equal(session.sheetsAdapter,undefined,"Deferred writer is not available before admission");
+    }else budget.beginWork(session.tokenExpiresAtMillis);
     note({phase:"acquisition-intent"});const acquired=await session.barrier.acquire({scope,signal});
     note({phase:"acquired",acquired});stage();assert.equal(acquired.acquired,true);
     const admission=await session.executor.inspectAdmission({scope,direction:binding.direction,forwardReadBack:frozen.forwardReadBack});
     note({phase:"admission",admission});stage();assert.equal(admission.checksPassed,true);
+    if(deferred) {
+      assert.equal(typeof session.openWriter,"function");
+      const writer=await session.openWriter({acquired,admission});stage();
+      assert.equal(writer.tokenExpiresAtMillis,session.tokenExpiresAtMillis);
+      assert.equal(writer.sheetsAdapter,session.sheetsAdapter);
+      budget.beginWork(writer.tokenExpiresAtMillis);
+    }
     result=await session.executor.executeJoint({scope,admission,sourceInput:frozen.sourceInput,reviewPackage:frozen.reviewPackage,
       forwardReadBack:frozen.forwardReadBack,forwardPlan:frozen.forwardPlan,observeSheets:session.observeSheets,sheetsAdapter:session.sheetsAdapter,
       timeBudget:budget,record:note,signal,permissionTransition:session.permissionTransition});
@@ -78,8 +101,9 @@ async function runControlledWindow(args) {
   try{note(terminal);return {...terminal,journalVerified:true,directory:journal.directory};}
   finally{journal.release({cleanupVerified:!openAttempted||clean?.failures.length===0});}
 }
-async function recoverControlledWindow({directory,recoveryId,expectedBindingDigest,window,nowMillis=Date.now,fetchImpl=fetch,openRecoverySession}) {
-  const budget=createCopyTimeBudget({...window,nowMillis,fetchImpl});
+async function recoverControlledWindow({directory,recoveryId,expectedBindingDigest,window,executionMode,nowMillis=Date.now,fetchImpl=fetch,openRecoverySession}) {
+  const existing=readWindowJournal(directory);assert.equal(existing.binding.executionMode,executionMode);
+  const budget=timeBudgetFor(executionMode,{...window,nowMillis,fetchImpl});
   const journal=claimWindowRecovery({directory,recoveryId,expectedBindingDigest});
   let session=null,results=null,clean=null;
   try {

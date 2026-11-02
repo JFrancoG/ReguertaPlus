@@ -10,11 +10,12 @@ const {createDevelopCloudReader}=require("./develop-google-observations.cjs");
 const {prepareDevelopContainedDeliveryEvidence:contained}=require("./observe-develop-capture-controls.cjs");
 const {containedDeliveryCount:count}=require("../lib/shift-planning-contained-delivery.js");
 const {FILE,metadataFingerprint}=require("./develop-original-writer-provider.cjs");
+const {isOwnedTransitionReceipt,verifyDevelopOwnedTransitionObservation}=require("./develop-owned-transition-observation.cjs");
 const clone=structuredClone;
 const command=scope=>{const value={...scope};delete value.writerInventoryRevision;delete value.writerInventoryDigest;return value;};
 
 function createBarrierObservationSessions({scope:input,review:original,reviewDigest,timeBudget,owner,iamBearer,
-  assertWriterAuthority,getPermissionTransition,readCensus,readHumanReports,nowMillis=Date.now,record}) {
+  assertWriterAuthority,getPermissionTransition,readCensus,readHumanReports,nowMillis=Date.now,record,prepared,inspectCommitted}) {
   const scope=clone(input),review=clone(original),scopeDigest=digest(scope);
   assert.equal(digest(review),reviewDigest,"Unreviewed observation binding");
   assert.equal(review.scopeDigest,scopeDigest);assert.equal(scope.expectedWorkbookFileId,FILE);
@@ -38,7 +39,7 @@ function createBarrierObservationSessions({scope:input,review:original,reviewDig
   const cloud=createDevelopCloudReader({bearer:iamBearer,reviewed:review.cloud,fetchImpl:observedFetch,nowMillis});
   let closed=false,active=null;
   const current=()=>{assert.equal(closed,false,"Observation owner closed");timeBudget.assertStage();};
-  async function collect() {
+  async function collect(context) {
     current();const startedAtMillis=nowMillis();
     // Await every sibling, including failures, before releasing the lease or
     // changing cleanup phase. Never race a deadline against an abandoned read.
@@ -59,6 +60,22 @@ function createBarrierObservationSessions({scope:input,review:original,reviewDig
       metadataFingerprint(transition.after.after,{omitWriter:true,omitVersion:true}));
     assert.equal(sheets.metadataDigest,transition.after.metadataDigest,"Workbook authority/version drift");
     const at=Date.parse(census.readTime);assert.ok(at>=startedAtMillis&&at<=nowMillis(),"Stale census read");
+    // Fresh reports remain independent of the technical/source proof. The core
+    // adapter validates their unchanged agreement bindings before returning.
+    for(const field of ["ownerObservation","administratorObservation"])
+      assert.ok(reports[field].observedAtMillis>=startedAtMillis&&reports[field].observedAtMillis<=nowMillis(),"Stale human report");
+    if(context?.phase==="final"&&isOwnedTransitionReceipt(context.operationResult)) {
+      assert.ok(prepared,"Owned transition requires the exact prepared package");
+      assert.equal(typeof inspectCommitted,"function","Owned transition requires an independent retained read");
+      const retainedInspection=await inspectCommitted({scope:clone(scope),receipt:clone(context.operationResult)});current();
+      const proof=verifyDevelopOwnedTransitionObservation({prepared,scope,baselineCensus:review.census,currentCensus:census,
+        callbackReceipt:context.operationResult,retainedInspection,classifiedCaptures:review.classifiedCaptures});
+      await record({phase:"barrier-owned-transition-observation",scopeDigest,startedAtMillis,observedAtMillis:nowMillis(),proof,
+        cloudObservationDigest:controls.observationDigest,ownerObservationDigest:digest(sheets),censusDigest:digest(census),
+        currentCensus:census,retainedInspection,reports,reviewDigest});
+      current();return {kind:"owned-develop-transition-observation",proof,
+        ownerObservation:clone(reports.ownerObservation),administratorObservation:clone(reports.administratorObservation)};
+    }
     // Queue metrics cannot prove causal zero. Keep the reviewed per-route unknown
     // counts and use the fresh complete census for append-only history checks.
     const causal=contained({initial:review.census,final:census,classifiedCaptures:review.classifiedCaptures,
@@ -71,7 +88,6 @@ function createBarrierObservationSessions({scope:input,review:original,reviewDig
     // Human reports must have been explicitly observed in this read interval.
     // Google ACL/IAM responses do not establish absence of human intervention.
     for(const field of ["ownerObservation","administratorObservation"]) {
-      assert.ok(reports[field].observedAtMillis>=startedAtMillis&&reports[field].observedAtMillis<=nowMillis(),"Stale human report");
       payload[field]=clone(reports[field]);
     }
     payload.rules.finalReadBackAtMillis=controls.observedAtMillis;
@@ -88,12 +104,15 @@ function createBarrierObservationSessions({scope:input,review:original,reviewDig
     async openObservationSession(requested) {
       current();assert.equal(digest(requested),scopeDigest);assert.equal(active,null,"Concurrent observation lease");
       const lease={closed:false,pending:null};active=lease;
-      async function read(field) {
+      async function read(field,context) {
         current();assert.equal(lease.closed,false);assert.equal(lease.pending,null,"Concurrent lease read");
-        lease.pending=collect();try{const result=await lease.pending;return clone(field?result.payload[field]:result);}
+        lease.pending=collect(context);try{const result=await lease.pending;return clone(field?result.payload[field]:result);}
         finally{lease.pending=null;}
       }
-      return {readEvidence:()=>read(null),readOwnerObservation:()=>read("ownerObservation"),
+      return {readEvidence:()=>read(null),readCooperativeObservation:async context=>{
+        const value=await read(null,context);
+        return value.kind==="owned-develop-transition-observation"?value:{kind:"complete-develop-barrier-observation",evidence:value};
+      },readOwnerObservation:()=>read("ownerObservation"),
         readAdministratorObservation:()=>read("administratorObservation"),async close(){
           lease.closed=true;try{if(lease.pending)await lease.pending;}finally{if(active===lease)active=null;}
         }};

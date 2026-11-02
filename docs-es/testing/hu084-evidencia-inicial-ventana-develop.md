@@ -1,5 +1,76 @@
 # HU-084 — Evidencia inicial y propuesta de ventana de develop
 
+## Preparación interactiva de veinte minutos — local, 2026-11-02
+
+El segundo intento detenido y la corrección privada del arranque están publicados
+en `d7d11eaf`; se verificó la cabecera remota antes de este trabajo. El mantenedor
+ofrece 20 o 30 minutos. **Veinte minutos es el máximo revisado de la nueva variante
+explícita de develop original; treinta no está admitido.** No hay ventana real
+fechada ni autorización nueva de ejecución.
+
+[ADR-0027](../decisions/0027-recoger-observaciones-coherentes-de-develop-antes-del-token-escritor.md)
+recoge la corrección local. Una observación completa de fase proporciona juntas
+sus proyecciones de propietario y administradores, con fases nuevas e independientes
+antes/después del callback. La entrada ya retenida lee por separado su checkpoint
+inmutable. Adquisición, admisión y ejecución usan 3 + 3 + 2 observaciones completas
+en vez de 7 + 8 + 7. `original-develop-deferred-writer-v1` se vincula a la operación
+y al diario exactos y coloca adquisición/admisión antes del único token escritor.
+El modo por defecto y las copias conservan diez minutos. La preparación dispone de
+780 s y la recogida inicial de 750 s; IAM espera allí al menos 120 s. Se conservan
+token de 300 s, trabajo de 150 s, limpieza de 60/90/120 s, manifiesto de 60 s y
+evidencias de diez minutos. Una pregunta humana sin responder vence con su etapa,
+no al final de la ventana exterior.
+
+El operador privado nuevo utiliza arranque y respuesta atendidos. Cada respuesta
+humana real conserva su identidad de petición/respuesta y hora propias; los hechos
+administrativos sin cambios conservan una revisión estable. Así una confirmación
+nueva no se confunde con una alteración de identidad administrativa. Se comprueban
+los vínculos externos de paquete, preparación y planes de la plantilla técnica
+contra el paquete regenerado.
+
+La compatibilidad histórica es explícita: las 285 entradas de fuente del backend
+reconstruyen el digest anterior sustituyendo solo el adaptador de barrera TS/JS
+compilado. El presupuesto histórico por defecto se reconstruye cambiando únicamente
+su hash de fuente revisado; no se alteran plazos ni recibos. Se mantienen fijados
+los 17 archivos originales. El paquete `7201f1cf…f257715` sustituye al `9d528701…b8f`
+solo por resúmenes de procedencia histórica; política, intenciones/digests forward
+e inverse, operaciones, 203/140 escrituras Firestore, 53 celdas, dos marcadores y
+fechas/orden publicados son idénticos. La preparación materializada es `373ee000…faced`.
+
+La preparación local final está **READY_FOR_FRESH_AUTHORIZATION**, sin admisión
+real. La regresión con observador real demostró primero que exigir las fuentes
+congeladas rechazaba el commit propio de 62 a 72 filas antes de Sheets. La fase
+final relee independientemente el recibo comprometido y verifica imágenes/versiones
+exactas, filas ajenas intactas e historia de capturas sin alterar. Cada core nuevo
+debe coincidir con una creación/borrado propio exacto. El digest de fuentes actuales
+queda separado de la identidad causal histórica; las entregas desconocidas siguen
+desconocidas y sin reejecutarse. La ruta estricta sigue rechazando diferencias. La
+prueba y el modo de veinte minutos solo admiten avance, sin habilitar otra inversa.
+
+Validación final Node 22.23.4: **328 regresiones del repositorio + 30 casos de
+transición propia unitarios/SDK-emulador + 14 pruebas privadas**, cero fallos ni
+omitidas. Build/lint completos de Functions, lint CJS focalizado y diff correctos.
+El gate decisivo usa observador real, imágenes/versiones actuales de Firestore e
+inspección retenida independiente. El ciclo positivo de 98,702 s incluye ocho
+esperas reales de 12 s y comprueba trabajo posterior al token inferior a 150 s.
+Cambios de campo, ABA de versión, fuente/captura ajena, emisión/respuesta lenta y
+pregunta sin responder conservan parada y limpieza. Los 553 archivos de código,
+scripts, pruebas y compilados permanecieron idénticos durante el gate SDK final.
+Google, personas y ciclo IAM siguen siendo dobles explícitos: no se acredita
+latencia real ni ejecución humana/de navegador. El recogedor inicial admite por
+separado respuestas más lentas con veinte minutos y rechaza las mismas con los diez
+por defecto. La discrepancia inicial de huella se corrigió con el materializador
+público de producción y sus constructores reales; se conserva el gate fallido.
+
+Evidencias privadas: `2026-11-02-interactive-window-preparation` y
+`2026-11-02-interactive-window-local`. Se validan ambos diarios anteriores de 21
+registros y su limpieza. El recibo nuevo `develop-original-20261102-interactive-03`
+no está consumido; autorización, fechas y compromisos permanecen vacíos. Su control
+local de preparación vincula la variante de avance validada y el paquete exacto;
+siguen siendo obligatorias la autorización y la ventana real fechada. Esta preparación no ha realizado
+acciones de Google/IAM/OAuth/Sheets/producción ni abierto mantenimiento. Sin cambios
+ni diferencia nueva Android/iOS. No hacen falta builds de apps por este cambio exclusivo del backend.
+
 ## Segundo intento autorizado: detenido y limpiado — 2026-11-02
 
 Tras renovar el acceso y comprobar de nuevo hoja, lote, controles y fuentes, el

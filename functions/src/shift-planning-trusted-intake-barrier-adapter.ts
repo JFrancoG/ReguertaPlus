@@ -141,6 +141,11 @@ export type ShiftPlanningIntakeBarrierFailureClosureRecord =
     failureDigest: ShiftPlanningDigest;
   };
 
+export type ShiftPlanningCooperativeObservationContext = {
+  phase: "initial" | "final";
+  operationResult?: unknown;
+};
+
 /**
  * Production-shaped control-plane driver. Implementations must leave all
  * manifested fences durably closed when either method succeeds or fails. This
@@ -157,6 +162,18 @@ export interface ShiftPlanningTrustedIntakeBarrierControlPlane {
   /** Separate current human-admin facts; retained evidence is insufficient. */
   readBackAdministratorObservation?(scope: ShiftPlanningClosedBarrierScope):
     Promise<unknown>;
+  /**
+   * Opt-in v3 phase read: one complete current observation, projected as the
+   * immutable checkpoint plus owner/administrator facts collected in this call.
+   * Initial and final phases always invoke it separately; failure cannot fall
+   * back to older independent facts. The final callback result identifies an
+   * owned transition; it is not proof by itself. Its provider must verify the
+   * committed afterimage independently before accepting changed source data.
+   */
+  readBackCooperativeObservation?(
+    scope: ShiftPlanningClosedBarrierScope,
+    context?: ShiftPlanningCooperativeObservationContext,
+  ): Promise<unknown>;
 }
 
 /** Immutable incident journal for a transition whose closed barrier failed. */
@@ -760,6 +777,7 @@ const createBarrierAdapter = (
     let administratorIdentity: ShiftPlanningDigest | undefined;
     const freshOwner = async (
       value: ShiftPlanningTrustedIntakeBarrierCheckpoint,
+      supplied?: {observation: unknown},
     ): Promise<void> => {
       if (version === 1) return;
       incidentKind = "owner";
@@ -773,8 +791,8 @@ const createBarrierAdapter = (
       }
       let observation: unknown;
       try {
-        observation = await dependencies.controlPlane
-          .readBackOwnerObservation(scope);
+        observation = supplied ? supplied.observation :
+          await dependencies.controlPlane.readBackOwnerObservation(scope);
         observationDigest = createShiftPlanningDigest(observation);
       } catch (error) {
         reason = "readback_unavailable";
@@ -821,6 +839,7 @@ const createBarrierAdapter = (
     };
     const freshAdministrator = async (
       value: ShiftPlanningTrustedIntakeBarrierCheckpoint,
+      supplied?: {observation: unknown},
     ): Promise<void> => {
       if (version !== 3 || scope.schemaVersion !== 3) return;
       incidentKind = "administrator";
@@ -832,8 +851,9 @@ const createBarrierAdapter = (
       }
       let observation: unknown;
       try {
-        observation = await dependencies.controlPlane
-          .readBackAdministratorObservation(scope);
+        observation = supplied ? supplied.observation :
+          await dependencies.controlPlane
+            .readBackAdministratorObservation(scope);
         observationDigest = createShiftPlanningDigest(observation);
       } catch (error) {
         administratorReason = "readback_unavailable";
@@ -884,6 +904,43 @@ const createBarrierAdapter = (
       administratorIdentity = identity;
       administratorReason = "operation_failed";
     };
+    const lastJointObservationAt = new Map<string, number>();
+    const readFreshPhase = async (
+      context: ShiftPlanningCooperativeObservationContext,
+    ) => {
+      if (version !== 3 ||
+          !dependencies.controlPlane.readBackCooperativeObservation) {
+        return {checkpoint: requireCheckpointForScope(
+          await dependencies.controlPlane.readBackClosed(scope),
+          scope, version),
+        owner: undefined, administrator: undefined};
+      }
+      if (!dependencies.readClockMillis) {
+        return failAdapter("A current clock is required for a joint read.");
+      }
+      const startedAt = dependencies.readClockMillis();
+      const bundle = requireRecord(detachedCanonicalValue(
+        await dependencies.controlPlane
+          .readBackCooperativeObservation(scope, context),
+        "cooperative phase observation"), "cooperative phase observation");
+      requireExactKeys(bundle, ["checkpoint", "ownerObservation",
+        "administratorObservation"], "cooperative phase observation");
+      for (const field of ["ownerObservation", "administratorObservation"]) {
+        const facts = requireRecord(bundle[field], field);
+        const observedAt = requireNonNegativeInteger(
+          facts.observedAtMillis, `${field} time`);
+        if (observedAt < startedAt ||
+            observedAt > dependencies.readClockMillis() ||
+            observedAt <= (lastJointObservationAt.get(field) ?? -1)) {
+          return failAdapter("Cooperative facts must belong to this phase.");
+        }
+        lastJointObservationAt.set(field, observedAt);
+      }
+      return {checkpoint: requireCheckpointForScope(
+        bundle.checkpoint, scope, version),
+      owner: {observation: bundle.ownerObservation},
+      administrator: {observation: bundle.administratorObservation}};
+    };
     let checkpoint: ShiftPlanningTrustedIntakeBarrierCheckpoint | null = null;
     try {
       checkpoint = requireCheckpointForScope(
@@ -891,28 +948,26 @@ const createBarrierAdapter = (
         scope, version,
       );
       phase = "initialReadBack";
-      const initialReadBack = requireCheckpointForScope(
-        await dependencies.controlPlane.readBackClosed(scope),
-        scope, version,
-      );
+      const initialPhase = await readFreshPhase({phase: "initial"});
+      const initialReadBack = initialPhase.checkpoint;
       if (initialReadBack.checkpointDigest !== checkpoint.checkpointDigest) {
         return failAdapter("Initial closed barrier read-back drifted.");
       }
       checkpoint = initialReadBack;
-      await freshOwner(checkpoint);
-      await freshAdministrator(checkpoint);
+      await freshOwner(checkpoint, initialPhase.owner);
+      await freshAdministrator(checkpoint, initialPhase.administrator);
       phase = "operation";
       const result = await operation(checkpoint.evidence);
       phase = "finalReadBack";
-      const finalReadBack = requireCheckpointForScope(
-        await dependencies.controlPlane.readBackClosed(scope),
-        scope, version,
-      );
+      const finalPhase = await readFreshPhase({
+        phase: "final", operationResult: result,
+      });
+      const finalReadBack = finalPhase.checkpoint;
       if (finalReadBack.checkpointDigest !== checkpoint.checkpointDigest) {
         return failAdapter("Final closed barrier read-back drifted.");
       }
-      await freshOwner(finalReadBack);
-      await freshAdministrator(finalReadBack);
+      await freshOwner(finalReadBack, finalPhase.owner);
+      await freshAdministrator(finalReadBack, finalPhase.administrator);
       return result;
     } catch (error) {
       await retainFailureClosure(

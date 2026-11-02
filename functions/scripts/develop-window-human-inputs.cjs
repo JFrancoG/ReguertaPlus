@@ -49,7 +49,7 @@ function createDevelopHumanInputs({receiptId,exchange,record,nowMillis=Date.now,
       const confirmations=kind==="owner"?intent.participants.map(p=>({...p,intentDigest,confirmationId:null,confirmedAtMillis:null,onlineClosedNoOfflineEdits:null,noManualOrAutomationWrites:null})):
         intent.administratorPrincipalIds.map(principalId=>({principalId,intentDigest,confirmationId:null,confirmedAtMillis:null,noUnreviewedDataRulesDeployIamOrScriptWrites:null,noAutomationViaHumanCredentials:null}));
       const statement=kind==="owner"?"Confirma para todas las personas y funciones indicadas: hoja de develop cerrada en todos los dispositivos, en línea, sin cambios sin conexión pendientes; ninguna edición ni automatización durante este intervalo. La acción de permisos indicada ya debe haber terminado. Puedes rechazar; una respuesta vacía no confirma.":
-        "Confirma para todas las cuentas administradoras indicadas: no cambiar datos, Rules, despliegues, IAM ni scripts de develop, ni usar sus credenciales en automatizaciones durante este intervalo. No concede permisos nuevos ni autoriza producción. Puedes rechazar.";
+        "Confirma para todas las cuentas administradoras indicadas: no realizar cambios de datos, Rules, despliegues, IAM ni scripts de develop ni automatizaciones ajenas a la operación revisada durante este intervalo. No concede permisos nuevos ni autoriza producción. Puedes rechazar.";
       const people=kind==="owner"?intent.participants.map(p=>`${p.principalId} (${p.role})`):intent.administratorPrincipalIds;
       const prompt=`${statement}\nCuentas: ${people.join(", ")}.\nIntervalo UTC: ${new Date(intent.startsAtMillis).toISOString()} a ${new Date(intent.endsAtMillis).toISOString()}.\nOperaciones: ${intent.operations.map(o=>o.operationId).join(", ")}.`;
       const {reply,request}=await ask(kind,{intent,intentDigest},{confirmations},prompt,notBeforeMillis,Math.min(end,deadlineMillis()),checkActive);
@@ -72,7 +72,7 @@ function createDevelopHumanInputs({receiptId,exchange,record,nowMillis=Date.now,
   async function reports(requested,notBefore,end,checkActive) {
     const template=reportTemplate(owner,admin);
     const {reply,request}=await ask("reports",{scope:requested,ownerAgreement:owner,administratorAgreement:admin},{reports:template},
-      "Informa de nuevo sobre el intervalo acordado: ¿se mantienen ambos compromisos, sigue cerrado el flujo de permisos y no ha habido ediciones ni operaciones pendientes conocidas del propietario o los administradores? Si hubo actividad, dudas o retirada del acuerdo, indícalo; no se continuará.",notBefore,end,checkActive);
+      "Informa de nuevo sobre el intervalo acordado: ¿se mantienen ambos compromisos, sigue cerrado el flujo de permisos y no ha habido intervenciones ajenas a la operación revisada ni escrituras pendientes conocidas del propietario o los administradores fuera de ese alcance? La migración autorizada se comprueba por sus propios recibos; esta respuesta no acredita sus resultados. Si hubo otra actividad, dudas o retirada del acuerdo, indícalo; no se continuará.",notBefore,end,checkActive);
     exact(reply.reports,Object.keys(template));
     for(const [key,expected]of Object.entries(template)){
       const actual=reply.reports[key];exact(actual,Object.keys(expected));

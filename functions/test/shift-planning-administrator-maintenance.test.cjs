@@ -193,3 +193,79 @@ test("source-scoped capture composes with fresh owner and administrator agreemen
   await assert.rejects(withdrawn.adapter.withClosedIntakeBarrier(fixture.scope, async () => {calls++;}));
   assert.equal(calls, 0);assert.ok(withdrawn.incident);
 });
+
+function jointRecording(mutate = () => {}) {
+  const fixture = administratorFixture();
+  const checkpoint = checkpointFor({scope:fixture.scope,holdRevision:"joint-admin-hold",evidence:fixture.evidence});
+  const state = {now:530,calls:[],incident:null,reads:0};
+  const controlPlane = {
+    closeAndCollect:async()=>{state.calls.push("close");return checkpoint;},
+    readBackClosed:async()=>{state.calls.push("failure-proof");return checkpoint;},
+    readBackOwnerObservation:async()=>{throw Error("Joint read must not fall back to owner");},
+    readBackAdministratorObservation:async()=>{throw Error("Joint read must not fall back to administrator");},
+    readBackCooperativeObservation:async(receivedScope,context)=>{
+      state.contexts??=[];state.contexts.push(context);
+      assert.deepEqual(receivedScope,fixture.scope);state.calls.push("joint");state.reads++;state.now++;
+      const value={checkpoint,ownerObservation:{...fixture.evidence.payload.ownerObservation,observedAtMillis:state.now},
+        administratorObservation:{...fixture.evidence.payload.administratorObservation,observedAtMillis:state.now}};
+      return mutate(value,state)??value;
+    },
+  };
+  const adapter=adapterFor({controlPlane,readClockMillis:()=>state.now,
+    failurePersistence:{readExistingFailure:async()=>state.incident,
+      retainFailureAndReadBack:async request=>{state.incident=failureFor(request,state.now);return state.incident;}}});
+  return {fixture,state,adapter};
+}
+
+test("opt-in joint phases project one fresh complete read before and after the callback",async()=>{
+  const f=jointRecording();
+  assert.equal(await f.adapter.withClosedIntakeBarrier(f.fixture.scope,async()=>{
+    f.state.calls.push("operation");f.state.now=540;return "complete";
+  }),"complete");
+  assert.deepEqual(f.state.calls,["close","joint","operation","joint"]);
+  assert.equal(f.state.incident,null);
+  assert.deepEqual(f.state.contexts,[{phase:"initial"},{phase:"final",operationResult:"complete"}]);
+});
+
+for(const [name,mutate]of Object.entries({
+  "owner activity":value=>{value.ownerObservation.ownerActivity="reported";},
+  "administrator withdrawal":value=>{value.administratorObservation.agreementStatus="withdrawn";},
+  "missing administrator":value=>{value.administratorObservation.administratorPrincipalIds=
+    value.administratorObservation.administratorPrincipalIds.slice(0,1);},
+  "effective IAM drift":value=>{value.administratorObservation.effectiveIamDigest=digest("changed IAM");},
+  "future owner facts":(value,state)=>{value.ownerObservation.observedAtMillis=state.now+1;},
+  "extra bundle field":value=>{value.unreviewed=true;},
+  "checkpoint drift":value=>{value.checkpoint=checkpointFor({scope:value.checkpoint.scope,
+    holdRevision:"changed-hold",evidence:value.checkpoint.evidence});},
+}))test(`joint phase rejects ${name} without falling back or running the operation`,async()=>{
+  const f=jointRecording(mutate);let calls=0;
+  await assert.rejects(f.adapter.withClosedIntakeBarrier(f.fixture.scope,async()=>{calls++;}));
+  assert.equal(calls,0);assert.ok(f.state.incident);assert.equal(f.state.incident.phase,"initialReadBack");
+});
+
+test("a reused joint capture cannot certify the phase after a committed callback",async()=>{
+  let first;
+  const f=jointRecording((value,state)=>{
+    if(state.reads===1)first=structuredClone(value);
+    else return first;
+  });
+  const afterimage=[];
+  await assert.rejects(f.adapter.withClosedIntakeBarrier(f.fixture.scope,async()=>{
+    afterimage.push("committed");f.state.now=540;
+  }));
+  assert.deepEqual(afterimage,["committed"]);assert.equal(f.state.incident.phase,"finalReadBack");
+  await assert.rejects(f.adapter.withClosedIntakeBarrier(f.fixture.scope,async()=>afterimage.push("retry")));
+  assert.deepEqual(afterimage,["committed"]);
+});
+
+test("a new final joint report cannot change the administrator fact identity",async()=>{
+  const f=jointRecording((value,state)=>{
+    if(state.reads===2)value.administratorObservation.reportRevision="changed-report";
+  });
+  const afterimage=[];
+  await assert.rejects(f.adapter.withClosedIntakeBarrier(f.fixture.scope,async()=>{
+    afterimage.push("committed");f.state.now=540;
+  }));
+  assert.deepEqual(afterimage,["committed"]);assert.equal(f.state.incident.phase,"finalReadBack");
+  assert.ok(f.state.incident.administratorIncident);
+});

@@ -16,6 +16,7 @@ const {createIamProvider}=require("./develop-writer-copy-provider.cjs");
 const {createIsolationReader}=require("./develop-helper-copy-provider.cjs");
 const {prepare,grantFor,removeOwnGrant,checkIdentity}=require("./prepare-develop-writer-rehearsal.cjs");
 const {planBatch}=require("./prepare-develop-helper-batch.cjs");
+const {ORIGINAL_DEVELOP_MODE}=require("./develop-copy-time-budget.cjs");
 const IDENTITY=Object.freeze({email:WRITER,uniqueId:"110752956317536684858"});
 const descriptor=c=>({sessionId:c.sessionId,credentialDigest:createHash("sha256").update(c.bearer).digest("hex"),expiresAtMillis:c.expiresAtMillis});
 const id=v=>assert.match(v,/^[A-Za-z0-9_-]{6,100}$/);
@@ -30,6 +31,11 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
   grant.condition.title="hu084-original-controlled-window";
   grant.condition.description="One reviewed develop direction; exact cleanup after interruption";
   assert.equal(expectedBinding.environment,"develop");assert.ok(["reguerta-9f27f","demo-reguerta-hu084-migration"].includes(expectedBinding.projectId));
+  const deferredWriter=expectedBinding.executionMode===ORIGINAL_DEVELOP_MODE;
+  if(expectedBinding.executionMode!==undefined) {
+    assert.equal(expectedBinding.executionMode,ORIGINAL_DEVELOP_MODE);
+    assert.equal(expectedBinding.scope.expectedWorkbookFileId,FILE);
+  }
   id(authorization.receiptId);assert.equal(authorization.authorized,true);assert.equal(authorization.bindingDigest,bindingDigest);
   assert.equal(ownerChannel.kind,"native-drive-owner-sharing");assert.equal(ownerChannel.reviewDigest,authorization.ownerChannelReviewDigest);
   assert.equal(typeof ownerChannel.grant,"function");assert.equal(typeof ownerChannel.remove,"function");
@@ -194,28 +200,47 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
           await note({phase:"google-permission-receipt",receipt:permissionReceipt});
         }
         await ensureServices();current();
-        const end=Math.min(grantedAt+180000,expectedBinding.window.endsAtMillis-420000);
+        const preparationEnd=expectedBinding.window.endsAtMillis-420000;
+        const end=deferredWriter?preparationEnd:Math.min(grantedAt+180000,preparationEnd);
         for(;;){current();await identity(false,[grant]);const ready=await iam.hasMintPermission();assert.ok(nowMillis()<end);
           if(ready&&nowMillis()>=grantedAt+120000)break;await sleep(Math.min(5000,end-nowMillis()));}
         await isolated();const readyImage=await owner.capture(true);
         assert.equal(readyImage.metadataDigest,after.metadataDigest);assert.equal(readyImage.snapshotDigest,after.snapshotDigest);
         current();
-        if(initialSeal)require("./develop-initial-evidence-seal.cjs").verifyInitialEvidenceSeal(initialSeal,expectedBinding,authorization.receiptId,ownerChannel.reviewDigest,nowMillis());
-        await note({phase:"google-mint-intent",request:prepare().tokenRequest,attempt:1});
-        let token=await iam.mint(prepare().tokenRequest),writerDigest=null;
-        try{assert.ok(typeof token.accessToken==="string"&&token.accessToken.length);writerDigest=createHash("sha256").update(token.accessToken).digest("hex");expiry=Date.parse(token.expireTime);assert.ok(Number.isSafeInteger(expiry)&&expiry<=nowMillis()+300000&&expiry>nowMillis()+210000);
-          writer=openOriginalWindowWriter({bearer:token.accessToken,expiresAtMillis:expiry,fetchImpl:timeBudget.fetch,nowMillis,
-            assertSubmission:()=>timeBudget.assertSubmission(),authorizeBatch:async body=>{
-              assert.deepEqual(Object.keys(body),["requests"]);assert.deepEqual(body.requests,plan.requests);
-              await identity(false,[grant]);await isolated();const fresh=await owner.capture(true);
-              assert.equal(fresh.snapshotDigest,plan.observationDigest);assert.equal(fresh.after.file.version,plan.observedVersion);
-              await note({phase:"google-batch-dispatch-intent",planDigest:plan.planDigest,requestDigest:plan.requestDigest});
-            }});
-        }finally{token=null;}
-        await note({phase:"google-writer-issued",expiresAtMillis:expiry,credentialDigest:writerDigest});assert.equal((await writer.probe()).status,200);positive=true;
-        await note({phase:"google-writer-positive",credentialDigest:writerDigest});
-        session.initialSeal=initialSeal;session.tokenExpiresAtMillis=expiry;session.permissionTransition=transition;session.barrier=services.barrier;session.executor=services.executor;
-        session.sheetsAdapter=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:"develop",workbooks:{develop:FILE}}),sheets:writer.sheets});
+        session.initialSeal=initialSeal;session.permissionTransition=transition;session.barrier=services.barrier;session.executor=services.executor;
+        let writerOpened=false;
+        const openWriter=async gates=>{
+          assert.equal(writerOpened,false,"Writer open already consumed");writerOpened=true;current();
+          if(deferredWriter) {
+            assert.equal(gates?.acquired?.acquired,true,"Closed barrier must precede writer issuance");
+            assert.equal(gates?.admission?.checksPassed,true,"Admission must precede writer issuance");
+            assert.equal(gates.admission.direction,expectedBinding.direction);
+            await identity(false,[grant]);assert.equal(await iam.hasMintPermission(),true);await isolated();
+            assert.ok(nowMillis()>=grantedAt+120000,"Writer propagation wait is incomplete");
+            const fresh=await owner.capture(true);
+            assert.equal(fresh.metadataDigest,after.metadataDigest);assert.equal(fresh.snapshotDigest,after.snapshotDigest);current();
+          }
+          if(initialSeal)require("./develop-initial-evidence-seal.cjs").verifyInitialEvidenceSeal(initialSeal,expectedBinding,authorization.receiptId,ownerChannel.reviewDigest,nowMillis());
+          await note({phase:"google-mint-intent",request:prepare().tokenRequest,attempt:1});
+          let token=await iam.mint(prepare().tokenRequest),writerDigest=null;
+          try{assert.ok(typeof token.accessToken==="string"&&token.accessToken.length);writerDigest=createHash("sha256").update(token.accessToken).digest("hex");expiry=Date.parse(token.expireTime);assert.ok(Number.isSafeInteger(expiry)&&expiry<=nowMillis()+300000&&expiry>nowMillis()+210000);
+            writer=openOriginalWindowWriter({bearer:token.accessToken,expiresAtMillis:expiry,fetchImpl:timeBudget.fetch,nowMillis,
+              assertSubmission:()=>timeBudget.assertSubmission(),authorizeBatch:async body=>{
+                assert.deepEqual(Object.keys(body),["requests"]);assert.deepEqual(body.requests,plan.requests);
+                await identity(false,[grant]);await isolated();const fresh=await owner.capture(true);
+                assert.equal(fresh.snapshotDigest,plan.observationDigest);assert.equal(fresh.after.file.version,plan.observedVersion);
+                await note({phase:"google-batch-dispatch-intent",planDigest:plan.planDigest,requestDigest:plan.requestDigest});
+              }});
+          }finally{token=null;}
+          await note({phase:"google-writer-issued",expiresAtMillis:expiry,credentialDigest:writerDigest});assert.equal((await writer.probe()).status,200);positive=true;
+          await note({phase:"google-writer-positive",credentialDigest:writerDigest});
+          session.tokenExpiresAtMillis=expiry;
+          session.sheetsAdapter=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:"develop",workbooks:{develop:FILE}}),sheets:writer.sheets});
+          return {tokenExpiresAtMillis:expiry,sheetsAdapter:session.sheetsAdapter};
+        };
+        if(deferredWriter) {
+          await note({phase:"google-writer-deferred",executionMode:ORIGINAL_DEVELOP_MODE});session.openWriter=openWriter;
+        }else await openWriter();
         return session;
       }};
   }

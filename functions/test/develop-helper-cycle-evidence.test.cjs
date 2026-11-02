@@ -11,6 +11,8 @@ const {materializeControlledDevelopMigrationPreparation:materialize}=require("..
 const {createControlledDevelopMigrationExecutor:create}=require("../scripts/controlled-develop-migration.cjs");
 const {fixture}=require("./develop-migration-package-fixture.cjs");
 const {sheetsService}=require("./shift-sheets-api-fixture.cjs");
+const {historicalIamPreparation,historicalCopyTimeBudget}=require("../scripts/develop-historical-source-compatibility.cjs");
+const {prepare:prepareIam}=require("../scripts/prepare-develop-writer-rehearsal.cjs");
 const FILE=PROTECTED_FILES[0];let evidence;
 
 // Generate successful receipts with the actual runner and Sheets adapter, using
@@ -115,5 +117,23 @@ test("equal forward and inverse Drive versions still require the exact restored 
   e.inverseVerified.version=e.forwardVerified.version;
   assert.equal(review(e,digest(e),FILE).uninterruptedRoundtripVerified,true);
   e.inverseReadback.observation.snapshot=e.forwardReadback.observation.snapshot;
+  assert.throws(()=>review(e,digest(e),FILE));
+});
+
+for(const [runner,label]of [
+  ["shift-planning:v1:sha256:2c63c31b681ef4b8b96c00d1f0f79225e5883d50785cb04fc2a29956b29ce669","historical-eae86a89-validator-transition"],
+  ["shift-planning:v1:sha256:049fe823dbd8a7c75f371566cc435892c719a88805d3692a0996ebf72e2ed741","historical-pre-coherent-barrier-phase"],
+])test(`cycle preserves exact ${label} parent and old default budget receipts`,()=>{
+  const e=structuredClone(evidence),p=e.approval.prepared;
+  p.parentPreparationDigest=historicalIamPreparation(prepareIam(),runner).preparationDigest;
+  const {preparationDigest,...body}=p;void preparationDigest;p.preparationDigest=digest(body);e.approval.input.preparationDigest=p.preparationDigest;
+  e.budget=historicalCopyTimeBudget(prepareCopyTimeBudget(p));e.approval.input.budgetDigest=e.budget.budgetDigest;
+  const saved=structuredClone(e),result=review(e,digest(e),FILE);
+  assert.deepEqual(e,saved);assert.equal(result.parentSourceCompatibility,label);
+  assert.equal(result.budgetSourceCompatibility,'historical-pre-original-deferred-writer-budget');
+  assert.equal(result.currentWriterAuthorityVerified,false);assert.equal(result.combinedMaintenanceTimingVerified,false);
+  assert.equal(result.canEnterMaintenance,false);
+  e.budget.limits.window=1200000;
+  const {budgetDigest,...changed}=e.budget;void budgetDigest;e.budget.budgetDigest=digest(changed);e.approval.input.budgetDigest=e.budget.budgetDigest;
   assert.throws(()=>review(e,digest(e),FILE));
 });
