@@ -1,5 +1,46 @@
 # HU-084 — Initial evidence and proposed develop window
 
+## Authorized 2 November attempt: stopped and cleaned up
+
+The preceding review is delivered in `86af466b`. The maintainer authorized the forward
+operation/temporary permissions and confirmed the workbook closed, online and without
+other intervention until 10:15 Europe/Madrid. Actual preflight retained version 287,
+owner/four readers, matching technical controls and matching Firestore sources;
+read-only admission still rejected only `window_scope_missing`.
+
+The single attempt began at **09:05:11.669 UTC**. It enabled the dedicated account and
+added its temporary IAM grant, but stopped before native Share dispatch. No Sheets
+editor grant, writer token, post-grant agreement, maintenance entry or business write
+occurred. No FCM, retry, inverse or production access. Terminal state is
+`inspection-required`.
+
+Cleanup finished at **09:06:23.770 UTC**, without timing breaches or pending calls:
+owner/four readers, temporary IAM removed, writer explicitly disabled and isolation
+verified. The owner's Online OAuth session had no refresh token and was revoked;
+the same token returned 401 from both Drive and Sheets after four probes (32.837s).
+The maintainer may use the workbook again.
+
+The original setup error was not retained in detail. A subsequent read-only
+reproduction shows that browser calls after the `cua_repl` invocation ends fail with
+`node_repl exec context not found`, while the same read succeeds inside an active
+invocation. This proves a concrete private-composition incompatibility without
+retroactively claiming an unrecorded original error. The local composition now queues
+the native action for an active invocation that awaits completion, expires before
+dispatch after 20s unattended, retains failure diagnostics and does not retry. The
+exact executed file is preserved separately. Deployed code and the package are unchanged.
+
+Validation: four new local tests (single dispatch, timeout without UI, retained failure,
+and in-flight settlement), focused lint and an actual read through the corrected
+connection. No further permission change or write was tested. Private evidence:
+`2026-11-02-authorized-develop-window`, including the 21-record journal and receipts.
+Native/emulator builds were not repeated: repository changes are documentation only,
+with private operator composition outside Git. No app parity gap.
+
+Next: review the corrected composition and prepare a new attempt with a new dated
+window and receipt identity; consumed authorization does not permit replay of this
+window. Post-grant confirmations remain required; the initial closure statement
+cannot certify later facts. Issues stay open and PR remains draft.
+
 ## Authority and owner refresh; dated review — 2026-11-02
 
 The receipt/human-input block is committed and pushed as `8edfc7df`; exact remote

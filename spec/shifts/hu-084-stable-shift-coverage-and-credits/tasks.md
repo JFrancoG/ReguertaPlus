@@ -1,5 +1,7 @@
 # Tasks - HU-084 (Stable shift coverage and earned credits)
 
+> 2026-11-02 09:06 UTC: authorized develop attempt stopped before native Sheets grant; no maintenance/business write/writer token. File/IAM/OAuth cleanup verified. Private browser-context connection corrected and checked read-only; a new dated attempt remains pending. See the initial-evidence window guide.
+
 ## Local implementation checkpoint — 2026-09-12
 
 - [x] Maintainer authorized provisional local implementation before ratification.

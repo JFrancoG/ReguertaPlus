@@ -1,5 +1,7 @@
 # Tasks - HU-085 (Controlled production shift workbook activation)
 
+> 2026-11-02 09:06 UTC: authorized develop attempt stopped before native Sheets grant; no maintenance/business write/writer token. File/IAM/OAuth cleanup verified. Private browser-context connection corrected and checked read-only; a new dated attempt remains pending. See the initial-evidence window guide.
+
 ## Accepted HU-083 handoff — 2026-09-12
 
 The maintainer accepted the [HU-083 closeout](../hu-083-multi-season-shift-sheets/closeout.md).

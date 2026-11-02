@@ -1,5 +1,47 @@
 # HU-084 — Evidencia inicial y propuesta de ventana de develop
 
+## Intento autorizado del 2 de noviembre: detenido y limpiado
+
+La revisión anterior está publicada en `86af466b`. El usuario autorizó el avance y
+los permisos temporales y confirmó la hoja cerrada, en línea y sin intervenciones
+hasta las 10:15 Europe/Madrid. La comprobación previa real conservó versión 287,
+propietario/cuatro lectores, controles coincidentes y fuentes Firestore coincidentes;
+la admisión de lectura seguía rechazando únicamente `window_scope_missing`.
+
+El único intento empezó a las **09:05:11.669 UTC**. Reactivó la cuenta dedicada y
+concedió su permiso IAM temporal, pero se detuvo antes del envío nativo de Compartir.
+No se concedió edición de Sheets, emitió token del escritor, recogió consentimiento
+posterior al permiso, abrió mantenimiento ni escribió datos de negocio. Sin FCM,
+reintento, inversa ni acceso a producción. El estado terminal es `inspection-required`.
+
+Limpieza terminada a las **09:06:23.770 UTC**, sin incumplimientos de tiempos ni llamadas
+pendientes: archivo con propietario/cuatro lectores, permiso IAM retirado, escritor
+explícitamente deshabilitado y aislamiento verificado. OAuth Online del propietario,
+sin renovación, revocado; el mismo token devuelve 401 tanto en Drive como en Sheets
+tras cuatro comprobaciones (32,837 s). El usuario puede volver a utilizar la hoja.
+
+El error original de preparación no quedó detallado en el recibo. Una reproducción
+posterior de solo lectura demuestra que invocar el navegador después de terminar la
+llamada de `cua_repl` falla con `node_repl exec context not found`; la misma lectura
+funciona dentro de una llamada activa. Esto identifica una incompatibilidad concreta
+de la composición privada, sin atribuir retrospectivamente un error no conservado.
+La composición local se ajustó para dejar pendiente la acción nativa y atenderla con
+una llamada activa que espera su finalización. Expira antes de despachar si no se
+atiende en 20 s, conserva el diagnóstico de fallo y no reintenta. Se conserva aparte
+el archivo exacto usado en el intento. No cambia código desplegado ni el paquete.
+
+Validación: cuatro pruebas locales nuevas (despacho único, expiración sin UI, fallo
+con diagnóstico y espera de la acción en curso), lint focalizado y lectura real desde
+la conexión corregida. No se probó otro permiso ni escritura. Evidencia privada:
+`2026-11-02-authorized-develop-window`, con diario de 21 registros, capturas y recibos.
+No se repiten builds nativos/emuladores: solo cambia documentación en el repositorio
+y la composición privada. Sin diferencia entre apps.
+
+Siguiente: revisar la composición corregida y preparar otro intento con horario e
+identidad de recibo nuevos; la autorización consumida no permite repetir esta ventana.
+Las confirmaciones posteriores a la concesión siguen pendientes; no se reutiliza la
+confirmación inicial como si acreditase hechos posteriores. HU abiertas y PR en borrador.
+
 ## Renovación de autoridad y propietario; revisión fechada — 2026-11-02
 
 El bloque de recibos y entradas humanas tiene commit y push `8edfc7df`; coinciden
