@@ -101,6 +101,9 @@ function createInitialReviewCollector({reviewed:input,reviewDigest,iamBearer,rea
       for(const v of [reports.ownerObservation,reports.administratorObservation])assert.ok(v.observedAtMillis>=finalStart&&v.observedAtMillis<=nowMillis(),"Final human report is stale or future");
       const p=structuredClone(template),initialAt=Date.parse(initialCensus.readTime),finalAt=Date.parse(finalCensus.readTime);
       p.ownerAgreement=oa;p.administratorAgreement=aa;p.ownerObservation=reports.ownerObservation;p.administratorObservation=reports.administratorObservation;
+      // The prepared template cannot claim the future human offline-edit state.
+      // The agreement parser has now validated every explicit closed/online confirmation.
+      if(p.workbook.pendingOfflineEditorCount===null)p.workbook.pendingOfflineEditorCount=0;
       p.rules.initialReadBackAtMillis=initialCloud.observedAtMillis;p.rules.finalReadBackAtMillis=finalCloud.observedAtMillis;
       for(const c of p.writerControls) {
         c.initialReadBackAtMillis=initialControlsAt;

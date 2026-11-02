@@ -1,6 +1,6 @@
 # HU-084 — Preparación de la invocación concreta de develop
 
-Preparación actual (2026-11-02): [evidencia inicial y ventana propuesta](hu084-evidencia-inicial-ventana-develop.md). Corrección del orden publicada en `25109ad4`; recogedor concreto y ensayo de tiempos locales pendientes de commit, sin recogida ni autorización de ventana real. Los apartados siguientes son hitos anteriores.
+Preparación actual (2026-11-02): [evidencia inicial y ventana propuesta](hu084-evidencia-inicial-ventana-develop.md). Recogedor publicado en `4dd7bb54`; vinculación de recibos técnicos y entradas humanas locales pendientes de commit. Faltan observaciones actuales de autoridad/propietario y compromisos de ventana real. Los apartados siguientes son hitos anteriores.
 
 ## Composición de observaciones y permisos nativos — 2026-11-01
 

@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-11-02 | ✨ feat(shifts): bind technical and human evidence
+
 - 2026-11-02 | ✨ feat(shifts): collect bounded initial evidence
 
 - 2026-11-02 | ✨ feat(shifts): compose barrier and native permissions

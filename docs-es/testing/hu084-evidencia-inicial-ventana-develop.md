@@ -1,9 +1,8 @@
 # HU-084 — Evidencia inicial y propuesta de ventana de develop
 
-Corrección del arranque con commit y push en `25109ad4`. El recogedor concreto de
-evidencia inicial está **ensayado localmente, pendiente de commit** (2026-11-02).
-No hay mantenimiento abierto. Las observaciones conservan sus horas reales; no se
-han renovado con lecturas en vivo.
+Recogedor concreto con commit y push en `4dd7bb54` (2026-11-02). La vinculación de
+recibos y las entradas humanas siguientes están **locales, pendientes de commit**.
+No hay mantenimiento abierto. Las observaciones conservan sus horas reales.
 
 ## Evidencias y operación exactas
 
@@ -203,3 +202,62 @@ confirmaciones con los recibos conservados, renovar solo evidencias/credenciales
 requieran actualidad y comprobar el mismo presupuesto antes de pedir ventana real.
 No hay mantenimiento ni autorización de esa ejecución. No debes hacer nada ni cerrar
 la hoja ahora.
+
+## Recibos conservados y entradas humanas explícitas — 2026-11-02
+
+La plantilla estática vincula ya los **23 controles técnicos**, las dos filas humanas
+futuras, paquete/operaciones/fuentes/hoja exactos y las cuentas de propietario,
+operador y ambos administradores. El directorio privado `2026-11-02-technical-receipts`
+conserva el preparador reproducible, 25 archivos fijados por huella,
+`technical-receipts-private.json`, `initial-template-private.json` y
+`confirmation-inputs-private.json`. Diez archivos de código desplegado coinciden con
+las huellas del proveedor conservadas y la configuración retenida actual. La respuesta
+antigua de Rules carece de metadatos añadidos en otra lectura: nombre, fuente y fecha
+de creación coinciden exactamente. El lector conserva la respuesta nueva completa
+como referencia, sin relajar la comparación.
+
+`bind-develop-technical-receipts.cjs` rechaza controles/recibos ausentes, bytes cambiados,
+fechas sin el campo original citado, discrepancias Rules/captura y ceros de trabajo
+inventados. Distingue lecturas verificadas de cierre, observaciones de registros
+ausentes y evidencia compuesta condicionada de autoridad. Vincula procedencia; no
+prueba que todos los escritores actuales estén técnicamente bloqueados. Los nuevos
+workers son factorías lógicas sin registro en la composición inspeccionada; la ruta
+HTTP es `shiftCoverage`, no un endpoint inventado del worker. Los 23 contadores de
+trabajo anterior siguen desconocidos y deben vincularse a la aceptación específica
+del riesgo histórico. El mantenedor confirma ahora que no hay automatización externa
+adicional a las apps/Functions conocidas. Esa declaración no prueba terminación
+histórica ni sustituye el inventario técnico actualizado.
+
+`createDevelopHumanInputs` proporciona las tres entradas del recogedor: confirmaciones
+de propietario/administradores, informes iniciales e informes posteriores nuevos.
+Su transporte `exchange` debe mostrar la petición exacta; no abre navegador ni pregunta
+ahora. Incluye cuentas/funciones, intervalo UTC, operaciones, acuerdo inmutable y
+secuencia única. Las plantillas dejan a null consentimiento, tiempos y estado; no
+traen aceptación marcada. Cada respuesta lleva huella de petición, identificador
+único y hora realmente observada. Los validadores de dominio comprueban participantes
+y compromisos completos. Peticiones/respuestas se guardan en el diario existente.
+Respuestas vacías, negativas, antiguas, futuras, sustituidas, reutilizadas, retiradas
+o con actividad detienen el avance. Cada informe posterior exige una respuesta nueva.
+El contador inicial de cambios sin conexión sigue null hasta validar las confirmaciones
+explícitas de cierre/conexión. Se espera la terminación de una entrada pendiente al
+cancelar; no se amplía ningún plazo ni garantía de limpieza.
+
+Los formularios completan los campos estáticos de ámbito/acuerdos/riesgo. Siguen
+vacíos el identificador del intento, ventana, aceptación concreta del riesgo y su
+fecha, cierre real de permisos, confirmaciones e informes observados. La aceptación
+previa de ADR-0026 no se copia como autorización de otra ejecución. Antes de dar por
+actuales las filas condicionadas hay que renovar el inventario completo de autoridad
+automática, la ausencia de entradas no desplegadas y las observaciones directas de
+propietario/hoja/carpeta. Son renovaciones de evidencia pendientes; no requieren otro
+algoritmo ni regenerar el paquete, que no ha cambiado.
+
+Validación: **126 pruebas locales distintas y tres comprobaciones privadas sin red**,
+sin fallos ni omitidas; build/lint completos y lint CJS correctos. La comprobación
+positiva privada completa una copia con tiempos/consentimientos expresamente simulados
+y pasa el validador real; no guarda aceptación operativa. Los formularios reales sin
+confirmar se rechazan por separado. Las 90 pruebas previas de emulador se conservan
+como evidencia histórica, no repetida ni presentada como nueva aceptación en vivo.
+Android/iOS sin cambios ni diferencia nueva. Siguiente: renovar las observaciones
+identificadas y revisar el paquete con fechas concretas antes de pedir ejecución.
+Sin mantenimiento, llamadas a proveedores, permisos, token, escritura Sheets, FCM ni
+producción en este bloque. No necesitas cerrar la hoja ahora.

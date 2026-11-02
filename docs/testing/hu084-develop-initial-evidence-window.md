@@ -1,8 +1,8 @@
 # HU-084 — Initial evidence and proposed develop window
 
-Startup correction committed and pushed as `25109ad4`. The concrete initial-review
-collector is **locally rehearsed, pending commit** (2026-11-02). No maintenance is
-open. Retained observations below keep their actual times; no live read renewed them.
+Concrete initial collector committed/pushed as `4dd7bb54` (2026-11-02). The retained
+technical-receipt binding and human input adapters below are **local, pending commit**.
+No maintenance is open. Retained observations keep their actual times.
 
 ## Exact evidence and unchanged operation
 
@@ -193,3 +193,59 @@ Next complete the concrete reviewed technical template and final read/confirmati
 wiring against the retained receipts, renew only the evidence/credentials requiring
 freshness, and check the same budget before requesting a real window. Neither real
 maintenance nor its authorization is present. No user action or sheet closure now.
+
+## Retained receipts and explicit human inputs — 2026-11-02
+
+The concrete static template now binds all **23 technical controls**, the two future
+human rows, exact package/forward/inverse/source/workbook identities, and the owner,
+operator and both administrator accounts. Private `2026-11-02-technical-receipts`
+contains the reproducible offline preparation, 25 pinned receipt/source files,
+`technical-receipts-private.json`, `initial-template-private.json` and
+`confirmation-inputs-private.json`. Ten deployed source archives match their retained
+provider checksums and current retained configuration. The old Rules response lacks
+provider metadata added in a later read: name, source and creation time match exactly;
+the fresh-reader baseline keeps the full later response, without relaxing comparison.
+
+`bind-develop-technical-receipts.cjs` rejects missing controls/receipts, changed bytes,
+closure dates without the cited retained field, Rules/capture mismatch and invented
+zero work. Its output distinguishes verified closure readbacks, observations of absent
+registrations, and conditional composite authority evidence. This is provenance
+binding, not a proof that every current writer is technically fenced. The new coverage
+workers are logical factories with no registration in the inspected composition;
+the HTTP coverage route is `shiftCoverage`, not an invented worker endpoint.
+All 23 predecessor work counters remain unknown and must bind the operation-specific
+historical-risk acceptance. The maintainer now explicitly declares no additional
+external automation beyond the known apps/Functions. That disclosure does not prove
+historical termination or replace a fresh automatic-authority inventory.
+
+`createDevelopHumanInputs` provides the collector's three input ports: owner/admin
+confirmations, initial reports and later fresh reports. Its explicit `exchange`
+transport must show the exact challenge; it does not open a browser or ask now.
+Requests include named accounts/roles, exact UTC window, operations, immutable intent
+binding and a unique sequence. Answer templates contain null consent/times/status,
+never a prefilled acceptance. Each reply carries the request digest, unique reply ID
+and actual observed response time; the existing domain parsers validate the complete
+participant set and commitments. Request/reply records go to the existing durable
+journal. Empty, negative, stale, future, substituted, reused, withdrawn or active
+reports stop progression. An ongoing report requires a new reply, never cached consent.
+The initial offline-edit count remains null until the validated explicit closed/online
+owner confirmations exist. Cancellation waits for pending input to settle; no timing
+limit or cleanup guarantee has been expanded.
+
+The forms contain all static scope/intents/risk fields; actual receipt ID, window,
+risk acceptance ID/time, permission closure, confirmations and observed reports stay
+unfilled. The earlier ADR-0026 policy acceptance is not copied into a new execution
+approval. Full automatic-authority enumeration, undeployed-entrypoint absence and
+direct owner/file/parent observations must be renewed before treating conditional
+rows as current. These are the remaining evidence renewals, not another migration
+algorithm or a need to regenerate the unchanged package.
+
+Validation: **126 distinct local tests plus three private offline checks**, no failures
+or skips; Functions build/full lint and focused CJS lint pass. The private positive
+check completes a detached clone with explicitly synthetic times/consent and passes
+the actual barrier codec; it writes no operational acceptance. The real unconfirmed
+forms are separately rejected. Prior 90 emulator cases are retained historical evidence,
+not rerun or claimed as new full live acceptance. No Android/iOS change or parity gap.
+Next renew the identified observations and review the exact dated input packet before
+requesting execution. No maintenance, live provider call, permission change, token,
+Sheets write, FCM or production access in this block. No sheet closure needed now.

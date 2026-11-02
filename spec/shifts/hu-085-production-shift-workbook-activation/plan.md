@@ -1309,3 +1309,20 @@ inserted. The concrete technical template/final provider wiring and renewed evid
 are next, before any real window request. No live reads/writes, IAM/ACL/OAuth changes,
 maintenance, production or native changes. New work is uncommitted; stories remain
 open and PR #278 draft. No user action or sheet closure now.
+
+## Retained technical receipts and explicit human inputs — local, 2026-11-02
+
+Collector/timing delivered in `4dd7bb54` with remote HEAD verified. New local work
+binds 23 technical controls to 25 retained files (ten deployed archives verified),
+keeps 23 predecessor work counts unknown, and completes the static scope/owner/admin/
+risk forms without dates or consent. Closure, absence and conditional composite
+authority evidence remain distinct. The maintainer confirms no extra automation
+beyond known apps/Functions; this is not proof of historical drain or a future window.
+The explicit human transport validates each fresh challenge/reply and journals both;
+no defaults, stale/reused replies or automatic confirmation. Current admission stays
+false pending renewed full authority/file/parent observations and real dated commitments.
+Validation: 126 local + three private offline checks; build/full/focused lint pass.
+The detached synthetic completion passes the real codec; operational forms remain
+unconfirmed. No live provider/IAM/ACL/OAuth/maintenance/production/native action.
+Next renew identified evidence and review the dated packet before execution approval.
+See the bilingual initial-evidence/window guide and private `2026-11-02-technical-receipts`.
