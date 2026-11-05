@@ -43,6 +43,13 @@ Agents may modify any part of this monorepo when needed:
   - `/docs/tech-stack/README.md`
   - `/docs-es/tech-stack/README.md`
 
+### Choosing resources for a task
+
+- For an existing HU, start with its open issue and the current outcome in its plan. Use `reguerta-story-bootstrap` only when creating a new HU. Use `finish-delivery-flow` when delivering the work.
+- Choose specialist skills for the code, tools or review surface involved in the next step. If the iOS kit and a local alias expose the same skill, load one copy. A backend-only change normally needs native validation only when it changes a contract or behavior the apps consume.
+- Keep the next decision and its acceptance criterion in the plan, check off the matching task, and link to the evidence where it was captured. Keep required issue mirrors, translations and ADRs, with links in place of repeated test logs.
+- For product feedback, start with an existing runnable user journey. Repeat physical checks when the affected flow, device behavior or a reported defect warrants it. Follow the validation policy below for delivery.
+
 ## Instruction Conflicts
 
 - If there is any conflict or ambiguity between:

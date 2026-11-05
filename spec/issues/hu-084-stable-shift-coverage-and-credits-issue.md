@@ -1,5 +1,11 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Documentation and product rehearsal checkpoint — 2026-11-05
+
+The [remaining-work plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-04) is the current next-step index. Repeated historical evidence now links to its retained plan sections. The [4 November iOS rehearsal](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-product-rehearsal--2026-11-04) records market acceptance, delivery completion, an earned credit and its single use in a private local planning unit, followed by the tester seeing «Crédito utilizado».
+
+Next reproduce session interruption during confirmation and verify the notice and state after sign-in. Policy ratification, the real draw provider, operational observability and shared Develop acceptance remain open. The separate local Google adapter correction and stopped-window evidence are excluded from this documentation checkpoint. Issue #268 stays open and PR #278 stays draft.
+
 ## Latest reconciliation checkpoint — 2026-10-28
 
 Delivered `afbcd098` and verified remote/draft PR heads. The subsequent approved

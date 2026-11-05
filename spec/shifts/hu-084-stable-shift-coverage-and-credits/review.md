@@ -1,5 +1,11 @@
 # HU-084 provisional review
 
+## iOS product rehearsal — 2026-11-04
+
+The tester accepted the 4 September market offer, confirmed the separate 1 September delivery as admin and saw one pending delivery credit as member `e`. On the first market attempt the tester inferred that signing in again was necessary and did not recall seeing a notice. The cause and the message shown on that attempt remain unverified.
+
+The local planner used that same credit (`native-delivery`) for a private 15 September 2027 rehearsal unit. We added a synthetic delivery rotation starting with `e, d` and a 22 September neighbor. With identical inputs except for the credit, `e` would work without it and `d` worked with it. Preview and staging left the balance pending. Activation consumed it once, replay preserved the receipt and ledger version, and the authenticated member overview returned the consumed credit and its consumption time. The four original published rows retained their versions. The unit is visible in the emulator receipt only. The tester refreshed the iOS member overview as `e` and confirmed it displayed «Crédito utilizado».
+
 ## Current review — 2026-10-04
 
 The maintainer authorized the final review, validation, issue reconciliation and
@@ -1888,269 +1894,21 @@ UNAUTHENTICATED after expiry. Earlier token expiry precedes them; credentials ar
 discarded and the owned probe process closed. Original empty account policies
 restored, evidence assertions and documentation diff pass. New docs remain local.
 
+## Develop maintenance evidence, 29–30 October 2026
 
-### Fenced maintenance preparation — 2026-10-29
+The plan records the owner isolation, source and authority checks, migration and inverse rehearsal, and synthetic writer review. The full evidence for each checkpoint is linked below.
 
-Fence evidence delivered/pushed as `e6d02cc2`. Local offline preparation joins the
-two-account probe/credential cleanup to normalized owner roles and validated old/current
-censuses without producing barrier admission or zero work counts. The real packet
-matches183 sources/12 captures/16 deliveries, all24 Function bindings, three PAUSED
-jobs and742 typed workbook values. The connector metadata timestamp regresses versus
-the direct probe and has no raw version; this is an explicit remaining gate.
-114 focused tests (19 new), Functions build/lint pass. No native change/parity gap,
-cloud mutation, production-data access or renewed impersonation. Local code/docs remain
-uncommitted. Next resolve prior external-call completion/isolation and complete automatic
-writer authority, then fresh consistent workbook/control evidence and owner/admin window
-agreements. Do not reinterpret retained historical notices as pending sends or revisit
-expired logs. Maintenance/migration remain NOT_READY; see bilingual writer-controls guide.
-
-
-### Old containers retired; owner isolation prepared — 2026-10-29
-
-Previous preparation delivered as `9f01bae8`. Provider-bound inspection confirms288
-old revisions across24 services are RETIRED, current traffic100% with no tags and
-stable service readbacks. Added15 tests;129 focused tests/build/lint pass. This closes
-old-container execution only; previously submitted effects and other writers remain
-independent. Owner OAuth grants include broad Sheets/Drive write access; the known
-test account's Google UI reports no linked apps. Prepared transfer of only the same
-develop file to that account, demotion of the former owner to reader, parent-inheritance
-check, connector probe/value comparison and conditional reverse-transfer recovery.
-No ownership/permission change authorized or performed yet. New code/docs local;
-maintenance/migration NOT_READY. See bilingual writer-controls guide for scope.
-
-
-### Owner isolation executed with authorization — 2026-10-29
-
-The exact develop workbook transfer was accepted by the test account; the former
-owner is now a reader alongside the three service readers, with restricted sharing.
-Same-value Fecha/A1 connector write succeeded before and returns 403 PERMISSION_DENIED
-after; reads remain available and all 742 typed values across six ranges are unchanged.
-No move was necessary for the observed denial. Parent/permission metadata is now
-unavailable to the reader connector; do not fabricate a parent ACL or refresh the
-historical owner API record. The preparation binds current UI/probe evidence separately.
-141 focused tests/build/lint pass; actual combined evidence remains NOT_READY with
-unknown prior effects/other writers and explicit current-parent/version/control gates.
-No new OAuth/IAM, global revocation, deployment, FCM or production change. No native
-parity gap. New changes remain local after `9f01bae8`. See bilingual writer-controls guide
-and private `2026-10-29-develop-owner-transfer` evidence. Next complete remaining automatic
-authority/prior effects before a bounded agreed window; HU-084/HU-085 and draft PR #278
-remain open. Recovery would require reverse transfer and acceptance.
-
-
-### Remaining access/effects audit — 2026-10-29
-
-`b69dcf5b` delivered and remote verified. Fresh provider inventory confirms only 24
-reviewed Run services globally, no Run jobs/worker pools/instances, three paused
-Scheduler jobs, no Build triggers/active builds across 44 locations, nine keyless
-service accounts and unchanged project IAM/Rules. Census remains 183 sources plus
-12 captures/16 deliveries. Two known calendar probes have exact HTTP 200 terminals
-and no Sheets/notice effects. No global old-effect closure is inferred.
-The maintainer identifies the existing apps/Functions using `collections`, distinct
-from `plus-collections`. Both use the same project; current develop Rules cover both
-namespaces and legacy HTTP endpoints are shared. This identifies known callers, not
-an exhaustive external-credential inventory. The 105 older notices remain unreplayed
-history and residual effects still block admission.
-No cloud mutation or production-data read. This audit is documentation only; prior 141 tests/
-build/lint reused unchanged. See bilingual writer-controls guide for finite next
-steps and private 2026-10-29-remaining-authority-effects evidence. No native parity gap.
-
-
-### Historical-effect decision pending — 2026-10-29
-
-Access/namespace audit delivered in `d3ae12d9`, remote verified. Offline disposition
-of all 117 retained notices passes: 55 no-token, 34 partial, 25 success, three missing
-April outcomes; 12 send summaries have correlated terminal receipts. Three imports
-and two calendar probes retain separate completion evidence. No replay, fresh cloud
-observation or live mutation. Complete historical termination remains unproved.
-Proposed [ADR-0026](../../../docs/decisions/0026-accept-bounded-develop-historical-effect-risk.md)
-requires an explicit policy decision before local implementation: accept the scoped
-develop historical risk or retain strict blocked admission. It does not open a
-window. Details and private evidence are in the bilingual writer-controls guide.
-New documentation remains local; assertions/links/diff pass, no native parity change.
-
-
-### ADR-0026 accepted; local implementation/rehearsal complete — 2026-10-30
-
-Explicit maintainer acceptance covers develop historical risk, local implementation
-and rehearsal only. The existing v3 barrier now binds exact risk acceptance and
-preserves historical unknowns. The fixed-demo migration/inverse runner verifies both
-plans and notices in its transaction source set; no shared entry point is enabled.
-137 local + 26 emulator passes, build/lint/syntax/diff pass. See bilingual
-[ADR-0026](../../../docs/decisions/0026-accept-bounded-develop-historical-effect-risk.md)
-for rejection cases, post-commit failure and limits. Work remains local after
-`d3ae12d9`; no commit/push, shared maintenance, production change or native parity
-gap. Next prepare fresh real authority and exact operation acceptance, then request
-its separately authorized window. HU-084/HU-085 and draft PR #278 stay open.
-
-
-### Real develop evidence refreshed; window remains closed — 2026-10-30
-
-ADR-0026 delivered in `0539ee40`, remote/draft PR #278 verified. Reused unchanged
-137 local + 26 emulator tests, build/lint after checking all seven source hashes.
-New read-only packet `2026-10-30-maintenance-evidence`: unchanged 24 Functions,
-Rules/IAM, three paused jobs, 288 retired revisions, six READY indexes; unchanged
-62 shifts/four calendars/117 notices and 12 captures/16 deliveries; 48 projected users;
-five absent authority documents; 742 unchanged typed workbook cells and renewed UI
-showing one owner/four readers. Offline assertions pass. No shared writes or native gap.
-A separately authorized owner Online-only metadata-read session confirms stable Drive
-version 278 and the test owner's My Drive root: one owner/four direct readers on the
-file, only that owner on its parent. Authorization removed; Connections empty and same
-GET denied with 401. No retained credentials or IAM changes. Bind real source policy/
-plans and refresh remaining authority/queue controls before the separately authorized
-owner/admin/risk window; the observations are not a held barrier. NOT_READY, no window
-or operation acceptance fabricated. See bilingual writer-controls guide for scope and
-historical-evidence limits. New documentary work remains uncommitted; issues stay open.
-
-### Evidence-bound migration review package — 2026-10-30
-
-Previous real-evidence documentation delivered/pushed as `3c06b28d`; draft PR #278
-head verified. New offline preparer and 19 focused tests remain local. It binds
-thirteen private evidence files, reviewed proposal/content, version 278, exact
-permissions/index/control/source observations, 62 raw before-images, 72 published
-semantic creates and 53 helper cells to one source-policy binding and both intents.
-117 notices remain preserved without replay; dates and all 108 positions unchanged.
-Raw inverse fields are exact; original service timestamps cannot be restored.
-
-Package `ee465d0e2adb646111336d19356d685196c49ed4954834d7e320eeec49d7ac75`
-is PREPARED_NOT_ADMITTED, not an executable manifest. Runtime policy, held source
-versions, actual receipts/markers, live budget and window/risk agreements remain
-explicitly unbound. No provider calls, maintenance entry, migration or production
-access. 83 local tests, build/lint and focused CJS lint pass; no native changes or
-parity gap. Emulator executor unchanged, not rerun. See the bilingual migration
-rehearsal guide. Next materialize/rehearse the closed runtime policy and exact
-transaction manifests locally; obtain fresh admission evidence and explicit window
-only afterwards. HU-084/HU-085 remain open, PR #278 draft.
-
-### Closed policy and final local migration/inverse accepted — 2026-10-30
-
-Review package delivered/pushed in `e9fb31e5`, remote/PR #278 head verified. New
-local implementation materializes an explicitly closed source policy and complete
-forward/inverse transaction manifests with the existing serializer/barrier/CAS.
-Execution reconstructs and compares every mutation/precondition; inverse requires
-the actual forward receipt. Raw/guard drift, rounded clone fields, missing final
-manifest, future/stale time and substituted writes reject. Reviewed operation IDs
-are explicitly mapped to the existing canonical request-operation identity.
-Annual production rejects the closed policy even after accidental local opening.
-
-92 local + 39 SDK-emulator + 1 captured Sheets acceptance pass, build/full lint
-and CJS lint pass. Real retained input roundtrip: 203/140 writes; exact 62 originals,
-72 published rows/108 positions, 48 users, four calendars and 117 notices preserved.
-Sheets: 53 helpers plus two markers per batch; 742 observed cells/notes restored.
-Evidence `2026-10-30-final-migration`; see bilingual migration guide for exact
-digests, byte estimates and limitations. All final receipts/times/controls are local
-rehearsal authority, not live admission. No shared executor, maintenance opening,
-deployment or production access; no native parity gap. Next connect controlled
-develop execution and prepare read-only admission before a separately authorized
-window. New changes remain local; HU-084/HU-085/PR #278 stay open/draft.
-
-### Controlled executor connected; real admission remains blocked — 2026-10-30
-
-Previous materializer delivered/pushed as `9a83203f`; remote and draft PR #278
-head verified. New local composition reuses the extracted migration engine with
-fixed develop project/database/namespace and exact original service versions.
-Passive admission does not close controls or write incidents; execution consumes
-an already-held barrier, rechecks source/human observations and rejects inspection
-older than 60 seconds. Reports never authorize application or maintenance entry.
-
-102 unit + 47 SDK-emulator passes, build/full lint and CJS lint. Retained-input
-203/140-write roundtrip restores 62 originals and preserves 117 notices. Actual
-read-only develop inspection detects two unreviewed config documents (member/public);
-config/global itself is unchanged. Admission blocks with zero shared writes or
-control reads. Next extend/review the exact config census and regenerate the bound
-packet before repeating passive admission and preparing the separately authorized
-window. See bilingual migration guide and private `2026-10-30-controlled-executor`.
-No deployment, maintenance opening, production access or native parity gap.
-New work remains uncommitted; HU-084/HU-085 open, PR #278 draft.
-
-### Complete config census; real passive source match — 2026-10-30
-
-Controlled composition delivered/pushed in `eb073e0e`, exact remote/PR #278 head
-verified. New local correction requires all three config documents and binds whole
-payloads/versions to the reviewed policy and materializer. The fresh atomic census
-preserves every previously reviewed source/receipt; config/member and config/public
-were pre-existing omissions. Regenerated packet preserves all business mutations,
-published dates/order and 53 helper intents; identities change with new evidence.
-
-Actual SDK read-only source inspection passes and stops at window_scope_missing:
-one transaction, zero control reads/close calls/writes, no maintenance permission.
-Other technical/Sheets authorities remain retained observations, not fresh admission.
-113 unit + 50 SDK-emulator tests, build/lint and CJS lint pass. Exact 203/140-write
-recovery and config drift/ABA refusal are covered; no native parity gap.
-See bilingual migration guide and private `2026-10-30-config-census` for digests
-and limits. Next prepare/refresh current technical and Sheets writer/destination
-admission for this exact package before requesting the explicit window. No shared
-mutation, deploy, maintenance opening or production access. New work remains local;
-HU-084/HU-085 remain open and PR #278 draft.
-
-### Current technical controls and Sheets destination reviewed — 2026-10-30
-
-Config-census correction delivered/pushed as `27920b02`; prior 113 unit/50 emulator
-gates reused with all seven code/test hashes verified. New work is documentary and
-read-only evidence. All 24 Functions, Rules/IAM and six READY indexes match; three
-jobs stay paused, 288 old revisions retired; four exact capture proofs/eight transport
-bindings verified. Queue metrics UNKNOWN are not drain proof. Nine accounts have no
-user keys/direct bindings; no global Run jobs/pools/instances. Cloud Asset disabled;
-other automation inventory remains labelled historical.
-
-Develop destination/tab IDs and 742 cells/notes match. The explicitly authorized
-Online metadata-only owner session confirms stable Drive version 278, all five file
-permissions and the returned owner-only My Drive root. Four direct readers; the only
-inherited writer detail is the owner itself. No extra writer or content restriction.
-Both the stalled first session and successful clean-tab retry were revoked; final
-connection absent and same GET denied401, no refresh token, Playground fields cleared.
-No controlled Sheets worker is deployed; existing runtime has general project data/FCM
-roles and no file grant. No service-account grant/token or write probe. See bilingual
-writer-controls guide and private `2026-10-30-technical-sheets-review`; owner evidence
-assertions pass. Next prepare the scoped writer grant/probe proposal before any
-separately authorized window. No maintenance, business/Sheets write, FCM or production
-data access; no native gap.
-New docs remain local; stories open, PR #278 draft.
-
-### Develop Sheets writer identity and test proposal — 2026-10-30
-
-Technical/owner evidence delivered in `2a0836b0`. The new non-executable
-`develop-sheets-writer-plan.json` and bilingual writer-controls guide propose a
-fresh `reguerta-develop-sheets-writer`, no project roles/keys/attached services,
-copy-only editor access, a ten-minute account-scoped mint grant and one 300-second
-token with the existing two scopes. No account, grant, token or workbook created.
-
-The existing observer requires canShare for complete ACLs; do not bypass this or
-mistake owner capabilities for runtime capabilities. The seven-tab runner can use
-a fresh synthetic workbook, not the six-tab original or completed eight-tab copy.
-Separate Google credentials from Firestore authority; do not add data/FCM roles to
-make the file writer an all-purpose runtime. Token scopes/count/lifetime are explicit
-controller limits, not constraints enforced by that IAM role. Cleanup removes only
-the exact copy permission/IAM binding, disables the account and verifies access loss;
-unknown writes stay inspect-only. No production requests, original-file grant,
-maintenance opening, shared deployment or native change.
-
-Next: prepare the exact synthetic-copy/controller execution packet, then request
-bounded provisioning and copy-rehearsal authorization. Original develop permission,
-regenerated source/ACL binding, current external-control composition and a named
-owner/admin/risk window remain separate gates. Proposal is local after the delivered
-commit; HU-084/HU-085 open, PR #278 draft.
-
-Validation: proposal invariants/source-scope checks and ten selected local contract/runner
-tests pass (zero failures/skips). Live provider/emulator scenarios were not rerun;
-no executable sources changed, so full build/lint and native gates were not repeated.
-
-
-### Concrete synthetic writer execution prepared locally — 2026-10-30
-
-Proposal delivered/pushed as `44e578d1`; exact remote and draft PR #278 head verified.
-New local controller emits sealed offline payloads/input template and composes the
-existing copy runner with exact-ID IAM/Drive adapters. Explicit parent credentials,
-one token attempt, parent review before the only batch, four-minute child deadline,
-independent cleanup stages and same-unexpired-token denial are covered. Unknown
-outcomes stay inspect-only; concurrent foreign grants are preserved. There is no
-live CLI, ADC fallback, resource provisioning or shared activation in this work.
-
-Validation: build/lint, targeted CJS diagnostics and 30 tests, no failures/skips;
-real Firestore SDK/emulator and Google transport doubles. Native sources unchanged.
-Reproduce with `npm run test:shift-planning:writer-copy:emulator` in functions.
-Concrete steps, credential separation, baseline capture and crash recovery are in
-both writer-controls guides; private preparation: 2026-10-30-develop-writer-execution.
-Next request bounded authorization to create the identity and synthetic workbook,
-run this exact session and verify cleanup. No phone action now. Original develop
-permission/current shared controls/maintenance remain separate. New implementation
-is uncommitted; HU-084/HU-085 open, PR #278 draft, production untouched.
+- <a id="fenced-maintenance-preparation--2026-10-29"></a>[Fenced maintenance preparation — 2026-10-29](plan.md#fenced-maintenance-preparation--2026-10-29)
+- <a id="old-containers-retired-owner-isolation-prepared--2026-10-29"></a>[Old containers retired; owner isolation prepared — 2026-10-29](plan.md#old-containers-retired-owner-isolation-prepared--2026-10-29)
+- <a id="owner-isolation-executed-with-authorization--2026-10-29"></a>[Owner isolation executed with authorization — 2026-10-29](plan.md#owner-isolation-executed-with-authorization--2026-10-29)
+- <a id="remaining-accesseffects-audit--2026-10-29"></a>[Remaining access/effects audit — 2026-10-29](plan.md#remaining-accesseffects-audit--2026-10-29)
+- <a id="historical-effect-decision-pending--2026-10-29"></a>[Historical-effect decision pending — 2026-10-29](plan.md#historical-effect-decision-pending--2026-10-29)
+- <a id="adr-0026-accepted-local-implementationrehearsal-complete--2026-10-30"></a>[ADR-0026 accepted; local implementation/rehearsal complete — 2026-10-30](plan.md#adr-0026-accepted-local-implementationrehearsal-complete--2026-10-30)
+- <a id="real-develop-evidence-refreshed-window-remains-closed--2026-10-30"></a>[Real develop evidence refreshed; window remains closed — 2026-10-30](plan.md#real-develop-evidence-refreshed-window-remains-closed--2026-10-30)
+- <a id="evidence-bound-migration-review-package--2026-10-30"></a>[Evidence-bound migration review package — 2026-10-30](plan.md#evidence-bound-migration-review-package--2026-10-30)
+- <a id="closed-policy-and-final-local-migrationinverse-accepted--2026-10-30"></a>[Closed policy and final local migration/inverse accepted — 2026-10-30](plan.md#closed-policy-and-final-local-migrationinverse-accepted--2026-10-30)
+- <a id="controlled-executor-connected-real-admission-remains-blocked--2026-10-30"></a>[Controlled executor connected; real admission remains blocked — 2026-10-30](plan.md#controlled-executor-connected-real-admission-remains-blocked--2026-10-30)
+- <a id="complete-config-census-real-passive-source-match--2026-10-30"></a>[Complete config census; real passive source match — 2026-10-30](plan.md#complete-config-census-real-passive-source-match--2026-10-30)
+- <a id="current-technical-controls-and-sheets-destination-reviewed--2026-10-30"></a>[Current technical controls and Sheets destination reviewed — 2026-10-30](plan.md#current-technical-controls-and-sheets-destination-reviewed--2026-10-30)
+- <a id="develop-sheets-writer-identity-and-test-proposal--2026-10-30"></a>[Develop Sheets writer identity and test proposal — 2026-10-30](plan.md#develop-sheets-writer-identity-and-test-proposal--2026-10-30)
+- <a id="concrete-synthetic-writer-execution-prepared-locally--2026-10-30"></a>[Concrete synthetic writer execution prepared locally — 2026-10-30](plan.md#concrete-synthetic-writer-execution-prepared-locally--2026-10-30)
