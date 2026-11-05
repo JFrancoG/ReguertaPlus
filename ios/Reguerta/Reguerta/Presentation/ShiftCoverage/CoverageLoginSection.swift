@@ -23,9 +23,6 @@ struct CoverageLoginSection: View {
             if model.loginFailed {
                 Text(CoverageCopy.text("login_failed"))
             }
-            if let failure = model.coverage.failure {
-                Text(CoverageCopy.failure(failure))
-            }
         }
     }
 }

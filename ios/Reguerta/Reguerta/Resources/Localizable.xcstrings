@@ -1,6 +1,24 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+  "coverage.acceptance_rejected_sign_in": {
+    "comment": "Shown before sign-in when the server rejected the first attempt to accept a shift coverage offer.",
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The coverage offer could not be accepted. Sign in again to review it."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No se ha podido aceptar la cobertura. Vuelve a entrar para revisar la oferta."
+        }
+      }
+    }
+  },
   "coverage.access_disabled": {
     "comment": "Shown when authenticated coverage admission is unavailable or disabled.",
     "extractionState": "manual",

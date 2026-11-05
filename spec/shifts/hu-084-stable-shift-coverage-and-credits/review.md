@@ -1,5 +1,15 @@
 # HU-084 provisional review
 
+## iOS session interruption — 2026-11-05
+
+In the local iPhone 17 rehearsal, member `e` opened the confirmation sheet for the 29 September 2027 delivery. While the sheet was open we revoked the member's emulator session and verified that a read with a pre-revocation token returned 401. The tester tapped «Confirmar» and inferred from the login form that signing in again was necessary. A capture of the settled screen showed «Tu sesión o tus permisos han cambiado. Vuelve a entrar.» below «Entrar». The tester missed the notice during the transition. Its duration was not measured.
+
+After sign-in the tester reported «Cobertura aceptada». Reading the rows with their dates resolved the ambiguity: that label belonged to the 4 September market, accepted before revocation. The 29 September delivery showed «Pendiente de respuesta». Firestore retained the delivery offer at revision 2 with its original document version and only the opening and offer receipts.
+
+We repeated the interruption once with the notice above the sign-in fields. After tapping «Confirmar», the tester described the return to sign-in as abrupt, then read «No se ha podido aceptar la cobertura. Vuelve a entrar para revisar la oferta.» Before signing back in, they understood both that the acceptance had failed and why they should sign in again. A read of the local emulator after the tap matched the pre-test state: the offer was still pending at revision 2, with the same two receipts and the same versions for all seven shifts.
+
+The iOS `release-gate` passed on iPhone 17 (iOS 26.5, Xcode 27.1): Debug and Release built, SwiftLint reported zero violations, and 952 tests passed with five skipped and zero failures.
+
 ## iOS product rehearsal — 2026-11-04
 
 The tester accepted the 4 September market offer, confirmed the separate 1 September delivery as admin and saw one pending delivery credit as member `e`. On the first market attempt the tester inferred that signing in again was necessary and did not recall seeing a notice. The cause and the message shown on that attempt remain unverified.

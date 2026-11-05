@@ -276,9 +276,10 @@ struct ShiftCoverageClientTests {
         #expect(harness.model.session == nil)
         #expect(harness.model.snapshot == nil)
         #expect(harness.model.pendingCommand == nil)
+        #expect(!harness.model.acceptanceRejectedBySession)
     }
 
-    @Test(arguments: [400, 403, 409])
+    @Test(arguments: [400, 401, 403, 409])
     func definitiveRejectionClearsTheIntentAndRequiresFreshAuthority(_ status: Int) async throws {
         let harness = try CoverageClientHarness()
         await harness.model.refresh()
@@ -287,9 +288,13 @@ struct ShiftCoverageClientTests {
         #expect(harness.model.pendingCommand == nil)
         #expect(harness.model.snapshot == nil)
         #expect(!harness.model.isBusy)
-        #expect((harness.model.session == nil) == (status == 403))
+        let lostAccess = [401, 403].contains(status)
+        #expect((harness.model.session == nil) == lostAccess)
+        #expect(harness.model.acceptanceRejectedBySession == lostAccess)
         await harness.model.retryPending()
         #expect(harness.transport.commands.count == 1)
+        harness.bind(revision: 2)
+        #expect(!harness.model.acceptanceRejectedBySession)
     }
 
     @Test func cancellationAfterSendingKeepsTheIntentForExplicitReplay() async throws {
@@ -312,6 +317,27 @@ struct ShiftCoverageClientTests {
 }
 
 extension ShiftCoverageClientTests {
+    @Test func accessLossOnReadBackKeepsTheAcknowledgedAcceptance() async throws {
+        let harness = try CoverageClientHarness()
+        await harness.model.refresh()
+        // Let the command receive its receipt, then reject the following overview request.
+        harness.transport.beforeResponse = {
+            harness.transport.beforeResponse = {
+                harness.transport.rejectionStatus = 401
+            }
+        }
+        await harness.model.submit(harness.command)
+        #expect(harness.model.session == nil)
+        #expect(harness.model.pendingCommand == nil)
+        #expect(!harness.model.acceptanceRejectedBySession)
+        harness.transport.beforeResponse = nil
+        harness.transport.rejectionStatus = nil
+        harness.bind(revision: 2)
+        await harness.model.refresh()
+        #expect(harness.model.snapshot?.cases.first?.status == .accepted)
+        #expect(harness.transport.commands.count == 1)
+    }
+
     @Test func administrativeOffersRemainAvailableAfterTheManagementDeadline() async throws {
         let harness = try CoverageClientHarness()
         harness.transport.overview = harness.transport.overview

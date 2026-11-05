@@ -4,7 +4,7 @@
 
 The [remaining-work plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-04) is the current next-step index. Repeated historical evidence now links to its retained plan sections. The [4 November iOS rehearsal](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-product-rehearsal--2026-11-04) records market acceptance, delivery completion, an earned credit and its single use in a private local planning unit, followed by the tester seeing «Crédito utilizado».
 
-Next reproduce session interruption during confirmation and verify the notice and state after sign-in. Policy ratification, the real draw provider, operational observability and shared Develop acceptance remain open. The separate local Google adapter correction and stopped-window evidence are excluded from this documentation checkpoint. Issue #268 stays open and PR #278 stays draft.
+The [5 November iOS retest](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-session-interruption--2026-11-05) verified that the member understood the rejected acceptance and how to resume. The next product decision is assembly ratification. The real draw provider, operational observability and shared Develop acceptance remain open. The separate local Google adapter correction and stopped-window evidence are excluded from this checkpoint. Issue #268 stays open and PR #278 stays draft.
 
 ## Latest reconciliation checkpoint — 2026-10-28
 

@@ -23,9 +23,17 @@ struct ShiftCoverageRouteView: View {
                     }
                 }
                 if !model.hasCurrentSession {
+                    if model.coverage.acceptanceRejectedBySession {
+                        Label("coverage.acceptance_rejected_sign_in", systemImage: "exclamationmark.circle")
+                            .font(.headline)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("coverage.acceptanceRejected")
+                    } else if let failure = model.coverage.failure {
+                        Text(CoverageCopy.failure(failure))
+                    }
                     if let rehearsal {
                         CoverageLoginSection(model: rehearsal)
-                    } else {
+                    } else if model.coverage.failure == nil {
                         Text(CoverageCopy.text("access_disabled"))
                     }
                 } else {

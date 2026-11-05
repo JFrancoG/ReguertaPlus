@@ -46,6 +46,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-11-05 | 🐛 fix(ios): explain rejected shift acceptance
+
 - 2026-11-02 | 🐛 fix(shifts): prepare bounded interactive migration
 
 ### Maintenance

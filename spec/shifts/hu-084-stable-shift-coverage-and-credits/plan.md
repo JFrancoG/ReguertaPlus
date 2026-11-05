@@ -14,7 +14,7 @@ The base planner and seasonal Sheets adapter are on `main`. Coverage and credits
 
 Use this table for the next decision. Keep detailed results once in the relevant runbook or acceptance record. Reuse the completed physical accessibility and push-transport evidence for unchanged clients. Repeat the affected journey for a changed contract or a reproducible defect. The dated checkpoints below describe earlier revisions.
 
-Next local check: reproduce a session interruption during confirmation, verify that the notice is visible, and verify the authoritative operation state after signing in again. The tester inferred an expired session during the market journey; the cause and displayed notice are not established. The private credit rehearsal does not certify seasonal publication, real Sheets projection or notification delivery.
+The [controlled iOS interruption and retest on 5 November](review.md#ios-session-interruption--2026-11-05) closed the sign-in notice check. The tester understood that the offer was still pending and how to return to it. The next product decision is assembly review of the proposed rules in step 2. Seasonal publication, real Sheets projection and notification delivery remain in step 4.
 
 ## Start checkpoint — 2026-09-12
 

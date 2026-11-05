@@ -12,6 +12,7 @@ final class ShiftCoverageViewModel {
     private(set) var administration: ShiftCoverageAdministrationSnapshot?
     private(set) var pendingAdministrationCommand: ShiftCoverageAdministrationCommand?
     private(set) var failure: ShiftCoverageFailure?
+    private(set) var acceptanceRejectedBySession = false
     private(set) var isBusy = false
     @ObservationIgnored private let repository: any ShiftCoverageRepository
     @ObservationIgnored private var receivedAt = ContinuousClock.now
@@ -34,6 +35,7 @@ final class ShiftCoverageViewModel {
         administration = nil
         pendingAdministrationCommand = nil
         failure = nil
+        acceptanceRejectedBySession = false
         isBusy = false
     }
 
@@ -125,13 +127,13 @@ final class ShiftCoverageViewModel {
     func submit(_ command: ShiftCoverageCommand) async {
         guard let session, !isBusy, snapshot != nil, !hasPendingCommand else { return }
         pendingCommand = command
-        await executePending(session: session)
+        await executePending(session: session, isRetry: false)
     }
 
     func retryPending() async {
         guard let session, !isBusy else { return }
         if pendingCommand != nil {
-            await executePending(session: session)
+            await executePending(session: session, isRetry: true)
         } else if pendingAdministrationCommand != nil {
             await executePendingAdministration(session: session)
         }
@@ -180,7 +182,7 @@ final class ShiftCoverageViewModel {
         }
     }
 
-    private func executePending(session: ShiftCoverageSession) async {
+    private func executePending(session: ShiftCoverageSession, isRetry: Bool) async {
         guard let command = pendingCommand else { return }
         let owner = generation
         isBusy = true
@@ -205,11 +207,13 @@ final class ShiftCoverageViewModel {
             snapshot = result
         } catch {
             guard generation == owner else { return }
+            // A read-back or a replay can fail after the original acceptance was committed.
+            let initialAcceptance = command.action == .accept && !isRetry && pendingCommand != nil
             if case .rejected(let status, _) = error as? ShiftCoverageFailure,
                [400, 401, 403, 409].contains(status) {
                 pendingCommand = nil
             }
-            record(error)
+            record(error, initialAcceptance: initialAcceptance)
         }
         guard generation == owner else { return }
         isBusy = false
@@ -218,7 +222,7 @@ final class ShiftCoverageViewModel {
         }
     }
 
-    private func record(_ error: any Error) {
+    private func record(_ error: any Error, initialAcceptance: Bool = false) {
         failure = (error as? ShiftCoverageFailure) ?? .unavailable
         if failure == .sessionChanged {
             bind(nil)
@@ -227,6 +231,7 @@ final class ShiftCoverageViewModel {
             let rejection = failure
             bind(nil)
             failure = rejection
+            acceptanceRejectedBySession = initialAcceptance
         }
     }
 }
