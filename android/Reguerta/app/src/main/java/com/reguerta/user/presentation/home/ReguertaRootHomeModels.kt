@@ -8,6 +8,7 @@ enum class HomeDestination {
     MY_ORDER,
     MY_ORDERS,
     SHIFTS,
+    SHIFT_COVERAGE,
     BYLAWS,
     SHIFT_SWAP_REQUEST,
     NEWS,
@@ -27,6 +28,7 @@ internal fun HomeDestination.titleRes(): Int = when (this) {
     HomeDestination.MY_ORDER -> R.string.my_order_shell_title
     HomeDestination.MY_ORDERS -> R.string.module_my_orders
     HomeDestination.SHIFTS -> R.string.module_shifts
+    HomeDestination.SHIFT_COVERAGE -> R.string.coverage_title
     HomeDestination.BYLAWS -> R.string.home_shell_action_bylaws
     HomeDestination.SHIFT_SWAP_REQUEST -> R.string.shift_swap_request_screen_title
     HomeDestination.NEWS -> R.string.home_shell_action_news
@@ -46,6 +48,7 @@ internal fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.MY_ORDER -> R.string.home_placeholder_my_order
     HomeDestination.MY_ORDERS -> R.string.home_placeholder_my_orders
     HomeDestination.SHIFTS -> R.string.home_placeholder_shifts
+    HomeDestination.SHIFT_COVERAGE -> R.string.coverage_title
     HomeDestination.BYLAWS -> R.string.bylaws_subtitle
     HomeDestination.SHIFT_SWAP_REQUEST -> R.string.shift_swap_request_screen_subtitle
     HomeDestination.NEWS -> R.string.news_list_subtitle
@@ -63,6 +66,7 @@ internal fun HomeDestination.subtitleRes(): Int = when (this) {
 internal fun HomeDestination.backDestination(): HomeDestination = when (this) {
     HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
     HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
+    HomeDestination.SHIFT_COVERAGE -> HomeDestination.SHIFTS
     else -> HomeDestination.DASHBOARD
 }
 

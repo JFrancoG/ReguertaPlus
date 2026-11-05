@@ -4,6 +4,7 @@ struct NotificationsListRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: NewsNotificationsFeatureViewModel
     let notificationDateText: (NotificationEvent) -> String
+    var onOpenCoverage: ((String) -> Void)?
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -28,7 +29,11 @@ struct NotificationsListRouteView: View {
                             isLoadingShiftDetail: viewModel.loadingNotificationDetailEventID == item.id,
                             session: viewModel.currentSession,
                             onOpenShiftDetail: {
-                                Task { await viewModel.openNotificationDetail(eventID: item.id) }
+                                if ShiftNotificationPushReference(eventID: item.id).isCoverage, let onOpenCoverage {
+                                    onOpenCoverage(item.id)
+                                } else {
+                                    Task { await viewModel.openNotificationDetail(eventID: item.id) }
+                                }
                             }
                         )
                     }

@@ -294,6 +294,7 @@ func makeShiftSwapOwnershipRootViewModel(
             shiftSwapRequestRepository: shiftSwapRequestRepository,
             shiftPlanningRequestRepository: InMemoryShiftPlanningRequestRepository(),
             deliveryCalendarRepository: InMemoryDeliveryCalendarRepository(),
+            coverageRepositoryFactory: { _ in InactiveShiftCoverageRepository() },
             nowMillisProvider: { 0 },
             environmentProvider: environmentProvider
         ),

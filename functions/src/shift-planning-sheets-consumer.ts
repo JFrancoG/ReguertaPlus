@@ -1,3 +1,9 @@
+import type {
+  ShiftPlanningOwnerSheetsProof, ShiftPlanningOwnerSheetsBinding,
+} from
+  "./shift-planning-owner-sheets-contract.js";
+import {ShiftPlanningOwnerSheetsGuard, ShiftPlanningOwnerSheetsGuardError} from
+  "./shift-planning-owner-sheets-guard.js";
 import type {ShiftSheetsImportTab} from "./shift-sheets-import.js";
 import {Firestore, Timestamp} from "@google-cloud/firestore";
 import type {drive_v3 as DriveV3} from "googleapis";
@@ -42,10 +48,11 @@ import {shiftSheetsISOWeekKey} from "./shift-sheets-human-layout.js";
  * @param {object} input Pinned environment/workbook and immutable command.
  * @return {object} Activated projections and optional versioned display data.
  */
-const loadShiftPlanningSheetsSource = async (input: {
+export const loadShiftPlanningSheetsSource = async (input: {
   firestore: Firestore;
   config: ShiftSheetsConfig;
-  command: ShiftPlanningProcessingSyncCommand;
+  command: Omit<ShiftPlanningProcessingSyncCommand,
+    "state" | "claim" | "commandDigest">;
   readable: boolean;
 }): Promise<{rows: readonly ShiftSheetsProjectionRow[];
   readable?: ShiftPlanningReadableSubmission}> => {
@@ -250,87 +257,241 @@ export const createFirestoreShiftPlanningSheetsConsumer = (input: {
   sheets: ReturnType<typeof createShiftSheetsAdapter>;
   readWorkbookVersion(): Promise<string>;
   readGenerationTabs?(): readonly ShiftSheetsImportTab[] | undefined;
+  ownerControls?: ShiftPlanningOwnerSheetsGuard;
 }): ShiftPlanningSheetsSyncConsumer => {
   const tokenFor = (command: ShiftPlanningProcessingSyncCommand) =>
     createShiftPlanningSyncCommandToken({
-      environment: input.config.environment, command,
+      environment: input.config.environment,
+      command,
     });
+  if (
+    input.ownerControls &&
+    (!input.repository.retainSubmissionIncident ||
+      !input.repository.readSubmissionForIncident)
+  ) {
+    return failSheetsSubmission(
+      "Owner controls require durable incident support.",
+    );
+  }
+  const retainOwnerFailure = async (
+    command: ShiftPlanningProcessingSyncCommand,
+    phase: "submission" | "readback" | "completion",
+    error: unknown,
+  ): Promise<void> => {
+    if (!input.ownerControls) return;
+    const token = tokenFor(command);
+    const receipt =
+      await input.repository.readSubmissionForIncident?.(token);
+    if (!receipt?.ownerMaintenance) return;
+    await input.repository.retainSubmissionIncident?.({
+      token,
+      incident: input.ownerControls.incident(
+        receipt.ownerMaintenance,
+        phase,
+        error,
+      ),
+    });
+  };
   const inspect = async (
     command: ShiftPlanningProcessingSyncCommand,
   ): Promise<ShiftPlanningSheetsConsumerResult> => {
     const token = tokenFor(command);
-    const receipt = await input.repository.readSubmission(token);
-    if (!receipt || command.workbookId !== input.config.workbookId) {
-      return failSheetsSubmission("Read-back has no matching submission.");
-    }
-    if (receipt.evidence !== null) return receipt.evidence;
-    const {rows} = await loadShiftPlanningSheetsSource({...input, command,
-      readable: false});
-    if (receipt.readable &&
-      receipt.readable.environment !== input.config.environment) {
-      return failSheetsSubmission(
-        "Readable receipt targets another environment.",
-      );
-    }
-    let observed;
-    let version: string;
     try {
-      const before = await input.readWorkbookVersion();
-      observed = await input.sheets.inspect({
-        operationId: command.idempotencyKey, rows,
-        generationRows: receipt.readable?.rows,
-        generationTabs: receipt.readable?.generationTabs,
+      const receipt = await input.repository.readSubmission(token);
+      if (!receipt || command.workbookId !== input.config.workbookId) {
+        return failSheetsSubmission(
+          "Read-back has no matching submission.",
+        );
+      }
+      if (receipt.ownerMaintenance && !input.ownerControls) {
+        return failSheetsSubmission(
+          "Owner submissions require their phase controls.",
+        );
+      }
+      if (receipt.guardIncident) {
+        throw new ShiftPlanningOwnerSheetsGuardError(
+          "owner_controls_rejected",
+        );
+      }
+      if (receipt.evidence !== null) {
+        if (receipt.ownerMaintenance) {
+          await input.ownerControls?.afterReadBack({
+            command,
+            receipt,
+            evidence: receipt.evidence,
+          });
+        }
+        return receipt.evidence;
+      }
+      const {rows} = await loadShiftPlanningSheetsSource({
+        ...input,
+        command,
+        readable: false,
       });
-      version = await input.readWorkbookVersion();
-      if (before !== version || observed.kind !== "verified" ||
-        observed.readBackDigest !== receipt.projectionDigest ||
-        BigInt(requireShiftSheetsWorkbookVersion(version)) <=
-          BigInt(receipt.beforeWorkbookRevision)) {
+      if (
+        receipt.readable &&
+        receipt.readable.environment !== input.config.environment
+      ) {
+        return failSheetsSubmission(
+          "Readable receipt targets another environment.",
+        );
+      }
+      let observed;
+      let version: string;
+      try {
+        const before = await input.readWorkbookVersion();
+        observed = await input.sheets.inspect({
+          operationId: command.idempotencyKey,
+          rows,
+          generationRows: receipt.readable?.rows,
+          generationTabs: receipt.readable?.generationTabs,
+        });
+        version = await input.readWorkbookVersion();
+        if (
+          before !== version ||
+          observed.kind !== "verified" ||
+          observed.readBackDigest !== receipt.projectionDigest ||
+          BigInt(requireShiftSheetsWorkbookVersion(version)) <=
+            BigInt(receipt.beforeWorkbookRevision)
+        ) {
+          if (input.ownerControls) {
+            throw new ShiftPlanningOwnerSheetsGuardError(
+              "workbook_preservation_rejected",
+            );
+          }
+          return {kind: "reconciliationRequired"};
+        }
+      } catch (error) {
+        if (input.ownerControls) throw error;
         return {kind: "reconciliationRequired"};
       }
-    } catch {
-      return {kind: "reconciliationRequired"};
+      const evidence = {
+        workbookRevision: version,
+        partitionDigest: createShiftPlanningDigest({
+          projectionDigest: observed.readBackDigest,
+        }),
+      };
+      const ownerProof = input.ownerControls ?
+        await input.ownerControls.afterReadBack({
+          command,
+          receipt,
+          evidence,
+        }) :
+        undefined;
+      await input.repository.verifySubmission({
+        token,
+        evidence,
+        ...(ownerProof ? {ownerProof} : {}),
+      });
+      return evidence;
+    } catch (error) {
+      await retainOwnerFailure(command, "readback", error);
+      throw error;
     }
-    const evidence = {
-      workbookRevision: version,
-      partitionDigest: createShiftPlanningDigest({
-        projectionDigest: observed.readBackDigest,
-      }),
-    };
-    await input.repository.verifySubmission({token, evidence});
-    return evidence;
   };
   return {
     inspect,
+    async authorizeCompletion(
+      command,
+      evidence,
+    ): Promise<ShiftPlanningOwnerSheetsProof | undefined> {
+      if (!input.ownerControls) return undefined;
+      try {
+        const receipt = await input.repository.readSubmission(
+          tokenFor(command),
+        );
+        if (!receipt?.ownerMaintenance || receipt.guardIncident) {
+          return failSheetsSubmission(
+            "Owner completion has no healthy submission.",
+          );
+        }
+        return await input.ownerControls.beforeCompletion({
+          command,
+          receipt,
+          evidence,
+        });
+      } catch (error) {
+        await retainOwnerFailure(command, "completion", error);
+        throw error;
+      }
+    },
+    async completionFailed(command, error): Promise<void> {
+      await retainOwnerFailure(command, "completion", error);
+    },
     async apply(command, authorizeMutation) {
       const token = tokenFor(command);
-      if (await input.repository.readSubmission(token)) return inspect(command);
-      const beforeWorkbookRevision = await input.readWorkbookVersion();
-      const {rows, readable} = await loadShiftPlanningSheetsSource({
-        ...input, command, readable: true,
-      });
-      const generationTabs = input.readGenerationTabs?.();
-      if (readable && generationTabs) {
-        readable.generationTabs = structuredClone(generationTabs);
+      try {
+        if (await input.repository.readSubmission(token)) {
+          return inspect(command);
+        }
+        const beforeWorkbookRevision = await input.readWorkbookVersion();
+        const {rows, readable} = await loadShiftPlanningSheetsSource({
+          ...input,
+          command,
+          readable: true,
+        });
+        const generationTabs = input.readGenerationTabs?.();
+        if (readable && generationTabs) {
+          readable.generationTabs = structuredClone(generationTabs);
+        }
+        let preparedOwnerBinding:
+          | ShiftPlanningOwnerSheetsBinding
+          | undefined;
+        await input.sheets.reconcile({
+          assertSubmissionNow: () => {
+            if (preparedOwnerBinding) {
+              input.ownerControls?.assertSubmissionNow(
+                command,
+                preparedOwnerBinding,
+              );
+            }
+          },
+          operationId: command.idempotencyKey,
+          rows,
+          generationRows: readable?.rows,
+          generationTabs: readable?.generationTabs,
+          async authorizeMutation(batch) {
+            if (
+              batch.workbookId !== command.workbookId ||
+              (await input.readWorkbookVersion()) !== beforeWorkbookRevision
+            ) {
+              return failSheetsSubmission(
+                "Workbook changed during planning.",
+              );
+            }
+            await authorizeMutation();
+            let ownerMaintenance = input.ownerControls ?
+              await input.ownerControls.beforeSubmission({
+                command,
+                batch,
+                beforeWorkbookRevision,
+              }) :
+              undefined;
+            if (ownerMaintenance && input.ownerControls) {
+              ownerMaintenance =
+                await input.ownerControls.authorizePreparedSubmission({
+                  command,
+                  binding: ownerMaintenance,
+                });
+            }
+            await input.repository.prepareSubmission({
+              token,
+              binding: {
+                beforeWorkbookRevision,
+                readable,
+                projectionDigest: batch.projectionDigest,
+                requestDigest: batch.requestDigest,
+                ...(ownerMaintenance ? {ownerMaintenance} : {}),
+              },
+            });
+            preparedOwnerBinding = ownerMaintenance;
+          },
+        });
+        return inspect(command);
+      } catch (error) {
+        await retainOwnerFailure(command, "submission", error);
+        throw error;
       }
-      await input.sheets.reconcile({
-        operationId: command.idempotencyKey, rows,
-        generationRows: readable?.rows,
-        generationTabs: readable?.generationTabs,
-        async authorizeMutation(batch) {
-          if (batch.workbookId !== command.workbookId ||
-            await input.readWorkbookVersion() !== beforeWorkbookRevision) {
-            return failSheetsSubmission("Workbook changed during planning.");
-          }
-          await authorizeMutation();
-          await input.repository.prepareSubmission({token, binding: {
-            beforeWorkbookRevision, readable,
-            projectionDigest: batch.projectionDigest,
-            requestDigest: batch.requestDigest,
-          }});
-        },
-      });
-      return inspect(command);
     },
   };
 };

@@ -8,6 +8,8 @@ extension HomeShellView {
             dashboardRoute
         case .shifts:
             shiftsRoute
+        case .shiftCoverage:
+            ShiftCoverageRouteView(model: rootViewModel.shiftsViewModel.coverage)
         case .shiftSwapRequest:
             shiftSwapRequestRoute
         case .bylaws:

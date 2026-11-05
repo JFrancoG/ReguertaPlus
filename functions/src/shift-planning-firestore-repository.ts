@@ -587,6 +587,8 @@ const parseRequestEnvelope = (
   return {request, lifecycle};
 };
 
+export const parseShiftPlanningRequestEnvelope = parseRequestEnvelope;
+
 const operationData = (
   request: ShiftPlanningRequestV2,
   lifecycle: ShiftPlanningPersistedLifecycle,

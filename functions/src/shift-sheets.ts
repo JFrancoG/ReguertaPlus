@@ -85,6 +85,9 @@ export type ShiftSheetsBatchBinding = {
   workbookId: string;
   projectionDigest: string;
   requestDigest: string;
+  /** Private planning images; never returned by worker HTTP responses. */
+  requests: readonly SheetsV4.Schema$Request[];
+  beforeSnapshot: SheetsV4.Schema$Spreadsheet;
 };
 
 /** Exact managed cells read by a reviewed canonical import. */
@@ -1091,6 +1094,7 @@ export const createShiftSheetsAdapter = (input: {
     async reconcile(operation: OperationInput & {
       authorizeMutation(batch: ShiftSheetsBatchBinding): Promise<void>;
       signal?: AbortSignal;
+      assertSubmissionNow?(): void;
       reviewedRows?: readonly ShiftSheetsReviewedRow[];
     }): Promise<ShiftSheetsReadBack> {
       const frozen = detached(operation);
@@ -1156,12 +1160,15 @@ export const createShiftSheetsAdapter = (input: {
         workbookId: config.workbookId,
         projectionDigest: plan.projectionDigest,
         requestDigest: digest({requests}),
+        requests: structuredClone(requests),
+        beforeSnapshot: structuredClone(read),
       });
       if (operation.signal?.aborted) {
         return fail(
           "sheets_submission_aborted", "Sheets submission was aborted.",
         );
       }
+      operation.assertSubmissionNow?.();
       try {
         await sheets.batchUpdate({
           spreadsheetId: config.workbookId, requestBody: {requests},

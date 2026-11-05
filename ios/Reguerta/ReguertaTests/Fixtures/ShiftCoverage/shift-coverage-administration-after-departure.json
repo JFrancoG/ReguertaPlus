@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "data": {
+    "schemaVersion": 1,
+    "environment": "develop",
+    "memberId": "member-a",
+    "isAdmin": true,
+    "serverTimeMillis": 1800000000000,
+    "policyRevision": "hu084-provisional-v1",
+    "membershipWritable": true,
+    "members": [
+      {
+        "userId": "member-b",
+        "displayName": "Beatriz de prueba",
+        "membershipRevision": 5,
+        "sourceActive": false,
+        "eligible": false,
+        "permanentDeparture": true,
+        "pendingQueueTransition": false,
+        "contextDigest": "member-source-after",
+        "reserves": [
+          {
+            "type": "delivery",
+            "active": false,
+            "enteredAtMillis": 1790000000000,
+            "admissionAfterRound": 2
+          }
+        ],
+        "credits": [
+          {
+            "type": "delivery",
+            "pendingCount": 0,
+            "consumedCount": 0,
+            "cancelledCount": 1
+          }
+        ]
+      }
+    ],
+    "spacingCandidates": [
+      {
+        "id": "proposal-spacing-a",
+        "userId": "member-c",
+        "displayName": "Carmen de prueba",
+        "planningRequestId": "bundle-2027",
+        "previousDate": "2027-01-06",
+        "previousRoundNumber": 3,
+        "date": "2027-02-17",
+        "roundNumber": 4,
+        "contextDigest": "spacing-source-before"
+      }
+    ],
+    "spacingUnavailableReason": null
+  }
+}

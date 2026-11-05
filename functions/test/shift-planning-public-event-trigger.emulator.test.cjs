@@ -13,10 +13,13 @@ const policyKey = "SHIFT_PLANNING_PUBLIC_EVENT_RETENTION_POLICY_DEVELOP";
 const policy = createShiftPlanningPublicEventRetentionPolicy({
   policyRevision: "test-policy", maximumDeliveryRetryHorizonMillis: 60_000, safetyMarginMillis: 1_000,
 });
-let firestore, exported;
+let firestore, exported, originalDrive;
 before(() => {
   if (!host) return;
   assert.equal(process.env.GCLOUD_PROJECT, projectId);
+  const google = require("googleapis").google;
+  originalDrive = google.drive;
+  google.drive = () => { throw new Error("An explicit local Drive fixture is required"); };
   firestore = new Firestore({projectId});
   exported = require("../lib/index.js");
 });
@@ -29,6 +32,7 @@ beforeEach(async () => {
 after(async () => {
   if (!host) return;
   delete process.env[policyKey];
+  require("googleapis").google.drive = originalDrive;
   await firestore.terminate();
   await require("firebase-admin/firestore").getFirestore().terminate();
   await require("firebase-admin/app").deleteApp(require("firebase-admin/app").getApp());
@@ -162,6 +166,7 @@ emulatorTest("ordinary seasonal export rejects missing scoped authority before o
 
 const humanSheets = (tabs) => {
   const state = structuredClone(tabs), writes = [], reads = [];
+  let revision = 1;
   const locate = (range) => {
     const separator = range.lastIndexOf("!"), quoted = range.slice(0, separator);
     const title = quoted.slice(1, -1).replace(/''/g, "'");
@@ -181,11 +186,11 @@ const humanSheets = (tabs) => {
       reads.push(request); const {title} = locate(request.range);
       return {data: {values: state[title].map((row) => row.map((value) => request.valueRenderOption !== "FORMULA" && String(value).startsWith("=") ? "computed" : value))}};
     },
-    update: async (request) => { writes.push(request); update({range: request.range, values: request.requestBody.values}); return {data: {}}; },
-    batchUpdate: async (request) => { writes.push(request); request.requestBody.data.forEach(update); return {data: {}}; },
-    append: async (request) => { writes.push(request); state[locate(request.range).title].push(...structuredClone(request.requestBody.values)); return {data: {}}; },
+    update: async (request) => { writes.push(request); update({range: request.range, values: request.requestBody.values}); revision++; return {data: {}}; },
+    batchUpdate: async (request) => { writes.push(request); request.requestBody.data.forEach(update); revision++; return {data: {}}; },
+    append: async (request) => { writes.push(request); state[locate(request.range).title].push(...structuredClone(request.requestBody.values)); revision++; return {data: {}}; },
   };
-  return {state, writes, reads, api: {spreadsheets: {values,
+  return {state, writes, reads, get revision() { return revision; }, api: {spreadsheets: {values,
     get: async ({spreadsheetId}) => ({data: {spreadsheetId, sheets: Object.keys(state).map((title) =>
       ({properties: {title, gridProperties: {rowCount: Math.max(100, state[title].length), columnCount: 26}}}))}}),
   }}};
@@ -201,6 +206,14 @@ const ordinaryHumanFixture = async (t, {type = "delivery", date = "2026-08-27", 
   for (const id of ["a", "b", "c", "d"]) await firestore.doc(`${root}/users/${id}`).set({displayName: `Persona ${id.toUpperCase()}`, phone: `90000000${id}`});
   const sheets = humanSheets({[title]: rows});
   t.mock.method(require("googleapis").google, "sheets", () => sheets.api);
+  t.mock.method(require("googleapis").google, "drive", () => ({files: {
+    get: async ({fileId, fields}) => {
+      assert.equal(fileId, "human-fixture-book");
+      assert.equal(fields, "id,mimeType,trashed,version");
+      return {data: {id: fileId, version: String(sheets.revision),
+        mimeType: "application/vnd.google-apps.spreadsheet", trashed: false}};
+    },
+  }}));
   const shiftId = `shift_${type}_${date.replaceAll("-", "")}`;
   const event = await sdkEvent({targetPath: `${root}/shifts/${shiftId}`, before: null, after: {
     type, date: require("@google-cloud/firestore").Timestamp.fromDate(new Date(`${date}T00:00:00Z`)),
@@ -376,16 +389,20 @@ emulatorTest("legacy sync returns an authenticated migration error and performs 
   assert.equal((await firestore.collection(`${root}/notificationEvents`).get()).size, 0);
 });
 
-emulatorTest("ordinary export preserves the new helper column and appends no month decoration", async (t) => {
+emulatorTest("ordinary export updates the helper column while preserving manual columns", async (t) => {
   const headers = ["Fecha", "Persona", "Teléfono", "Notas", "Cambio", "Ayuda"];
   const f = await ordinaryHumanFixture(t, {rows: [headers, ["27/8/2026", "Persona A", "old", "=1+1", "nota", "Persona C"]]});
   const ref = firestore.doc(`${root}/shifts/${f.shiftId}`);
   await ref.update({helperUserId: "b"});
   await exported.onShiftWritten.run({...f.event, data: {...f.event.data, after: await ref.get()}});
   assert.deepEqual(f.sheets.state[f.title][1], ["27/8/2026", "Persona A", "90000000a", "=1+1", "nota", "Persona B"]);
-  // The missing-row path must remain parseable by the same generated layout.
-  f.sheets.state[f.title] = [headers];
-  await ref.update({syncMeta: {sheetName: "untrusted-wrong-season"}});
+});
+
+emulatorTest("ordinary generated export appends the missing row without a month decoration", async (t) => {
+  const headers = ["Fecha", "Persona", "Teléfono", "Notas", "Cambio", "Ayuda"];
+  const f = await ordinaryHumanFixture(t, {rows: [headers]});
+  const ref = firestore.doc(`${root}/shifts/${f.shiftId}`);
+  await ref.update({helperUserId: "b"});
   await exported.onShiftWritten.run({...f.event, data: {...f.event.data, after: await ref.get()}});
   assert.equal(f.sheets.state[f.title].length, 2);
   assert.equal(f.sheets.state[f.title][1][0], "27/8/2026");

@@ -1,0 +1,810 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const {before,beforeEach,after,test} = require("node:test");
+const fs = require("node:fs"), path = require("node:path");
+const {Firestore,Timestamp} = require("@google-cloud/firestore");
+const {createShiftPlanningDigest:digest} = require("../lib/shift-planning-digest.js");
+const {encodeShiftPlanningFirestoreValue:encode} = require("../lib/shift-planning-publication-contract.js");
+const {refreshShiftPlanningLiveSource} = require("../lib/shift-planning-firestore-source-producer.js");
+const {parseShiftCoverageActivation} = require("../lib/shift-coverage-store-context.js");
+const {createShiftPlanningAdministratorBarrierCheckpoint:checkpoint} = require("../lib/shift-planning-trusted-intake-barrier-adapter.js");
+const {createFirestoreShiftPlanningIntakeBarrierRepository:repository} = require("../lib/shift-planning-firestore-intake-barrier-repository.js");
+const {historicalFixture} = require("./develop-historical-risk-fixture.cjs");
+const {fixture:reviewFixture} = require("./develop-migration-package-fixture.cjs");
+const {withWriter} = require("./develop-writer-evidence-fixture.cjs");
+const {withOriginalWriter} = require("./develop-original-writer-evidence-fixture.cjs");
+// Firestore stores field timestamps at microsecond precision. The offline tests
+// retain arbitrary nanoseconds; a clone must reject, never hide, any rounding.
+const fixture = () => reviewFixture({timestampNanoseconds:"123456000"});
+const {fromSnapshot} = require("./develop-shift-migration-fixture.cjs");
+const {loadManifest,prepareDevelopMigrationPackage} = require("../scripts/prepare-develop-migration-package.cjs");
+const {materializeDevelopMigrationPreparation} = require("../scripts/materialize-develop-migration-package.cjs");
+const migration = require("../scripts/rehearse-develop-shift-migration.cjs");
+const {createControlledDevelopMigrationEmulator}=require("../scripts/controlled-develop-migration.cjs");
+const {createControlledDevelopBarrierEmulator}=require("../scripts/controlled-develop-barrier.cjs");
+const ROOT = "develop/plus-collections";
+const enabled = process.env.GCLOUD_PROJECT === migration.PROJECT_ID && process.env.FIRESTORE_EMULATOR_HOST === migration.HOST;
+const run = (name,fn) => test(name,{skip:!enabled},fn);
+const encoded = value => encode(value,"test",new Set());
+let db; const services=[];
+before(() => {if (enabled) db = new Firestore({projectId:migration.PROJECT_ID,host:migration.HOST,ssl:false});});
+beforeEach(async () => {
+  if (enabled) assert.equal((await fetch(`http://${migration.HOST}/emulator/v1/projects/${migration.PROJECT_ID}/databases/(default)/documents`,{method:"DELETE"})).ok,true);
+});
+after(async () => {for (const service of services) await service.close();if(db)await db.terminate();});
+const saved = async (collection,versions=false) => (await db.collection(`${ROOT}/${collection}`).orderBy("__name__").get()).docs
+  .map(doc => ({path:doc.ref.path,data:encoded(doc.data()),...(versions?{version:encoded(doc.updateTime)}:{})}));
+async function harness(sourceInput=fixture()) {
+  const reviewPackage=prepareDevelopMigrationPackage(sourceInput), batch=db.batch();
+  for (const row of [...sourceInput.snapshot.collections.shifts,...sourceInput.snapshot.collections.users,
+    ...sourceInput.snapshot.collections.deliveryCalendar,...sourceInput.snapshot.collections.notificationEvents,...sourceInput.snapshot.collections.config]) {
+    const target=row.name.split("/documents/")[1];assert.ok(target.startsWith(ROOT+"/"));
+    batch.create(db.doc(target),Object.fromEntries(Object.entries(row.fields).map(([k,v])=>[k,migration.decodeRESTValue(v)])));
+  }
+  await batch.commit();
+  const cloneCapture={projectId:migration.PROJECT_ID,environment:"develop",documents:[],guardCollections:{}};
+  for (const collection of ["shifts","users","deliveryCalendar","notificationEvents","config"]) {
+    const docs=(await db.collection(`${ROOT}/${collection}`).orderBy("__name__").get()).docs.map(fromSnapshot);
+    if(collection==="shifts")cloneCapture.documents=docs;else cloneCapture.guardCollections[collection]=docs;
+  }
+  const prepared=materializeDevelopMigrationPreparation({sourceInput,reviewPackage,cloneCapture});
+  let f,held,now=520;
+  const journal=repository(db,()=>Timestamp.fromMillis(now));
+  const controlPlane={async closeAndCollect(){
+    held=checkpoint({scope:f.scope,evidence:f.evidence,holdRevision:"closed-policy-local"});
+    await journal.retainAndReadBack({environment:"develop",transitionId:f.command.transitionId,evidence:f.evidence});return held;
+  },readBackClosed:async()=>held,readBackOwnerObservation:async()=>f.evidence.payload.ownerObservation,
+  readBackAdministratorObservation:async()=>f.evidence.payload.administratorObservation};
+  const service=migration.createDevelopShiftMigrationRehearsal({prepared,controlPlane,failurePersistence:journal,nowMillis:()=>now,historicalRiskMode:true});
+  services.push(service);
+  const scope=async(inverse=false)=>{
+    const inspected=await service.inspect();f=historicalFixture({transitionId:inverse?prepared.recoveryOperationId:prepared.operationId,
+      expectedAuthoritativeDigest:inspected.sourceDigest,expectedStateRevision:inspected.maintenance.stateRevision,
+      expectedWriteEpoch:inspected.maintenance.writeEpoch,expectedActiveRevision:inspected.maintenance.activeRevision,
+      expectedActiveDigest:inspected.maintenance.activeDigest,expectedWorkbookRevision:sourceInput.fileAfter.data.version});
+    const risk=f.evidence.payload.causalDrain.historicalRisk;
+    Object.assign(risk,migration.historicalMigrationPlanBindings(prepared),{direction:inverse?"inverse":"forward",
+      migrationOperationId:prepared.operationId,recoveryOperationId:prepared.recoveryOperationId});
+    f.command.expectedHistoricalRiskDigest=f.scope.expectedHistoricalRiskDigest=digest(risk);f.evidence.digest=digest(f.evidence.payload);
+    return f.scope;
+  };
+  return {prepared,service,scope,reviewPackage,sourceInput,cloneCapture,controlPlane,journal,current:()=>f,
+    setClock:value=>{now=value;},clock:()=>now};
+}
+async function forward(h) {
+  const scope=await h.scope(),finalManifest=await h.service.forward({scope,materializeOnly:true});
+  return {scope,finalManifest,receipt:await h.service.forward({scope,finalManifest})};
+}
+run("exact final manifests migrate and recover with a policy that cannot produce annual planning",async()=>{
+  const sourceInput=process.env.HU084_REVIEW_MANIFEST?loadManifest(process.env.HU084_REVIEW_MANIFEST):fixture();
+  const h=await harness(sourceInput),originals=await saved("shifts"),guards={};
+  for(const name of ["users","deliveryCalendar","notificationEvents","config"])guards[name]=await saved(name,true);
+  const scope=await h.scope(),finalManifest=await h.service.forward({scope,materializeOnly:true});
+  assert.deepEqual(await saved("shifts"),originals);assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).exists,false);
+  const forwardReceipt=await h.service.forward({scope,finalManifest});
+  assert.equal(finalManifest.transaction.measurement.documentWriteCount,203);
+  assert.equal(forwardReceipt.measurement.logicalMutationDigest,finalManifest.transaction.measurement.logicalMutationDigest);
+  assert.equal((await saved("shifts")).length,72);
+  assert.deepEqual((await db.doc(`${ROOT}/shiftPlanningState/sourcePolicy`).get()).data(),h.prepared.policyDraft.document);
+  await assert.rejects(refreshShiftPlanningLiveSource({firestore:db,environment:"develop"}),/source policy fields are not exact/);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/fairness`).get()).exists,false);
+  assert.equal(parseShiftCoverageActivation(h.prepared.policyDraft.document.coverage,"develop"),null);
+  const replay=await h.service.forward({scope});assert.equal(replay.replayed,true);
+  const inverseScope=await h.scope(true),inverseManifest=await h.service.inverse({scope:inverseScope,forwardReadBack:forwardReceipt,materializeOnly:true});
+  assert.equal((await saved("shifts")).length,72);
+  const inverseReceipt=await h.service.inverse({scope:inverseScope,forwardReadBack:forwardReceipt,finalManifest:inverseManifest});
+  assert.equal(inverseManifest.transaction.measurement.documentWriteCount,140);
+  assert.equal(inverseReceipt.measurement.logicalMutationDigest,inverseManifest.transaction.measurement.logicalMutationDigest);
+  assert.deepEqual(await saved("shifts"),originals);
+  for(const [name,rows]of Object.entries(guards))assert.deepEqual(await saved(name,true),rows);
+  const state=(await db.doc(`${ROOT}/shiftPlanningState/current`).get()).data();assert.equal(state.maintenanceStatus,"closed");assert.equal(state.writeEpoch,2);
+  assert.equal((await h.service.inverse({scope:inverseScope,forwardReadBack:forwardReceipt})).replayed,true);
+  if(process.env.HU084_FINAL_OUTPUT){
+    assert.ok(path.isAbsolute(process.env.HU084_FINAL_OUTPUT));fs.mkdirSync(process.env.HU084_FINAL_OUTPUT,{recursive:true,mode:0o700});
+    for(const [name,value]of Object.entries({prepared:h.prepared,finalManifest,forwardReceipt,inverseManifest,inverseReceipt}))
+      fs.writeFileSync(path.join(process.env.HU084_FINAL_OUTPUT,name+".json"),JSON.stringify(value,null,2),{mode:0o600,flag:"wx"});
+  }
+});
+run("closed migration and recovery require materialization before the first write",async()=>{
+  const h=await harness(),scope=await h.scope();
+  await assert.rejects(h.service.forward({scope}),/requires a final manifest/);assert.equal((await saved("shifts")).length,62);
+  const f=await forward(h);await assert.rejects(h.service.inverse({scope:await h.scope(true),forwardReadBack:f.receipt}),/requires a final manifest/);
+  assert.equal((await saved("shifts")).length,72);
+});
+run("a rehashed edited manifest cannot substitute a different write set",async()=>{
+  const h=await harness(),scope=await h.scope(),finalManifest=structuredClone(await h.service.forward({scope,materializeOnly:true}));
+  const writes=JSON.parse(finalManifest.transaction.serializedMutations);writes.pop();
+  finalManifest.transaction.serializedMutations=JSON.stringify(writes);const {finalDigest:unused,...body}=finalManifest;void unused;
+  finalManifest.finalDigest=digest(body);
+  await assert.rejects(h.service.forward({scope,finalManifest}));assert.equal((await saved("shifts")).length,62);
+});
+run("late raw ABA change invalidates the prepared final manifest",async()=>{
+  const h=await harness(),scope=await h.scope(),finalManifest=await h.service.forward({scope,materializeOnly:true});
+  const ref=db.doc(h.prepared.legacy[0].path),prior=await ref.get();await ref.update({late:true});await ref.set(prior.data());
+  await assert.rejects(h.service.forward({scope,finalManifest}));assert.equal((await saved("shifts")).length,62);
+});
+for(const collection of ["notificationEvents","config","shiftCoverageReserves","shiftMembershipState"])run(`late ${collection} change stops execution after materialization`,async()=>{
+  const h=await harness(),scope=await h.scope(),finalManifest=await h.service.forward({scope,materializeOnly:true});
+  await db.doc(`${ROOT}/${collection}/late`).create({keep:true});
+  await assert.rejects(h.service.forward({scope,finalManifest}));assert.equal((await saved("shifts")).length,62);
+  assert.equal((await db.doc(`${ROOT}/${collection}/late`).get()).get("keep"),true);
+});
+run("a changed canonical row is preserved when final inverse execution is refused",async()=>{
+  const h=await harness(),f=await forward(h),scope=await h.scope(true);
+  const finalManifest=await h.service.inverse({scope,forwardReadBack:f.receipt,materializeOnly:true});
+  const ref=db.doc(`${ROOT}/shifts/${h.prepared.content.shifts[0].id}`);await ref.update({late:true});
+  await assert.rejects(h.service.inverse({scope,forwardReadBack:f.receipt,finalManifest}));
+  assert.equal((await ref.get()).get("late"),true);assert.equal((await saved("shifts")).length,72);
+});
+for(const millis of [-60_000,521])run(`final manifest rejects a stale or future attempt timestamp (${millis})`,async()=>{
+  const h=await harness(),scope=await h.scope(),finalManifest=structuredClone(await h.service.forward({scope,materializeOnly:true}));
+  finalManifest.attemptedAt=encoded(Timestamp.fromMillis(millis));const {finalDigest:unused,...body}=finalManifest;void unused;
+  finalManifest.finalDigest=digest(body);
+  await assert.rejects(h.service.forward({scope,finalManifest}),/expired or future/);assert.equal((await saved("shifts")).length,62);
+});
+run("closed policy still refuses annual production if a local maintenance flag is accidentally opened",async()=>{
+  const h=await harness();await forward(h);
+  await db.doc(`${ROOT}/shiftPlanningState/current`).update({maintenanceStatus:"open"});
+  await assert.rejects(refreshShiftPlanningLiveSource({firestore:db,environment:"develop"}),/source policy fields are not exact/);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/fairness`).get()).exists,false);
+});
+run("clone precision loss is rejected instead of silently changing a retained payload",async()=>{
+  await assert.rejects(harness(reviewFixture()),/clone payload drift/);
+});
+
+async function controlled(sourceInput=withOriginalWriter(withWriter(fixture()))) {
+  const h=await harness(sourceInput),counts={close:0,incident:0};
+  const controlPlane={...h.controlPlane,closeAndCollect:async()=>{counts.close++;throw new Error("must not close controls");}};
+  const failurePersistence={readExistingFailure:i=>h.journal.readExistingFailure(i),retainFailureAndReadBack:async i=>{
+    counts.incident++;return h.journal.retainFailureAndReadBack(i);
+  }};
+  const executor=createControlledDevelopMigrationEmulator({firestore:db,prepared:h.prepared,controlPlane,failurePersistence,nowMillis:h.clock});
+  const hold=async(inverse=false)=>{const scope=await h.scope(inverse);await h.controlPlane.closeAndCollect(scope);return scope;};
+  return {...h,executor,hold,counts,readers:controlPlane};
+}
+const businessSnapshot=async()=>Object.fromEntries(await Promise.all(["shifts","users","config","notificationEvents","deliveryCalendar",
+  "shiftPlanningState","shiftRotations","shiftPlanningOperations","shiftPlanningMigrationBaselines"].map(async c=>[c,await saved(c,true)])));
+run("controlled read-only admission reports the absent window without acquiring controls or writing",async()=>{
+  const h=await controlled(),before=await businessSnapshot();
+  const result=await h.executor.inspectAdmission();assert.equal(result.checksPassed,false);
+  assert.deepEqual(result.writerRehearsal,h.prepared.writerRehearsal);
+  assert.deepEqual(result.originalWriterCheck,h.prepared.originalWriterCheck);
+  assert.equal(result.originalWriterCheck.currentWriterAuthorityVerified,false);
+  assert.equal(result.writerRehearsal.originalFileAuthorityVerified,false);
+  assert.deepEqual(result.blockers,["window_scope_missing"]);assert.equal(result.canApply,false);assert.equal(result.canEnterMaintenance,false);
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
+});
+run("controlled admission and execution reuse exact forward/inverse manifests and held controls",async()=>{
+  const sourceInput=process.env.HU084_REVIEW_MANIFEST?loadManifest(process.env.HU084_REVIEW_MANIFEST):withOriginalWriter(withWriter(fixture()));
+  const h=await controlled(sourceInput),original=await saved("shifts"),notices=await saved("notificationEvents",true),scope=await h.hold();
+  const before=await businessSnapshot(),admission=await h.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);assert.equal(admission.canApply,false);assert.deepEqual(await businessSnapshot(),before);
+  assert.deepEqual(admission.writerRehearsal,h.prepared.writerRehearsal);
+  assert.deepEqual(admission.originalWriterCheck,h.prepared.originalWriterCheck);
+  const receipt=await h.executor.execute({scope,admission});assert.equal(receipt.measurement.documentWriteCount,203);
+  assert.equal((await h.executor.readRetained({scope})).replayed,true);
+  const inverseScope=await h.hold(true),afterForward=await businessSnapshot();
+  const inverse=await h.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+  assert.equal(inverse.checksPassed,true);assert.deepEqual(await businessSnapshot(),afterForward);
+  assert.equal((await h.executor.execute({scope:inverseScope,admission:inverse,forwardReadBack:receipt})).measurement.documentWriteCount,140);
+  assert.deepEqual(await saved("shifts"),original);assert.deepEqual(await saved("notificationEvents",true),notices);
+  assert.deepEqual(h.counts,{close:0,incident:0});
+  if(process.env.HU084_CONTROLLED_OUTPUT){
+    assert.ok(path.isAbsolute(process.env.HU084_CONTROLLED_OUTPUT));fs.mkdirSync(process.env.HU084_CONTROLLED_OUTPUT,{recursive:true,mode:0o700});
+    fs.writeFileSync(path.join(process.env.HU084_CONTROLLED_OUTPUT,"controlled-roundtrip.json"),JSON.stringify({
+      reviewPackageDigest:h.reviewPackage.packageDigest,preparedDigest:h.prepared.preparedDigest,admission,inverse,
+      forwardReceiptDigest:receipt.receiptDigest,counts:h.counts,originalsRestored:62,noticesPreserved:117,liveExecutable:false},null,2),{mode:0o600,flag:"wx"});
+  }
+});
+run("invalid owner facts block passive admission without creating a failure journal",async()=>{
+  const h=await controlled(),scope=await h.hold(),before=await businessSnapshot();
+  h.current().evidence.payload.ownerObservation.ownerActivity="reported";
+  const result=await h.executor.inspectAdmission({scope});assert.equal(result.checksPassed,false);assert.equal(result.finalManifest,null);
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
+});
+run("a passed inspection cannot bypass a changed administrator observation during execution",async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+  h.readers.readBackAdministratorObservation=async()=>({...h.current().evidence.payload.administratorObservation,administratorActivity:"reported"});
+  await assert.rejects(h.executor.execute({scope,admission}));assert.equal((await saved("shifts")).length,62);
+  assert.equal(h.counts.close,0);assert.equal(h.counts.incident,1);
+});
+run("a passed inspection cannot bypass a late source write",async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+  const ref=db.doc(`${ROOT}/notificationEvents/after-inspection`);await ref.create({keep:true});
+  await assert.rejects(h.executor.execute({scope,admission}));assert.equal((await ref.get()).get("keep"),true);
+  assert.equal((await saved("shifts")).length,62);assert.equal(h.counts.close,0);
+});
+run("inspection failure does not claim a durable incident when the held checkpoint is missing",async()=>{
+  const h=await controlled(),scope=await h.scope();h.readers.readBackClosed=async()=>null;
+  const before=await businessSnapshot(),result=await h.executor.inspectAdmission({scope});
+  assert.deepEqual(result.blockers,["held_checkpoint_missing"]);assert.deepEqual(await businessSnapshot(),before);
+  await assert.rejects(h.executor.execute({scope,admission:result}));assert.deepEqual(h.counts,{close:0,incident:0});
+});
+run("an unreviewed config document blocks passive admission even when config/global is unchanged",async()=>{
+  const h=await controlled(),global=await db.doc(`${ROOT}/config/global`).get();
+  await db.doc(`${ROOT}/config/unreviewed`).create({deliveryDayOfWeek:3});
+  const before=await businessSnapshot(),result=await h.executor.inspectAdmission();
+  assert.deepEqual(result.blockers,["source_not_verified"]);assert.equal(result.source,null);
+  assert.ok((await db.doc(`${ROOT}/config/global`).get()).updateTime.isEqual(global.updateTime));
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
+});
+run("an expired controlled admission cannot execute or persist an incident",async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);const before=await businessSnapshot();
+  h.setClock(h.clock()+60_001);
+  await assert.rejects(h.executor.execute({scope,admission}),/inspection expired/);
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(h.counts,{close:0,incident:0});
+});
+for(const name of ["member","public"])run(`reviewed config/${name} version drift blocks execution and preserves the change`,async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);const ref=db.doc(`${ROOT}/config/${name}`),before=await ref.get();
+  // A no-op set can keep the same service version. Exercise an actual ABA edit.
+  await ref.update({late:true});await ref.set(before.data());const after=await ref.get();
+  assert.equal(after.updateTime.isEqual(before.updateTime),false);assert.deepEqual(after.data(),before.data());
+  await assert.rejects(h.executor.execute({scope,admission}));
+  assert.ok((await ref.get()).updateTime.isEqual(after.updateTime));assert.equal((await saved("shifts")).length,62);
+  assert.equal(h.counts.close,0);
+});
+run("changed public config blocks inverse admission without altering the committed migration",async()=>{
+  const h=await controlled(),scope=await h.hold(),admission=await h.executor.inspectAdmission({scope});
+  const receipt=await h.executor.execute({scope,admission}),inverseScope=await h.hold(true);
+  await db.doc(`${ROOT}/config/public`).update({late:true});const before=await businessSnapshot();
+  const result=await h.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+  assert.equal(result.checksPassed,false);assert.equal(result.finalManifest,null);
+  assert.deepEqual(await businessSnapshot(),before);assert.equal((await saved("shifts")).length,72);
+  assert.deepEqual(h.counts,{close:0,incident:0});
+});
+
+// Provider observations remain explicit test doubles. The acquisition, journal,
+// source reads, admission and forward/inverse transactions use the real emulator.
+function durable(h,{firestore=db,onRead=()=>{},onClose=()=>{}}={}) {
+  const counts={opened:0,closed:0};
+  const create=()=>createControlledDevelopBarrierEmulator({firestore,prepared:h.prepared,nowMillis:h.clock,
+    openObservationSession:async scope=>{
+      counts.opened++;
+      const read=async name=>{await onRead(name,scope);return structuredClone(name==="evidence"?h.current().evidence:h.current().evidence.payload[name]);};
+      return {readEvidence:()=>read("evidence"),readOwnerObservation:()=>read("ownerObservation"),
+        readAdministratorObservation:()=>read("administratorObservation"),close:async()=>{counts.closed++;await onClose();}};
+    }});
+  const barrier=create(),executor=createControlledDevelopMigrationEmulator({firestore:db,prepared:h.prepared,
+    controlPlane:barrier.controlPlane,failurePersistence:barrier.failurePersistence,nowMillis:h.clock});
+  return {barrier,executor,create,counts};
+}
+const withoutJournal=async()=>{const snapshot=await businessSnapshot();delete snapshot.shiftPlanningOperations;return snapshot;};
+const evidenceKey=scope=>({environment:"develop",transitionId:scope.transitionId});
+// Commit on the emulator, then inject a lost acknowledgement or interruption.
+function afterEvidenceCommit(effect) {
+  let pending=true;
+  return new Proxy(db,{get(target,name){
+    if(name==="runTransaction")return async(...args)=>{
+      const result=await target.runTransaction(...args);
+      if(pending&&result?.operationKind==="intakeBarrierEvidence"){pending=false;await effect();}
+      return result;
+    };
+    const value=Reflect.get(target,name);return typeof value==="function"?value.bind(target):value;
+  }});
+}
+run("durable acquisition survives composition restart and drives exact migration and recovery",async()=>{
+  const input=process.env.HU084_REVIEW_MANIFEST?loadManifest(process.env.HU084_REVIEW_MANIFEST):withOriginalWriter(withWriter(fixture()));
+  const h=await harness(input),scope=await h.scope(),d=durable(h),before=await withoutJournal();
+  assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  const acquired=await d.barrier.acquire({scope});
+  assert.equal(acquired.acquired,true);assert.equal(acquired.canEnterMaintenance,false);
+  assert.equal(acquired.maintenanceStateChanged,false);assert.deepEqual(await withoutJournal(),before);
+  const restarted=d.create(),retained=await restarted.inspectRetained({scope});
+  assert.deepEqual(retained.checkpoint,acquired.checkpoint);assert.equal(retained.failure,null);
+  assert.equal(retained.historical,true);assert.equal(retained.canApply,false);
+  assert.deepEqual(await restarted.controlPlane.readBackClosed(scope),acquired.checkpoint);
+  await assert.rejects(restarted.acquire({scope}),/already_retained/);
+  const admission=await d.executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+  const receipt=await d.executor.execute({scope,admission});assert.equal(receipt.measurement.documentWriteCount,203);
+  const inverseScope=await h.scope(true);await restarted.acquire({scope:inverseScope});
+  const inverse=await d.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+  assert.equal(inverse.checksPassed,true);
+  assert.equal((await d.executor.execute({scope:inverseScope,admission:inverse,forwardReadBack:receipt})).measurement.documentWriteCount,140);
+  assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  const state=(await db.doc(`${ROOT}/shiftPlanningState/current`).get()).data();
+  assert.equal(state.maintenanceStatus,"closed");assert.equal(state.writeEpoch,2);
+  assert.equal(d.counts.opened,d.counts.closed);assert.ok(d.counts.opened>0);
+  if(process.env.HU084_CONTROLLED_OUTPUT)fs.writeFileSync(path.join(process.env.HU084_CONTROLLED_OUTPUT,"durable-barrier-roundtrip.json"),
+    JSON.stringify({preparedDigest:h.prepared.preparedDigest,acquired,admissionDigest:admission.admissionDigest,
+      inverseAdmissionDigest:inverse.admissionDigest,counts:d.counts,originalsRestored:62,noticesPreserved:117,liveExecutable:false},null,2),{mode:0o600,flag:"wx"});
+});
+run("abort before acquisition performs no observation or journal write",async()=>{
+  const h=await harness(),scope=await h.scope(),d=durable(h),before=await businessSnapshot();
+  await assert.rejects(d.barrier.acquire({scope,signal:AbortSignal.abort()}),/interrupted/);
+  assert.deepEqual(await businessSnapshot(),before);assert.deepEqual(d.counts,{opened:0,closed:0});
+});
+for(const mode of ["read-failure","cleanup-failure","abort-during-read"])run(`${mode} attempts session cleanup and cannot acquire`,async()=>{
+  const h=await harness(),scope=await h.scope(),controller=new AbortController(),before=await businessSnapshot();
+  const d=durable(h,{onRead:()=>{
+    if(mode==="read-failure")throw new Error("read failed");
+    if(mode==="abort-during-read")controller.abort();
+  },onClose:()=>{if(mode==="cleanup-failure")throw new Error("cleanup unverified");}});
+  await assert.rejects(d.barrier.acquire({scope,signal:controller.signal}));
+  assert.equal(d.counts.opened,1);assert.equal(d.counts.closed,1);
+  assert.deepEqual(await businessSnapshot(),before);
+  assert.equal((await d.barrier.inspectRetained({scope})).failure,null);
+});
+for(const mode of ["lost-acknowledgement","abort-after-commit"])run(`${mode} retains evidence and incident without business writes or automatic retry`,async()=>{
+  const h=await harness(),scope=await h.scope(),controller=new AbortController(),before=await withoutJournal();
+  const d=durable(h,{firestore:afterEvidenceCommit(()=>{
+    if(mode==="lost-acknowledgement")throw new Error("acknowledgement lost");controller.abort();
+  })});
+  await assert.rejects(d.barrier.acquire({scope,signal:controller.signal}));
+  const retained=await d.create().inspectRetained({scope});assert.ok(retained.checkpoint);assert.ok(retained.failure);
+  assert.equal(retained.canApply,false);assert.deepEqual(await withoutJournal(),before);
+  const journal=await saved("shiftPlanningOperations",true);
+  await assert.rejects(d.create().acquire({scope}),/already_retained/);
+  assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await saved("shiftPlanningOperations",true),journal);
+  assert.equal(d.counts.opened,d.counts.closed);
+});
+run("restart after expiry exposes only historical evidence and cannot revive admission",async()=>{
+  const h=await harness(),scope=await h.scope(),d=durable(h);await d.barrier.acquire({scope});
+  const before=await businessSnapshot();h.setClock(10_000_000);
+  const restarted=d.create(),retained=await restarted.inspectRetained({scope});assert.ok(retained.checkpoint);
+  const count=d.counts.opened;
+  await assert.rejects(restarted.controlPlane.readBackClosed(scope));
+  assert.equal(d.counts.opened,count);assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await businessSnapshot(),before);
+});
+for(const phase of ["ownerObservation","administratorObservation"])run(`cancellation during final ${phase} retains a blocking incident`,async()=>{
+  const h=await harness(),scope=await h.scope(),controller=new AbortController(),before=await withoutJournal();let reads=0;
+  const d=durable(h,{onRead:name=>{if(name===phase&&++reads===2)controller.abort();}});
+  await assert.rejects(d.barrier.acquire({scope,signal:controller.signal}));
+  assert.equal(reads,2);const retained=await d.create().inspectRetained({scope});
+  assert.ok(retained.checkpoint);assert.ok(retained.failure);assert.equal(retained.failure.phase,"finalReadBack");
+  assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await withoutJournal(),before);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("source drift during observation is preserved and prevents evidence retention",async()=>{
+  const h=await harness(),scope=await h.scope(),d=durable(h,{onRead:async()=>{
+    await db.doc(`${ROOT}/config/public`).update({late:true});
+  }});
+  await assert.rejects(d.barrier.acquire({scope}));
+  assert.equal(await h.journal.readExisting(evidenceKey(scope)),null);
+  assert.equal((await db.doc(`${ROOT}/config/public`).get()).get("late"),true);
+  assert.equal((await saved("shifts")).length,62);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("current observation drift blocks a retained checkpoint without falsely certifying cleanup or closure",async()=>{
+  const h=await harness(),scope=await h.scope();let drift=false;
+  const d=durable(h,{onRead:()=>{if(drift)throw new Error("controls unavailable");}});
+  await d.barrier.acquire({scope});const before=await businessSnapshot();drift=true;
+  assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await businessSnapshot(),before);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("cleanup failure after retaining evidence is durably incident-closed when readback recovers",async()=>{
+  const h=await harness(),scope=await h.scope(),before=await withoutJournal();let closes=0;
+  const d=durable(h,{onClose:()=>{if(++closes===2)throw new Error("cleanup unverified");}});
+  await assert.rejects(d.barrier.acquire({scope}));
+  const retained=await d.create().inspectRetained({scope});assert.ok(retained.checkpoint);assert.ok(retained.failure);
+  assert.equal(retained.failure.phase,"initialReadBack");assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  assert.deepEqual(await withoutJournal(),before);assert.equal(d.counts.opened,d.counts.closed);
+});
+
+// Full Sheets writes remain a stateful API fake. The source, durable barrier,
+// admission and transactions below use Firestore's emulator. No live writer is
+// accepted, even when the optional inputs are retained real read observations.
+async function jointHarness() {
+  const {batchFixture}=require("./develop-helper-batch-fixture.cjs");
+  const {sheetsService}=require("./shift-sheets-api-fixture.cjs");
+  const {FILE}=require("../scripts/develop-original-writer-provider.cjs");
+  const {createShiftSheetsAdapter}=require("../lib/shift-sheets.js");
+  const {createShiftSheetsConfig}=require("../lib/shift-sheets-config.js");
+  let f=batchFixture();
+  if(process.env.HU084_HELPER_OBSERVATION) {
+    assert.ok(process.env.HU084_REVIEW_MANIFEST);
+    const sourceInput=loadManifest(process.env.HU084_REVIEW_MANIFEST);
+    const observation=JSON.parse(fs.readFileSync(process.env.HU084_HELPER_OBSERVATION));
+    const sheets=sheetsService(FILE);sheets.state=structuredClone(observation.snapshot);
+    f={sourceInput,reviewPackage:prepareDevelopMigrationPackage(sourceInput),sheets,
+      observe:()=>({...observation,snapshot:structuredClone(sheets.state),snapshotDigest:digest(sheets.state)})};
+  }
+  const h=await harness(f.sourceInput),d=durable(h);
+  const api=createShiftSheetsAdapter({config:createShiftSheetsConfig({environment:"develop",workbooks:{develop:FILE}}),sheets:f.sheets});
+  return {...f,h,d,api};
+}
+run("durable barrier, exact Firestore migration and complete Sheets batch recover together after a lost Sheets acknowledgement",async()=>{
+  const {planBatch,assertHelperBatchTime}=require("../scripts/prepare-develop-helper-batch.cjs");
+  const {assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
+  const f=await jointHarness(),before=await businessSnapshot(),image=f.observe(),scope=await f.h.scope();
+  const forward=await planBatch({...f,observation:image});assert.equal(forward.operation.operationId,f.h.prepared.operationId);
+  await f.d.barrier.acquire({scope});const admission=await f.d.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);
+  const receipt=await f.d.executor.execute({scope,admission});
+  const budget={nowMillis:1000,tokenExpiresAtMillis:301000,windowEndsAtMillis:601000};
+  const exact=plan=>async binding=>{assert.equal(binding.requestDigest,plan.requestDigest);assert.deepEqual(binding.requests,plan.requests);};
+  f.sheets.loseAcknowledgement=true;
+  const written=await f.api.reconcile({...forward.operation,authorizeMutation:exact(forward),assertSubmissionNow:()=>assertHelperBatchTime(budget)});
+  assert.equal(written.kind,"verified");preserved({manifest:forward.preservation,after:f.sheets.state});
+  assert.equal(f.sheets.mutations.length,1);assert.equal((await saved("shifts")).length,72);
+  const inverse=await planBatch({...f,observation:f.observe(),direction:"inverse",forwardPlan:forward});
+  assert.equal(inverse.operation.operationId,f.h.prepared.recoveryOperationId);
+  // An inverse is a separately checked action, never an automatic catch/retry.
+  const inverseScope=await f.h.scope(true);await f.d.barrier.acquire({scope:inverseScope});
+  const inverseAdmission=await f.d.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+  assert.equal(inverseAdmission.checksPassed,true);
+  const restored=await f.api.reconcile({...inverse.operation,authorizeMutation:exact(inverse),assertSubmissionNow:()=>assertHelperBatchTime(budget)});
+  assert.equal(restored.kind,"verified");preserved({manifest:inverse.preservation,after:f.sheets.state});
+  await f.d.executor.execute({scope:inverseScope,admission:inverseAdmission,forwardReadBack:receipt});
+  const cells=structuredClone(f.sheets.state);cells.sheets.forEach(s=>{s.developerMetadata=image.snapshot.sheets.find(x=>x.properties.sheetId===s.properties.sheetId).developerMetadata;});
+  assert.deepEqual(cells,image.snapshot);assert.equal(f.sheets.mutations.length,2);
+  assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+  if(process.env.HU084_CONTROLLED_OUTPUT)fs.writeFileSync(path.join(process.env.HU084_CONTROLLED_OUTPUT,"joint-sheets-roundtrip.json"),JSON.stringify({
+    preparedDigest:f.h.prepared.preparedDigest,forwardPlanDigest:forward.planDigest,inversePlanDigest:inverse.planDigest,
+    firestoreWrites:[203,140],sheetsRequests:[55,55],sheetsSubmissions:f.sheets.mutations.length,
+    observationSessions:f.d.counts,originalsRestored:62,noticesPreserved:117,realGoogleWrites:false,
+    livePermissionsExercised:false,liveTimingCertified:false,canEnterMaintenance:false},null,2),{mode:0o600,flag:"wx"});
+});
+for(const phase of ["expired-budget","interrupted"])run(`joint ${phase} after Firestore retains its receipt without sending Sheets or automatically reverting`,async()=>{
+  const {planBatch,assertHelperBatchTime}=require("../scripts/prepare-develop-helper-batch.cjs");
+  const f=await jointHarness(),scope=await f.h.scope(),image=f.observe();
+  const plan=await planBatch({...f,observation:image});await f.d.barrier.acquire({scope});
+  const admission=await f.d.executor.inspectAdmission({scope});await f.d.executor.execute({scope,admission});
+  await assert.rejects(f.api.reconcile({...plan.operation,
+    signal:phase==="interrupted"?AbortSignal.abort():undefined,
+    authorizeMutation:async binding=>assert.equal(binding.requestDigest,plan.requestDigest),
+    assertSubmissionNow:()=>assertHelperBatchTime({nowMillis:151000,tokenExpiresAtMillis:301000,windowEndsAtMillis:601000})}));
+  assert.equal(f.sheets.mutations.length,0);assert.deepEqual(f.observe().snapshot,image.snapshot);
+  assert.equal((await saved("shifts")).length,72);assert.equal((await f.d.executor.readRetained({scope})).replayed,true);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);
+  assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+});
+run("failed recovery readback never claims a durable incident after a lost acknowledgement",async()=>{
+  const h=await harness(),scope=await h.scope(),before=await withoutJournal();let failed=false;
+  const d=durable(h,{firestore:afterEvidenceCommit(()=>{failed=true;throw new Error("acknowledgement lost");}),
+    onRead:()=>{if(failed)throw new Error("provider unavailable");}});
+  await assert.rejects(d.barrier.acquire({scope}),/could not be durably proven/);
+  const retained=await d.create().inspectRetained({scope});assert.ok(retained.checkpoint);assert.equal(retained.failure,null);
+  assert.equal(retained.canApply,false);assert.equal((await d.executor.inspectAdmission({scope})).checksPassed,false);
+  await assert.rejects(d.create().acquire({scope}),/already_retained/);
+  assert.deepEqual(await withoutJournal(),before);assert.equal(d.counts.opened,d.counts.closed);
+});
+run("evidence from another prepared package cannot be acquired even with a rehashed risk binding",async()=>{
+  const h=await harness(),scope=await h.scope(),d=durable(h);
+  const risk=h.current().evidence.payload.causalDrain.historicalRisk;
+  risk.migrationPlanDigest=digest({wrong:"package"});scope.expectedHistoricalRiskDigest=digest(risk);
+  h.current().evidence.digest=digest(h.current().evidence.payload);const before=await businessSnapshot();
+  await assert.rejects(d.barrier.acquire({scope}));assert.deepEqual(await businessSnapshot(),before);
+  assert.equal(d.counts.opened,d.counts.closed);
+});
+
+for(const scenario of ["complete","before-firestore","after-firestore","before-inverse","cleanup-overrun"])
+run(`joint deadline cycle: ${scenario}`,async()=>{
+  const {planBatch}=require("../scripts/prepare-develop-helper-batch.cjs");
+  const {createCopyTimeBudget}=require("../scripts/develop-copy-time-budget.cjs");
+  const {assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
+  const f=await jointHarness(),before=await businessSnapshot(),image=f.observe(),scope=await f.h.scope();
+  // The emulator fixtures keep their own authority timestamps. This separate
+  // injected elapsed clock tests scheduling fences, not live observation age or
+  // Google's latency. No live IAM, OAuth or Sheets provider is constructed.
+  let elapsed=1000000;
+  const startsAtMillis=elapsed,endsAtMillis=elapsed+600000;
+  const budget=createCopyTimeBudget({startsAtMillis,endsAtMillis,nowMillis:()=>elapsed,
+    fetchImpl:async()=>{throw Error("joint test cannot call Google");}});
+  elapsed+=141500;budget.beginWork(elapsed+300000);
+  const plan=await planBatch({...f,observation:image});
+  const exact=p=>async binding=>{assert.equal(binding.requestDigest,p.requestDigest);assert.deepEqual(binding.requests,p.requests);};
+  let receipt=null,forwardApplied=false,inverseApplied=false,report=null,rejected=false;
+  try {
+    await f.d.barrier.acquire({scope});elapsed+=5000;
+    const admission=await f.d.executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+    if(scenario==="before-firestore")elapsed+=76000;
+    // Reserve both the Sheets submission and its independent readback before
+    // committing the first service, not only when entering the Sheets adapter.
+    budget.assertSubmission();receipt=await f.d.executor.execute({scope,admission});elapsed+=5000;
+    if(scenario==="after-firestore")elapsed+=76000;
+    f.sheets.loseAcknowledgement=true;
+    const result=await f.api.reconcile({...plan.operation,authorizeMutation:exact(plan),assertSubmissionNow:budget.assertSubmission});
+    assert.equal(result.kind,"verified");forwardApplied=true;elapsed+=5000;
+    preserved({manifest:plan.preservation,after:f.sheets.state});
+    const inverse=await planBatch({...f,observation:f.observe(),direction:"inverse",forwardPlan:plan});
+    const inverseScope=await f.h.scope(true);await f.d.barrier.acquire({scope:inverseScope});elapsed+=5000;
+    const admissionInverse=await f.d.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});
+    assert.equal(admissionInverse.checksPassed,true);
+    if(scenario==="before-inverse")elapsed+=76000;
+    const restored=await f.api.reconcile({...inverse.operation,authorizeMutation:exact(inverse),assertSubmissionNow:budget.assertSubmission});
+    assert.equal(restored.kind,"verified");inverseApplied=true;elapsed+=5000;
+    preserved({manifest:inverse.preservation,after:f.sheets.state});budget.assertStage();
+    await f.d.executor.execute({scope:inverseScope,admission:admissionInverse,forwardReadBack:receipt});elapsed+=5000;
+  } catch(error) {
+    assert.match(error.message,/copy_batch_readback_budget_exhausted|copy_stage_deadline_exhausted/);rejected=true;
+  } finally {
+    // Simulated provider cleanup costs are explicit. Its ordering and terminal
+    // deadline use the real controller; this does not certify real revocation.
+    await budget.beginCleanup("file");elapsed+=5000;
+    await budget.beginCleanup("iam");elapsed+=5000;
+    await budget.beginCleanup("oauth");elapsed+=scenario==="cleanup-overrun"?270000:42000;
+    if(scenario==="cleanup-overrun")assert.throws(()=>budget.complete(),/copy_deadline_breach_requires_inspection/);
+    else report=budget.complete();
+  }
+  const failed=["before-firestore","after-firestore","before-inverse"].includes(scenario);
+  assert.equal(rejected,failed);assert.equal(f.d.counts.opened,f.d.counts.closed);
+  assert.equal(f.sheets.mutations.length,scenario==="before-inverse"?1:failed?0:2);
+  if(scenario==="before-firestore"){
+    assert.equal(receipt,null);assert.deepEqual(await withoutJournal(),Object.fromEntries(Object.entries(before).filter(([k])=>k!=="shiftPlanningOperations")));
+  } else {
+    assert.equal((await f.d.executor.readRetained({scope})).replayed,true);
+    assert.equal((await saved("shifts")).length,failed?72:62);
+    assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+  }
+  if(!forwardApplied)assert.deepEqual(f.sheets.state,image.snapshot);
+  if(inverseApplied){
+    const restored=structuredClone(f.sheets.state);restored.sheets.forEach(s=>{s.developerMetadata=image.snapshot.sheets.find(x=>x.properties.sheetId===s.properties.sheetId).developerMetadata;});
+    assert.deepEqual(restored,image.snapshot);assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+  }
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  // A failed attempt leaves its exact committed state intact. Recovery below
+  // is a separate explicit local action after inspection and a new budget.
+  let recoveredSeparately=false;
+  if(scenario==="before-inverse"){
+    assert.equal(forwardApplied,true);assert.equal(inverseApplied,false);
+    const inverse=await planBatch({...f,observation:f.observe(),direction:"inverse",forwardPlan:plan});
+    const inverseScope=await f.h.scope(true),retained=await f.d.barrier.inspectRetained({scope:inverseScope});assert.ok(retained.checkpoint);
+    const fresh=createCopyTimeBudget({startsAtMillis:elapsed,endsAtMillis:elapsed+600000,nowMillis:()=>elapsed});
+    elapsed+=120000;fresh.beginWork(elapsed+300000);
+    const admission=await f.d.executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:receipt});assert.equal(admission.checksPassed,true);
+    assert.equal((await f.api.reconcile({...inverse.operation,authorizeMutation:exact(inverse),assertSubmissionNow:fresh.assertSubmission})).kind,"verified");
+    fresh.assertStage();await f.d.executor.execute({scope:inverseScope,admission,forwardReadBack:receipt});
+    for(const stage of ["file","iam","oauth"])await fresh.beginCleanup(stage);fresh.complete();
+    assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));assert.equal(f.sheets.mutations.length,2);
+    preserved({manifest:inverse.preservation,after:f.sheets.state});recoveredSeparately=true;
+  }
+  if(process.env.HU084_CONTROLLED_OUTPUT)fs.writeFileSync(path.join(process.env.HU084_CONTROLLED_OUTPUT,`joint-deadline-${scenario}.json`),JSON.stringify({
+    scenario,preparedDigest:f.h.prepared.preparedDigest,copyEvidenceDigest:f.h.prepared.helperCopyCycle?.evidenceDigest??null,
+    receiptRetained:receipt!==null,forwardApplied,inverseApplied,rejected,recoveredSeparately,report,
+    realFirestoreEmulator:true,injectedElapsedClock:true,simulatedGoogleCleanup:true,liveTimingCertified:false,canEnterMaintenance:false},null,2),{mode:0o600,flag:"wx"});
+});
+
+for(const fault of ["none","late-fence","lost-forward-ack","lost-forward-readback","lost-inverse-ack","expired-after-commit","owner-drift","inspection-unavailable","sheets-unavailable"])
+run(`controlled joint executor and uncertain-write inspection: ${fault}`,async()=>{
+  const {createCopyTimeBudget}=require("../scripts/develop-copy-time-budget.cjs");
+  const f=await jointHarness(),original=await saved("shifts"),guards={};
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])guards[name]=await saved(name,true);
+  let now=1000000,commits=0,readbackFailed=false;
+  const budget=createCopyTimeBudget({startsAtMillis:now,endsAtMillis:now+600000,nowMillis:()=>now});now+=120000;budget.beginWork(now+300000);
+  const proxy=new Proxy(db,{get(target,key){
+    if(key==="runTransaction")return async(callback,options)=>{
+      if(fault==="inspection-unavailable"&&commits)throw Error("inspection unavailable");
+      const result=await target.runTransaction(async tx=>{
+        const wrapped=new Proxy(tx,{get(transaction,name){
+          if(name==="getAll")return async(...args)=>{
+            const rows=await transaction.getAll(...args);
+            if(fault==="late-fence"&&args.some(r=>r.path.includes("/shiftPlanningNotificationFences/")))now+=80000;
+            return rows;
+          };
+          const value=Reflect.get(transaction,name);return typeof value==="function"?value.bind(transaction):value;
+        }});
+        return callback(wrapped);
+      },options);
+      if(result?.measurement&&result?.operation){
+        commits++;
+        if(["lost-forward-ack","inspection-unavailable"].includes(fault)&&commits===1||fault==="lost-inverse-ack"&&commits===2)throw Error("lost commit response");
+        if(fault==="expired-after-commit")now+=160000;
+      } else if(fault==="lost-forward-readback"&&commits===1&&!readbackFailed&&Array.isArray(result)&&result.some(r=>r.path)){
+        readbackFailed=true;throw Error("lost readback response");
+      }
+      return result;
+    };
+    const value=Reflect.get(target,key);return typeof value==="function"?value.bind(target):value;
+  }});
+  const executor=createControlledDevelopMigrationEmulator({firestore:proxy,prepared:f.h.prepared,
+    controlPlane:f.d.barrier.controlPlane,failurePersistence:f.d.barrier.failurePersistence,nowMillis:f.h.clock});
+  const scope=await f.h.scope();await f.d.barrier.acquire({scope});const admission=await executor.inspectAdmission({scope});assert.equal(admission.checksPassed,true);
+  const records=[];
+  const common={sourceInput:f.sourceInput,reviewPackage:f.reviewPackage,observeSheets:async()=>f.observe(),sheetsAdapter:f.api,timeBudget:budget,
+    record:async value=>{records.push(structuredClone(value));}};
+  if(fault==="owner-drift")f.sheets.onMutation=async()=>{f.sheets.state.sheets[0].data[0].rowData[0].values[0].note="external change";};
+  if(fault==="sheets-unavailable")f.sheets.onMutation=async()=>{f.sheets.get=async()=>{throw Error("read unavailable");};};
+  f.sheets.loseAcknowledgement=true;
+  if(fault==="none"){
+    const invalid=structuredClone(admission);invalid.preparedDigest="other";
+    await assert.rejects(executor.executeJoint({...common,scope,admission:invalid}));
+    assert.equal(commits,0);assert.equal(f.sheets.mutations.length,0);assert.equal(records.length,0);
+  }
+  const forward=await executor.executeJoint({...common,scope,admission});
+  if(["none","lost-inverse-ack"].includes(fault)) {
+    assert.equal(forward.kind,"joint-step-verified");assert.equal(forward.cleanupVerified,false);
+    const inverseScope=await f.h.scope(true);await f.d.barrier.acquire({scope:inverseScope});
+    const inverseAdmission=await executor.inspectAdmission({direction:"inverse",scope:inverseScope,forwardReadBack:forward.firestoreReceipt});
+    if(fault==="none"){
+      const other=createControlledDevelopMigrationEmulator({firestore:db,prepared:f.h.prepared,
+        controlPlane:f.d.barrier.controlPlane,failurePersistence:f.d.barrier.failurePersistence,nowMillis:f.h.clock});
+      const bad=structuredClone(forward.firestoreReceipt);bad.receiptDigest="wrong";
+      await assert.rejects(other.executeJoint({...common,scope:inverseScope,admission:inverseAdmission,forwardReadBack:bad,forwardPlan:forward.plan}),/inverse preflight/);
+      assert.equal(f.sheets.mutations.length,1);
+    }
+    const inverse=await executor.executeJoint({...common,scope:inverseScope,admission:inverseAdmission,
+      forwardReadBack:forward.firestoreReceipt,forwardPlan:forward.plan});
+    assert.equal(inverse.kind,fault==="none"?"joint-step-verified":"joint-inspection-required");
+    if(fault==="lost-inverse-ack"){
+      assert.equal(inverse.inspection.firestore.kind,"committed-terminal-only");assert.equal(inverse.inspection.firestore.readBackVerified,false);
+      assert.equal(inverse.inspection.sheets.kind,"verified");
+    }
+    assert.equal(commits,2);assert.equal(f.sheets.mutations.length,2);assert.deepEqual(await saved("shifts"),original);
+  } else {
+    assert.equal(forward.kind,"joint-inspection-required");assert.equal(forward.canRetry,false);
+    const expected=fault==="late-fence"?"not-observed":fault==="inspection-unavailable"?"unavailable":"committed-and-readback-verified";
+    assert.equal(forward.inspection.firestore.kind,expected);assert.equal(commits,fault==="late-fence"?0:1);
+    assert.equal(f.sheets.mutations.length,["owner-drift","sheets-unavailable"].includes(fault)?1:0);
+    assert.equal((await saved("shifts")).length,fault==="late-fence"?62:72);
+    if(fault==="owner-drift")assert.equal(forward.inspection.sheets.kind,"unavailable-or-drifted");
+    if(fault==="sheets-unavailable")assert.equal(forward.inspection.sheets.kind,"ambiguous");
+    assert.ok(records.some(r=>r.phase==="inspection-required"));
+  }
+  await assert.rejects(executor.executeJoint({...common,scope,admission}),fault==="expired-after-commit"?/deadline_exhausted/:/consumed or active/);
+  for(const [name,rows]of Object.entries(guards))assert.deepEqual(await saved(name,true),rows);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);
+  const maintenance=await db.doc(`${ROOT}/shiftPlanningState/current`).get();if(maintenance.exists)assert.equal(maintenance.get("maintenanceStatus"),"closed");
+  for(const stage of ["file","iam","oauth"])await budget.beginCleanup(stage);
+  if(fault==="expired-after-commit")assert.throws(()=>budget.complete());else budget.complete();
+});
+
+for(const scenario of ["roundtrip","abort-after-firestore","cleanup-failure"])
+run(`persistent window acquisition, execution, cleanup and recovery: ${scenario}`,async t=>{
+  const os=require("node:os");
+  const {runControlledWindow,recoverControlledWindow}=require("../scripts/develop-controlled-window.cjs");
+  const {readWindowJournal}=require("../scripts/develop-window-journal.cjs");
+  const {assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"joint-window-emulator-"));t.after(()=>{
+    if(process.env.HU084_CONTROLLED_OUTPUT){fs.mkdirSync(process.env.HU084_CONTROLLED_OUTPUT,{recursive:true,mode:0o700});
+      fs.cpSync(root,path.join(process.env.HU084_CONTROLLED_OUTPUT,"persistent-"+scenario),{recursive:true,errorOnExist:true,force:false});}
+    fs.rmSync(root,{recursive:true,force:true});
+  });
+  const f=await jointHarness(),before=await businessSnapshot(),image=f.observe();let now=1000000,opens=0;
+  const controller=new AbortController(),events=[],permissions={file:false,iam:false,oauth:false};
+  let firstCleanup=true;
+  const scope=await f.h.scope();
+  function sessionFor(currentScope,direction,forwardReadBack=null){
+    const executor={...f.d.executor,executeJoint:async input=>f.d.executor.executeJoint({...input,record:async value=>{
+      await input.record(value);if(scenario==="abort-after-firestore"&&value.phase==="firestore-receipt")controller.abort();
+    }})};
+    const cleanup=Object.fromEntries(["file","iam","oauth"].map(stage=>[stage,async()=>{
+      events.push("cleanup-"+stage);
+      if(stage==="file"&&scenario==="cleanup-failure"&&firstCleanup){firstCleanup=false;throw Error("file cleanup unavailable");}
+      permissions[stage]=false;return {verified:true};
+    }]));
+    return {barrier:f.d.barrier,executor,observeSheets:async()=>f.observe(),sheetsAdapter:f.api,tokenExpiresAtMillis:now+300000,cleanup,
+      inspect:{barrier:()=>f.d.barrier.inspectRetained({scope:currentScope}),
+        firestore:()=>f.d.executor.inspectUncertain({scope:currentScope,direction,forwardReadBack}),
+        sheets:async saved=>{
+          const plan=saved.records.find(r=>r.value.phase==="intent")?.value.plan;
+          if(!plan)return {kind:"not-started"};const result=await f.api.inspect(plan.operation);
+          if(result.kind==="verified")preserved({manifest:plan.preservation,after:f.sheets.state});return result;
+        }}};
+  }
+  const base={root,prepared:f.h.prepared,sourceInput:f.sourceInput,reviewPackage:f.reviewPackage,nowMillis:()=>now};
+  const open=async context=>{void context;opens++;now+=120000;for(const k of Object.keys(permissions))permissions[k]=true;return sessionFor(scope,"forward");};
+  const result=await runControlledWindow({...base,receiptId:"forward-window",scope,direction:"forward",window:{startsAtMillis:now,endsAtMillis:now+600000},
+    signal:controller.signal,openSession:open,openRecoverySession:async()=>sessionFor(scope,"forward")});
+  const journal=readWindowJournal(result.directory);assert.equal(journal.records[0].value.binding.preparedDigest,f.h.prepared.preparedDigest);
+  assert.ok(journal.records.some(r=>r.value.phase==="acquired"));assert.equal(journal.records.at(-1).value.providerCallsSettled,true);
+  assert.equal(result.kind,scenario==="roundtrip"?"direction-verified-and-contained":"inspection-required");
+  assert.equal((await saved("shifts")).length,72);
+  if(scenario==="abort-after-firestore"){assert.equal(f.sheets.mutations.length,0);assert.deepEqual(f.sheets.state,image.snapshot);}
+  if(scenario!=="roundtrip"){
+    const snapshot=await businessSnapshot(),mutations=f.sheets.mutations.length;
+    const recovered=await recoverControlledWindow({directory:result.directory,recoveryId:"cleanup-review",expectedBindingDigest:digest(journal.binding),
+      window:{startsAtMillis:now,endsAtMillis:now+600000},nowMillis:()=>now,openRecoverySession:async()=>sessionFor(scope,"forward")});
+    assert.equal(recovered.records.at(-1).value.kind,"cleanup-verified-inspection-only");
+    assert.deepEqual(await businessSnapshot(),snapshot);assert.equal(f.sheets.mutations.length,mutations);assert.equal(opens,1);
+  } else {
+    const forward=result.result,inverseScope=await f.h.scope(true);
+    const inverse=await runControlledWindow({...base,receiptId:"inverse-window",scope:inverseScope,direction:"inverse",
+      forwardReadBack:forward.firestoreReceipt,forwardPlan:forward.plan,window:{startsAtMillis:now,endsAtMillis:now+600000},
+      openSession:async()=>{opens++;now+=120000;for(const k of Object.keys(permissions))permissions[k]=true;return sessionFor(inverseScope,"inverse",forward.firestoreReceipt);},
+      openRecoverySession:async()=>sessionFor(inverseScope,"inverse",forward.firestoreReceipt)});
+    assert.equal(inverse.kind,"direction-verified-and-contained");
+    const restored=structuredClone(f.sheets.state);restored.sheets.forEach(s=>{s.developerMetadata=image.snapshot.sheets.find(x=>x.properties.sheetId===s.properties.sheetId).developerMetadata;});
+    assert.deepEqual(restored,image.snapshot);assert.equal(f.sheets.mutations.length,2);
+    assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+  }
+  assert.deepEqual(permissions,{file:false,iam:false,oauth:false});
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+  assert.ok(events.length>=6);
+});
+
+run("SIGKILL after the actual Firestore commit preserves the receipt and permits only restart inspection/cleanup",async t=>{
+  const os=require("node:os"),{spawn}=require("node:child_process"),{once}=require("node:events");
+  const {readWindowJournal}=require("../scripts/develop-window-journal.cjs");
+  const {recoverControlledWindow}=require("../scripts/develop-controlled-window.cjs");
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"window-firestore-crash-"));t.after(()=>{
+    if(process.env.HU084_CONTROLLED_OUTPUT){fs.mkdirSync(process.env.HU084_CONTROLLED_OUTPUT,{recursive:true,mode:0o700});
+      fs.cpSync(root,path.join(process.env.HU084_CONTROLLED_OUTPUT,"persistent-sigkill"),{recursive:true,errorOnExist:true,force:false});}
+    fs.rmSync(root,{recursive:true,force:true});
+  });
+  const f=await jointHarness(),scope=await f.h.scope(),before=await businessSnapshot(),accessFile=path.join(root,"synthetic-access.txt"),config=path.join(root,"child.json");
+  fs.writeFileSync(config,JSON.stringify({root,accessFile,prepared:f.h.prepared,scope,evidence:f.h.current().evidence,image:f.observe(),sourceInput:f.sourceInput,reviewPackage:f.reviewPackage}),{mode:0o600});
+  const child=spawn(process.execPath,[path.join(__dirname,"develop-window-crash-child.cjs"),config],{env:process.env,stdio:["ignore","pipe","pipe","ipc"]});
+  t.after(()=>{if(child.exitCode===null)child.kill("SIGKILL");});
+  const [message]=await once(child,"message",{signal:AbortSignal.timeout(30000)});assert.equal(message,"committed");
+  const directory=path.join(root,"crash-after-commit"),savedJournal=readWindowJournal(directory);
+  assert.ok(savedJournal.records.some(r=>r.value.phase==="firestore-receipt"));assert.equal(fs.readFileSync(accessFile,"utf8"),"granted");
+  const exit=once(child,"exit");child.kill("SIGKILL");await exit;
+  assert.equal((await saved("shifts")).length,72);const committed=await businessSnapshot();
+  const result=await recoverControlledWindow({directory,recoveryId:"after-killed-writer",expectedBindingDigest:digest(savedJournal.binding),
+    window:{startsAtMillis:2000000,endsAtMillis:2600000},nowMillis:()=>2000000,openRecoverySession:async()=>({
+      inspect:{barrier:()=>f.d.barrier.inspectRetained({scope}),firestore:()=>f.d.executor.inspectUncertain({scope}),sheets:async()=>({kind:"not-submitted"})},
+      cleanup:Object.fromEntries(["file","iam","oauth"].map(k=>[k,async()=>{fs.writeFileSync(accessFile,"clean");return {verified:true};}]))})});
+  const inspected=result.records.find(r=>r.value.phase==="recovery-inspection").value.results;
+  assert.equal(inspected.firestore.kind,"committed-and-readback-verified");assert.equal(result.records.at(-1).value.canResumeExecution,false);
+  assert.deepEqual(await businessSnapshot(),committed);assert.equal(fs.readFileSync(accessFile,"utf8"),"clean");
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.equal(fs.existsSync(path.join(root,"controlled-window-active")),false);
+});
+
+for(const scenario of ["roundtrip","abort-after-firestore","write-read"])
+run(`concrete original Google sessions and Firestore emulator: ${scenario}`,async t=>{
+  const os=require("node:os"),{originalWindowFixture}=require("./develop-original-window-fixture.cjs");
+  const {runControlledWindow,recoverControlledWindow}=require("../scripts/develop-controlled-window.cjs");
+  const {readWindowJournal}=require("../scripts/develop-window-journal.cjs");
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"concrete-google-window-"));t.after(()=>{
+    if(process.env.HU084_CONTROLLED_OUTPUT)fs.cpSync(root,path.join(process.env.HU084_CONTROLLED_OUTPUT,"concrete-google-"+scenario),{recursive:true,errorOnExist:true,force:false});
+    fs.rmSync(root,{recursive:true,force:true});
+  });
+  const f=await jointHarness(),g=originalWindowFixture({batch:f,fault:scenario==="write-read"?"write-read":null});
+  const before=await businessSnapshot(),image=structuredClone(f.sheets.state),controller=new AbortController();
+  const executor={...f.d.executor,executeJoint:args=>f.d.executor.executeJoint({...args,record:async value=>{
+    await args.record(value);if(scenario==="abort-after-firestore"&&value.phase==="firestore-receipt")controller.abort();
+  }})};
+  const data={...g.args(),receiptId:"concrete-forward",prepared:f.h.prepared,scope:await f.h.scope()};
+  const first=await runControlledWindow({...data,...g.sessions(data,"concrete-first-owner",{barrier:f.d.barrier,executor}),root,receiptId:"concrete-forward",
+    fetchImpl:g.fetchImpl,nowMillis:()=>g.state.now,signal:controller.signal});
+  assert.equal(first.kind,scenario==="roundtrip"?"direction-verified-and-contained":"inspection-required");
+  assert.equal((await saved("shifts")).length,72);assert.equal(g.state.mints,1);assert.equal(g.state.permission,false);assert.equal(g.state.disabled,true);
+  if(scenario==="roundtrip"){
+    const inverse={...g.args("inverse",first.result),receiptId:"concrete-inverse",prepared:f.h.prepared,scope:await f.h.scope(true)};
+    const second=await runControlledWindow({...inverse,...g.sessions(inverse,"concrete-inverse-owner",{barrier:f.d.barrier,executor:f.d.executor}),root,
+      receiptId:"concrete-inverse",fetchImpl:g.fetchImpl,nowMillis:()=>g.state.now});
+    assert.equal(second.kind,"direction-verified-and-contained");assert.equal(g.state.mints,2);assert.equal(f.sheets.mutations.length,2);
+    assert.deepEqual(await saved("shifts"),before.shifts.map(({path,data})=>({path,data})));
+    const restored=structuredClone(f.sheets.state);restored.sheets.forEach(s=>{s.developerMetadata=image.sheets.find(x=>x.properties.sheetId===s.properties.sheetId).developerMetadata;});assert.deepEqual(restored,image);
+  }else{
+    const committed=await businessSnapshot(),count=f.sheets.mutations.length,journal=readWindowJournal(first.directory);
+    const recovered=await recoverControlledWindow({directory:first.directory,recoveryId:"concrete-recovery",expectedBindingDigest:digest(journal.binding),
+      window:{startsAtMillis:g.state.now,endsAtMillis:g.state.now+600000},fetchImpl:g.fetchImpl,nowMillis:()=>g.state.now,
+      ...g.sessions(data,"concrete-recovery-owner",{barrier:f.d.barrier,executor:f.d.executor})});
+    assert.equal(recovered.records.at(-1).value.kind,"cleanup-verified-inspection-only");
+    assert.deepEqual(await businessSnapshot(),committed);assert.equal(f.sheets.mutations.length,count);assert.equal(g.state.mints,1);
+    if(scenario==="abort-after-firestore"){assert.equal(count,0);assert.deepEqual(f.sheets.state,image);}else assert.equal(count,1);
+  }
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.equal(f.d.counts.opened,f.d.counts.closed);assert.equal((await db.doc(`${ROOT}/shiftPlanningState/current`).get()).get("maintenanceStatus"),"closed");
+});
+
+run("concrete Google session SIGKILL recovery contains grants but retains missing credential evidence",async t=>{
+  const os=require("node:os"),{spawn}=require("node:child_process"),{once}=require("node:events");
+  const {originalWindowFixture}=require("./develop-original-window-fixture.cjs");
+  const {readWindowJournal}=require("../scripts/develop-window-journal.cjs");
+  const {recoverControlledWindow}=require("../scripts/develop-controlled-window.cjs");
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"concrete-google-kill-"));t.after(()=>{
+    if(process.env.HU084_CONTROLLED_OUTPUT)fs.cpSync(root,path.join(process.env.HU084_CONTROLLED_OUTPUT,"concrete-google-sigkill"),{recursive:true,errorOnExist:true,force:false});
+    fs.rmSync(root,{recursive:true,force:true});
+  });
+  const f=await jointHarness(),scope=await f.h.scope(),before=await businessSnapshot(),remoteState=path.join(root,"synthetic-remote.json"),config=path.join(root,"child.json");
+  fs.writeFileSync(config,JSON.stringify({root,remoteState,prepared:f.h.prepared,scope,evidence:f.h.current().evidence,image:f.observe(),sourceInput:f.sourceInput,reviewPackage:f.reviewPackage}),{mode:0o600});
+  const child=spawn(process.execPath,[path.join(__dirname,"develop-original-window-crash-child.cjs"),config],{env:process.env,stdio:["ignore","pipe","pipe","ipc"]});
+  t.after(()=>{if(child.exitCode===null)child.kill("SIGKILL");});
+  const [message]=await once(child,"message",{signal:AbortSignal.timeout(30000)});assert.equal(message,"committed");
+  const directory=path.join(root,"concrete-crash"),journal=readWindowJournal(directory);
+  assert.ok(journal.records.some(r=>r.value.phase==="firestore-receipt"));assert.ok(journal.records.some(r=>r.value.phase==="google-writer-positive"));
+  const exited=once(child,"exit");child.kill("SIGKILL");await exited;const committed=await businessSnapshot();
+  const g=originalWindowFixture({batch:f}),data={...g.args(),receiptId:"concrete-crash",prepared:f.h.prepared,scope};Object.assign(g.state,JSON.parse(fs.readFileSync(remoteState)));g.state.now=2000000;
+  const result=await recoverControlledWindow({directory,recoveryId:"after-concrete-kill",expectedBindingDigest:digest(journal.binding),
+    window:{startsAtMillis:g.state.now,endsAtMillis:g.state.now+600000},nowMillis:()=>g.state.now,fetchImpl:g.fetchImpl,
+    ...g.sessions(data,"fresh-recovery-owner",{barrier:f.d.barrier,executor:f.d.executor})});
+  const terminal=result.records.at(-1).value;assert.equal(terminal.kind,"inspection-required");
+  assert.ok(terminal.cleanup.failures.includes("file-unverified"));assert.ok(terminal.cleanup.failures.includes("oauth-unverified"));
+  assert.equal(g.state.permission,false);assert.equal(g.state.disabled,true);assert.deepEqual(g.state.policy.bindings,[]);assert.equal(g.state.mints,0);
+  assert.equal(result.records.findLast(r=>r.value.phase==="recovery-inspection").value.results.firestore.kind,"committed-and-readback-verified");
+  assert.deepEqual(await businessSnapshot(),committed);assert.equal(f.sheets.mutations.length,0);
+  for(const name of ["users","config","notificationEvents","deliveryCalendar"])assert.deepEqual(await saved(name,true),before[name]);
+  assert.ok(fs.existsSync(path.join(root,"controlled-window-active")));assert.equal(terminal.canResumeExecution,false);
+});

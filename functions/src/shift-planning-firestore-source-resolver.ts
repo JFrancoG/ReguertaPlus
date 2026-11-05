@@ -10,6 +10,7 @@ import {
   planShiftPlanningBundle,
 } from "./shift-planning-bundle.js";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
+import {HttpRequestError} from "./backend-security.js";
 import {
   ShiftPlanningDigest,
   ShiftPlanningFairnessSnapshot,
@@ -333,6 +334,8 @@ const requireRecoveryReadDocument = (
  * reloads the immutable staged package, cached envelope, rebuilt governed
  * source, both authoritative rotations/state, and every before-image target
  * before the runtime is allowed to materialize a write.
+ * A changed source policy requesting unavailable provisional credits rejects
+ * the staged fairness input; it never opens the provisional publication gate.
  * @param {object} input Environment, request identity, and source rebuilder.
  * @return {ShiftPlanningForwardActivationAttemptResolver} Retry-scoped
  * forward resolver.
@@ -403,10 +406,16 @@ export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
       });
     } catch (error) {
       if (
-        error instanceof ShiftPlanningError &&
         (
-          error.code === "invalid_planning_transaction" ||
-          error.code === "invalid_shift_planning_fairness_snapshot"
+          error instanceof ShiftPlanningError &&
+          (
+            error.code === "invalid_planning_transaction" ||
+            error.code === "invalid_shift_planning_fairness_snapshot"
+          )
+        ) ||
+        (
+          error instanceof HttpRequestError &&
+          error.code === "coverage_provisional_emulator_required"
         )
       ) {
         throw new ShiftPlanningError(

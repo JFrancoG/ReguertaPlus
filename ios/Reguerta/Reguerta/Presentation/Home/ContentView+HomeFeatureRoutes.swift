@@ -6,6 +6,7 @@ extension HomeShellView {
         ShiftsRouteView(
             tokens: tokens,
             viewModel: rootViewModel.shiftsViewModel,
+            onOpenCoverage: { rootViewModel.homeDestination = .shiftCoverage },
             onStartSwapRequestForShift: { shiftId in
                 rootViewModel.shiftsViewModel.startCreatingShiftSwap(shiftId: shiftId)
                 rootViewModel.homeDestination = .shiftSwapRequest
@@ -152,6 +153,9 @@ extension HomeShellView {
             viewModel: newsNotificationsViewModel,
             notificationDateText: { notification in
                 localizedNotificationDate(notification.sentAtMillis)
+            },
+            onOpenCoverage: { eventID in
+                Task { _ = await rootViewModel.openShiftNotificationPush(eventID: eventID) }
             }
         )
     }

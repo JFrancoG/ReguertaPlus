@@ -12,7 +12,7 @@ import {
   ShiftPlanningDigest,
 } from "./shift-planning-digest.js";
 import {
-  parseShiftPlanningIntakeBarrierEvidenceEnvelope,
+  parseShiftPlanningMaintenanceBarrierEvidenceEnvelope,
   ShiftPlanningIntakeBarrierEvidenceEnvelope,
   ShiftPlanningIntakeBarrierEvidenceKey,
   ShiftPlanningIntakeBarrierEvidencePersistence,
@@ -151,7 +151,7 @@ const parseEvidenceEnvelope = (
   value: unknown,
 ): ShiftPlanningIntakeBarrierEvidenceEnvelope => {
   try {
-    return parseShiftPlanningIntakeBarrierEvidenceEnvelope(value);
+    return parseShiftPlanningMaintenanceBarrierEvidenceEnvelope(value);
   } catch (error) {
     if (
       error instanceof ShiftPlanningError &&
@@ -290,11 +290,14 @@ const parseFailureRecord = (
   );
   requireExactKeys(
     persisted,
-    failureRecordKeys,
+    persisted.schemaVersion === 3 ?
+      [...failureRecordKeys, "administratorIncident"] :
+      persisted.schemaVersion === 2 ?
+        [...failureRecordKeys, "ownerIncident"] : failureRecordKeys,
     "intake barrier failure closure",
   );
   if (
-    persisted.schemaVersion !== INTAKE_BARRIER_REPOSITORY_SCHEMA_VERSION ||
+    ![1, 2, 3].includes(persisted.schemaVersion as number) ||
     persisted.operationKind !== "intakeBarrierFailureClosure"
   ) {
     return failState("Barrier failure closure discriminator is invalid.");
@@ -327,6 +330,14 @@ const parseFailureRecord = (
         ),
         phase: persisted.phase as
           ShiftPlanningIntakeBarrierFailureClosureRequest["phase"],
+        ...(persisted.schemaVersion === 2 ? {
+          ownerIncident: persisted.ownerIncident as
+            ShiftPlanningIntakeBarrierFailureClosureRequest["ownerIncident"],
+        } : {}),
+        ...(persisted.schemaVersion === 3 ? {administratorIncident:
+          persisted.administratorIncident as
+            ShiftPlanningIntakeBarrierFailureClosureRequest[
+              "administratorIncident"]} : {}),
       },
       timestampMillis(requireTimestamp(persisted.failedAt, "failure instant")),
     );
@@ -358,6 +369,9 @@ const normalizedFailureRequest = (
       holdRevision: probe.holdRevision,
       checkpointDigest: probe.checkpointDigest,
       phase: probe.phase,
+      ...(probe.ownerIncident ? {ownerIncident: probe.ownerIncident} : {}),
+      ...(probe.administratorIncident ? {
+        administratorIncident: probe.administratorIncident} : {}),
     };
   } catch {
     return failState("Intake barrier failure closure request is invalid.");
@@ -372,7 +386,10 @@ const failureMatchesRequest = (
   record.scopeDigest === request.scopeDigest &&
   record.holdRevision === request.holdRevision &&
   record.checkpointDigest === request.checkpointDigest &&
-  record.phase === request.phase;
+  record.phase === request.phase && sameCanonicalValue(
+  record.ownerIncident ?? null, request.ownerIncident ?? null,
+) && sameCanonicalValue(record.administratorIncident ?? null,
+  request.administratorIncident ?? null);
 
 const requireExactFailureReplay = (
   record: ShiftPlanningIntakeBarrierFailureClosureRecord,
@@ -511,6 +528,12 @@ export const createFirestoreShiftPlanningIntakeBarrierRepository = (
           holdRevision: record.holdRevision,
           checkpointDigest: record.checkpointDigest,
           phase: record.phase,
+          ...(record.ownerIncident ? {
+            ownerIncident: record.ownerIncident,
+          } : {}),
+          ...(record.administratorIncident ? {
+            administratorIncident: record.administratorIncident,
+          } : {}),
           failedAt: Timestamp.fromMillis(failedAtMillis),
           failureDigest: record.failureDigest,
         };

@@ -122,22 +122,25 @@ extension AccessRootViewModel {
         case .shiftSwapRequest:
             shiftsViewModel.clearShiftSwapDraft()
             homeDestination = .shifts
-        case .products:
-            if productsViewModel.isEditing {
-                productsViewModel.clearEditor()
-            } else {
-                homeDestination = .dashboard
-            }
-        case .users:
-            if usersViewModel.isEditorOpen {
-                usersViewModel.clearEditor()
-            } else {
-                homeDestination = .dashboard
-            }
+        case .shiftCoverage:
+            shiftsViewModel.coverage.leaveRoute()
+            homeDestination = .shifts
+        case .products, .users:
+            handleEditorPrimaryAction()
         case .myOrder:
             myOrderViewModel.resetCartOverlayForRouteEntry()
             homeDestination = .dashboard
         default:
+            homeDestination = .dashboard
+        }
+    }
+
+    private func handleEditorPrimaryAction() {
+        if homeDestination == .products && productsViewModel.isEditing {
+            productsViewModel.clearEditor()
+        } else if homeDestination == .users && usersViewModel.isEditorOpen {
+            usersViewModel.clearEditor()
+        } else {
             homeDestination = .dashboard
         }
     }

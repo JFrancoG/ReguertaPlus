@@ -77,7 +77,9 @@ const text = (cell?: SheetsV4.Schema$CellData): string => {
 const annotation = (cell?: SheetsV4.Schema$CellData): string =>
   cell?.userEnteredValue?.formulaValue != null ? "" : text(cell);
 
-const memberResolver = (members: readonly ShiftSheetsImportMember[]) => {
+export const createShiftSheetsMemberResolver = (
+  members: readonly ShiftSheetsImportMember[],
+) => {
   const byId = new Map(members.map((member) => [member.userId, member]));
   if (byId.size !== members.length || members.some((member) =>
     !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(member.userId))) {
@@ -142,7 +144,7 @@ export const readShiftSheetsImport = async (input: {
       return failShiftSheetsImport("Delivery calendar week does not match.");
     }
   }
-  const resolver = memberResolver(members);
+  const resolver = createShiftSheetsMemberResolver(members);
   const projections = buildShiftSheetsProjections(config, baseline);
   const calendarByWeek = new Map(calendar.map((item) =>
     [item.weekKey, item.date]));

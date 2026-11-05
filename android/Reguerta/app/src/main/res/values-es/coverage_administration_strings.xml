@@ -1,0 +1,26 @@
+<resources>
+    <string name="coverage_admin_title">Administrar reservas y excepciones</string>
+    <string name="coverage_admin_source_note">Se aplica la situación actual de las cuentas. No se activan ni desactivan socios. La reserva cambia según las reglas del primer turno ordinario.</string>
+    <string name="coverage_admin_membership_closed">Los cambios de socios no están disponibles mientras el mantenimiento de turnos esté cerrado.</string>
+    <string name="coverage_admin_reconcile">Aplicar situación actual del socio</string>
+    <string name="coverage_admin_departure">Registrar baja permanente</string>
+    <string name="coverage_admin_spacing_title">Excepciones a las diez semanas</string>
+    <string name="coverage_admin_spacing_proposal">Propuesta de reparto: %1$s</string>
+    <string name="coverage_admin_spacing_note">Solo se puede autorizar la pareja propuesta de turnos ordinarios de responsable de reparto. Esta acción no publica ningún reparto.</string>
+    <string name="coverage_admin_no_spacing">No hay excepciones de separación pendientes de autorización.</string>
+    <string name="coverage_admin_spacing_unavailable">No hay una propuesta verificable del reparto. Actualiza después de prepararla.</string>
+    <string name="coverage_admin_spacing_authorize">Autorizar excepción por fuerza mayor</string>
+    <string name="coverage_admin_member_active">Cuenta activa</string>
+    <string name="coverage_admin_member_inactive">Cuenta inactiva</string>
+    <string name="coverage_admin_member_missing">No existe la ficha de la cuenta</string>
+    <string name="coverage_admin_member_eligible">Puede participar en los turnos ordinarios</string>
+    <string name="coverage_admin_member_ineligible">No puede participar en los turnos ordinarios</string>
+    <string name="coverage_admin_departure_recorded">Baja permanente registrada</string>
+    <string name="coverage_admin_queue_pending">Hay un cambio de vuelta pendiente de publicación.</string>
+    <string name="coverage_admin_reserve_entered">En reserva desde %1$s</string>
+    <string name="coverage_admin_credit_counts">%1$s · Compensaciones pendientes: %2$d; usadas: %3$d; canceladas: %4$d.</string>
+    <string name="coverage_admin_spacing_pair">%1$s (vuelta %2$d) y %3$s (vuelta %4$d).</string>
+    <string name="coverage_admin_spacing_confirmation">Explica la fuerza mayor que obliga a separar menos de diez semanas estos turnos de responsable. La autorización solo sirve para esta pareja y propuesta; los demás turnos publicados se mantienen.</string>
+    <string name="coverage_admin_departure_warning">La baja permanente cancela las compensaciones pendientes indicadas y libera sus reservas de uso. La inactividad por sí sola no cancela compensaciones. Se conserva el historial; volver después no recupera las compensaciones canceladas.</string>
+    <string name="coverage_admin_reconcile_confirmation">Aplica la situación de la cuenta a ambas reservas y a sus turnos futuros afectados. Las reglas ordinarias determinan la entrada o salida de la reserva; esta acción no elige sustitutos ni publica una nueva vuelta. Las compensaciones pendientes se conservan salvo si ya se ha registrado una baja permanente.</string>
+</resources>

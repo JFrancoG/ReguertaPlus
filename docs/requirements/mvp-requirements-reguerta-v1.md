@@ -128,6 +128,11 @@ Out of MVP (later phase):
 
 Governance note: final policy for post-publication absence replacement remains an assembly decision.
 
+Maintainer authorization (2026-09-12): HU-084 may be implemented provisionally in
+the local emulator. This does not authorize live activation or ratify the policy;
+see the dated ADR-0013 clarification and HU-084 plan.
+
+
 ### 3.8 News and communications
 
 - RF-NOTI-01 Only admin can publish news in MVP.

@@ -12,7 +12,7 @@ const setCell = (sheet, rowIndex, column, cell) => {
 // it. Assertions inspect the resulting cells, not merely calls to our helpers.
 const sheetsService = (workbookId = "book-development") => {
   const service = {state: {spreadsheetId: workbookId, sheets: []}, mutations: [], reads: [],
-    failRead: false, loseAcknowledgement: false, rejectBeforeApply: false, onMutation: null, rejectedBatches: 0};
+    failRead: false, loseAcknowledgement: false, rejectBeforeApply: false, onMutation: null, rejectedBatches: 0, revision: 0};
   let nextMetadataId = 1;
   service.get = async (input, options) => {
     service.reads.push(clone(input));
@@ -64,6 +64,7 @@ const sheetsService = (workbookId = "book-development") => {
       } else assert.fail(`Unexpected destructive or unsupported request: ${JSON.stringify(request)}`);
     }
     service.state = next;
+    service.revision++;
     await service.onMutation?.();
     if (service.loseAcknowledgement) throw new Error("acknowledgement lost");
     return {data: {spreadsheetId: workbookId}};

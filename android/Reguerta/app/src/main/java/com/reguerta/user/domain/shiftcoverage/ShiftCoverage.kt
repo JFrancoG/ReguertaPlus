@@ -1,0 +1,173 @@
+package com.reguerta.user.domain.shiftcoverage
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import com.reguerta.user.domain.access.MemberRole
+
+@Serializable
+internal data class ShiftCoverageSnapshot(
+    val schemaVersion: Int,
+    val environment: String,
+    val memberId: String,
+    val isAdmin: Boolean,
+    val eligible: Boolean,
+    val serverTimeMillis: Long,
+    val policyRevision: String,
+    val policy: Policy,
+    val cases: List<Case>,
+    val credits: List<Credit>,
+    val reserves: List<Reserve>,
+    val availableShifts: List<AvailableShift> = emptyList(),
+    val members: List<MemberLabel> = emptyList(),
+    val notifications: List<Notification> = emptyList(),
+    val notification: NotificationReference? = null,
+) {
+    @Serializable
+    data class Notification(val eventId: String, val sentAtMillis: Long)
+
+    @Serializable
+    data class NotificationReference(val eventId: String, val caseId: String, val caseRevision: Long)
+
+    @Serializable
+    enum class Kind { delivery, market }
+    @Serializable
+    enum class Status { open, offered, accepted, completed, cancelled, failed }
+    @Serializable
+    enum class Phase { reserve, volunteers, drawRequired, draw, adminRequired }
+    @Serializable
+    enum class OfferSource { admin, reserve, volunteer, draw }
+    @Serializable
+    enum class CreditState { pending, consumed, cancelled }
+
+    @Serializable
+    data class Policy(
+        val maximumOfferWindowMillis: Long,
+        val volunteerWindowMillis: Long?,
+        val drawAvailable: Boolean,
+        val selectionRequired: Boolean = false,
+    )
+
+    @Serializable
+    data class Case(
+        val caseId: String,
+        val shiftId: String,
+        val type: Kind,
+        val positionIndex: Int,
+        val status: Status,
+        val revision: Long,
+        val shiftRevision: Long,
+        val scheduledAtMillis: Long,
+        val writable: Boolean,
+        val absentUserId: String,
+        val acceptedUserId: String?,
+        val offer: Offer?,
+        val selectionPhase: Phase?,
+        val volunteerClosesAtMillis: Long?,
+        val volunteered: Boolean,
+        val updatedAtMillis: Long,
+        val administration: Administration?,
+        val openedByMe: Boolean = false,
+        val canResumeAdmin: Boolean = false,
+        val hasVolunteered: Boolean = false,
+        val drawCommitted: Boolean = false,
+        val drawAvailableAtMillis: Long? = null,
+        val phaseClosesAtMillis: Long? = null,
+    )
+
+    @Serializable
+    data class Offer(val userId: String, val source: OfferSource, val expiresAtMillis: Long)
+
+    @Serializable
+    data class Administration(val openedByUserId: String, val reason: String, val volunteerCount: Int)
+
+    @Serializable
+    data class Credit(
+        val creditId: String,
+        val shiftId: String,
+        val type: Kind,
+        val state: CreditState,
+        val earnedAtMillis: Long,
+        val consumedAtMillis: Long?,
+    )
+
+    @Serializable
+    data class MemberLabel(val memberId: String, val displayName: String, val offerCandidate: Boolean = false)
+
+    @Serializable
+    data class AvailableShift(
+        val shiftId: String,
+        val type: Kind,
+        val scheduledAtMillis: Long,
+        val shiftRevision: Long,
+        val writable: Boolean,
+        val assignedUserIds: List<String>,
+    )
+
+    @Serializable
+    data class Reserve(val type: Kind, val active: Boolean, val enteredAtMillis: Long)
+}
+
+/** The epoch fences session replacement; metadata also fences member authorization refreshes within that epoch. */
+internal data class ShiftCoverageSession(
+    val uid: String,
+    val memberId: String,
+    val authorizationRevision: Long,
+    val environment: String = "develop",
+    val authorization: Authorization? = null,
+) {
+    data class Authorization(val roles: Set<MemberRole>, val isCommonPurchaseManager: Boolean)
+}
+
+/** Preserve this complete value for explicit replay after an uncertain response. Never put actor identity here. */
+@Serializable
+internal data class ShiftCoverageCommand(
+    val caseId: String,
+    val operationId: String,
+    val expectedRevision: Long,
+    val expectedShiftRevision: Long,
+    val action: Action,
+    val shiftId: String? = null,
+    val absentUserId: String? = null,
+    val reason: String? = null,
+    val userId: String? = null,
+    val expiresAtMillis: Long? = null,
+    val environment: String = "develop",
+    @Transient val expectedPolicyRevision: String? = null,
+) {
+    val schemaVersion: Int = 1
+
+    @Serializable
+    enum class Action {
+        open, offer, accept, decline, expire, complete, startSelection, volunteer, withdrawVolunteer,
+        commitDraw, revealDraw, offerNext, offerAdmin, resumeAdmin, cancel, fail,
+    }
+}
+
+internal sealed class ShiftCoverageFailure : Exception() {
+    data object SessionChanged : ShiftCoverageFailure()
+    data object LocalOnly : ShiftCoverageFailure()
+    data object Disabled : ShiftCoverageFailure()
+    data object InvalidResponse : ShiftCoverageFailure()
+    data object Unavailable : ShiftCoverageFailure()
+    data class Rejected(val status: Int, val code: String) : ShiftCoverageFailure()
+}
+
+internal interface ShiftCoverageRepository {
+    suspend fun resolveAccess(session: ShiftCoverageSession): ShiftCoverageAccess = throw ShiftCoverageFailure.Unavailable
+    suspend fun read(caseId: String?, session: ShiftCoverageSession): ShiftCoverageSnapshot
+    suspend fun readNotification(eventId: String, session: ShiftCoverageSession): ShiftCoverageSnapshot =
+        throw ShiftCoverageFailure.Unavailable
+    suspend fun execute(command: ShiftCoverageCommand, session: ShiftCoverageSession)
+    suspend fun readAdministration(session: ShiftCoverageSession): ShiftCoverageAdministration =
+        throw ShiftCoverageFailure.Unavailable
+    suspend fun executeAdministration(command: ShiftCoverageAdministrationCommand, session: ShiftCoverageSession) {
+        throw ShiftCoverageFailure.Unavailable
+    }
+}
+
+
+internal interface CoverageRehearsalAccess {
+    val repository: ShiftCoverageRepository
+    suspend fun signIn(email: String, password: String): ShiftCoverageSession
+    fun signOut()
+}

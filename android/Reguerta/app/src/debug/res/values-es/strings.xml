@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">La RegÜerta Dev</string>
+    <string name="coverage_rehearsal_notice_title">Turnos actualizados</string>
+    <string name="coverage_rehearsal_notice_body">Consulta la aplicación para ver la información actualizada.</string>
 </resources>

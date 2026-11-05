@@ -839,6 +839,11 @@ export const parseShiftRotationAggregateWire = (
 
 const failureMessageKeys: Record<ShiftPlanningFailureCode, string> = {
   adjacent_delivery_lead_conflict: "adjacentDeliveryLeadConflict",
+  invalid_delivery_spacing_source: "invalidDeliverySpacingSource",
+  delivery_spacing_history_required: "deliverySpacingHistoryRequired",
+  delivery_spacing_conflict: "deliverySpacingConflict",
+  delivery_spacing_exception_unavailable: "deliverySpacingExceptionUnavailable",
+  delivery_spacing_exception_unused: "deliverySpacingExceptionUnused",
   delivery_helper_cursor_conflict: "deliveryHelperCursorConflict",
   delivery_helper_evidence_ambiguous: "deliveryHelperEvidenceAmbiguous",
   delivery_helper_ineligible: "deliveryHelperIneligible",

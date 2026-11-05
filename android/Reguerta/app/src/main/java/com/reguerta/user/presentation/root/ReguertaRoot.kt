@@ -286,7 +286,13 @@ fun ReguertaRoot(
                     onStartCreatingNotification = viewModel::startCreatingNotification,
                     onPrepareNotificationsRoute = viewModel::prepareNotificationsRoute,
                     onConsumeShiftNotificationPush = rootStateViewModel::consumeShiftNotificationPush,
-                    onOpenNotificationDetail = viewModel::openNotificationDetail,
+                    onOpenNotificationDetail = { eventId ->
+                        val reference = com.reguerta.user.domain.notifications.ShiftNotificationPushReference.validated(
+                            eventId, "shift_updated", "users",
+                        )
+                        if (reference?.isCoverage == true) rootStateViewModel.acceptShiftNotificationPush(reference)
+                        else viewModel.openNotificationDetail(eventId)
+                    },
                     onPrepareBylawsRoute = viewModel::prepareBylawsRoute,
                     onCancelBylawsConsultation = viewModel::cancelBylawsConsultation,
                     onMarkVisibleNotificationsReadOnExit = viewModel::markVisibleNotificationsReadOnExit,
@@ -341,6 +347,8 @@ fun ReguertaRoot(
                     onValidateMyOrderFreshnessReceipt = viewModel::isMyOrderFreshnessReceiptCurrent,
                     onOpenProducts = viewModel::refreshProducts,
                     onOpenShifts = viewModel::refreshShifts,
+                    coverageModel = viewModel.coverageRoute,
+                    coverageSession = viewModel.currentCoverageSession(),
                     onImpersonateMember = viewModel::impersonateMember,
                     onClearImpersonation = viewModel::clearImpersonation,
                     onSetNowOverrideMillis = viewModel::setNowOverrideMillis,

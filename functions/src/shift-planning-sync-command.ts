@@ -1,3 +1,6 @@
+import type {
+  ShiftPlanningOwnerSheetsProof, ShiftPlanningOwnerSheetsIncident,
+} from "./shift-planning-owner-sheets-contract.js";
 import {Timestamp} from "@google-cloud/firestore";
 import {ShiftPlanningSyncCommand} from "./shift-planning-bundle.js";
 import {
@@ -117,14 +120,25 @@ export interface ShiftPlanningSyncCommandRepository {
     binding: ShiftPlanningSheetsSubmissionBinding;
   }): Promise<void>;
 
+  readSubmissionForIncident?(
+    token: ShiftPlanningSyncCommandToken,
+  ): Promise<ShiftPlanningSheetsSubmission | null>;
+
+  retainSubmissionIncident?(input: {
+    token: ShiftPlanningSyncCommandToken;
+    incident: ShiftPlanningOwnerSheetsIncident;
+  }): Promise<void>;
+
   verifySubmission(input: {
     token: ShiftPlanningSyncCommandToken;
     evidence: ShiftPlanningSyncReadBackEvidence;
+    ownerProof?: ShiftPlanningOwnerSheetsProof;
   }): Promise<void>;
 
   complete(input: {
     token: ShiftPlanningSyncCommandToken;
     evidence: ShiftPlanningSyncReadBackEvidence;
+    ownerProof?: ShiftPlanningOwnerSheetsProof;
   }): Promise<ShiftPlanningSyncCommandCompletionResult>;
 }
 

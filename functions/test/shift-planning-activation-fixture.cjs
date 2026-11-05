@@ -55,7 +55,7 @@ const rotation = (type, cohortUserIds) => ({
   cursor: {
     schemaVersion: 1,
     type,
-    cohortUserIds,
+    cohortUserIds: [...cohortUserIds],
     roundNumber: 1,
     nextMemberIndex: 0,
   },
