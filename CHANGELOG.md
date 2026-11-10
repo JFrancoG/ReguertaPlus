@@ -378,6 +378,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-11-10 | 📦 build(android): refresh toolchain and SDK pins
+
 - 2026-09-11 | 📦 build(android): update toolchain and platform BOMs
 
 - 2026-09-08 | 📦 build(android): update Coil to 3.6.2
