@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-11-10 | 📝 docs(agents): clarify task resource selection
+
 - 2026-09-11 | 📝 docs(shifts): prepare HU-085 evidence handoff
 
 - 2026-09-11 | 📝 docs(shifts): record replacement safety rehearsal
