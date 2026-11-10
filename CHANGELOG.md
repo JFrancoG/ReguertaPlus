@@ -6,7 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-11-10 | 📝 docs(android): refine HU-090 execution gates
+
 - 2026-11-10 | 📝 docs(android): plan HU-090 release hardening
+
+- 2026-11-10 | 📝 docs(agents): clarify task resource selection
 
 - 2026-09-11 | 📝 docs(shifts): prepare HU-085 evidence handoff
 
@@ -377,6 +381,12 @@ All notable changes to this project will be documented in this file.
 - 2026-03-19 | 📝 docs(orders): define consumer name snapshots
 
 ### Maintenance
+
+- 2026-11-10 | 📦 build(ios): align test target platforms
+
+- 2026-11-10 | 📦 build(ios): update session fetcher to 5.2.0
+
+- 2026-11-10 | 📦 build(android): refresh toolchain and SDK pins
 
 - 2026-09-11 | 📦 build(android): update toolchain and platform BOMs
 

@@ -6,7 +6,7 @@
 - priority: P1
 - platform: android
 - status: draft
-- plan_state: Draft - implementation not authorized
+- plan_state: Draft revision 2 - implementation not authorized
 - created: 2026-11-10
 
 ## Context and problem
@@ -39,7 +39,8 @@ its existing behavior with a smaller privacy and resource footprint.
 
 - Remove advertising permissions from the merged manifest and final artifacts,
   and explicitly disable advertising identifier collection and advertising
-  attribution/personalization signals using supported SDK configuration.
+  uses/signals using supported SDK configuration. Preserve ordinary usage
+  reporting and non-advertising measurement attribution.
 - Preserve non-advertising Analytics, Crashlytics, FCM, authentication, and
   application behavior; document the resulting data inventory.
 - Enable Release code/resource optimization and obfuscation with modern R8
@@ -53,10 +54,11 @@ its existing behavior with a smaller privacy and resource footprint.
 ### Out of scope
 
 - Implementing anything during this bootstrap; all execution remains pending.
-- Modifying the older app, iOS, backend, live data, account/operator status,
+- Modifying the older app, iOS, backend, production data, account/operator status,
   Play Console declarations, store listings, or publication channels.
 - Publishing/uploading binaries, mappings, symbols, or deliberate crash reports
-  as part of this planning authorization.
+  as part of this planning authorization. Exact-artifact cloud canaries and
+  synthetic develop writes require a later bounded authorization.
 - General dependency upgrades, new ads/Billing/AppFunctions/location/contact
   functionality, Analytics removal, and Restore Credentials integration.
 - Certifying overall store readiness or closing unrelated release gates.
@@ -66,6 +68,9 @@ its existing behavior with a smaller privacy and resource footprint.
 - Android platform and architecture baseline in `docs/tech-stack/README.md`.
 - Repository validation policy in `AGENTS.md`.
 - Existing secure-store release gate: GitHub issue #228 / ADR-0009.
+- Selected base: main `7491ebae`, including Android dependency update `0cff11eb`.
+- Non-advertising Analytics is explicitly retained by owner decision.
+- Operator status was reported complete by the owner on 2026-11-10; not verified here.
 - No accepted ADR is created at bootstrap. Review the need for an EN/ES ADR
   before adopting a new durable telemetry or Release-build policy.
 
@@ -79,6 +84,8 @@ its existing behavior with a smaller privacy and resource footprint.
 - AC-02: Supported SDK settings explicitly disable advertising identifier
   collection and advertising signals. Evidence covers both SDK configuration
   and artifact permissions; non-advertising telemetry and FCM still work.
+  Usage reporting/non-advertising attribution remain allowed. Inventory the
+  remaining non-advertising identifiers; claim neither anonymity nor no collection.
 - AC-03: Release optimizes code/resources and obfuscates using the pinned
   AGP's modern DSL. Debug stays suitable for development. There are no broad
   package keep rules or global optimization/obfuscation disable switches.
@@ -88,17 +95,26 @@ its existing behavior with a smaller privacy and resource footprint.
 - AC-05: Baseline and optimized measurements identify commit, dependency and
   configuration state, variant, version, tools, device/OS, artifact hashes,
   and uncompressed DEX size. The final artifact meets each applicable Play
-  percentage threshold; R8 enablement or analyzer scores alone are not proof.
-- AC-06: Repository Android gates pass, and representative user journeys pass
-  on APKs generated from the optimized Release AAB in an isolated test
-  environment. Debug instrumentation alone does not satisfy this criterion.
+  percentage threshold, using a compatible official `android analyze` and
+  exact-match R8/DEX metadata. Missing tools/metadata/checksum proof leave the
+  criterion pending; R8 enablement or analyzer scores alone are not proof.
+- AC-06: Repository gates and optimized local Release-equivalent QA journeys
+  pass with demo-project emulators, no live fallback, Release/PDF behavior and
+  reviewed variant differences. The exact Release AAB passes artifact/offline
+  checks and a separately authorized canary with an existing reviewer routed
+  to develop before business writes. QA is not the exact AAB; without canary
+  evidence this criterion remains pending. No production writes or client
+  authorization bypass is permitted; local notification tests do not prove FCM delivery.
 - AC-07: API 37/minimum 29, Photo Picker, functional permission behavior, and
   16 KB packaging/native alignment remain intact. Validate runtime behavior
   on a compatible 16 KB device/emulator and resolve or justify the observed
   AndroidX native-symbol stripping diagnostic without blanket suppression.
-- AC-08: Startup and memory are compared on matching journeys/devices without
-  unexplained regressions. Local samples are not claimed to establish Play's
-  28-day P90 memory compliance.
+- AC-08: The paired protocol in plan section 3 phase 5 is followed: three warm-ups,
+  20 process-cold starts, five samples per memory state, matching devices/data
+  and tool modes. Repeated increases above max(10%, 50 ms) for startup or
+  max(10%, 10 MiB) for PSS keep the criterion pending until fixed or explicitly
+  excepted by the owner. These engineering limits are not Play thresholds or proof of
+  Play's 28-day P90 compliance.
 - AC-09: Each candidate retains its exact mapping and R8 metadata. Local
   retrace recovers an expected trace. Mapping upload is controlled before
   builds can trigger automatic Crashlytics upload; any external diagnostic
@@ -109,8 +125,13 @@ its existing behavior with a smaller privacy and resource footprint.
 
 ## Dependencies and risks
 
-- Reconcile pre-existing uncommitted dependency changes before establishing a
-  reproducible baseline; this HU must not absorb those changes implicitly.
+- Dependency selection is resolved by the published main `7491ebae` and Android
+  update `0cff11eb`. Regenerate the measured baseline from the actual execution
+  commit; the earlier dirty-tree AAB is historical context only.
+- Compatible analyzer/strip tools, a 16 KB runtime and isolated QA fixtures are
+  preconditions, not installed or implemented by this planning revision.
+- The exact-artifact canary requires a later bounded authorization; implementation
+  may progress locally, but missing canary evidence cannot close AC-06.
 - Issue #228 remains a separate distribution gate. Include encrypted-storage
   upgrade behavior in Release validation without claiming to close that issue.
 - Reflection, consumer keep rules, SDK initialization, and automatic mapping

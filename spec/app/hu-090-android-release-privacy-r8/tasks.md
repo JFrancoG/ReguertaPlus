@@ -1,73 +1,83 @@
 # Tasks - HU-090
 
-## 1. Bootstrap and decision
+## 1. Planning and owner decisions
 
-- [x] Confirm new ReguertaPlus Android scope; exclude the older Play app.
-- [x] Check existing local stories and open/closed GitHub issues for duplicates.
-- [x] Reserve HU-090 and prepare the spec, plan, and issue mirror.
-- [x] Obtain authorization for an isolated worktree and documentation commit/push.
-- [x] Record audit provenance and the pre-existing dependency-version difference.
-- [x] Create and verify issue #282 and the isolated local documentation branch.
-- [ ] Review the Draft plan and authorize implementation.
+- [x] Confirm unpublished ReguertaPlus Android scope; exclude the older Play app.
+- [x] Check duplicates, create HU-090 / issue #282 and isolated planning branch.
+- [x] Obtain authorization for documentation commit/push; implementation stays pending.
+- [x] Record prior dirty-tree audit and independently delivered dependency evidence.
+- [x] Select published main 7491ebae / Android dependency commit 0cff11eb as base.
+- [x] Ratify retention of non-advertising Analytics and define permitted usage measurement.
+- [x] Document local QA versus exact-artifact canary, local metrics and performance protocol.
+- [x] Record operator completion reported by owner on 2026-11-10, without Console verification.
+- [ ] Review revision 2 and explicitly authorize implementation.
 
-## 2. Android privacy implementation - not started
+## 2. Tooling and reproducible baseline - not executed by this revision
 
-- [ ] Confirm the approved dependency baseline and current SDK configuration.
+- [ ] Prepare an official CLI that provides android analyze; record version/help contract.
+- [ ] Prepare required NDK strip tool and a confirmed 16 KB runtime.
+- [ ] Inspect task graph and disable automatic mapping uploads for local validation.
+- [ ] Create local QA demo-project emulator fixtures and fail-closed endpoint configuration.
+- [ ] Establish the actual commit/dependency/configuration/variant/artifact hashes.
+- [ ] Prepare the non-publishable QA scaffold/isolation before any runtime baseline, initially unoptimized.
+- [ ] Capture the pre-change artifact; after privacy changes, capture the paired unoptimized QA baseline.
+
+## 3. Android privacy implementation - not started
+
 - [ ] Remove AD_ID and both advertising AdServices permissions at merge time.
-- [ ] Explicitly disable advertising identifier collection and advertising signals.
-- [ ] Preserve non-advertising Analytics, Crashlytics, FCM, and existing features.
-- [ ] Add a focused final-manifest/artifact regression check for advertising access.
-- [ ] Record the resulting privacy/data inventory without submitting Console forms.
+- [ ] Disable advertising ID collection, personalization and advertising data/storage uses.
+- [ ] Verify effective SDK advertising state before relevant events and no re-enable path.
+- [ ] Preserve usage Analytics, Crashlytics, FCM and non-advertising measurement attribution.
+- [ ] Add a final-manifest/artifact regression check for advertising permissions.
+- [ ] Inventory remaining non-advertising identifiers/data for later Data Safety review.
 
-## 3. Android optimization implementation - not started
+## 4. Android optimization implementation - not started
 
-- [ ] Inspect task graph and control automatic Crashlytics uploads before R8 builds.
-- [ ] Produce a reproducible unoptimized baseline with dependency/configuration hashes.
-- [ ] Enable code/resource optimization and obfuscation for Release with modern AGP DSL.
-- [ ] Keep Debug unoptimized and use only evidenced, narrow keep rules.
-- [ ] Review and replace or narrowly preserve the reflective getCode error contract.
-- [ ] Verify permission-denied and generic failure behavior with a meaningful oracle.
-- [ ] Inspect SDK consumer rules, serialization, and encrypted-store initialization.
-- [ ] Run the applicable configuration analyzer and review its findings.
+- [ ] Enable Release code/resource optimization and obfuscation with AGP 9.5.1 DSL.
+- [ ] Keep Debug unoptimized; use only evidenced narrow rules and SDK consumer rules.
+- [ ] Review and replace or narrowly preserve reflective getCode error classification.
+- [ ] Verify permission-denied and generic failures with an independent behavior oracle.
+- [ ] Inspect serialization and encrypted-store initialization under optimization.
+- [ ] Apply reviewed Release-equivalent optimization/PDF settings to the prepared releaseValidation scaffold.
+- [ ] Run the applicable R8 configuration analyzer and review its findings.
 
-## 4. iOS and backend boundaries
+## 5. Local implementation validation - not run by documentation work
 
-- [x] Confirm no iOS, backend, live-data, or older-app implementation is in scope.
-- [ ] Verify unchanged product contracts and no Android/iOS feature parity regression.
+- [ ] Run Debug unit tests, lint and connected tests on a fresh dedicated emulator.
+- [ ] Report existing warning debt and any new finding without silently waiving policy.
+- [ ] Build optimized Release AAB/APK and pass metadata/lint-vital checks.
+- [ ] Verify final permissions and supported advertising SDK controls.
+- [ ] Run android analyze JSON on exact AAB; require applicable ratios and EXACT_MATCH.
+- [ ] Run paired startup/PSS protocol on matching API 29 and 16 KB environments.
+- [ ] Validate local auth/session/recreation and order/producer/error journeys on optimized QA.
+- [ ] Validate photos/camera, PDF, notification handling/denial, storage and serialization locally.
+- [ ] Check exact AAB artifacts, offline smoke, local retrace and archive hashes/mappings/metadata.
+- [ ] Recheck SDK values, Photo Picker, 16 KB packaging/native alignment and runtime.
+- [ ] Re-run native stripping with the required SDK tool; resolve diagnostics with evidence.
 
-## 5. Implementation validation - not run by bootstrap
+## 6. Exact-artifact canary - later bounded authorization required
 
-- [ ] Run Android Debug unit tests and lint.
-- [ ] Run connected instrumentation on an available device/emulator; record destination.
-- [ ] Build optimized Release AAB/APK and pass AAR metadata/lint-vital checks.
-- [ ] Verify no advertising permissions in merged manifest and final AAB/APK.
-- [ ] Validate supported SDK privacy settings and preserved non-advertising services.
-- [ ] Measure actual final DEX optimization, obfuscation, and shrinking percentages.
-- [ ] Compare artifact size, startup, and memory with the reproducible baseline.
-- [ ] Validate auth/session/recreation and order/producer/error journeys on optimized Release.
-- [ ] Validate photo/camera, PDF, notifications, denial paths, and serialization on Release.
-- [ ] Validate encrypted-storage upgrade behavior and coordinate the separate #228 gate.
-- [ ] Recheck API/minimum SDK, Photo Picker, 16 KB packaging/native alignment and runtime.
-- [ ] Resolve or justify AndroidX symbol-stripping diagnostics with evidence.
-- [ ] Archive exact mappings, R8 metadata, rules, artifact hashes, and tool versions.
-- [ ] Prove local retrace; document later authorized Crashlytics mapping verification.
+- [ ] Prepare candidate hash, project/develop fixture paths, roles, operations and telemetry plan.
+- [ ] Obtain authorization for that cloud canary and any real FCM delivery check.
+- [ ] Verify existing reviewer routing/linked account and effective develop before business writes.
+- [ ] Run APKs from the exact archived Release AAB without backend/allowlist changes.
+- [ ] Record real push evidence separately from local notification handling if required.
+- [ ] Keep AC-06 pending while this canary is absent; coordinate separate secure-store gate #228.
 
-## 6. Documentation and closure - implementation remains pending
+## 7. Documentation and closure - implementation remains pending
 
-- [ ] Link implementation evidence by acceptance criterion without duplicating raw logs.
-- [ ] Review need for a durable ADR/tech-stack change and update EN/ES if applicable.
-- [ ] Prepare Advertising ID/Data Safety notes for later owner review.
-- [ ] Verify all acceptance criteria and outstanding independent release gates.
-- [ ] Request release/upload authorization only if distribution is later requested.
+- [ ] Link evidence by criterion; preserve exact mapping and test-environment distinctions.
+- [ ] Review need for ADR/stack changes and maintain EN/ES mirrors if applicable.
+- [ ] Prepare Advertising ID/Data Safety notes; submit no Console forms without later scope.
+- [ ] Confirm no iOS/backend/production-data or feature-parity changes.
+- [ ] Verify all criteria and independent release gates before claiming completion.
+- [ ] Treat distribution/mapping upload as a separate later action when requested.
 
-## Bootstrap evidence
+## Planning evidence
 
-- 2026-11-10: documentation-only planning authorized; implementation not authorized.
-- Main checkout's four pre-existing modified files are excluded from this branch.
-- Audit observations and their limitations are recorded in `plan.md` section 2.
-- Issue: https://github.com/JFrancoG/ReguertaPlus/issues/282 (open; Draft plan).
-- Branch: `codex/hu-090-android-release-privacy-r8`.
-- Documentation links, scope, and checklist independently reviewed; `git diff --check` passed.
-- The authorized handoff is a documentation-only commit and branch push;
-  their receipts belong to Git history and remote branch verification.
-- Mobile validation is skipped for this non-behavioral documentation bootstrap.
+- Revision 1: planning bootstrap only, commit 5de7c804; original dirty measurements retained.
+- Revision 2 on 2026-11-10: updated base/privacy and concrete validation recommendations;
+  implementation is still unauthorized. Operator completion is owner-reported only.
+- Issue: https://github.com/JFrancoG/ReguertaPlus/issues/282 (open; Draft revision 2).
+- Branch: `codex/hu-090-android-release-privacy-r8`, integrating published main without rebase.
+- Commit/remote receipts belong to Git history; documentation-only validation is recorded at handoff.

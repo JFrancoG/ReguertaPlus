@@ -2,59 +2,63 @@
 
 GitHub issue: https://github.com/JFrancoG/ReguertaPlus/issues/282
 
-## Summary
+## Current outcome and plan state
 
-Prepare the unpublished ReguertaPlus Android app for a potential first
-release by removing advertising access and validating R8 code/resource
-optimization and obfuscation. The existing Play app is outside this story.
+Prepare unpublished ReguertaPlus Android with no advertising access and a
+validated R8-optimized Release. **Draft revision 2; implementation not started
+or authorized.** The owner requested documentation commit/push only.
 
-**Plan state: Draft. Implementation has not started or been authorized.**
-Only HU setup and its documentation commit/push are authorized now.
+## Decisions resolved on 2026-11-10
 
-## Canonical repository sources
+- Use published main `7491ebae`, including Android dependency update `0cff11eb`:
+  AGP 9.5.1, Kotlin 2.4.21, Firebase BOM 35.1.0 and the committed version catalog.
+- Retain non-advertising Analytics, including ordinary usage reporting and
+  non-advertising measurement attribution; prohibit advertising IDs/AdServices
+  access and advertising uses/signals. Preserve Crashlytics/FCM.
+- Operator status is complete according to the owner; not independently
+  verified by this HU and not a publication/declaration approval.
+
+## Canonical sources
 
 - [Spec](../app/hu-090-android-release-privacy-r8/spec.md)
 - [Plan](../app/hu-090-android-release-privacy-r8/plan.md)
 - [Tasks](../app/hu-090-android-release-privacy-r8/tasks.md)
 - Independent distribution gate: [secure-store issue #228](https://github.com/JFrancoG/ReguertaPlus/issues/228).
 
-## Acceptance summary
+## Execution recommendations incorporated for review
 
-- Remove AD_ID, ACCESS_ADSERVICES_AD_ID, and ACCESS_ADSERVICES_ATTRIBUTION
-  from final artifacts; explicitly disable advertising collection/signals.
-- Preserve non-advertising Analytics, Crashlytics, FCM, and product behavior.
-- Enable modern Release R8 optimization/obfuscation with narrow rules and
-  review the getCode reflection risk; preserve typed Domain contracts.
-- Establish reproducible baseline and final metrics; verify every applicable
-  Play DEX threshold and compare startup/memory without overclaiming compliance.
-- Pass Android gates and functional journeys on the optimized Release binary,
-  including SDK/minimum-version, Photo Picker, and 16 KB regression checks.
-- Retain exact mappings/metadata and prove local retracing with upload controls.
-- Prepare privacy-declaration evidence without changing Console or publishing.
+- Verify the three advertising permissions are absent from final artifacts,
+  and SDK advertising controls are effective; inventory remaining non-ad IDs.
+- Use modern R8 code/resource optimization, narrow rules and typed error mapping.
+- Validate locally with a non-publishable Release-equivalent QA variant and
+  demo-project emulators, preserving Release/PDF behavior with no live fallback.
+- Keep the exact archived Release AAB's canary separate: existing reviewer to
+  develop, bounded later authorization and environment proof before writes.
+  QA is not the exact AAB; absent canary evidence leaves AC-06 pending.
+- Use compatible official `android analyze --format=json` for actual ratios
+  and EXACT_MATCH metadata; missing tools/metadata leave AC-05 pending.
+- Apply the plan's paired 20-launch/five-sample protocol and explicit regression
+  limits; retain mappings and prove local retrace without automatic uploads.
 
-The spec owns the complete acceptance criteria; the plan owns sequencing,
-risks, validation, baseline provenance, and official policy references.
+## Scope and boundaries
 
-## Boundaries
+Android privacy/build/validation and required documentation only. No current
+implementation, older-app/iOS/backend/production-data changes, dependency
+upgrades, Console operations, uploads/publication or Restore Credentials.
+Exact-artifact cloud testing and real FCM checks need later bounded authorization.
+The old 68,674,188-byte DEX observation is historical dirty-tree evidence;
+repeat measurements from the selected implementation commit.
 
-Android only. No implementation during setup, older-app/iOS/backend/live-data
-changes, dependency upgrades, operator declaration, Console submissions,
-artifact/mapping uploads, store publication, or Restore Credentials work.
+## Current checklist
 
-The 68,674,188-byte DEX observation came from a dirty local checkout on
-2026-11-10. It is context, not a reproducible baseline of the committed base.
+- [x] Select committed dependency base and retain non-advertising Analytics.
+- [x] Record operator completion as owner-reported.
+- [x] Define proposed isolation, artifact metrics and performance protocol.
+- [ ] Review revision 2 and authorize implementation.
+- [ ] Implement privacy/R8 changes and obtain local evidence.
+- [ ] Obtain later exact-artifact canary authorization/evidence.
+- [ ] Complete acceptance criteria and required documentation.
 
-## Implementation checklist
-
-- [ ] Approve plan and exact dependency baseline before implementation.
-- [ ] Remove advertising permissions and disable advertising signals.
-- [ ] Enable and validate R8 optimization/obfuscation and mappings.
-- [ ] Complete optimized Release functional and performance evidence.
-- [ ] Update privacy documentation and applicable decision mirrors.
-
-## Tracking
-
-- Priority: P1; platform: Android; area: App.
-- State: open / Draft plan, not in progress.
-- Parent/milestone: none; no existing scope-equivalent parent identified.
-- Next step: review the canonical plan, then explicitly authorize implementation.
+The spec owns the acceptance criteria; the plan owns the execution sequence
+and evidence requirements. The issue remains open and unstarted. No parent or
+milestone is added. Next step: review this revision, then authorize implementation.

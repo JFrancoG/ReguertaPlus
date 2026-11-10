@@ -34,12 +34,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		E0B200012FC000010038B8EB /* fast-unit-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "fast-unit-v1.xctestplan"; sourceTree = "<group>"; };
-		E0B200022FC000010038B8EB /* ui-smoke-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ui-smoke-v1.xctestplan"; sourceTree = "<group>"; };
-		E0B200032FC000010038B8EB /* release-gate-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "release-gate-v1.xctestplan"; sourceTree = "<group>"; };
 		E03FA0422F353C1A0038B8EB /* Reguerta.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Reguerta.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E03FA04F2F353C1B0038B8EB /* ReguertaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReguertaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E03FA0592F353C1B0038B8EB /* ReguertaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReguertaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E0B200012FC000010038B8EB /* fast-unit-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "fast-unit-v1.xctestplan"; sourceTree = "<group>"; };
+		E0B200022FC000010038B8EB /* ui-smoke-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ui-smoke-v1.xctestplan"; sourceTree = "<group>"; };
+		E0B200032FC000010038B8EB /* release-gate-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "release-gate-v1.xctestplan"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -116,16 +116,6 @@
 			);
 			sourceTree = "<group>";
 		};
-		E0B200042FC000010038B8EB /* TestPlans */ = {
-			isa = PBXGroup;
-			children = (
-				E0B200012FC000010038B8EB /* fast-unit-v1.xctestplan */,
-				E0B200022FC000010038B8EB /* ui-smoke-v1.xctestplan */,
-				E0B200032FC000010038B8EB /* release-gate-v1.xctestplan */,
-			);
-			path = TestPlans;
-			sourceTree = "<group>";
-		};
 		E03FA0432F353C1A0038B8EB /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -134,6 +124,16 @@
 				E03FA0592F353C1B0038B8EB /* ReguertaUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E0B200042FC000010038B8EB /* TestPlans */ = {
+			isa = PBXGroup;
+			children = (
+				E0B200012FC000010038B8EB /* fast-unit-v1.xctestplan */,
+				E0B200022FC000010038B8EB /* ui-smoke-v1.xctestplan */,
+				E0B200032FC000010038B8EB /* release-gate-v1.xctestplan */,
+			);
+			path = TestPlans;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -620,13 +620,14 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Reguerta.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Reguerta";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -648,13 +649,14 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Reguerta.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Reguerta";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -675,13 +677,14 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Reguerta;
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -702,13 +705,14 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Reguerta;
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
