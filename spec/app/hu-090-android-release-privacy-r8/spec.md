@@ -5,9 +5,19 @@
 - issue_id: 282
 - priority: P1
 - platform: android
-- status: draft
-- plan_state: Draft revision 2 - implementation not authorized
+- status: in-progress
+- plan_state: Approved revision 2 - local Android implementation authorized
 - created: 2026-11-10
+
+## Current local outcome
+
+Privacy controls and R8 are implemented locally. See [validation](validation.md)
+for exact artifacts, performance, SDK/offline observations and test scopes.
+Acceptance remains pending: the camera preview failure also occurs without R8,
+normal Debug retains its existing lint warnings, and exact-artifact cloud/FCM
+evidence and gate #228 remain separate. The owner authorized commit/push of
+the HU branch on 2026-11-10; Git history and issue #282 record that delivery.
+This does not authorize publication, production operations or HU closure.
 
 ## Context and problem
 
@@ -16,7 +26,7 @@ first potential distribution with no advertising identifiers and with a
 validated, optimized Release build. The older Reguerta app and its Play
 Console findings are outside this story.
 
-The current Release configuration disables R8. Firebase Analytics can add
+The pre-HU-090 Release configuration disabled R8. Firebase Analytics can add
 advertising permissions transitively even though this app has no advertising
 feature. Removing manifest permissions alone does not prove that advertising
 identifier collection and advertising signals are disabled.
@@ -53,11 +63,12 @@ its existing behavior with a smaller privacy and resource footprint.
 
 ### Out of scope
 
-- Implementing anything during this bootstrap; all execution remains pending.
+- Publishing or touching production; local Android implementation is authorized
+  by the owner on 2026-11-10.
 - Modifying the older app, iOS, backend, production data, account/operator status,
   Play Console declarations, store listings, or publication channels.
 - Publishing/uploading binaries, mappings, symbols, or deliberate crash reports
-  as part of this planning authorization. Exact-artifact cloud canaries and
+  under the current local implementation authorization. Exact-artifact cloud canaries and
   synthetic develop writes require a later bounded authorization.
 - General dependency upgrades, new ads/Billing/AppFunctions/location/contact
   functionality, Analytics removal, and Restore Credentials integration.
@@ -71,8 +82,10 @@ its existing behavior with a smaller privacy and resource footprint.
 - Selected base: main `7491ebae`, including Android dependency update `0cff11eb`.
 - Non-advertising Analytics is explicitly retained by owner decision.
 - Operator status was reported complete by the owner on 2026-11-10; not verified here.
-- No accepted ADR is created at bootstrap. Review the need for an EN/ES ADR
-  before adopting a new durable telemetry or Release-build policy.
+- Accepted local implementation decision: ADR-0015
+  ([EN](../../../docs/decisions/0015-android-release-privacy-and-local-validation.md),
+  [ES](../../../docs-es/decisions/0015-privacidad-release-android-y-validacion-local.md)).
+- [Remaining non-advertising data inventory and review limits](privacy-inventory.md).
 
 ## Acceptance criteria
 
@@ -120,8 +133,8 @@ its existing behavior with a smaller privacy and resource footprint.
   builds can trigger automatic Crashlytics upload; any external diagnostic
   verification is deferred until separately authorized.
 - AC-10: Data-inventory notes support Advertising ID/Data Safety declarations
-  for the final configuration. No declaration is submitted by this story's
-  planning work. Required decision/stack updates remain aligned in EN/ES.
+  for the final configuration. No declaration is submitted under this story's
+  local implementation scope. Required decision/stack updates remain aligned in EN/ES.
 
 ## Dependencies and risks
 
@@ -129,15 +142,16 @@ its existing behavior with a smaller privacy and resource footprint.
   update `0cff11eb`. Regenerate the measured baseline from the actual execution
   commit; the earlier dirty-tree AAB is historical context only.
 - Compatible analyzer/strip tools, a 16 KB runtime and isolated QA fixtures are
-  preconditions, not installed or implemented by this planning revision.
+  execution preconditions; their preparation and verification belong to the
+  current local implementation evidence.
 - The exact-artifact canary requires a later bounded authorization; implementation
   may progress locally, but missing canary evidence cannot close AC-06.
 - Issue #228 remains a separate distribution gate. Include encrypted-storage
   upgrade behavior in Release validation without claiming to close that issue.
 - Reflection, consumer keep rules, SDK initialization, and automatic mapping
-  uploads require inspection before optimization is enabled.
+  uploads require recorded inspection and validation with optimization enabled.
 - Final Play requirements and supported SDK settings must be rechecked when
-  execution starts; local measurements cannot represent Console acceptance.
+  the final candidate is assessed; local measurements cannot represent Console acceptance.
 
 ## Definition of Done
 

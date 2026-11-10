@@ -113,25 +113,5 @@ enum class ReceivedOrderStatusWriteResult {
     FAILURE,
 }
 
-fun Throwable.toReceivedOrderStatusWriteResult(): ReceivedOrderStatusWriteResult {
-    val codeName = runCatching {
-        javaClass.methods.firstOrNull { method -> method.name == "getCode" }
-            ?.invoke(this)
-            ?.toString()
-            ?.uppercase()
-    }.getOrNull()
-    val normalizedMessage = message?.uppercase().orEmpty()
-
-    return if (
-        codeName?.contains("PERMISSION_DENIED") == true ||
-        normalizedMessage.contains("PERMISSION_DENIED") ||
-        normalizedMessage.contains("PERMISSION-DENIED")
-    ) {
-        ReceivedOrderStatusWriteResult.PERMISSION_DENIED
-    } else {
-        ReceivedOrderStatusWriteResult.FAILURE
-    }
-}
-
 private fun receivedOrdersIsApproximatelyOne(value: Double): Boolean =
     abs(value - 1.0) < 0.0001

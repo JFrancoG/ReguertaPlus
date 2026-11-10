@@ -26,6 +26,10 @@ Este documento es la fuente de verdad del stack tecnico de Reguerta.
 - Persistencia local/preferencias: DataStore (Preferences)
 - Carga de imagenes: Coil (Compose + integracion OkHttp)
 - Integracion backend: Firebase SDK (Auth, Firestore, Storage, Messaging, Crashlytics, Analytics)
+- Release: optimización de código/recursos y ofuscación con R8; Debug ordinario sigue sin optimizar.
+- Telemetría: se conservan Analytics no publicitario, Crashlytics y FCM; se desactivan
+  identificadores publicitarios, permisos AdServices y usos publicitarios según
+  [ADR-0015](../decisions/0015-privacidad-release-android-y-validacion-local.md).
 
 ## Stack iOS
 
@@ -62,6 +66,9 @@ Este documento es la fuente de verdad del stack tecnico de Reguerta.
 ## Tooling de Tests y Validacion
 
 - Android: Gradle (`test`, `lint`, instrumentacion segun necesidad)
+- Validación Release local de Android: `releaseValidation` sin depuración, con
+  comportamiento solo PDF y emuladores del proyecto demo; la prueba cloud del artefacto
+  exacto y las subidas de diagnóstico requieren autorización separada según ADR-0015.
 - iOS: `Reguerta` es el scheme canonico de Xcode con los planes versionados
   `fast-unit-v1`, `ui-smoke-v1` y `release-gate-v1`
 - Entrada de validacion iOS: `scripts/validate-ios.sh`, con un destino explicito

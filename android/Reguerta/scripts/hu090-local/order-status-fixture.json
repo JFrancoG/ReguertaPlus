@@ -1,0 +1,11 @@
+{
+  "project": "demo-reguerta-hu090",
+  "environment": "develop",
+  "weekKey": "2026-W45",
+  "note": "On Tuesday 2026-11-10 the operational received-orders screen consults the previous week. These fixtures test local adapter/UI status outcomes, not production Rules.",
+  "cases": [
+    {"orderId": "hu090-denied", "lineId": "hu090-ui-denied-line", "userId": "hu090-member", "consumerDisplayName": "HU090 Local Member", "outcome": "permission_denied"},
+    {"orderId": "hu090-ui-allowed", "lineId": "hu090-ui-allowed-line", "userId": "hu090-admin", "consumerDisplayName": "HU090 Local Admin", "outcome": "success"},
+    {"orderId": "hu090-missing", "lineId": "hu090-ui-missing-line", "userId": "hu090-producer", "consumerDisplayName": "HU090 Local Producer", "outcome": "not_found_after_remove_missing_order"}
+  ]
+}

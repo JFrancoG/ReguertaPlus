@@ -1,0 +1,21 @@
+{
+  "project": "demo-reguerta-hu090",
+  "environment": "develop",
+  "accounts": {
+    "qa.member@example.invalid": {
+      "memberId": "hu090-member",
+      "displayName": "HU090 Local Member",
+      "roles": ["member"]
+    },
+    "qa.producer@example.invalid": {
+      "memberId": "hu090-producer",
+      "displayName": "HU090 Local Producer",
+      "roles": ["member", "producer"]
+    },
+    "qa.admin@example.invalid": {
+      "memberId": "hu090-admin",
+      "displayName": "HU090 Local Admin",
+      "roles": ["member", "producer", "admin"]
+    }
+  }
+}

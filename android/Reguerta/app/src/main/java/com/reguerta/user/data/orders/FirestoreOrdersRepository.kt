@@ -3,6 +3,7 @@ package com.reguerta.user.data.orders
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
@@ -19,13 +20,32 @@ import com.reguerta.user.domain.orders.ReceivedOrdersProductRow
 import com.reguerta.user.domain.orders.ReceivedOrdersSnapshot
 import com.reguerta.user.domain.orders.isValidIsoWeekKey
 import com.reguerta.user.domain.orders.resolveOrderSummaryTotal
-import com.reguerta.user.domain.orders.toReceivedOrderStatusWriteResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.ExecutionException
 
 private val OrderOwnerFieldNames = listOf("userId", "memberId")
+
+/**
+ * Classifies a Firestore write failure before it crosses the Data boundary.
+ *
+ * Tasks.await wraps its SDK failure in ExecutionException. The SDK status code,
+ * rather than diagnostic text or a reflected method name, determines denial.
+ */
+internal fun Throwable.toReceivedOrderStatusWriteResult(): ReceivedOrderStatusWriteResult {
+    val firestoreFailure = when (this) {
+        is FirebaseFirestoreException -> this
+        is ExecutionException -> cause as? FirebaseFirestoreException
+        else -> null
+    } ?: return ReceivedOrderStatusWriteResult.FAILURE
+
+    return when (firestoreFailure.code) {
+        FirebaseFirestoreException.Code.PERMISSION_DENIED -> ReceivedOrderStatusWriteResult.PERMISSION_DENIED
+        else -> ReceivedOrderStatusWriteResult.FAILURE
+    }
+}
 
 class FirestoreOrdersRepository(
     private val firestore: FirebaseFirestore,

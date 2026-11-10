@@ -2,10 +2,11 @@
 
 ## 1. Current outcome, decisions, and authorization
 
-- State: **Draft, revision 2; implementation not started or authorized**.
-- Authorized now: update this planning set and issue, integrate the published
-  main baseline, and commit/push documentation. No SDK/build/manifest edits,
-  runtime changes, uploads, or Console operations are authorized now.
+- State: **Android privacy/R8 implemented locally; acceptance remains pending**.
+- Authorized now: implement Android privacy/R8 and execute local validation.
+  Publication, production access/writes, cloud canaries, live FCM sends, and
+  mapping/symbol uploads remain outside authorization. No live services are
+  used for this implementation's tests.
 - Dependency decision resolved: use main `7491ebae84d49c30e32d27cd5de5a74ff94ee3a3`,
   including Android update `0cff11eb`; reproduce measurements from the eventual
   implementation commit using these pins. Additional upgrades are separate work.
@@ -15,20 +16,30 @@
   measurement attribution remain permitted.
 - Operator status: owner-reported complete on 2026-11-10. This is not an
   independent Console verification, an app declaration, or publication approval.
-- Technical recommendations for review: local Release-equivalent validation,
+- Accepted execution approach: local Release-equivalent validation,
   an exact-artifact canary kept as a separate authorized gate, local artifact
   metrics, and the performance protocol below.
-- Next owner decision: review this revision and explicitly authorize
-  implementation. Later canary/upload authorization is requested only when a
-  concrete candidate and bounded test operation exist.
+- Current evidence: [local validation and exact artifact hashes](validation.md).
+  Both paired performance runs, artifact metrics, 16 KB alignment/runtime,
+  offline SDK advertising defaults and optimized external journeys are recorded.
+- Next decision: review the camera preview failure reproduced in both QA
+  variants and the existing warning debt. The exact-artifact cloud canary,
+  external telemetry/FCM proof and secure-store distribution gate #228 stay open.
+  Git delivery is limited to commit/push of the HU branch, authorized by the
+  owner on 2026-11-10. Git history and issue #282 own the delivery receipt;
+  this does not authorize merge, HU closure, publication or production access.
+- Owner approval on 2026-11-10 supersedes the earlier planning-only limit;
+  exact-artifact cloud canary/upload authorization stays separate.
+
 
 ## 2. Selected baseline and evidence provenance
 
 ### Current committed baseline
 
 The HU branch integrates the published main baseline without rewriting its
-previously pushed planning commit. Android source, manifests, and dependencies
-must remain identical to that main baseline during this documentation update.
+previously pushed planning commit. The documentation-only revision preserved
+Android source, manifests and dependencies. The approved local implementation
+now changes the privacy/build configuration against these same selected pins.
 
 | Component | Selected version |
 | --- | --- |
@@ -44,7 +55,7 @@ The version catalog is authoritative for the remaining pins. Record the full
 resolved graph, configuration state, tools, artifact hashes, and actual commit
 when establishing the before/after baseline; do not reuse a historical AAB.
 
-The dependency delivery passed 480 unit tests, 23 connected tests with one
+The earlier dependency delivery passed 480 unit tests, 23 connected tests with one
 opt-in test omitted on a fresh API 29 emulator, and Release bundle generation.
 Lint comparison reported 136 existing warnings and two hints, no new findings,
 and 13 obsolete-version warnings removed. Command success is not a claim of
@@ -52,10 +63,11 @@ warning-free acceptance or authorization to suppress diagnostics. The repo's
 warning policy remains in force; distinguish existing debt from new findings
 and report any required gate that cannot pass without a further decision.
 
-The native-symbol stripping diagnostic was traced to missing host NDK strip
-tools: AGP requested NDK `28.2.13676358`. Prepare the required official SDK tool
-before rechecking stripping; do not change native code or suppress the message
-as a shortcut. This planning update installs nothing.
+During dependency delivery, the native-symbol stripping diagnostic was traced
+to missing host NDK strip tools: AGP requested NDK `28.2.13676358`. The
+documentation-only revision installed nothing. The approved implementation
+must record preparation of the required official tool and recheck stripping;
+do not change native code or suppress the message as a shortcut.
 
 ### Historical audit retained for context
 
@@ -73,7 +85,7 @@ ProGuard configuration and `ReguertaFirestorePath.kt`, plus
 `FirestoreOrdersRepository.kt`. Existing reviewer routing is owned by the
 backend; a client environment override is not an authorization mechanism.
 
-## 3. Implementation sequence proposed for approval
+## 3. Approved implementation sequence
 
 ### Phase 1 - Reproducibility, tooling, and upload controls
 
@@ -86,8 +98,8 @@ live backend to obtain the baseline. Keep the same QA variant and intentional
 Release differences on both sides of the eventual R8 comparison.
 
 Prepare official Android CLI tooling that actually exposes `android analyze`;
-the currently installed CLI lacks it. Record its version and verify its help
-contract before using it. Prepare the required native strip tool and a 16 KB
+the CLI inspected during planning lacked it. Record the execution tool's version
+and verify its help contract before using it. Prepare the required native strip tool and a 16 KB
 runtime. Missing tools leave the corresponding acceptance pending.
 
 Before enabling R8, inspect the Crashlytics task graph and set the supported
@@ -126,8 +138,9 @@ measurement. Observe only synthetic QA events; external telemetry verification
 requires its later bounded authorization.
 
 Non-advertising Analytics does not mean no identifiers or no collection.
-Inventory remaining app-instance/Firebase installation identifiers and
-diagnostics for Data Safety; preserve IDs needed for FCM/device registration.
+Maintain the [remaining data and identifier inventory](privacy-inventory.md)
+for Data Safety, including its static-review limits; preserve IDs needed for
+FCM/device registration.
 Add an artifact-level regression check so dependency updates cannot silently
 restore advertising permissions. Submit no Console declaration in this HU's
 current documentation work.
@@ -223,7 +236,7 @@ or profilers that would bias the comparison. Compare on the same fresh API 29
 phone AVD and a separately verified 16 KB runtime; record exact identities and
 `getconf PAGESIZE` (16384 for the latter). Results are relative local evidence.
 
-Proposed engineering protocol and regression limits (not Play thresholds):
+Approved engineering protocol and regression limits (not Play thresholds):
 
 - Startup: discard three warm-up launches, then collect 20 process-cold
   launches without clearing application data. Use the same launch command and
@@ -249,8 +262,11 @@ reports, versions and measurement evidence together. Prove local retracing
 against the exact mapping. Document later mapping upload to the intended
 Firebase target without enabling/submitting it during local validation.
 
-Review the need for a durable ADR/tech-stack update and maintain EN/ES mirrors
-when applicable. Keep secure-store issue #228 and unrelated release gates
+Maintain ADR-0015
+([EN](../../../docs/decisions/0015-android-release-privacy-and-local-validation.md),
+[ES](../../../docs-es/decisions/0015-privacidad-release-android-y-validacion-local.md))
+and any required tech-stack mirrors with the final implementation evidence.
+Keep secure-store issue #228 and unrelated release gates
 visible; this HU cannot close them or authorize publication. No iOS/backend
 implementation or feature-parity change is planned.
 
@@ -278,12 +294,14 @@ notification handling/denial, encrypted-store upgrades and serialization.
 Coordinate #228 evidence without replacing its independent acceptance. Separate
 local handling from exact-artifact cloud/push evidence as defined above.
 
-For this documentation revision: inspect metadata, local links, consistent
+For the earlier documentation-only revision: inspect metadata, local links, consistent
 acceptance/checklists, conflict resolution and diff scope; run
-`git diff --check` and verify issue/remote branch read-back. No mobile build,
-SDK installation, emulator startup or runtime test is performed now.
+`git diff --check` and verify issue/remote branch read-back. That revision
+performed no mobile build, SDK installation, emulator startup or runtime test.
+The currently authorized implementation runs the local validations above;
+results and outstanding acceptance remain separate from that historical check.
 
-## 5. Decision record - 2026-11-10 revision 2
+## 5. Decision record - 2026-11-10 revision 2 before execution approval
 
 - Owner requested the updated published dependency base and retained
   non-advertising Analytics; earlier baseline-selection ambiguity is resolved.
@@ -291,14 +309,16 @@ SDK installation, emulator startup or runtime test is performed now.
   and a separately authorized exact-artifact canary; no live write is granted.
 - Replaced the metrics-tool gap allowance with a concrete local command and a
   pending criterion if tools/metadata are unavailable.
-- Added an explicit proposed startup/memory comparison protocol and limits.
+- Proposed the explicit startup/memory comparison protocol and limits later approved below.
 - Recorded the operator completion as owner-reported only.
-- Implementation remains unauthorized. The prior audit is retained above;
-  dependency-delivery tests are not claimed as HU-090 implementation evidence.
+- At that documentation checkpoint, implementation was not yet authorized.
+  The owner's subsequent approval in section 7 supersedes that restriction.
+  The prior audit is retained above; dependency-delivery tests are not claimed
+  as HU-090 implementation evidence.
 
 ## 6. Official references
 
-Recheck these sources when implementation begins:
+Use these sources during implementation and recheck them for the final candidate:
 
 - [Play technical quality requirements](https://support.google.com/googleplay/android-developer/answer/17492799)
 - [Enable optimization with R8](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization)
@@ -312,3 +332,10 @@ Recheck these sources when implementation begins:
 
 Restore Credentials for April 2027 remains separate future scope. Operator
 completion is reported by the owner, not independently checked by this HU.
+
+## 7. Implementation approval - 2026-11-10
+
+The owner approved revision 2 and authorized Android implementation and local
+validation, retaining non-advertising Analytics. Production and publication
+remain prohibited. Earlier Draft entries describe the preserved decision trail,
+not the current authorization. Local work is in progress on this isolated branch.

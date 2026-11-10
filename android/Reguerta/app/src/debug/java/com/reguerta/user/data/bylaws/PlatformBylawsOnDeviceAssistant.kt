@@ -6,6 +6,8 @@ import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
+import com.reguerta.user.BuildConfig
+import com.reguerta.user.domain.bylaws.PdfOnlyBylawsOnDeviceAssistant
 import com.reguerta.user.domain.bylaws.BylawsAssistantCapability
 import com.reguerta.user.domain.bylaws.BylawsAssistantStatus
 import com.reguerta.user.domain.bylaws.BylawsGenerationRequest
@@ -21,7 +23,7 @@ import kotlinx.coroutines.flow.collect
  * before any future model family is approved for production.
  */
 fun createPlatformBylawsOnDeviceAssistant(): BylawsOnDeviceAssistant =
-    MlKitBylawsOnDeviceAssistant()
+    if (BuildConfig.LOCAL_VALIDATION) PdfOnlyBylawsOnDeviceAssistant else MlKitBylawsOnDeviceAssistant()
 
 private class MlKitBylawsOnDeviceAssistant(
     private val model: GenerativeModel = Generation.getClient(),

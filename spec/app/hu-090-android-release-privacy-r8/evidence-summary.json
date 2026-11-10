@@ -1,0 +1,697 @@
+{
+  "date": "2026-11-10",
+  "base_commit": "cfbd59bc7b60c5ef0838af6628d0e57c983f9c9b",
+  "git_delivery": "Commit/push of the HU branch authorized; receipt in Git history and issue #282; story remains open",
+  "measurement_git_state": "Working-tree builds captured before implementation commit; base and source snapshot retain original provenance",
+  "private_archive": "/Users/jesusf/Projects/Reguerta-artifacts/hu-090/2026-11-10-local",
+  "source_snapshot_sha256": "df651ffe5c500bf16faff3283d233334115483abaa1b5d579fd4022408388b0b",
+  "production_or_upload_actions": false,
+  "artifacts": {
+    "original_main_aab": {
+      "file": "prechange/release-original.aab",
+      "bytes": 22001243,
+      "sha256": "7ebb7202b1fc29f0e7dd31ede119602f8574e6df0bacfa0a7e5355db761ed89f"
+    },
+    "privacy_unoptimized_release_aab": {
+      "file": "baseline/release-unoptimized.aab",
+      "bytes": 22002330,
+      "sha256": "86a6c816ac9e5bb9029f460464a14f8b8e95f129d4e342fd3fa5952cc6dded4b"
+    },
+    "optimized_release_aab": {
+      "file": "optimized/release-optimized.aab",
+      "bytes": 11069270,
+      "sha256": "8f427023a0e3afe1f76953051ec8ef2f981bb1e8417b36e977584a70f4a520c9"
+    },
+    "optimized_release_apk": {
+      "file": "optimized/release-optimized.apk",
+      "bytes": 9032913,
+      "sha256": "c3908fa858cf618f1cb402fdfa6ba0644b19add8d58e766a7c0f7054bee27480"
+    },
+    "exact_aab_universal_apk": {
+      "file": "optimized/exact-aab-universal.apk",
+      "bytes": 5298958,
+      "sha256": "710faff3675b091dcf37cbb5a6f1c62473407ec55b63a51f3f99603872fe3c70"
+    },
+    "baseline_qa_apk": {
+      "file": "baseline/qa-unoptimized.apk",
+      "bytes": 70902115,
+      "sha256": "24b9bfbc20b6a85cfb70ce6f13622fbd0a99cd28828229c094a837f1414046d6"
+    },
+    "optimized_qa_apk": {
+      "file": "optimized/qa-optimized.apk",
+      "bytes": 9050681,
+      "sha256": "25f8d7965985fba46bd25c609912f3a49efb3413fed8485db8f7e4bd0cc15ba9"
+    },
+    "release_mapping": {
+      "file": "optimized/release-mapping.txt",
+      "bytes": 89437863,
+      "sha256": "4198099f6bc05f46f2807fe4c87a76b83091baf298973e798c3928d04a013822"
+    },
+    "qa_mapping": {
+      "file": "optimized/qa-mapping.txt",
+      "bytes": 89416076,
+      "sha256": "1b8a90df979f28791a4d761f57bffe041946f30764d41eff2619ef17a13b03a1"
+    }
+  },
+  "release_metrics": {
+    "package": "com.reguerta.user",
+    "version_code": "37",
+    "version_name": "0.3.0.1",
+    "agp_version": "9.5.1",
+    "r8_version": "9.5.29",
+    "uncompressed_dex_size_bytes": 7272900,
+    "r8_enabled": true,
+    "r8_full_mode_enabled": true,
+    "d8_enabled": false,
+    "r8_dex_checksum_status": "EXACT_MATCH",
+    "resource_optimization_status": "R8_RESOURCE_OPTIMIZATION_STATUS_OPTIMIZED",
+    "ratios": {
+      "shrinkingRatio": 0.8825,
+      "optimizationRatio": 0.8778,
+      "obfuscationRatio": 0.8827
+    }
+  },
+  "performance": {
+    "api29_baseline": {
+      "status": "completed",
+      "apk": {
+        "package": "com.reguerta.user.validation",
+        "version_code": "37",
+        "version_name": "0.3.0.1",
+        "path": "/private/tmp/hu090-evidence/baseline/qa-unoptimized.apk",
+        "sha256": "24b9bfbc20b6a85cfb70ce6f13622fbd0a99cd28828229c094a837f1414046d6"
+      },
+      "tools": {
+        "adb": "Android Debug Bridge version 1.0.41\nVersion 37.0.1-15733141\nInstalled as /Users/jesusf/Library/Android/sdk/platform-tools/adb\nRunning on Darwin 27.2.0 (arm64)",
+        "apkanalyzer": {
+          "executable": "/Users/jesusf/Library/Android/sdk/cmdline-tools/latest-2/bin/apkanalyzer",
+          "sdk_package_revision": "23.0",
+          "launcher_sha256": "b549ff6c84f22e1339e1bc88854747a3867522e8f9d7676b5809f3372fcdae57"
+        },
+        "android": "1.1.16717390",
+        "python": "3.14.0"
+      },
+      "device": {
+        "serial": "emulator-5564",
+        "properties": {
+          "ro.build.fingerprint": "google/sdk_gphone64_arm64/emulator64_arm64:10/QSR1.211112.011/13135432:user/release-keys",
+          "ro.build.version.release": "10",
+          "ro.build.version.sdk": "29",
+          "ro.product.model": "Android SDK built for arm64",
+          "ro.product.cpu.abi": "arm64-v8a",
+          "ro.boot.qemu.avd_name": "",
+          "ro.kernel.qemu": "1"
+        },
+        "page_size_bytes": 4096,
+        "screen_size": "Physical size: 1080x2280",
+        "screen_density": "Physical density: 440"
+      },
+      "label": "baseline",
+      "fixture_id": "hu090-local-36dd87dce41348d8",
+      "protocol": {
+        "startup_metric": "am start -W TotalTime (ms), not TTID",
+        "memory_metric": "dumpsys meminfo total PSS (bytes), not Anon RSS + Swap",
+        "warmups": 3,
+        "process_cold_launches": 20,
+        "memory_samples_per_state": 5,
+        "settle_seconds_per_state": 60,
+        "sample_interval_seconds": 1,
+        "art_compilation_mode": "speed",
+        "percentile_method": "nearest rank"
+      },
+      "startup_ms": [
+        193,
+        311,
+        202,
+        203,
+        225,
+        214,
+        209,
+        367,
+        198,
+        207,
+        188,
+        186,
+        202,
+        207,
+        223,
+        224,
+        239,
+        208,
+        356,
+        212
+      ],
+      "pss_bytes": {
+        "foreground": [
+          233126912,
+          228911104,
+          228899840,
+          228902912,
+          228898816
+        ],
+        "background": [
+          228058112,
+          228185088,
+          228185088,
+          228185088,
+          228185088
+        ]
+      },
+      "summaries": {
+        "startup_ms": {
+          "count": 20,
+          "median": 208.5,
+          "p90": 311,
+          "max": 367
+        },
+        "pss_bytes": {
+          "foreground": {
+            "count": 5,
+            "median": 228902912,
+            "p90": 233126912,
+            "max": 233126912
+          },
+          "background": {
+            "count": 5,
+            "median": 228185088,
+            "p90": 228185088,
+            "max": 228185088
+          }
+        }
+      },
+      "data_cleared": false
+    },
+    "api29_optimized": {
+      "status": "completed",
+      "apk": {
+        "package": "com.reguerta.user.validation",
+        "version_code": "37",
+        "version_name": "0.3.0.1",
+        "path": "/private/tmp/hu090-evidence/optimized/qa-optimized.apk",
+        "sha256": "25f8d7965985fba46bd25c609912f3a49efb3413fed8485db8f7e4bd0cc15ba9"
+      },
+      "tools": {
+        "adb": "Android Debug Bridge version 1.0.41\nVersion 37.0.1-15733141\nInstalled as /Users/jesusf/Library/Android/sdk/platform-tools/adb\nRunning on Darwin 27.2.0 (arm64)",
+        "apkanalyzer": {
+          "executable": "/Users/jesusf/Library/Android/sdk/cmdline-tools/latest-2/bin/apkanalyzer",
+          "sdk_package_revision": "23.0",
+          "launcher_sha256": "b549ff6c84f22e1339e1bc88854747a3867522e8f9d7676b5809f3372fcdae57"
+        },
+        "android": "1.1.16717390",
+        "python": "3.14.0"
+      },
+      "device": {
+        "serial": "emulator-5564",
+        "properties": {
+          "ro.build.fingerprint": "google/sdk_gphone64_arm64/emulator64_arm64:10/QSR1.211112.011/13135432:user/release-keys",
+          "ro.build.version.release": "10",
+          "ro.build.version.sdk": "29",
+          "ro.product.model": "Android SDK built for arm64",
+          "ro.product.cpu.abi": "arm64-v8a",
+          "ro.boot.qemu.avd_name": "",
+          "ro.kernel.qemu": "1"
+        },
+        "page_size_bytes": 4096,
+        "screen_size": "Physical size: 1080x2280",
+        "screen_density": "Physical density: 440"
+      },
+      "label": "optimized",
+      "fixture_id": "hu090-local-36dd87dce41348d8",
+      "protocol": {
+        "startup_metric": "am start -W TotalTime (ms), not TTID",
+        "memory_metric": "dumpsys meminfo total PSS (bytes), not Anon RSS + Swap",
+        "warmups": 3,
+        "process_cold_launches": 20,
+        "memory_samples_per_state": 5,
+        "settle_seconds_per_state": 60,
+        "sample_interval_seconds": 1,
+        "art_compilation_mode": "speed",
+        "percentile_method": "nearest rank"
+      },
+      "startup_ms": [
+        176,
+        224,
+        206,
+        188,
+        174,
+        160,
+        208,
+        183,
+        174,
+        189,
+        160,
+        181,
+        154,
+        173,
+        190,
+        180,
+        177,
+        180,
+        171,
+        171
+      ],
+      "pss_bytes": {
+        "foreground": [
+          152564736,
+          149582848,
+          149550080,
+          149550080,
+          149545984
+        ],
+        "background": [
+          144256000,
+          144391168,
+          144391168,
+          144391168,
+          144391168
+        ]
+      },
+      "summaries": {
+        "startup_ms": {
+          "count": 20,
+          "median": 178.5,
+          "p90": 206,
+          "max": 224
+        },
+        "pss_bytes": {
+          "foreground": {
+            "count": 5,
+            "median": 149550080,
+            "p90": 152564736,
+            "max": 152564736
+          },
+          "background": {
+            "count": 5,
+            "median": 144391168,
+            "p90": 144391168,
+            "max": 144391168
+          }
+        }
+      },
+      "data_cleared": false
+    },
+    "16k_baseline": {
+      "status": "completed",
+      "apk": {
+        "package": "com.reguerta.user.validation",
+        "version_code": "37",
+        "version_name": "0.3.0.1",
+        "path": "/private/tmp/hu090-evidence/baseline/qa-unoptimized.apk",
+        "sha256": "24b9bfbc20b6a85cfb70ce6f13622fbd0a99cd28828229c094a837f1414046d6"
+      },
+      "tools": {
+        "adb": "Android Debug Bridge version 1.0.41\nVersion 37.0.1-15733141\nInstalled as /Users/jesusf/Library/Android/sdk/platform-tools/adb\nRunning on Darwin 27.2.0 (arm64)",
+        "apkanalyzer": {
+          "executable": "/Users/jesusf/Library/Android/sdk/cmdline-tools/latest-2/bin/apkanalyzer",
+          "sdk_package_revision": "23.0",
+          "launcher_sha256": "b549ff6c84f22e1339e1bc88854747a3867522e8f9d7676b5809f3372fcdae57"
+        },
+        "android": "1.1.16717390",
+        "python": "3.14.0"
+      },
+      "device": {
+        "serial": "emulator-5562",
+        "properties": {
+          "ro.build.fingerprint": "google/sdk_gphone16k_arm64/emu64a16k:17/CP31.260623.012/16064790:user/dev-keys",
+          "ro.build.version.release": "17",
+          "ro.build.version.sdk": "37",
+          "ro.product.model": "sdk_gphone16k_arm64",
+          "ro.product.cpu.abi": "arm64-v8a",
+          "ro.boot.qemu.avd_name": "HU090_16K",
+          "ro.kernel.qemu": "1"
+        },
+        "page_size_bytes": 16384,
+        "screen_size": "Physical size: 1080x2280",
+        "screen_density": "Physical density: 440"
+      },
+      "label": "baseline",
+      "fixture_id": "hu090-local-36dd87dce41348d8",
+      "protocol": {
+        "startup_metric": "am start -W TotalTime (ms), not TTID",
+        "memory_metric": "dumpsys meminfo total PSS (bytes), not Anon RSS + Swap",
+        "warmups": 3,
+        "process_cold_launches": 20,
+        "memory_samples_per_state": 5,
+        "settle_seconds_per_state": 60,
+        "sample_interval_seconds": 1,
+        "art_compilation_mode": "speed",
+        "percentile_method": "nearest rank"
+      },
+      "startup_ms": [
+        347,
+        288,
+        289,
+        248,
+        288,
+        282,
+        290,
+        306,
+        214,
+        235,
+        294,
+        302,
+        257,
+        320,
+        264,
+        229,
+        275,
+        319,
+        261,
+        263
+      ],
+      "pss_bytes": {
+        "foreground": [
+          169581568,
+          171051008,
+          171051008,
+          171051008,
+          171051008
+        ],
+        "background": [
+          172006400,
+          167191552,
+          167175168,
+          167175168,
+          167175168
+        ]
+      },
+      "summaries": {
+        "startup_ms": {
+          "count": 20,
+          "median": 285.0,
+          "p90": 319,
+          "max": 347
+        },
+        "pss_bytes": {
+          "foreground": {
+            "count": 5,
+            "median": 171051008,
+            "p90": 171051008,
+            "max": 171051008
+          },
+          "background": {
+            "count": 5,
+            "median": 167175168,
+            "p90": 172006400,
+            "max": 172006400
+          }
+        }
+      },
+      "data_cleared": false
+    },
+    "16k_optimized": {
+      "status": "completed",
+      "apk": {
+        "package": "com.reguerta.user.validation",
+        "version_code": "37",
+        "version_name": "0.3.0.1",
+        "path": "/private/tmp/hu090-evidence/optimized/qa-optimized.apk",
+        "sha256": "25f8d7965985fba46bd25c609912f3a49efb3413fed8485db8f7e4bd0cc15ba9"
+      },
+      "tools": {
+        "adb": "Android Debug Bridge version 1.0.41\nVersion 37.0.1-15733141\nInstalled as /Users/jesusf/Library/Android/sdk/platform-tools/adb\nRunning on Darwin 27.2.0 (arm64)",
+        "apkanalyzer": {
+          "executable": "/Users/jesusf/Library/Android/sdk/cmdline-tools/latest-2/bin/apkanalyzer",
+          "sdk_package_revision": "23.0",
+          "launcher_sha256": "b549ff6c84f22e1339e1bc88854747a3867522e8f9d7676b5809f3372fcdae57"
+        },
+        "android": "1.1.16717390",
+        "python": "3.14.0"
+      },
+      "device": {
+        "serial": "emulator-5562",
+        "properties": {
+          "ro.build.fingerprint": "google/sdk_gphone16k_arm64/emu64a16k:17/CP31.260623.012/16064790:user/dev-keys",
+          "ro.build.version.release": "17",
+          "ro.build.version.sdk": "37",
+          "ro.product.model": "sdk_gphone16k_arm64",
+          "ro.product.cpu.abi": "arm64-v8a",
+          "ro.boot.qemu.avd_name": "HU090_16K",
+          "ro.kernel.qemu": "1"
+        },
+        "page_size_bytes": 16384,
+        "screen_size": "Physical size: 1080x2280",
+        "screen_density": "Physical density: 440"
+      },
+      "label": "optimized",
+      "fixture_id": "hu090-local-36dd87dce41348d8",
+      "protocol": {
+        "startup_metric": "am start -W TotalTime (ms), not TTID",
+        "memory_metric": "dumpsys meminfo total PSS (bytes), not Anon RSS + Swap",
+        "warmups": 3,
+        "process_cold_launches": 20,
+        "memory_samples_per_state": 5,
+        "settle_seconds_per_state": 60,
+        "sample_interval_seconds": 1,
+        "art_compilation_mode": "speed",
+        "percentile_method": "nearest rank"
+      },
+      "startup_ms": [
+        273,
+        216,
+        202,
+        282,
+        240,
+        348,
+        269,
+        263,
+        276,
+        305,
+        259,
+        229,
+        251,
+        246,
+        253,
+        295,
+        307,
+        278,
+        194,
+        317
+      ],
+      "pss_bytes": {
+        "foreground": [
+          107202560,
+          108723200,
+          108723200,
+          108723200,
+          108723200
+        ],
+        "background": [
+          109638656,
+          104868864,
+          104868864,
+          104868864,
+          104868864
+        ]
+      },
+      "summaries": {
+        "startup_ms": {
+          "count": 20,
+          "median": 266.0,
+          "p90": 307,
+          "max": 348
+        },
+        "pss_bytes": {
+          "foreground": {
+            "count": 5,
+            "median": 108723200,
+            "p90": 108723200,
+            "max": 108723200
+          },
+          "background": {
+            "count": 5,
+            "median": 104868864,
+            "p90": 109638656,
+            "max": 109638656
+          }
+        }
+      },
+      "data_cleared": false
+    }
+  },
+  "comparisons": {
+    "api29": {
+      "schema_version": 1,
+      "status": "within_proposed_local_limits",
+      "comparisons": [
+        {
+          "metric": "startup_ms",
+          "statistic": "median",
+          "baseline": 208.5,
+          "optimized": 178.5,
+          "increase": -30.0,
+          "allowed_increase": 50,
+          "breach": false
+        },
+        {
+          "metric": "startup_ms",
+          "statistic": "p90",
+          "baseline": 311,
+          "optimized": 206,
+          "increase": -105,
+          "allowed_increase": 50,
+          "breach": false
+        },
+        {
+          "metric": "foreground_pss_bytes",
+          "statistic": "median",
+          "baseline": 228902912,
+          "optimized": 149550080,
+          "increase": -79352832,
+          "allowed_increase": 22890291.200000003,
+          "breach": false
+        },
+        {
+          "metric": "foreground_pss_bytes",
+          "statistic": "max",
+          "baseline": 233126912,
+          "optimized": 152564736,
+          "increase": -80562176,
+          "allowed_increase": 23312691.200000003,
+          "breach": false
+        },
+        {
+          "metric": "background_pss_bytes",
+          "statistic": "median",
+          "baseline": 228185088,
+          "optimized": 144391168,
+          "increase": -83793920,
+          "allowed_increase": 22818508.8,
+          "breach": false
+        },
+        {
+          "metric": "background_pss_bytes",
+          "statistic": "max",
+          "baseline": 228185088,
+          "optimized": 144391168,
+          "increase": -83793920,
+          "allowed_increase": 22818508.8,
+          "breach": false
+        }
+      ],
+      "automatic_waiver": false,
+      "next_action": "Local limits met for this pair; this is not Play vitals or publication approval.",
+      "source_reports": [
+        "/private/tmp/hu090-evidence/baseline/api29-performance-v2.json",
+        "/private/tmp/hu090-evidence/optimized/api29-performance.json"
+      ],
+      "finished_at": "2026-11-10T16:27:14.535507+00:00"
+    },
+    "16k": {
+      "schema_version": 1,
+      "status": "within_proposed_local_limits",
+      "comparisons": [
+        {
+          "metric": "startup_ms",
+          "statistic": "median",
+          "baseline": 285.0,
+          "optimized": 266.0,
+          "increase": -19.0,
+          "allowed_increase": 50,
+          "breach": false
+        },
+        {
+          "metric": "startup_ms",
+          "statistic": "p90",
+          "baseline": 319,
+          "optimized": 307,
+          "increase": -12,
+          "allowed_increase": 50,
+          "breach": false
+        },
+        {
+          "metric": "foreground_pss_bytes",
+          "statistic": "median",
+          "baseline": 171051008,
+          "optimized": 108723200,
+          "increase": -62327808,
+          "allowed_increase": 17105100.8,
+          "breach": false
+        },
+        {
+          "metric": "foreground_pss_bytes",
+          "statistic": "max",
+          "baseline": 171051008,
+          "optimized": 108723200,
+          "increase": -62327808,
+          "allowed_increase": 17105100.8,
+          "breach": false
+        },
+        {
+          "metric": "background_pss_bytes",
+          "statistic": "median",
+          "baseline": 167175168,
+          "optimized": 104868864,
+          "increase": -62306304,
+          "allowed_increase": 16717516.8,
+          "breach": false
+        },
+        {
+          "metric": "background_pss_bytes",
+          "statistic": "max",
+          "baseline": 172006400,
+          "optimized": 109638656,
+          "increase": -62367744,
+          "allowed_increase": 17200640.0,
+          "breach": false
+        }
+      ],
+      "automatic_waiver": false,
+      "next_action": "Local limits met for this pair; this is not Play vitals or publication approval.",
+      "source_reports": [
+        "/private/tmp/hu090-evidence/baseline/16k-performance.json",
+        "/private/tmp/hu090-evidence/optimized/16k-performance.json"
+      ],
+      "finished_at": "2026-11-10T16:31:17.766404+00:00"
+    }
+  },
+  "tests": {
+    "jvm_unit": {
+      "passed": 489,
+      "failed": 0,
+      "skipped": 0
+    },
+    "debug_local_api29": {
+      "passed": 38,
+      "failed": 0,
+      "skipped": 2
+    },
+    "debug_local_16k": {
+      "passed": 39,
+      "failed": 0,
+      "skipped": 1
+    },
+    "normal_debug_lint": {
+      "warnings": 136,
+      "hints": 2,
+      "new_findings": 0,
+      "warning_free_gate": false
+    },
+    "qa_inprocess_attempts": {
+      "status": "runner failed before test bodies; unsupported route removed",
+      "counted_as_pass": false
+    },
+    "python_helpers": {
+      "passed": 26,
+      "failed": 0
+    },
+    "fixture_boundary_python_O": {
+      "passed": 8,
+      "failed": 0
+    }
+  },
+  "known_pending": [
+    "Camera preview absent after capture in both QA variants; root cause/production incidence unverified",
+    "Existing lint warning debt",
+    "Separately authorized exact-AAB cloud canary and external telemetry/FCM",
+    "Independent secure-store gate #228",
+    "Complete functional Data Safety/Console review"
+  ],
+  "gradle_runtime": {
+    "gradle": "9.7.0",
+    "launcher_jvm": "Amazon 21.0.6",
+    "daemon_jvm_criteria": "Java 21, JetBrains",
+    "app_jvm_target": 17
+  },
+  "release_privacy_guard_automatic": true
+}

@@ -1,0 +1,36 @@
+{
+  "project": "demo-reguerta-hu090",
+  "environment": "develop",
+  "memberId": "hu090-member",
+  "eventId": "hu090-local-shift",
+  "inbox": {
+    "notificationEventId": "hu090-local-shift",
+    "title": "Turnos actualizados",
+    "body": "Consulta la aplicación para ver la información actualizada.",
+    "type": "shift_updated",
+    "target": "users",
+    "targetPayload": {"userIds": ["hu090-member"]},
+    "createdBy": "system",
+    "sentAt": {"_timestamp": "2026-11-10T10:00:00Z"},
+    "schemaVersion": 1,
+    "operationKind": "shiftPlanningNotification",
+    "contentPolicy": "genericReferenceOnly"
+  },
+  "detail": {
+    "schemaVersion": 1,
+    "eventId": "hu090-local-shift",
+    "assignmentRevision": 1,
+    "documentRevision": 1,
+    "shift": {
+      "id": "hu090-local-delivery",
+      "type": "delivery",
+      "dateMillis": 1794477600000,
+      "assignedUserIds": ["hu090-member"],
+      "helperUserId": "hu090-producer",
+      "status": "planned",
+      "source": "app",
+      "createdAtMillis": 1700000000000,
+      "updatedAtMillis": 1700000000000
+    }
+  }
+}

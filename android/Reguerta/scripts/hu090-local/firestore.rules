@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isFixtureAccount() {
+      return request.auth != null && request.auth.token.email in [
+        'qa.member@example.invalid', 'qa.producer@example.invalid', 'qa.admin@example.invalid'
+      ];
+    }
+    match /develop/plus-collections/config/public {
+      allow read: if true;
+    }
+    // The current app refreshes empty compatibility collections as well.
+    match /develop/collections/{collection}/{document=**} {
+      allow read: if isFixtureAccount() && collection in ['orders', 'orderLines', 'containers', 'measures'];
+      allow write: if false;
+    }
+    // Deliberately simple fixture rules: these do not validate production Rules.
+    match /develop/plus-collections/{collection}/{document} {
+      allow read: if isFixtureAccount();
+      allow write: if isFixtureAccount() && document != 'hu090-denied';
+      match /{nested=**} {
+        allow read: if isFixtureAccount();
+        allow write: if isFixtureAccount() && document != 'hu090-denied';
+      }
+    }
+  }
+}

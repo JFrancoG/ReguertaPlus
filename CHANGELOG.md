@@ -382,6 +382,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-11-10 | 📦 build(android): implement HU-090 release hardening
+
 - 2026-11-10 | 📦 build(ios): align test target platforms
 
 - 2026-11-10 | 📦 build(ios): update session fetcher to 5.2.0

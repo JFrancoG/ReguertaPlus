@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.reguerta.user.presentation.auth.AuthShellRoute
 import com.reguerta.user.presentation.auth.AuthShellState
 import com.reguerta.user.presentation.root.StartupGateUiState
+import com.reguerta.user.validation.localValidationNetworkPermissionRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -20,6 +21,9 @@ import org.junit.runners.model.Statement
 
 @RunWith(AndroidJUnit4::class)
 class MainActivityRecreationTest {
+    @get:Rule(order = 0)
+    val networkPermissionRule = localValidationNetworkPermissionRule()
+
     @get:Rule(order = 0)
     val notificationPermissionRule: TestRule = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS)

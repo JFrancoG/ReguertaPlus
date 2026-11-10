@@ -7,6 +7,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.reguerta.user.BuildConfig
 import com.reguerta.user.data.access.AuthenticatedFirebaseFunctionsClient
 import com.reguerta.user.data.access.FirebaseAuthorizedMemberResolver
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
@@ -18,6 +19,8 @@ import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
 import com.reguerta.user.data.calendar.FirebaseDeliveryCalendarMutationClient
 import com.reguerta.user.data.commitments.FirestoreSeasonalCommitmentRepository
 import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
+import com.reguerta.user.data.devices.FirebaseInstallationRegistrationProvider
+import com.reguerta.user.data.devices.DeviceRegistrationPreferences
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
 import com.reguerta.user.data.freshness.FirestoreCriticalDataRefresher
@@ -65,10 +68,19 @@ class SessionViewModelFactory(
         val shiftRepository = FirestoreShiftRepository(firestore = firestore)
         val freshnessLocalRepository = DataStoreCriticalDataFreshnessLocalRepository(applicationContext)
         val deviceRegistrationRepository = FirestoreDeviceRegistrationRepository(firestore = firestore)
-        val authorizedDeviceRegistrar = FirebaseAuthorizedDeviceRegistrar(
-            context = applicationContext,
-            repository = deviceRegistrationRepository,
-        )
+        val authorizedDeviceRegistrar = if (BuildConfig.LOCAL_VALIDATION) {
+            FirebaseAuthorizedDeviceRegistrar(
+                repository = deviceRegistrationRepository,
+                nowMillisProvider = { System.currentTimeMillis() },
+                preferences = DeviceRegistrationPreferences(applicationContext),
+                registrationProvider = FirebaseInstallationRegistrationProvider { "hu090-local-installation" },
+            )
+        } else {
+            FirebaseAuthorizedDeviceRegistrar(
+                context = applicationContext,
+                repository = deviceRegistrationRepository,
+            )
+        }
         val pushNotificationPermissionProvider = AndroidPushNotificationPermissionProvider(context = applicationContext)
         val sessionEnvironmentRouter = RuntimeSessionEnvironmentRouter()
         val authenticatedFunctionsClient = AuthenticatedFirebaseFunctionsClient.create(

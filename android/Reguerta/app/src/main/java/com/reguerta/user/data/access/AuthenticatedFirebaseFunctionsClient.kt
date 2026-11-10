@@ -3,9 +3,11 @@ package com.reguerta.user.data.access
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.reguerta.user.BuildConfig
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -53,11 +55,14 @@ internal class AuthenticatedFirebaseFunctionsClient(
     private val idTokenProvider: FirebaseIdTokenProvider,
     private val projectIdProvider: FirebaseProjectIdProvider,
     private val transport: FirebaseJsonPostTransport = HttpUrlConnectionJsonPostTransport(),
+    private val localValidation: Boolean = false,
+    private val configuredBaseUrl: String = "",
 ) : AuthenticatedFunctionCaller {
     override suspend fun post(functionName: String, body: JsonObject): JsonObject {
         val projectId = projectIdProvider.projectId()
+        // Validate the local boundary before obtaining credentials or opening a connection.
+        val url = firebaseFunctionUrl(projectId, functionName, localValidation, configuredBaseUrl)
         val token = idTokenProvider.currentIdToken()
-        val url = "https://europe-west1-$projectId.cloudfunctions.net/$functionName"
         return transport.post(url = url, bearerToken = token, body = body)
     }
 
@@ -77,8 +82,34 @@ internal class AuthenticatedFirebaseFunctionsClient(
             projectIdProvider = FirebaseProjectIdProvider {
                 checkNotNull(firebaseApp.options.projectId) { "Firebase projectId is unavailable" }
             },
+            localValidation = BuildConfig.LOCAL_VALIDATION,
+            configuredBaseUrl = BuildConfig.FIREBASE_FUNCTIONS_BASE_URL,
         )
     }
+}
+
+/** Resolves the endpoint before credential access; demo QA has no cloud fallback. */
+internal fun firebaseFunctionUrl(
+    projectId: String,
+    functionName: String,
+    localValidation: Boolean,
+    configuredBaseUrl: String,
+): String {
+    require(projectId.matches(Regex("[a-z][a-z0-9-]{4,62}"))) { "Invalid Firebase project ID" }
+    require(functionName.matches(Regex("[A-Za-z][A-Za-z0-9_-]*"))) { "Invalid Firebase function name" }
+    if (!localValidation) {
+        require(configuredBaseUrl.isEmpty()) { "A production build cannot override its Functions endpoint" }
+        require(!projectId.startsWith("demo-")) { "Demo projects require local validation routing" }
+        return "https://europe-west1-$projectId.cloudfunctions.net/$functionName"
+    }
+    require(projectId == "demo-reguerta-hu090") { "Local validation requires its demo project" }
+    val base = URI(configuredBaseUrl)
+    require(
+        base.scheme == "http" && base.host == "10.0.2.2" && base.port == 5009 &&
+            base.rawPath == "/demo-reguerta-hu090/europe-west1" &&
+            base.rawUserInfo == null && base.rawQuery == null && base.rawFragment == null,
+    ) { "Local Functions endpoint must be the fixed emulator gateway" }
+    return "$base/$functionName"
 }
 
 private class HttpUrlConnectionJsonPostTransport : FirebaseJsonPostTransport {
