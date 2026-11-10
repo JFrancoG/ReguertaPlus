@@ -13,11 +13,14 @@
 
 Privacy controls and R8 are implemented locally. See [validation](validation.md)
 for exact artifacts, performance, SDK/offline observations and test scopes.
-Acceptance remains pending: the camera preview failure also occurs without R8,
-normal Debug retains its existing lint warnings, and exact-artifact cloud/FCM
-evidence and gate #228 remain separate. The owner authorized commit/push of
-the HU branch on 2026-11-10; Git history and issue #282 record that delivery.
-This does not authorize publication, production operations or HU closure.
+The [camera follow-up](camera-fix-validation.md) corrects the preview loss
+and validates it locally after the original HU delivery. The owner subsequently
+authorized commit/push of this correction and its documentation on the HU branch.
+Git history and issue #282 own that receipt. Acceptance remains pending:
+normal Debug retains existing lint warnings, and exact-artifact cloud/FCM
+evidence and gate #228 remain separate.
+Git history and issue #282 record the earlier `66ecebc2` delivery. Publication,
+production operations and HU closure remain outside scope.
 
 ## Context and problem
 

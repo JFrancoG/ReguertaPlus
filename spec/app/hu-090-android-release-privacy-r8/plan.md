@@ -22,15 +22,18 @@
 - Current evidence: [local validation and exact artifact hashes](validation.md).
   Both paired performance runs, artifact metrics, 16 KB alignment/runtime,
   offline SDK advertising defaults and optimized external journeys are recorded.
-- Next decision: review the camera preview failure reproduced in both QA
-  variants and the existing warning debt. The exact-artifact cloud canary,
+- Current authorized follow-up: camera-preview correction implemented and
+  locally validated under section 8; see [new evidence](camera-fix-validation.md).
+  Existing warning debt,
+  the exact-artifact cloud canary,
   external telemetry/FCM proof and secure-store distribution gate #228 stay open.
-  Git delivery is limited to commit/push of the HU branch, authorized by the
-  owner on 2026-11-10. Git history and issue #282 own the delivery receipt;
-  this does not authorize merge, HU closure, publication or production access.
+  The earlier commit/push authorization was fulfilled by `66ecebc2`. The
+  owner subsequently authorized commit/push of the camera correction and
+  its documentation on this HU branch, keeping the story open. Git history
+  and issue #282 own the new delivery receipt. No merge, HU closure,
+  publication or production access is authorized.
 - Owner approval on 2026-11-10 supersedes the earlier planning-only limit;
   exact-artifact cloud canary/upload authorization stays separate.
-
 
 ## 2. Selected baseline and evidence provenance
 
@@ -339,3 +342,54 @@ The owner approved revision 2 and authorized Android implementation and local
 validation, retaining non-advertising Analytics. Production and publication
 remain prohibited. Earlier Draft entries describe the preserved decision trail,
 not the current authorization. Local work is in progress on this isolated branch.
+
+## 8. Camera preview follow-up — local fix authorized 2026-11-10
+
+Execution base: HU branch commit `66ecebc2`. The owner authorized correcting
+the Android preview and local validation. No publication or production access;
+the previously delivered artifact/performance receipts remain historical for
+their exact hashes. New fix artifacts/results must be recorded separately.
+
+The camera result and JPEG upload succeed. The confirmed cause was the
+foreground authorization refresh replacing the unsaved profile draft with its
+remote snapshot and invalidating an upload in flight. The baseline reproduction
+also lost typed text; gallery did not reproduce that loss. The 15-second refresh
+policy must not hide the regression during validation.
+
+Acceptance for this follow-up:
+
+1. Camera success preserves the uploaded URL, visible preview, text edits and
+   operation ownership through a refresh of the same authorized context,
+   whether refresh finishes before or after upload. Removing a photo remains
+   an intentional edit. A pristine editor can still receive remote updates.
+2. Identity, environment, role or capability changes still invalidate the old
+   editor/upload through the existing session fences. A stale remote read
+   cannot overwrite a newer confirmed local profile mutation.
+3. Exercise production authorization actions in deterministic regression
+   tests, including a failing pre-fix case. Validate optimized local QA camera,
+   gallery, cancellation/permission denial and save/readback against demo emulators on
+   API 29 and a 16 KB runtime, with time outside the app above the refresh
+   interval. Run the relevant Android unit/lint/connected/build gates and
+   distinguish existing warning debt from new findings.
+
+Use the existing isolated harness and synthetic accounts; do not run ordinary
+Debug/Release against live services. Preserve non-advertising Analytics/R8,
+dependencies and backend code. Keep HU-090 open for its remaining gates.
+
+Implementation and deterministic regressions are complete locally. The same-context
+reducer preserves dirty drafts and active operation revisions, accepts remote
+updates for a clean editor, and rejects stale snapshots after a local ACK.
+Identity, member, environment, role and capability invalidations remain intact.
+See [camera fix validation](camera-fix-validation.md) for the new artifacts,
+API 29/16 KB journeys, test receipts and limits. No dependency, R8, Analytics,
+iOS or backend change is part of this follow-up.
+
+Delivery authorization on 2026-11-10: commit and push this correction and its
+documentation on the existing HU branch, retaining non-advertising Analytics
+and the open story. Git history and issue #282 own the delivery receipt.
+The source snapshot and binary hashes remain those of the pre-commit local
+validation; delivery preparation changes only documentation and the changelog.
+
+Next decision: address the existing warning debt and prepare a concrete,
+bounded exact-artifact cloud/FCM canary for later authorization. HU-090 stays
+open; gate #228 and publication remain separate.

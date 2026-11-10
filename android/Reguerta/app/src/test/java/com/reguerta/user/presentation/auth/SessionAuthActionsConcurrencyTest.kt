@@ -45,6 +45,7 @@ import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
 import com.reguerta.user.presentation.root.CriticalDataRefreshConsumerReceipt
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
+import com.reguerta.user.presentation.root.SharedProfileDraft
 import com.reguerta.user.presentation.root.criticalDataRefreshConsumerReceipt
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
@@ -859,6 +860,330 @@ class SessionAuthActionsConcurrencyTest {
         )
 
         assertTrue(shouldRefreshCriticalDataFor(currentMode = currentMode, principal = principal))
+    }
+
+    @Test
+    fun `foreground refresh preserves an unsaved captured photo and profile text`() = runTest {
+        val principal = principal("camera-preview")
+        val pendingDraft = SharedProfileDraft(
+            familyNames = "Unsaved family",
+            photoUrl = "https://images.example.invalid/captured-photo.jpg",
+            about = "Text typed before opening the camera",
+        )
+        val profiles = ControlledProfileReadRepository(emptyList())
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(
+                sharedProfileDraft = pendingDraft,
+                sharedProfileEditorRevision = 7L,
+            ),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            sharedProfileRepository = profiles,
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        advanceUntilIdle()
+
+        assertEquals(pendingDraft, fixture.state.value.sharedProfileDraft)
+        assertEquals(7L, fixture.state.value.sharedProfileEditorRevision)
+        assertEquals(1, profiles.readCount)
+        assertEquals(0, profiles.writeCount)
+        assertEquals(1, fixture.deviceRegistrations)
+    }
+
+    @Test
+    fun `foreground refresh preserves the ownership of an upload before its photo result arrives`() = runTest {
+        val principal = principal("camera-upload")
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(
+                sharedProfileDraft = SharedProfileDraft(),
+                sharedProfileEditorRevision = 11L,
+                isUploadingSharedProfileImage = true,
+            ),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        advanceUntilIdle()
+
+        assertEquals(SharedProfileDraft(), fixture.state.value.sharedProfileDraft)
+        assertEquals(11L, fixture.state.value.sharedProfileEditorRevision)
+        assertTrue(fixture.state.value.isUploadingSharedProfileImage)
+    }
+
+    @Test
+    fun `foreground refresh does not resurrect a photo intentionally removed from the draft`() = runTest {
+        val principal = principal("camera-clear")
+        val previousProfile = profileFixture().copy(familyNames = "", about = "")
+        val pendingDraft = SharedProfileDraft()
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(
+                sharedProfiles = listOf(previousProfile),
+                sharedProfileDraft = pendingDraft,
+                sharedProfileEditorRevision = 12L,
+            ),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            sharedProfileRepository = ControlledProfileReadRepository(listOf(previousProfile)),
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        advanceUntilIdle()
+
+        assertEquals(pendingDraft, fixture.state.value.sharedProfileDraft)
+        assertEquals(12L, fixture.state.value.sharedProfileEditorRevision)
+    }
+
+    @Test
+    fun `foreground refresh hydrates a pristine profile editor from the remote snapshot`() = runTest {
+        val principal = principal("profile-pristine")
+        val newProfile = profileFixture().copy(
+            familyNames = "Updated remote family",
+            photoUrl = "https://images.example.invalid/updated-remote.jpg",
+            about = "Updated remote about",
+            updatedAtMillis = 200L,
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(
+                sharedProfiles = listOf(profileFixture()),
+                sharedProfileDraft = SharedProfileDraft(
+                    familyNames = "Remote family",
+                    photoUrl = "https://images.example.invalid/remote-profile.jpg",
+                    about = "Remote about",
+                ),
+                sharedProfileEditorRevision = 5L,
+            ),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            sharedProfileRepository = ControlledProfileReadRepository(listOf(newProfile)),
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        advanceUntilIdle()
+
+        assertEquals(listOf(newProfile), fixture.state.value.sharedProfiles)
+        assertEquals(
+            SharedProfileDraft(
+                familyNames = "Updated remote family",
+                photoUrl = "https://images.example.invalid/updated-remote.jpg",
+                about = "Updated remote about",
+            ),
+            fixture.state.value.sharedProfileDraft,
+        )
+        assertFalse(fixture.state.value.isUploadingSharedProfileImage)
+    }
+
+    @Test
+    fun `a photo result arriving during the session profile read survives hydration`() = runTest {
+        val principal = principal("camera-late-read")
+        val readResult = CompletableDeferred<List<SharedProfile>>()
+        val profiles = ControlledProfileReadRepository(readResult = readResult)
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(sharedProfileEditorRevision = 4L),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            sharedProfileRepository = profiles,
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        runCurrent()
+        profiles.readStarted.await()
+        val newerDraft = SharedProfileDraft(
+            familyNames = "Family edited while refreshing",
+            photoUrl = "https://images.example.invalid/new-camera-result.jpg",
+            about = "New local text",
+        )
+        fixture.state.value = fixture.state.value.copy(
+            sharedProfileDraft = newerDraft,
+            sharedProfileEditorRevision = 5L,
+        )
+        readResult.complete(emptyList())
+        advanceUntilIdle()
+
+        assertEquals(newerDraft, fixture.state.value.sharedProfileDraft)
+        assertEquals(5L, fixture.state.value.sharedProfileEditorRevision)
+    }
+
+    @Test
+    fun `a newer confirmed profile snapshot survives an older foreground read`() = runTest {
+        val principal = principal("camera-saved-during-refresh")
+        val readResult = CompletableDeferred<List<SharedProfile>>()
+        val profiles = ControlledProfileReadRepository(readResult = readResult)
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(
+                sharedProfiles = listOf(profileFixture()),
+                sharedProfileDraft = SharedProfileDraft(
+                    familyNames = "Pending family",
+                    photoUrl = "https://images.example.invalid/new-camera-result.jpg",
+                    about = "Pending about",
+                ),
+                sharedProfileEditorRevision = 4L,
+                sharedProfilesRevision = 8L,
+                isSavingSharedProfile = true,
+            ),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            sharedProfileRepository = profiles,
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        runCurrent()
+        profiles.readStarted.await()
+        val confirmedProfile = SharedProfile(
+            userId = "member",
+            familyNames = "Saved family",
+            photoUrl = "https://images.example.invalid/confirmed-camera.jpg",
+            about = "Saved about",
+            updatedAtMillis = 300L,
+        )
+        val confirmedDraft = SharedProfileDraft(
+            familyNames = "Saved family",
+            photoUrl = "https://images.example.invalid/confirmed-camera.jpg",
+            about = "Saved about",
+        )
+        // A separate save has acknowledged the new data while this read is pending.
+        fixture.state.value = fixture.state.value.copy(
+            sharedProfiles = listOf(confirmedProfile),
+            sharedProfileDraft = confirmedDraft,
+            sharedProfileEditorRevision = 5L,
+            sharedProfilesRevision = 9L,
+            isSavingSharedProfile = false,
+        )
+        readResult.complete(listOf(profileFixture()))
+        advanceUntilIdle()
+
+        assertEquals(listOf(confirmedProfile), fixture.state.value.sharedProfiles)
+        assertEquals(confirmedDraft, fixture.state.value.sharedProfileDraft)
+        assertEquals(5L, fixture.state.value.sharedProfileEditorRevision)
+    }
+
+    @Test
+    fun `environment transition discards the previous profile draft and upload ownership`() = runTest {
+        val principal = principal("profile-environment-boundary")
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(
+                sharedProfileDraft = SharedProfileDraft(photoUrl = "https://images.example.invalid/private-old.jpg"),
+                sharedProfileEditorRevision = 9L,
+                isUploadingSharedProfileImage = true,
+            ),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            authorizedMemberResolver = ProductionAuthorizedMemberResolver,
+            sharedProfileRepository = ControlledProfileReadRepository(listOf(profileFixture())),
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        advanceUntilIdle()
+
+        assertEquals("production", fixture.state.value.sessionEnvironment)
+        assertEquals("https://images.example.invalid/remote-profile.jpg", fixture.state.value.sharedProfileDraft.photoUrl)
+        assertTrue(fixture.state.value.sharedProfileEditorRevision > 9L)
+        assertFalse(fixture.state.value.isUploadingSharedProfileImage)
+        assertTrue(fixture.state.value.sessionEpoch > 0L)
+    }
+
+    @Test
+    fun `role and capability transition discards the previous profile draft and upload ownership`() = runTest {
+        val principal = principal("profile-role-boundary")
+        val producer = member(principal).copy(roles = setOf(MemberRole.MEMBER, MemberRole.PRODUCER))
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, producer).copy(
+                sharedProfileDraft = SharedProfileDraft(photoUrl = "https://images.example.invalid/private-old.jpg"),
+                sharedProfileEditorRevision = 9L,
+                isUploadingSharedProfileImage = true,
+            ),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            sharedProfileRepository = ControlledProfileReadRepository(listOf(profileFixture())),
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        advanceUntilIdle()
+
+        val mode = fixture.state.value.mode as SessionMode.Authorized
+        assertEquals(setOf(MemberRole.MEMBER), mode.member.roles)
+        assertEquals("https://images.example.invalid/remote-profile.jpg", fixture.state.value.sharedProfileDraft.photoUrl)
+        assertFalse(fixture.state.value.isUploadingSharedProfileImage)
+        assertTrue(fixture.state.value.sessionEpoch > 0L)
+    }
+
+    @Test
+    fun `selected member transition discards the previous profile draft and upload ownership`() = runTest {
+        val principal = principal("profile-member-boundary")
+        val previousMember = member(principal).copy(id = "previous-selected-member")
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, previousMember).copy(
+                sharedProfileDraft = SharedProfileDraft(photoUrl = "https://images.example.invalid/private-old.jpg"),
+                sharedProfileEditorRevision = 9L,
+                isUploadingSharedProfileImage = true,
+            ),
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            sharedProfileRepository = ControlledProfileReadRepository(listOf(profileFixture())),
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        advanceUntilIdle()
+
+        val mode = fixture.state.value.mode as SessionMode.Authorized
+        assertEquals("member", mode.member.id)
+        assertEquals("https://images.example.invalid/remote-profile.jpg", fixture.state.value.sharedProfileDraft.photoUrl)
+        assertFalse(fixture.state.value.isUploadingSharedProfileImage)
+        assertTrue(fixture.state.value.sessionEpoch > 0L)
+    }
+
+    @Test
+    fun `a replacement principal cannot inherit the old photo even when member ids would match`() = runTest {
+        val previousPrincipal = principal("profile-old-principal")
+        val replacementPrincipal = principal("profile-new-principal")
+        val profiles = ControlledProfileReadRepository(listOf(profileFixture()))
+        val authProvider = ControlledAuthSessionProvider(
+            refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(replacementPrincipal)),
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(previousPrincipal, member(previousPrincipal)).copy(
+                sharedProfileDraft = SharedProfileDraft(
+                    familyNames = "Previous principal family",
+                    photoUrl = "https://images.example.invalid/previous-principal-private.jpg",
+                ),
+                sharedProfileEditorRevision = 9L,
+                isUploadingSharedProfileImage = true,
+            ),
+            authProvider = authProvider,
+            sharedProfileRepository = profiles,
+        )
+
+        // Both fixture identities resolve to the product member id "member".
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals(SharedProfileDraft(), fixture.state.value.sharedProfileDraft)
+        assertFalse(fixture.state.value.isUploadingSharedProfileImage)
+        assertTrue(fixture.state.value.showSessionExpiredDialog)
+        assertTrue(fixture.state.value.sessionEpoch > 0L)
+        assertEquals(0, profiles.readCount)
+        assertEquals(1, authProvider.signOutRequests)
     }
 
     @Test
@@ -1983,6 +2308,7 @@ private fun fixture(
     state: SessionUiState = signedOutState(),
     authProvider: ControlledAuthSessionProvider,
     memberRepository: TestMemberRepository = TestMemberRepository(),
+    sharedProfileRepository: SharedProfileRepository = EmptySharedProfileRepository,
     freshnessRemoteRepository: CriticalDataFreshnessRemoteRepository = EmptyCriticalDataFreshnessRemoteRepository,
     freshnessRefresher: CriticalDataRefresher = CriticalDataRefresher { scope, _ ->
         criticalRefreshPayload(scope)
@@ -2014,7 +2340,7 @@ private fun fixture(
         scope = scope,
         memberRepository = memberRepository,
         productRepository = EmptyProductRepository,
-        sharedProfileRepository = EmptySharedProfileRepository,
+        sharedProfileRepository = sharedProfileRepository,
         authSessionProvider = authProvider,
         resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(
             memberRepository = memberRepository,
@@ -2259,6 +2585,43 @@ private object EmptyProductRepository : ProductRepository {
     override suspend fun getAllProducts(): List<Product> = emptyList()
     override suspend fun getProductsForVendor(vendorId: String): List<Product> = emptyList()
     override suspend fun upsertProduct(product: Product): Product = product
+}
+
+private fun profileFixture() = SharedProfile(
+    userId = "member",
+    familyNames = "Remote family",
+    photoUrl = "https://images.example.invalid/remote-profile.jpg",
+    about = "Remote about",
+    updatedAtMillis = 100L,
+)
+
+private class ControlledProfileReadRepository(
+    private val profiles: List<SharedProfile> = emptyList(),
+    private val readResult: CompletableDeferred<List<SharedProfile>>? = null,
+) : SharedProfileRepository {
+    val readStarted = CompletableDeferred<Unit>()
+    var readCount = 0
+        private set
+    var writeCount = 0
+        private set
+
+    override suspend fun getAllSharedProfiles(): List<SharedProfile> {
+        readCount += 1
+        readStarted.complete(Unit)
+        return readResult?.await() ?: profiles
+    }
+
+    override suspend fun getSharedProfile(userId: String): SharedProfile? = profiles.firstOrNull { it.userId == userId }
+
+    override suspend fun upsertSharedProfile(profile: SharedProfile): SharedProfile {
+        writeCount += 1
+        return profile
+    }
+
+    override suspend fun deleteSharedProfile(userId: String): Boolean {
+        writeCount += 1
+        return false
+    }
 }
 
 private object EmptySharedProfileRepository : SharedProfileRepository {

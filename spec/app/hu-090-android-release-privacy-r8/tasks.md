@@ -12,6 +12,7 @@
 - [x] Record operator completion reported by owner on 2026-11-10, without Console verification.
 - [x] Owner approved revision 2 and authorized Android implementation/local validation on 2026-11-10.
 - [x] Owner authorized commit/push of the HU branch while keeping the story open and publication/production outside scope.
+- [x] Owner subsequently authorized commit/push of the camera correction and documentation with the same boundaries.
 
 ## 2. Tooling and reproducible baseline
 
@@ -51,7 +52,7 @@
 - [x] Run android analyze JSON on exact AAB; require applicable ratios and EXACT_MATCH.
 - [x] Run paired startup/PSS protocol on matching API 29 and 16 KB environments.
 - [x] Validate optimized local Auth/session/producer/status journeys; exercise Activity recreation internally in isolated Debug.
-- [ ] Complete the camera journey: uploads succeed but the preview disappears in both QA variants. PDF, Gallery, permissions, notifications, Storage and internal serialization checks pass.
+- [x] Correct and locally validate the camera preview, authorized on 2026-11-10; see [follow-up evidence](camera-fix-validation.md) and plan section 8. Regression reproduced before the fix; slow camera/gallery, cancellation, save/readback/restart and deliberate removal pass in optimized local QA. Session/authorization fences remain covered. The owner authorized commit/push of this follow-up; Git history and issue #282 own the delivery receipt.
 - [x] Check exact AAB artifacts, offline smoke, local retrace and retain hashes/mappings/metadata.
 - [x] Recheck SDK values, Photo Picker, 16 KB packaging/native alignment and runtime.
 - [x] Re-run native stripping with the required SDK tool; previous diagnostic is absent.

@@ -1,5 +1,10 @@
 # Local validation - HU-090
 
+> Historical receipt for the pre-camera-fix artifacts below. The preview
+> finding is corrected in the [separate camera follow-up](camera-fix-validation.md),
+> which records new hashes and results. The original performance measurements
+> are not measurements of the new binary.
+
 ## Scope and provenance
 
 Execution date: 2026-11-10. The owner authorized Android implementation and

@@ -23,7 +23,8 @@ The owner approved execution on 2026-11-10; publication and production remain pr
 - [Spec](../app/hu-090-android-release-privacy-r8/spec.md)
 - [Plan](../app/hu-090-android-release-privacy-r8/plan.md)
 - [Tasks](../app/hu-090-android-release-privacy-r8/tasks.md)
-- [Local validation and artifact receipts](../app/hu-090-android-release-privacy-r8/validation.md)
+- [Original local validation and artifact receipts](../app/hu-090-android-release-privacy-r8/validation.md)
+- [Camera correction and new local validation](../app/hu-090-android-release-privacy-r8/camera-fix-validation.md)
 - [Remaining non-advertising data inventory and review limits](../app/hu-090-android-release-privacy-r8/privacy-inventory.md)
 - ADR-0015: [EN](../../docs/decisions/0015-android-release-privacy-and-local-validation.md) / [ES](../../docs-es/decisions/0015-privacidad-release-android-y-validacion-local.md).
 - Independent distribution gate: [secure-store issue #228](https://github.com/JFrancoG/ReguertaPlus/issues/228).
@@ -59,7 +60,8 @@ repeat measurements from the selected implementation commit.
 - [x] Define the approved isolation, artifact metrics and performance protocol.
 - [x] Owner approved revision 2 and authorized local Android implementation.
 - [x] Implement privacy/R8 and record the authorized local validation evidence.
-- [ ] Resolve camera-preview/local-acceptance and existing warning-debt gates.
+- [x] Correct camera-preview loss and validate locally; owner authorized commit/push with HU-090 open.
+- [ ] Resolve existing warning debt and remaining local acceptance gates.
 - [ ] Obtain later exact-artifact canary authorization/evidence.
 - [ ] Complete acceptance criteria and required documentation.
 
@@ -67,8 +69,11 @@ The spec owns the acceptance criteria; the plan owns the execution sequence
 and evidence requirements. The issue remains open and in progress. No parent or milestone is added.
 Local privacy/R8 implementation and performance/artifact/offline checks are
 recorded in validation.md. The owner authorized commit/push of the HU branch
-on 2026-11-10; Git history and issue #282 own the delivery receipt. Review the
-camera preview failure reproduced in both QA variants
-and existing lint debt before local acceptance. The exact-artifact canary,
+on 2026-11-10; Git history and issue #282 own the `66ecebc2` delivery receipt.
+The subsequent camera correction preserves the draft through same-context
+authorization refresh, with regression and optimized local QA evidence linked
+above. The owner authorized commit/push of the correction and documentation
+on the HU branch; Git history and issue #282 own the receipt. Existing lint
+debt still blocks warning-free acceptance. The exact-artifact canary,
 external telemetry/FCM and #228 gates remain open. The Git delivery does not
 authorize merge, issue closure, publication or production operations.

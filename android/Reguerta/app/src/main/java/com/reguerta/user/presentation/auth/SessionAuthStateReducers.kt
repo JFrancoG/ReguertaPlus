@@ -10,8 +10,11 @@ import com.reguerta.user.presentation.root.SessionUiState
 import com.reguerta.user.presentation.root.SharedProfileDraft
 import com.reguerta.user.presentation.root.ShiftSwapDraft
 import com.reguerta.user.presentation.root.canManageSessionProductCatalog
+import com.reguerta.user.presentation.root.normalized
+import com.reguerta.user.presentation.root.toDraft
 
 import com.reguerta.user.domain.access.UnauthorizedReason
+import com.reguerta.user.domain.profiles.SharedProfile
 
 internal fun SessionUiState.toSignedOutSessionState(
     showSessionExpiredDialog: Boolean,
@@ -119,6 +122,45 @@ internal fun SessionUiState.resetProductEditorUnlessAuthorizedRefreshCanPreserve
         isSavingProduct = false,
         isUploadingProductImage = false,
         isUpdatingProducerCatalogVisibility = false,
+    )
+}
+
+/**
+ * Reauthorization may finish after a camera result or a local profile save.
+ * Preserve the same-context editor and its operation revision; a newer local
+ * acknowledgement also wins over the remote snapshot read earlier.
+ */
+internal fun SessionUiState.reconcileSharedProfileAfterAuthorizedRefresh(
+    memberId: String,
+    profiles: List<SharedProfile>,
+    profilesRevisionAtRead: Long,
+    transition: AuthorizedSessionAccessTransition,
+): SessionUiState {
+    val sameContext = !transition.invalidatesSessionContext
+    val canApplyProfiles = !sameContext || sharedProfilesRevision == profilesRevisionAtRead
+    val previousSavedDraft = sharedProfiles.firstOrNull { it.userId == memberId }
+        ?.toDraft()?.normalized() ?: SharedProfileDraft()
+    val hasPendingChanges = sharedProfileDraft.normalized() != previousSavedDraft
+    val hasPendingOperation = isUploadingSharedProfileImage || isSavingSharedProfile || isDeletingSharedProfile
+    val preserveEditor = sameContext && (!canApplyProfiles || hasPendingChanges || hasPendingOperation)
+    val remoteDraft = profiles.firstOrNull { it.userId == memberId }?.toDraft() ?: SharedProfileDraft()
+    return copy(
+        sharedProfiles = if (canApplyProfiles) {
+            profiles.filter(SharedProfile::hasVisibleContent)
+        } else {
+            sharedProfiles
+        },
+        sharedProfileDraft = if (preserveEditor) sharedProfileDraft else remoteDraft,
+        sharedProfileEditorRevision = if (preserveEditor) {
+            sharedProfileEditorRevision
+        } else {
+            sharedProfileEditorRevision + 1
+        },
+        sharedProfilesRevision = if (canApplyProfiles) sharedProfilesRevision + 1 else sharedProfilesRevision,
+        isLoadingSharedProfiles = false,
+        isUploadingSharedProfileImage = preserveEditor && isUploadingSharedProfileImage,
+        isSavingSharedProfile = preserveEditor && isSavingSharedProfile,
+        isDeletingSharedProfile = preserveEditor && isDeletingSharedProfile,
     )
 }
 

@@ -9,12 +9,10 @@ import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_RETRY_DELAYS_MILLI
 import com.reguerta.user.presentation.root.ProductDraft
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
-import com.reguerta.user.presentation.root.SharedProfileDraft
 import com.reguerta.user.presentation.root.canManageSessionProductCatalog
 import com.reguerta.user.presentation.root.hasVisibleContent
 import com.reguerta.user.presentation.root.isValidPassword
 import com.reguerta.user.presentation.root.ShiftSwapDraft
-import com.reguerta.user.presentation.root.toDraft
 import com.reguerta.user.presentation.root.matchesCriticalDataRefreshConsumerReceipt
 
 import com.reguerta.user.R
@@ -1301,9 +1299,9 @@ internal class SessionAuthActions(
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val products = productRepository.getProductsForVendor(result.member.id)
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
+                val sharedProfilesRevisionAtRead = uiState.value.sharedProfilesRevision
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
-                val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
                 var refreshCriticalDataForAppliedSession = shouldRefreshCriticalData
                 if (!updateUiStateIfCurrent(operation) {
                     val currentMode = it.mode as? SessionMode.Authorized
@@ -1323,6 +1321,12 @@ internal class SessionAuthActions(
                     productState
                         .reconcileAuthorizedShiftState(accessTransition)
                         .clearCommunitySessionStateIfInvalidated(accessTransition)
+                        .reconcileSharedProfileAfterAuthorizedRefresh(
+                            memberId = result.member.id,
+                            profiles = sharedProfiles,
+                            profilesRevisionAtRead = sharedProfilesRevisionAtRead,
+                            transition = accessTransition,
+                        )
                         .copy(
                             isAuthenticating = false,
                             isRegistering = false,
@@ -1353,17 +1357,11 @@ internal class SessionAuthActions(
                             productsFeed = products,
                             myOrderProductsFeed = emptyList(),
                             myOrderSeasonalCommitmentsFeed = emptyList(),
-                            sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
-                            sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
-                            sharedProfileEditorRevision = it.sharedProfileEditorRevision + 1,
-                            sharedProfilesRevision = it.sharedProfilesRevision + 1,
                             isLoadingNews = false,
                             isLoadingNotifications = false,
                             isLoadingProducts = false,
                             isLoadingMyOrderProducts = false,
                             isUploadingNewsImage = false,
-                            isUploadingSharedProfileImage = false,
-                            isLoadingSharedProfiles = false,
                         )
                 }) return abandonStaleAuthorizedSession()
                 if (refreshCriticalDataForAppliedSession) {
