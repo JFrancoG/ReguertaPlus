@@ -29,6 +29,25 @@ for(const fault of ["grant","cells","mint","write","write-read","remove","oauth"
   const entries=read(result.directory).records.map(r=>r.value);
   assert.deepEqual(entries.filter(v=>v.phase==="cleanup-intent").map(v=>v.stage),["file","iam","oauth"]);
 });
+test("a grant rejected before dispatch can verify an unchanged ACL",async t=>{
+  const f=originalWindowFixture();f.ownerChannel.grant=async()=>{throw Error("before native dispatch");};
+  const {result}=await execute(t,f),entries=read(result.directory).records.map(r=>r.value);
+  assert.equal(result.kind,"inspection-required");assert.deepEqual(result.cleanup.failures,[]);
+  assert.ok(entries.some(v=>v.phase==="google-file-closed"&&v.verified===true));
+  assert.equal(f.state.permission,false);assert.equal(f.state.mints,0);
+});
+for(const visible of [false,true])test(`uncertain dispatched grant retains cleanup uncertainty with ACL ${visible?"present":"absent"}`,async t=>{
+  const f=originalWindowFixture();f.ownerChannel.grant=async()=>{
+    f.state.permission=visible;throw Object.assign(Error("grant not settled"),{nativeGrantUncertain:true});
+  };
+  const first=await execute(t,f),entries=read(first.result.directory).records.map(r=>r.value);
+  assert.ok(first.result.cleanup.failures.includes("file-unverified"));assert.equal(f.state.permission,false);
+  assert.ok(entries.some(v=>v.phase==="google-file-grant-uncertain"));assert.ok(!entries.some(v=>v.phase==="google-file-closed"));
+  assert.equal(f.state.disabled,true);assert.equal(f.state.mints,0);assert.equal(f.batch.sheets.mutations.length,0);
+  const saved=read(first.result.directory),recovered=await recover({directory:first.result.directory,recoveryId:"uncertain-grant-recovery",expectedBindingDigest:digest(saved.binding),
+    window:{startsAtMillis:f.state.now,endsAtMillis:f.state.now+600000},nowMillis:()=>f.state.now,fetchImpl:f.fetchImpl,...f.sessions(first.data,"uncertain-recovery-owner")});
+  assert.ok(recovered.records.at(-1).value.cleanup.failures.includes("file-unverified"));assert.equal(f.state.mints,0);
+});
 test("restart removes permissions but keeps lost writer denial and old OAuth obligations unverified",async t=>{
   const f=originalWindowFixture({fault:"remove"}),first=await execute(t,f),saved=read(first.result.directory);
   f.state.failCleanup=false;

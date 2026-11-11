@@ -1,5 +1,16 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Attempt 04 contained after native grant — 2026-11-11
+
+The authorized single attempt granted temporary editor access but stopped in the
+post-grant UI check; automatic removal then failed its reopened-dialog check.
+No writer token, maintenance or migration started. Manual file removal restored
+the owner/four-reader list; independent IAM/OAuth/source checks passed. A linked
+manual recovery preserves the original `file-unverified` failure and releases
+only the local protective fence. Next verify post-submit/reopen settlement and
+uncertain-grant containment before another migration request. [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-04-detenido-tras-conceder-el-permiso--2026-11-11).
+Issue #268 and draft PR #278 remain open; the attempt cannot be resumed/repeated.
+
 ## Develop form and read-only refresh — 2026-11-11
 
 Delivered adapter correction `caefdcf7` passes 12 tests plus Functions lint/build

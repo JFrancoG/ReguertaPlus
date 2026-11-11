@@ -595,3 +595,34 @@ runtime manifests and fresh evidence remain under the real barrier, with the
 reviewed 20-minute budget and one 300-second token. Historical effect/authority
 observations are not promoted to new proof or stripped of their pending risk
 acceptance.
+
+## Attempt 04 stopped after granting access — 2026-11-11
+
+Authorized single attempt `develop-original-20261111-interactive-04` dispatched
+the grant at 16:40:55 UTC. Google added the writer as Editor, but the adapter did
+not recognize the resulting state. Automatic removal also failed while checking
+the newly reopened dialog. The original terminal retains `inspection-required`
+and `file-unverified`; no writer token, maintenance, migration or cell batch
+started. The prior unsent rehearsal did not exercise these post-grant transitions.
+
+The operator removed access through Share, saved and reopened the dialog: at
+16:42:46 UTC it showed only the owner and four readers. Independent postflight
+confirms the writer disabled, zero keys/IAM bindings, isolation and unchanged
+Firestore source; the same OAuth token returns 401 on Drive and Sheets. A manual
+recovery entry links the evidence and hashes, and the journal API released the
+local fence. All 23 original entries remain intact, including the automatic
+cleanup failure. Recovery cannot resume or repeat migration.
+
+Private evidence: journal `develop-original-20261111-interactive-04`,
+`2026-11-11-next-window-preparation/manual-file-cleanup-*`,
+`2026-11-11-postflight04-164322` and the postflight OAuth receipt. The window ended
+early and its single authorization was consumed.
+
+The local correction adds bounded read-only waiting after sharing, closing,
+reopening and saving removal, without repeating those clicks. An already
+dispatched action is observed until a settled state even if its deadline expires;
+the deadline error is retained and prevents progress. If grant outcome remains
+uncertain, the session cannot promote an absent ACL read to closure proof,
+including on recovery. Nineteen channel and 25 session tests pass with Node 22,
+along with Functions lint/build and scoped CJS lint. The correction remains local,
+uncommitted and untested with Google.

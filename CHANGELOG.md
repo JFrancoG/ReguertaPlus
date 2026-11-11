@@ -46,6 +46,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-11-11 | 🐛 fix(shifts): settle native permission outcomes
+
 - 2026-11-11 | 🐛 fix(shifts): wait for native sharing controls
 
 - 2026-11-05 | 🐛 fix(ios): explain rejected shift acceptance

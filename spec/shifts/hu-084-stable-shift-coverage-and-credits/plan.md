@@ -24,6 +24,14 @@ have also been renewed: version 287 and the preserved image match. The final
 candidate has a new operation and keeps authorization/window unset; actual
 admission must refresh time-sensitive observations. [Evidence](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
 
+That single attempt was authorized and consumed later on 11 November. Google
+granted editor access, but the adapter failed while checking the post-grant UI
+and automatic removal could not verify its reopened dialog. No writer token or
+migration started. Manual removal and independent postflight restored the prior
+access state; a retained recovery receipt released the local fence without
+altering the failure. Next validate the post-submit/reopen transitions and their
+uncertain-result containment before preparing any new migration request. [Attempt 04](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-04-detenido-tras-conceder-el-permiso--2026-11-11).
+
 The [controlled iOS interruption and retest on 5 November](review.md#ios-session-interruption--2026-11-05) closed the sign-in notice check. The tester understood that the offer was still pending and how to return to it. The next product decision is assembly review of the proposed rules in step 2. Seasonal publication, real Sheets projection and notification delivery remain in step 4.
 
 ## Start checkpoint — 2026-09-12

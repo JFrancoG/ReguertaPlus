@@ -622,3 +622,35 @@ solicitar autorización; los manifiestos y la evidencia vigente se obtendrán ba
 la barrera real, con el presupuesto revisado de 20 minutos y un único token de
 300 segundos. Las observaciones históricas de efectos y autoridad no se convierten
 en pruebas nuevas ni se elimina su aceptación de riesgo pendiente.
+
+## Intento 04 detenido tras conceder el permiso — 2026-11-11
+
+El intento único autorizado `develop-original-20261111-interactive-04` envió la
+concesión a las 16:40:55 UTC. Google añadió al escritor como Editor, pero el
+adaptador no reconoció el estado siguiente. La retirada automática también falló
+al comprobar el diálogo recién reabierto. El terminal original conserva
+`inspection-required` y `file-unverified`; no se emitió token del escritor ni se
+inició mantenimiento, migración o lote de celdas. El ensayo previo sin envío no
+ejercitaba estas transiciones posteriores a la concesión.
+
+El operador retiró el acceso desde el cuadro de Compartir, guardó y reabrió el
+diálogo: a las 16:42:46 UTC figuraban únicamente el propietario y cuatro lectores.
+La verificación independiente posterior confirma escritor deshabilitado, cero
+claves y bindings IAM, aislamiento y fuente Firestore intacta; el mismo token
+OAuth devuelve 401 en Drive y Sheets. El diario recibió una recuperación manual
+con referencias y huellas de esas pruebas y se liberó el bloqueo local mediante
+su API. Los 23 registros originales permanecen intactos, incluido el fallo de
+limpieza automática. La recuperación no permite reanudar ni repetir la migración.
+
+Evidencia privada: el diario `develop-original-20261111-interactive-04`,
+`2026-11-11-next-window-preparation/manual-file-cleanup-*`,
+`2026-11-11-postflight04-164322` y el recibo OAuth posterior. La ventana terminó
+anticipadamente y la autorización única quedó consumida.
+
+La corrección local añade espera acotada de lecturas tras compartir, cerrar,
+reabrir y guardar una retirada, sin repetir esos clics. Una acción ya enviada
+debe observarse hasta un estado asentado incluso si vence su plazo; el error de
+plazo se conserva y bloquea el avance. Si la concesión queda incierta, la sesión
+no convierte una lectura de ACL ausente en prueba de cierre, también al recuperar.
+Pasan 19 pruebas del canal y 25 de sesión con Node 22, lint/build de Functions y
+lint CJS. La corrección sigue local, sin commit ni nueva prueba en Google.

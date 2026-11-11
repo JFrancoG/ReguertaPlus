@@ -60,6 +60,10 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
     const isolation=createIsolationReader({iamBearer,fetchImpl:timeBudget.fetch,nowMillis});
     const owner=createOriginalWindowOwner({ownerBearer:ownerCredential.bearer,fetchImpl:timeBudget.fetch,nowMillis,sleep});
     let records=saved?values(saved):[],writer=null,expiry=0,positive=false,transition=null,permissionReceipt=null,initialSeal=null,registrationValid=false;
+    // A dispatch without an independently verified outcome can still arrive
+    // after an ACL read. Never promote a single absence to cleanup proof.
+    let grantUncertain=!!saved&&records.some(v=>v.phase==="native-grant-dispatch")&&
+      !records.some(v=>v.phase==="native-grant-verified");
     const note=async value=>{await record(value);records.push(structuredClone(value));};
     const cleanupRecord=async value=>{try{await note(value);return true;}catch{return false;}};
     const matching=phase=>records.filter(v=>v.phase===phase);
@@ -117,6 +121,10 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
           logged=await cleanupRecord({phase:"google-file-remove-intent",permission})&&logged;await ownerChannel.remove(structuredClone(permission),{assertActive:timeBudget.assertStage});}
         value=await owner.read();validateMetadata(value,false);
         assert.equal(metadataFingerprint(value,{omitVersion:true}),metadataFingerprint(own.baseline.after,{omitVersion:true}));
+        if(grantUncertain||intent("google-file-grant-uncertain")) {
+          await cleanupRecord({phase:"google-file-grant-uncertainty-retained",permission});
+          throw Error("native_grant_settlement_unverified");
+        }
         // A restarted process has no writer token. ACL absence is retained as
         // metadata evidence; it must not be labelled a same-token denial.
         let denial=null;
@@ -191,7 +199,10 @@ function createOriginalWindowSessions({expectedBinding,authorization,ownerCreden
         await note({phase:"google-session-ownership",receiptId:authorization.receiptId,bindingDigest,identity:IDENTITY,grant,baseline:before,iam:initialIam});
         await note({phase:"google-enable-intent",identity:IDENTITY});await iam.enableOwned();const enabled=await identity(false,[]);current();
         await note({phase:"google-iam-grant-intent",grant});await iam.setPolicy({...enabled.policy,version:3,bindings:[grant]});const grantedAt=nowMillis();
-        await note({phase:"google-file-grant-intent",permission});const native=await ownerChannel.grant(structuredClone(permission),{assertActive:current});current();
+        await note({phase:"google-file-grant-intent",permission});let native;
+        try{native=await ownerChannel.grant(structuredClone(permission),{assertActive:current});}
+        catch(error){if(error?.nativeGrantUncertain===true){grantUncertain=true;await note({phase:"google-file-grant-uncertain",permission});}throw error;}
+        current();
         await isolated();const after=await owner.capture(true);transition={before,after};
         const plan=await planOriginalWindowBatch({sourceInput,reviewPackage,observation:after,direction:expectedBinding.direction,forwardPlan,permissionTransition:transition});
         current();await note({phase:"google-permission-transition",transition,planDigest:plan.planDigest});
