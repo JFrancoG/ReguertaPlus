@@ -8,16 +8,19 @@ const {FILE,OWNER,WRITER,PERMISSION,validateMetadata}=require("./develop-origina
 const TITLE='Compartir "Regüerta — DEVELOP — Turnos de prueba"';
 const permission=Object.freeze({fileId:FILE,permissionId:PERMISSION,type:"user",role:"writer",emailAddress:WRITER});
 function lines(state){return state.split("\n").map(line=>{const m=line.match(/^(\s*)(\d+) (.*)$/);return m?{indent:m[1].length,id:Number(m[2]),text:m[3]}:null;}).filter(Boolean);}
-function one(rows,predicate){const found=rows.filter(predicate);assert.equal(found.length,1,"Native control missing or ambiguous");return found[0];}
+function one(rows,predicate,label="unidentified"){const found=rows.filter(predicate);assert.equal(found.length,1,`Native control missing or ambiguous: ${label}`);return found[0];}
 function button(rows,name){return one(rows,r=>r.text===`button ${name}`);}
 function assertFile(rows){assert.ok(rows.some(r=>r.text.includes(`drive.google.com/drivesharing/driveshare?id=${FILE}&`)));assert.ok(rows.some(r=>r.text===`text ${TITLE}`));}
-function createNativeOwnerChannel({tab,review,reviewDigest,readMetadata,authorizeAction,record,nowMillis=Date.now}) {
+function createNativeOwnerChannel({tab,review,reviewDigest,readMetadata,authorizeAction,record,nowMillis=Date.now,
+  sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))}) {
   assert.equal(digest(review),reviewDigest);assert.deepEqual(review.permission,permission);assert.equal(review.owner,OWNER);
   assert.equal(review.kind,"native-drive-owner-sharing");assert.equal(typeof authorizeAction,"function");assert.equal(typeof record,"function");
   let active=false,grantAttempted=false;
-  const snapshot=async()=>{
+  assert.equal(typeof sleep,"function");
+  const snapshot=async(openIfClosed=true)=>{
     let rows=lines(await tab.getAXState({disableDiffing:true,emit:false}));
     if(!rows.some(r=>r.text.includes("drive.google.com/drivesharing/driveshare?id="))){
+      if(!openIfClosed)return null;
       one(rows,r=>r.text.startsWith("row (selected) Regüerta — DEVELOP — Turnos de prueba Hojas de cálculo de Google "));
       assert.ok(rows.some(r=>r.text.includes(`Cuenta de Google: Plus Projects Test (${OWNER})`)));
       await tab.click(one(rows,r=>r.text.startsWith("button Compartir ")).id);
@@ -25,6 +28,25 @@ function createNativeOwnerChannel({tab,review,reviewDigest,readMetadata,authoriz
     }
     assertFile(rows);return rows;
   };
+  // Google can render the next sharing form after the key/click resolves. Poll
+  // only read-only AX snapshots; never replay an input or a permission action.
+  async function waitForControls(controls,assertActive) {
+    let missing=controls[0].label;
+    for(let attempt=0;attempt<21;attempt++) {
+      assertActive();const rows=await snapshot(false);assertActive();
+      if(rows) {
+        let complete=true;
+        for(const {label,predicate} of controls) {
+          const matches=rows.filter(predicate);
+          assert.ok(matches.length<=1,`Native control ambiguous: ${label}`);
+          if(matches.length===0){missing=label;complete=false;break;}
+        }
+        if(complete)return rows;
+      }
+      if(attempt<20){await sleep(200);assertActive();}
+    }
+    throw Error(`Native control missing after bounded wait: ${missing}`);
+  }
   async function action(kind,p,{assertActive}) {
     assert.deepEqual(p,permission);assert.equal(active,false,"Concurrent native permission action");
     if(kind==="grant")assert.equal(grantAttempted,false,"Native grant already attempted; inspect instead");
@@ -35,14 +57,20 @@ function createNativeOwnerChannel({tab,review,reviewDigest,readMetadata,authoriz
       let rows=await snapshot();assertActive();
       if(kind==="grant") {
         assert.ok(rows.some(r=>r.text.includes(`${OWNER}. Propietario.`)));assert.ok(!rows.some(r=>r.text.includes(WRITER)));
-        const input=one(rows,r=>r.text.startsWith("combo box ")&&r.text.includes("Description: Añadir personas, grupos y eventos de calendario"));
-        await tab.typeText(input.id,WRITER);rows=await snapshot();assertActive();
-        await tab.pressKey(one(rows,r=>r.text.startsWith("combo box ")&&r.text.includes(`Value: ${WRITER}`)).id,"Return");rows=await snapshot();
-        one(rows,r=>r.text.startsWith(`row Quitar a ${WRITER},`));
-        one(rows,r=>r.text.includes("Description: Editor. Cambiar permiso")&&!r.text.includes("disabled"));
-        const notify=one(rows,r=>r.text.startsWith("checkbox ")&&r.text.includes("Description: Notificar a los usuarios"));
-        if(notify.text.includes("Value: 1")){await tab.click(notify.id);rows=await snapshot();}
-        one(rows,r=>r.text.startsWith("checkbox ")&&r.text.includes("Notificar a los usuarios, Value: 0"));
+        const input=one(rows,r=>r.text.startsWith("combo box ")&&r.text.includes("Description: Añadir personas, grupos y eventos de calendario"),"recipient input");
+        await tab.typeText(input.id,WRITER);
+        const typed=r=>r.text.startsWith("combo box ")&&r.text.includes(`Value: ${WRITER}`);
+        rows=await waitForControls([{label:"typed recipient",predicate:typed}],assertActive);
+        await tab.pressKey(one(rows,typed,"typed recipient").id,"Return");
+        const recipient=r=>r.text.startsWith(`row Quitar a ${WRITER},`);
+        const editor=r=>r.text.includes("Description: Editor. Cambiar permiso")&&!r.text.includes("disabled");
+        const notification=r=>r.text.startsWith("checkbox ")&&r.text.includes("Description: Notificar a los usuarios");
+        rows=await waitForControls([{label:"selected recipient",predicate:recipient},{label:"editor role",predicate:editor},
+          {label:"notification checkbox",predicate:notification}],assertActive);
+        const notify=one(rows,notification,"notification checkbox");
+        if(notify.text.includes("Value: 1"))await tab.click(notify.id);
+        rows=await waitForControls([{label:"selected recipient",predicate:recipient},{label:"editor role",predicate:editor},
+          {label:"notifications disabled",predicate:r=>notification(r)&&r.text.includes("Notificar a los usuarios, Value: 0")}],assertActive);
       } else {
         const row=one(rows,r=>r.text.startsWith(`${WRITER} `)&&r.text.includes("Editor. Cambiar permiso"));
         const index=rows.indexOf(row),end=rows.findIndex((r,i)=>i>index&&r.indent<=row.indent);

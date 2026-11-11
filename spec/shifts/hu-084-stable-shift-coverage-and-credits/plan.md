@@ -2,7 +2,7 @@
 
 ## Remaining work as of 2026-11-04
 
-The base planner and seasonal Sheets adapter are on `main`. Coverage and credits, including HU-089, are in [draft PR #278](https://github.com/JFrancoG/ReguertaPlus/pull/278). Both apps have a Debug rehearsal. The normal apps check access per session and the exported backend still sets `operationalReady` to `false`. The third original-Develop attempt stopped in Google's sharing dialog before any editor grant or migration. Its cleanup evidence and locally tested selector change remain separate uncommitted work and are excluded from this documentation checkpoint. Another attempt requires fresh evidence and authorization. The [published window guide](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md) retains the preceding preparation.
+The base planner and seasonal Sheets adapter are on `main`. Coverage and credits, including HU-089, are in [draft PR #278](https://github.com/JFrancoG/ReguertaPlus/pull/278). Both apps have a Debug rehearsal. The normal apps check access per session and the exported backend still sets `operationalReady` to `false`. The third original-Develop attempt stopped in Google's sharing dialog before any editor grant or migration. Its cleanup and the locally tested selector change are recorded in the [window guide](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md). First exercise the revised selector against the real sharing form, cancel without submitting, and verify that access remains unchanged. Another migration attempt requires fresh evidence and authorization.
 
 | Step | Owner and action | Acceptance |
 | --- | --- | --- |

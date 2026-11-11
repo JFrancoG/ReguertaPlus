@@ -529,3 +529,28 @@ Android/iOS sin cambios ni diferencia nueva. Siguiente: renovar las observacione
 identificadas y revisar el paquete con fechas concretas antes de pedir ejecución.
 Sin mantenimiento, llamadas a proveedores, permisos, token, escritura Sheets, FCM ni
 producción en este bloque. No necesitas cerrar la hoja ahora.
+## Intento interactivo detenido antes de la concesión — 2026-11-02
+
+El intento autorizado `develop-original-20261102-interactive-03` empezó a las
+11:22:03 UTC y se detuvo al preparar la concesión de edición en el cuadro de
+Compartir: el adaptador no encontró de forma inequívoca un control nativo. El
+diario no identifica cuál de sus selectores falló. La pantalla observada después
+mostraba la invitación sin enviar; se canceló y no se concedió acceso a la hoja.
+No se emitió token del escritor ni se inició el lote de Sheets o la migración.
+
+La limpieza verificó la retirada de la concesión IAM temporal, la desactivación
+del escritor y la revocación de OAuth. Una lectura posterior confirmó la cuenta
+deshabilitada, sin claves ni bindings; Drive y Sheets devolvieron 401 al mismo
+token de lectura revocado. El cuadro de Compartir mostró de nuevo al propietario
+y cuatro lectores, sin el escritor. La inspección posterior de Firestore encontró
+la fuente esperada y únicamente el bloqueo de ventana ausente. La reversión no se
+ejecutó y este intento no autoriza otro. Evidencia privada: diario
+`2026-11-02-authorized-develop-window/journal/develop-original-20261102-interactive-03`.
+
+La corrección local espera de forma acotada la aparición de los controles y
+registra cuál falta o es ambiguo. Solo repite lecturas de accesibilidad; no repite
+la entrada, la confirmación del destinatario ni el envío de permisos. Doce pruebas
+del adaptador, el lint y el build de Functions pasan. El formulario demorado es una
+simulación: la corrección todavía no se ha ensayado en Google y no demuestra la
+causa exacta. Para otro intento hay que revisar de nuevo la huella del canal,
+renovar las observaciones y obtener una autorización concreta.

@@ -506,3 +506,26 @@ not rerun or claimed as new full live acceptance. No Android/iOS change or parit
 Next renew the identified observations and review the exact dated input packet before
 requesting execution. No maintenance, live provider call, permission change, token,
 Sheets write, FCM or production access in this block. No sheet closure needed now.
+## Interactive attempt stopped before the grant — 2026-11-02
+
+The authorized attempt `develop-original-20261102-interactive-03` began at
+11:22:03 UTC and stopped while preparing the editor grant in the sharing dialog:
+the adapter could not uniquely find a native control. The journal does not identify
+which selector failed. The subsequently observed invitation had not been sent; it
+was cancelled and no workbook access was granted. No writer token was issued and
+neither the Sheets batch nor the migration started.
+
+Cleanup verified removal of the temporary IAM grant, disabling the writer and OAuth
+revocation. A subsequent read confirmed the account disabled with no keys or
+bindings; Drive and Sheets returned 401 for the same revoked read token. The sharing
+dialog again showed the owner and four readers, without the writer. A subsequent
+Firestore inspection found the expected source and only the missing-window blocker.
+No inverse was executed and this attempt does not authorize another. Private
+evidence: journal `2026-11-02-authorized-develop-window/journal/develop-original-20261102-interactive-03`.
+
+The local fix waits a bounded time for the controls and reports which is missing
+or ambiguous. It repeats accessibility reads only; it does not repeat text entry,
+recipient confirmation or permission submission. Twelve adapter tests, Functions
+lint and build pass. The delayed form is simulated: the fix has not yet been tried
+with Google and does not establish the exact cause. A further attempt needs a new
+channel source review, refreshed observations and explicit authorization.
