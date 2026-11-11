@@ -571,3 +571,27 @@ A real read-only transaction with this candidate verifies the source and returns
 only `window_scope_missing`, with zero writes and no maintenance entry. This
 partial admission does not prove the pending Google observations or allow
 candidate execution.
+
+### Direct workbook and parent refresh
+
+The authorized read session produced a retained complete direct observation in
+`2026-11-11-owner-refresh`: two identical cell images, version 287 and stable
+workbook/parent ownership and permissions. The preservation image remains
+`2682cfb7…81b3`. Tool-session closing timed out after the observation was saved.
+Recovery found the token invalid (400 on a further revocation request) and
+verified 401 for the same token on Drive and Sheets. No initial 200 revocation
+response was retained or manufactured. No further token, editor grant or
+maintenance entry occurred.
+
+Final composition `2026-11-11-next-window-preparation` binds refreshed package
+`bcb7d82a…2632f`, preparation `0926cf4b…39645` and operation
+`request-hu084-initial-fd4a76de51ab9a9280cd` to the forms and new channel review.
+All 17 pinned files, three previous journals and rejection without authorization
+validate. Isolated construction and three private codec/binding checks use
+explicitly synthetic data/replies without providers. New receipt
+`develop-original-20261111-interactive-04` retains authorization false, window null
+and empty confirmations. Preparation is ready for an authorization request;
+runtime manifests and fresh evidence remain under the real barrier, with the
+reviewed 20-minute budget and one 300-second token. Historical effect/authority
+observations are not promoted to new proof or stripped of their pending risk
+acceptance.

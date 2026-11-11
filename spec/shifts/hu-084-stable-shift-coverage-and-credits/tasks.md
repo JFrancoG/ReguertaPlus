@@ -2,6 +2,8 @@
 
 - [x] Record the third stopped attempt and locally verify bounded waiting and diagnostics for the native sharing controls. [Evidence](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-interactivo-detenido-antes-de-la-concesión--2026-11-02).
 - [x] Exercise the revised controls in the real Develop sharing form without submitting; cancel and confirm the writer is absent before preparing fresh migration evidence. [Observed on 11 November](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
+- [x] Renew Cloud/Firestore and direct workbook/parent observations; preserve the current minimum iOS version in a new static candidate while keeping turn content, dates and order. [Read-only evidence](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#renovación-directa-de-la-hoja-y-la-carpeta).
+- [ ] Authorize a new reviewed attempt and collect its actual twenty-minute window, post-permission confirmations and fresh runtime evidence; no prior authorization is reused.
 
 > 2026-11-02: stopped-window evidence delivered in `d7d11eaf`. ADR-0027 prepares an explicit twenty-minute forward-only original-develop mode, coherent observations, delayed single-token mint and actual owned-afterimage proof. Defaults and token/work/cleanup/manifest limits remain intact. Final gates: 358 repository + 14 private passes, no failures/skips; build/lint clean. READY_FOR_FRESH_AUTHORIZATION only; new receipt unapproved/unconsumed, dates empty. No provider/production action. See bilingual initial-evidence/window guide.
 

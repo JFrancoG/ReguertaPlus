@@ -598,3 +598,27 @@ Una transacción real de solo lectura con ese candidato verifica la fuente y
 devuelve únicamente `window_scope_missing`, con cero escrituras y sin abrir
 mantenimiento. Esta admisión parcial no acredita las observaciones de Google
 pendientes ni permite ejecutar el candidato.
+
+### Renovación directa de la hoja y la carpeta
+
+La sesión de lectura autorizada produjo una captura directa completa conservada
+en `2026-11-11-owner-refresh`: dos imágenes de celdas idénticas, versión 287,
+propietario y permisos de hoja/carpeta estables. La imagen de preservación sigue
+siendo `2682cfb7…81b3`. El cierre agotó el tiempo de la sesión de herramientas
+después de guardar la captura. La recuperación encontró el token inválido
+(respuesta 400 a otra revocación) y comprobó 401 con el mismo token en Drive y
+Sheets. No se conserva una respuesta 200 del cierre inicial y no se inventa.
+No se solicitó otro token ni se concedió edición o abrió mantenimiento.
+
+La composición final `2026-11-11-next-window-preparation` enlaza el paquete
+renovado `bcb7d82a…2632f`, preparación `0926cf4b…39645` y operación
+`request-hu084-initial-fd4a76de51ab9a9280cd` con los formularios y la nueva revisión
+del canal. Los 17 archivos fijados, los tres diarios anteriores y la denegación
+sin autorización validan. La construcción aislada y tres pruebas privadas del
+codec/vínculo usan datos y respuestas expresamente sintéticos, sin proveedores.
+El recibo nuevo `develop-original-20261111-interactive-04` conserva autorización
+en false, ventana null y confirmaciones vacías. La preparación está lista para
+solicitar autorización; los manifiestos y la evidencia vigente se obtendrán bajo
+la barrera real, con el presupuesto revisado de 20 minutos y un único token de
+300 segundos. Las observaciones históricas de efectos y autoridad no se convierten
+en pruebas nuevas ni se elimina su aceptación de riesgo pendiente.

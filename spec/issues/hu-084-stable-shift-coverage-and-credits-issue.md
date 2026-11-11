@@ -9,8 +9,9 @@ does not validate effective ACL changes or admit migration. Cloud controls,
 writer isolation and indexes match the retained review. The old packet's config
 differs only in the minimum iOS version. A new atomic capture preserves this
 setting; the candidate retains turn content and passes read-only source admission.
-Renew workbook/parent observations before preparing a new
-authorized window. See the [window evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
+Direct workbook/parent observations also match version 287 and the preserved
+image. The refreshed candidate still requires new execution authorization and a
+real window with fresh admission. See the [window evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
 Issue #268 stays open and PR #278 stays draft.
 
 ## Documentation and product rehearsal checkpoint — 2026-11-05

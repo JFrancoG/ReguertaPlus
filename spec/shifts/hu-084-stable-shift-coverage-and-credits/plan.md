@@ -19,8 +19,10 @@ adapter; cancellation restored the owner/four-reader list. Cloud controls, write
 isolation and indexes matched the retained review. The fresh read-only Firestore
 admission rejected the old packet because only the iOS minimum version changed
 in config/global and config/public. The recaptured candidate preserves the turn
-content and passes read-only source admission. Next renew the workbook/parent
-observations before preparing another authorized window. [Evidence](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
+content and passes read-only source admission. Direct workbook/parent observations
+have also been renewed: version 287 and the preserved image match. The final
+candidate has a new operation and keeps authorization/window unset; actual
+admission must refresh time-sensitive observations. [Evidence](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
 
 The [controlled iOS interruption and retest on 5 November](review.md#ios-session-interruption--2026-11-05) closed the sign-in notice check. The tester understood that the offer was still pending and how to return to it. The next product decision is assembly review of the proposed rules in step 2. Seasonal publication, real Sheets projection and notification delivery remain in step 4.
 
