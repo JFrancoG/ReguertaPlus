@@ -114,3 +114,40 @@ other OEM evidence or confirmed API 29 landscape result. Prior startup/PSS
 receipts remain historical for their own hashes. Exact cleanup, durable
 archival and manifest/hash verification pass. HU-090, its later
 exact-artifact cloud/FCM canary and #228 remain open.
+
+## Final local batch approved — 2026-11-11
+
+The owner approved local cart recreation diagnosis with/without R8, remaining
+window/launcher QA and paired startup/PSS measurements on the stable candidate.
+Follow [final local validation](../app/hu-090-android-release-privacy-r8/final-local-validation.md)
+for this execution. Use only owned emulators and the fixed demo/localhost
+harness, preserving non-advertising Analytics and all remote/#228 gates.
+At that local execution checkpoint the earlier Git delivery was `5ab157ff`;
+publication, production access, external telemetry/FCM and artifact uploads
+remain outside scope. Subsequent Git delivery is separately authorized below.
+
+The approved batch now passes locally. Real Activity recreation with and
+without R8 on API 29/16 KB matches the pre-HU-090 restoration/freshness policy;
+the exact cart draft survives and News retains its destination. Available
+landscape and Pixel Circle/Square theme checks pass. Accepted V3 startup/PSS
+pairs meet all limits; 92 native starts and 40 PSS readings are independently
+audited. The invalid V2 launcher timings are excluded entirely. The harness
+passes 21 focused tests; app/build inputs and non-advertising Analytics remain
+unchanged. Cleanup of only task-owned runtime/AVDs passes. Follow the
+[current summary](../app/hu-090-android-release-privacy-r8/final-local-evidence-summary.json)
+for exact hashes/metrics and archive closeout. That checkpoint preceded Git
+delivery; remote/#228 acceptance remains open.
+
+[Final local progress receipt](https://github.com/JFrancoG/ReguertaPlus/issues/282#issuecomment-6794165453) preserves the current outcome and remaining gates without claiming a new commit/push.
+
+## Final local batch Git delivery authorization — 2026-11-11
+
+The owner subsequently requested commit/push of the corrected measurement
+harness and this batch's documentation on the existing HU branch, keeping
+HU-090 open. Delivery preparation adds the matching changelog entry and
+records authorization; the two Python files match the archived 21-test receipt.
+Recent tests and V3 results are reused after hash verification, with unchanged
+application/build inputs and original candidate/source provenance. Git history
+and issue #282 own the definitive commit/push receipt. No merge, publication,
+production access or artifact upload is included. Exact-artifact cloud/FCM,
+physical/OEM coverage limits and independent #228 remain documented.

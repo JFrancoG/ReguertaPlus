@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 1,
+  "executed": "2026-11-11",
+  "baseCommit": "5ab157ff9d99799981c279ea1f59a2f9f17c5d48",
+  "status": "passed locally; cleanup and durable execution archive verified; HU-090 remains open",
+  "archive": "/Users/jesusf/Projects/Reguerta-artifacts/hu-090/2026-11-11-final-local",
+  "appBuildInputsUnchanged": true,
+  "changedOnlyAndroidHarness": [
+    "scripts/benchmark-local-release.py",
+    "scripts/test_benchmark_local_release.py"
+  ],
+  "artifacts": [
+    {
+      "label": "baseline",
+      "file": "qa-unoptimized.apk",
+      "bytes": 70821025,
+      "sha256": "148bd63a4398d2038a32547bc41a811f3fa2917cd6583c0bda65e9160f5e1811",
+      "package": "com.reguerta.user.validation",
+      "versionCode": "37",
+      "debuggable": "false",
+      "permissions": [
+        "android.permission.ACCESS_LOCAL_NETWORK",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK",
+        "com.google.android.c2dm.permission.RECEIVE",
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+        "com.google.android.providers.gsf.permission.READ_GSERVICES",
+        "com.reguerta.user.validation.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+      ],
+      "application": "com.reguerta.user.validation.LocalValidationApplication"
+    },
+    {
+      "label": "optimized",
+      "file": "qa-optimized.apk",
+      "bytes": 8989043,
+      "sha256": "5addeb32111f310626d6196ae7e763723bb817a7a2af5e77f0a20c4d73b2f62f",
+      "package": "com.reguerta.user.validation",
+      "versionCode": "37",
+      "debuggable": "false",
+      "permissions": [
+        "android.permission.ACCESS_LOCAL_NETWORK",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK",
+        "com.google.android.c2dm.permission.RECEIVE",
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+        "com.google.android.providers.gsf.permission.READ_GSERVICES",
+        "com.reguerta.user.validation.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+      ],
+      "application": "com.reguerta.user.validation.LocalValidationApplication"
+    }
+  ],
+  "releaseAabSha256": "ecccb860393e7c68797ff8600d8810b976576621f8bc806941289d3b60c3ef0f",
+  "metrics": {
+    "api29": {
+      "reports": {
+        "baseline": "api29-v3-baseline-performance.json",
+        "optimized": "api29-v3-optimized-performance.json"
+      },
+      "comparison": "api29-v3-comparison.json",
+      "status": "within_proposed_local_limits",
+      "summaries": {
+        "baseline": {
+          "startup_ms": {
+            "count": 20,
+            "median": 261.0,
+            "p90": 299,
+            "max": 347
+          },
+          "pss_bytes": {
+            "foreground": {
+              "count": 5,
+              "median": 228228096,
+              "p90": 228387840,
+              "max": 228387840
+            },
+            "background": {
+              "count": 5,
+              "median": 227701760,
+              "p90": 227714048,
+              "max": 227714048
+            }
+          }
+        },
+        "optimized": {
+          "startup_ms": {
+            "count": 20,
+            "median": 251.5,
+            "p90": 274,
+            "max": 277
+          },
+          "pss_bytes": {
+            "foreground": {
+              "count": 5,
+              "median": 151903232,
+              "p90": 155256832,
+              "max": 155256832
+            },
+            "background": {
+              "count": 5,
+              "median": 151828480,
+              "p90": 151840768,
+              "max": 151840768
+            }
+          }
+        }
+      },
+      "sampleCounts": {
+        "measuredStartsPerVariant": 20,
+        "warmupsPerVariant": 3,
+        "pssPerStatePerVariant": 5
+      },
+      "pageSizeBytes": 4096
+    },
+    "16k": {
+      "reports": {
+        "baseline": "16k-v3-baseline-performance.json",
+        "optimized": "16k-v3-optimized-performance.json"
+      },
+      "comparison": "16k-v3-comparison.json",
+      "status": "within_proposed_local_limits",
+      "summaries": {
+        "baseline": {
+          "startup_ms": {
+            "count": 20,
+            "median": 279.5,
+            "p90": 310,
+            "max": 378
+          },
+          "pss_bytes": {
+            "foreground": {
+              "count": 5,
+              "median": 172898304,
+              "p90": 172899328,
+              "max": 172899328
+            },
+            "background": {
+              "count": 5,
+              "median": 168963072,
+              "p90": 173707264,
+              "max": 173707264
+            }
+          }
+        },
+        "optimized": {
+          "startup_ms": {
+            "count": 20,
+            "median": 260.5,
+            "p90": 305,
+            "max": 358
+          },
+          "pss_bytes": {
+            "foreground": {
+              "count": 5,
+              "median": 111160320,
+              "p90": 111160320,
+              "max": 111160320
+            },
+            "background": {
+              "count": 5,
+              "median": 107269120,
+              "p90": 111971328,
+              "max": 111971328
+            }
+          }
+        }
+      },
+      "sampleCounts": {
+        "measuredStartsPerVariant": 20,
+        "warmupsPerVariant": 3,
+        "pssPerStatePerVariant": 5
+      },
+      "pageSizeBytes": 16384
+    }
+  },
+  "fixtureSha256": "cbbc10006ea939ae8f67700cca4a555d535431d57b42000057498f78365e1bde",
+  "fixtureDocuments": 12,
+  "nativeAcceptedStarts": 92,
+  "measuredAcceptedStarts": 80,
+  "acceptedPssSamples": 40,
+  "harnessTestsPassed": 21,
+  "cartRecreation": {
+    "result": "same existing restoration/freshness policy with and without R8 on both OSes; exact draft retained",
+    "policyIntroducedBy": "405161c5cdec70d8a411dac9eb4f8ec16a3f0225",
+    "applicationCodeChanged": false
+  },
+  "qa": {
+    "api29RealLandscape": true,
+    "pixelMasksObserved": [
+      "Circle",
+      "Square"
+    ],
+    "physicalOrOtherOemEvidence": false
+  },
+  "rejectedRuns": [
+    {
+      "report": "api29-v2-baseline-performance.json",
+      "reason": "wrong native Activity for warmup ordinal3 and measured ordinal11; entire report excluded, including PSS"
+    }
+  ],
+  "validationReused": {
+    "jvmPasses": 505,
+    "connectedPasses": 85,
+    "connectedSkips": 3,
+    "strictLintDiagnostics": {
+      "debug": 0,
+      "release": 0,
+      "releaseValidation": 0
+    },
+    "basis": "Exact unchanged application/build inputs and existing candidate hashes; only local measurement harness and documentation changed."
+  },
+  "remainingGates": [
+    "separately authorized exact-AAB cloud canary and actual telemetry/FCM",
+    "independent secure-store distribution gate #228"
+  ],
+  "scope": "Local validation phase: no production, publication, deploy, Console, binary/mapping upload, merge, commit or push; subsequent Git delivery is recorded separately",
+  "gitDelivery": {
+    "ownerAuthorized": "2026-11-11",
+    "branch": "codex/hu-090-android-release-privacy-r8",
+    "scope": "Commit and push the two corrected measurement scripts, final local batch documentation and changelog; keep HU-090 open",
+    "validationReuse": "Both Python files match the archived 21-test receipt; V3 results and prior app gates retain unchanged app/build inputs and original candidate hashes",
+    "receiptAuthority": "Git history and issue #282; no merge, publication, production access or artifact upload"
+  },
+  "cleanup": {
+    "status": "complete",
+    "receipt": "cleanup-runtime.json",
+    "fixtureHashConfirmed": true,
+    "profileStorageEmpty": true,
+    "allRequiredPortsFree": true,
+    "temporaryAvdsRemoved": 2,
+    "unrelatedRuntimeAndSdkUntouched": true
+  },
+  "archiveVerification": {
+    "passed": true,
+    "executionFiles": 489,
+    "executionBytes": 329046335,
+    "manifest": "archive-manifest.json",
+    "manifestSha256": "ddac1b37e9833fa671e5e44ba03d708c4c52a2b97701b3b1df779cb5c6bcbe84",
+    "repositorySnapshotManifest": "repository-snapshot-manifest.json"
+  },
+  "independentPerformanceReview": {
+    "status": "passed",
+    "receipt": "independent-performance-review.md",
+    "thresholdChecks": 12,
+    "acceptedNativeStarts": 92,
+    "acceptedPssSamples": 40,
+    "rejectedV2Included": false
+  },
+  "tracker": {
+    "issue": "https://github.com/JFrancoG/ReguertaPlus/issues/282",
+    "state": "open",
+    "progressComment": "https://github.com/JFrancoG/ReguertaPlus/issues/282#issuecomment-6794165453"
+  }
+}

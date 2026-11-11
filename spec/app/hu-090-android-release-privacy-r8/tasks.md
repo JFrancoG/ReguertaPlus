@@ -96,6 +96,20 @@
 - [x] Retain and verify the durable archive, manifest, six candidate-artifact hashes and 358 source records; preserve pre-commit artifact provenance during the separately authorized Git delivery, without closing HU-090.
 - [x] Prepare lint branch delivery with the required changelog and documentation; reuse recent local gates only after verifying unchanged Android sources. Commit/push results belong to Git history and issue #282.
 
+## 9. Final local QA and candidate performance — local PASS 2026-11-11
+
+- [x] Record owner approval of the local-only cart/R8 diagnosis, outstanding QA and candidate startup/PSS batch.
+- [x] Freeze same-source unoptimized/optimized QA APKs and record hashes/provenance; no changed app/build inputs.
+- [x] Contrast actual Activity recreation in both binaries/OSes: existing MY_ORDER→DASHBOARD policy, exact cart draft retained; News retained as control. No R8 difference or navigation code change.
+- [x] Complete actual API 29 landscape and available Circle/Square, Default/Minimal light/dark launcher QA; physical/OEM limits remain explicit.
+- [x] Verify observer quiescence, stable HOME/PID fences and exact native target/COLD timing. The corrected harness passes 21 focused tests.
+- [x] Run matched V3 pairs with 3/20/5/60 protocol. All 12 limits pass without exception; reject the entire V2 launcher-timing run instead of reusing any of its samples.
+- [x] Reconcile current AC-08 evidence and remaining local QA against exact candidate hashes in [validation](final-local-validation.md) and [summary](final-local-evidence-summary.json), preserving remote/#228 gates.
+- [x] Restore settings and stop/remove only task-owned demo runtime/AVDs; verify full fixture hash and empty orders/profile storage before shutdown.
+- [x] Retain/verify 489 durable execution files and their SHA-256 manifest, candidate hashes and final repository snapshot; local execution preceded Git delivery, without publication or HU closure.
+- [x] Record subsequent owner authorization for commit/push of this measurement harness and documentation on the existing HU branch, keeping HU-090 open.
+- [x] Prepare focused branch delivery with changelog and documentation; reuse the 21-test receipt and V3 results after matching harness/source hashes. Git history and issue #282 own the definitive receipt; remote/#228 gates remain open.
+
 ## Planning history and current execution state
 
 - Revision 1: planning bootstrap only, commit 5de7c804; original dirty measurements retained.

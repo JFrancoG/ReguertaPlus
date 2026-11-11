@@ -211,6 +211,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-11-11 | 🐛 fix(android): validate local benchmark timings
+
 - 2026-11-10 | 🐛 fix(android): preserve camera draft on session refresh
 
 - 2026-11-05 | 🐛 fix(ios): patch Firestore certificate trust

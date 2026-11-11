@@ -2,10 +2,13 @@
 
 ## 1. Current outcome, decisions, and authorization
 
-- State: **Privacy/R8, camera and lint local validation recorded; HU acceptance remains pending**.
-- Authorized now: commit and push the validated Android lint changes and HU
-  documentation to the existing branch, keeping HU-090 open. The earlier
-  implementation and local-validation authorization remains recorded below.
+- State: **Privacy/R8, camera, lint and final local QA/performance recorded; remote acceptance remains pending**.
+- Current local outcome: the approved cart/R8 diagnosis, remaining available QA
+  and paired candidate performance batch passes on 2026-11-11. The preceding
+  lint/documentation commit and push are fulfilled by `5ab157ff`. The owner
+  now authorizes commit/push of the corrected measurement harness and this
+  batch's documentation on the same HU branch, keeping HU-090 open. Git history
+  and issue #282 own the definitive delivery receipt.
   Publication, production access/writes, cloud canaries, live FCM sends, and
   mapping/symbol uploads remain outside authorization. No live services are
   used for this implementation's tests.
@@ -24,8 +27,9 @@
 - Original privacy/R8 evidence: [validation and exact historical artifact hashes](validation.md).
   Its paired performance runs and offline SDK observations apply to those
   recorded binaries. The current lint candidate has separate artifacts and
-  local results in [lint validation](lint-validation.md); no new paired
-  startup/PSS result is claimed for that candidate.
+  local results in [lint validation](lint-validation.md). That checkpoint had no
+  paired startup/PSS result; the [final local batch](final-local-validation.md)
+  now records matched current-candidate V3 measurements.
 - Current authorized follow-up: camera-preview correction implemented and
   locally validated under section 8; see [new evidence](camera-fix-validation.md).
   Its earlier warning debt is historical; the approved lint follow-up below
@@ -41,7 +45,7 @@
   and validations. The local gate now passes with 505 JVM tests, 85 connected
   tests (three expected skips), zero diagnostics in all three strict lint
   reports and fresh artifact/runtime checks. See the [historical inventory](lint-inventory.json)
-  and [current validation and limits](lint-validation.md). Cart recreation
+  and [lint-checkpoint validation and limits](lint-validation.md). At that checkpoint, cart recreation
   returns to Home with its draft retained on reopening; only Circle-mask
   emulator launchers were checked, and API 29 landscape was not established.
   Exact task-owned cleanup and durable archive/hash verification pass.
@@ -467,3 +471,52 @@ own the commit/push result. No merge, HU closure, publication, production access
 or binary/mapping upload is included. Cart recreation, launcher/device coverage
 and historical-only paired performance limits remain documented in
 [lint validation](lint-validation.md).
+
+### Final local batch approval — 2026-11-11
+
+The owner approved a local follow-up: diagnose cart recreation with and without
+R8, complete outstanding QA, and measure startup/PSS for the stable candidate.
+Compare the same source and QA variant while changing only optimization. Use
+owned API 29 and 16 KB AVDs, fixed demo fixtures and localhost services. Freeze
+the final candidate before measuring, and keep the approved paired protocol
+and regression limits. Explicitly quiesce UI automation before memory sampling.
+
+Source inspection identifies the existing My order restoration-to-Home policy
+and its freshness gate; runtime comparison must establish whether both binaries
+agree before attributing any effect to R8. No navigation behavior change is
+approved or claimed by that diagnosis. Record results, artifact/source hashes,
+device settings, limitations and cleanup in [final local validation](final-local-validation.md).
+Exact-artifact cloud/FCM, live configuration, #228, publication and production
+remain outside this local batch. Its local execution preceded the separately
+authorized Git delivery below.
+
+The local batch now passes: both APKs on API 29 and 16 KB follow the existing
+HU-022 restoration/freshness policy, retaining the cart draft; News is retained
+as a control. API 29 landscape and Pixel Square/Default/Minimal light/dark QA
+are recorded. Accepted V3 pairs meet all six startup/PSS limits per device:
+startup median/P90 is 261/299 → 251.5/274 ms on API 29 and 279.5/310 →
+260.5/305 ms on 16 KB. The two harness Python files were corrected and pass
+21 focused tests; application/build inputs remain unchanged. V2 was rejected
+because two native timing results belonged to the launcher; none of its
+samples is accepted. Exact task-owned teardown and durable archival pass;
+489 execution files and their SHA-256 manifest/candidate hashes are verified.
+Final local documentation and harness checks pass.
+
+See [the new summary](final-local-evidence-summary.json) and
+[validation scope, raw receipt names and limitations](final-local-validation.md).
+The next decision remains the bounded exact-artifact cloud/FCM plan and its
+allowed project/services; a develop namespace alone is not project isolation.
+Secure-store #228 stays independent. No publication, production access, merge,
+HU closure or new Git delivery follows from the local result.
+
+### Final local batch Git delivery authorization — 2026-11-11
+
+The owner subsequently requested commit/push of the measurement harness and
+this batch's documentation on the existing HU branch, keeping HU-090 open.
+Delivery preparation changes only documentation/changelog; the two Python
+files match the archived 21-test receipt exactly. Reuse those tests and the
+V3 runtime results after checking hashes; unchanged application/build inputs
+retain their earlier validation and artifact provenance at `5ab157ff`.
+Git history and issue #282 own the commit/push receipt. No merge, closure,
+publication, production access or binary/mapping upload is included. The next
+gate remains the separately authorized exact-artifact cloud/FCM plan and #228.

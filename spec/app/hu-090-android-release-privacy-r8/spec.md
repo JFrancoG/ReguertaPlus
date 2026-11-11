@@ -6,7 +6,7 @@
 - priority: P1
 - platform: android
 - status: in-progress
-- plan_state: Approved revision 2 - local privacy/R8, camera and lint validation recorded
+- plan_state: Approved revision 2 - final local QA/performance passed; branch delivery authorized
 - created: 2026-11-10
 
 ## Current local outcome
@@ -28,13 +28,27 @@ tests passed with three expected skips. The owner subsequently authorized
 commit/push of these lint changes and documentation on 2026-11-11, keeping
 HU-090 open; Git history and issue #282 own the definitive delivery receipt.
 Historical hashes/performance receipts do not represent the new
-candidate. Cart recreation returns Home while retaining its draft for reopening;
+candidate. At the lint checkpoint, cart recreation returned Home while retaining its draft for reopening;
 only the documented emulator/Circle-mask launcher scope was checked, and API 29
 landscape was not established. Those observations are not declared corrected
 or proven pre-existing. Exact task-owned cleanup and durable archive
 manifest/hash verification pass. Built artifacts retain their original
 pre-commit working-tree provenance; branch delivery does not authorize merge,
 publication, production access, artifact uploads or acceptance closure.
+
+The owner subsequently approved the [final local QA/performance batch](final-local-validation.md)
+on 2026-11-11. That batch passes within the recorded local scope: both variants
+match the established cart restoration/freshness policy, outstanding available
+landscape/launcher checks pass, and current-candidate V3 startup/PSS pairs meet
+the approved limits. Application/build inputs and non-advertising Analytics
+remain unchanged; only the measurement harness and documentation change.
+The [summary](final-local-evidence-summary.json) records current AC-08 evidence
+and rejected attempts. Exact-artifact cloud/FCM and #228 gates remain separate.
+The owner subsequently authorized commit/push of the corrected measurement
+harness and this batch's documentation on 2026-11-11, keeping HU-090 open.
+Git history and issue #282 own that receipt; validated artifact/source hashes
+retain their original provenance. No merge, publication or production access
+is authorized by this delivery.
 
 ## Context and problem
 

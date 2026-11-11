@@ -1,5 +1,11 @@
 # Lint implementation validation - HU-090
 
+Subsequent evidence: the approved [final local batch](final-local-validation.md)
+establishes the prior cart restoration/freshness policy with both APKs, adds
+available launcher/landscape coverage and records new matched candidate
+performance. This lint receipt and its earlier uncertainty remain historical
+for their checkpoint; current disposition belongs to the linked follow-up.
+
 Executed locally on **2026-11-10/11** at base `ea367ac9`. The approved lint
 implementation and local checks are complete within the documented emulator/
 launcher scope: **505 JVM tests passed**,

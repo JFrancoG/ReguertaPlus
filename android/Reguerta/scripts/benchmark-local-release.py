@@ -26,6 +26,7 @@ import time
 import xml.etree.ElementTree as ET
 
 PACKAGE = "com.reguerta.user.validation"
+LAYOUT_CONTROLLER = "com.android.cli.interact.instrumentation"
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 PROTOCOL = {
     "startup_metric": "am start -W TotalTime (ms), not TTID",
@@ -37,6 +38,8 @@ PROTOCOL = {
     "sample_interval_seconds": 1,
     "art_compilation_mode": "speed",
     "percentile_method": "nearest rank",
+    "ui_automation_policy": "quiesce after every Home snapshot; no layout during memory settle or sampling",
+    "prelaunch_policy": "HOME resolved once; two consecutive resumed HOME observations before target force-stop and PID absence",
 }
 
 
@@ -44,11 +47,32 @@ class BenchmarkError(ValueError):
     """Evidence is missing, unsafe, or not comparable; it cannot become a pass."""
 
 
-def parse_total_time(output: str) -> int:
-    if "Activity not started" in output or re.search(r"^Status:\s*(?!ok\b)\S+", output, re.MULTILINE):
+def output_fields(output: str, name: str) -> list[str]:
+    return [value.strip() for value in re.findall(
+        r"^[ \t]*" + re.escape(name) + r":[ \t]*([^\r\n]*)$", output, re.MULTILINE,
+    )]
+
+
+def normalize_component(component: str) -> str:
+    match = re.fullmatch(r"([A-Za-z0-9_.]+)/([A-Za-z0-9_.$]+)", component)
+    if not match:
+        raise BenchmarkError("Expected one observable Android activity component")
+    package, activity = match.groups()
+    return package + "/" + (package + activity if activity.startswith(".") else activity)
+
+
+def parse_total_time(output: str, expected_component: str) -> int:
+    expected = normalize_component(require_validation_component(expected_component))
+    if "Activity not started" in output or output_fields(output, "Status") != ["ok"]:
         raise BenchmarkError("am start did not establish a fresh successful launch")
-    values = re.findall(r"^\s*TotalTime:\s*(\d+)\s*$", output, re.MULTILINE)
-    if len(values) != 1 or int(values[0]) <= 0:
+    activities = output_fields(output, "Activity")
+    if len(activities) != 1 or normalize_component(activities[0]) != expected:
+        raise BenchmarkError("am start TotalTime belongs to another or unobservable activity")
+    launch_states = output_fields(output, "LaunchState")
+    if launch_states and launch_states != ["COLD"]:
+        raise BenchmarkError("am start did not report a process-cold launch")
+    values = output_fields(output, "TotalTime")
+    if len(values) != 1 or not values[0].isdigit() or int(values[0]) <= 0:
         raise BenchmarkError("Expected one positive am start TotalTime")
     return int(values[0])
 
@@ -98,14 +122,18 @@ def cli_home_marker_present(output: str, marker: str) -> bool:
                and window.get("active") is True and contains(window) for window in windows)
 
 
-def parse_resumed_package(output: str) -> str:
-    packages = set(re.findall(
-        r"(?:mResumedActivity|topResumedActivity)\s*[:=]\s*ActivityRecord\{[^}\n]*?\s([A-Za-z0-9_.]+)/[A-Za-z0-9_.$]+",
+def parse_resumed_component(output: str) -> str:
+    components = {normalize_component(component) for component in re.findall(
+        r"(?:mResumedActivity|topResumedActivity)\s*[:=]\s*ActivityRecord\{[^}\n]*?\s([A-Za-z0-9_.]+/[A-Za-z0-9_.$]+)",
         output,
-    ))
-    if len(packages) != 1:
-        raise BenchmarkError("Cannot establish one resumed package for the memory-state sample")
-    return packages.pop()
+    )}
+    if len(components) != 1:
+        raise BenchmarkError("Cannot establish one resumed activity")
+    return components.pop()
+
+
+def parse_resumed_package(output: str) -> str:
+    return parse_resumed_component(output).split("/", 1)[0]
 
 
 def require_validation_manifest(xml: str) -> dict[str, str | None]:
@@ -150,7 +178,8 @@ def compare_reports(baseline: dict, optimized: dict) -> dict:
         raise BenchmarkError("Both measurement reports must be complete")
     if baseline.get("label") != "baseline" or optimized.get("label") != "optimized":
         raise BenchmarkError("Expected baseline then optimized reports")
-    for key in ("schema_version", "protocol", "device", "tools", "home_text", "fixture_id"):
+    for key in ("schema_version", "protocol", "device", "tools", "home_text", "fixture_id",
+                "launcher_component", "home_launcher_component"):
         if baseline.get(key) != optimized.get(key):
             raise BenchmarkError("Reports are not comparable: " + key)
     if baseline.get("protocol") != PROTOCOL or baseline.get("schema_version") != 1:
@@ -177,6 +206,32 @@ def compare_reports(baseline: dict, optimized: dict) -> dict:
             raise BenchmarkError("Foreground and background states must be observed")
         if report.get("data_cleared") is not False:
             raise BenchmarkError("Application data must not be cleared between the pair")
+        launcher = normalize_component(require_validation_component(report.get("launcher_component", "")))
+        home = normalize_component(report.get("home_launcher_component", ""))
+        fences = report.get("prelaunch_fences", [])
+        if home.split("/", 1)[0] == PACKAGE or len(fences) != 23 or any(
+            entry.get("home_observations", [])[-2:] != [home, home]
+            or entry.get("target_pid_absent_before_start") is not True
+            or entry.get("timed_activity") != launcher
+            for entry in fences
+        ):
+            raise BenchmarkError("Every cold launch needs a stable HOME fence and a target-activity timing")
+        control = report.get("ui_automation_control", {})
+        snapshots = control.get("snapshots", [])
+        if control.get("controller_package") != LAYOUT_CONTROLLER or sum(
+            entry.get("home_verified") is True and entry.get("controller_pid_absent") is True
+            for entry in snapshots
+        ) < 24:
+            raise BenchmarkError("Every warm-up/start and the memory Home check need quiesced snapshot evidence")
+        for state in ("foreground", "background"):
+            memory = control.get("memory_states", {}).get(state, {})
+            samples = memory.get("samples", [])
+            if memory.get("controller_absent_before_settle") is not True or len(samples) != 5 or any(
+                entry.get("controller_pid_absent") is not True for entry in samples
+            ):
+                raise BenchmarkError("Every memory state needs observable layout-controller quiescence")
+        if control["memory_states"]["foreground"].get("home_verified_before_settle") is not True:
+            raise BenchmarkError("Foreground Home must be observed before settling, not immediately before PSS")
         if len(report.get("startup_ms", [])) != 20:
             raise BenchmarkError("Expected 20 startup samples in each report")
         for state in ("foreground", "background"):
@@ -216,6 +271,11 @@ def compare_reports(baseline: dict, optimized: dict) -> dict:
 class Recorder:
     def __init__(self, report: dict, adb: str, serial: str, android: str):
         self.report, self.adb, self.serial, self.android = report, adb, serial, android
+        self.report.setdefault("ui_automation_control", {
+            "controller_package": LAYOUT_CONTROLLER,
+            "snapshots": [],
+            "memory_states": {},
+        })
 
     def run(self, command: list[str], *, allowed=(0,), timeout=45, redact=False) -> str:
         started = time.monotonic()
@@ -237,38 +297,110 @@ class Recorder:
     def device(self, *args: str, **options) -> str:
         return self.run([self.adb, "-s", self.serial, *args], **options)
 
+    def require_layout_controller_absent(self) -> None:
+        if self.device("shell", "pidof", LAYOUT_CONTROLLER, allowed=(0, 1)).strip():
+            raise BenchmarkError("Android CLI layout controller is still running; measurement must stop")
+
+    def quiesce_layout_controller(self, *, home_verified: bool) -> None:
+        self.device("shell", "am", "force-stop", LAYOUT_CONTROLLER)
+        self.require_layout_controller_absent()
+        self.report["ui_automation_control"]["snapshots"].append({
+            "observed_at": datetime.now(timezone.utc).isoformat(),
+            "home_verified": home_verified,
+            "controller_pid_absent": True,
+        })
+
     def wait_for_home(self, marker: str) -> None:
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
-            output = self.run([self.android, "layout", "--device", self.serial], redact=True)
-            resumed = parse_resumed_package(self.device("shell", "dumpsys", "activity", "activities", redact=True))
-            if resumed == PACKAGE and cli_home_marker_present(output, marker):
+            verified = False
+            try:
+                output = self.run([self.android, "layout", "--device", self.serial], redact=True)
+                resumed = parse_resumed_package(
+                    self.device("shell", "dumpsys", "activity", "activities", redact=True),
+                )
+                verified = resumed == PACKAGE and cli_home_marker_present(output, marker)
+            finally:
+                # A failed or incomplete snapshot must not leave automation running either.
+                self.quiesce_layout_controller(home_verified=verified)
+            if verified:
                 return
             time.sleep(0.5)
         raise BenchmarkError("The exact validation-app Home marker was not observed")
 
-    def launch(self, component: str, marker: str) -> int:
+    def prepare_launch_from_home(self, home_component: str) -> dict:
+        home = normalize_component(home_component)
+        if home.split("/", 1)[0] in (PACKAGE, LAYOUT_CONTROLLER):
+            raise BenchmarkError("The HOME launcher must be independent of the validation app and observer")
+        self.require_layout_controller_absent()
+        self.device("shell", "input", "keyevent", "KEYCODE_HOME")
+        fence = {"home_observations": []}
+        self.report.setdefault("prelaunch_fences", []).append(fence)
+        deadline = time.monotonic() + 10
+        consecutive = 0
+        while time.monotonic() < deadline:
+            self.require_layout_controller_absent()
+            try:
+                resumed = parse_resumed_component(
+                    self.device("shell", "dumpsys", "activity", "activities", redact=True),
+                )
+            except BenchmarkError:
+                resumed = None
+            fence["home_observations"].append(resumed)
+            consecutive = consecutive + 1 if resumed == home else 0
+            if consecutive == 2:
+                return fence
+            # Poll an observable condition; a delay alone can never authorize a start.
+            time.sleep(0.1)
+        raise BenchmarkError("The resolved HOME launcher was not stably resumed before the timed launch")
+
+    def launch(self, component: str, marker: str, *, home_component: str) -> int:
+        fence = self.prepare_launch_from_home(home_component)
         self.device("shell", "am", "force-stop", PACKAGE)
         if self.device("shell", "pidof", PACKAGE, allowed=(0, 1)).strip():
             raise BenchmarkError("Validation process still runs after force-stop")
+        fence["target_pid_absent_before_start"] = True
         output = self.device("shell", "am", "start", "-W", "-a", "android.intent.action.MAIN",
                              "-c", "android.intent.category.LAUNCHER", "-n", component, timeout=90)
-        milliseconds = parse_total_time(output)
+        milliseconds = parse_total_time(output, component)
+        fence["timed_activity"] = normalize_component(output_fields(output, "Activity")[0])
         self.wait_for_home(marker)
         return milliseconds
 
     def memory_samples(self, *, foreground: bool) -> list[int]:
         values = []
+        state = "foreground" if foreground else "background"
+        evidence = self.report["ui_automation_control"]["memory_states"][state]
         for index in range(5):
+            self.require_layout_controller_absent()
             resumed = parse_resumed_package(self.device("shell", "dumpsys", "activity", "activities", redact=True))
             if (resumed == PACKAGE) != foreground:
                 raise BenchmarkError("The observed memory-sample foreground/background state differs")
             if not self.device("shell", "pidof", PACKAGE, allowed=(0, 1)).strip():
                 raise BenchmarkError("Validation process exited before a memory sample")
             values.append(parse_total_pss(self.device("shell", "dumpsys", "meminfo", PACKAGE)))
+            evidence["samples"].append({"controller_pid_absent": True, "resumed_package": resumed,
+                                        "target_pid_present": True})
             if index < 4:
                 time.sleep(1)
         return values
+
+    def settle_and_sample_memory(self, *, foreground: bool, marker: str) -> list[int]:
+        state = "foreground" if foreground else "background"
+        evidence = self.report["ui_automation_control"]["memory_states"][state] = {"samples": []}
+        if foreground:
+            self.wait_for_home(marker)
+            evidence["home_verified_before_settle"] = True
+        else:
+            self.device("shell", "input", "keyevent", "KEYCODE_HOME")
+        self.require_layout_controller_absent()
+        evidence["controller_absent_before_settle"] = True
+        print(f"Settling in {state} for 60 seconds with the layout controller stopped", flush=True)
+        settled_at = time.monotonic()
+        time.sleep(60)
+        self.report.setdefault("settle_actual_seconds", {})[state] = time.monotonic() - settled_at
+        # Do not open another layout session after settling: only package/PID/PSS checks follow.
+        return self.memory_samples(foreground=foreground)
 
 
 def measure(args, report: dict) -> None:
@@ -314,28 +446,31 @@ def measure(args, report: dict) -> None:
             raise BenchmarkError("Expected one validation launcher component")
         component = require_validation_component(candidates[0])
         report["launcher_component"] = component
+        resolved_home = recorder.device("shell", "cmd", "package", "resolve-activity", "--brief",
+                                        "-a", "android.intent.action.MAIN", "-c", "android.intent.category.HOME")
+        home_candidates = [line.strip() for line in resolved_home.splitlines() if "/" in line]
+        if len(home_candidates) != 1:
+            raise BenchmarkError("Expected one resolved HOME launcher component")
+        home_component = normalize_component(home_candidates[0])
+        if home_component.split("/", 1)[0] in (PACKAGE, LAYOUT_CONTROLLER):
+            raise BenchmarkError("Resolved HOME launcher is not independent of the measured app")
+        report["home_launcher_component"] = home_component
         report["warmup_ms"], report["startup_ms"] = [], []
         for index in range(3):
-            report["warmup_ms"].append(recorder.launch(component, args.home_text))
+            report["warmup_ms"].append(recorder.launch(component, args.home_text, home_component=home_component))
             print(f"Warm-up {index + 1}/3 complete", flush=True)
         for index in range(20):
-            value = recorder.launch(component, args.home_text)
+            value = recorder.launch(component, args.home_text, home_component=home_component)
             report["startup_ms"].append(value)
             print(f"Process-cold launch {index + 1}/20: TotalTime={value} ms", flush=True)
-        print("Settling on confirmed Home for 60 seconds", flush=True)
-        settled_at = time.monotonic()
-        time.sleep(60)
-        report["settle_actual_seconds"] = {"foreground": time.monotonic() - settled_at}
-        recorder.wait_for_home(args.home_text)
+        report["pss_bytes"] = {"foreground": recorder.settle_and_sample_memory(
+            foreground=True, marker=args.home_text,
+        )}
         report["home_verified"] = True
-        report["pss_bytes"] = {"foreground": recorder.memory_samples(foreground=True)}
         report["foreground_confirmed"] = True
-        recorder.device("shell", "input", "keyevent", "KEYCODE_HOME")
-        print("Settling in background for 60 seconds", flush=True)
-        settled_at = time.monotonic()
-        time.sleep(60)
-        report["settle_actual_seconds"]["background"] = time.monotonic() - settled_at
-        report["pss_bytes"]["background"] = recorder.memory_samples(foreground=False)
+        report["pss_bytes"]["background"] = recorder.settle_and_sample_memory(
+            foreground=False, marker=args.home_text,
+        )
         report["background_confirmed"] = True
         report["summaries"] = {"startup_ms": summary(report["startup_ms"]),
                                "pss_bytes": {state: summary(values) for state, values in report["pss_bytes"].items()}}
