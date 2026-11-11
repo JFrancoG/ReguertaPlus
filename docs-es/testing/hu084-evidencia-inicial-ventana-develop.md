@@ -677,3 +677,105 @@ Queda validado el ciclo nativo que había fallado. Otro intento de migración
 requiere regenerar la revisión con el código publicado, renovar las observaciones
 afectadas por los cambios de permisos y obtener su propia autorización/ventana.
 Este ensayo no abre mantenimiento ni autoriza esa ejecución.
+
+## Revisión renovada para el intento 05 — 2026-11-11
+
+La nueva lectura directa autorizada observó la hoja y su carpeta entre 17:37:42
+y 17:37:50 UTC: versión real **291**, propietario y cuatro lectores, sin acceso
+del escritor. Las dos capturas completas de las seis pestañas son idénticas y
+conservan la imagen `2682cfb7…81b3`, incluidas las fechas y el orden publicados.
+Se hicieron trece GET acotados. OAuth Online sin renovación se revocó con respuesta
+200; el mismo token devolvió primero 401 en Drive/200 en Sheets y, a las 17:38:44,
+401 en ambos. Se conservan ambas sondas, sin ocultar la propagación del cierre.
+
+El paquete regenerado `6177be45…9f73a81`, preparación `f3b5a9b0…faa2b5b8` y
+operación `request-hu084-initial-6678cf8a7c2756773ef8` enlazan esa captura y los
+controles Cloud/identidad renovados a las 17:08:24 UTC. Sus 17 archivos fijados
+validan; mantiene las 203 escrituras forward y 140 inverse previstas, sin escribir
+configuración, y las 53 peticiones de celdas más dos marcadores. Las peticiones de
+celdas son exactas respecto al paquete previo; los identificadores y marcadores
+de auditoría se regeneran. La inspección del paquete exacto a las 17:39:38 UTC usa
+una transacción Firestore de solo lectura y cero escrituras: la fuente coincide y
+el único bloqueo es `window_scope_missing`. No se presenta como admisión completa.
+
+La plantilla nueva `develop-original-20261111-interactive-05` incorpora la revisión
+del canal ligada al ciclo real de concesión/retirada y distingue los tres diarios
+con cierre automático del fallo original y la recuperación manual del intento 04.
+Las comprobaciones locales verifican los enlaces, el rechazo sin autorización,
+la construcción aislada y tres pruebas del codec/formularios; los datos positivos
+son sintéticos, sin proveedores. La preparación dejó autorización false, ventana
+null y confirmaciones vacías; el intento posterior recoge su consumo. La propuesta
+fue de veinte minutos, con un único token de 300 segundos; no fijó fechas ni
+reutilizó compromisos.
+
+La revisión independiente enlaza 337 hashes actuales con la revisión anterior y
+las dos correcciones de canal/sesión ya validadas. La comparación histórica frente
+al 1 de noviembre se conserva, incluidas sus diferencias; no se declara igualdad
+literal. El operador privado fija el manifiesto y comprueba archivos y evidencias
+al cargar, preparar e iniciar el intento. Cinco pruebas locales de alteración,
+ausencia, manifiesto cambiado, archivo añadido y cambio antes de iniciar detienen
+el avance con cero llamadas a proveedores. Antes de cargar el operador se requiere
+un contexto Node nuevo o retirar solo su caché y la del worktree en la sesión CUA;
+comprobar el disco no acredita los módulos ya cargados. No cambia el ejecutor del
+repositorio.
+
+Evidencia privada: `2026-11-11-interactive05-owner-refresh`,
+`2026-11-11-interactive05-rebind` y `2026-11-11-interactive05-preparation`.
+Durante esta preparación solo hubo lecturas y validación local, con el escritor
+deshabilitado. La ejecución requería autorización propia y la ventana real, con
+observaciones vigentes y
+confirmaciones posteriores al permiso. Android/iOS no cambian y mantienen paridad;
+las comprobaciones nativas y el build/lint se reutilizan por no cambiar código de
+apps o Functions. El guion privado de arranque se valida por separado.
+
+## Intento 05 detenido durante las confirmaciones — 2026-11-11
+
+El intento único autorizado comenzó a las 18:19:26 UTC, con máximo hasta las
+18:39:26. La concesión de edición quedó verificada y se recibió la confirmación
+nueva del propietario. La recogida rechazó el paso de administradores 457 ms
+después de publicar su pregunta, cuando quedaban más de diez minutos de plazo.
+El terminal de las 18:21:40 conserva `inspection-required` y `file-unverified`:
+la retirada automática esperó veinte segundos sin atención de la llamada CUA.
+No hubo emisión de token del escritor, adquisición de barrera, lote de Sheets ni
+escrituras de migración. La respuesta de administradores recibida después quedó
+en el registro 31; es tardía y no se presenta como confirmación aceptada.
+
+La retirada manual se guardó y verificó reabriendo Compartir a las 18:23:46 UTC:
+propietario y cuatro lectores, sin escritor. El postflight independiente confirma
+escritor deshabilitado, cero claves de usuario/bindings IAM, aislamiento y fuente
+Firestore intacta. El cierre OAuth automático conserva respuesta 200 y 401 del mismo token
+en Drive y Sheets. La ventana humana se liberó anticipadamente. El proceso CUA
+se cerró después de guardar las pruebas; la recuperación del bloqueo local usa
+la API existente: conserva los 32 registros originales, incluido el terminal y
+la respuesta tardía, y añade dos recibos de recuperación; ambos bloqueos locales
+quedan retirados. No se modifica la guarda de recuperación para liberar un
+proceso vivo ni se autoriza reanudar la ejecución.
+
+El montaje pasaba un `notify` que escribía mediante `nodeRepl.write`. Una prueba
+local reproduce `node_repl exec context not found` al resolver desde otra llamada
+una continuación asíncrona que usa ese aviso; la llamada síncrona sí funciona.
+El orden del diario y el código apuntan a ese fallo de instrumentación, aunque la
+excepción original no quedó guardada. La corrección debe mantener los avisos en
+estado consultable, invalidar pregunta/temporizador al cerrar y rechazar respuestas
+tardías antes de escribirlas. También debe atender la cola de retirada mientras
+espera respuestas humanas. Aumentar el plazo no corrige este problema.
+
+La corrección local `2026-11-11-coordinator-fix` conecta intercambio humano, cola
+nativa y vigilancia en una plantilla sin paquete, credenciales ni autorización.
+El rechazo de la recogida invalida la pregunta antes de registrar el evento; una
+concesión atrasada se cancela al cerrar y una retirada puede atenderse durante
+la limpieza. Acciones nativas aún en curso mantienen inspección pendiente. Pasan
+12 pruebas con Node 22 y lint focalizado. En NodeREPL se comprobó una espera entre
+dos llamadas: la respuesta resuelve sin error de contexto y una respuesta tras
+cierre no añade registros. Es un ensayo sintético sin proveedores; la plantilla
+rechaza ejecución y todavía debe vincularse a un nuevo paquete revisado.
+
+Evidencia privada: `2026-11-11-interactive05-live`,
+`2026-11-11-postflight05-182301` y el diario
+`develop-original-20261111-interactive-05`. La autorización quedó consumida.
+Las observaciones anteriores de versión 291 y la preparación del intento 05 son
+históricas; otro intento requiere revisar el coordinador corregido y renovar los
+enlaces afectados por los cambios de permisos. Producción y las apps no cambiaron.
+Se reutilizan los gates de Functions y nativos: el repositorio solo cambia
+documentación en este bloque; las comprobaciones del coordinador privado son las
+indicadas arriba.

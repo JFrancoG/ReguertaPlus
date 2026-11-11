@@ -648,3 +648,100 @@ The previously failing native cycle is now verified. Another migration attempt
 requires review regeneration against the published code, renewed observations
 affected by permission changes and its own authorization/window. This rehearsal
 does not open maintenance or authorize that execution.
+
+## Refreshed review for attempt 05 — 2026-11-11
+
+The new authorized direct read observed the workbook and parent from 17:37:42
+to 17:37:50 UTC: actual version **291**, owner and four readers, no writer access.
+Two complete captures of all six tabs are identical and retain image
+`2682cfb7…81b3`, including published dates and order. Thirteen bounded GETs were
+made. Online OAuth without refresh was revoked with status 200; the same token
+first returned Drive 401/Sheets 200 and, at 17:38:44, 401 on both. Both probes are
+retained without concealing revocation propagation.
+
+Regenerated package `6177be45…9f73a81`, preparation `f3b5a9b0…faa2b5b8` and
+operation `request-hu084-initial-6678cf8a7c2756773ef8` bind this capture and the
+Cloud/identity controls refreshed at 17:08:24 UTC. All 17 pinned files validate;
+the planned 203 forward/140 inverse writes, no config writes, and 53 cell requests
+plus two markers are retained. Cell requests exactly match the previous package;
+audit identifiers and markers are regenerated. Exact-package inspection at
+17:39:38 UTC uses one read-only Firestore transaction and zero writes: the source
+matches and the sole blocker is `window_scope_missing`. This is not full admission.
+
+New template `develop-original-20261111-interactive-05` includes the channel review
+bound to the real grant/removal cycle. It distinguishes the three automatically
+closed journals from attempt 04's original failure and separate manual recovery.
+Local checks verify the bindings, rejection without authorization, isolated
+construction and three codec/form tests; positive data are synthetic without
+providers. Preparation left authorization false, window null and empty
+confirmations; the subsequent attempt records their consumption. The proposal
+allowed twenty minutes and one 300-second token; it left dates unset and reused
+no human commitments.
+
+Independent review links 337 current hashes to the preceding review and the two
+already validated channel/session corrections. The historical comparison against
+1 November retains its differences; literal equality is not claimed. The private
+operator pins the manifest and checks files and evidence when loading, preparing
+and starting the attempt. Five local cases for drift, a missing file, a changed
+manifest, an added file and drift before start stop with zero provider calls.
+Loading the operator requires a fresh Node context or clearing only its cache and
+the worktree cache in the CUA session; disk checks do not attest already loaded
+modules. The repository executor is unchanged.
+
+Private evidence: `2026-11-11-interactive05-owner-refresh`,
+`2026-11-11-interactive05-rebind` and `2026-11-11-interactive05-preparation`.
+The writer remained disabled. This preparation granted no editor/IAM access,
+opened no maintenance and performed no migration. Execution required its own
+authorization and actual window, current observations and post-permission
+confirmations. Android/iOS are unchanged with no parity gap; native checks and
+build/lint are reused because no app or Functions code changed. The private start
+script is validated separately.
+
+## Attempt 05 stopped during confirmations — 2026-11-11
+
+The authorized single attempt started at 18:19:26 UTC, with a maximum end of
+18:39:26. Editor access was verified and a fresh owner confirmation was received.
+Collection rejected the administrator step 457 ms after publishing its question,
+with more than ten minutes left. The 18:21:40 terminal retains
+`inspection-required` and `file-unverified`: automatic removal waited twenty
+seconds without an attended CUA call. No writer token, barrier acquisition,
+Sheets batch or migration write occurred. The administrator reply received
+afterward remains in record 31; it is late and not an accepted confirmation.
+
+Manual removal was saved and verified by reopening Share at 18:23:46 UTC:
+owner and four readers, no writer. Independent postflight confirms the writer
+disabled, zero user-managed keys/IAM bindings, isolation and unchanged Firestore
+source. Automatic OAuth cleanup retains status 200 and same-token 401 on Drive and Sheets. The
+human window was released early. The CUA process was closed after preserving
+evidence; local-fence recovery uses the existing API, retains all 32 original
+records including the terminal and late reply, and adds two recovery receipts;
+both local locks are removed. No recovery guard is changed to
+release a live process, and execution cannot resume.
+
+The composition supplied a `notify` callback using `nodeRepl.write`. A local
+probe reproduces `node_repl exec context not found` when another invocation
+resolves an asynchronous continuation using that callback; the synchronous call
+succeeds. Journal ordering and code point to this instrumentation failure, though
+the original exception was not retained. The correction must keep notices in
+queryable state, invalidate the question/timer when closing, and reject late
+replies before recording them. It must also attend removal requests while waiting
+for human input. Increasing the window does not fix this problem.
+
+Local correction `2026-11-11-coordinator-fix` connects human exchange, the native
+queue and supervision in a template with no package, credentials or authorization.
+A rejected collection invalidates the question before recording its event; a
+late grant is cancelled when closing and removal can be attended during cleanup.
+In-flight native actions keep inspection required. Twelve Node 22 tests and
+focused lint pass. A two-invocation NodeREPL wait resolves without a context error,
+and an answer after closure adds no records. This is a synthetic rehearsal without
+providers; the template rejects execution and still needs binding to a newly
+reviewed package.
+
+Private evidence: `2026-11-11-interactive05-live`,
+`2026-11-11-postflight05-182301` and journal
+`develop-original-20261111-interactive-05`. Authorization is consumed. The earlier
+version-291 observations and attempt-05 preparation are historical; another
+attempt requires review of the corrected coordinator and renewal of bindings
+affected by permission changes. Production and both apps are unchanged.
+Functions and native gates are reused: this block changes repository documentation
+only; the private coordinator checks are those stated above.
