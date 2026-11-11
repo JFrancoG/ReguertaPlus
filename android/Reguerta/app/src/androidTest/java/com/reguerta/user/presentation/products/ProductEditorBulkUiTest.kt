@@ -59,7 +59,8 @@ class ProductEditorBulkUiTest {
         composeRule.onNodeWithText(context.getString(R.string.products_field_min_weight), ignoreCase = true).fetchSemanticsNode()
         composeRule.onNodeWithText(context.getString(R.string.products_field_max_weight), ignoreCase = true).fetchSemanticsNode()
         composeRule.onNodeWithText(context.getString(R.string.products_field_weight_step), ignoreCase = true).fetchSemanticsNode()
-        composeRule.onAllNodesWithText(context.getString(R.string.products_field_eco_basket), ignoreCase = true).assertCountEquals(0)
+        composeRule.onAllNodesWithText("Eco-basket", ignoreCase = true).assertCountEquals(0)
+        composeRule.onAllNodesWithText("Ecocesta", ignoreCase = true).assertCountEquals(0)
         composeRule.onAllNodesWithText(context.getString(R.string.products_field_pack_qty), ignoreCase = true).assertCountEquals(0)
         composeRule.onAllNodesWithText(context.getString(R.string.products_field_unit_qty), ignoreCase = true).assertCountEquals(0)
 

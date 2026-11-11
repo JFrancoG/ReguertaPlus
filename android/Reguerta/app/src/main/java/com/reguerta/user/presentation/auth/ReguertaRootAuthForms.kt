@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -115,7 +116,7 @@ internal fun SignInCard(
     val spacing = ReguertaThemeTokens.spacing
     val focusManager = LocalFocusManager.current
     var passwordInput by remember { mutableStateOf("") }
-    var passwordValidationRevision by remember { mutableStateOf(0) }
+    var passwordValidationRevision by remember { mutableIntStateOf(0) }
     val canSubmit = !state.isAuthenticating &&
         isValidEmail(state.emailInput) &&
         isValidPassword(passwordInput) &&
@@ -219,7 +220,7 @@ internal fun SignUpCard(
     val focusManager = LocalFocusManager.current
     var registerPasswordInput by remember { mutableStateOf("") }
     var registerRepeatPasswordInput by remember { mutableStateOf("") }
-    var passwordValidationRevision by remember { mutableStateOf(0) }
+    var passwordValidationRevision by remember { mutableIntStateOf(0) }
     var registerPasswordVisible by rememberSaveable { mutableStateOf(false) }
     val repeatRequiredMessage = stringResource(R.string.feedback_password_repeat_required)
     val invalidPasswordMessage = stringResource(R.string.feedback_password_invalid_length)

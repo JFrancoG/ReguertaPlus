@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import androidx.core.graphics.createBitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -488,7 +489,7 @@ private fun renderBylawsPdfPages(pdfFile: File): List<BylawsRenderedPage> {
             buildList(capacity = renderer.pageCount) {
                 for (pageIndex in 0 until renderer.pageCount) {
                     renderer.openPage(pageIndex).use { page ->
-                        val bitmap = Bitmap.createBitmap(
+                        val bitmap = createBitmap(
                             page.width,
                             page.height,
                             Bitmap.Config.ARGB_8888,

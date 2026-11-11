@@ -1,5 +1,6 @@
 package com.reguerta.user.data.devices
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
@@ -29,6 +30,8 @@ internal class SharedPreferencesDeviceRegistrationEncryptedStore(
 
     override fun contains(key: String): Boolean = preferences.contains(key)
 
+    // Approved HU-090 exception: KTX edit(commit = true) discards the durable commit result.
+    @SuppressLint("UseKtx")
     override fun write(values: Map<String, String?>): Boolean {
         val editor = preferences.edit()
         values.forEach { (key, value) ->
@@ -37,6 +40,8 @@ internal class SharedPreferencesDeviceRegistrationEncryptedStore(
         return editor.commit()
     }
 
+    // Delete failures must propagate to callers; KTX edit returns Unit instead of commit's Boolean.
+    @SuppressLint("UseKtx")
     override fun remove(keys: Set<String>): Boolean {
         val editor = preferences.edit()
         keys.forEach(editor::remove)
@@ -100,6 +105,8 @@ internal class AndroidKeystoreDeviceRegistrationEncryptedStore(
 
     override fun contains(key: String): Boolean = preferences.contains(key)
 
+    // Approved HU-090 exception: KTX edit(commit = true) discards the durable commit result.
+    @SuppressLint("UseKtx")
     override fun write(values: Map<String, String?>): Boolean {
         val encryptedValues = values.mapValues { (key, value) ->
             value?.let { valueCipher.encrypt(key, it) }
@@ -111,6 +118,8 @@ internal class AndroidKeystoreDeviceRegistrationEncryptedStore(
         return editor.commit()
     }
 
+    // Delete failures must propagate to callers; KTX edit returns Unit instead of commit's Boolean.
+    @SuppressLint("UseKtx")
     override fun remove(keys: Set<String>): Boolean {
         val editor = preferences.edit()
         keys.forEach(editor::remove)

@@ -1,0 +1,4794 @@
+{
+  "schema_version": 1,
+  "plan_state": "Approved; local implementation and validation complete on 2026-11-10/11; HU remains open",
+  "source_commit": "ea367ac9b4313cf1d7911e5730e4dd2be378f1fb",
+  "report": {
+    "archive_path": "/Users/jesusf/Projects/Reguerta-artifacts/hu-090/2026-11-10-camera-fix/normal-debug-lint-results-debug.xml",
+    "sha256": "00dd7a8f798d7a90667e194338a686d4ff917e35f54df6ed1a1fb4101ab022db",
+    "variant": "ordinary Debug; hu090LocalDebug=false",
+    "warnings": 136,
+    "warning_types": 14,
+    "hints": 2,
+    "errors": 0,
+    "source_snapshot_records_verified": 368,
+    "source_drift": 0,
+    "provenance": "Historical pre-remediation report; source-drift verification describes the review checkpoint, not current implementation."
+  },
+  "counts": [
+    {
+      "severity": "Warning",
+      "id": "UnusedResources",
+      "count": 100
+    },
+    {
+      "severity": "Warning",
+      "id": "UseKtx",
+      "count": 10
+    },
+    {
+      "severity": "Warning",
+      "id": "IconDuplicates",
+      "count": 5
+    },
+    {
+      "severity": "Warning",
+      "id": "PluralsCandidate",
+      "count": 4
+    },
+    {
+      "severity": "Warning",
+      "id": "ModifierParameter",
+      "count": 3
+    },
+    {
+      "severity": "Warning",
+      "id": "IconXmlAndPng",
+      "count": 3
+    },
+    {
+      "severity": "Warning",
+      "id": "ConfigurationScreenWidthHeight",
+      "count": 2
+    },
+    {
+      "severity": "Warning",
+      "id": "VectorPath",
+      "count": 2
+    },
+    {
+      "severity": "Hint",
+      "id": "AutoboxingStateCreation",
+      "count": 2
+    },
+    {
+      "severity": "Warning",
+      "id": "TypographyDashes",
+      "count": 2
+    },
+    {
+      "severity": "Warning",
+      "id": "RedundantLabel",
+      "count": 1
+    },
+    {
+      "severity": "Warning",
+      "id": "AndroidGradlePluginVersion",
+      "count": 1
+    },
+    {
+      "severity": "Warning",
+      "id": "Typos",
+      "count": 1
+    },
+    {
+      "severity": "Warning",
+      "id": "UseOfNonLambdaOffsetOverload",
+      "count": 1
+    },
+    {
+      "severity": "Warning",
+      "id": "MonochromeLauncherIcon",
+      "count": 1
+    }
+  ],
+  "limits": [
+    "Archived report reused because all public Android sources/configuration match; no new lint/build/device run",
+    "Variant-dependent and dynamic uses must be rechecked before actual resource removal",
+    "Several diagnostics share one corrective change; counts are findings, not independent edits",
+    "Other variants can reveal additional findings; no claim of warning-free acceptance"
+  ],
+  "findings": [
+    {
+      "id": "RedundantLabel",
+      "severity": "Warning",
+      "message": "Redundant label can be removed",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/AndroidManifest.xml",
+          "line": "49",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "AndroidGradlePluginVersion",
+      "severity": "Warning",
+      "message": "A newer version of Gradle than 9.7.0 is available: 9.9.0",
+      "locations": [
+        {
+          "file": "android/Reguerta/gradle/wrapper/gradle-wrapper.properties",
+          "line": "4",
+          "column": "17"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "A: Gradle wrapper",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "ConfigurationScreenWidthHeight",
+      "severity": "Warning",
+      "message": "Using Configuration.screenHeightDp instead of LocalWindowInfo.current.containerSize",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Adaptive.kt",
+          "line": "34",
+          "column": "56"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "ConfigurationScreenWidthHeight",
+      "severity": "Warning",
+      "message": "Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Adaptive.kt",
+          "line": "34",
+          "column": "27"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "ModifierParameter",
+      "severity": "Warning",
+      "message": "Modifier parameter should be the first optional parameter",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/orders/PersonalOrderSummaryCard.kt",
+          "line": "44",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "ModifierParameter",
+      "severity": "Warning",
+      "message": "Modifier parameter should be the first optional parameter",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/root/ReguertaImagePickerField.kt",
+          "line": "67",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "ModifierParameter",
+      "severity": "Warning",
+      "message": "Optional Modifier parameter should have a default value of `Modifier`",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/orders/ReguertaRootMyOrderRoute.kt",
+          "line": "1160",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "Typos",
+      "severity": "Warning",
+      "message": "\"Aqui\" is a common misspelling; did you mean \"Aquí\"?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+          "line": "327",
+          "column": "84"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "D: localization (after B)",
+      "resolved_with_batch_B": "Unused string products_editor_subtitle has no references; remove EN/ES together",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "PluralsCandidate",
+      "severity": "Warning",
+      "message": "Formatting %d followed by words (\"possible\"): This should probably be a plural rather than a string",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "162",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "D: localization (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "PluralsCandidate",
+      "severity": "Warning",
+      "message": "Formatting %d followed by words (\"shifts\"): This should probably be a plural rather than a string",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "239",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "D: localization (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "PluralsCandidate",
+      "severity": "Warning",
+      "message": "Formatting %d followed by words (\"shifts\"): This should probably be a plural rather than a string",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "240",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "D: localization (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "PluralsCandidate",
+      "severity": "Warning",
+      "message": "Formatting %d followed by words (\"units\"): This should probably be a plural rather than a string",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "411",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "D: localization (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "VectorPath",
+      "severity": "Warning",
+      "message": "Very long vector path (10671 characters), which is bad for performance. Considering reducing precision, removing minor details or rasterizing vector.",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/drawable/ic_launcher_foreground.xml",
+          "line": "19",
+          "column": "27"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "resolved_with_batch_B": "Unused drawable/ic_launcher_foreground",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "VectorPath",
+      "severity": "Warning",
+      "message": "Very long vector path (10671 characters), which is bad for performance. Considering reducing precision, removing minor details or rasterizing vector.",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/drawable/ic_launcher_monochrome.xml",
+          "line": "19",
+          "column": "27"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "AutoboxingStateCreation",
+      "severity": "Hint",
+      "message": "Prefer `mutableIntStateOf` instead of `mutableStateOf`",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/auth/ReguertaRootAuthForms.kt",
+          "line": "118",
+          "column": "50"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "AutoboxingStateCreation",
+      "severity": "Hint",
+      "message": "Prefer `mutableIntStateOf` instead of `mutableStateOf`",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/auth/ReguertaRootAuthForms.kt",
+          "line": "222",
+          "column": "50"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.color.black` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+          "line": "3",
+          "column": "12"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "color/black",
+      "static_review": {
+        "type": "color",
+        "name": "black",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+          "line": "3",
+          "column": "12"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+            "line": 3,
+            "text": "<color name=\"black\">#FF000000</color>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.color.white` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+          "line": "4",
+          "column": "12"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "color/white",
+      "static_review": {
+        "type": "color",
+        "name": "white",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+          "line": "4",
+          "column": "12"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+            "line": 4,
+            "text": "<color name=\"white\">#FFFFFFFF</color>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.color.launcherBackground` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+          "line": "5",
+          "column": "12"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "color/launcherBackground",
+      "static_review": {
+        "type": "color",
+        "name": "launcherBackground",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+          "line": "5",
+          "column": "12"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/debug/res/values/colors.xml",
+            "line": 3,
+            "text": "<color name=\"launcherBackground\">#FFF28C28</color>"
+          },
+          {
+            "file": "android/Reguerta/app/src/debug/res/values-night/colors.xml",
+            "line": 3,
+            "text": "<color name=\"launcherBackground\">#FFD97706</color>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+            "line": 5,
+            "text": "<color name=\"launcherBackground\">#FFF2F8E1</color>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values-night/colors.xml",
+            "line": 3,
+            "text": "<color name=\"launcherBackground\">#FF0F1D0D</color>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.color.icon_foreground` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+          "line": "7",
+          "column": "12"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "color/icon_foreground",
+      "static_review": {
+        "type": "color",
+        "name": "icon_foreground",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+          "line": "7",
+          "column": "12"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values/colors.xml",
+            "line": 7,
+            "text": "<color name=\"icon_foreground\">#FF6DA539</color>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values-night/colors.xml",
+            "line": 5,
+            "text": "<color name=\"icon_foreground\">#FF6DA539</color>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.drawable.ic_launcher_foreground` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/drawable/ic_launcher_foreground.xml",
+          "line": "1",
+          "column": "1"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "drawable/ic_launcher_foreground",
+      "static_review": {
+        "type": "drawable",
+        "name": "ic_launcher_foreground",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/drawable/ic_launcher_foreground.xml",
+          "line": "1",
+          "column": "1"
+        },
+        "definitions": [],
+        "otherTextOccurrences": [
+          {
+            "file": "android/Reguerta/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml",
+            "line": 4,
+            "text": "<foreground android:drawable=\"@mipmap/ic_launcher_foreground\"/>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/mipmap-anydpi/ic_launcher.xml",
+            "line": 4,
+            "text": "<foreground android:drawable=\"@mipmap/ic_launcher_foreground\"/>"
+          }
+        ],
+        "classification": "deletion_candidate_unused_drawable; same basename references are mipmap namespace only",
+        "actualTypedReferences": [],
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.access_members_roles_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "4",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/access_members_roles_title",
+      "static_review": {
+        "type": "string",
+        "name": "access_members_roles_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "4",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 4,
+            "text": "<string name=\"access_members_roles_title\">Miembros y roles</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 4,
+            "text": "<string name=\"access_members_roles_title\">Members and Roles</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.access_card_authentication` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "6",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/access_card_authentication",
+      "static_review": {
+        "type": "string",
+        "name": "access_card_authentication",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "6",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 6,
+            "text": "<string name=\"access_card_authentication\">Autenticación</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 6,
+            "text": "<string name=\"access_card_authentication\">Authentication</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.access_input_auth_uid_label` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "10",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/access_input_auth_uid_label",
+      "static_review": {
+        "type": "string",
+        "name": "access_input_auth_uid_label",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "10",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 10,
+            "text": "<string name=\"access_input_auth_uid_label\">Auth UID</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 10,
+            "text": "<string name=\"access_input_auth_uid_label\">Auth UID</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.access_action_dismiss_message` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "15",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/access_action_dismiss_message",
+      "static_review": {
+        "type": "string",
+        "name": "access_action_dismiss_message",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "15",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 15,
+            "text": "<string name=\"access_action_dismiss_message\">Cerrar mensaje</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 15,
+            "text": "<string name=\"access_action_dismiss_message\">Dismiss message</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.auth_shell_splash_loading` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "16",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/auth_shell_splash_loading",
+      "static_review": {
+        "type": "string",
+        "name": "auth_shell_splash_loading",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "16",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 16,
+            "text": "<string name=\"auth_shell_splash_loading\">Preparando experiencia…</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 16,
+            "text": "<string name=\"auth_shell_splash_loading\">Preparing experience…</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.welcome_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "30",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/welcome_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "welcome_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "30",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 30,
+            "text": "<string name=\"welcome_subtitle\">Usa el mismo flujo de auth en ambas plataformas.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 30,
+            "text": "<string name=\"welcome_subtitle\">Use one consistent auth flow in both platforms.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.login_link_register` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "35",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/login_link_register",
+      "static_review": {
+        "type": "string",
+        "name": "login_link_register",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "35",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 35,
+            "text": "<string name=\"login_link_register\">Crear cuenta</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 35,
+            "text": "<string name=\"login_link_register\">Create account</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.register_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "38",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/register_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "register_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "38",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 38,
+            "text": "<string name=\"register_subtitle\">Crea tu cuenta para continuar</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 38,
+            "text": "<string name=\"register_subtitle\">Create your account to continue</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.recover_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "43",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/recover_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "recover_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "43",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 43,
+            "text": "<string name=\"recover_subtitle\">Introduce tu email y te enviaremos instrucciones para restablecerla</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 43,
+            "text": "<string name=\"recover_subtitle\">Enter your email and we will send reset instructions</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_welcome_format` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "71",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_welcome_format",
+      "static_review": {
+        "type": "string",
+        "name": "home_welcome_format",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "71",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 71,
+            "text": "<string name=\"home_welcome_format\">Bienvenido %1$s</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 71,
+            "text": "<string name=\"home_welcome_format\">Welcome %1$s</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_section_common` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "75",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_section_common",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_section_common",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "75",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 75,
+            "text": "<string name=\"home_shell_section_common\">Común</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 75,
+            "text": "<string name=\"home_shell_section_common\">Common</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_section_producer` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "76",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_section_producer",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_section_producer",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "76",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 76,
+            "text": "<string name=\"home_shell_section_producer\">Productor</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 76,
+            "text": "<string name=\"home_shell_section_producer\">Producer</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_section_admin` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "77",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_section_admin",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_section_admin",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "77",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 77,
+            "text": "<string name=\"home_shell_section_admin\">Admin</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 77,
+            "text": "<string name=\"home_shell_section_admin\">Admin</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_badge_soon` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "89",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_badge_soon",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_badge_soon",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "89",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 89,
+            "text": "<string name=\"home_shell_badge_soon\">Pronto</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 89,
+            "text": "<string name=\"home_shell_badge_soon\">Soon</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_weekly_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "90",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_weekly_title",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_weekly_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "90",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 90,
+            "text": "<string name=\"home_shell_weekly_title\">Contexto semanal</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 90,
+            "text": "<string name=\"home_shell_weekly_title\">Weekly context</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_weekly_responsible` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "91",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_weekly_responsible",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_weekly_responsible",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "91",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 91,
+            "text": "<string name=\"home_shell_weekly_responsible\">Responsable</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 91,
+            "text": "<string name=\"home_shell_weekly_responsible\">Responsible</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_weekly_support` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "92",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_weekly_support",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_weekly_support",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "92",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 92,
+            "text": "<string name=\"home_shell_weekly_support\">Apoyo</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 92,
+            "text": "<string name=\"home_shell_weekly_support\">Support</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_weekly_main_producer` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "93",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_weekly_main_producer",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_weekly_main_producer",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "93",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 93,
+            "text": "<string name=\"home_shell_weekly_main_producer\">Productor principal</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 93,
+            "text": "<string name=\"home_shell_weekly_main_producer\">Main producer</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_weekly_delivery` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "94",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_weekly_delivery",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_weekly_delivery",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "94",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 94,
+            "text": "<string name=\"home_shell_weekly_delivery\">Día de reparto</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 94,
+            "text": "<string name=\"home_shell_weekly_delivery\">Delivery day</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_weekly_delivery_default` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "95",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_weekly_delivery_default",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_weekly_delivery_default",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "95",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 95,
+            "text": "<string name=\"home_shell_weekly_delivery_default\">Miércoles</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 95,
+            "text": "<string name=\"home_shell_weekly_delivery_default\">Wednesday</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_weekly_pending` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "96",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_weekly_pending",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_weekly_pending",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "96",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 96,
+            "text": "<string name=\"home_shell_weekly_pending\">Pendiente de confirmar</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 96,
+            "text": "<string name=\"home_shell_weekly_pending\">Pending confirmation</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_dashboard_responsible` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "99",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_dashboard_responsible",
+      "static_review": {
+        "type": "string",
+        "name": "home_dashboard_responsible",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "99",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 99,
+            "text": "<string name=\"home_dashboard_responsible\">Responsable</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 99,
+            "text": "<string name=\"home_dashboard_responsible\">Responsible</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_dashboard_received_orders_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "115",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_dashboard_received_orders_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "home_dashboard_received_orders_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "115",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 115,
+            "text": "<string name=\"home_dashboard_received_orders_subtitle\">Recibidos</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 115,
+            "text": "<string name=\"home_dashboard_received_orders_subtitle\">Received</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.shifts_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "118",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/shifts_title",
+      "static_review": {
+        "type": "string",
+        "name": "shifts_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "118",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 118,
+            "text": "<string name=\"shifts_title\">Turnos</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 118,
+            "text": "<string name=\"shifts_title\">Shifts</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.shifts_list_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "127",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/shifts_list_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "shifts_list_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "127",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 127,
+            "text": "<string name=\"shifts_list_subtitle\">Consulta el tablón global de turnos en orden cronológico.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 127,
+            "text": "<string name=\"shifts_list_subtitle\">Check the global shift board in chronological order.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.shifts_refresh_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "128",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/shifts_refresh_action",
+      "static_review": {
+        "type": "string",
+        "name": "shifts_refresh_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "128",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 128,
+            "text": "<string name=\"shifts_refresh_action\">Recargar turnos</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 128,
+            "text": "<string name=\"shifts_refresh_action\">Refresh shifts</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.shift_swap_requests_empty` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "138",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/shift_swap_requests_empty",
+      "static_review": {
+        "type": "string",
+        "name": "shift_swap_requests_empty",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "138",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 138,
+            "text": "<string name=\"shift_swap_requests_empty\">Ahora mismo no tienes solicitudes de cambio.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 138,
+            "text": "<string name=\"shift_swap_requests_empty\">There are no swap requests for you right now.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.shift_swap_request_reject` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "154",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/shift_swap_request_reject",
+      "static_review": {
+        "type": "string",
+        "name": "shift_swap_request_reject",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "154",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 154,
+            "text": "<string name=\"shift_swap_request_reject\">Rechazar</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 154,
+            "text": "<string name=\"shift_swap_request_reject\">Reject</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.shifts_assigned_members_format` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "170",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/shifts_assigned_members_format",
+      "static_review": {
+        "type": "string",
+        "name": "shifts_assigned_members_format",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "170",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 170,
+            "text": "<string name=\"shifts_assigned_members_format\">Asignados: %1$s</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 170,
+            "text": "<string name=\"shifts_assigned_members_format\">Assigned: %1$s</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.shifts_helper_format` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "171",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/shifts_helper_format",
+      "static_review": {
+        "type": "string",
+        "name": "shifts_helper_format",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "171",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 171,
+            "text": "<string name=\"shifts_helper_format\">Apoyo: %1$s</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 171,
+            "text": "<string name=\"shifts_helper_format\">Support: %1$s</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_news_intro` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "173",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_news_intro",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_news_intro",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "173",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 173,
+            "text": "<string name=\"home_shell_news_intro\">Este espacio queda preparado para mostrar las últimas novedades de la comunidad.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 173,
+            "text": "<string name=\"home_shell_news_intro\">This space is ready for the latest community updates.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_news_item_one` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "174",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_news_item_one",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_news_item_one",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "174",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 174,
+            "text": "<string name=\"home_shell_news_item_one\">Aquí aparecerán avisos semanales y cambios de reparto.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 174,
+            "text": "<string name=\"home_shell_news_item_one\">Weekly notices and delivery changes will appear here.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_news_item_two` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "175",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_news_item_two",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_news_item_two",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "175",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 175,
+            "text": "<string name=\"home_shell_news_item_two\">Los nuevos módulos podrán entrar en este shell sin rediseñar el home otra vez.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 175,
+            "text": "<string name=\"home_shell_news_item_two\">New modules can plug into this shell without redesigning home again.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_shell_version_format` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "176",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_shell_version_format",
+      "static_review": {
+        "type": "string",
+        "name": "home_shell_version_format",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "176",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 176,
+            "text": "<string name=\"home_shell_version_format\">Versión %1$s</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 176,
+            "text": "<string name=\"home_shell_version_format\">Version %1$s</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_placeholder_notifications` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "185",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_placeholder_notifications",
+      "static_review": {
+        "type": "string",
+        "name": "home_placeholder_notifications",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "185",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 185,
+            "text": "<string name=\"home_placeholder_notifications\">Las notificaciones se conectarán aquí cuando se implemente esa funcionalidad.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 185,
+            "text": "<string name=\"home_placeholder_notifications\">Notifications will connect here once the notification feature is implemented.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.home_placeholder_admin_broadcast` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "284",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/home_placeholder_admin_broadcast",
+      "static_review": {
+        "type": "string",
+        "name": "home_placeholder_admin_broadcast",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "284",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 284,
+            "text": "<string name=\"home_placeholder_admin_broadcast\">Las notificaciones extraordinarias de admin se conectarán aquí en una historia posterior.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 284,
+            "text": "<string name=\"home_placeholder_admin_broadcast\">Extraordinary admin notifications will connect here in a later story.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.users_list_action_reload` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "286",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/users_list_action_reload",
+      "static_review": {
+        "type": "string",
+        "name": "users_list_action_reload",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "286",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 286,
+            "text": "<string name=\"users_list_action_reload\">Recargar</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 286,
+            "text": "<string name=\"users_list_action_reload\">Refresh</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_catalog_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "310",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_catalog_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "products_catalog_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "310",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 310,
+            "text": "<string name=\"products_catalog_subtitle\">Crea, actualiza y archiva los productos que ofreces a la comunidad.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 310,
+            "text": "<string name=\"products_catalog_subtitle\">Create, update, and archive the products you offer to the community.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_catalog_owner_format` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "311",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_catalog_owner_format",
+      "static_review": {
+        "type": "string",
+        "name": "products_catalog_owner_format",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "311",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 311,
+            "text": "<string name=\"products_catalog_owner_format\">Productor: %1$s</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 311,
+            "text": "<string name=\"products_catalog_owner_format\">Producer: %1$s</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "312",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_title",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "312",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 312,
+            "text": "<string name=\"products_visibility_title\">Visibilidad del catálogo</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 312,
+            "text": "<string name=\"products_visibility_title\">Catalog visibility</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_enabled_summary` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "313",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_enabled_summary",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_enabled_summary",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "313",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 313,
+            "text": "<string name=\"products_visibility_enabled_summary\">Tu perfil de productor y tus productos están visibles para la comunidad.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 313,
+            "text": "<string name=\"products_visibility_enabled_summary\">Your producer profile and products are visible to the community.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_disabled_summary` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "314",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_disabled_summary",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_disabled_summary",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "314",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 314,
+            "text": "<string name=\"products_visibility_disabled_summary\">Tu perfil de productor y tus productos quedan ocultos de los listados de pedido hasta que lo vuelvas a activar.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 314,
+            "text": "<string name=\"products_visibility_disabled_summary\">Your producer profile and products are hidden from ordering lists until you enable them again.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_disable_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "315",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_disable_action",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_disable_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "315",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 315,
+            "text": "<string name=\"products_visibility_disable_action\">Pausar catálogo</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 315,
+            "text": "<string name=\"products_visibility_disable_action\">Pause catalog</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_enable_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "316",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_enable_action",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_enable_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "316",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 316,
+            "text": "<string name=\"products_visibility_enable_action\">Reactivar catálogo</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 316,
+            "text": "<string name=\"products_visibility_enable_action\">Resume catalog</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_disable_compact_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "317",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_disable_compact_action",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_disable_compact_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "317",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 317,
+            "text": "<string name=\"products_visibility_disable_compact_action\">Todos NO disponibles</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 317,
+            "text": "<string name=\"products_visibility_disable_compact_action\">Set all unavailable</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_enable_compact_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "318",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_enable_compact_action",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_enable_compact_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "318",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 318,
+            "text": "<string name=\"products_visibility_enable_compact_action\">Todos disponibles</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 318,
+            "text": "<string name=\"products_visibility_enable_compact_action\">Set all available</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_disable_dialog_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "319",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_disable_dialog_title",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_disable_dialog_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "319",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 319,
+            "text": "<string name=\"products_visibility_disable_dialog_title\">¿Pausar tu catálogo?</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 319,
+            "text": "<string name=\"products_visibility_disable_dialog_title\">Pause your catalog?</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_disable_dialog_body` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "320",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_disable_dialog_body",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_disable_dialog_body",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "320",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 320,
+            "text": "<string name=\"products_visibility_disable_dialog_body\">Tu nombre de productor y tus productos dejarán de aparecer en los listados de pedido. La disponibilidad individual de cada producto se conservará.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 320,
+            "text": "<string name=\"products_visibility_disable_dialog_body\">Your products and producer name will stop appearing in ordering lists. Individual product availability will be preserved.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_enable_dialog_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "321",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_enable_dialog_title",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_enable_dialog_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "321",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 321,
+            "text": "<string name=\"products_visibility_enable_dialog_title\">¿Reactivar tu catálogo?</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 321,
+            "text": "<string name=\"products_visibility_enable_dialog_title\">Resume your catalog?</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_visibility_enable_dialog_body` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "322",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_visibility_enable_dialog_body",
+      "static_review": {
+        "type": "string",
+        "name": "products_visibility_enable_dialog_body",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "322",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 322,
+            "text": "<string name=\"products_visibility_enable_dialog_body\">Tu nombre de productor y tus productos volverán a aparecer en los listados de pedido. La disponibilidad individual de cada producto se mantendrá como está.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 322,
+            "text": "<string name=\"products_visibility_enable_dialog_body\">Your products and producer name will appear again in ordering lists. Individual product availability will stay as it was.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_editor_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "327",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_editor_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "products_editor_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "327",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 327,
+            "text": "<string name=\"products_editor_subtitle\">El productor queda fijado a tu cuenta. Aqui se guardan stock, disponibilidad y reglas de ecocesta.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 327,
+            "text": "<string name=\"products_editor_subtitle\">Vendor is fixed to your producer account. Stock, availability, and eco-basket rules are saved here.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_field_image_url` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "331",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_field_image_url",
+      "static_review": {
+        "type": "string",
+        "name": "products_field_image_url",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "331",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 331,
+            "text": "<string name=\"products_field_image_url\">URL de imagen</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 331,
+            "text": "<string name=\"products_field_image_url\">Image URL</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_field_unit_plural` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "346",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_field_unit_plural",
+      "static_review": {
+        "type": "string",
+        "name": "products_field_unit_plural",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "346",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 346,
+            "text": "<string name=\"products_field_unit_plural\">Plural unidad</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 346,
+            "text": "<string name=\"products_field_unit_plural\">Unit plural</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_field_unit_abbreviation` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "347",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_field_unit_abbreviation",
+      "static_review": {
+        "type": "string",
+        "name": "products_field_unit_abbreviation",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "347",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 347,
+            "text": "<string name=\"products_field_unit_abbreviation\">Abreviatura unidad</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 347,
+            "text": "<string name=\"products_field_unit_abbreviation\">Unit abbreviation</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_field_pack_plural` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "350",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_field_pack_plural",
+      "static_review": {
+        "type": "string",
+        "name": "products_field_pack_plural",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "350",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 350,
+            "text": "<string name=\"products_field_pack_plural\">Plural pack</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 350,
+            "text": "<string name=\"products_field_pack_plural\">Pack plural</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_field_pack_abbreviation` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "351",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_field_pack_abbreviation",
+      "static_review": {
+        "type": "string",
+        "name": "products_field_pack_abbreviation",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "351",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 351,
+            "text": "<string name=\"products_field_pack_abbreviation\">Abreviatura pack</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 351,
+            "text": "<string name=\"products_field_pack_abbreviation\">Pack abbreviation</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.products_field_stock_qty` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "355",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/products_field_stock_qty",
+      "static_review": {
+        "type": "string",
+        "name": "products_field_stock_qty",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "355",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 355,
+            "text": "<string name=\"products_field_stock_qty\">Cantidad stock</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 355,
+            "text": "<string name=\"products_field_stock_qty\">Stock qty</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.operational_modules_restricted_unauthorized` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "392",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/operational_modules_restricted_unauthorized",
+      "static_review": {
+        "type": "string",
+        "name": "operational_modules_restricted_unauthorized",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "392",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 392,
+            "text": "<string name=\"operational_modules_restricted_unauthorized\">Estos módulos están bloqueados porque esta cuenta todavía no está autorizada.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 392,
+            "text": "<string name=\"operational_modules_restricted_unauthorized\">These modules are locked because this account is not authorized yet.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_products_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "395",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_products_title",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_products_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "395",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 395,
+            "text": "<string name=\"my_order_products_title\">Crear tu pedido semanal</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 395,
+            "text": "<string name=\"my_order_products_title\">Create your weekly order</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_products_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "396",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_products_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_products_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "396",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 396,
+            "text": "<string name=\"my_order_products_subtitle\">Consulta productos disponibles agrupados por productor.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 396,
+            "text": "<string name=\"my_order_products_subtitle\">Browse available products grouped by producer.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_products_filter_label` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "398",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_products_filter_label",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_products_filter_label",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "398",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 398,
+            "text": "<string name=\"my_order_products_filter_label\">Filtrar por productor</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 398,
+            "text": "<string name=\"my_order_products_filter_label\">Filter by producer</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_products_filter_all` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "399",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_products_filter_all",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_products_filter_all",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "399",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 399,
+            "text": "<string name=\"my_order_products_filter_all\">Todos los productores</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 399,
+            "text": "<string name=\"my_order_products_filter_all\">All producers</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_products_loading` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "400",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_products_loading",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_products_loading",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "400",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 400,
+            "text": "<string name=\"my_order_products_loading\">Cargando productos de pedido…</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 400,
+            "text": "<string name=\"my_order_products_loading\">Loading order products…</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_list_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "406",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_list_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_list_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "406",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 406,
+            "text": "<string name=\"my_order_list_subtitle\">Agrupados por productor</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 406,
+            "text": "<string name=\"my_order_list_subtitle\">Grouped by producer</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_continue_shopping_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "422",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_continue_shopping_action",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_continue_shopping_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "422",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 422,
+            "text": "<string name=\"my_order_continue_shopping_action\">Seguir comprando</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 422,
+            "text": "<string name=\"my_order_continue_shopping_action\">Continue shopping</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_previous_week_format` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "430",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_previous_week_format",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_previous_week_format",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "430",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 430,
+            "text": "<string name=\"my_order_previous_week_format\">Semana %1$s</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 430,
+            "text": "<string name=\"my_order_previous_week_format\">Week %1$s</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_orders_history_title_fallback` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "435",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_orders_history_title_fallback",
+      "static_review": {
+        "type": "string",
+        "name": "my_orders_history_title_fallback",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "435",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 435,
+            "text": "<string name=\"my_orders_history_title_fallback\">Pedido</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 435,
+            "text": "<string name=\"my_orders_history_title_fallback\">Order</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_orders_history_loading` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "442",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_orders_history_loading",
+      "static_review": {
+        "type": "string",
+        "name": "my_orders_history_loading",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "442",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 442,
+            "text": "<string name=\"my_orders_history_loading\">Cargando pedido…</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 442,
+            "text": "<string name=\"my_orders_history_loading\">Loading order…</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.my_order_finalize_update_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "448",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/my_order_finalize_update_action",
+      "static_review": {
+        "type": "string",
+        "name": "my_order_finalize_update_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "448",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 448,
+            "text": "<string name=\"my_order_finalize_update_action\">Guardar cambios</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 448,
+            "text": "<string name=\"my_order_finalize_update_action\">Save changes</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.received_orders_loading_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "469",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/received_orders_loading_title",
+      "static_review": {
+        "type": "string",
+        "name": "received_orders_loading_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "469",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 469,
+            "text": "<string name=\"received_orders_loading_title\">Cargando pedidos recibidos…</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 469,
+            "text": "<string name=\"received_orders_loading_title\">Loading received orders…</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.received_orders_loading_body` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "470",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/received_orders_loading_body",
+      "static_review": {
+        "type": "string",
+        "name": "received_orders_loading_body",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "470",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 470,
+            "text": "<string name=\"received_orders_loading_body\">Recopilando líneas de pedido del productor para esta semana.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 470,
+            "text": "<string name=\"received_orders_loading_body\">Collecting producer order lines for this week.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.received_orders_status_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "478",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/received_orders_status_title",
+      "static_review": {
+        "type": "string",
+        "name": "received_orders_status_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "478",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 478,
+            "text": "<string name=\"received_orders_status_title\">Estado productor</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 478,
+            "text": "<string name=\"received_orders_status_title\">Producer status</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.received_orders_status_unread` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "481",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/received_orders_status_unread",
+      "static_review": {
+        "type": "string",
+        "name": "received_orders_status_unread",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "481",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 481,
+            "text": "<string name=\"received_orders_status_unread\">Sin leer</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 481,
+            "text": "<string name=\"received_orders_status_unread\">Unread</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.received_orders_status_read` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "482",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/received_orders_status_read",
+      "static_review": {
+        "type": "string",
+        "name": "received_orders_status_read",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "482",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 482,
+            "text": "<string name=\"received_orders_status_read\">Leído</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 482,
+            "text": "<string name=\"received_orders_status_read\">Read</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.received_orders_mark_prepared` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "485",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/received_orders_mark_prepared",
+      "static_review": {
+        "type": "string",
+        "name": "received_orders_mark_prepared",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "485",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 485,
+            "text": "<string name=\"received_orders_mark_prepared\">Marcar preparado</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 485,
+            "text": "<string name=\"received_orders_mark_prepared\">Mark prepared</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.received_orders_mark_pending` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "486",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/received_orders_mark_pending",
+      "static_review": {
+        "type": "string",
+        "name": "received_orders_mark_pending",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "486",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 486,
+            "text": "<string name=\"received_orders_mark_pending\">Marcar pendiente</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 486,
+            "text": "<string name=\"received_orders_mark_pending\">Mark pending</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.feedback_email_uid_required` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "509",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/feedback_email_uid_required",
+      "static_review": {
+        "type": "string",
+        "name": "feedback_email_uid_required",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "509",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 509,
+            "text": "<string name=\"feedback_email_uid_required\">Email y UID son obligatorios</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 509,
+            "text": "<string name=\"feedback_email_uid_required\">Email and UID are required</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.auth_info_password_reset_sent` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "524",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/auth_info_password_reset_sent",
+      "static_review": {
+        "type": "string",
+        "name": "auth_info_password_reset_sent",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "524",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 524,
+            "text": "<string name=\"auth_info_password_reset_sent\">Si existe una cuenta para este email, hemos enviado instrucciones de recuperación</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 524,
+            "text": "<string name=\"auth_info_password_reset_sent\">If an account exists for this email, reset instructions were sent</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.feedback_news_created` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "545",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/feedback_news_created",
+      "static_review": {
+        "type": "string",
+        "name": "feedback_news_created",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "545",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 545,
+            "text": "<string name=\"feedback_news_created\">Noticia publicada correctamente</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 545,
+            "text": "<string name=\"feedback_news_created\">News published successfully</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.feedback_news_updated` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "546",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/feedback_news_updated",
+      "static_review": {
+        "type": "string",
+        "name": "feedback_news_updated",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "546",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 546,
+            "text": "<string name=\"feedback_news_updated\">Noticia actualizada correctamente</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 546,
+            "text": "<string name=\"feedback_news_updated\">News updated successfully</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.feedback_notification_sent` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "551",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/feedback_notification_sent",
+      "static_review": {
+        "type": "string",
+        "name": "feedback_notification_sent",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "551",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 551,
+            "text": "<string name=\"feedback_notification_sent\">Notificación enviada correctamente</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 551,
+            "text": "<string name=\"feedback_notification_sent\">Notification sent successfully</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.feedback_shared_profile_saved` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "553",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/feedback_shared_profile_saved",
+      "static_review": {
+        "type": "string",
+        "name": "feedback_shared_profile_saved",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "553",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 553,
+            "text": "<string name=\"feedback_shared_profile_saved\">Perfil compartido guardado correctamente</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 553,
+            "text": "<string name=\"feedback_shared_profile_saved\">Shared profile saved successfully</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.news_refresh_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "562",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/news_refresh_action",
+      "static_review": {
+        "type": "string",
+        "name": "news_refresh_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "562",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 562,
+            "text": "<string name=\"news_refresh_action\">Actualizar lista</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 562,
+            "text": "<string name=\"news_refresh_action\">Refresh list</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.news_editor_title_create` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "573",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/news_editor_title_create",
+      "static_review": {
+        "type": "string",
+        "name": "news_editor_title_create",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "573",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 573,
+            "text": "<string name=\"news_editor_title_create\">Nueva noticia</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 573,
+            "text": "<string name=\"news_editor_title_create\">New news</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.news_field_url_image` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "578",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/news_field_url_image",
+      "static_review": {
+        "type": "string",
+        "name": "news_field_url_image",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "578",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 578,
+            "text": "<string name=\"news_field_url_image\">URL de imagen (opcional)</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 578,
+            "text": "<string name=\"news_field_url_image\">Image URL (optional)</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.notifications_refresh_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "589",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/notifications_refresh_action",
+      "static_review": {
+        "type": "string",
+        "name": "notifications_refresh_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "589",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 589,
+            "text": "<string name=\"notifications_refresh_action\">Actualizar notificaciones</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 589,
+            "text": "<string name=\"notifications_refresh_action\">Refresh notifications</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.notifications_meta_format` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "598",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/notifications_meta_format",
+      "static_review": {
+        "type": "string",
+        "name": "notifications_meta_format",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "598",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 598,
+            "text": "<string name=\"notifications_meta_format\">Enviada el %1$s</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 598,
+            "text": "<string name=\"notifications_meta_format\">Sent on %1$s</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.notifications_create_action` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "599",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/notifications_create_action",
+      "static_review": {
+        "type": "string",
+        "name": "notifications_create_action",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "599",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 599,
+            "text": "<string name=\"notifications_create_action\">Mandar notificación</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 599,
+            "text": "<string name=\"notifications_create_action\">Send notification</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.notifications_editor_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "600",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/notifications_editor_title",
+      "static_review": {
+        "type": "string",
+        "name": "notifications_editor_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "600",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 600,
+            "text": "<string name=\"notifications_editor_title\">Mandar notificación</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 600,
+            "text": "<string name=\"notifications_editor_title\">Send notification</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.profile_shared_title` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "617",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/profile_shared_title",
+      "static_review": {
+        "type": "string",
+        "name": "profile_shared_title",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "617",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 617,
+            "text": "<string name=\"profile_shared_title\">Perfil compartido</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 617,
+            "text": "<string name=\"profile_shared_title\">Shared profile</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.profile_shared_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "618",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/profile_shared_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "profile_shared_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "618",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 618,
+            "text": "<string name=\"profile_shared_subtitle\">Comparte un poco sobre tu familia para que el resto de la comunidad os conozca mejor.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 618,
+            "text": "<string name=\"profile_shared_subtitle\">Share a little about your family so the rest of the community can get to know you better.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.profile_shared_photo_url_label` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "620",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/profile_shared_photo_url_label",
+      "static_review": {
+        "type": "string",
+        "name": "profile_shared_photo_url_label",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "620",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 620,
+            "text": "<string name=\"profile_shared_photo_url_label\">URL de la foto (opcional)</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 620,
+            "text": "<string name=\"profile_shared_photo_url_label\">Photo URL (optional)</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.profile_shared_photo_preview` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "622",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/profile_shared_photo_preview",
+      "static_review": {
+        "type": "string",
+        "name": "profile_shared_photo_preview",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "622",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 622,
+            "text": "<string name=\"profile_shared_photo_preview\">Vista previa de la foto del perfil compartido</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 622,
+            "text": "<string name=\"profile_shared_photo_preview\">Shared profile photo preview</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.profile_shared_editor_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "626",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/profile_shared_editor_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "profile_shared_editor_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "626",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 626,
+            "text": "<string name=\"profile_shared_editor_subtitle\">Podrás actualizar o eliminar este perfil cuando quieras.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 626,
+            "text": "<string name=\"profile_shared_editor_subtitle\">You can update or remove this profile whenever you want.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UnusedResources",
+      "severity": "Warning",
+      "message": "The resource `R.string.profile_shared_community_subtitle` appears to be unused",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "635",
+          "column": "13"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "resource": "string/profile_shared_community_subtitle",
+      "static_review": {
+        "type": "string",
+        "name": "profile_shared_community_subtitle",
+        "lintLocation": {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "635",
+          "column": "13"
+        },
+        "definitions": [
+          {
+            "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+            "line": 635,
+            "text": "<string name=\"profile_shared_community_subtitle\">Pulsa en una familia para ver su perfil completo.</string>"
+          },
+          {
+            "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+            "line": 635,
+            "text": "<string name=\"profile_shared_community_subtitle\">Tap a family to read its shared profile.</string>"
+          }
+        ],
+        "otherTextOccurrences": [],
+        "classification": "deletion_candidate_no_reference_found",
+        "reviewLimit": "Static review across current Android source sets/scripts/tests only; implementation must refresh lint and compile all supported variants before removal acceptance."
+      },
+      "proposed_batch": "B: unused resources",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseOfNonLambdaOffsetOverload",
+      "severity": "Warning",
+      "message": "State backed values should use the lambda overload of Modifier.offset",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/orders/ReguertaRootMyOrderRoute.kt",
+          "line": "665",
+          "column": "26"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "TypographyDashes",
+      "severity": "Warning",
+      "message": "Replace \"-\" with an \"en dash\" character (–, &#8211;) ?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values-es/strings.xml",
+          "line": "512",
+          "column": "53"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "D: localization (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "TypographyDashes",
+      "severity": "Warning",
+      "message": "Replace \"-\" with an \"en dash\" character (–, &#8211;) ?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/values/strings.xml",
+          "line": "512",
+          "column": "53"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "D: localization (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "IconXmlAndPng",
+      "severity": "Warning",
+      "message": "The following images appear both as density independent `.xml` files and as bitmap files: src/main/res/mipmap-anydpi/ic_launcher.xml, src/main/res/mipmap-hdpi/ic_launcher.webp",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xxhdpi/ic_launcher.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xhdpi/ic_launcher.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-mdpi/ic_launcher.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-hdpi/ic_launcher.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-anydpi/ic_launcher.xml"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "IconXmlAndPng",
+      "severity": "Warning",
+      "message": "The following images appear both as density independent `.xml` files and as bitmap files: src/main/res/drawable/ic_launcher_foreground.xml, src/main/res/mipmap-hdpi/ic_launcher_foreground.webp",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/drawable/ic_launcher_foreground.xml"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "resolved_with_batch_B": "Unused drawable/ic_launcher_foreground; keep referenced mipmap foregrounds",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "IconXmlAndPng",
+      "severity": "Warning",
+      "message": "The following images appear both as density independent `.xml` files and as bitmap files: src/main/res/mipmap-anydpi/ic_launcher_round.xml, src/main/res/mipmap-hdpi/ic_launcher_round.webp",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-xhdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-mdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-hdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "MonochromeLauncherIcon",
+      "severity": "Warning",
+      "message": "The application adaptive roundIcon is missing a monochrome tag",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml",
+          "line": "2",
+          "column": "1"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "IconDuplicates",
+      "severity": "Warning",
+      "message": "The following unrelated icon files have identical contents: ic_launcher.webp, ic_launcher_round.webp",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-hdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-hdpi/ic_launcher.webp"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "IconDuplicates",
+      "severity": "Warning",
+      "message": "The following unrelated icon files have identical contents: ic_launcher.webp, ic_launcher_round.webp",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-mdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-mdpi/ic_launcher.webp"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "IconDuplicates",
+      "severity": "Warning",
+      "message": "The following unrelated icon files have identical contents: ic_launcher.webp, ic_launcher_round.webp",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-xhdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-xhdpi/ic_launcher.webp"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "IconDuplicates",
+      "severity": "Warning",
+      "message": "The following unrelated icon files have identical contents: ic_launcher.webp, ic_launcher_round.webp",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-xxhdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-xxhdpi/ic_launcher.webp"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "IconDuplicates",
+      "severity": "Warning",
+      "message": "The following unrelated icon files have identical contents: ic_launcher.webp, ic_launcher_round.webp",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-xxxhdpi/ic_launcher_round.webp"
+        },
+        {
+          "file": "android/Reguerta/app/src/debug/res/mipmap-xxxhdpi/ic_launcher.webp"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "E: launcher assets (after B)",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `SharedPreferences.edit` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/data/devices/AndroidKeystoreDeviceRegistrationStore.kt",
+          "line": "33",
+          "column": "22"
+        }
+      ],
+      "status": "resolved by owner-approved function-scoped exception; synchronous commit Boolean preserved",
+      "proposed_batch": "F: four reviewed commit-result exceptions; approved on 2026-11-10; four function-scoped exceptions implemented",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `SharedPreferences.edit` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/data/devices/AndroidKeystoreDeviceRegistrationStore.kt",
+          "line": "41",
+          "column": "22"
+        }
+      ],
+      "status": "resolved by owner-approved function-scoped exception; synchronous commit Boolean preserved",
+      "proposed_batch": "F: four reviewed commit-result exceptions; approved on 2026-11-10; four function-scoped exceptions implemented",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `SharedPreferences.edit` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/data/devices/AndroidKeystoreDeviceRegistrationStore.kt",
+          "line": "107",
+          "column": "22"
+        }
+      ],
+      "status": "resolved by owner-approved function-scoped exception; synchronous commit Boolean preserved",
+      "proposed_batch": "F: four reviewed commit-result exceptions; approved on 2026-11-10; four function-scoped exceptions implemented",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `SharedPreferences.edit` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/data/devices/AndroidKeystoreDeviceRegistrationStore.kt",
+          "line": "115",
+          "column": "22"
+        }
+      ],
+      "status": "resolved by owner-approved function-scoped exception; synchronous commit Boolean preserved",
+      "proposed_batch": "F: four reviewed commit-result exceptions; approved on 2026-11-10; four function-scoped exceptions implemented",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `SharedPreferences.edit` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/root/DevelopmentTimeMachine.kt",
+          "line": "29",
+          "column": "9"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `Bitmap.scale` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/data/media/FirebaseImagePipelineManager.kt",
+          "line": "54",
+          "column": "31"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX function `createBitmap` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/bylaws/ReguertaRootBylawsRoute.kt",
+          "line": "491",
+          "column": "38"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `SharedPreferences.edit` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/orders/ReguertaRootMyOrderRoute.kt",
+          "line": "2269",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `SharedPreferences.edit` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/orders/ReguertaRootMyOrderRoute.kt",
+          "line": "2362",
+          "column": "5"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `String.toUri` instead?",
+      "locations": [
+        {
+          "file": "android/Reguerta/app/src/main/java/com/reguerta/user/presentation/root/ReguertaRootStartupGate.kt",
+          "line": "185",
+          "column": "29"
+        }
+      ],
+      "status": "resolved in final strict Debug/Release/releaseValidation lint reports",
+      "proposed_batch": "C: Compose, safe KTX and manifest",
+      "evidence": "lint-validation.md"
+    }
+  ],
+  "implementation": {
+    "baseCommit": "ea367ac9b4313cf1d7911e5730e4dd2be378f1fb",
+    "workingTree": true,
+    "finalStrictLint": {
+      "debug": 0,
+      "release": 0,
+      "releaseValidation": 0
+    },
+    "knownHintsRemaining": 0,
+    "approvedUseKtxExceptions": 4,
+    "publicSourceSnapshotFiles": 358,
+    "archive": "/Users/jesusf/Projects/Reguerta-artifacts/hu-090/2026-11-11-lint",
+    "newFindingsResolved": [
+      {
+        "id": "MissingQuantity",
+        "count": 2,
+        "change": "ES many added; EN/ES million-count resource fixtures"
+      },
+      {
+        "id": "UnusedResources",
+        "count": 1,
+        "change": "products_field_eco_basket removed from app; negative UI test uses independent EN/ES labels"
+      }
+    ],
+    "executionDates": "2026-11-10/11",
+    "localValidationStatus": "passed within the documented emulator/launcher scope; not HU completion or distribution readiness",
+    "jvmTests": {
+      "passed": 505,
+      "failed": 0,
+      "skipped": 0
+    },
+    "connectedTests": {
+      "api29": {
+        "passed": 42,
+        "skipped": 2,
+        "failed": 0
+      },
+      "api37_16k": {
+        "passed": 43,
+        "skipped": 1,
+        "failed": 0
+      },
+      "total": {
+        "passed": 85,
+        "skipped": 3,
+        "failed": 0
+      }
+    },
+    "observedLimits": [
+      "Cart recreation returns navigation to Home; draft retained on reopening. Route retention is not a pass, not described as fixed or proven pre-existing.",
+      "Pixel Launcher Circle-mask emulator evidence only; no physical cameras, other OEM launchers/masks or legacy round-resource selection coverage.",
+      "API29 rotation command left portrait; no API29 landscape claim.",
+      "API29 crash buffer has shell UID2000 app_process fatal; no empty-buffer or general crash-free claim.",
+      "Prior paired startup/PSS receipts remain historical for their hashes; no new pair claimed for this candidate."
+    ],
+    "cleanup": {
+      "status": "passed",
+      "dataReceipt": "cleanup-data.json",
+      "runtimeReceipt": "cleanup-runtime.json",
+      "scope": "exact task-owned demo profiles/images, services and AVDs only"
+    },
+    "archiveStatus": "passed: 950 files compared byte for byte, SHA-256 manifest and six candidate artifacts verified; all 358 public source records match",
+    "gitDelivery": "Owner subsequently authorized branch commit/push on 2026-11-11 with HU-090 open; definitive delivery receipt belongs to Git history and issue #282. Original working-tree build provenance remains unchanged.",
+    "remainingExternalGates": [
+      "separately authorized exact-artifact cloud/FCM canary",
+      "independent secure-store #228"
+    ],
+    "archiveTransientExclusions": [
+      "node_modules",
+      "__pycache__"
+    ],
+    "trackerProgress": "https://github.com/JFrancoG/ReguertaPlus/issues/282#issuecomment-6782155403"
+  },
+  "inventory_scope": "Historical pre-remediation diagnostics at ea367ac9; per-item review limits and proposed batches describe the advisory checkpoint. Current results are in implementation and lint-validation.md."
+}

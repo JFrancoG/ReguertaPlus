@@ -4,8 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.isSpecified
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 internal enum class ReguertaWindowSizeClass {
     COMPACT,
@@ -20,18 +23,31 @@ internal data class ReguertaAdaptiveProfile(
     val typographyScale: Float,
 )
 
-internal val LocalReguertaAdaptiveProfile = staticCompositionLocalOf {
-    ReguertaAdaptiveProfile(
-        windowSizeClass = ReguertaWindowSizeClass.MEDIUM,
-        tokenScale = ReguertaTokenScale(),
-        typographyScale = 1f,
-    )
-}
+private val DefaultAdaptiveProfile = ReguertaAdaptiveProfile(
+    windowSizeClass = ReguertaWindowSizeClass.MEDIUM,
+    tokenScale = ReguertaTokenScale(),
+    typographyScale = 1f,
+)
+
+internal val LocalReguertaAdaptiveProfile = staticCompositionLocalOf { DefaultAdaptiveProfile }
 
 @Composable
-internal fun rememberReguertaAdaptiveProfile(): ReguertaAdaptiveProfile {
-    val configuration = LocalConfiguration.current
-    val shortEdgeDp = min(configuration.screenWidthDp, configuration.screenHeightDp)
+internal fun rememberReguertaAdaptiveProfile(): ReguertaAdaptiveProfile =
+    reguertaAdaptiveProfileForWindow(LocalWindowInfo.current.containerDpSize)
+
+/**
+ * Keep the established whole-dp shortest-edge breakpoints as the window resizes.
+ * Fractional dp rounds to the nearest integer, with half-dp ties rounding up.
+ * Unavailable or invalid bounds use neutral scales until the window is known.
+ */
+internal fun reguertaAdaptiveProfileForWindow(windowSize: DpSize): ReguertaAdaptiveProfile {
+    if (!windowSize.isSpecified) return DefaultAdaptiveProfile
+    val widthDp = windowSize.width.value
+    val heightDp = windowSize.height.value
+    if (!widthDp.isFinite() || !heightDp.isFinite() || widthDp <= 0f || heightDp <= 0f) {
+        return DefaultAdaptiveProfile
+    }
+    val shortEdgeDp = min(widthDp, heightDp).roundToInt()
 
     val windowSizeClass = when {
         shortEdgeDp >= 600 -> ReguertaWindowSizeClass.EXPANDED
@@ -50,11 +66,7 @@ internal fun rememberReguertaAdaptiveProfile(): ReguertaAdaptiveProfile {
             typographyScale = 0.96f,
         )
 
-        ReguertaWindowSizeClass.MEDIUM -> ReguertaAdaptiveProfile(
-            windowSizeClass = windowSizeClass,
-            tokenScale = ReguertaTokenScale(),
-            typographyScale = 1f,
-        )
+        ReguertaWindowSizeClass.MEDIUM -> DefaultAdaptiveProfile
 
         ReguertaWindowSizeClass.EXPANDED -> ReguertaAdaptiveProfile(
             windowSizeClass = windowSizeClass,

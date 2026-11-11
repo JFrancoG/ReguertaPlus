@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -272,6 +273,7 @@ private fun WaitingShiftSwapSection(
         )
         requests.sortedByDescending { it.requestedAtMillis }.forEach { request ->
             val requestedShift = shifts.firstOrNull { it.id == request.requestedShiftId }
+            val candidateCount = request.candidates.map { members.shiftSwapDisplayNameFor(it.userId) }.distinct().size
             Card {
                 Column(
                     modifier = Modifier
@@ -285,7 +287,11 @@ private fun WaitingShiftSwapSection(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = stringResource(R.string.shift_swap_request_waiting_multiple_format, request.candidates.map { members.shiftSwapDisplayNameFor(it.userId) }.distinct().size),
+                        text = pluralStringResource(
+                            R.plurals.shift_swap_request_waiting,
+                            candidateCount,
+                            candidateCount,
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

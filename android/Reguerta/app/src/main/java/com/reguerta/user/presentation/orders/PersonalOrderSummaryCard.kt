@@ -38,10 +38,10 @@ internal data class PersonalOrderSummaryLineUi(
 @Composable
 internal fun PersonalOrderSummaryProducerCard(
     companyName: String,
-    statusLabel: String? = null,
     lines: List<PersonalOrderSummaryLineUi>,
     subtotal: Double,
     modifier: Modifier = Modifier,
+    statusLabel: String? = null,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),

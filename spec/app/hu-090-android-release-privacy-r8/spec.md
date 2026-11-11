@@ -6,7 +6,7 @@
 - priority: P1
 - platform: android
 - status: in-progress
-- plan_state: Approved revision 2 - local Android implementation authorized
+- plan_state: Approved revision 2 - local privacy/R8, camera and lint validation recorded
 - created: 2026-11-10
 
 ## Current local outcome
@@ -16,11 +16,25 @@ for exact artifacts, performance, SDK/offline observations and test scopes.
 The [camera follow-up](camera-fix-validation.md) corrects the preview loss
 and validates it locally after the original HU delivery. The owner subsequently
 authorized commit/push of this correction and its documentation on the HU branch.
-Git history and issue #282 own that receipt. Acceptance remains pending:
-normal Debug retains existing lint warnings, and exact-artifact cloud/FCM
-evidence and gate #228 remain separate.
+Git history and issue #282 own that receipt. Acceptance remains pending for
+exact-artifact cloud/FCM evidence and independent gate #228.
 Git history and issue #282 record the earlier `66ecebc2` delivery. Publication,
 production operations and HU closure remain outside scope.
+The owner approved the [lint correction plan](lint-remediation-plan.md), including
+Gradle 9.9.1 and four exact KTX exceptions, and authorized local implementation
+and validation. [Current lint results and limits](lint-validation.md) record
+zero diagnostics in Debug/Release/QA strict lint, 505 JVM tests and 85 connected
+tests passed with three expected skips. The owner subsequently authorized
+commit/push of these lint changes and documentation on 2026-11-11, keeping
+HU-090 open; Git history and issue #282 own the definitive delivery receipt.
+Historical hashes/performance receipts do not represent the new
+candidate. Cart recreation returns Home while retaining its draft for reopening;
+only the documented emulator/Circle-mask launcher scope was checked, and API 29
+landscape was not established. Those observations are not declared corrected
+or proven pre-existing. Exact task-owned cleanup and durable archive
+manifest/hash verification pass. Built artifacts retain their original
+pre-commit working-tree provenance; branch delivery does not authorize merge,
+publication, production access, artifact uploads or acceptance closure.
 
 ## Context and problem
 
@@ -73,7 +87,8 @@ its existing behavior with a smaller privacy and resource footprint.
 - Publishing/uploading binaries, mappings, symbols, or deliberate crash reports
   under the current local implementation authorization. Exact-artifact cloud canaries and
   synthetic develop writes require a later bounded authorization.
-- General dependency upgrades, new ads/Billing/AppFunctions/location/contact
+- General dependency upgrades beyond the explicitly approved Gradle 9.9.1 wrapper,
+  new ads/Billing/AppFunctions/location/contact
   functionality, Analytics removal, and Restore Credentials integration.
 - Certifying overall store readiness or closing unrelated release gates.
 

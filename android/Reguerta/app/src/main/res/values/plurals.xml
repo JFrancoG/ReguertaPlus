@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="my_order_quantity">
+        <item quantity="one">%1$d unit</item>
+        <item quantity="other">%1$d units</item>
+    </plurals>
+    <plurals name="shift_swap_request_waiting">
+        <item quantity="one">Waiting for a response from %1$d possible member.</item>
+        <item quantity="other">Waiting for responses from %1$d possible members.</item>
+    </plurals>
+</resources>

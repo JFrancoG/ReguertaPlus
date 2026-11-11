@@ -1,6 +1,7 @@
 package com.reguerta.user.presentation.root
 
 import android.content.Context
+import androidx.core.content.edit
 
 object DevelopmentTimeMachine {
     private const val PrefsName = "reguerta_dev_time_machine"
@@ -26,13 +27,13 @@ object DevelopmentTimeMachine {
     fun setOverrideNowMillis(value: Long?) {
         val context = appContext ?: return
         val prefs = context.getSharedPreferences(PrefsName, Context.MODE_PRIVATE)
-        prefs.edit().apply {
+        prefs.edit {
             if (value == null) {
                 remove(OverrideNowMillisKey)
             } else {
                 putLong(OverrideNowMillisKey, value)
             }
-        }.apply()
+        }
     }
 
     fun nowMillis(): Long = overrideNowMillis() ?: System.currentTimeMillis()

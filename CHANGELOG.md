@@ -384,6 +384,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-11-11 | 🔧 chore(android): clear HU-090 lint debt
+
 - 2026-11-10 | 📦 build(android): implement HU-090 release hardening
 
 - 2026-11-10 | 📦 build(ios): align test target platforms

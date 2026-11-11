@@ -70,16 +70,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import coil3.compose.AsyncImage
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
@@ -662,7 +665,7 @@ internal fun MyOrderRoute(
                         .align(Alignment.CenterEnd)
                         .fillMaxHeight()
                         .width(cartPanelWidth)
-                        .offset(x = cartPanelOffsetX),
+                        .offset { IntOffset(cartPanelOffsetX.roundToPx(), 0) },
                     color = MaterialTheme.colorScheme.surface,
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -1122,9 +1125,7 @@ private fun MyOrderSummaryTotalBar(
 
 @Composable
 private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
-    val locale = LocalConfiguration.current.locales[0]
-    val singleQuantityLabel = stringResource(R.string.my_order_quantity_single)
-    val pluralQuantityFormat = stringResource(R.string.my_order_quantity_plural_format)
+    val resources = LocalResources.current
     PersonalOrderSummaryProducerCard(
         companyName = group.companyName,
         lines = group.lines.map { line ->
@@ -1133,9 +1134,9 @@ private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
                 packagingLine = line.packagingLine,
                 quantityLabel = localizedGenericOrderHistoryQuantityLabel(
                     rawLabel = line.quantityLabel,
-                    locale = locale,
-                    singleLabel = singleQuantityLabel,
-                    pluralFormat = pluralQuantityFormat,
+                    quantityLabel = { quantity ->
+                        resources.getQuantityString(R.plurals.my_order_quantity, quantity, quantity)
+                    },
                 ),
                 subtotal = line.subtotal,
             )
@@ -1157,10 +1158,11 @@ private fun MyOrderProducerDivider() {
 @Composable
 private fun ProducerGroupHeader(
     group: MyOrderProducerGroup,
-    modifier: Modifier = Modifier.fillMaxWidth(),
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
+            .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
@@ -1807,10 +1809,8 @@ private fun canIncrease(
 private fun Product.quantitySelectionText(selectionCount: Int): String =
     if (pricingMode == ProductPricingMode.WEIGHT) {
         "${selectedQuantity(selectionCount).toUiDecimal()} kg"
-    } else if (selectionCount == 1) {
-        stringResource(R.string.my_order_quantity_single)
     } else {
-        stringResource(R.string.my_order_quantity_plural_format, selectionCount)
+        pluralStringResource(R.plurals.my_order_quantity, selectionCount, selectionCount)
     }
 
 private data class MyOrderStockLabel(
@@ -1850,10 +1850,8 @@ private fun confirmedLineQuantityLabel(line: MyOrderConfirmedLine): String =
             line.quantityAtOrder.toUiDecimal(),
             line.product.unitAbbreviation ?: line.product.unitName,
         )
-    } else if (line.unitsSelected == 1) {
-        stringResource(R.string.my_order_quantity_single)
     } else {
-        stringResource(R.string.my_order_quantity_plural_format, line.unitsSelected)
+        pluralStringResource(R.plurals.my_order_quantity, line.unitsSelected, line.unitsSelected)
     }
 
 @Composable
@@ -2266,7 +2264,7 @@ private fun persistMyOrderCartSnapshot(
         .filterKeys { productId -> normalizedQuantities[productId].orZero > 0 }
         .filterValues { option -> option == EcoBasketOptionPickup || option == EcoBasketOptionNoPickup }
 
-    preferences.edit().apply {
+    preferences.edit {
         if (normalizedQuantities.isEmpty()) {
             remove(quantitiesKey)
         } else {
@@ -2288,7 +2286,7 @@ private fun persistMyOrderCartSnapshot(
             }
             putString(optionsKey, optionsPayload.toString())
         }
-    }.apply()
+    }
 }
 
 private fun readMyOrderConfirmedSnapshot(
@@ -2359,7 +2357,7 @@ private fun persistMyOrderConfirmedSnapshot(
         .filterKeys { productId -> normalizedQuantities[productId].orZero > 0 }
         .filterValues { option -> option == EcoBasketOptionPickup || option == EcoBasketOptionNoPickup }
 
-    preferences.edit().apply {
+    preferences.edit {
         if (normalizedQuantities.isEmpty()) {
             remove(quantitiesKey)
         } else {
@@ -2381,7 +2379,7 @@ private fun persistMyOrderConfirmedSnapshot(
             }
             putString(optionsKey, optionsPayload.toString())
         }
-    }.apply()
+    }
 }
 
 private data class MyOrderCheckoutLineSnapshot(

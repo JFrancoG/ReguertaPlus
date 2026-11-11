@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="my_order_quantity">
+        <item quantity="one">%1$d ud.</item>
+        <item quantity="many">%1$d uds.</item>
+        <item quantity="other">%1$d uds.</item>
+    </plurals>
+    <plurals name="shift_swap_request_waiting">
+        <item quantity="one">Pendiente de respuesta de %1$d socio posible.</item>
+        <item quantity="many">Pendiente de respuesta de %1$d socios posibles.</item>
+        <item quantity="other">Pendiente de respuesta de %1$d socios posibles.</item>
+    </plurals>
+</resources>

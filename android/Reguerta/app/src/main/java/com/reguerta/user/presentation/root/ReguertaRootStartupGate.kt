@@ -2,7 +2,7 @@ package com.reguerta.user.presentation.root
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -182,7 +182,7 @@ internal fun openStoreUrl(
     context: Context,
     storeUrl: String,
 ) {
-    val uri = runCatching { Uri.parse(storeUrl) }.getOrNull() ?: return
+    val uri = runCatching { storeUrl.toUri() }.getOrNull() ?: return
     val intent = Intent(Intent.ACTION_VIEW, uri).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }

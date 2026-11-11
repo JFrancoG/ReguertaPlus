@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
+import androidx.core.graphics.scale
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
@@ -51,7 +52,7 @@ class FirebaseImagePipelineManager(
                     Log.w(Tag, "Unable to compute scaled size for ${decoded.width}x${decoded.height}")
                     return@withContext null
                 }
-                val resized = Bitmap.createScaledBitmap(decoded, scaledSize.width, scaledSize.height, true)
+                val resized = decoded.scale(scaledSize.width, scaledSize.height, filter = true)
                 if (resized != decoded) decoded.recycle()
 
                 val cropSquare = ImagePipelineSizingContract.centerCropSquare(

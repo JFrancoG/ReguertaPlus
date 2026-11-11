@@ -2,8 +2,10 @@
 
 ## 1. Current outcome, decisions, and authorization
 
-- State: **Android privacy/R8 implemented locally; acceptance remains pending**.
-- Authorized now: implement Android privacy/R8 and execute local validation.
+- State: **Privacy/R8, camera and lint local validation recorded; HU acceptance remains pending**.
+- Authorized now: commit and push the validated Android lint changes and HU
+  documentation to the existing branch, keeping HU-090 open. The earlier
+  implementation and local-validation authorization remains recorded below.
   Publication, production access/writes, cloud canaries, live FCM sends, and
   mapping/symbol uploads remain outside authorization. No live services are
   used for this implementation's tests.
@@ -19,25 +21,40 @@
 - Accepted execution approach: local Release-equivalent validation,
   an exact-artifact canary kept as a separate authorized gate, local artifact
   metrics, and the performance protocol below.
-- Current evidence: [local validation and exact artifact hashes](validation.md).
-  Both paired performance runs, artifact metrics, 16 KB alignment/runtime,
-  offline SDK advertising defaults and optimized external journeys are recorded.
+- Original privacy/R8 evidence: [validation and exact historical artifact hashes](validation.md).
+  Its paired performance runs and offline SDK observations apply to those
+  recorded binaries. The current lint candidate has separate artifacts and
+  local results in [lint validation](lint-validation.md); no new paired
+  startup/PSS result is claimed for that candidate.
 - Current authorized follow-up: camera-preview correction implemented and
   locally validated under section 8; see [new evidence](camera-fix-validation.md).
-  Existing warning debt,
-  the exact-artifact cloud canary,
+  Its earlier warning debt is historical; the approved lint follow-up below
+  clears current Debug/Release/QA lint. The exact-artifact cloud canary,
   external telemetry/FCM proof and secure-store distribution gate #228 stay open.
   The earlier commit/push authorization was fulfilled by `66ecebc2`. The
   owner subsequently authorized commit/push of the camera correction and
   its documentation on this HU branch, keeping the story open. Git history
   and issue #282 own the new delivery receipt. No merge, HU closure,
   publication or production access is authorized.
+- Current authorized follow-up: the owner approved the [lint plan](lint-remediation-plan.md),
+  Gradle 9.9.1 and four exact KTX exceptions, and authorized local implementation
+  and validations. The local gate now passes with 505 JVM tests, 85 connected
+  tests (three expected skips), zero diagnostics in all three strict lint
+  reports and fresh artifact/runtime checks. See the [historical inventory](lint-inventory.json)
+  and [current validation and limits](lint-validation.md). Cart recreation
+  returns to Home with its draft retained on reopening; only Circle-mask
+  emulator launchers were checked, and API 29 landscape was not established.
+  Exact task-owned cleanup and durable archive/hash verification pass.
+  The owner subsequently authorized commit/push of these lint changes and
+  documentation on 2026-11-11, keeping HU-090 open. Git history and issue #282
+  own the definitive delivery receipt. Publication/production access remains
+  outside scope.
 - Owner approval on 2026-11-10 supersedes the earlier planning-only limit;
   exact-artifact cloud canary/upload authorization stays separate.
 
 ## 2. Selected baseline and evidence provenance
 
-### Current committed baseline
+### Original committed baseline, before approved follow-ups
 
 The HU branch integrates the published main baseline without rewriting its
 previously pushed planning commit. The documentation-only revision preserved
@@ -53,6 +70,11 @@ now changes the privacy/build configuration against these same selected pins.
 | kotlinx.serialization / Tink | 1.12.0 / 1.24.0 |
 | ML Kit prompt, Debug only | 1.0.0-beta5 |
 | Compile/target SDK / minimum SDK | 37 / 29 |
+
+The table preserves the initial HU baseline. The approved lint follow-up uses
+Gradle **9.9.1** as its sole dependency/tooling exception; all other app/plugin
+pins and Java criteria remain unchanged. Current source/artifact provenance and
+the 358-file working-tree snapshot belong to [lint validation](lint-validation.md).
 
 The version catalog is authoritative for the remaining pins. Record the full
 resolved graph, configuration state, tools, artifact hashes, and actual commit
@@ -341,7 +363,8 @@ completion is reported by the owner, not independently checked by this HU.
 The owner approved revision 2 and authorized Android implementation and local
 validation, retaining non-advertising Analytics. Production and publication
 remain prohibited. Earlier Draft entries describe the preserved decision trail,
-not the current authorization. Local work is in progress on this isolated branch.
+not the current authorization. The local implementation and follow-up results
+are recorded on this isolated branch; external HU acceptance remains pending.
 
 ## 8. Camera preview follow-up — local fix authorized 2026-11-10
 
@@ -390,6 +413,57 @@ and the open story. Git history and issue #282 own the delivery receipt.
 The source snapshot and binary hashes remain those of the pre-commit local
 validation; delivery preparation changes only documentation and the changelog.
 
-Next decision: address the existing warning debt and prepare a concrete,
-bounded exact-artifact cloud/FCM canary for later authorization. HU-090 stays
-open; gate #228 and publication remain separate.
+At this camera checkpoint, the next decision was warning remediation; the
+approved lint follow-up below now clears that debt locally. Prepare a concrete,
+bounded exact-artifact cloud/FCM canary only for later authorization. HU-090
+stays open; gate #228 and publication remain separate.
+
+
+## 9. Lint remediation — review and execution record, 2026-11-10/11
+
+Historical advisory checkpoint: the [plan](lint-remediation-plan.md) reviewed the 136 normal-Debug warnings
+and two hints at `ea367ac9`, with a [complete inventory](lint-inventory.json).
+It proposes staged resource/asset cleanup, safe API/Compose/localization fixes,
+a wrapper-only upgrade and four narrowly reviewed commit-result exceptions.
+All 368 source/configuration records matched the camera archive at that review
+checkpoint; no build, runtime or implementation was needed for that advisory
+review. These are not current lint counts or current source-drift claims.
+
+The review requested approval of wrapper scope, four precise UseKtx exceptions
+and the behavior/branding and warning-gate constraints. Its planning-only limit
+was superseded by the approval below; alternatives changing those contracts
+would still need a revised plan. HU-090 remains open; cloud/FCM and #228 remain
+separate gates.
+
+
+### Lint execution approval — 2026-11-10
+
+The owner superseded the planning-only limit and approved all lint batches,
+Gradle 9.9.1 and four function-scoped KTX exceptions. Implementation and local
+validation completed on 2026-11-10/11: three strict lint reports contain zero
+diagnostics, 505 JVM tests pass, and the two connected suites total 85 passed,
+three expected skips and zero failures. Fresh optimized artifacts, privacy,
+16 KB packaging, mappings/retrace and scoped external UI checks pass.
+Non-advertising Analytics, R8 and session fences remain intact. The initial
+local execution included no Git delivery; the owner subsequently authorized
+commit/push on 2026-11-11 while keeping HU-090 open.
+
+Exact task-owned data/runtime cleanup and durable archival pass; the manifest
+of 950 execution files, six candidate-artifact hashes and 358 public source records
+are verified at `/Users/jesusf/Projects/Reguerta-artifacts/hu-090/2026-11-11-lint`.
+Record the observed cart route reset and emulator/launcher coverage limits from
+[lint-validation.md](lint-validation.md) without treating them as corrected or
+proven pre-existing. HU-090 remains open for later separately authorized
+exact-artifact cloud/FCM evidence and independent secure-store gate #228.
+
+### Lint branch delivery authorization — 2026-11-11
+
+The owner requested commit/push of the lint changes and documentation to
+`codex/hu-090-android-release-privacy-r8`. Reuse the recent local gates only
+after confirming all 358 archived public Android source records still match;
+delivery preparation changes only HU documentation and changelog. Keep the
+pre-commit working-tree artifact provenance intact. Git history and issue #282
+own the commit/push result. No merge, HU closure, publication, production access
+or binary/mapping upload is included. Cart recreation, launcher/device coverage
+and historical-only paired performance limits remain documented in
+[lint validation](lint-validation.md).

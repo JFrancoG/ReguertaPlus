@@ -13,6 +13,7 @@
 - [x] Owner approved revision 2 and authorized Android implementation/local validation on 2026-11-10.
 - [x] Owner authorized commit/push of the HU branch while keeping the story open and publication/production outside scope.
 - [x] Owner subsequently authorized commit/push of the camera correction and documentation with the same boundaries.
+- [x] Owner authorized commit/push of the lint changes and documentation on 2026-11-11, keeping HU-090 open; Git history and issue #282 own the delivery receipt.
 
 ## 2. Tooling and reproducible baseline
 
@@ -43,10 +44,10 @@
 - [x] Apply reviewed Release-equivalent optimization/PDF settings to releaseValidation.
 - [x] Run the quantitative R8 configuration analyzer and review its findings.
 
-## 5. Local implementation validation - in progress
+## 5. Original local implementation validation - historical receipts
 
 - [x] Run Debug unit tests, lint and connected tests on dedicated API 29/16 KB emulators.
-- [x] Report existing warning debt and new findings without waiving policy: normal Debug retains 136 warnings/two hints, unchanged from main.
+- [x] Record the original 136 warnings/two hints without waiving policy; the approved lint follow-up in section 8 clears the current debt with fresh evidence.
 - [x] Build optimized Release AAB/APK and pass metadata/lint-vital checks.
 - [x] Verify final permissions and supported advertising SDK controls.
 - [x] Run android analyze JSON on exact AAB; require applicable ratios and EXACT_MATCH.
@@ -75,6 +76,26 @@
 - [ ] Verify all criteria and independent release gates before claiming completion.
 - [x] Treat distribution/mapping upload as a separate later action when requested.
 
+## 8. Lint remediation - local validation complete, 2026-11-10/11
+
+- [x] Review the existing normal-Debug XML and 368 matching public source records; classify all 136 warnings and two hints.
+- [x] Prepare the [approved correction plan](lint-remediation-plan.md) and [historical inventory](lint-inventory.json), including overlaps, risks, validations and approval decisions.
+- [x] Owner approved Gradle 9.9.1, four exact KTX exceptions and the behavior/branding and warning-gate constraints.
+- [x] A: update/verify Gradle 9.9.1 wrapper and capture the isolated lint baseline.
+- [x] B: remove verified unused resources across variants/locales.
+- [x] C: correct safe KTX/Compose/manifest findings and auth hints.
+- [x] D: correct live EN/ES quantity and typography resources.
+- [x] E: consolidate launcher assets while preserving identity.
+- [x] F: document exactly four approved synchronous commit-result exceptions.
+- [x] Reconcile newly exposed variant/tooling findings in [validation](lint-validation.md).
+- [x] Validate changed behavior and fresh Debug/QA/Release artifacts, preserving non-advertising Analytics, R8 and session fences. Record exact hashes and scoped runtime limits in [lint validation](lint-validation.md).
+- [x] Reach the local strict-lint gate: three variants with zero diagnostics, 505 JVM tests passed, and 85 connected tests passed with three expected skips and zero failures.
+- [x] Record the current cart recreation observation: navigation returns Home, draft survives reopening; do not describe route retention as fixed or proven pre-existing.
+- [x] Record coverage limits: Circle-mask emulator launchers only, no physical/OEM evidence, and no confirmed API 29 landscape result.
+- [x] Clean only the task-owned demo profiles/images, services and AVDs with exact cleanup receipts.
+- [x] Retain and verify the durable archive, manifest, six candidate-artifact hashes and 358 source records; preserve pre-commit artifact provenance during the separately authorized Git delivery, without closing HU-090.
+- [x] Prepare lint branch delivery with the required changelog and documentation; reuse recent local gates only after verifying unchanged Android sources. Commit/push results belong to Git history and issue #282.
+
 ## Planning history and current execution state
 
 - Revision 1: planning bootstrap only, commit 5de7c804; original dirty measurements retained.
@@ -83,7 +104,7 @@
   The subsequent owner approval authorized the current local implementation.
   Operator completion is owner-reported only.
 - [Remaining non-advertising data inventory and review limits](privacy-inventory.md).
-- Issue: https://github.com/JFrancoG/ReguertaPlus/issues/282 (open; approved revision 2, local implementation in progress).
+- Issue: https://github.com/JFrancoG/ReguertaPlus/issues/282 (open; local privacy/R8, camera and lint validation complete within the documented scope; external gates pending).
 - Branch: `codex/hu-090-android-release-privacy-r8`, integrating published main without rebase.
 - Commit/remote receipts belong to Git history. Current local validation and
   outstanding criteria must be linked before acceptance; historical

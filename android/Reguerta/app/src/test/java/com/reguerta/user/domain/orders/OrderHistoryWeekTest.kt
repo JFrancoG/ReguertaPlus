@@ -89,23 +89,36 @@ class OrderHistoryWeekTest {
     }
 
     @Test
-    fun orderSummaries_localizeGenericUnitLabelsOnly() {
-        assertEquals(
-            "1 unit",
-            localizedGenericOrderHistoryQuantityLabel("1 ud.", Locale.US, "1 unit", "%1\$d units"),
+    fun orderSummaries_localizeRecognizedGenericUnitCounts() {
+        val quantityLabels = mapOf(0 to "0 units", 1 to "1 unit", 2 to "2 units", 3 to "3 units")
+        val cases = listOf(
+            "0 uds." to "0 units",
+            "1 ud." to "1 unit",
+            "3 uds." to "3 units",
+            "2 ud(s)." to "2 units",
+            " 02 UDS. " to "2 units",
         )
-        assertEquals(
-            "3 units",
-            localizedGenericOrderHistoryQuantityLabel("3 uds.", Locale.US, "1 unit", "%1\$d units"),
-        )
-        assertEquals(
-            "2 units",
-            localizedGenericOrderHistoryQuantityLabel("2 ud(s).", Locale.US, "1 unit", "%1\$d units"),
-        )
-        assertEquals(
-            "1 kg",
-            localizedGenericOrderHistoryQuantityLabel("1 kg", Locale.US, "1 unit", "%1\$d units"),
-        )
+
+        cases.forEach { (rawLabel, expected) ->
+            assertEquals(
+                expected,
+                localizedGenericOrderHistoryQuantityLabel(rawLabel, quantityLabels::getValue),
+            )
+        }
+    }
+
+    @Test
+    fun orderSummaries_preserveWeightCustomAndUnparseableLabelsVerbatim() {
+        val originalLabels = listOf("1 kg", "2 paquetes", " 5 l ", "3 u", "2147483648 uds.")
+
+        originalLabels.forEach { rawLabel ->
+            assertEquals(
+                rawLabel,
+                localizedGenericOrderHistoryQuantityLabel(rawLabel) {
+                    error("A non-generic label must not request a unit translation")
+                },
+            )
+        }
     }
 
     @Test

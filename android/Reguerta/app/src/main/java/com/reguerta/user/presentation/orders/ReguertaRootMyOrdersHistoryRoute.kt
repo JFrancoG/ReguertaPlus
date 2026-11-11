@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -89,15 +90,14 @@ internal fun OrderHistoryWeekOption.toMyOrdersHistoryPresentation(
     )
 }
 
+/** Relocalizes legacy generic-unit counts while preserving weight and custom labels verbatim. */
 internal fun localizedGenericOrderHistoryQuantityLabel(
     rawLabel: String,
-    locale: Locale,
-    singleLabel: String,
-    pluralFormat: String,
+    quantityLabel: (Int) -> String,
 ): String {
     val quantity = GENERIC_UNIT_PATTERN.matchEntire(rawLabel)?.groupValues?.getOrNull(1)?.toIntOrNull()
         ?: return rawLabel
-    return if (quantity == 1) singleLabel else String.format(locale, pluralFormat, quantity)
+    return quantityLabel(quantity)
 }
 
 private val GENERIC_UNIT_PATTERN = Regex(
@@ -192,7 +192,6 @@ private fun MyOrdersHistoryContent(
 
                 is MyOrdersHistoryLoadState.Loaded -> OrderSummaryList(
                     snapshot = loadState.snapshot,
-                    locale = locale,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -366,7 +365,6 @@ private fun OrderHistoryErrorCard(onRetry: () -> Unit) {
 @Composable
 private fun OrderSummaryList(
     snapshot: OrderSummarySnapshot,
-    locale: Locale,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -378,15 +376,14 @@ private fun OrderSummaryList(
             items = snapshot.groups,
             key = OrderSummaryGroup::vendorId,
         ) { group ->
-            OrderSummaryProducerCard(group = group, locale = locale)
+            OrderSummaryProducerCard(group = group)
         }
     }
 }
 
 @Composable
-private fun OrderSummaryProducerCard(group: OrderSummaryGroup, locale: Locale) {
-    val singleQuantityLabel = stringResource(R.string.my_order_quantity_single)
-    val pluralQuantityFormat = stringResource(R.string.my_order_quantity_plural_format)
+private fun OrderSummaryProducerCard(group: OrderSummaryGroup) {
+    val resources = LocalResources.current
     PersonalOrderSummaryProducerCard(
         companyName = group.companyName,
         lines = group.lines.map { line ->
@@ -395,9 +392,9 @@ private fun OrderSummaryProducerCard(group: OrderSummaryGroup, locale: Locale) {
                 packagingLine = line.packagingLine,
                 quantityLabel = localizedGenericOrderHistoryQuantityLabel(
                     rawLabel = line.quantityLabel,
-                    locale = locale,
-                    singleLabel = singleQuantityLabel,
-                    pluralFormat = pluralQuantityFormat,
+                    quantityLabel = { quantity ->
+                        resources.getQuantityString(R.plurals.my_order_quantity, quantity, quantity)
+                    },
                 ),
                 subtotal = line.subtotal,
             )
