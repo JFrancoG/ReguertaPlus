@@ -917,3 +917,54 @@ The administrator reply received after closure (confirming both accounts until
 22:30 Madrid) is retained in a separate private receipt. It is not appended to the
 journal, does not extend the 08 window and does not authorize another attempt;
 the 34 records and their head remain unchanged.
+
+## Attempt 09 stopped after confirmations — 2026-11-11
+
+After attempt 08 was closed and published as `7ed436eb`, package
+`432623c0…d01d0f4` was prepared with the current version 297 workbook reading.
+Its read session was active and its own cleanup remained pending; no earlier
+session's cleanup was attributed to it. The content, 203 planned writes, 53 cells
+and two markers were preserved. Exact admission was read-only; 32 local tests and
+independent review passed.
+
+The user confirmed the window and all three consecutive replies were recorded
+within the deadline. Initial collection was subsequently rejected although the
+recorded stages completed successfully before the deadline. Failure occurred
+during subsequent collection processing; the journal does not retain the caught
+error, so that record alone cannot identify the first exception. The
+terminal retains `inspection-required`, no cleanup failures, settled operations,
+no action in flight and no time-budget breaches. The 39 journal records have no
+pending files. File and IAM removal are recorded as verified; the runner revoked
+OAuth with status 200 and the same token received 401 on Drive and Sheets. The
+tab was closed and caller references were discarded.
+
+Inspection records that Sheets had not started and that barrier and Firestore
+were unavailable to that inspection. Independent postflight confirmed the exact
+source unchanged and the writer disabled and isolated, with no keys or bindings:
+ten reads and one transaction, with no writes. There are no local locks and the
+window was released. No exception trace was retained that would attribute the
+first rejection to a read failure or timeout. The single
+attempt has ended; no retry has been authorized.
+
+A local reproduction with the package and recorded replies identified an
+incompatibility sufficient to reject admission: the historical-risk acceptance
+predated ten closure observations included in the package, while the validator
+requires that evidence to precede acceptance. Because the actual exception was not retained,
+the reproduction does not establish that this was the first cause of the live
+rejection. No additional attempt was run and the consumed evidence is unchanged.
+
+The local correction checks that chronology before opening a session or contacting
+providers. A later collection failure records a stable checkpoint and generic
+category without messages, values or credentials; a failed failure record keeps
+the original error and cleanup continues. All 112 integrated local tests of the
+seal, collector, controlled window, human inputs and original session passed, along with Functions lint and build and
+targeted checks on the four `.cjs` files. These checks do not establish the
+first real exception in 09 or constitute a live run. Before another attempt,
+genuine historical-risk acceptance must follow preparation and review of the
+corresponding evidence and closures and precede any provider call; its date must
+not be altered and the 09 quiet-window confirmation is not risk acceptance. The
+two changed scripts require new hash review before another attempt.
+
+Private evidence: journal `develop-original-20261111-interactive-09`,
+`2026-11-11-interactive09-refresh`, `2026-11-11-interactive09-preparation`,
+`2026-11-11-interactive09-live` and `2026-11-11-postflight09-212435`.

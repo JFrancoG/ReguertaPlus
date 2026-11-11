@@ -1,7 +1,7 @@
 "use strict";
 const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.js");
-const {sealInitialEvidence,verifyInitialEvidenceSeal}=require("../scripts/develop-initial-evidence-seal.cjs");
+const {assertHistoricalRiskChronology,sealInitialEvidence,verifyInitialEvidenceSeal}=require("../scripts/develop-initial-evidence-seal.cjs");
 const {originalWindowFixture}=require("./develop-original-window-fixture.cjs");
 const {sealFixture}=require("./develop-initial-evidence-seal-fixture.cjs");
 const {createOriginalWindowOwner}=require("../scripts/develop-original-window-provider.cjs");
@@ -32,6 +32,26 @@ async function fixture(t,{fault=null,evidenceAge=600000}={}) {
   const ports={barrier:undefined,executor:undefined,composeServices};
   return {g,root,data,proof,ports,errors,setMutate:f=>{mutate=f;},counts:()=>({seals,acquisitions}),execute:()=>run({...data,...g.sessions(data,"seal-owner",ports),root,nowMillis:()=>g.state.now,fetchImpl:g.fetchImpl})};
 }
+test("historical risk acceptance follows every retained predecessor closure",async t=>{
+  const f=await fixture(t),risk=structuredClone(f.data.initialEvidencePlan.historicalRisk);
+  const last=Math.max(...risk.predecessors.map(p=>p.closedAtMillis));
+  risk.acceptedAtMillis=last-1;
+  assert.throws(()=>assertHistoricalRiskChronology(risk),/historical_risk_acceptance_before_predecessor_closure/);
+  risk.acceptedAtMillis=last;assert.doesNotThrow(()=>assertHistoricalRiskChronology(risk));
+  risk.acceptedAtMillis=last+1;assert.doesNotThrow(()=>assertHistoricalRiskChronology(risk));
+  risk.predecessors[0].closedAtMillis=null;
+  assert.throws(()=>assertHistoricalRiskChronology(risk),/historical_risk_chronology_invalid/);
+});
+test("a historical acceptance before a retained closure fails before providers or journal creation",async t=>{
+  const f=await fixture(t),risk=f.data.initialEvidencePlan.historicalRisk;
+  const sessions=f.g.sessions(f.data,"chronology-owner",f.ports);
+  risk.predecessors[0].closedAtMillis=risk.acceptedAtMillis+1;
+  let calls=0;
+  await assert.rejects(run({...f.data,...sessions,
+    openSession:async()=>{calls++;throw Error("provider must not be called");},
+    root:f.root,nowMillis:()=>f.g.state.now,fetchImpl:f.g.fetchImpl}),/historical_risk_acceptance_before_predecessor_closure/);
+  assert.equal(calls,0);assert.deepEqual(fs.readdirSync(f.root),[]);
+});
 test("post-grant evidence is sealed durably before mint/admission; recovery uses the same seal without collecting consent",async t=>{
   const f=await fixture(t),result=await f.execute();assert.equal(result.kind,"direction-verified-and-contained",JSON.stringify({result,errors:f.errors}));
   const saved=read(result.directory),phases=saved.records.map(r=>r.value.phase),seal=saved.records.find(r=>r.value.phase==="google-initial-evidence-sealed").value.seal;

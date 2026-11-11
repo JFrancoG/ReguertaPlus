@@ -46,7 +46,7 @@ function createInitialReviewCollector({reviewed:input,reviewDigest,iamBearer,rea
     assert.equal(template.workbook.fileId,plan.scope.expectedWorkbookFileId);assert.equal(template.workbook.revision,plan.scope.expectedWorkbookRevision);assert.equal(template.workbook.digest,plan.scope.expectedWorkbookDigest);
     verifyPermissionReceipt({receipt:permissionReceipt,binding,receiptId,transition,nativeReviewDigest,nowMillis:nowMillis()});
     const deadlineMillis=binding.window.endsAtMillis-LIMITS.work-LIMITS.fileCleanup-LIMITS.iamCleanup-LIMITS.oauthCleanup-POST_COLLECTION_RESERVE;
-    const startedAtMillis=nowMillis(),stages=[],pending=new Set();let result=null;
+    const startedAtMillis=nowMillis(),stages=[],pending=new Set();let result=null,failure=null,didFail=false,checkpoint="collection-start";
     const current=()=>{assertActive();assert.ok(nowMillis()<deadlineMillis,"initial_collection_headroom_exhausted");};
     const boundedFetch=async(url,options={})=>{
       current();const timeout=AbortSignal.timeout(Math.max(1,deadlineMillis-nowMillis()));
@@ -81,24 +81,35 @@ function createInitialReviewCollector({reviewed:input,reviewDigest,iamBearer,rea
         const start=nowMillis(),values=await collectConfirmations({kind,intent:structuredClone(intent),intentDigest:digest(intent),notBeforeMillis:start,deadlineMillis,assertActive:current});
         current();assert.ok(values.every(v=>v.confirmedAtMillis>=start&&v.confirmedAtMillis<=nowMillis()),"Confirmation was not collected for this challenge");return values;
       };
+      checkpoint="owner-confirmation";
       const [ownerConfirmations]=await stage("owner-confirmation",[()=>confirmation("owner",oi)]);
       const oa=ownerAgreement(oi,ownerConfirmations),ai={...structuredClone(plan.administratorIntent),ownerAgreementDigest:oa.digest};
+      checkpoint="administrator-confirmation";
       const [adminConfirmations]=await stage("administrator-confirmation",[()=>confirmation("administrator",ai)]);
       const ap={schemaVersion:1,kind:"cooperative-develop-administrator-maintenance",intent:ai,confirmations:adminConfirmations},aa=adminAgreement({payload:ap,digest:digest(ap)});
+      checkpoint="initial-controls";
       const [initialCloud]=await stage("initial-controls",[controls,assertWriterAuthority]);
       const initialControlsAt=nowMillis();
+      checkpoint="initial-sources";
       const [initialCensus,initialSource]=await stage("initial-sources",[routeCensus,source]);
+      checkpoint="initial-workbook";
       const [initialSheets]=await stage("initial-workbook",[sheets]);
       const quietStart=nowMillis(),quietEnd=quietStart+plan.scope.minimumQuietHorizonMillis;
       assert.ok(quietEnd<deadlineMillis,"Quiet interval cannot fit collection deadline");
+      checkpoint="quiet-interval";
       await stage("quiet-interval",[async()=>{while(nowMillis()<quietEnd){current();const before=nowMillis();await sleep(Math.min(1000,quietEnd-before));assert.ok(nowMillis()>before,"Quiet wait did not advance the clock");}}]);
       const endedAtMillis=nowMillis(),finalStart=nowMillis();
+      checkpoint="final-observations";
       const [finalCloud,finalCensus,finalSource,finalSheets,,reports]=await stage("final-observations",[controls,routeCensus,source,sheets,assertWriterAuthority,
         ()=>readHumanReports({scope:structuredClone(plan.scope),ownerAgreement:oa,administratorAgreement:aa,notBeforeMillis:finalStart,deadlineMillis,assertActive:current})]);
+      checkpoint="post-final-source-comparison";
       assert.deepEqual(initialSource.source,finalSource.source,"Source mutation during quiet interval");
+      checkpoint="post-final-causal-evidence";
       const causal=contained({initial:initialCensus,final:finalCensus,classifiedCaptures:reviewed.classifiedCaptures,initialDeliveries:reviewed.deliveries,finalDeliveries:reviewed.deliveries});
       assert.equal(causal.acceptedSetDigest,plan.scope.expectedCausalSetDigest);
+      checkpoint="post-final-human-reports";
       for(const v of [reports.ownerObservation,reports.administratorObservation])assert.ok(v.observedAtMillis>=finalStart&&v.observedAtMillis<=nowMillis(),"Final human report is stale or future");
+      checkpoint="post-final-assemble";
       const p=structuredClone(template),initialAt=Date.parse(initialCensus.readTime),finalAt=Date.parse(finalCensus.readTime);
       p.ownerAgreement=oa;p.administratorAgreement=aa;p.ownerObservation=reports.ownerObservation;p.administratorObservation=reports.administratorObservation;
       // The prepared template cannot claim the future human offline-edit state.
@@ -122,13 +133,22 @@ function createInitialReviewCollector({reviewed:input,reviewDigest,iamBearer,rea
         expectedControlManifestDigest:manifest(p.writerControls,p.maintenanceMode),expectedHistoricalRiskDigest:digest(p.causalDrain.historicalRisk)};
       const review={scopeDigest:digest(scope),evidence:{payload:p,digest:digest(p)},cloud:reviewed.cloud,owner:reviewed.owner,census:initialCensus,
         classifiedCaptures:reviewed.classifiedCaptures,deliveries:reviewed.deliveries};
+      checkpoint="post-final-seal";
       sealInitialEvidence({binding,receiptId,permissionReceipt,transition,nativeReviewDigest,scope,review,nowMillis:nowMillis()});current();
+      checkpoint="record-observations";
       await record({phase:"initial-review-collection-observations",receiptId,initialCloud,finalCloud,initialSource,finalSource,initialSheets,finalSheets,initialCensus,finalCensus,reports});
       current();result={scope,review};return result;
+    } catch(error) {
+      didFail=true;failure=error;throw error;
     } finally {
       await Promise.allSettled([...pending]);cloud.close();census.close();iamBearer=null;
-      await record({phase:"initial-review-collection-finished",receiptId,startedAtMillis,finishedAtMillis:nowMillis(),deadlineMillis,
-        postCollectionReserveMillis:POST_COLLECTION_RESERVE,stages,result:result?"verified":"rejected",providerCallsSettled:true});
+      try {
+        await record({phase:"initial-review-collection-finished",receiptId,startedAtMillis,finishedAtMillis:nowMillis(),deadlineMillis,
+          postCollectionReserveMillis:POST_COLLECTION_RESERVE,stages,result:result?"verified":"rejected",providerCallsSettled:true,
+          ...(didFail?{diagnostic:{checkpoint,kind:failure instanceof assert.AssertionError?"assertion":"error"}}:{})});
+      } catch(recordError) {
+        if(!didFail)throw recordError;
+      }
     }
   };
 }

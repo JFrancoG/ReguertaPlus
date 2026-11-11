@@ -510,10 +510,23 @@ about 39 seconds remaining and no reply was recorded before the shared deadline.
 Terminal `inspection-required` has no cleanup failures; the journal has 34
 records and no pending files. No writer token, barrier, Sheets batch, migration
 or production access occurred. Independent postflight verified the unchanged
-source, writer isolation and no local locks. Agree a viable initial response
-window and explain the three consecutive confirmations under the shared deadline
-before another separately authorized attempt.
+source, writer isolation and no local locks. The three consecutive confirmations and shared deadline were explained before the
+subsequent separately authorized attempt 09.
 [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-08-detenido-durante-las-confirmaciones--2026-11-11).
+
+## Develop attempt 09 — 2026-11-11
+
+All three confirmations were recorded within the deadline, but initial
+collection was rejected. Terminal `inspection-required` has no cleanup failures;
+the journal has 39 records and no pending files. Independent postflight verified the unchanged source, writer isolation and no local
+locks. The rejection occurred after the recorded stages; the caught error was not
+retained. Local reproduction found historical-risk acceptance predating ten
+closures, sufficient to reject admission; the first live exception remains
+unproven. A local guard now checks chronology before providers and sanitized
+checkpoints preserve later diagnostics. Fresh explicit risk acceptance must follow reviewed evidence and closures, before
+providers; the 09 quiet confirmation is not risk acceptance. Review changed script
+hashes and obtain separate authorization and window; no retry is authorized.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-09-detenido-tras-las-confirmaciones--2026-11-11).
 
 ## Live activation gate
 

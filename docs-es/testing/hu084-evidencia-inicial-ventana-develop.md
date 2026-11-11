@@ -959,3 +959,55 @@ La confirmación de administradores recibida tras el cierre («Confirmo ambas
 cuentas hasta las 22:30») se conserva en un recibo privado separado. No se añade
 al diario, no amplía la ventana del 08 y no autoriza otro intento; los 34 registros
 y su huella permanecen intactos.
+
+## Intento 09 detenido tras las confirmaciones — 2026-11-11
+
+Tras el cierre del 08, publicado en `7ed436eb`, se preparó el paquete
+`432623c0…d01d0f4` con la lectura actual de la hoja en versión 297. La sesión
+de lectura estaba activa y su cierre quedaba pendiente del propio intento; no se
+le atribuyó el cierre de una sesión anterior. Se mantuvieron el contenido, las
+203 escrituras previstas, 53 celdas y dos marcadores. La admisión exacta fue de
+solo lectura; pasaron 32 pruebas locales y la revisión independiente.
+
+El usuario confirmó la ventana y las tres respuestas consecutivas se registraron
+dentro del plazo. La recogida inicial se rechazó después de esas respuestas,
+aunque las etapas registradas se completaron correctamente antes del vencimiento.
+El fallo ocurrió en el procesamiento posterior de la recogida; el registro no
+conserva el error capturado y por sí solo no identifica la primera excepción.
+El terminal conserva `inspection-required`, limpieza sin fallos, operaciones
+asentadas, sin acciones en vuelo ni incumplimientos de plazos. Los 39 registros
+del diario no tienen archivos pendientes. La retirada de la hoja y de IAM consta
+verificada; el ejecutor revocó OAuth con respuesta 200 y el mismo token recibió
+401 en Drive y Sheets. La pestaña se cerró y el llamador descartó las referencias.
+
+La inspección registra que Sheets no se inició y que la barrera y Firestore no
+estaban disponibles para esa inspección. El postflight independiente confirmó
+que la fuente exacta sigue igual y el escritor continúa deshabilitado y aislado,
+sin claves ni bindings: diez lecturas y una transacción, sin escrituras. No hay
+bloqueos locales y la ventana se ha liberado. No se conserva una traza de
+excepción que permita atribuir el primer rechazo a un fallo de lectura
+o a un plazo. El intento único terminó y no se ha autorizado un reintento.
+
+Una reproducción local con el paquete y las respuestas registradas identificó una
+incompatibilidad suficiente para rechazar la admisión: la aceptación del riesgo
+histórico era anterior a diez observaciones de cierre incluidas en el paquete,
+aunque el validador exige que esas evidencias la precedan. Al no haberse conservado la excepción real,
+la reproducción no demuestra que esa fuese la primera causa del rechazo en vivo.
+No se ha ejecutado otro intento ni se ha modificado la evidencia consumida.
+
+La corrección local comprueba esa cronología antes de abrir la sesión o contactar
+proveedores. Si falla la recogida posterior, el diario conserva un punto de control
+estable y una categoría genérica, sin mensajes, valores ni credenciales; si falla
+ese registro, se conserva el error original y continúa la limpieza. Pasan las
+112 pruebas integradas locales de sellado, colector, ventana controlada, entradas humanas y
+sesión original, junto con lint y build de Functions y comprobación específica de
+los cuatro archivos `.cjs`. Estos resultados no demuestran cuál fue la primera
+excepción real del 09 ni son una ejecución real. Antes de otro intento deberá obtenerse una aceptación
+genuina del riesgo histórico después de preparar y revisar la evidencia y los
+cierres correspondientes y antes de cualquier proveedor; no se cambiará su fecha
+ni se utilizará la confirmación de ventana 09 como aceptación del riesgo. Los dos
+scripts modificados requieren revisar sus nuevas huellas antes de otro intento.
+
+Evidencia privada: diario `develop-original-20261111-interactive-09`,
+`2026-11-11-interactive09-refresh`, `2026-11-11-interactive09-preparation`,
+`2026-11-11-interactive09-live` y `2026-11-11-postflight09-212435`.

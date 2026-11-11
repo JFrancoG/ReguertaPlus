@@ -14,6 +14,12 @@ function plannedScope(scope){const v=structuredClone(scope);for(const k of lateF
 function plannedOwner(intent){const v=structuredClone(intent);assert.ok(v.permissionControl);v.permissionControl.sealedActionDigest=null;v.permissionControl.credentialClosureDigest=null;return v;}
 function plannedAdmin(intent){return {...structuredClone(intent),ownerAgreementDigest:null};}
 function plannedRisk(risk){return {...structuredClone(risk),assessedAtMillis:null};}
+function assertHistoricalRiskChronology(risk) {
+  assert.ok(Number.isSafeInteger(risk?.acceptedAtMillis)&&risk.acceptedAtMillis>=0&&
+    Array.isArray(risk.predecessors)&&risk.predecessors.length>0&&
+    risk.predecessors.every(p=>Number.isSafeInteger(p?.closedAtMillis)&&p.closedAtMillis>=0),"historical_risk_chronology_invalid");
+  assert.ok(risk.predecessors.every(p=>p.closedAtMillis<=risk.acceptedAtMillis),"historical_risk_acceptance_before_predecessor_closure");
+}
 function observationInputs(review){return {cloud:review.cloud,classifiedCaptures:review.classifiedCaptures,deliveries:review.deliveries,
   ownerSnapshotDigest:review.owner.snapshotDigest,ownerMetadataDigest:review.owner.metadataDigest};}
 function validateInitialEvidencePlan(plan,binding) {
@@ -25,6 +31,7 @@ function validateInitialEvidencePlan(plan,binding) {
   assert.equal(plan.scope.environment,"develop");assert.equal(plan.scope.expectedWorkbookFileId,FILE);
   assert.deepEqual(plan.ownerIntent,plannedOwner(plan.ownerIntent));assert.deepEqual(plan.administratorIntent,plannedAdmin(plan.administratorIntent));
   assert.deepEqual(plan.historicalRisk,plannedRisk(plan.historicalRisk));
+  assertHistoricalRiskChronology(plan.historicalRisk);
   assert.equal(plan.ownerIntent.workbookFileId,FILE);assert.equal(plan.ownerIntent.permissionControl.principalId,plan.ownerIntent.ownerPrincipalId);
   assert.equal(plan.ownerIntent.permissionControl.actionKind,"acl-protection-only");
   assert.match(plan.observationInputsDigest,/^shift-planning:v1:sha256:[a-f0-9]{64}$/);
@@ -85,4 +92,4 @@ function verifyInitialEvidenceSeal(seal,binding,receiptId,nativeReviewDigest,atM
   verify(body.review.evidence,command(body.scope),atMillis);
   return structuredClone(seal);
 }
-module.exports={validateInitialEvidencePlan,verifyPermissionReceipt,sealInitialEvidence,verifyInitialEvidenceSeal,plannedScope,plannedOwner,plannedAdmin,plannedRisk,observationInputs};
+module.exports={assertHistoricalRiskChronology,validateInitialEvidencePlan,verifyPermissionReceipt,sealInitialEvidence,verifyInitialEvidenceSeal,plannedScope,plannedOwner,plannedAdmin,plannedRisk,observationInputs};

@@ -98,6 +98,7 @@ test("the same slow replies still reject under the unchanged default ten-minute 
 for(const fault of ["cloud","census","source","sheets","confirmation","old-confirmation","withdrawn","stale-report","short-wait"])
 test(`initial collector rejects ${fault} without manufacturing a usable envelope`,async()=>{
   const f=await fixture({fault});await assert.rejects(f.make()(f.context));assert.equal(f.state.records.at(-1).result,"rejected");assert.equal(f.g.state.mints,0);assert.equal(f.g.batch.sheets.mutations.length,0);
+  if(fault==="withdrawn")assert.deepEqual(f.state.records.at(-1).diagnostic,{checkpoint:"post-final-seal",kind:"error"});
 });
 for(const [name,options]of [["slow confirmations",{confirmationDelay:60000}],["slow source",{sourceDelay:80000}],["late grant",{grantDelay:145000}]])
 test(`collection reserves post-processing headroom despite ${name}`,async()=>{
@@ -123,6 +124,41 @@ test("a failed parallel cloud read still joins all pending provider calls before
 test("cancellation during the quiet interval rejects without final reads or resealing",async()=>{
   const f=await fixture();f.args.sleep=async ms=>{f.g.state.now+=ms;f.state.aborted=true;};await assert.rejects(f.make()(f.context));
   assert.equal(f.state.sources,1);assert.equal(f.state.captures,1);assert.equal(f.state.records.at(-1).result,"rejected");
+});
+
+test("post-observation failure retains its sanitized checkpoint without recording the exception or observations",async()=>{
+  const f=await fixture(),original=f.args.readHumanReports,secret="Bearer synthetic-secret user@example.test",error=new Error(secret);
+  f.args.readHumanReports=async request=>{
+    const reports=await original(request);
+    Object.defineProperty(reports,"ownerObservation",{get(){throw error;}});
+    return reports;
+  };
+  await assert.rejects(f.make()(f.context),caught=>caught===error);
+  const report=f.state.records.at(-1);
+  assert.equal(report.result,"rejected");assert.equal(report.providerCallsSettled,true);
+  assert.deepEqual(report.diagnostic,{checkpoint:"post-final-human-reports",kind:"error"});
+  assert.equal(report.stages.at(-1).name,"final-observations");assert.equal(report.stages.at(-1).succeeded,true);
+  assert.equal(f.state.records.some(v=>v.phase==="initial-review-collection-observations"),false);
+  assert.equal(JSON.stringify(f.state.records).includes(secret),false);
+  assert.equal(f.state.authority,2);assert.equal(f.state.sources,2);assert.equal(f.state.captures,2);
+  assert.equal(f.g.state.mints,0);assert.equal(f.g.batch.sheets.mutations.length,0);
+});
+
+test("a failed failure-record preserves the original collection error",async()=>{
+  const f=await fixture(),original=f.args.readHumanReports,error=new Error("original synthetic collection failure"),record=f.context.record;
+  f.args.readHumanReports=async request=>{
+    const reports=await original(request);
+    Object.defineProperty(reports,"ownerObservation",{get(){throw error;}});
+    return reports;
+  };
+  let finishAttempted=false;
+  f.context.record=async value=>{
+    if(value.phase==="initial-review-collection-finished"){finishAttempted=true;throw Error("synthetic journal failure");}
+    return record(value);
+  };
+  await assert.rejects(f.make()(f.context),caught=>caught===error);
+  assert.equal(finishAttempted,true);assert.equal(f.state.sources,2);assert.equal(f.state.captures,2);assert.equal(f.state.authority,2);
+  assert.equal(f.state.records.some(v=>v.phase==="initial-review-collection-observations"),false);
 });
 module.exports={fixture};
 
