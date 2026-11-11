@@ -479,11 +479,28 @@ Preparation 06 was delivered in `29ea717c`. The authorized attempt closed at the
 post-permission owner-confirmation deadline; cleanup was fully automatic and
 verified, with unchanged sources, no writer token/barrier/migration and no locks.
 All 31 records remain intact. The reply received after closure is separate and
-not accepted as consent. Next display response deadlines explicitly, refresh
-affected package/authority observations and review before another authorization.
+not accepted as consent. The subsequent preparation below records the refreshed
+observations and separate authorization for attempt 07.
 [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-06-cerrado-al-vencer-la-confirmación--2026-11-11).
 Issue #268 remains open and PR #278 draft; this checkpoint does not admit migration
 or live coverage activation.
+
+## Develop attempt 07 preparation — 2026-11-11
+
+Refreshed version 295 preserves the reviewed workbook image and the new package
+`7ef0b3f0…d1041c3` retains 203 planned Firestore writes, 53 cells and two
+markers. Read-only admission has one transaction, zero writes and the missing
+window as its sole blocker. Independent review and 28 local tests cover the
+preparation, separate response/commitment deadlines and the owner read-session
+lifetime guard. The user authorized the attempt and confirmed the window, but
+our operator construction omitted the owner session ID and failed before startup.
+OAuth was revoked and the same token denied on both APIs. Independent postflight
+confirmed the exact source unchanged, writer disabled and isolated, zero keys or
+bindings, and no local journal or locks. No permissions, writer token, maintenance
+or migration started. A complete-input preflight passed three local tests, including
+construction of the exact 07 operator in a synthetic copy with stub providers.
+Use the same validated inputs before dating another window and obtain new authorization.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#preparación-del-intento-07--2026-11-11).
 
 ## Live activation gate
 

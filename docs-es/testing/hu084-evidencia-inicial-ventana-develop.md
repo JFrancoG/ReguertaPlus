@@ -869,3 +869,52 @@ real con la vigilancia corregida, no una migración en vivo. Se reutilizan las
 para este registro documental. Producción y las apps no cambian. Otro intento
 requiere actualizar las observaciones afectadas por permisos, revisar el paquete
 y recibir autorización y confirmaciones nuevas; esta respuesta tardía no las suple.
+
+## Preparación del intento 07 — 2026-11-11
+
+Tras el cierre del intento 06, publicado en `6c97de0e`, se renovaron las
+observaciones de Develop. La hoja está en la versión 295 y conserva la imagen
+completa, las fechas y el orden revisados. El paquete `7ef0b3f0…d1041c3`,
+preparado `21bd0830…a1ef64aa` y operación `request-hu084-initial-0d45873f91ccf634adc1`
+conservan 203 escrituras previstas en Firestore, 53 celdas y dos marcadores.
+La admisión exacta efectuó una transacción de solo lectura y ninguna escritura;
+su único impedimento registrado es la ausencia de una ventana concreta.
+
+La revisión independiente comprobó los 17 archivos del paquete, la equivalencia
+del contenido y las fuentes, y el rechazo del operador antes de acceder a
+proveedores cuando faltan las confirmaciones. Pasaron 28 pruebas locales: 11 del
+coordinador, una de conexión, siete de integridad de fuentes, tres de formularios,
+dos de presentación de plazos y cuatro del fechado en copias temporales. No
+son una prueba de migración real. El nuevo control rechaza fechar la ventana si
+la sesión de lectura del propietario no cubre, de forma conservadora, los 20
+minutos completos. Cada pregunta debe mostrar por separado el límite para
+responder y la hora hasta la que se mantiene el compromiso, en hora de Madrid.
+
+El usuario autorizó un único intento y confirmó la ventana. El fechador registró
+el intervalo a partir de las 20:29:06 UTC, pero la composición del operador falló
+antes de arrancarlo: nuestra llamada omitió `ownerCredential.sessionId`. Es un
+fallo de preparación del operador, no de la respuesta del usuario. No se creó ni
+arrancó el operador y la ventana no comenzó operativamente. No se concedieron
+permisos, emitió token del escritor, abrió mantenimiento ni ejecutó migración; no
+se hizo otro intento. La sesión de lectura OAuth se revocó con respuesta 200 y el
+mismo token fue rechazado con 401 en Drive y Sheets. La comprobación independiente posterior confirmó que la fuente coincide con el
+paquete 07, el escritor sigue deshabilitado y aislado, sin claves de usuario ni
+bindings IAM: diez lecturas y una transacción de solo lectura, sin escrituras.
+No existe diario del 07 ni bloqueo local de ejecución o recuperación. La pestaña
+OAuth se cerró, el SDK terminó y se descartaron las referencias al token. La
+ventana se liberó y el usuario puede volver a abrir la hoja. Antes de fechar otra
+ventana hay que validar el descriptor completo y obtener una nueva autorización.
+
+Se ha preparado una validación local previa al fechado que exige el descriptor
+completo del propietario, duración suficiente de su sesión, acceso IAM, identidad
+del SDK y los cuatro controles de la pestaña. Tres pruebas Node 22 pasaron: la
+omisión del identificador se rechaza antes del fechador y de los proveedores; el
+caso completo construye el operador 07 exacto en una copia con ventana y
+confirmaciones simuladas y proveedores dobles. No es una ejecución real. Queda
+pendiente incorporar esa misma entrada validada al próximo arranque y obtener una
+nueva autorización; el expediente consumido del 07 no se modifica.
+
+La respuesta tardía del 06 no se reutiliza. Evidencia privada:
+`2026-11-11-interactive07-refresh`, `2026-11-11-interactive07-owner-refresh`,
+`2026-11-11-interactive07-preparation`, `2026-11-11-interactive07-live` y
+`2026-11-11-postflight07-202959` y `2026-11-11-operator-input-preflight`.

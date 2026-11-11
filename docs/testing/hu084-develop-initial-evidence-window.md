@@ -832,3 +832,49 @@ unchanged code; native/Functions gates are not repeated for this documentation
 record. Production and both apps are unchanged. Another attempt needs renewed
 permission-affected observations, package review, authorization and actual new
 confirmations; the late reply supplies none of those.
+
+## Attempt 07 preparation — 2026-11-11
+
+After attempt 06 was closed and recorded in `6c97de0e`, Develop observations
+were renewed. The workbook is at version 295 with the complete reviewed image,
+dates and order preserved. Package `7ef0b3f0…d1041c3`, prepared state
+`21bd0830…a1ef64aa` and operation `request-hu084-initial-0d45873f91ccf634adc1`
+retain 203 planned Firestore writes, 53 cells and two markers. Exact admission
+used one read-only transaction and no writes; its only recorded blocker is the
+missing concrete window.
+
+Independent review checked the 17 package files, content and source equivalence,
+and rejection before provider access when confirmations are missing. Twenty-eight
+local tests passed: 11 coordinator, one wiring, seven source guard, three form,
+two deadline display and four temporary-copy dating tests. These do not prove a
+live migration. The new guard refuses to date a window unless the owner's read
+session conservatively covers the full 20 minutes. Each question must separately
+show the reply deadline and the commitment end, in Madrid time.
+
+The user authorized one attempt and confirmed the window. The dater recorded an
+interval beginning at 20:29:06 UTC, but operator construction failed before it
+could start because our call omitted `ownerCredential.sessionId`. This is an
+operator-composition failure, not a user-response failure. The operator was not
+created or started, and the window did not begin operationally. No permissions,
+writer token, maintenance or migration were initiated; no retry was made. The
+owner read OAuth session was revoked with status 200 and the same token received
+401 on Drive and Sheets. Independent postflight confirmed the source still matches package 07 and the
+writer remains disabled and isolated, with zero user-managed keys or IAM bindings:
+ten reads and one read-only transaction, with no writes. There is no attempt-07
+journal or local execution or recovery lock. The OAuth tab was closed, the SDK
+terminated and token references cleared. The window was released and the user
+may reopen the workbook. Validate the complete descriptor before dating a new
+window, and obtain a new authorization.
+
+A local pre-dating validation now requires the complete owner descriptor,
+sufficient session lifetime, IAM access, SDK identity and the four tab controls.
+Three Node 22 tests passed: a missing session ID is rejected before the dater or
+providers; the complete case constructs the exact 07 operator in a copy using a
+synthetic window and confirmations with stub providers. This is not a real run.
+The next startup must use those same validated inputs and receive a new
+authorization; the consumed 07 record is unchanged.
+
+The late reply from 06 is not reused. Private evidence:
+`2026-11-11-interactive07-refresh`, `2026-11-11-interactive07-owner-refresh`,
+`2026-11-11-interactive07-preparation`, `2026-11-11-interactive07-live` and
+`2026-11-11-postflight07-202959` and `2026-11-11-operator-input-preflight`.

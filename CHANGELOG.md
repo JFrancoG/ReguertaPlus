@@ -70,6 +70,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-11-11 | 📝 docs(shifts): record develop startup failure and input preflight
+
 - 2026-11-11 | 📝 docs(shifts): record develop confirmation timeout
 
 - 2026-11-11 | 📝 docs(shifts): bind corrected develop coordinator
