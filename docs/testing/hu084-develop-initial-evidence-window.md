@@ -792,3 +792,43 @@ Private evidence: `2026-11-11-package-coordinator-refresh-184922`,
 and `2026-11-11-interactive06-wiring-tests`. Native/Functions gates are reused
 because their code and contracts are unchanged; new checks are the local ones
 stated above. New preparation remains local after the published commit above.
+
+## Attempt 06 closed at the confirmation deadline — 2026-11-11
+
+Preparation was published in `29ea717c`. The authorized single attempt started
+at 19:50:36 UTC, with a maximum end of 20:10:36. The grant was verified and a
+post-permission owner confirmation requested. Collection ended without a
+recorded reply two milliseconds after its 20:03:06 UTC deadline. That ordering
+matches the response timer; the journal retains no exception text. The controller
+remained attended throughout the wait.
+
+The 20:03:35 UTC terminal retains `inspection-required` and cleanup without
+failures: one verified native removal, IAM removed, writer disabled and OAuth
+revoked with status 200 and same-token 401 on Drive and Sheets. No native action
+is in flight; there are no budget breaches, pending files or local locks. All 31
+records remain intact, ending in the terminal. No writer token, barrier
+acquisition, Sheets batch or migration occurred. Independent postflight confirms
+the exact source unchanged, writer disabled, zero user-managed keys/IAM bindings
+and isolation. Share again shows the owner and four readers.
+
+The reply “Sí, todo sigue vigente” arrived after the terminal and is retained
+separately from the journal, without accepting consent or resuming the operation.
+The question stated a commitment until 21:10:36 Madrid but omitted its 21:03:06
+reply deadline. Future prompts must distinguish **reply before** from **keep the
+commitment until**, using both actual challenge times. The human window was
+released after verified closure; the single authorization is consumed.
+
+Required challenge wording: “**Reply before [Madrid time from `deadlineMillis`]**.
+Keep the commitment until [Madrid window-end time].” Apply a reply only if
+`status().pending` retains the same digest and its deadline is current. Store a
+post-terminal reply separately; never call `answerAndAttend` to reopen a closed
+question.
+
+Private evidence: journal `develop-original-20261111-interactive-06`,
+`2026-11-11-interactive06-live`, `2026-11-11-postflight06-200456` and
+`2026-11-11-interactive06-result`. This verifies real automatic closure with the
+corrected supervision, not a live migration. The 25 local checks are reused for
+unchanged code; native/Functions gates are not repeated for this documentation
+record. Production and both apps are unchanged. Another attempt needs renewed
+permission-affected observations, package review, authorization and actual new
+confirmations; the late reply supplies none of those.

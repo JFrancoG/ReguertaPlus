@@ -827,3 +827,45 @@ Evidencia privada: `2026-11-11-package-coordinator-refresh-184922`,
 y `2026-11-11-interactive06-wiring-tests`. Se reutilizan los gates nativos/Functions
 por no cambiar su código ni contratos; las comprobaciones nuevas son las locales
 indicadas. La preparación nueva queda local, posterior al commit citado arriba.
+
+## Intento 06 cerrado al vencer la confirmación — 2026-11-11
+
+La preparación se publicó en `29ea717c`. El intento único autorizado comenzó a
+las 19:50:36 UTC, con máximo hasta las 20:10:36. La concesión quedó verificada y
+se pidió la confirmación posterior del propietario. La recogida terminó sin
+respuesta registrada dos milisegundos después del plazo de las 20:03:06 UTC.
+Ese orden coincide con el temporizador de respuesta; el diario no conserva el
+texto de la excepción. El controlador se mantuvo atendido durante la espera.
+
+El terminal de las 20:03:35 UTC conserva `inspection-required` y limpieza sin
+fallos: una retirada nativa verificada, IAM retirado, escritor deshabilitado y
+OAuth revocado con respuesta 200 y 401 del mismo token en Drive y Sheets. No hay
+acciones en vuelo, incumplimientos de presupuesto, archivos pendientes ni
+bloqueos locales. Los 31 registros permanecen intactos, con terminal al final.
+No hubo emisión del token del escritor, adquisición de barrera, lote de Sheets
+ni migración; el postflight independiente confirma la fuente exacta sin cambios,
+escritor deshabilitado, cero claves de usuario/bindings IAM y aislamiento.
+Compartir vuelve a mostrar al propietario y cuatro lectores.
+
+La respuesta «Sí, todo sigue vigente» llegó después del terminal y se conserva
+separada del diario, sin aceptarla como consentimiento ni reanudar la operación.
+La pregunta indicaba el compromiso hasta las 21:10:36 de Madrid, pero omitía en
+su propio texto el límite de respuesta de las 21:03:06. Las futuras peticiones
+deben indicar claramente **responder antes de** y **mantener el compromiso hasta**,
+con las dos horas obtenidas del desafío real. La ventana humana se liberó tras
+verificar el cierre; la autorización única está consumida.
+
+Formato obligatorio al presentar cada desafío: «**Responde antes de [hora Madrid
+de `deadlineMillis`]**. Mantén el compromiso hasta [hora Madrid de fin de ventana]».
+La respuesta se aplica solo si `status().pending` conserva el mismo digest y sigue
+dentro del plazo. Una respuesta posterior al terminal se guarda aparte; nunca se
+llama a `answerAndAttend` para reabrir una pregunta cerrada.
+
+Evidencia privada: diario `develop-original-20261111-interactive-06`,
+`2026-11-11-interactive06-live`, `2026-11-11-postflight06-200456` y
+`2026-11-11-interactive06-result`. Este resultado comprueba el cierre automático
+real con la vigilancia corregida, no una migración en vivo. Se reutilizan las
+25 pruebas locales del código sin cambios; no se repiten gates nativos/Functions
+para este registro documental. Producción y las apps no cambian. Otro intento
+requiere actualizar las observaciones afectadas por permisos, revisar el paquete
+y recibir autorización y confirmaciones nuevas; esta respuesta tardía no las suple.
