@@ -653,4 +653,27 @@ debe observarse hasta un estado asentado incluso si vence su plazo; el error de
 plazo se conserva y bloquea el avance. Si la concesión queda incierta, la sesión
 no convierte una lectura de ACL ausente en prueba de cierre, también al recuperar.
 Pasan 19 pruebas del canal y 25 de sesión con Node 22, lint/build de Functions y
-lint CJS. La corrección sigue local, sin commit ni nueva prueba en Google.
+lint CJS. La corrección se publicó después en `fcdab63e`; el ensayo real posterior
+se recoge a continuación.
+
+## Concesión y retirada con el escritor deshabilitado — 2026-11-11
+
+El ensayo exclusivo autorizado pasó con el adaptador de `fcdab63e`: una concesión
+y una retirada completas, con verificación independiente de ACL, sin resultado
+incierto ni fallo de limpieza. Entre 17:02:17 y 17:02:45 UTC se comprobaron la cuenta
+deshabilitada, cero claves de usuario y cero bindings IAM antes/después de ambas acciones.
+No se activó el escritor ni se emitió su token; el ejecutor del ensayo excluye
+mutaciones IAM, llamadas a Sheets, Firestore y migración.
+
+La sesión del propietario solicitó únicamente `drive.metadata.readonly`, Online
+sin renovación. Se revocó con respuesta 200 y el mismo token devolvió 401 en Drive.
+El diálogo reabierto mostró al propietario y cuatro lectores, sin el escritor.
+Evidencia privada: `2026-11-11-native-disabled-writer-rehearsal`, diez registros de
+fase, resultado, revisión ligada al SHA actual, cierre OAuth y captura final.
+Los cuatro casos locales del helper validan sus guardas, no sustituyen el ensayo
+real ni prueban una migración completa.
+
+Queda validado el ciclo nativo que había fallado. Otro intento de migración
+requiere regenerar la revisión con el código publicado, renovar las observaciones
+afectadas por los cambios de permisos y obtener su propia autorización/ventana.
+Este ensayo no abre mantenimiento ni autoriza esa ejecución.

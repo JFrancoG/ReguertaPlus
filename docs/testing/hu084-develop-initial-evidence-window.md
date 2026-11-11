@@ -624,5 +624,27 @@ dispatched action is observed until a settled state even if its deadline expires
 the deadline error is retained and prevents progress. If grant outcome remains
 uncertain, the session cannot promote an absent ACL read to closure proof,
 including on recovery. Nineteen channel and 25 session tests pass with Node 22,
-along with Functions lint/build and scoped CJS lint. The correction remains local,
-uncommitted and untested with Google.
+along with Functions lint/build and scoped CJS lint. The correction was published
+afterward as `fcdab63e`; the subsequent real rehearsal follows below.
+
+## Grant and removal with the writer disabled — 2026-11-11
+
+The authorized permission-only rehearsal passed with the `fcdab63e` adapter:
+one complete grant/removal, independent ACL verification, no uncertain outcome
+and no cleanup failure. From 17:02:17 to 17:02:45 UTC it verified the account
+disabled with zero user-managed keys and IAM bindings before/after both actions.
+The writer was not enabled and no writer token was issued; the rehearsal excludes IAM
+mutations, Sheets calls, Firestore and migration.
+
+The owner session requested only `drive.metadata.readonly`, Online without
+refresh. Revocation returned 200 and the same token returned 401 on Drive. The
+reopened dialog showed the owner and four readers without the writer. Private
+evidence: `2026-11-11-native-disabled-writer-rehearsal`, ten phase records, result,
+current-source-bound review, OAuth closure and final screenshot. Four local
+helper cases validate its guards; they do not replace the real rehearsal or
+prove a complete migration.
+
+The previously failing native cycle is now verified. Another migration attempt
+requires review regeneration against the published code, renewed observations
+affected by permission changes and its own authorization/window. This rehearsal
+does not open maintenance or authorize that execution.

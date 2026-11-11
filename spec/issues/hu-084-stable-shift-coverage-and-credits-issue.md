@@ -1,5 +1,15 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Disabled-writer permission cycle passed — 2026-11-11
+
+Published correction `fcdab63e` passed one real native grant/removal with
+independent ACL checks and the writer disabled throughout, zero keys/IAM
+bindings, no writer token, Sheets calls or migration. Owner metadata OAuth was
+revoked (200, then same-token Drive 401), and the final dialog retains the owner
+and four readers without the writer. [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#concesión-y-retirada-con-el-escritor-deshabilitado--2026-11-11).
+Next refresh affected observations/reviews before requesting a new migration
+window. Issue #268 and draft PR #278 remain open.
+
 ## Attempt 04 contained after native grant — 2026-11-11
 
 The authorized single attempt granted temporary editor access but stopped in the
