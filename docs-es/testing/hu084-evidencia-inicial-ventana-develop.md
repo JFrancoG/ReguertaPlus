@@ -779,3 +779,51 @@ enlaces afectados por los cambios de permisos. Producción y las apps no cambiar
 Se reutilizan los gates de Functions y nativos: el repositorio solo cambia
 documentación en este bloque; las comprobaciones del coordinador privado son las
 indicadas arriba.
+
+## Paquete actualizado y coordinador conectado — 2026-11-11
+
+El cierre del intento 05 y su corrección local se publicaron en `5df19c52`.
+La nueva preparación renueva Cloud/IAM/índices y el censo atómico de develop:
+payloads y versiones de servicio coinciden con la fuente anterior. La captura
+directa de la hoja y su carpeta observa la versión real **293**, propietario y
+cuatro lectores. Las dos imágenes completas de las seis pestañas conservan
+`2682cfb7…81b3`. OAuth Online sin renovación se revocó con respuesta 200; tras dos
+sondas Drive401/Sheets200, el mismo token devuelve 401 en ambos a las 18:55:13 UTC.
+
+El paquete `e97cf026…22377d1`, preparación `10cc98e4…e3ed760` y operación
+`request-hu084-initial-1215bc534e8eba0f9007` fijan esas observaciones. Los 17 pins,
+las 203/140 escrituras previstas y las 53 peticiones de celdas más dos marcadores
+validan; las peticiones de celdas son idénticas y no se escribe configuración.
+La inspección exacta de Firestore usa una transacción de lectura y cero escrituras;
+la fuente coincide y queda solo `window_scope_missing`.
+
+El operador privado 06 conecta el intercambio humano, la cola nativa y el driver
+corregidos al ejecutor existente. Sus puertos de inspección, limpieza y recuperación
+cierran la pregunta antes de actuar, incluso cuando la apertura devuelve
+`setupFailed`. El registro de sesión invalida la pregunta antes de añadir un
+rechazo de recogida. La vigilancia atiende retiradas, cancela concesiones atrasadas
+y mantiene inspección pendiente si hay una acción nativa en curso. No hay callbacks
+de herramientas en la continuación asíncrona. Conserva la guarda de 337 fuentes y
+siete pruebas históricas, y fija también las huellas de los tres módulos nuevos.
+
+Pasan **22 pruebas del operador y tres independientes**, con Node 22, más construcción
+sintética y lint focalizado. Incluyen el `runControlledWindow` real con puertos
+simulados, fallo de barrera, apertura `setupFailed`, respuesta tardía sin escritura,
+retirada atendida una vez y negativa del operador sin acceder al proveedor cuando
+falta autorización. Los cinco diarios anteriores y sus recuperaciones conservan
+sus huellas. Esto valida la conexión local; no acredita un ciclo real de servicios.
+
+El recibo `develop-original-20261111-interactive-06` deja autorización false,
+ventana null y confirmaciones vacías. El máximo propuesto sigue en veinte minutos
+y un token de 300 segundos. Antes de ejecutar hacen falta autorización nueva,
+observaciones vigentes y confirmaciones reales; la vigilancia debe permanecer
+atendida en las llamadas CUA y una interrupción no acredita limpieza.
+El escritor sigue deshabilitado, sin concesiones nuevas de edición ni IAM.
+No se abre mantenimiento ni se ejecutan migración, despliegues o FCM.
+Producción y ambas apps no cambian.
+
+Evidencia privada: `2026-11-11-package-coordinator-refresh-184922`,
+`2026-11-11-interactive06-owner-refresh`, `2026-11-11-interactive06-preparation`
+y `2026-11-11-interactive06-wiring-tests`. Se reutilizan los gates nativos/Functions
+por no cambiar su código ni contratos; las comprobaciones nuevas son las locales
+indicadas. La preparación nueva queda local, posterior al commit citado arriba.

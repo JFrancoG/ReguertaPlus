@@ -469,16 +469,18 @@ assembly, so issue creation is traceability, not approval.
 - Plan: `spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md`
 - Tasks: `spec/shifts/hu-084-stable-shift-coverage-and-credits/tasks.md`
 
-## Develop attempt 05 — 2026-11-11
+## Develop preparation 06 — 2026-11-11
 
 Attempt 05 was authorized and consumed. The editor grant verified, but collection
 rejected during administrator confirmation; no writer token, barrier or migration
 started. Manual file removal and independent IAM/OAuth/source checks verified
 cleanup. The original terminal and late human reply remain separate from recovery.
-The local correction passes twelve tests and the inter-invocation human-exchange
-probe. Next bind it to refreshed package/source evidence and verify the actual
-invocation before requesting another attempt.
-[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-05-detenido-durante-las-confirmaciones--2026-11-11).
+After delivered `5df19c52`, new local preparation binds actual workbook version 293
+and unchanged content to package `e97cf026…22377d1` and the corrected coordinator.
+Twenty-five local tests pass; exact read-only source inspection has only
+`window_scope_missing`. Authorization, window and confirmations remain empty.
+Next obtain a new single-attempt authorization and actual window with fresh
+runtime observations. [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#paquete-actualizado-y-coordinador-conectado--2026-11-11).
 Issue #268 remains open and PR #278 draft; this checkpoint does not admit migration
 or live coverage activation.
 

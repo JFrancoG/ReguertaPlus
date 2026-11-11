@@ -745,3 +745,50 @@ attempt requires review of the corrected coordinator and renewal of bindings
 affected by permission changes. Production and both apps are unchanged.
 Functions and native gates are reused: this block changes repository documentation
 only; the private coordinator checks are those stated above.
+
+## Refreshed package and connected coordinator — 2026-11-11
+
+Attempt-05 closure and its local correction were published in `5df19c52`. New
+preparation refreshes Cloud/IAM/indexes and the atomic develop census: payloads
+and service versions match the preceding source. Direct workbook/parent reads
+observe actual version **293**, owner and four readers. Two complete images of
+all six tabs retain `2682cfb7…81b3`. Online OAuth without refresh was revoked with
+status 200; after two Drive401/Sheets200 probes, the same token returns 401 on
+both at 18:55:13 UTC.
+
+Package `e97cf026…22377d1`, preparation `10cc98e4…e3ed760` and operation
+`request-hu084-initial-1215bc534e8eba0f9007` pin these observations. All 17 pins,
+the planned 203/140 writes and 53 cell requests plus two markers validate; cell
+requests are identical and configuration is not written. Exact Firestore inspection
+uses one read-only transaction and zero writes; the source matches and only
+`window_scope_missing` remains.
+
+Private operator 06 connects corrected human exchange, native queue and driver
+to the existing executor. Its inspection, cleanup and recovery ports close the
+question before acting, including when opening returns `setupFailed`. Session
+recording invalidates the question before appending rejected collection. Supervision
+attends removal, cancels late grants and keeps inspection required for native
+actions still in flight. Asynchronous continuations contain no tool callbacks.
+It retains the 337-source/seven-evidence guard and also pins the three new modules.
+
+**Twenty-two operator tests and three independent tests** pass with Node 22,
+alongside synthetic construction and focused lint. They exercise the real
+`runControlledWindow` with simulated ports, barrier failure, `setupFailed` opening,
+late replies without writes, one attended removal and operator rejection before
+provider access when authorization is missing. Five prior journals and their
+recoveries retain their hashes. This verifies local connection, not a real
+multi-service cycle.
+
+Receipt `develop-original-20261111-interactive-06` leaves authorization false,
+window null and confirmations empty. The proposal still allows twenty minutes
+and one 300-second token. Execution needs new authorization, current observations
+and actual confirmations; supervision must remain attended in CUA calls and an
+interruption is not cleanup proof. This block enables no writer, grants no
+editor/IAM access, opens no maintenance, migrates nothing, deploys nothing and
+sends no FCM. Production and both apps are unchanged.
+
+Private evidence: `2026-11-11-package-coordinator-refresh-184922`,
+`2026-11-11-interactive06-owner-refresh`, `2026-11-11-interactive06-preparation`
+and `2026-11-11-interactive06-wiring-tests`. Native/Functions gates are reused
+because their code and contracts are unchanged; new checks are the local ones
+stated above. New preparation remains local after the published commit above.
