@@ -1,5 +1,18 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Develop form and read-only refresh — 2026-11-11
+
+Delivered adapter correction `caefdcf7` passes 12 tests plus Functions lint/build
+under Node 22. The real form was then exercised with submission blocked and
+cancelled, leaving the owner and four readers visible without the writer. This
+does not validate effective ACL changes or admit migration. Cloud controls,
+writer isolation and indexes match the retained review. The old packet's config
+differs only in the minimum iOS version. A new atomic capture preserves this
+setting; the candidate retains turn content and passes read-only source admission.
+Renew workbook/parent observations before preparing a new
+authorized window. See the [window evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
+Issue #268 stays open and PR #278 stays draft.
+
 ## Documentation and product rehearsal checkpoint — 2026-11-05
 
 The [remaining-work plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-04) is the current next-step index. Repeated historical evidence now links to its retained plan sections. The [4 November iOS rehearsal](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-product-rehearsal--2026-11-04) records market acceptance, delivery completion, an earned credit and its single use in a private local planning unit, followed by the tester seeing «Crédito utilizado».

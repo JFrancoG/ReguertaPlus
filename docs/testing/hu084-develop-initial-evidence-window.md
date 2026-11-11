@@ -529,3 +529,45 @@ recipient confirmation or permission submission. Twelve adapter tests, Functions
 lint and build pass. The delayed form is simulated: the fix has not yet been tried
 with Google and does not establish the exact cause. A further attempt needs a new
 channel source review, refreshed observations and explicit authorization.
+
+## Real form verified without submission — 2026-11-11
+
+With fix `caefdcf7`, the same adapter recognized the recipient, Editor role and
+notification checkbox in Google's real form. It reached the pre-share boundary
+at 16:09:59 UTC; the rehearsal explicitly blocked submission and cancelled the
+invitation. The list again showed the owner and four readers, without the writer.
+No editor access was granted and maintenance was not opened.
+
+The rehearsal used synthetic metadata to pass the adapter's local checks, with
+the real UI and two independent submission guards. It validates form recognition,
+not effective permission grant/removal or migration admission. Private evidence
+`2026-11-11-native-form-unsent` retains nine AX reads, the result, the post-cancel
+screenshot and the new channel review bound to source SHA-256 `8f8e48ae…9e3cb`.
+The consumed 2 November attempt remains unchanged.
+
+All 17 pinned files remain intact and reproduce review package
+`7201f1cf…f257715` and materialization `373ee000…faced`: 203 Firestore writes,
+53 cells and two markers. The next attempt still needs fresh authority, source
+and workbook/parent reads and a new authorization/window; the form result does
+not replace them.
+
+The real read-only refresh (`2026-11-11-readonly-refresh`) verifies Cloud controls,
+six indexes and the disabled, isolated writer with no keys or temporary bindings.
+The old packet is rejected because only `versions.ios.min` changed in
+`config/global` and `config/public`; `config/member` retains its image. A fresh
+atomic census confirms the other reviewed sources are identical. Neither
+migration direction writes config.
+
+Private candidate `41d3109d…05fd`, preparation `1175a90e…bbea`, retains identical
+public intents, legacy images and 53 cells with 203/140 forward/inverse writes.
+It renews provenance, operation, archive and marker bindings; physical audit paths
+are not byte-identical. It does not reuse the previous attempt's authorization. Historical
+Drive/Sheets observations remain explicitly historical and this candidate is
+**not executable**: fresh direct observations, window manifests/controls and new
+authorization are still required. The current connector still omits the complete
+version/permissions; its partial metadata response does not verify them.
+
+A real read-only transaction with this candidate verifies the source and returns
+only `window_scope_missing`, with zero writes and no maintenance entry. This
+partial admission does not prove the pending Google observations or allow
+candidate execution.

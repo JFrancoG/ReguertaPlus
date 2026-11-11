@@ -68,6 +68,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-11-11 | 📝 docs(shifts): record real sharing form rehearsal
+
 - 2026-11-05 | 📝 docs(shifts): streamline plan and record iOS rehearsal
 
 - 2026-11-02 | 📝 docs(shifts): record foreground launch containment

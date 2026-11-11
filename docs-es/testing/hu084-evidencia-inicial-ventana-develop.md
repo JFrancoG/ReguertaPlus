@@ -554,3 +554,47 @@ del adaptador, el lint y el build de Functions pasan. El formulario demorado es 
 simulación: la corrección todavía no se ha ensayado en Google y no demuestra la
 causa exacta. Para otro intento hay que revisar de nuevo la huella del canal,
 renovar las observaciones y obtener una autorización concreta.
+
+## Formulario real verificado sin envío — 2026-11-11
+
+Con la corrección `caefdcf7`, el mismo adaptador reconoció el destinatario, el rol
+Editor y la casilla de notificación en el formulario real de Google. Llegó al
+punto anterior a compartir a las 16:09:59 UTC; el ensayo bloqueó expresamente el
+envío y canceló la invitación. La lista volvió a mostrar al propietario y cuatro
+lectores, sin el escritor. No se concedió edición ni se abrió mantenimiento.
+
+El ensayo usó metadatos sintéticos para atravesar los controles locales del
+adaptador, con la interfaz real y dos bloqueos independientes del envío. Valida
+el reconocimiento del formulario, no la concesión/retirada efectiva de permisos
+ni la admisión de migración. La evidencia privada `2026-11-11-native-form-unsent`
+conserva nueve lecturas AX, el resultado, la captura tras cancelar y la nueva
+revisión del canal ligada a su SHA-256 `8f8e48ae…9e3cb`. No se modifica el
+expediente consumido del 2 de noviembre.
+
+Los 17 archivos fijados siguen íntegros y se reproducen exactamente el paquete
+`7201f1cf…f257715` y su materialización `373ee000…faced`: 203 escrituras Firestore,
+53 celdas y dos marcadores. Para el siguiente intento hay que renovar las lecturas
+de autoridad, fuentes y hoja/carpeta y preparar autorización/ventana nuevas; el
+resultado del formulario no sustituye esas lecturas.
+
+La renovación real de solo lectura (`2026-11-11-readonly-refresh`) verifica los
+controles de Cloud, los seis índices y el escritor deshabilitado, sin claves ni
+bindings temporales y aislado. El paquete antiguo se rechaza porque cambió solo
+`versions.ios.min` en `config/global` y `config/public`; `config/member` conserva
+su imagen. Un nuevo censo atómico confirma que las demás fuentes revisadas siguen
+idénticas. La configuración no se escribe en ninguna dirección de la migración.
+
+El candidato privado `41d3109d…05fd`, preparación `1175a90e…bbea`, conserva las
+intenciones públicas, imágenes antiguas y 53 celdas idénticas, con 203/140
+escrituras forward/inverse. Renueva los enlaces de procedencia, operación,
+archivos y marcadores; sus rutas físicas de auditoría no son byte-idénticas.
+No reutiliza la autorización del intento anterior. Mantiene las observaciones históricas de
+Drive/Sheets identificadas como tales y **no es ejecutable**: faltan su renovación
+directa, manifiestos/controles de la ventana y autorización nueva. El conector
+actual sigue omitiendo versión/permisos completos; no se consideran verificados
+por el resultado parcial de metadatos.
+
+Una transacción real de solo lectura con ese candidato verifica la fuente y
+devuelve únicamente `window_scope_missing`, con cero escrituras y sin abrir
+mantenimiento. Esta admisión parcial no acredita las observaciones de Google
+pendientes ni permite ejecutar el candidato.
