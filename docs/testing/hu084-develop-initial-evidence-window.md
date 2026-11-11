@@ -878,3 +878,42 @@ The late reply from 06 is not reused. Private evidence:
 `2026-11-11-interactive07-refresh`, `2026-11-11-interactive07-owner-refresh`,
 `2026-11-11-interactive07-preparation`, `2026-11-11-interactive07-live` and
 `2026-11-11-postflight07-202959` and `2026-11-11-operator-input-preflight`.
+
+## Attempt 08 stopped during confirmations — 2026-11-11
+
+The closure of attempt 07 was published in `e106d4cd`. Package 08
+`a21f4f0c…f54bce2` and exact admission preserved the 203 planned writes, 53 cells
+and two markers. The live workbook observation confirmed version 295, authority
+and complete image equal to the retained 07 reference; its historical revocation
+applies only to that earlier session. Thirty-two local tests and independent
+review passed. The controller also validated the complete startup inputs before
+dating the actual window.
+
+The single authorized attempt began at 21:42:27 Madrid, with a maximum end of
+22:02:27. Owner confirmation was received and recorded at 21:54:17, within the deadline. The
+subsequent administrator request began at 21:54:18 with the same 21:54:57 limit,
+leaving about 39 seconds to respond. No reply was recorded before the deadline
+and collection was rejected. This is not attributed to the user: agree a viable
+initial response window before proposing another attempt, without silent retries.
+Before the first question, explain that owner, administrator and reports are three
+consecutive confirmations sharing one common deadline.
+
+The 21:55:28 terminal retains `inspection-required`, no cleanup failures, settled
+operations, no action in flight and no time-budget breaches. The 34 journal records
+have no pending files. File and IAM removal are recorded as verified; the runner
+revoked OAuth with status 200 and received same-token 401 responses from Drive
+and Sheets. The OAuth tab was closed and the caller dropped its references. No
+writer token, barrier, Sheets batch, migration or production access occurred.
+The single authorization for 08 is closed. Independent read-only postflight
+confirmed the exact source, writer disabled and isolated, with no keys or IAM
+bindings: ten reads and one transaction, with no writes. The journal has no
+pending files and no local execution or recovery locks remain.
+
+Private evidence: journal `develop-original-20261111-interactive-08`,
+`2026-11-11-interactive08-refresh`, `2026-11-11-interactive08-preparation` and
+`2026-11-11-interactive08-live` and `2026-11-11-postflight08-205619`.
+
+The administrator reply received after closure (confirming both accounts until
+22:30 Madrid) is retained in a separate private receipt. It is not appended to the
+journal, does not extend the 08 window and does not authorize another attempt;
+the 34 records and their head remain unchanged.

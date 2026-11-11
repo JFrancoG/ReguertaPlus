@@ -502,6 +502,19 @@ construction of the exact 07 operator in a synthetic copy with stub providers.
 Use the same validated inputs before dating another window and obtain new authorization.
 [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#preparación-del-intento-07--2026-11-11).
 
+## Develop attempt 08 — 2026-11-11
+
+The authorized attempt started with the corrected complete input validation.
+Owner confirmation was recorded in time; the later administrator request had
+about 39 seconds remaining and no reply was recorded before the shared deadline.
+Terminal `inspection-required` has no cleanup failures; the journal has 34
+records and no pending files. No writer token, barrier, Sheets batch, migration
+or production access occurred. Independent postflight verified the unchanged
+source, writer isolation and no local locks. Agree a viable initial response
+window and explain the three consecutive confirmations under the shared deadline
+before another separately authorized attempt.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-08-detenido-durante-las-confirmaciones--2026-11-11).
+
 ## Live activation gate
 
 - [ ] Assembly decision/date and accepted wording linked.

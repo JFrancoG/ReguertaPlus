@@ -918,3 +918,44 @@ La respuesta tardía del 06 no se reutiliza. Evidencia privada:
 `2026-11-11-interactive07-refresh`, `2026-11-11-interactive07-owner-refresh`,
 `2026-11-11-interactive07-preparation`, `2026-11-11-interactive07-live` y
 `2026-11-11-postflight07-202959` y `2026-11-11-operator-input-preflight`.
+
+## Intento 08 detenido durante las confirmaciones — 2026-11-11
+
+El cierre del intento 07 se publicó en `e106d4cd`. El paquete 08
+`a21f4f0c…f54bce2` y la admisión exacta conservaron las 203 escrituras
+previstas, 53 celdas y dos marcadores. La observación viva de la hoja confirmó
+la versión 295, la autoridad y la imagen completa iguales a la referencia
+retenida del 07; su revocación histórica corresponde solo a aquella sesión.
+Pasaron 32 pruebas locales y la revisión independiente. El controlador también
+validó los datos completos de arranque antes de fechar la ventana real.
+
+El intento único autorizado comenzó a las 21:42:27 de Madrid, con fin máximo
+a las 22:02:27. La confirmación del propietario se recibió y registró a las
+21:54:17, dentro del plazo. La petición posterior para administradores comenzó a las 21:54:18, con
+el mismo límite de las 21:54:57, por lo que quedaron unos 39 segundos para
+responder. No consta respuesta antes de vencer y la recogida se rechazó. No se
+atribuye el resultado al usuario: hay que acordar una ventana de respuesta
+inicial viable antes de plantear otro intento, sin repeticiones silenciosas.
+Antes de la primera pregunta se explicará que propietario, administradores e
+informes son tres confirmaciones consecutivas dentro de un mismo plazo común.
+
+El terminal a las 21:55:28 conserva `inspection-required`, limpieza sin fallos,
+operaciones asentadas, ninguna acción en vuelo ni incumplimiento de plazos. Los
+34 registros no tienen archivos pendientes. La retirada de la hoja y de IAM
+consta verificada; el ejecutor revocó OAuth con 200 y recibió 401 con el mismo
+token en Drive y Sheets. La pestaña OAuth se cerró y el proceso llamador descartó
+las referencias. No se emitió token del escritor ni se inició barrera, lote de
+Sheets o migración; tampoco se accedió a producción. La autorización única del
+08 está cerrada. El postflight independiente de solo lectura confirmó la fuente
+exacta, el escritor deshabilitado y aislado, sin claves ni bindings: diez lecturas
+y una transacción, sin escrituras. El diario no tiene archivos pendientes y no
+hay bloqueos locales de ejecución o recuperación.
+
+Evidencia privada: diario `develop-original-20261111-interactive-08`,
+`2026-11-11-interactive08-refresh`, `2026-11-11-interactive08-preparation` e
+`2026-11-11-interactive08-live` y `2026-11-11-postflight08-205619`.
+
+La confirmación de administradores recibida tras el cierre («Confirmo ambas
+cuentas hasta las 22:30») se conserva en un recibo privado separado. No se añade
+al diario, no amplía la ventana del 08 y no autoriza otro intento; los 34 registros
+y su huella permanecen intactos.
