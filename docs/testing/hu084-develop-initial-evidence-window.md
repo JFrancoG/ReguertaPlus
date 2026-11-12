@@ -968,3 +968,73 @@ two changed scripts require new hash review before another attempt.
 Private evidence: journal `develop-original-20261111-interactive-09`,
 `2026-11-11-interactive09-refresh`, `2026-11-11-interactive09-preparation`,
 `2026-11-11-interactive09-live` and `2026-11-11-postflight09-212435`.
+
+## Attempt 10 stopped after admission — 2026-11-11
+
+The 09 correction was published as `8105d0cf`. For attempt 10, package
+`8d81fbb5…9408d7c` and the current version 299 workbook reading were reviewed.
+Source review fixed 339 files: 337 previous files unchanged and two added scripts,
+with eight supporting receipts; the 112-test integrated regression was reused and
+39 new local tests passed. Explicit risk acceptance was separate from operation
+authorization and followed review of the package and 23 predecessors. Quiet-window
+confirmation was also separate.
+
+During the authorized window the three initial confirmations and six subsequent
+replies were recorded in time. Initial collection was verified and sealed, the
+barrier acquired, admission checks passed, and the single writer token was minted
+and positively checked. The executor then stopped and entered inspection. The
+journal contains no joint-execution intent. It does not retain the original
+exception; the subsequent review is described below.
+
+The terminal retains `inspection-required`, with no cleanup failures or actions
+in flight; the 72 records have no pending files. The executor verified file, IAM
+and OAuth closure. The OAuth tab was closed and caller references discarded. The
+barrier was acquired. Independent read-only postflight confirmed the exact source
+unchanged, the writer disabled and isolated with no keys or bindings, and no
+maintenance state document. The historical barrier checkpoint remains retained
+and matches the journal; its release is not claimed. There are no local locks or
+recorded joint intent or batch dispatch.
+
+Local review identified two reproducible obstacles: the session wrapper did not
+reflect writer data added later, and admission took 88.115 seconds to complete,
+exceeding its 60-second limit. The original exception was not retained, so the
+first live failure and its order cannot be established. The historical checkpoint
+is retained and its release is not claimed.
+
+The local correction preserves session identity so deferred writer fields remain
+visible. Admission retains the real collection start and begins its 60-second
+technical limit with two fresh source reads. The manifest is generated after the
+initial and final human observations with the barrier verified, without retiming
+it or extending its limit. A joint Firestore Emulator test passed using the real
+executor and session, 88.115 synthetic seconds of replies across observations,
+16.728 seconds of writer preparation and two subsequent six-second reports. The
+first write was prepared in the CAS transaction at a manifest age of 26.858 seconds;
+203 writes, 53 cells and two markers were verified. An injected expiry rejected
+CAS and the batch and cleaned permissions. Google, Sheets, humans and timing are
+doubles; census `readTime` follows the test clock. This does not guarantee real
+latency fits the margin. Six engine emulator tests also covered generation after
+the observations in both directions and rejection of altered reports or source.
+These operator corrections follow commit `8105d0cf`. The next operator must
+incorporate the corrected helper and review new hashes before any recovery or
+further attempt is considered.
+
+The subsequent local gate ran 356 test executions across 19 files, with no
+failures or skips; these are not claimed as unique cases. Functions build and lint
+and targeted ESLint on the seven `.cjs` files passed. The full emulator gate ran
+96 executions across three files, including the six new engine tests; the two
+joint tests passed separately: 98 emulator executions total, without counting the
+six twice. Logs are in `2026-11-11-window10-local-fix-validation` and
+`2026-11-11-attempt10-joint-emulator`; they are not a live Develop run.
+
+Private evidence: journal `develop-original-20261111-interactive-10`,
+`2026-11-11-interactive10-refresh`, `2026-11-11-interactive10-preparation` and
+`2026-11-11-interactive10-live` and `2026-11-11-postflight10`.
+
+### Commit-and-push validation — 2026-11-12
+
+The seven runtime/test file hashes and raw validation-log hashes match the final
+11 November gate, so its 356 regression and 98 emulator executions, build and lint
+are reused for this delivery. Only delivery wording and the changelog date changed
+after validation. Native code and app contracts are unchanged; native gates are
+not repeated. Incorporating the helper into the next concrete operator and reviewing
+its package/source bindings remain pending before another authorized attempt.

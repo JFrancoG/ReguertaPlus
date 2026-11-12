@@ -528,6 +528,21 @@ providers; the 09 quiet confirmation is not risk acceptance. Review changed scri
 hashes and obtain separate authorization and window; no retry is authorized.
 [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-09-detenido-tras-las-confirmaciones--2026-11-11).
 
+## Develop attempt 10 — 2026-11-11
+
+The reviewed risk was explicitly accepted separately. Initial evidence sealed,
+the barrier was acquired, admission checks passed and the single writer token
+was minted and positively checked. The executor then stopped without a recorded
+joint-execution intent; 72 journal records have no pending files and permission
+cleanup reports no failures. Independent postflight confirms the exact source unchanged, writer isolated and
+disabled, no maintenance state document and a retained historical barrier
+checkpoint matching the journal. Review reproduced deferred-writer visibility and
+an 88.115-second admission against a 60-second limit; the first live exception
+was not retained. Both have operator fixes, six engine cases and two joint emulator cases with
+synthetic latency; the next operator must incorporate the helper and review new hashes.
+Checkpoint release is not claimed and no further attempt is authorized.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-10-detenido-tras-la-admisión--2026-11-11).
+
 ## Live activation gate
 
 - [ ] Assembly decision/date and accepted wording linked.

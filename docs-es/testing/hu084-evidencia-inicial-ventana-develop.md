@@ -1011,3 +1011,78 @@ scripts modificados requieren revisar sus nuevas huellas antes de otro intento.
 Evidencia privada: diario `develop-original-20261111-interactive-09`,
 `2026-11-11-interactive09-refresh`, `2026-11-11-interactive09-preparation`,
 `2026-11-11-interactive09-live` y `2026-11-11-postflight09-212435`.
+
+## Intento 10 detenido tras la admisión — 2026-11-11
+
+La corrección del 09 se publicó en `8105d0cf`. Para el 10 se revisó el paquete
+`8d81fbb5…9408d7c` y la lectura actual de la hoja en versión 299. La revisión
+de fuentes fijó 339 archivos: 337 anteriores sin cambios y dos scripts añadidos,
+con ocho recibos de respaldo; se reutilizó la regresión integrada de 112 pruebas
+y pasaron 39 pruebas locales nuevas. La aceptación expresa del riesgo fue
+separada de la autorización de operación y posterior a la revisión del paquete
+y los 23 predecesores. La confirmación de ventana también fue independiente.
+
+En la ventana autorizada se registraron a tiempo las tres confirmaciones iniciales
+y seis respuestas posteriores. La recogida inicial se verificó y selló, se adquirió
+la barrera, la admisión terminó con las comprobaciones superadas y se emitió el
+único token del escritor, con comprobación positiva. Después el ejecutor se detuvo
+y pasó a inspección. No consta una intención de ejecución conjunta en el diario.
+El diario no conserva la excepción original; la revisión posterior se describe a
+continuación.
+
+El terminal conserva `inspection-required`, sin fallos de limpieza ni acciones
+en vuelo; los 72 registros no tienen archivos pendientes. El cierre del permiso
+de la hoja, IAM y OAuth consta verificado por el ejecutor. La pestaña OAuth se
+cerró y se descartaron las referencias del llamador. La barrera se adquirió.
+El postflight independiente de solo lectura confirmó la fuente exacta sin cambios, el escritor deshabilitado y aislado, sin claves ni
+bindings, y el documento de mantenimiento ausente. El registro histórico de
+la barrera sigue retenido y coincide con el diario; no se afirma su liberación.
+No hay locks locales, intención conjunta ni despacho de lote registrados.
+
+La revisión local identifica dos obstáculos reproducibles: el envoltorio de la
+sesión no reflejaba los datos del escritor añadidos posteriormente y la admisión
+tardó 88,115 segundos en completarse, superando su límite de 60 segundos. No se
+conservó la excepción original, así que no puede afirmarse cuál fue el primer
+fallo real ni su orden. El checkpoint histórico se conserva y no se afirma su
+liberación.
+
+La corrección local conserva la identidad de la sesión para que los campos del
+escritor diferido sean visibles. La admisión mantiene el inicio real de recogida
+y empieza su límite técnico de 60 segundos con dos lecturas nuevas de fuente.
+El manifiesto se genera después de las observaciones humanas inicial y final,
+con la barrera verificada, sin retimbrarlo ni ampliar su límite. Una prueba conjunta en
+Firestore Emulator pasó con el ejecutor y la sesión reales, 88,115 segundos
+sintéticos de respuestas repartidas, preparación del escritor de 16,728 segundos
+y dos informes posteriores de seis segundos. El primer write se preparó en la
+transacción CAS con el manifiesto a 26,858 segundos; se verificaron 203 escrituras,
+53 celdas y dos marcadores. Una caducidad inyectada rechazó el CAS y el lote y
+permitió limpiar permisos. Google, Sheets, personas y tiempos son dobles; el
+`readTime` del censo se adapta al reloj de prueba. No se garantiza que la latencia
+real quepa en ese margen. Además, seis pruebas del motor en el emulador cubrieron
+la generación posterior a las observaciones en ida y vuelta, y el rechazo de
+informes o fuente alterados. Estas correcciones del operador son posteriores al
+commit `8105d0cf`. El próximo operador debe incorporar el helper corregido y
+revisar las nuevas huellas antes de cualquier decisión de recuperación o intento.
+
+El gate local posterior reúne 356 ejecuciones de pruebas en 19 archivos, sin
+fallos ni omisiones; no se contabilizan como casos únicos. Build, lint de Functions
+y revisión ESLint específica de los siete `.cjs` pasan. El gate completo del
+emulador pasó 96 ejecuciones en tres archivos, incluidas las seis pruebas nuevas
+del motor; las dos conjuntas pasaron por separado: 98 ejecuciones de emulador en
+total, sin volver a sumar las seis. Los logs están en
+`2026-11-11-window10-local-fix-validation` y
+`2026-11-11-attempt10-joint-emulator`; no son una ejecución real en Develop.
+
+Evidencia privada: diario `develop-original-20261111-interactive-10`,
+`2026-11-11-interactive10-refresh`, `2026-11-11-interactive10-preparation` y
+`2026-11-11-interactive10-live` y `2026-11-11-postflight10`.
+
+### Validación para commit y push — 2026-11-12
+
+Las siete huellas de código y pruebas y las de los logs brutos coinciden con el
+gate final del 11 de noviembre: se reutilizan sus 356 ejecuciones de regresión y
+98 de emulador, build y lint para esta entrega. Después solo cambió el texto de
+entrega y la fecha del changelog. El código nativo y los contratos de las apps
+siguen iguales; no se repiten sus gates. Quedan pendientes incorporar el helper
+al próximo operador concreto y revisar su paquete y huellas antes de otro intento
+autorizado.

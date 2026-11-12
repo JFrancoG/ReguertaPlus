@@ -388,10 +388,22 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
   }, {readOnly: true});
   const requireNoFailure = async (transitionId) => requireValue(await failurePersistence.readExistingFailure({environment: "develop", transitionId}) === null,
     "retained barrier failure requires governed inspection");
-  const runHeld = async (scope, callback) => barrier.withClosedIntakeBarrier(scope, async (evidence) => {
-    verifyHeld(evidence, scope);
-    return callback(evidence);
-  });
+  const runHeld = async (scope, callback, {materializeOnly = false} = {}) => {
+    if (materializeOnly) {
+      // Complete both human observation phases without effects first. The
+      // manifest is then created from a new read-only source/CAS transaction,
+      // with its actual current clock rather than an older re-dated read.
+      const evidence = await barrier.withClosedIntakeBarrier(scope, async (held) => {
+        verifyHeld(held, scope); return held;
+      });
+      verifyHeld(evidence, scope);
+      return callback(evidence);
+    }
+    return barrier.withClosedIntakeBarrier(scope, async (evidence) => {
+      verifyHeld(evidence, scope);
+      return callback(evidence);
+    });
+  };
   const finalTimestamp = (finalManifest) => {
     if (!finalManifest) return clock();
     const {finalDigest, ...body} = finalManifest;
@@ -514,10 +526,10 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
           manifestDigest: preparedDigest, mutations, expectedDocumentWriteCount: mutations.length, writerFenceCheckedAt: clock(),
           authority: prepared.policyDraft.document.sync.transactionMeasurementAuthority, writeLimit: 500});
         return {measurement, operation, expected: descriptors(mutations)};
-        });
+        }, materializeOnly ? {readOnly: true} : undefined);
         if (materializeOnly) return result.finalized;
         return snapshotReceipt("forward", result.expected, result.measurement, result.operation);
-      });
+      }, {materializeOnly});
     },
     async inverse({scope, forwardReadBack, materializeOnly = false, finalManifest = null}) {
       requireValue(typeof materializeOnly === "boolean" && !(materializeOnly && finalManifest), "materialization options");
@@ -577,10 +589,10 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
           manifestDigest: inverseManifestDigest, mutations, expectedDocumentWriteCount: mutations.length, writerFenceCheckedAt: clock(),
           authority: prepared.policyDraft.document.sync.transactionMeasurementAuthority, writeLimit: 500});
         return {measurement, operation: recovery, expected: descriptors(mutations, {[operationPath]: recovery})};
-        });
+        }, materializeOnly ? {readOnly: true} : undefined);
         if (materializeOnly) return result.finalized;
         return snapshotReceipt("inverse", result.expected, result.measurement, result.operation);
-      });
+      }, {materializeOnly});
     },
   };
 };

@@ -46,6 +46,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-11-12 | 🐛 fix(shifts): preserve deferred writer and admission timing
+
 - 2026-11-11 | 🐛 fix(shifts): validate risk chronology before collection
 
 - 2026-11-11 | 🐛 fix(shifts): settle native permission outcomes

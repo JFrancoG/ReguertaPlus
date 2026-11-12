@@ -38,10 +38,10 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
     assert.equal(scope.expectedWorkbookFileId,prepared.policyDraft.document.sync.partitions.delivery.workbookId);
     assert.equal(scope.expectedWorkbookRevision,prepared.policyDraft.document.sync.partitions.delivery.workbookRevision);
   }
-  function report(direction,scope,source,startedAtMillis,blocker,finalManifest=null) {
+  function report(direction,scope,source,startedAtMillis,blocker,finalManifest=null,collectionStartedAtMillis=startedAtMillis) {
     const value={schemaVersion:1,kind:"develop-migration-admission-inspection",projectId,environment:"develop",
       preparedDigest,direction,scopeDigest:scope===null?null:digest(scope),source,
-      startedAtMillis,observedAtMillis:clock(),readOnly:true,canApply:false,canEnterMaintenance:false,
+      collectionStartedAtMillis,startedAtMillis,observedAtMillis:clock(),readOnly:true,canApply:false,canEnterMaintenance:false,
       checksPassed:blocker===null,blockers:blocker?[blocker]:[],finalManifest};
     if (prepared.writerRehearsal) value.writerRehearsal = structuredClone(prepared.writerRehearsal);
     if (prepared.originalWriterCheck) value.originalWriterCheck = structuredClone(prepared.originalWriterCheck);
@@ -56,7 +56,10 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
     assert.equal(value.canApply,false);assert.equal(value.canEnterMaintenance,false);assert.equal(value.checksPassed,true);
     assert.deepEqual(value.blockers,[]);assert.ok(value.finalManifest);
     requireScope(scope,value.direction);assert.equal(value.scopeDigest,digest(scope));
-    const now=clock();assert.ok(value.startedAtMillis<=value.observedAtMillis&&value.observedAtMillis<=now&&now-value.startedAtMillis<=60_000,"admission inspection expired");
+    const now=clock();assert.ok(Number.isSafeInteger(value.collectionStartedAtMillis)&&value.collectionStartedAtMillis>=0&&
+      Number.isSafeInteger(value.startedAtMillis)&&Number.isSafeInteger(value.observedAtMillis)&&
+      value.collectionStartedAtMillis<=value.startedAtMillis&&value.startedAtMillis<=value.observedAtMillis&&
+      value.observedAtMillis<=now&&now-value.startedAtMillis<=60_000,"admission inspection expired");
     return value;
   }
   let jointActive=false;
@@ -75,14 +78,22 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
       let held;
       try{held=await controlPlane.readBackClosed(scope);}catch{return report(direction,scope,source,started,"held_checkpoint_unavailable");}
       if(held===null||held===undefined)return report(direction,scope,source,started,"held_checkpoint_missing");
+      let validationStarted=started;
       try{
         const finalManifest=direction==="forward"?await inspection.forward({scope,materializeOnly:true}):
           await inspection.inverse({scope,forwardReadBack,materializeOnly:true});
-        // A second independent source read brackets the barrier validation.
+        // Human collection keeps its real start above. The technical lifetime
+        // starts only before two new noninteractive source/CAS inspections; it
+        // never refreshes the held evidence or the manifest's attempt timestamp.
+        validationStarted=clock();
+        const before=await inspection.inspect({initial:direction==="forward"});
         const after=await inspection.inspect({initial:direction==="forward"});
-        assert.equal(digest(after),digest(source));
-        return report(direction,scope,source,started,null,finalManifest);
-      }catch{return report(direction,scope,source,started,"admission_not_proven");}
+        assert.equal(digest(before),digest(source));assert.equal(digest(after),digest(source));
+        assert.equal(source.sourceDigest,scope.expectedAuthoritativeDigest);
+        assert.equal(finalManifest.preparedDigest,preparedDigest);assert.equal(finalManifest.direction,direction);assert.equal(finalManifest.scopeDigest,digest(scope));
+        assert.ok(clock()-validationStarted<=60_000,"admission technical validation expired");
+        return report(direction,scope,after,validationStarted,null,finalManifest,started);
+      }catch{return report(direction,scope,source,validationStarted,"admission_not_proven",null,started);}
     },
     async execute({scope,admission,forwardReadBack=null,assertMutation=null}) {
       scope=structuredClone(scope);admission=structuredClone(admission);forwardReadBack=structuredClone(forwardReadBack);

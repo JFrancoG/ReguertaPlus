@@ -7,6 +7,7 @@ const {createControlledDevelopMigrationExecutor:create}=require("../scripts/cont
 const rehearsal=require("../scripts/rehearse-develop-shift-migration.cjs");
 const {withWriter}=require("./develop-writer-evidence-fixture.cjs");
 const {withOriginalWriter}=require("./develop-original-writer-evidence-fixture.cjs");
+const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.js");
 function input(){
   const sourceInput=fixture();return {sourceInput,reviewPackage:prepareDevelopMigrationPackage(sourceInput),sourceCapture:{
     projectId:"reguerta-9f27f",environment:"develop",documents:structuredClone(sourceInput.snapshot.collections.shifts),
@@ -77,7 +78,92 @@ test("shared develop refuses the legacy unbounded execute path before provider a
     expectedWorkbookFileId:part.workbookId,expectedWorkbookRevision:part.workbookRevision};
   const value={kind:"develop-migration-admission-inspection",preparedDigest:p.preparedDigest,projectId:"reguerta-9f27f",environment:"develop",
     direction:"forward",scopeDigest:digest(scope),readOnly:true,canApply:false,canEnterMaintenance:false,checksPassed:true,
-    blockers:[],finalManifest:{},startedAtMillis:100,observedAtMillis:100};
+    blockers:[],finalManifest:{},collectionStartedAtMillis:100,startedAtMillis:100,observedAtMillis:100};
   await assert.rejects(create(args).execute({scope,admission:{...value,admissionDigest:digest(value)}}),/requires joint deadline guard/);
   assert.equal(args.readCount(),0);
 });
+
+// Exercise the real composition with a migration-engine collaborator. The
+// engine's own transaction/CAS and held-evidence checks retain their emulator
+// coverage; this fixture controls read latency and returned source versions.
+function admissionFixture({humanMillis=88_115,onInspect=()=>{}}={}) {
+  const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm"),{createRequire}=require("node:module");
+  const filename=path.join(__dirname,"../scripts/controlled-develop-migration.cjs"),realRequire=createRequire(filename);
+  const prepared=prepare(input()),state={now:1_000,casVersion:1,reads:[],humanReads:[],executions:[],manifests:[]};
+  const source=()=>({sourceDigest:digest({payload:"unchanged source",serviceVersion:state.casVersion}),
+    maintenance:{exists:false,stateRevision:0,writeEpoch:0,activeRevision:null,activeDigest:null}});
+  const controlPlane={readBackClosed:async()=>({held:true}),
+    readBackOwnerObservation:async()=>{state.now+=Math.floor(humanMillis/2);state.humanReads.push("owner");return {observedAtMillis:state.now};},
+    readBackAdministratorObservation:async()=>{state.now+=humanMillis-Math.floor(humanMillis/2);state.humanReads.push("administrator");return {observedAtMillis:state.now};}};
+  const engine=({controlPlane:readers})=>{
+    const direction=kind=>async args=>{
+      if(!args.materializeOnly){state.executions.push({kind,args});return {verified:true,direction:kind};}
+      await readers.readBackOwnerObservation(args.scope);await readers.readBackAdministratorObservation(args.scope);
+      const manifest={preparedDigest:prepared.preparedDigest,direction:kind,scopeDigest:digest(args.scope),attemptedAtMillis:state.now,
+        sourceDigest:source().sourceDigest};state.manifests.push(manifest);return manifest;
+    };
+    return {async inspect(options){onInspect(state,state.reads.length+1);const startedAtMillis=state.now;state.now+=5;
+      const value=source();state.reads.push({options,startedAtMillis,observedAtMillis:state.now,value});return value;},
+    forward:direction("forward"),inverse:direction("inverse")};
+  };
+  const module={exports:{}};
+  const load=vm.runInThisContext(`(function(require,module,exports){${fs.readFileSync(filename,"utf8")}\n})`,{filename});
+  load(name=>name==="./develop-shift-migration-engine.cjs"?{...realRequire(name),createDevelopShiftMigrationEngine:engine}:realRequire(name),module,module.exports);
+  const executor=module.exports.createControlledDevelopMigrationExecutor({prepared,controlPlane,nowMillis:()=>state.now,
+    firestore:{projectId:"reguerta-9f27f",databaseId:"(default)",runTransaction:async()=>{throw Error("unexpected provider transaction");}},
+    failurePersistence:{readExistingFailure:async()=>null,retainFailureAndReadBack:async()=>{throw Error("unexpected incident write");}}});
+  const scope=(direction="forward")=>({schemaVersion:3,environment:"develop",transitionId:direction==="forward"?prepared.operationId:prepared.recoveryOperationId,
+    expectedWorkbookFileId:prepared.policyDraft.document.sync.partitions.delivery.workbookId,
+    expectedWorkbookRevision:prepared.policyDraft.document.sync.partitions.delivery.workbookRevision,expectedAuthoritativeDigest:source().sourceDigest});
+  return {executor,state,scope,prepared};
+}
+
+test("88.115 seconds of human collection precede two genuinely new technical reads and the unchanged TTL",async()=>{
+  const f=admissionFixture(),scope=f.scope(),collectionStarted=f.state.now,admission=await f.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,true);assert.equal(admission.collectionStartedAtMillis,collectionStarted);
+  assert.ok(admission.startedAtMillis-collectionStarted>=88_115);
+  assert.equal(f.state.reads.length,3);assert.deepEqual(f.state.humanReads,["owner","administrator"]);
+  assert.equal(admission.startedAtMillis,f.state.reads[1].startedAtMillis);
+  assert.equal(admission.observedAtMillis,f.state.reads[2].observedAtMillis);
+  assert.deepEqual(admission.finalManifest,f.state.manifests[0]);
+  const attemptedAt=admission.finalManifest.attemptedAtMillis;f.state.now+=15_000; // Writer mint/probe latency, not a timestamp rewrite.
+  const result=await f.executor.execute({scope,admission,assertMutation:()=>{}});
+  assert.equal(result.verified,true);assert.equal(f.state.executions.length,1);
+  assert.equal(f.state.executions[0].args.finalManifest.attemptedAtMillis,attemptedAt);
+});
+
+for(const read of [2,3])test(`source CAS drift at final technical read ${read-1} rejects admission`,async()=>{
+  const f=admissionFixture({onInspect:(state,count)=>{if(count===read)state.casVersion++;}}),scope=f.scope();
+  const admission=await f.executor.inspectAdmission({scope});
+  assert.equal(admission.checksPassed,false);assert.deepEqual(admission.blockers,["admission_not_proven"]);
+  assert.equal(admission.finalManifest,null);assert.equal(f.state.executions.length,0);
+});
+
+test("a technical validation lasting over sixty seconds is not reported as passed",async()=>{
+  const f=admissionFixture({onInspect:(state,count)=>{if(count===3)state.now+=60_001;}});
+  const admission=await f.executor.inspectAdmission({scope:f.scope()});
+  assert.equal(admission.checksPassed,false);assert.deepEqual(admission.blockers,["admission_not_proven"]);
+  assert.equal(admission.finalManifest,null);assert.equal(f.state.executions.length,0);
+});
+
+test("sixty seconds after technical validation still expire without executing or renewing human reports",async()=>{
+  const f=admissionFixture(),scope=f.scope(),admission=await f.executor.inspectAdmission({scope});
+  f.state.now=admission.startedAtMillis+60_001;
+  await assert.rejects(f.executor.execute({scope,admission,assertMutation:()=>{}}),/inspection expired/);
+  assert.equal(f.state.executions.length,0);assert.equal(f.state.reads.length,3);
+  assert.deepEqual(f.state.humanReads,["owner","administrator"]);
+});
+
+test("fresh technical validation retains inverse receipt and forward scope restrictions",async()=>{
+  const f=admissionFixture(),scope=f.scope("inverse"),missing=await f.executor.inspectAdmission({direction:"inverse",scope});
+  assert.deepEqual(missing.blockers,["forward_receipt_missing"]);assert.equal(f.state.humanReads.length,0);
+  const forwardReadBack={receiptDigest:digest("independently supplied forward receipt")};
+  const admission=await f.executor.inspectAdmission({direction:"inverse",scope,forwardReadBack});
+  assert.equal(admission.checksPassed,true);assert.equal(admission.finalManifest.direction,"inverse");
+  await assert.rejects(f.executor.execute({scope:f.scope(),admission,forwardReadBack,assertMutation:()=>{}}));
+  assert.equal(f.state.executions.length,0);
+  assert.equal((await f.executor.execute({scope,admission,forwardReadBack,assertMutation:()=>{}})).direction,"inverse");
+  assert.deepEqual(f.state.executions[0].args.forwardReadBack,forwardReadBack);
+});
+
+module.exports={admissionFixture};

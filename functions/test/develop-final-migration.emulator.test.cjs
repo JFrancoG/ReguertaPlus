@@ -76,6 +76,72 @@ async function forward(h) {
   const scope=await h.scope(),finalManifest=await h.service.forward({scope,materializeOnly:true});
   return {scope,finalManifest,receipt:await h.service.forward({scope,finalManifest})};
 }
+// Keep real source versions and codecs, with a synthetic long human window.
+function extendMaterializationWindow(h,scope) {
+  const f=h.current(),scale=x=>Array.isArray(x)?x.map(scale):x&&typeof x==="object"?Object.fromEntries(Object.entries(x).map(([k,v])=>
+    [k,(k.endsWith("AtMillis")||k.endsWith("DeadlineMillis"))&&typeof v==="number"?v*1000:scale(v)])):x;
+  const p=scale(f.evidence.payload);p.policy.maximumEvidenceAgeMillis=600000;p.policy.minimumQuietHorizonMillis=30000;
+  for(const key of ["ownerAgreement","administratorAgreement"]){const a=p[key];
+    a.payload.intent.endsAtMillis=a.payload.intent.recoveryDeadlineMillis=1000000;
+    if(key==="administratorAgreement")a.payload.intent.ownerAgreementDigest=p.ownerAgreement.digest;
+    for(const c of a.payload.confirmations)c.intentDigest=digest(a.payload.intent);a.digest=digest(a.payload);
+  }
+  p.administratorObservation.agreementDigest=p.administratorAgreement.digest;
+  for(const c of p.writerControls.filter(c=>c.state==="agreement-recorded")){
+    const a=c.writerId.startsWith("workbook")?p.ownerAgreement:p.administratorAgreement;c.controlDigest=c.initialReadBackDigest=c.finalReadBackDigest=a.digest;
+  }
+  p.causalDrain.historicalRisk.expiresAtMillis=1000000;
+  const {createShiftPlanningControlManifestDigest:manifest}=require("../lib/shift-planning-intake-barrier.js");
+  Object.assign(scope,{maximumEvidenceAgeMillis:600000,minimumQuietHorizonMillis:30000,expectedOwnerAgreementDigest:p.ownerAgreement.digest,
+    expectedAdministratorAgreementDigest:p.administratorAgreement.digest,expectedControlManifestDigest:manifest(p.writerControls,p.maintenanceMode),
+    expectedHistoricalRiskDigest:digest(p.causalDrain.historicalRisk)});
+  f.evidence={payload:p,digest:digest(p)};h.setClock(520000);
+}
+async function materializationOrder(direction,fault=null) {
+  const h=await harness(),forwardReadBack=direction==="inverse"?(await forward(h)).receipt:null,scope=await h.scope(direction==="inverse");
+  extendMaterializationWindow(h,scope);await h.controlPlane.closeAndCollect(scope);
+  const events=[],transactions=[];let administratorReads=0;
+  const controlPlane={closeAndCollect:h.controlPlane.readBackClosed,readBackClosed:h.controlPlane.readBackClosed,
+    readBackOwnerObservation:async()=>{events.push("owner");return {...h.current().evidence.payload.ownerObservation,observedAtMillis:h.clock()};},
+    readBackAdministratorObservation:async()=>{
+      administratorReads++;const final=administratorReads%2===0;
+      if(final){h.setClock(h.clock()+70001);events.push("administrator-final");
+        if(fault==="final-report")throw Error("explicit final human interruption");
+        if(fault==="source-drift")await db.doc(`${ROOT}/config/public`).update({late:true});
+      }else events.push("administrator-initial");
+      return {...h.current().evidence.payload.administratorObservation,observedAtMillis:h.clock()};
+    }};
+  const firestore=new Proxy(db,{get(target,key){if(key==="runTransaction")return async(callback,options)=>{
+    transactions.push({readOnly:options?.readOnly===true,atMillis:h.clock()});events.push(options?.readOnly?"read-only-transaction":"effect-transaction");
+    return target.runTransaction(callback,options);
+  };const value=Reflect.get(target,key);return typeof value==="function"?value.bind(target):value;}});
+  const {createDevelopShiftMigrationEngine}=require("../scripts/develop-shift-migration-engine.cjs");
+  const engine=createDevelopShiftMigrationEngine({firestore,prepared:h.prepared,controlPlane,failurePersistence:h.journal,nowMillis:h.clock,historicalRiskMode:true});
+  const invoke=options=>direction==="forward"?engine.forward({scope,...options}):engine.inverse({scope,forwardReadBack,...options});
+  return {h,scope,invoke,events,transactions};
+}
+for(const direction of ["forward","inverse"])run(`read-only ${direction} creates its manifest after the final human delay without changing write-barrier order`,async()=>{
+  const f=await materializationOrder(direction),before=await businessSnapshot(),finalManifest=await f.invoke({materializeOnly:true});
+  assert.deepEqual(await businessSnapshot(),before);assert.ok(f.transactions.every(t=>t.readOnly));
+  const humanEnd=f.events.lastIndexOf("administrator-final");assert.ok(humanEnd>=0);
+  assert.equal(f.events.at(-1),"read-only-transaction");
+  const attemptedAt=finalManifest.attemptedAt.seconds*1000+finalManifest.attemptedAt.nanoseconds/1000000;
+  assert.equal(attemptedAt,f.h.clock());assert.ok(attemptedAt>=590001);
+  assert.equal(finalManifest.transaction.measurement.documentWriteCount,direction==="forward"?203:140);
+  f.events.length=0;f.transactions.length=0;
+  const receipt=await f.invoke({finalManifest});
+  assert.equal(receipt.measurement.documentWriteCount,direction==="forward"?203:140);
+  assert.ok(f.events.indexOf("administrator-initial")<f.events.indexOf("effect-transaction"));
+  assert.ok(f.events.indexOf("effect-transaction")<f.events.indexOf("administrator-final"));
+});
+for(const direction of ["forward","inverse"])for(const fault of ["final-report","source-drift"])
+run(`read-only ${direction} rejects ${fault} before any migration write`,async()=>{
+  const f=await materializationOrder(direction,fault),before=await businessSnapshot();
+  await assert.rejects(f.invoke({materializeOnly:true}));assert.ok(f.transactions.every(t=>t.readOnly));
+  const after=await businessSnapshot();delete before.shiftPlanningOperations;delete after.shiftPlanningOperations;
+  if(fault==="source-drift"){assert.equal((await db.doc(`${ROOT}/config/public`).get()).get("late"),true);delete before.config;delete after.config;}
+  assert.deepEqual(after,before);
+});
 run("exact final manifests migrate and recover with a policy that cannot produce annual planning",async()=>{
   const sourceInput=process.env.HU084_REVIEW_MANIFEST?loadManifest(process.env.HU084_REVIEW_MANIFEST):fixture();
   const h=await harness(sourceInput),originals=await saved("shifts"),guards={};
