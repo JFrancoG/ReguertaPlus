@@ -46,6 +46,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-11-20 | 🐛 fix(shifts): complete the Develop migration
+
 - 2026-11-12 | 🐛 fix(shifts): preserve deferred writer and admission timing
 
 - 2026-11-11 | 🐛 fix(shifts): validate risk chronology before collection

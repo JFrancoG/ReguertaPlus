@@ -1,5 +1,167 @@
 # HU-084 — Initial evidence and proposed develop window
 
+## Develop migration verified on 20 November 2026
+
+The separately authorized continuation sent one Sheets batch for `request-hu084-initial-73d77a7da377753f11f9`. The owner verified the 53 projected cells, both original operation markers and preservation of the rest of the workbook at 23:23:32 Madrid time. Three read-only Firestore inspections verified the 203 committed destinations in the migration that produced the 72 seasonal shifts. The continuation made zero Firestore writes.
+
+Temporary access closed at 23:24:18 Madrid time. Drive denied the issued writer access to the file (404), IAM confirmed the writer was disabled and isolated, and both Drive and Sheets rejected the revoked owner reader (401). The terminal recorded the verified projection and successful cleanup. The private evidence is `2026-11-20-sheets-continuation15/resultado-develop.md` and `2026-11-20-sheets-continuation15/journal/access-Iy3G5G/events.jsonl`.
+
+The next product step is one comparative UI review of the iOS and Android shift journeys. Engineering can review the candidate against the assembly-approved rules in parallel. Once the candidate meets its integration and access gates, market and delivery are the two outstanding normal-app scenarios on Develop. The four production scenarios belong to the separately authorized base-calendar activation. [Remaining work and acceptance gates](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-20)
+
+## Local Sheets continuation for the existing operation
+
+The continuation binds the original 55 requests to operation `request-hu084-initial-73d77a7da377753f11f9`. It reads the retained Firestore receipt, the checkpoint and all 203 committed destinations. A local exclusive claim precedes the temporary grant. The operator verifies the original workbook again after the grant, reserves time for readback and cleanup, and persists one dispatch intent before sending the batch. The first failed stage, a sanitized reason and the time are retained. [Continuation](../../functions/scripts/develop-sheets-continuation.cjs) · [Firestore readback](../../functions/scripts/develop-sheets-continuation-firestore.cjs)
+
+| Focused local scenario | Verified outcome |
+| --- | --- |
+| Original grid and both markers absent | One batch submits 53 cell updates and the two original markers. The final read verifies the projection and preservation. |
+| Projection and both markers already present | The operator verifies the workbook without requesting a write. |
+| Partial grid, foreign marker, unrelated cell change, Firestore drift or expired authority | The operator stops before dispatch. |
+| Response lost or no change observed after dispatch | The retained intent permits inspection. A second invocation cannot resend the batch. |
+
+All four tests passed with a simulated workbook and local journal before the real Develop continuation. [Focused tests](../../functions/test/develop-sheets-continuation.test.cjs) · [Execution composition](../../functions/scripts/develop-sheets-continuation-operator.cjs)
+
+## Attempt 15 closed with Firestore verified and Sheets pending — 2026-11-20
+
+The maintainer authorized one attempt for `request-hu084-initial-73d77a7da377753f11f9` and confirmed the start at 22:39 Madrid time. All eleven replies were recorded. The operator closed at 22:47 with `inspection-required` in the Sheets phase. The authorization for attempt 15 was consumed.
+
+| Destination | Verified outcome |
+| --- | --- |
+| Firestore | The transaction receipt and independent readback verified all 203 destinations and service versions. All 141 planned documents were created and the 62 original shifts were archived and removed from the active collection. Develop contains 72 seasonal shifts and retains all 117 notices. |
+| Sheets | The journal records zero batch submissions. All 742 cell values and formulas on six tabs match the original snapshot. All 53 target cells retain their original value. The two complete owner snapshots after the Firestore commit contain neither of the operation markers. |
+| Access and closure | Drive is restricted to its owner and four readers. The writer was disabled and isolated with zero direct IAM bindings or user-managed keys. Revocation of the temporary reader was confirmed by 401 responses from both Drive and Sheets. All provider calls settled and the 85-record journal closed. The Firestore barrier checkpoint is retained. |
+
+The secondary Sheets inspection reported `read_back_mismatch` when checking the projection. The operator omitted the initial Sheets exception. At most 6.049 seconds remained at publication of the Firestore receipt to submit the batch while preserving the readback reserve. An offline simulation that reached the cutoff produced the same secondary result. The journal cannot establish whether the live submission cutoff was reached. The reproduction receipt is `2026-11-20-post15-diagnosis/forensic-receipt-private.json`.
+
+[Local implementation and four scenarios](#local-sheets-continuation-for-the-existing-operation).
+
+Private receipts are under `2026-11-20-interactive15-postflight/observation-vDPE5y/postflight-private.json`, `connected-reader-cells.json` and `visible-drive-permissions.json`. The terminal receipt is `2026-11-20-interactive15-preparation/run-result-private.json`.
+
+## Package 15 ready for authorization — 2026-11-20
+
+At 20:32 Madrid time the desktop entry used for the migration rebuilt package 15 in a fresh session. It verified 345 files and reproduced digest `78be41628977a97124822c4631dc8ccb92ad3316efa5a10ba20e4a02c9f5996a` for operation `request-hu084-initial-73d77a7da377753f11f9`. The startup seal is `e58ab426baff2816ac483df0d6ae1cf50963e93399e1673cd37f7c2ccb0f66e4`. Two independent processes using the corrected entry stopped at the missing authorization before opening Google. This preparation preceded authorization of attempt 15.
+
+The owner read confirmed workbook version 307, the complete reviewed workbook image and its permissions. Both Drive and Sheets returned 401 after revocation. Firestore retained all 62 original shifts and 117 notices. Two read-only transactions found all four new operation keys vacant. The writer is disabled. Historical receipts include the pre-journal closure of attempt 14.
+
+The decision covers one Develop attempt with temporary Drive and IAM access. The intended 203 Firestore writes include archiving 62 original shifts and creating 72 seasonal shifts. Sheets would receive one batch with 53 cell updates and two markers. Late effects from historical operations remain a risk. The maintainer subsequently authorized the attempt, accepted the risk and confirmed the start. The dedicated account can leave the workbook as it is.
+
+The private decision sheet is `2026-11-20-interactive15-preparation/paquete-para-revisar.md`. The `actual-desktop-offline-review.json` and `review-before-consent.json` receipts in `2026-11-20-interactive15-desktop-session` record the desktop reconstruction and the pre-consent denial.
+
+## Attempt 14 closed before the execution journal — 2026-11-20
+
+The maintainer authorized one forward operation, accepted historical risk and confirmed the start. The operator dated the window at 20:15:56.750 Madrid time and stopped during local preparation. The reader began revocation about 91 ms later. No execution journal, lock or run receipt was created. The attempt authorization is consumed.
+
+The desktop entry masked the original exception when closing the session. An offline diagnosis in the same process reproduced `unreviewed backend transition` in `historicalIamPreparation`. The process had retained the compatibility module predating package 14. The seal verified the files on disk while Node continued to run the already-loaded module. A fresh process reconstructed the same dated package offline. Private receipt `2026-11-20-interactive14-postflight/desktop-offline-diagnosis.json`, SHA-256 `8d028638b0682f14f723ef6593f8a014b872004cb44d0119273e7b5225953746`.
+
+At 20:18:17, three read-only transactions and 47 HTTP reads verified all 203 destinations. The 141 documents due for creation were absent. The 62 shifts due for deletion retained their contents and service versions. All 14 collections matched, including 117 notices. The writer account was disabled and isolated. Revocation returned 200 and the reader then received 401 from Drive and Sheets. The Drive sharing panel showed restricted access, one owner, four readers and no temporary writer. The operator stopped before submitting a Sheets batch. At 20:22 an existing read connection compared all six tabs against the version 307 snapshot. All 742 values and formulas, notes, rich-text runs and validations matched. The comparison did not include full formatting, merged cells, metadata markers or the current workbook version. Private receipts `observation-NhdMvK/postflight-private.json` (SHA-256 `18b79090ad114638b2dc00f719c59ca9bc74b4f686f6e8d1b33c1bbb44e0517c`), `visible-drive-permissions.json` and `connected-reader-cells.json` in the same postflight directory.
+
+**Desktop correction verified.** Before requesting access from Google, the operator checks for previously loaded project modules and rebuilds the reviewed package. At 20:22 the original desktop session rejected the cached module. After a desktop restart the same files reproduced the exact package 14 digest and verified all 343 sources. Both checks ran offline. The successor startup retains the first classified failure, its stage and timestamp before releasing access, including when cleanup fails. Six focused tests, Functions lint and the Functions build passed. Private receipts `actual-desktop-cached-rejection.json`, `actual-desktop-fresh-rebuild.json` and `2026-11-20-post14-start-correction/offline-receipt.json`.
+
+**Decision at the close of attempt 14.** Prepare package 15 with the corrected entry and current observations. The private `2026-11-20-post14-start-correction/uso-del-cargador.md` records the template and binding steps. The `outer-entry-verification.json` receipt confirms that the normal desktop entry checks the loader and modules and rejects the spent package 14 before consent. Shared execution requires authorization for the new package. Migration acceptance requires verifying shifts and assignments across Firestore and Sheets and confirming removal of temporary access.
+
+## Package 14 ready for authorization — 2026-11-20
+
+The new package is sealed for one forward operation in Develop. Two owner reads verified workbook version 307 against 305. Cells, reviewed formatting and permissions matched. Google revoked the temporary read grant with HTTP 200. Drive and Sheets then returned 401.
+
+The census of 14 collections retained all 62 shifts and 117 notices with their service versions. The 24 functions, three paused jobs, six ready indexes and reviewed effective permissions matched the reference. Two read-only transactions checked the source and the four unoccupied operation keys. The retained barriers for attempts 10, 12 and 13 and the incident from attempt 13 matched their records.
+
+Operation `request-hu084-initial-d8f6a77838fe221677f4` has package digest `87bc33104403a84461b354380ee13e2f2226438565530d284a22361d1e8eb0fe` and startup seal `90d7a33d4eac164b00ae5c09d9bbb77d05de2b282fd5bf346ef0b2e8ac6e8219`. Independent review checked 23 sources of possible historical effects and 25 receipts. In a fresh process, the operator rejected startup without authorization and the desktop entry stopped before reading the OAuth configuration or opening Google.
+
+**Follow-up.** The maintainer authorized the 203 Firestore writes and one Sheets batch of 53 cell updates and two markers. The session stopped during local startup. [Attempt 14 outcome](#attempt-14-closed-before-the-execution-journal--2026-11-20).
+
+Private review files are `2026-11-20-interactive14-preparation/paquete-para-revisar.md`, `2026-11-20-attempt14-offline-review/sealed-startup-denial-private.json` and `2026-11-20-interactive14-desktop-session/review-before-consent.json`.
+
+## Post-attempt 13 local rehearsal
+
+The corrected Develop operator ran against the Firestore SDK and emulator. The rehearsal simulated human replies, the clock, Google and Sheets. After a 61-second wait for the pre-write observation, the operator checked the source and its service versions against admission, built the execution manifest and verified all 203 Firestore changes. Sheets received one simulated batch of 53 cell updates and two metadata markers. [Execution decision](../decisions/0028-materialize-develop-forward-writes-after-human-observation.md)
+
+With a controlled clock, the write succeeded at an execution-manifest age of 60,000 ms and stopped at 60,001 ms. An external source change before materialization or between recording the manifest and applying it also stopped both destinations. On these rejections, the 141 documents due for creation remained absent and the 62 documents due for deletion retained their service versions. The operator now retains the first Firestore failure category, phase and time even if incident closure hits another error.
+
+The rehearsal also checked authorization of the payload. Changing an admitted shift and recalculating every digest failed exact reconstruction against the original source before the execution manifest was emitted. All seven integration checks passed with zero skips. Functions lint and build passed. The private rehearsal receipt is `2026-11-20-attempt13-local-manifest-order/final-receipt.json`, SHA-256 `dba1aca5ea9221ae78dd68d9b26f6879102c9c26fe22b2e7e3adb79dc4573289`. Compatibility of the historical receipts was verified by reconstructing the 285 backend source hashes. The only changes in that set are the barrier adapter and its compiled JavaScript. In the same directory, `source-candidate-v2.json` identifies the 343 final operator source files, including seven differences from package 13. All 103 local dependencies loaded during an offline startup matched their recorded hashes.
+
+With response delays of 33.886 and 18.245 seconds, the rehearsal had 90.359 seconds of work time left at Sheets submission, 15.359 seconds above the reserve. The second delay came from the incident response during attempt 13. Latency after a successful shared migration still requires observation. This variant uses a 20-minute execution window.
+
+**Follow-up.** Package 14 incorporated the correction. Its authorization and outcome are recorded in the attempt 14 closure. [Package preparation](#package-14-ready-for-authorization--2026-11-20). The maintainer reports that the dedicated test account never uses the workbook manually and it is available for testing. The person attending the window can report known activity in chat without opening or closing the workbook. The operator verifies workbook state and permissions against the execution receipts.
+
+## Attempt 13 closed during Firestore execution — 2026-11-20
+
+The single authorized Develop operation passed admission and obtained its temporary writer credential. The journal recorded all eleven replies. The barrier retained an incident in the Firestore `operation` phase with reason `operation_failed`. Question 11 supported the readback needed to retain that incident. The journal omitted the first underlying exception. The package 13 authorization was consumed.
+
+**Madrid time.** The manifest was materialized at 11:06:30.183 and its 60-second lifetime ended at **11:07:30.183**. Reply 10 arrived at **11:07:26.532**, within the displayed deadline and with 3.651 seconds left for pre-write checks. Observation 60 finished at 11:07:29.156. About 374 ms remained when record 60 was written. Three local replays of the required 61-record journal read took 638, 647 and 610 ms. Each replay exhausted the remaining time before the Firestore reads that precede manifest validation. The live journal records neither the clock at that check nor the underlying error. The expiry explains the locally reproduced failure. The first live cause is unresolved.
+
+Offline replay with the attempt 13 package, original source versions and admitted manifest reproduced all 203 mutations at 60,000 ms and reached the notification fence reads. At 60,001 ms the executor rejected the same manifest as expired. The replay stopped before any write. The live journal does not record the instant when the transaction checked expiry. The attempt 13 postflight contains the private receipt `manifest-clock-offline/receipt.json`, SHA-256 `e28a3a97592f48e2ce6d7881d4650df010e230af762efafbd902879808ad4890`.
+
+**Independent readback.** By 11:10:45 the verifier had completed two transactions and 47 read-only HTTP requests with zero errors. All 234 documents across 14 collections, the six singletons and the capture records matched. The 62 shifts and 117 notices retained their contents and versions. The operation and migration baseline remained absent. The retained barrier and incident matched the journal. Sheets received no batch and the complete workbook image matched the original. Drive and IAM access removal and OAuth revocation were verified. The workbook is available. Private receipt `2026-11-20-interactive13-postflight/observation-c4bvb0/postflight-private.json`, SHA-256 `3b32c26731e10b74b1ec8ee2ead2bbcc39b2ac6169ea03ef6379d40f571cfcb4`.
+
+One additional read-only transaction checked each of the **203 manifest targets**. All 141 documents due to be created remained absent. The 62 documents due to be deleted retained their contents and both Firestore timestamps, `createTime` and `updateTime`. Private receipt `manifest-targets-Sn207x/receipt.json` in the same postflight directory, SHA-256 `aa1716fc55381147a9a7738d035b550a82f3ea86aad8fda7a1451d1891ef6284`.
+
+**Follow-up.** The diagnostic and local rehearsal are documented above. The Develop migration and all six functional acceptance scenarios remain pending. [Local rehearsal](#post-attempt-13-local-rehearsal)
+
+## Attempt 13 package prepared — 2026-11-20
+
+The Develop operator for attempt 13 was prepared and reviewed locally. It includes the three modules that correct the reply deadline. Review covered 343 source files and verified that startup loaded 103 of them. The independent review checked 17 private materialization inputs. The startup seal covers 16 files. A fresh process rejected startup before provider access, and the desktop client stopped before requesting OAuth.
+
+The owner captured two matching snapshots of workbook version **305**, up from version 303 in package 12. The contents and permissions matched. Revocation returned 200 and subsequent Drive and Sheets reads returned 401. All 14 Develop collections matched, including the 62 shifts and 117 notices. Two read-only transactions checked the source and the four unoccupied keys for the new operation. The historical barrier records for attempts 10 and 12 were preserved. The writer remained disabled and isolated.
+
+| Package identity | Value |
+| --- | --- |
+| Receipt | `develop-original-20261120-interactive-13` |
+| Operation | `request-hu084-initial-0eb52a3163ebea83f3b4` |
+| Package digest | `shift-planning:v1:sha256:10f10255e4e96326c02bbd87992e5ae4cc3c8e2b9adeaaa73d7bad7490b145b3` |
+| Startup seal SHA-256 | `452f2c9eaa1c4a929aac787684fffc396a7f0193ca6f1b27369c1138d512441f` |
+
+The planned forward operation comprised 203 Firestore writes and a Sheets batch with 53 cell updates and two markers. The 140-write inverse required a separate decision. The package had no dated window at preparation time, and preparation preserved business data. Private receipts `2026-11-20-interactive13-preparation/startup-integrity-private.json` and `2026-11-20-attempt13-offline-review/attempt13-independent-package-risk-review-private.json`.
+
+## Attempt 12 closed during admission — 2026-11-20
+
+The operator received eight replies and acquired the barrier for package 12. Reply eight arrived at **09:56:50.498 Madrid time**, 15.963 seconds before the displayed deadline of **09:57:06.461**. The operator never issued a ninth question. Record 47 returned `admission_not_proven` with no final manifest. Record 48 captured the outer admission assertion. Record 64 closed as `inspection-required` with all provider calls settled.
+
+**What prevented admission at reply time.** The observed quiet interval ended at 09:46:44.861. The ten-minute lifetime of its barrier evidence ended at **09:56:44.861**, 5.637 seconds before the reply. The package verifier accepted the evidence from records 24, 39 and 43 at the start of question eight and rejected it at the recorded reply time. Admission stopped during manifest preparation, before the two technical reads subject to the 60-second limit. The journal omits the first inner exception, so a concurrent failure remains possible. Replay receipt in the same postflight directory `chronology-VzNE91/receipt.json`, SHA-256 `d91af15d6ecb09e7acf03e32797dae4bba2e6ab50337ac27e91988ba206b4707`.
+
+**Outcome.** Independent readback at 09:58:14 confirmed the contents and versions of all 62 shifts and 117 notices. The operation document and migration baseline were absent. The retained barrier matched the acquired evidence and had no failure record. The operator never issued a writer token or submitted a Sheets batch. Removal checks passed for Drive, IAM and OAuth. The writer was disabled and isolated, with no keys or bindings. The journal contains 65 records. Private receipt `2026-11-20-interactive12-postflight/observation-smLY0b/postflight-private.json`, SHA-256 `cb14998cbf2a0beae33e9925b353a9cd37f0624f2d1fc5eb8c38882a6517d1c1`.
+
+**Local correction.** The initial activity report and subsequent barrier reports display the earliest applicable deadline. Two focused regressions verified that a reply after evidence expiry is rejected while the phase is still open, and that an earlier phase deadline still takes precedence. The Functions build and lint passed. The correction is local to the worktree and has not been deployed.
+
+**Attempt 12 follow-up.** Package 12 is consumed and immutable. The three corrected modules were reviewed and incorporated into package 13. [Successor preparation](#attempt-13-package-prepared--2026-11-20).
+
+## Test reader setup — 2026-11-20
+
+The maintainer authorized the dedicated Google Cloud project `reguerta-turnos-lector-dev`. Google confirmed the project is active and the Drive and Sheets APIs are enabled. Following the maintainer’s explicit acceptance of Google’s user data policy, Turnos Develop was registered as a desktop client in testing. The console showed one test account (Plus Projects Test) and the two read-only scopes for Drive metadata and Sheets. Two complete owner snapshots matched at version 303. The preserved contents and authority match the baseline. Revocation was verified by 401 responses from Drive and Sheets. The materialized packet contains 203 planned Firestore writes, 53 helper cells and two markers. Two read-only transactions matched the source and confirmed both barrier slots absent for the new operation. The workbook remains available. Today’s census matched all 14 Develop collections, including 62 shifts and 117 notices. All six indexes were ready and writer isolation was verified. The raw runtime inventory digest changed. The previous evidence records only the aggregate digest. Private receipts are in `2026-11-20-reader-project` and `2026-11-20-interactive12-refresh`.
+
+## Chat check before another window — 2026-11-12
+
+With the sheet available, the maintainer acknowledged the availability prompt and the chat operator confirmed receipt in the same conversation. This verifies a round trip to the chat operator. It is neither a late answer for attempt 11 nor a quiet-window confirmation, migration authorization or risk acceptance. No window started. At 17:11 Madrid, one read-only transaction matched the keys and service versions of the 62 Develop shifts and 117 notices. The candidate operation, migration baseline and both barrier records were absent. Private receipt: `2026-11-12-interactive12-source/scope-1794499877958.json`. This check does not cover the workbook or the remaining operator controls. The subsequent owner read established **workbook version 303**, up from 301 in the previous packet.
+
+The owner verified six sheets, 63 merges and the requested protection and developer metadata against the baseline. All 742 populated cell values or formulas and their coordinates were reconciled. A direct cell read resolved one space rendered differently in the Playground. An independent connected reader checked 155,098 grid positions across 47 ranges. Forty-four matched the exact representation. All scalars, arrays and positions in the remaining three historical ranges matched after omitting empty object properties. The census of 14 collections, 24 Functions, three paused jobs and six indexes was renewed. The writer was isolated and disabled. Its IAM policy contents matched despite a changed etag. The historical inventory digest difference cannot be attributed to a particular resource.
+
+The Playground truncated the owner grid response, including the bounded alternative. The independent reader has separate provenance. Google confirmed removal of the temporary connection and the same session returned 401 from both Drive and Sheets after successful 200 probes. Evidence is in `2026-11-12-interactive12-owner/browser`. A proposed next step is to use the local reader with Google's installed-app consent to obtain two complete owner snapshots and prepare the packet for version 303. The operational window has not started.
+
+## Attempt 11 closed before migration — 2026-11-12
+
+After fixing the caller's start reference and verifying the same instance across invocations, the maintainer provided a fresh quiet confirmation. Window 11 was dated **12:21:55–12:41:55 Madrid**. Temporary access was granted. The first owner challenge was emitted at 12:22:29 and sent to chat at 12:22:36, followed by a reminder at 12:29:27. No valid reply was recorded in the journal by the 12:34:25 deadline. Initial evidence collection was rejected at that checkpoint and cleanup completed at **12:34:52 Madrid**, with zero breaches, cleanup failures or pending provider calls. Chat submission evidence does not establish when the prompt was seen.
+
+All 32 journal records were verified, including the native grant and removal. The run stopped before the initial seal, barrier, admission or writer token. No joint intent, Sheets batch or business writes occurred. Independent ADC postflight used two read-only transactions and 31 queries, confirming the original content and versions of all 62 shifts and 117 notices, and absent operation, migration baseline and barrier evidence/failure. The writer was disabled and isolated, with zero user keys or temporary bindings. OAuth revocation was verified against Drive and Sheets. Final native sharing showed the owner and four readers without the writer. The maintainer was notified that the sheet could reopen.
+
+This single-attempt authorization is consumed. The next investigation concerns the first challenge's response channel. Any further execution needs a new review and its own authorization. [Spanish evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-11-cerrado-antes-de-la-migración--2026-11-12).
+
+## Authorization and preparation of window 11 — 2026-11-12
+
+The maintainer authorized the single Develop forward operation with its scoped temporary permissions and separately accepted the historical risk. Both receipts (12:00:55 Madrid) and the startup seal verified. The first quiet reply arrived at 12:12:48 Madrid. The caller did not retain its verified start handle across invocations. No dated window receipt, migration journal, lock or run result was created. The quiet reply expired and the maintainer was told the sheet could reopen. No writer grant or business migration took place. The single forward authorization remains unconsumed. Local evidence is in `prewindow-caller-outcome.json`.
+
+## Successor operator and attempt 10 review — 2026-11-12
+
+All 72 chained records and the matching postflight were verified. Records 39, 52 and 55 retain the barrier, admission and positive writer check. Inspection at 56 reports Firestore `not-observed` and Sheets `not-started`. Terminal 71 requires inspection with verified cleanup and settled provider calls. The source was unchanged and the maintenance document absent. There is no business mutation to reverse. The historical barrier occupies its operation key. The first live exception was not recorded.
+
+The private successor imports the canonical session wrapper through the attended entry for both normal and recovery factories. Its review pins 341 source files (336 old pins unchanged, three changed and two newly pinned). Offline reconstruction of the prior 17 package inputs reproduces the consumed operation. The successor rejects that operation, package and preparation even under a new receipt. That initial check used an unbound successor with authorization and window unset.
+
+The existing CLI session renewed 42 project-control requests and 37 Develop-only Firestore reads. The census matches all prior payloads and service versions, including 62 shifts and 117 notices. Six indexes are ready, the writer remains disabled and isolated with no user keys or temporary grants, and 24 Functions match after filter-order normalization. The writer policy etag and raw isolation inventory digest changed. Current isolation checks passed; retained evidence cannot attribute the raw inventory change to a particular resource. This difference remains visible for packet review. All requests were read-only.
+
+The runner retains the first caught exception's stage and a safe reason. Unrecognized provider errors retain a generic classification without provider text. Functions build and lint, scoped CJS lint, three runner checks and three private wiring checks passed. After aligning the packet directory with the materializer, only its affected entry check was rerun (1/1). The prior 356 regression and 98 emulator executions remain historical evidence. The changed entry and failure handling were tested locally with simulated providers.
+
+The first preparatory read used the usual Firebase account, as confirmed by the maintainer. It produced no observation; the original bridge did not retain its exception. Revocation and subsequent Drive/Sheets denials were verified. The second session used the verified owner with the two read-only scopes and no refresh token. Thirteen reads verified the workbook, its parent and ACLs, and two identical content captures. Workbook version 301 succeeds the historical 299. Revocation returned 200 with eventual same-token 401 on both services.
+
+Fresh package `beab18309646…d94e4ea6` preserves business content. Its forward plan specifies 203 Firestore writes, 53 helper cells and two Sheets markers; the 140-write inverse requires separate recovery authority. Two read-only transactions confirmed matching source and absence of both barrier evidence and failure for the new operation. The only passive blocker was `window_scope_missing`; there were zero write attempts. An independent review verified the source/packet pins, 23 predecessors and 25 receipts. The concrete operator is now bound to the reviewed packet under a 16-file startup seal. A fresh process verified the identifiers and refused to continue without operation approval and risk acceptance, with zero provider calls. Its status is `READY_FOR_FRESH_AUTHORIZATION`. The maintainer can now review the exact package and residual risk of delayed historical Develop work. Single-attempt forward authorization, acceptance of that risk for this package and confirmation of the actual twenty-minute quiet window are separate decisions. No writer grant, barrier acquisition or migration occurred. [Spanish evidence and private receipt locations](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#operador-sucesor-y-revisión-del-intento-10--2026-11-12).
+
 ## Interactive twenty-minute preparation — local, 2026-11-02
 
 The second stopped attempt and attended private-launch evidence are delivered in

@@ -109,6 +109,10 @@ export type ShiftPlanningIntakeBarrierFailurePhase =
   | "operation"
   | "finalReadBack";
 
+type BarrierFailureObserver = (
+  phase: ShiftPlanningIntakeBarrierFailurePhase, error: unknown,
+) => Promise<void>;
+
 export type ShiftPlanningOwnerMaintenanceIncident = {
   agreementDigest: ShiftPlanningDigest;
   reason: "agreement_expired" | "owner_reported_activity" | "owner_withdrawn" |
@@ -728,6 +732,7 @@ const createBarrierAdapter = (
     controlPlane: ShiftPlanningTrustedIntakeBarrierControlPlane;
     failurePersistence: ShiftPlanningIntakeBarrierFailureClosurePersistence;
     readClockMillis?: () => number;
+    onFirestoreError?: BarrierFailureObserver;
   },
   version: PolicyVersion = 1,
 ): ShiftPlanningIntakeBarrierAdapter => ({
@@ -970,6 +975,15 @@ const createBarrierAdapter = (
       await freshAdministrator(finalReadBack, finalPhase.administrator);
       return result;
     } catch (error) {
+      // Failure closure may replace the original exception with a conflict.
+      // The Develop operator records only its classification before that read.
+      if (dependencies.onFirestoreError) {
+        try {
+          await dependencies.onFirestoreError(phase, error);
+        } catch {
+          // A diagnostic sink cannot prevent the durable incident and cleanup.
+        }
+      }
       await retainFailureClosure(
         dependencies,
         scope,
@@ -1082,5 +1096,6 @@ export const createTrustedShiftPlanningAdministratorBarrierAdapter = (
     };
     failurePersistence: ShiftPlanningIntakeBarrierFailureClosurePersistence;
     readClockMillis: () => number;
+    onFirestoreError?: BarrierFailureObserver;
   },
 ): ShiftPlanningIntakeBarrierAdapter => createBarrierAdapter(dependencies, 3);

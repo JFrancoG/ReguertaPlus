@@ -37,11 +37,14 @@ test('ten-row evidence remains historical with the same original receipts',()=>{
  assert.equal(r.currentControlsVerified,false);assert.equal(r.canEnterMaintenance,false);
 });
 
-test('pre-coherent preparation remains historical only for the exact reviewed backend transition',()=>{
- const previous=historicalIamPreparation(prepare(),'shift-planning:v1:sha256:049fe823dbd8a7c75f371566cc435892c719a88805d3692a0996ebf72e2ed741');
+for(const [source,label] of [
+ ['shift-planning:v1:sha256:049fe823dbd8a7c75f371566cc435892c719a88805d3692a0996ebf72e2ed741','historical-pre-coherent-barrier-phase'],
+ ['shift-planning:v1:sha256:605161ccc9a50fba28591ffdef39ab07c96ce4c5e86dca8f3608092ff4169972','historical-pre-failure-observer'],
+]) test(`${label} retains only the exact reviewed preparation`,()=>{
+ const previous=historicalIamPreparation(prepare(),source);
  const saved=structuredClone(previous);
- assert.equal(reviewIamPreparation(previous),'historical-pre-coherent-barrier-phase');
- assert.equal(reviewIamPreparationDigest(previous.preparationDigest),'historical-pre-coherent-barrier-phase');
+ assert.equal(reviewIamPreparation(previous),label);
+ assert.equal(reviewIamPreparationDigest(previous.preparationDigest),label);
  assert.deepEqual(previous,saved);
  assert.throws(()=>historicalIamPreparation(prepare(),digest('unreviewed earlier backend')));
  const changed=structuredClone(previous);changed.controllerSourceDigest=digest('other controller');

@@ -1,17 +1,20 @@
 "use strict";
 
-// Reviewed full-backend transitions change only the owner-manifest validator
-// (eae86a89), then the opt-in cooperative barrier phase port (ADR-0027), each .ts
-// plus compiled .js. Reconstructing all 285 entries with the two previous barrier
-// files reproduces AFTER exactly. Retain historical outcomes without claiming
-// either older execution exercised the new phase port or supplies live authority.
+// Each reviewed transition affects one TypeScript module and its compiled JS.
+// Keep previous receipts bound to the code that produced them. The latest
+// transition adds the optional pre-closure failure observer to the barrier.
 const assert=require("node:assert/strict");
 const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.js");
 const {prepare}=require("./prepare-develop-writer-rehearsal.cjs");
 const BEFORE="shift-planning:v1:sha256:2c63c31b681ef4b8b96c00d1f0f79225e5883d50785cb04fc2a29956b29ce669";
 const AFTER="shift-planning:v1:sha256:049fe823dbd8a7c75f371566cc435892c719a88805d3692a0996ebf72e2ed741";
-const CURRENT="shift-planning:v1:sha256:605161ccc9a50fba28591ffdef39ab07c96ce4c5e86dca8f3608092ff4169972";
-const HISTORICAL=[[BEFORE,"historical-eae86a89-validator-transition"],[AFTER,"historical-pre-coherent-barrier-phase"]];
+const COHERENT="shift-planning:v1:sha256:605161ccc9a50fba28591ffdef39ab07c96ce4c5e86dca8f3608092ff4169972";
+const CURRENT="shift-planning:v1:sha256:535de5215b8bca88190d7bde61d1a80e9e1670da39eadbccb8d68f20943cbf66";
+const HISTORICAL=[
+  [BEFORE,"historical-eae86a89-validator-transition"],
+  [AFTER,"historical-pre-coherent-barrier-phase"],
+  [COHERENT,"historical-pre-failure-observer"],
+];
 const COPY_BUDGET_BEFORE="shift-planning:v1:sha256:1f0b3841a7ff4af2016b8ad9f0adc0564d60e7e606d6504e3b940d0285031bd5";
 const COPY_BUDGET_CURRENT="shift-planning:v1:sha256:d421ade92e5e3e09202547dd68ee1869d8b2abd72f223ffb887298f5c8947af1";
 

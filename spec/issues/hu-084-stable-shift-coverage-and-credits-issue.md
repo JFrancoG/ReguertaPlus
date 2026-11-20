@@ -1,5 +1,46 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Develop migration complete on 20 November 2026
+
+A separately authorized Sheets continuation applied one batch to the existing operation. The owner verified 53 cells, two markers and the workbook preservation check. Firestore was read-only and all 203 committed destinations were verified. Temporary permissions were removed. The next product work is the comparative iOS/Android UI review and candidate policy review. Two Develop coverage scenarios and four production base-calendar scenarios remain open. [Verified outcome](../../docs/testing/hu084-develop-initial-evidence-window.md#develop-migration-verified-on-20-november-2026).
+
+## Local Sheets continuation for attempt 15
+
+Four focused local scenarios passed before the separately authorized completion. [Implementation and local results](../../docs/testing/hu084-develop-initial-evidence-window.md#local-sheets-continuation-for-the-existing-operation).
+
+## Attempt 15 closed with Firestore verified and Sheets pending — 2026-11-20
+
+The one authorized execution committed all 203 Firestore writes and preserved the 117 notices. All 53 Sheets targets retained their original values, and temporary access was removed. At that point the pending decision concerned completing the Sheets projection for the existing operation. [Verified postflight](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-15-closed-with-firestore-verified-and-sheets-pending--2026-11-20).
+
+## Package 15 ready for authorization — 2026-11-20
+
+Package 15 binds the desktop startup correction to fresh read-only observations. The actual desktop verified 345 files and reconstructed the reviewed operation. The decision is one Develop attempt with temporary Drive and IAM permissions and acceptance of historical risk. The maintainer subsequently authorized and started this window. [Package evidence](../../docs/testing/hu084-develop-initial-evidence-window.md#package-15-ready-for-authorization--2026-11-20).
+
+## Attempt 14 closed before the execution journal — 2026-11-20
+
+One forward operation was authorized and its start confirmed. The desktop process retained code from the preceding operator and failed during preparation. All 203 destinations and 117 notices retained their original state. The writer was isolated and the temporary owner read grant was revoked. The six workbook tabs retained all 742 cell values and formulas. The corrected startup rejected the stale desktop session and rebuilt the full package in a fresh one. These findings informed the preparation of package 15. [Readback and diagnosis](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-14-closed-before-the-execution-journal--2026-11-20).
+
+## Package 14 ready for authorization — 2026-11-20
+
+The owner read verified workbook version 307 and its read grant was revoked. The reviewed package is sealed for one forward attempt. Its four new operation keys were vacant. The maintainer subsequently authorized that operation and the startup consumed its authorization. [Review and scope](../../docs/testing/hu084-develop-initial-evidence-window.md#package-14-ready-for-authorization--2026-11-20).
+
+## Attempt 13 closed during Firestore execution — 2026-11-20
+
+All eleven replies arrived. The operator passed admission, minted the writer credential and retained a Firestore operation incident. Question 11 was the incident readback. The original business records and workbook matched the independent readback, and all temporary access was removed. The corrected operator passed the local joint rehearsal and retains the first classified failure. Package 14 incorporates the correction. [Attempt 13 outcome](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-13-closed-during-firestore-execution--2026-11-20) · [Local rehearsal](../../docs/testing/hu084-develop-initial-evidence-window.md#post-attempt-13-local-rehearsal).
+
+## Attempt 12 closed during admission — 2026-11-20
+
+All eight requested replies arrived. Admission stopped before writer issuance. Independent postflight confirmed removal of temporary access and preservation of all 62 shifts and 117 notices. Two focused regressions verified the local correction to the displayed deadline of the initial and subsequent activity reports. The Functions build and lint passed. The correction has not been deployed. The three corrected modules were subsequently incorporated into the local package 13 operator. Package 12 is consumed and immutable. Any later window requires separate authorization. [Attempt 12 outcome and correction](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-12-closed-during-admission--2026-11-20).
+
+
+## Attempt 11 consumed and closed — 2026-11-12
+
+The first owner challenge expired before a reply was recorded; no migration or writer token. Native access removal and independent postflight verified containment and the original 62 shifts and 117 notices. The maintainer was notified to reopen the sheet. A later availability prompt and reply verified the chat round trip with the sheet available. The preparatory owner read found version 303, and all 742 populated cells and 63 merges were reconciled. The complete owner grid was truncated. The temporary grant was revoked. The new packet remains pending. [Outcome](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-11-closed-before-migration--2026-11-12).
+
+## Develop successor prepared locally — 2026-11-12
+
+The attended successor uses the canonical session helper. The 72-record journal and postflight confirm no business change in attempt 10; its retained barrier excludes reusing its operation. Develop census and control reads have been renewed. The renewed owner read of workbook version 301 and its parent produced a new packet. Two passive transactions verified source and both empty barrier slots. The independently reviewed operator is bound to the packet, with readiness for fresh authorization verified offline. The next decisions are forward-only operation authorization and separate historical-risk acceptance before confirming a window. The issue remains open. [Evidence](../../docs/testing/hu084-develop-initial-evidence-window.md#successor-operator-and-attempt-10-review--2026-11-12).
+
 ## Disabled-writer permission cycle passed — 2026-11-11
 
 Published correction `fcdab63e` passed one real native grant/removal with
@@ -37,7 +78,7 @@ Issue #268 stays open and PR #278 stays draft.
 
 ## Documentation and product rehearsal checkpoint — 2026-11-05
 
-The [remaining-work plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-04) is the current next-step index. Repeated historical evidence now links to its retained plan sections. The [4 November iOS rehearsal](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-product-rehearsal--2026-11-04) records market acceptance, delivery completion, an earned credit and its single use in a private local planning unit, followed by the tester seeing «Crédito utilizado».
+The [remaining-work plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-20) is the current next-step index. Repeated historical evidence now links to its retained plan sections. The [4 November iOS rehearsal](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-product-rehearsal--2026-11-04) records market acceptance, delivery completion, an earned credit and its single use in a private local planning unit, followed by the tester seeing «Crédito utilizado».
 
 The [5 November iOS retest](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-session-interruption--2026-11-05) verified that the member understood the rejected acceptance and how to resume. The next product decision is assembly ratification. The real draw provider, operational observability and shared Develop acceptance remain open. The separate local Google adapter correction and stopped-window evidence are excluded from this checkpoint. Issue #268 stays open and PR #278 stays draft.
 

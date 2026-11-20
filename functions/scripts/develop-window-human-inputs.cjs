@@ -62,10 +62,11 @@ function createDevelopHumanInputs({receiptId,exchange,record,nowMillis=Date.now,
       assert.ok(owner&&admin);assert.deepEqual(oa,owner);assert.deepEqual(aa,admin);assert.equal(scope,null);scope=plannedScope(requested);
       return reports(requested,notBeforeMillis,Math.min(end,deadlineMillis()),checkActive);
     },
-    async readHumanReports(requested) {
+    async readHumanReports(requested,evidenceExpiresAtMillis=Number.MAX_SAFE_INTEGER) {
       assert.ok(scope,"Initial human report is missing");assert.deepEqual(plannedScope(requested),scope);
       assert.equal(requested.expectedOwnerAgreementDigest,owner.digest);assert.equal(requested.expectedAdministratorAgreementDigest,admin.digest);
-      return reports(requested,nowMillis(),deadlineMillis());
+      time(evidenceExpiresAtMillis);
+      return reports(requested,nowMillis(),Math.min(evidenceExpiresAtMillis,deadlineMillis()));
     },
     close(){assert.equal(busy,false,"Pending human reply must settle first");closed=true;},
   };

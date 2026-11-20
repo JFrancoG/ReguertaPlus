@@ -52,43 +52,72 @@ async function inspect(session,saved) {
   }
   return results;
 }
+// Provider messages and assertion operands can contain credentials or workbook data.
+// Only diagnostic reasons defined by this runner and its local adapters may be journaled.
+const windowFailureReasons=new Set([
+  "window interrupted", "Provider setup requires cleanup", "develop_barrier_already_retained_inspect_only",
+  "writer expiry differs from session", "writer adapter differs from session", "admission inspection expired",
+  "copy_stage_deadline_exhausted", "copy_token_cleanup_budget_exhausted", "copy_batch_readback_budget_exhausted",
+]);
+function firstWindowFailure(step,error) {
+  let reason="unclassified-error";
+  try {
+    if(error instanceof assert.AssertionError)reason="assertion-failed";
+    const message=Object.getOwnPropertyDescriptor(error??{},"message")?.value;
+    if(windowFailureReasons.has(message))reason=message;
+  } catch { /* An opaque provider error must not interfere with cleanup. */ }
+  return {step,reason};
+}
 async function runControlledWindow(args) {
   const {openSession,openRecoverySession,nowMillis=Date.now,fetchImpl=fetch,signal,root,receiptId,...data}=args;
   const frozen=structuredClone(data),binding=bind(frozen);
   const budget=timeBudgetFor(binding.executionMode,{...binding.window,nowMillis,fetchImpl});
   const journal=createWindowJournal({root,receiptId,binding}),note=value=>journal.append(value);
   let session=null,result=null,failure=null,clean=null,openAttempted=false;
+  let step="open-session",firstFailure=null;
   try {
     const stage=()=>{if(signal?.aborted)throw Error("window interrupted");budget.assertStage();};
     stage();note({phase:"session-intent"});openAttempted=true;session=await openSession({binding:structuredClone(binding),timeBudget:budget,record:note,receiptId,signal});stage();
     assert.notEqual(session.setupFailed,true,"Provider setup requires cleanup");
     let scope=binding.scope;
     if(binding.initialEvidencePlan) {
+      step="verify-initial-seal";
       const seal=require("./develop-initial-evidence-seal.cjs").verifyInitialEvidenceSeal(session.initialSeal,binding,receiptId,session.initialSeal.nativeReviewDigest,nowMillis());
       const saved=journal.read().records.filter(r=>r.value.phase==="google-initial-evidence-sealed");
       assert.equal(saved.length,1);assert.deepEqual(saved[0].value.seal,seal);scope=seal.scope;
     }
     const deferred=binding.executionMode===ORIGINAL_DEVELOP_MODE;
+    step="verify-session";
     if(deferred) {
       assert.equal(session.tokenExpiresAtMillis,undefined,"Deferred session cannot arrive with an issued writer");
       assert.equal(session.sheetsAdapter,undefined,"Deferred writer is not available before admission");
     }else budget.beginWork(session.tokenExpiresAtMillis);
+    step="acquire-barrier";
     note({phase:"acquisition-intent"});const acquired=await session.barrier.acquire({scope,signal});
     note({phase:"acquired",acquired});stage();assert.equal(acquired.acquired,true);
+    step="inspect-admission";
     const admission=await session.executor.inspectAdmission({scope,direction:binding.direction,forwardReadBack:frozen.forwardReadBack});
     note({phase:"admission",admission});stage();assert.equal(admission.checksPassed,true);
     if(deferred) {
+      step="open-writer";
       assert.equal(typeof session.openWriter,"function");
       const writer=await session.openWriter({acquired,admission});stage();
-      assert.equal(writer.tokenExpiresAtMillis,session.tokenExpiresAtMillis);
-      assert.equal(writer.sheetsAdapter,session.sheetsAdapter);
+      step="verify-writer";
+      assert.equal(writer.tokenExpiresAtMillis,session.tokenExpiresAtMillis,"writer expiry differs from session");
+      assert.equal(writer.sheetsAdapter,session.sheetsAdapter,"writer adapter differs from session");
       budget.beginWork(writer.tokenExpiresAtMillis);
     }
+    step="execute-joint";
     result=await session.executor.executeJoint({scope,admission,sourceInput:frozen.sourceInput,reviewPackage:frozen.reviewPackage,
       forwardReadBack:frozen.forwardReadBack,forwardPlan:frozen.forwardPlan,observeSheets:session.observeSheets,sheetsAdapter:session.sheetsAdapter,
-      timeBudget:budget,record:note,signal,permissionTransition:session.permissionTransition});
-    note({phase:"joint-result",result});
-  }catch{failure="window-inspection-required";}
+      timeBudget:budget,record:note,signal,permissionTransition:session.permissionTransition,
+      ...(deferred?{executionMode:binding.executionMode}:{})});
+    step="record-joint-result";note({phase:"joint-result",result});
+  }catch(error){
+    failure="window-inspection-required";
+    firstFailure=firstWindowFailure(step,error);
+    try{note({phase:"window-error",...firstFailure});}catch{/* Inspection and containment still own the exit. */}
+  }
   finally {
     if(!session&&openAttempted)try{session=await openRecoverySession({binding:structuredClone(binding),saved:journal.read(),timeBudget:budget,record:note});}catch{failure="session-cleanup-unavailable";}
     if(session) {
@@ -97,7 +126,7 @@ async function runControlledWindow(args) {
     }
   }
   const terminal={phase:"window-terminal",kind:!failure&&result?.kind==="joint-step-verified"&&clean?.failures.length===0?"direction-verified-and-contained":"inspection-required",
-    failure,result,cleanup:clean,providerCallsSettled:true,canResumeExecution:false,canEnterMaintenance:false};
+    failure,...(firstFailure?{firstFailure}:{}),result,cleanup:clean,providerCallsSettled:true,canResumeExecution:false,canEnterMaintenance:false};
   try{note(terminal);return {...terminal,journalVerified:true,directory:journal.directory};}
   finally{journal.release({cleanupVerified:!openAttempted||clean?.failures.length===0});}
 }

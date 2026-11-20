@@ -7,6 +7,38 @@ const {createShiftPlanningDigest:digest}=require("../lib/shift-planning-digest.j
 const {planBatch}=require("./prepare-develop-helper-batch.cjs");
 const {assertShiftSheetsOwnerPreservation:preserved}=require("../lib/shift-sheets-owner-manifest.js");
 
+// Only these operator-defined failures and canonical Firestore status codes
+// may leave the exception boundary. Provider messages can contain document data.
+const localFirestoreReasons = new Map([
+  ["migration_rehearsal_rejected: final manifest expired or future dated", "manifest-expired-or-future"],
+  ["migration_rehearsal_rejected: scope/source binding", "source-binding-mismatch"],
+  ["migration_rehearsal_rejected: final manifest identity", "manifest-identity-mismatch"],
+  ["migration_rehearsal_rejected: admitted-manifest-mismatch", "admitted-manifest-mismatch"],
+  ["migration_rehearsal_rejected: execution-manifest-mismatch", "execution-manifest-mismatch"],
+  ["migration_rehearsal_rejected: execution manifest clock regressed", "execution-manifest-clock-regressed"],
+  ["copy_stage_deadline_exhausted", "stage-deadline-exhausted"],
+  ["copy_batch_readback_budget_exhausted", "submission-budget-exhausted"],
+  ["joint_interrupted", "interrupted"],
+]);
+const firestoreCodes = ["ok", "cancelled", "unknown", "invalid-argument", "deadline-exceeded", "not-found",
+  "already-exists", "permission-denied", "resource-exhausted", "failed-precondition", "aborted",
+  "out-of-range", "unimplemented", "internal", "unavailable", "data-loss", "unauthenticated"];
+const firestoreFailureSteps = new Set(["submission", "execute", "close", "initialReadBack", "operation",
+  "finalReadBack", "execution-manifest-journal", "receipt", "after-receipt"]);
+function classifyFirestoreError(step, error) {
+  if (step === "execution-manifest-journal" || step === "receipt") return "journal-write-failed";
+  try {
+    const message = Object.getOwnPropertyDescriptor(error, "message")?.value;
+    if (localFirestoreReasons.has(message)) return localFirestoreReasons.get(message);
+    const code = Object.getOwnPropertyDescriptor(error, "code")?.value;
+    if (Number.isInteger(code) && code > 0 && code < firestoreCodes.length) return "firestore-" + firestoreCodes[code];
+    if (typeof code === "string" && firestoreCodes.indexOf(code) > 0) return "firestore-" + code;
+    if (code === "maintenance_state_conflict") return "maintenance-state-conflict";
+    if (code === "ERR_ASSERTION") return "assertion-failed";
+  } catch { /* Opaque exceptions still leave a timestamp and phase. */ }
+  return "unclassified-error";
+}
+
 function guardFirestore(firestore,assertMutation) {
   return new Proxy(firestore,{get(target,name){
     if(name==="runTransaction")return (callback,options={})=>target.runTransaction(async tx=>{
@@ -28,7 +60,7 @@ function guardFirestore(firestore,assertMutation) {
 }
 
 async function executeJointStep({prepared,scope,admission,forwardReadBack=null,sourceInput,reviewPackage,
-  forwardPlan=null,observeSheets,sheetsAdapter,timeBudget,record,signal,executeFirestore,inspectFirestore,permissionTransition=null}) {
+  forwardPlan=null,observeSheets,sheetsAdapter,timeBudget,record,signal,executeFirestore,inspectFirestore,permissionTransition=null,nowMillis=Date.now}) {
   const direction=admission.direction;
   assert.ok(["forward","inverse"].includes(direction));
   assert.equal(reviewPackage.packageDigest,prepared.reviewPackageDigest);
@@ -37,6 +69,26 @@ async function executeJointStep({prepared,scope,admission,forwardReadBack=null,s
   const stage=()=>{if(signal?.aborted)throw Error("joint_interrupted");timeBudget.assertStage();};
   const mutation=()=>{stage();direction==="forward"?timeBudget.assertSubmission():timeBudget.assertStage();};
   let phase="planning",plan=null,firestoreReceipt=null,sheetsResult=null;
+  let firstFirestoreFailure = null;
+  let firstFirestoreFailureAppendVerified = false;
+  let firestoreStep = "submission";
+  async function onFirestoreError(step, error) {
+    if (firstFirestoreFailure !== null) return;
+    let observedAtMillis = null;
+    try {
+      const at = nowMillis();
+      if (Number.isSafeInteger(at) && at >= 0) observedAtMillis = at;
+    } catch { /* Failure reporting must not replace the operation's error. */ }
+    firstFirestoreFailure = {
+      step: firestoreFailureSteps.has(step) ? step : "execute",
+      reason: classifyFirestoreError(step, error),
+      observedAtMillis,
+    };
+    try {
+      await record({phase: "firestore-first-failure", failure: firstFirestoreFailure});
+      firstFirestoreFailureAppendVerified = true;
+    } catch { /* The terminal result also carries the first classified error. */ }
+  }
   const inspect=async()=>{
     // Separate read-only inspection never calls execute/reconcile, acquires a
     // barrier, or interprets an absent/unavailable receipt as permission to retry.
@@ -59,8 +111,11 @@ async function executeJointStep({prepared,scope,admission,forwardReadBack=null,s
     await record({phase:"intent",preparedDigest:prepared.preparedDigest,admissionDigest:admission.admissionDigest,plan});stage();
     const writeFirestore=async()=>{
       phase="firestore";mutation();
-      firestoreReceipt=await executeFirestore({scope,admission,forwardReadBack,assertMutation:mutation});
-      await record({phase:"firestore-receipt",receipt:firestoreReceipt});stage();
+      firestoreStep="execute";
+      firestoreReceipt=await executeFirestore({scope,admission,forwardReadBack,assertMutation:mutation,onFirestoreError});
+      firestoreStep="receipt";
+      await record({phase:"firestore-receipt",receipt:firestoreReceipt});
+      firestoreStep="after-receipt";stage();
     };
     const writeSheets=async()=>{
       phase="sheets";stage();
@@ -81,8 +136,10 @@ async function executeJointStep({prepared,scope,admission,forwardReadBack=null,s
     else{await writeSheets();await writeFirestore();}
     return {kind:"joint-step-verified",direction,plan,firestoreReceipt,sheetsResult,
       cleanupVerified:false,canRetry:false,canEnterMaintenance:false};
-  } catch {
+  } catch (error) {
+    if(phase==="firestore")await onFirestoreError(firestoreStep,error);
     const result={kind:"joint-inspection-required",direction,phase,plan,firestoreReceipt,sheetsResult,
+      ...(firstFirestoreFailure ? {firstFirestoreFailure, firstFirestoreFailureAppendVerified} : {}),
       inspection:await inspect(),cleanupVerified:false,canRetry:false,canEnterMaintenance:false};
     // If the local evidence sink also fails, propagate that failure. Do not
     // claim the uncertain outcome was recorded or begin another operation.

@@ -99,9 +99,10 @@ function createInitialReviewCollector({reviewed:input,reviewDigest,iamBearer,rea
       checkpoint="quiet-interval";
       await stage("quiet-interval",[async()=>{while(nowMillis()<quietEnd){current();const before=nowMillis();await sleep(Math.min(1000,quietEnd-before));assert.ok(nowMillis()>before,"Quiet wait did not advance the clock");}}]);
       const endedAtMillis=nowMillis(),finalStart=nowMillis();
+      const reportDeadlineMillis=Math.min(deadlineMillis,endedAtMillis+plan.scope.maximumEvidenceAgeMillis,plan.historicalRisk.expiresAtMillis);
       checkpoint="final-observations";
       const [finalCloud,finalCensus,finalSource,finalSheets,,reports]=await stage("final-observations",[controls,routeCensus,source,sheets,assertWriterAuthority,
-        ()=>readHumanReports({scope:structuredClone(plan.scope),ownerAgreement:oa,administratorAgreement:aa,notBeforeMillis:finalStart,deadlineMillis,assertActive:current})]);
+        ()=>readHumanReports({scope:structuredClone(plan.scope),ownerAgreement:oa,administratorAgreement:aa,notBeforeMillis:finalStart,deadlineMillis:reportDeadlineMillis,assertActive:current})]);
       checkpoint="post-final-source-comparison";
       assert.deepEqual(initialSource.source,finalSource.source,"Source mutation during quiet interval");
       checkpoint="post-final-causal-evidence";

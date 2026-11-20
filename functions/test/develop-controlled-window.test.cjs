@@ -42,6 +42,28 @@ for(const phase of ["open","acquire","execute","file","iam","oauth"])test(`parti
 test("cancellation before opening performs no provider operation",async t=>{
   const f=fixture(t);f.controller.abort();const result=await run(f.args);assert.equal(result.kind,"inspection-required");assert.deepEqual(f.events,[]);
 });
+test("first window failure identifies an expired joint admission before inspection and cleanup",async t=>{
+  const f=fixture(t);
+  f.session.executor.executeJoint=async()=>{assert.fail("admission inspection expired");};
+  f.session.cleanup.file=async()=>{throw Error("secondary cleanup failure");};
+  const result=await run(f.args),records=read(result.directory).records.map(r=>r.value);
+  const first={step:"execute-joint",reason:"admission inspection expired"};
+  assert.deepEqual(result.firstFailure,first);
+  assert.deepEqual(records.find(r=>r.phase==="window-error"),{phase:"window-error",...first});
+  assert.ok(records.findIndex(r=>r.phase==="window-error")<records.findIndex(r=>r.phase==="inspection"));
+  assert.deepEqual(records.at(-1).firstFailure,first);
+  assert.equal(result.kind,"inspection-required");assert.ok(result.cleanup.failures.includes("file-unverified"));
+  assert.deepEqual(f.events.slice(-2),["iam","oauth"]);
+});
+test("first window failure keeps provider detail private even if recovery cannot open",async t=>{
+  const f=fixture(t),privateValue="private provider response for this fixture";
+  f.args.openSession=async()=>{throw new Error(privateValue);};
+  f.args.openRecoverySession=async()=>{throw new Error(privateValue);};
+  const result=await run(f.args),saved=read(result.directory);
+  assert.deepEqual(saved.records.at(-1).value.firstFailure,{step:"open-session",reason:"unclassified-error"});
+  assert.equal(result.failure,"session-cleanup-unavailable");assert.equal(result.canResumeExecution,false);
+  assert.ok(!JSON.stringify(saved.records).includes(privateValue));
+});
 test("abort while execution is pending waits for settlement before cleanup",async t=>{
   const f=fixture(t);let finish,entered;const pending=new Promise(resolve=>{entered=resolve;});
   f.session.executor.executeJoint=async()=>{entered();await new Promise(resolve=>{finish=resolve;});return {kind:"joint-inspection-required"};};

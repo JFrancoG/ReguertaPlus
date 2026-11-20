@@ -45,6 +45,12 @@ const encodedDigest = (value) => digest(encode(value));
 const same = (a, b) => assert.equal(encodedDigest(a), encodedDigest(b));
 const fail = (message) => { throw new Error(`migration_rehearsal_rejected: ${message}`); };
 const requireValue = (condition, message) => { if (!condition) fail(message); };
+const assertFreshManifestTimestamp = (encodedTime, nowMillis) => {
+  const value = decodeShiftPlanningFirestoreValue(encodedTime);
+  const age = nowMillis - value.toMillis();
+  requireValue(age >= 0 && age <= 60_000, "final manifest expired or future dated");
+  return value;
+};
 const id = (value) => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 const timestamp = (value) => {
@@ -181,7 +187,8 @@ const historicalMigrationPlanBindings = prepared => ({
   inversePlanDigest: digest({kind: "initial-migration-inverse", preparedDigest: prepared.preparedDigest,
     recoveryOperationId: prepared.recoveryOperationId, baselineRevision: prepared.baselineRevision}),
 });
-const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, controlPlane, failurePersistence, nowMillis, historicalRiskMode = false}) => {
+const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, controlPlane, failurePersistence, nowMillis,
+  historicalRiskMode = false, recordForwardManifest, onFirestoreError}) => {
   const PROJECT_ID = value.projectId;
   requireValue(["demo-reguerta-hu084-migration", "reguerta-9f27f"].includes(PROJECT_ID) && db.projectId === PROJECT_ID && db.databaseId === "(default)", "pinned develop database required");
   const prepared = structuredClone(value);
@@ -199,7 +206,7 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
   const baselineKind = PROJECT_ID === "reguerta-9f27f" ? "controlledDevelopMigrationBaseline" : "emulatorDevelopMigrationBaseline";
   requireValue(typeof historicalRiskMode === "boolean", "explicit historical risk mode");
   const barrier = historicalRiskMode ? createTrustedShiftPlanningAdministratorBarrierAdapter({
-    controlPlane, failurePersistence, readClockMillis: nowMillis,
+    controlPlane, failurePersistence, readClockMillis: nowMillis, onFirestoreError,
   }) : createTrustedShiftPlanningIntakeBarrierAdapter({controlPlane, failurePersistence});
   const operationPath = `${ROOT}/shiftPlanningOperations/${prepared.operationId}`;
   const baselinePath = `${ROOT}/shiftPlanningMigrationBaselines/${prepared.baselineRevision}`;
@@ -408,9 +415,7 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
     if (!finalManifest) return clock();
     const {finalDigest, ...body} = finalManifest;
     requireValue(digest(body) === finalDigest && body.preparedDigest === preparedDigest, "final manifest identity");
-    const value = decodeShiftPlanningFirestoreValue(body.attemptedAt), age = clock().toMillis() - value.toMillis();
-    requireValue(age >= 0 && age <= 60_000, "final manifest expired or future dated");
-    return value;
+    return assertFreshManifestTimestamp(body.attemptedAt, clock().toMillis());
   };
   const finalize = (direction, scope, mutations, manifestDigest, attemptedAt) => {
     const transaction = prepareShiftPlanningFirestoreTransaction({direction, manifestDigest, mutations,
@@ -450,13 +455,14 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
         return snapshotReceipt("forward", forwardDescriptors(replay.baseline), null, replay.operation, true);
       }
       requireValue(!closedPolicy || materializeOnly || finalManifest, "closed migration requires a final manifest");
-      return runHeld(scope, async (evidence) => {
-        const result = await db.runTransaction(async (tx) => {
-        const source = await capture(tx);
-        scopeCheck(scope, source);
-        checkInitialSource(source);
-        const attemptedAt = finalTimestamp(finalManifest);
-        const verified = verifyHeld(evidence, scope);
+      // The admitted manifest must be genuine and current on entry to the hold. Its
+      // timestamp is used later only to reproduce the exact intent that was admitted.
+      let admittedTimestamp;
+      if (recordForwardManifest) {
+        requireValue(closedPolicy && historicalRiskMode && !materializeOnly && finalManifest, "invalid execution manifest mode");
+        admittedTimestamp = finalTimestamp(finalManifest);
+      }
+      const assemble = (source, verified, attemptedAt) => {
         const archives = prepared.legacy.map((before, index) => createShiftPlanningBeforeImageEnvelope({
           operationId: prepared.operationId, environment: "develop", bundleRevision: prepared.baselineRevision,
           bundleDigest: prepared.contentDigest, forwardManifestDigest: preparedDigest, writeEpoch: 1,
@@ -520,12 +526,38 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
         const baseline = {...baselineCore, baselineDigest: digest(baselineCore)};
         mutations.push({kind: "create", documentPath: baselinePath, data: baseline});
         const finalized = finalize("forward", scope, mutations, preparedDigest, attemptedAt);
-        if (materializeOnly) return {finalized};
-        if (finalManifest) same(finalized, finalManifest);
-        const measurement = await applyShiftPlanningFirestoreTransactionAttempt({firestore: db, transaction: tx, direction: "forward",
-          manifestDigest: preparedDigest, mutations, expectedDocumentWriteCount: mutations.length, writerFenceCheckedAt: clock(),
-          authority: prepared.policyDraft.document.sync.transactionMeasurementAuthority, writeLimit: 500});
-        return {measurement, operation, expected: descriptors(mutations)};
+        return {finalized, mutations, operation};
+      };
+      return runHeld(scope, async (evidence) => {
+        const readSource = async tx => {
+          const source = await capture(tx);
+          scopeCheck(scope, source);
+          checkInitialSource(source);
+          return source;
+        };
+        let executionManifest = finalManifest;
+        if (recordForwardManifest) {
+          executionManifest = await db.runTransaction(async tx => {
+            const source = await readSource(tx), verified = verifyHeld(evidence, scope);
+            const admitted = assemble(source, verified, admittedTimestamp).finalized;
+            requireValue(encodedDigest(admitted) === encodedDigest(finalManifest), "admitted-manifest-mismatch");
+            const attemptedAt = clock();
+            requireValue(attemptedAt.toMillis() >= admittedTimestamp.toMillis(), "execution manifest clock regressed");
+            return assemble(source, verified, attemptedAt).finalized;
+          }, {readOnly: true});
+          await recordForwardManifest(executionManifest);
+        }
+        const result = await db.runTransaction(async tx => {
+          const source = await readSource(tx), attemptedAt = finalTimestamp(executionManifest);
+          const {finalized, mutations, operation} = assemble(source, verifyHeld(evidence, scope), attemptedAt);
+          if (materializeOnly) return {finalized};
+          if (executionManifest) {
+            requireValue(encodedDigest(finalized) === encodedDigest(executionManifest), "execution-manifest-mismatch");
+          }
+          const measurement = await applyShiftPlanningFirestoreTransactionAttempt({firestore: db, transaction: tx, direction: "forward",
+            manifestDigest: preparedDigest, mutations, expectedDocumentWriteCount: mutations.length, writerFenceCheckedAt: clock(),
+            authority: prepared.policyDraft.document.sync.transactionMeasurementAuthority, writeLimit: 500});
+          return {measurement, operation, expected: descriptors(mutations)};
         }, materializeOnly ? {readOnly: true} : undefined);
         if (materializeOnly) return result.finalized;
         return snapshotReceipt("forward", result.expected, result.measurement, result.operation);
@@ -598,5 +630,5 @@ const createDevelopShiftMigrationEngine = ({prepared: value, firestore: db, cont
 };
 
 module.exports = {PROJECT_ID, HOST, WORKBOOK_ID, checkContentPositions, decodeRESTValue, decodeRESTDocument, createLocalMigrationPolicyDraft,
-  prepareDevelopShiftMigration, createDevelopShiftMigrationEngine, historicalMigrationPlanBindings};
+  prepareDevelopShiftMigration, createDevelopShiftMigrationEngine, historicalMigrationPlanBindings, assertFreshManifestTimestamp};
 if (require.main === module) fail("composition-only engine; no apply CLI");

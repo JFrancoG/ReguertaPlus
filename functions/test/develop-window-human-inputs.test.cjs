@@ -3,14 +3,17 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 // This joint suite includes the collector cases exactly once.
 const {fixture}=require('./develop-initial-review-collector.test.cjs');
 const {createDevelopHumanInputs}=require('../scripts/develop-window-human-inputs.cjs');
+const {createBarrierObservationSessions}=require('../scripts/develop-barrier-observation-session.cjs');
+const {createDevelopCensusReader}=require('../scripts/develop-live-census-reader.cjs');
 const {createShiftPlanningDigest:digest}=require('../lib/shift-planning-digest.js');
-async function setup(fault=null){
- const f=await fixture(),requests=[],records=[];
+async function setup(fault=null,options={}){
+ const f=await fixture(options),requests=[],records=[];
  f.args.reviewed.payload.workbook.pendingOfflineEditorCount=null;f.args.reviewDigest=digest(f.args.reviewed);
  f.context.binding.initialEvidencePlan.collectionReviewDigest=f.args.reviewDigest;f.context.permissionReceipt.bindingDigest=digest(f.context.binding);
- const human=createDevelopHumanInputs({receiptId:f.context.receiptId,nowMillis:()=>f.g.state.now,deadlineMillis:()=>f.context.binding.window.endsAtMillis-450000,
+ const human=createDevelopHumanInputs({receiptId:f.context.receiptId,nowMillis:()=>f.g.state.now,deadlineMillis:f.budget.currentStageDeadlineMillis,
  assertActive:f.context.assertActive,record:async r=>records.push(structuredClone(r)),exchange:async request=>{
  requests.push(structuredClone(request));f.g.state.now+=100;
+ if(fault==='late-barrier-report'&&request.sequence>3)f.g.state.now=request.deadlineMillis+5637;
  const reply={...structuredClone(request.responseTemplate),requestDigest:request.requestDigest,responseId:`reply-${requests.length}`,respondedAtMillis:f.g.state.now};
  if(reply.confirmations)for(const c of reply.confirmations){c.confirmationId=`confirm-${requests.length}-${c.role??c.principalId}`;c.confirmedAtMillis=f.g.state.now;
  for(const k of request.kind==='owner'?['onlineClosedNoOfflineEdits','noManualOrAutomationWrites']:['noUnreviewedDataRulesDeployIamOrScriptWrites','noAutomationViaHumanCredentials'])c[k]=true;}
@@ -47,4 +50,44 @@ test(`human ${fault} cannot seal or mint`,async()=>{
 });
 test('transport receives detached intents and cannot obtain reports before agreements',async()=>{
  const {f,human}=await setup('mutated-intent');await assert.rejects(human.readHumanReports({}));const result=await f.make()(f.context);assert.notEqual(result.review.evidence.payload.ownerAgreement.payload.intent.agreementId,'changed');
+});
+test('initial and subsequent human reports honor the sealed evidence expiry before the preparation deadline',async()=>{
+ const {f,human,requests}=await setup('late-barrier-report',{interactive:true});
+ const {scope,review}=await f.make()(f.context);
+ const expiry=review.evidence.payload.quietHorizon.endedAtMillis+scope.maximumEvidenceAgeMillis;
+ const phaseDeadline=f.budget.currentStageDeadlineMillis();
+ assert.ok(expiry+5637<phaseDeadline);
+ assert.equal(requests[2].deadlineMillis,expiry);
+ let reportFailure;
+ const sessions=createBarrierObservationSessions({
+   scope,review,reviewDigest:digest(review),timeBudget:f.budget,owner:{capture:f.context.captureOwner},
+   iamBearer:f.args.iamBearer,nowMillis:f.context.nowMillis,record:f.context.record,
+   assertWriterAuthority:f.context.assertWriterAuthority,getPermissionTransition:()=>f.context.transition,
+   readCensus:createDevelopCensusReader({bearer:f.args.iamBearer}),
+   async readHumanReports(...args){
+     try{return await human.readHumanReports(...args);}catch(error){reportFailure=error;throw error;}
+   },
+ });
+ const lease=await sessions.openObservationSession(scope);
+ try {
+   await assert.rejects(lease.readEvidence(),/barrier_observation_incomplete/);
+   assert.equal(requests[3].deadlineMillis,expiry);
+   assert.match(reportFailure.message,/human_input_deadline_exhausted/);
+   assert.ok(f.g.state.now>=expiry+5637&&f.g.state.now<phaseDeadline);
+   assert.ok(!f.state.records.some(event=>event.phase==='barrier-live-observation'));
+   await assert.rejects(lease.readEvidence(),/barrier_evidence_deadline_exhausted/);
+   assert.equal(requests.length,4);
+ } finally {
+   await lease.close();await sessions.close();human.close();
+ }
+});
+test('a shorter work phase still limits a report when the evidence remains fresh',async()=>{
+ const {f,human,requests}=await setup(null,{interactive:true});
+ const {scope,review}=await f.make()(f.context);
+ const expiry=review.evidence.payload.quietHorizon.endedAtMillis+scope.maximumEvidenceAgeMillis;
+ f.budget.beginWork(f.g.state.now+300000);
+ assert.ok(f.budget.currentStageDeadlineMillis()<expiry);
+ await human.readHumanReports(scope,expiry);
+ assert.equal(requests.at(-1).deadlineMillis,f.budget.currentStageDeadlineMillis());
+ human.close();
 });

@@ -4,7 +4,8 @@
 // Even execution consumes an already-held barrier; it cannot open/close controls.
 const assert = require("node:assert/strict");
 const {createShiftPlanningDigest:digest} = require("../lib/shift-planning-digest.js");
-const {createDevelopShiftMigrationEngine,PROJECT_ID:DEMO,HOST} = require("./develop-shift-migration-engine.cjs");
+const {createDevelopShiftMigrationEngine,assertFreshManifestTimestamp,PROJECT_ID:DEMO,HOST} = require("./develop-shift-migration-engine.cjs");
+const {ORIGINAL_DEVELOP_MODE}=require("./develop-copy-time-budget.cjs");
 const {verifyClosedPolicy,KIND} = require("./develop-closed-migration-policy.cjs");
 const {guardFirestore,executeJointStep}=require("./develop-joint-execution.cjs");
 const PROJECT = "reguerta-9f27f";
@@ -64,6 +65,8 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
   }
   let jointActive=false;
   const jointConsumed=new Set();
+  // Only this executor's one-shot joint path can select post-observation materialization.
+  const executionManifestSink=Symbol("original develop execution manifest");
   const executor = {
     close:()=>firestore.terminate(),
     async inspectAdmission({direction="forward",scope=null,forwardReadBack=null}={}) {
@@ -95,13 +98,27 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
         return report(direction,scope,after,validationStarted,null,finalManifest,started);
       }catch{return report(direction,scope,source,validationStarted,"admission_not_proven",null,started);}
     },
-    async execute({scope,admission,forwardReadBack=null,assertMutation=null}) {
+    async execute({scope,admission,forwardReadBack=null,assertMutation=null,onFirestoreError,[executionManifestSink]:recordManifest}) {
       scope=structuredClone(scope);admission=structuredClone(admission);forwardReadBack=structuredClone(forwardReadBack);
       const value=validateAdmission(scope,admission);
       assert.ok(projectId!==PROJECT||assertMutation!==null,"shared execution requires joint deadline guard");
       if(assertMutation!==null)assert.equal(typeof assertMutation,"function");
+      let executionTimestamp;
+      const guard=()=>{
+        assertMutation();
+        if(executionTimestamp)assertFreshManifestTimestamp(executionTimestamp,clock());
+      };
       const target=assertMutation?createDevelopShiftMigrationEngine({...dependencies,
-        firestore:guardFirestore(firestore,assertMutation),failurePersistence}):execution;
+        firestore:guardFirestore(firestore,guard),failurePersistence,onFirestoreError,
+        recordForwardManifest:recordManifest && (async manifest=>{
+          assert.equal(executionTimestamp,undefined);
+          executionTimestamp=manifest.attemptedAt;
+          try {await recordManifest(structuredClone(manifest));} catch(error) {
+            try {await onFirestoreError?.("execution-manifest-journal",error);}
+            catch { /* The journal error is the primary cause. */ }
+            throw error;
+          }
+        })}):execution;
       assertMutation?.();
       // No preflight result bypasses the engine's fresh barrier/source/CAS checks.
       return value.direction==="forward"?target.forward({scope,finalManifest:value.finalManifest}):
@@ -116,6 +133,10 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
       // budget/session owners stay within this explicit infrastructure boundary.
       const {observeSheets,sheetsAdapter,timeBudget,record,signal,...values}=input;
       const frozen=structuredClone(values);validateAdmission(frozen.scope,frozen.admission);
+      const originalForward=frozen.executionMode===ORIGINAL_DEVELOP_MODE;
+      if(frozen.executionMode!==undefined){
+        assert.ok(originalForward&&coherent&&frozen.admission.direction==="forward","Original Develop requires a coherent forward window");
+      }
       timeBudget.assertStage();
       assert.ok(!jointActive&&!jointConsumed.has(frozen.admission.direction),"joint attempt consumed or active; inspect only");
       jointActive=true;jointConsumed.add(frozen.admission.direction);
@@ -128,8 +149,11 @@ function compose({firestore,prepared:original,controlPlane,failurePersistence,no
           assert.equal(digest(fresh.source),digest(frozen.admission.source),"inverse source changed");
           timeBudget.assertStage();
         }
-        return await executeJointStep({...frozen,observeSheets,sheetsAdapter,timeBudget,record,signal,prepared,
-          executeFirestore:args=>executor.execute(args),inspectFirestore:args=>executor.inspectUncertain(args)});
+        const recordManifest=finalManifest=>record({phase:"forward-execution-manifest",
+          admissionDigest:frozen.admission.admissionDigest,admittedManifestDigest:frozen.admission.finalManifest.finalDigest,finalManifest});
+        return await executeJointStep({...frozen,observeSheets,sheetsAdapter,timeBudget,record,signal,prepared,nowMillis,
+          executeFirestore:args=>executor.execute({...args,...(originalForward?{[executionManifestSink]:recordManifest}:{})}),
+          inspectFirestore:args=>executor.inspectUncertain(args)});
       } finally {jointActive=false;}
     },
     async readRetained({scope,direction="forward",forwardReadBack=null}) {

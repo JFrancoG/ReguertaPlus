@@ -20,7 +20,7 @@ function createBarrierObservationSessions({scope:input,review:original,reviewDig
   assert.equal(digest(review),reviewDigest,"Unreviewed observation binding");
   assert.equal(review.scopeDigest,scopeDigest);assert.equal(scope.expectedWorkbookFileId,FILE);
   assert.equal(typeof record,"function");assert.equal(typeof assertWriterAuthority,"function");
-  const seed=verify(review.evidence,command(scope),review.evidence.payload.verifiedAtMillis).evidence;
+  const {evidence:seed,expiresAtMillis}=verify(review.evidence,command(scope),review.evidence.payload.verifiedAtMillis);
   assert.equal(review.evidence.digest,digest(seed.payload));
   // The review links these exact raw observations to the complete barrier. Raw
   // digests and the barrier's domain digests deliberately stay distinct.
@@ -41,11 +41,13 @@ function createBarrierObservationSessions({scope:input,review:original,reviewDig
   const current=()=>{assert.equal(closed,false,"Observation owner closed");timeBudget.assertStage();};
   async function collect(context) {
     current();const startedAtMillis=nowMillis();
+    // Fresh readbacks cannot move the end of the sealed quiet horizon or either agreement.
+    assert.ok(startedAtMillis<expiresAtMillis,"barrier_evidence_deadline_exhausted");
     // Await every sibling, including failures, before releasing the lease or
     // changing cleanup phase. Never race a deadline against an abandoned read.
     const results=await Promise.allSettled([
       ()=>cloud.read(),()=>owner.capture(true),()=>readCensus({fetchImpl:observedFetch,nowMillis}),
-      ()=>assertWriterAuthority(),()=>readHumanReports(clone(scope)),
+      ()=>assertWriterAuthority(),()=>readHumanReports(clone(scope),expiresAtMillis),
     ].map(read=>Promise.resolve().then(read)));
     await Promise.allSettled([...pendingHttp]);
     current();if(results.some(r=>r.status==="rejected"))throw Error("barrier_observation_incomplete");

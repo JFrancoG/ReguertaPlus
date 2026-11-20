@@ -2,6 +2,8 @@
 const {test} = require("node:test");
 const assert = require("node:assert/strict");
 const {historicalFixture} = require("./develop-historical-risk-fixture.cjs");
+const {originalWindowFixture} = require("./develop-original-window-fixture.cjs");
+const {executeJointStep} = require("../scripts/develop-joint-execution.cjs");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {verifyShiftPlanningAdministratorAgreementIntakeBarrierEvidence: verify,
   parseShiftPlanningMaintenanceBarrierEvidenceEnvelope: parse,
@@ -100,4 +102,107 @@ test("operation failure retains its incident when the original closed checkpoint
   await assert.rejects(h.adapter.withClosedIntakeBarrier(f.scope, async () => {throw new Error("late cell change");}), /late cell change/);
   assert.ok(h.incident);
   await assert.rejects(h.adapter.withClosedIntakeBarrier(f.scope, async () => {assert.fail("must not resume");}));
+});
+
+async function failingJointOperation(original, {failReread = false, failJournal = false, manifestJournal = false} = {}) {
+  const window = originalWindowFixture();
+  const f = historicalFixture();
+  const closed = checkpoint({scope: f.scope, holdRevision: "failed-joint", evidence: f.evidence});
+  const events = [];
+  let now = 520;
+  let rereads = 0;
+  let operations = 0;
+  let durableIncident = null;
+  let propagated;
+  const result = await executeJointStep({
+    ...window.args(), admission: {direction: "forward", admissionDigest: digest("fixture")},
+    nowMillis: () => now,
+    timeBudget: {assertStage() {}, assertSubmission() {}},
+    observeSheets: window.batch.observe,
+    sheetsAdapter: {inspect: async () => ({kind: "not-observed"}), reconcile: assert.fail},
+    inspectFirestore: async () => ({kind: "not-observed"}),
+    record: async event => {
+      events.push(event);
+      if (event.phase === "firestore-first-failure" && failJournal) throw Error("unavailable journal");
+    },
+    executeFirestore: async ({onFirestoreError}) => {
+      const barrier = adapter({
+        readClockMillis: () => now, onFirestoreError,
+        controlPlane: {
+          closeAndCollect: async () => closed,
+          readBackClosed: async () => {
+            if (++rereads === 2) {
+              now += 7;
+              if (failReread) throw Error("failure closure read unavailable");
+            }
+            return closed;
+          },
+          readBackOwnerObservation: async () => f.evidence.payload.ownerObservation,
+          readBackAdministratorObservation: async () => f.evidence.payload.administratorObservation,
+        },
+        failurePersistence: {
+          readExistingFailure: async () => null,
+          retainFailureAndReadBack: async request => (durableIncident = failure(request, now)),
+        },
+      });
+      try {
+        return await barrier.withClosedIntakeBarrier(f.scope, async () => {
+          operations++;
+          if (manifestJournal) await onFirestoreError("execution-manifest-journal", original);
+          throw original;
+        });
+      } catch (error) {
+        propagated = error;
+        throw error;
+      }
+    },
+  });
+  assert.equal(operations, 1);
+  assert.equal(rereads, 2);
+  assert.equal(result.kind, "joint-inspection-required");
+  assert.equal(result.canRetry, false);
+  assert.equal(result.sheetsResult, null);
+  assert.deepEqual(events.map(event => event.phase), ["intent", "firestore-first-failure", "inspection-required"]);
+  assert.deepEqual(events[1].failure, result.firstFirestoreFailure);
+  assert.deepEqual(events[2].result.firstFirestoreFailure, result.firstFirestoreFailure);
+  assert.equal(result.firstFirestoreFailureAppendVerified, !failJournal);
+  return {first: result.firstFirestoreFailure, events, durableIncident, propagated};
+}
+
+test("joint journal preserves the first Firestore status and its clock when the incident reread masks it", async () => {
+  const privateValue = "private-fixture-document-and-credential";
+  const original = Object.assign(Error(privateValue), {code: 7, details: privateValue});
+  const outcome = await failingJointOperation(original, {failReread: true});
+  assert.equal(outcome.propagated.code, "maintenance_state_conflict");
+  assert.equal(outcome.durableIncident, null);
+  assert.deepEqual(outcome.first, {step: "operation", reason: "firestore-permission-denied", observedAtMillis: 520});
+  assert.ok(!JSON.stringify(outcome.events).includes(privateValue));
+});
+
+test("failed first-error append preserves the cause in the joint result and allows incident retention", async () => {
+  const original = Error("migration_rehearsal_rejected: final manifest expired or future dated");
+  const outcome = await failingJointOperation(original, {failJournal: true});
+  assert.equal(outcome.propagated, original);
+  assert.ok(outcome.durableIncident);
+  assert.deepEqual(outcome.first, {step: "operation", reason: "manifest-expired-or-future", observedAtMillis: 520});
+});
+
+test("execution manifest journal errors keep their local origin when the barrier also reports the exception", async () => {
+  const original = Object.assign(Error("private-fixture-filesystem-path"), {code: "unavailable"});
+  const outcome = await failingJointOperation(original, {manifestJournal: true});
+  assert.ok(outcome.durableIncident);
+  assert.deepEqual(outcome.first, {step: "execution-manifest-journal", reason: "journal-write-failed", observedAtMillis: 520});
+  assert.ok(!JSON.stringify(outcome.events).includes(original.message));
+});
+
+test("opaque Firestore errors retain only their phase and time without invoking provider accessors", async () => {
+  let accessed = false;
+  const sentinel = "private-fixture-token";
+  const original = {details: sentinel, get message() {accessed = true; return sentinel;},
+    get code() {accessed = true; return sentinel;}};
+  const outcome = await failingJointOperation(original);
+  assert.equal(accessed, false);
+  assert.equal(outcome.propagated, original);
+  assert.deepEqual(outcome.first, {step: "operation", reason: "unclassified-error", observedAtMillis: 520});
+  assert.ok(!JSON.stringify(outcome.events).includes(sentinel));
 });
