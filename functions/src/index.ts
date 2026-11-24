@@ -1,6 +1,8 @@
+import {randomUUID} from "node:crypto";
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onRequest, Request} from "firebase-functions/v2/https";
 import {
+  onDocumentCreated,
   onDocumentCreatedWithAuthContext,
   onDocumentWritten,
   onDocumentWrittenWithAuthContext,
@@ -57,6 +59,9 @@ import {
 } from "./shift-swap-security.js";
 import {buildNotificationInboxDocument} from "./notification-inbox.js";
 import {buildMemberDirectoryDocument} from "./member-directory.js";
+import {isEligibleForShiftRotation, shiftEligibilityChanged} from
+  "./shift-eligibility.js";
+import {membershipEligibilityRef} from "./shift-membership-eligibility-time.js";
 import {
   classifyShiftPlanningCreatedRequest,
   createFirestoreShiftPlanningRuntime,
@@ -145,6 +150,16 @@ import {createShiftSheetsImportHttpFunction, readShiftSheetsImportMapping} from
   "./shift-sheets-import-http.js";
 import {createFirestoreShiftCoverageService} from
   "./shift-coverage-live.js";
+import {createFirestoreShiftCoverageEffectsWorker} from
+  "./shift-coverage-effects-worker.js";
+import {createFirestoreShiftCoverageDelivery,
+  createShiftCoverageDeliveryEventHandler} from "./shift-coverage-delivery.js";
+import {createFirebaseShiftCoverageNotificationTransport,
+  createFirestoreShiftCoveragePushDispatcher} from "./shift-coverage-push.js";
+import type {ShiftCoverageStoreContext} from
+  "./shift-coverage-store-context.js";
+import {createShiftCreditPlanningContext} from
+  "./shift-credit-planning-context.js";
 import {readCoveragePublicEventOwnership} from
   "./shift-coverage-public-event.js";
 import {executeShiftCoverageAccessRequest, executeShiftCoverageRequest} from
@@ -154,9 +169,14 @@ const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 const messaging = getMessaging(firebaseApp);
-const shiftPlanningRuntime = createFirestoreShiftPlanningRuntime(firestore);
+// Shared activation awaits the reviewed writer controls and Develop acceptance.
+const coverageOperationalReady = false;
+const creditPlanningFor = (environment: AppEnvironment) =>
+  createShiftCreditPlanningContext({firestore, environment,
+    operationalReady: coverageOperationalReady});
 const shiftPlanningRecoveryExecutor =
-  createFirestoreShiftPlanningOperatorRecoveryExecutor(firestore);
+  createFirestoreShiftPlanningOperatorRecoveryExecutor(firestore,
+    {creditPlanningFor});
 const deliveryCalendarCommandRepository =
   createFirestoreDeliveryCalendarCommandRepository(firestore);
 const shiftPlanningRequestContextRepository =
@@ -3202,8 +3222,8 @@ export const resolveDeliveryCalendarMutationContext = onRequest(
 
 const liveShiftCoverageServiceFor = (environment: AppEnvironment) =>
   createFirestoreShiftCoverageService({firestore, environment,
-    // Live effect ownership, workbook leases, intake and entropy are pending.
-    operationalReady: false, nowMillis: Date.now});
+    operationalReady: coverageOperationalReady, nowMillis: Date.now,
+    effectDeliveryFor: coverageDeliveryFor});
 
 export const resolveShiftCoverageAccess = onRequest(async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -3250,7 +3270,8 @@ export const resolveShiftPlanningRequestContext = onRequest(
         verifyIdentity: () => verifyRequestIdentity(req),
         requireAdmin: requireAdminInEnvironment,
         resolveContext: (input) =>
-          shiftPlanningRequestContextRepository.resolve(input),
+          shiftPlanningRequestContextRepository.resolve(input,
+            creditPlanningFor(input.environment)),
       });
       res.status(200).json({ok: true, ...context});
     } catch (error) {
@@ -3314,7 +3335,8 @@ export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
 
 export const onVersionedShiftPlanningRequestCreated =
   createVersionedShiftPlanningRequestTrigger(
-    shiftPlanningRuntime,
+    {executeRequest: (input) => createFirestoreShiftPlanningRuntime(
+      firestore, creditPlanningFor(input.environment)).executeRequest(input)},
     (environment, authType, authId) =>
       resolvePrivilegedFirestoreEventAuthorization(
         {authType, authId},
@@ -3400,6 +3422,42 @@ const getPlanningSheetsClients = () => {
     files: google.drive({version: "v3", auth}).files,
   };
 };
+
+const coverageDeliveryFor = (context: ShiftCoverageStoreContext) =>
+  createFirestoreShiftCoverageDelivery({firestore, context,
+    push: createFirestoreShiftCoveragePushDispatcher({firestore, context,
+      transport: createFirebaseShiftCoverageNotificationTransport(messaging),
+      nowMillis: Date.now}),
+    sheetsWorker: () => {
+      const config = readShiftSheetsWorkerConfig(context.environment,
+        process.env);
+      const clients = getPlanningSheetsClients();
+      return createFirestoreShiftCoverageEffectsWorker({firestore, context,
+        config, sheets: clients.sheets,
+        tabs: readShiftSheetsImportMapping(config, process.env),
+        readWorkbookVersion: createShiftSheetsWorkbookVersionReader({
+          workbookId: config.workbookId, files: clients.files}),
+        leaseDurationMillis: 60_000, nowMillis: Date.now});
+    }});
+
+const deliverCoverageEvent = createShiftCoverageDeliveryEventHandler({
+  firestore, operationalReady: coverageOperationalReady,
+  deliveryFor: coverageDeliveryFor});
+
+export const onShiftCoverageEffectCreated = onDocumentCreated({
+  document: "{env}/plus-collections/shiftCoverageEffects/{operationId}",
+  retry: true,
+}, (event) => deliverCoverageEvent({kind: "effect",
+  environment: event.params.env, operationId: event.params.operationId}));
+
+export const onShiftCoverageInboxCreated = onDocumentCreated({
+  document: "{env}/plus-collections/users/{memberId}/notificationInbox/" +
+    "{eventId}",
+  retry: true,
+}, (event) => deliverCoverageEvent({kind: "inbox",
+  environment: event.params.env, memberId: event.params.memberId,
+  eventId: event.params.eventId,
+  coverageOperationId: event.data?.get("coverageOperationId")}));
 
 export const inspectDevelopShiftMigration =
   createShiftPlanningDevelopInspectionHttpFunction({
@@ -4111,7 +4169,22 @@ export const upsertMemberByAdmin = onRequest(async (req, res) => {
         [{scope: "member", resourceId: memberId}],
         Timestamp.now(),
       );
+      const eligible = isEligibleForShiftRotation(input);
+      const eligibilityRef = membershipEligibilityRef(memberRef);
+      // A deleted member can leave a private record of an earlier period.
+      const hasPreviousMember = memberSnapshot.exists ||
+        (eligible && (await transaction.get(eligibilityRef)).exists);
       transaction.set(memberRef, payload, {merge: true});
+      if (shiftEligibilityChanged(memberSnapshot.data(), input)) {
+        const previousExclusion = currentData.isActive ?
+          "excusedIneligible" : "excusedDeparture";
+        // Both documents share the exact Firestore commit version. Profile
+        // edits leave this version intact for later membership reconciliation.
+        transaction.set(eligibilityRef, {
+          eligible, transitionId: randomUUID(),
+          ...(hasPreviousMember && eligible ? {previousExclusion} : {}),
+        });
+      }
     });
 
     logger.info("Member upserted by an authenticated admin", {environment});

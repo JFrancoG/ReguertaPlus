@@ -93,6 +93,21 @@ test("frozen credits retry in later rounds; minimum delivery and market cohorts 
   }
 });
 
+test("governed projections explain frozen and staffing deferrals while preserving pending credits", () => {
+  const cursor = rotation("market", 3);
+  const source = policy(cursor, ["member-0"], 1);
+  const project = (recordDeferralReasons) => planShiftSeasonCreditUnits({rotation: cursor,
+    targetUnitCount: 2, policy: {...source, recordDeferralReasons}}).projection;
+  const projection = project(true);
+  assert.deepEqual(projection.units.map((unit) => unit.creditDeferrals), [
+    [{creditId: "credit-member-0", reason: "frozenRound"}],
+    [{creditId: "credit-member-0", reason: "completeUnitRequired"}],
+  ]);
+  assert.deepEqual(projection.consumedCreditIds, []);
+  assert.deepEqual(projection.remainingPendingCreditIds, ["credit-member-0"]);
+  assert.equal(project(false).units.some((unit) => "creditDeferrals" in unit), false);
+});
+
 test("last delivery owner cannot create a new-round physical slot just to redeem a credit", () => {
   const cursor = rotation("delivery", 4);
   const result = planShiftSeasonCreditUnits({rotation: cursor, targetUnitCount: 1,

@@ -26,6 +26,7 @@ export const coverageSheetRow = (
 export const buildShiftCoverageEffects = (input: {
   operationId: string;
   action: string;
+  projectionOperationId?: string;
   previous: ShiftCoverageCase | undefined;
   next: ShiftCoverageCase;
   before: ReadonlyMap<string, ShiftPlanningPublicShiftDocument>;
@@ -40,6 +41,11 @@ export const buildShiftCoverageEffects = (input: {
     return digest(before) === digest(after) ? [] : [{before, after}];
   }).sort((a, b) => a.after.id.localeCompare(b.after.id));
   const recipients = new Set<string>();
+  const drawFailureNotice = next.selection?.drawFailure?.alertOperationId ===
+    operationId;
+  if (drawFailureNotice && next.selection?.drawFailure) {
+    recipients.add(next.selection.drawFailure.administratorId);
+  }
   if (next.status === "offered" && next.offer?.id !== previous?.offer?.id) {
     recipients.add(next.offer?.userId as string);
   }
@@ -67,8 +73,34 @@ export const buildShiftCoverageEffects = (input: {
   });
   const value = {schemaVersion: 1, environment: next.environment, operationId,
     caseId: next.id, caseRevision: next.revision, caseDigest: digest(next),
-    action, changes, notifications};
+    action, changes, notifications, ...(input.projectionOperationId ?
+      {projectionOperationId: input.projectionOperationId} : {}),
+    ...(drawFailureNotice ?
+      {drawFailureNotice: true as const} : {})};
   return {...value, effectsDigest: digest(value)};
 };
 
 export type ShiftCoverageEffects = ReturnType<typeof buildShiftCoverageEffects>;
+
+/**
+ * Repeated failed lookups update the case while its single original alert is
+ * still actionable. Every other effect is bound to the exact case digest.
+ * @param {ShiftCoverageEffects} effect Verified outbox.
+ * @param {object} stored Current, private case with its integrity digest.
+ * @return {boolean} True while the effect applies to the current case.
+ */
+export const isCurrentCoverageEffect = (
+  effect: ShiftCoverageEffects, stored?: {value?: ShiftCoverageCase;
+    digest?: string},
+): boolean => {
+  const current = stored?.value;
+  if (!current || stored?.digest !== digest(current)) return false;
+  if (stored.digest === effect.caseDigest) return true;
+  const incident = current.selection?.drawFailure;
+  return effect.drawFailureNotice === true && effect.changes.length === 0 &&
+    current.status === "open" && current.id === effect.caseId &&
+    current.environment === effect.environment &&
+    incident?.alertOperationId === effect.operationId &&
+    effect.notifications.length === 1 &&
+    effect.notifications[0].userId === incident.administratorId;
+};

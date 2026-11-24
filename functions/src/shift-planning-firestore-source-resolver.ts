@@ -334,8 +334,8 @@ const requireRecoveryReadDocument = (
  * reloads the immutable staged package, cached envelope, rebuilt governed
  * source, both authoritative rotations/state, and every before-image target
  * before the runtime is allowed to materialize a write.
- * A changed source policy requesting unavailable provisional credits rejects
- * the staged fairness input; it never opens the provisional publication gate.
+ * A domain conflict while rebuilding a previously staged source means that
+ * its governed inputs are no longer reproducible in this transaction.
  * @param {object} input Environment, request identity, and source rebuilder.
  * @return {ShiftPlanningForwardActivationAttemptResolver} Retry-scoped
  * forward resolver.
@@ -414,8 +414,7 @@ export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
           )
         ) ||
         (
-          error instanceof HttpRequestError &&
-          error.code === "coverage_provisional_emulator_required"
+          error instanceof HttpRequestError && error.status === 409
         )
       ) {
         throw new ShiftPlanningError(

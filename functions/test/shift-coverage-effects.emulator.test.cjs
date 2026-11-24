@@ -93,6 +93,90 @@ const sharedFixture = async (environment) => {
     leaseDurationMillis: 60_000});
   return {scoped, api, accepted, sharedWorker, context, config: scopedConfig, tabs: scopedTabs};
 };
+run("completion delivered out of order verifies one Sheets batch and admin recovers one rejected member push", async () => {
+  const {createFirestoreShiftCoverageDelivery, createShiftCoverageDeliveryEventHandler} =
+    require("../lib/shift-coverage-delivery.js");
+  const {createFirestoreShiftCoverageService} = require("../lib/shift-coverage-live.js");
+  const {executeShiftCoverageRequest} = require("../lib/shift-coverage-live-http.js");
+  const {createFirebaseShiftCoverageNotificationTransport, createFirestoreShiftCoveragePushDispatcher} =
+    require("../lib/shift-coverage-push.js");
+  const {writeProof} = require("./shift-coverage-bootstrap-proof-fixture.cjs");
+  const {SHIFT_COVERAGE_POLICY_REVISION: revision} = require("../lib/shift-coverage.js");
+  const environment = "develop";
+  const {scoped, accepted, config, tabs, api} = await sharedFixture(environment);
+  await scoped("shiftPlanningState", "sourcePolicy").set({
+    coverage: {enabled: true, environment, policyRevision: revision,
+      ratificationReference: "test assembly", maximumOfferWindowMillis: 60_000},
+    creditLedger: {enabled: true, policyRevision: revision},
+    deliverySpacing: {version: "hu089-delivery-spacing-v1"},
+  }, {merge: true});
+  await writeProof(db, environment, {uid: "auth-admin", memberId: "admin", now});
+  await scoped("users", "d").collection("devices").doc("phone").set({fcmToken: "old-token"});
+  const attemptedTokens = [], delivered = [];
+  const deliveryFor = (context) => createFirestoreShiftCoverageDelivery({firestore: db, context,
+    sheetsWorker: () => createFirestoreShiftCoverageEffectsWorker({firestore: db, context, config,
+      sheets: api, tabs, readWorkbookVersion: async () => String(api.revision),
+      nowMillis: () => now, leaseDurationMillis: 60_000}),
+    push: createFirestoreShiftCoveragePushDispatcher({firestore: db, context, nowMillis: () => now,
+      transport: createFirebaseShiftCoverageNotificationTransport({sendEachForMulticast: async (message) => {
+        attemptedTokens.push(...message.tokens);
+        if (message.tokens.includes("old-token")) return {successCount: 0, failureCount: 1,
+          responses: [{success: false, error: {code: "messaging/registration-token-not-registered"}}]};
+        delivered.push(message.data.eventId);
+        return {successCount: 1, failureCount: 0, responses: [{success: true}]};
+      }}, () => now)})});
+  const service = createFirestoreShiftCoverageService({firestore: db, environment,
+    operationalReady: true, nowMillis: () => now, effectDeliveryFor: deliveryFor});
+  const call = (body, uid = "auth-admin") => executeShiftCoverageRequest({method: "POST", query: {},
+    body: {schemaVersion: 1, environment, ...body}}, {verifyIdentity: async () => ({uid}),
+    resolveEnvironment: async () => environment, serviceFor: () => service});
+  const route = createShiftCoverageDeliveryEventHandler({firestore: db, operationalReady: true, deliveryFor});
+  const caseId = "shared-case", operationId = "member-completion";
+  const shift = await scoped("shifts", "shift_delivery_20270901").get();
+  now = shift.get("date").toMillis() + 1000;
+  const complete = {action: "complete", operationId, caseId,
+    expectedRevision: (await scoped("shiftCoverageCases", caseId).get()).get("value.revision"),
+    expectedShiftRevision: shift.get("documentRevision")};
+  assert.equal((await call(complete)).replayed, false);
+  assert.equal((await call(complete)).replayed, true);
+  const before = api.mutations.length;
+  api.loseAcknowledgement = true;
+  const completionEvent = {kind: "effect", environment, operationId};
+  await route(completionEvent);
+  await route({kind: "effect", environment, operationId: accepted.operationId});
+  await route(completionEvent);
+  assert.equal(api.mutations.length, before + 1);
+  const rows = api.state.sheets;
+  assert.equal(content(rows.find((s) => s.properties.title === "turnos-reparto 2027-28"), 1, 1).stringValue, "Member d");
+  assert.equal(content(rows.find((s) => s.properties.title === "turnos-reparto 2026-27"), 1, 5).stringValue, "Member d");
+  const notices = scoped("users", "d").collection("notificationInbox");
+  const userInbox = await notices.get();
+  assert.equal(userInbox.size, 1);
+  const [notice] = userInbox.docs;
+  assert.equal(notice.get("coverageOperationId"), operationId);
+  const inboxEvent = {kind: "inbox", environment, memberId: "d", eventId: notice.id, coverageOperationId: operationId};
+  await route(inboxEvent);
+  await route(inboxEvent);
+  assert.deepEqual(attemptedTokens, ["old-token"]);
+  const query = {action: "deliveryIncidents"};
+  await assert.rejects(call(query, "auth-d"), {code: "coverage_actor_forbidden"});
+  const incident = (await call(query)).incidents.find((item) => item.memberId === "d");
+  assert.equal(incident.mode, "retryPush");
+  await scoped("users", "d").collection("devices").doc("phone").update({fcmToken: "replacement"});
+  const retry = {action: "retryDelivery", mode: incident.mode, effectOperationId: operationId, memberId: "d",
+    eventId: notice.id, expectedAttemptId: incident.expectedAttemptId, operationId: "recover-member-push"};
+  assert.equal((await call(retry)).state, "accepted");
+  assert.equal((await call(retry)).replayed, true);
+  await route(inboxEvent);
+  assert.deepEqual(attemptedTokens, ["old-token", "replacement"]);
+  assert.deepEqual(delivered, [notice.id]);
+  assert.deepEqual((await notices.doc(notice.id).get()).updateTime, notice.updateTime);
+  assert.equal((await notices.get()).size, 1);
+  assert.equal((await scoped("shiftCoverageCredits", caseId).parent.get()).size, 1);
+  assert.equal(api.mutations.length, before + 1);
+  assert.equal((await call(query)).incidents.some((item) => item.memberId === "d"), false);
+});
+
 before(() => {
   if (!enabled) return;
   assert.equal(process.env.FIRESTORE_EMULATOR_HOST, "127.0.0.1:8798");
@@ -185,6 +269,7 @@ run("unknown acknowledgement freezes its shared submission and never retries I/O
   assert.deepEqual(await inbox(), []); const count = sheets.mutations.length, reads = sheets.reads.length;
   sheets.failRead = false; sheets.onMutation = null; now += 120_000;
   assert.deepEqual(await worker.drain(value.operationId), {state: "reconciliationRequired", replayed: true});
+  assert.deepEqual(await worker.inspect(value.operationId), {state: "reconciliationRequired", replayed: true});
   assert.equal(sheets.mutations.length, count); assert.equal(sheets.reads.length, reads);
   assert.deepEqual(await read("shiftPlanningState", "sheetsSubmission"), pointer);
   assert.deepEqual((await read("shiftCoverageEffects", value.operationId)).submission, pending.submission);
@@ -198,6 +283,122 @@ run("manual replacement conflicts preserve workbook and withhold inbox", async (
   await assert.rejects(worker.drain(value.operationId), {code: "coverage_effects_manual_conflict"});
   assert.deepEqual(clone(sheets.state), before); assert.equal(sheets.mutations.length, count);
   assert.deepEqual(await inbox(), []); assert.equal(await read("shiftPlanningState", "sheetsSubmission"), undefined);
+});
+
+run("a legacy completion received first projects its acceptance and only releases current notices", async () => {
+  const accepted = await accept();
+  const caseRef = ref("shiftCoverageCases", "case-1");
+  const {acceptanceOperationId, ...legacyCase} = (await caseRef.get()).data();
+  assert.equal(acceptanceOperationId, accepted.operationId);
+  await caseRef.set(legacyCase);
+  now = Date.parse("2027-09-01T01:00:00Z");
+  const complete = await command("complete");
+  const outbox = await read("shiftCoverageEffects", complete.operationId);
+  assert.equal(outbox.value.projectionOperationId, undefined);
+  const before = sheets.mutations.length;
+  assert.equal((await worker.drain(complete.operationId)).state, "completed");
+  assert.equal(content(sheet("turnos-reparto 2027-28"), 1, 1).stringValue, "Member d");
+  assert.equal((await worker.drain(accepted.operationId)).replayed, true);
+  assert.equal((await worker.drain(complete.operationId)).replayed, true);
+  assert.equal(sheets.mutations.length, before + 1);
+  assert.deepEqual((await read("shiftCoverageEffects", accepted.operationId)).deliveredTo, []);
+  const expected = outbox.value.notifications.map((n) => n.push.data.eventId).sort();
+  assert.deepEqual((await inbox()).map(([path]) => path.split("/").pop()).sort(), expected);
+});
+
+run("an already notified historical completion repairs its unsent projection without rewriting inbox entries", async () => {
+  const accepted = await accept();
+  const caseRef = ref("shiftCoverageCases", "case-1");
+  const {acceptanceOperationId, ...legacyCase} = (await caseRef.get()).data();
+  assert.equal(acceptanceOperationId, accepted.operationId);
+  await caseRef.set(legacyCase);
+  now = Date.parse("2027-09-01T01:00:00Z");
+  const complete = await command("complete");
+  // Before the dependency was introduced the completion could release its
+  // inbox and finish while its acceptance was still waiting for Sheets.
+  const {releaseCoverageInbox} = require("../lib/shift-coverage-inbox.js");
+  await db.runTransaction(async (tx) => {
+    const effect = await tx.get(ref("shiftCoverageEffects", complete.operationId));
+    const users = await tx.get(db.collection(root + "/users"));
+    const deliveredTo = releaseCoverageInbox({db, tx, users, value: effect.get("value"), now});
+    tx.update(effect.ref, {state: "completed", completedAt: Timestamp.fromMillis(now), projection: null, deliveredTo});
+  });
+  const notifications = async () => (await db.collectionGroup("notificationInbox").get()).docs
+    .map((doc) => [doc.ref.path, doc.updateTime]);
+  const delivered = await notifications(); assert.equal(delivered.length, 2);
+  const {createFirestoreShiftCoveragePushDispatcher} = require("../lib/shift-coverage-push.js");
+  const completion = ref("shiftCoverageEffects", complete.operationId);
+  const notices = (await completion.get()).get("value.notifications");
+  const eventId = (memberId) => notices.find((item) => item.userId === memberId).push.data.eventId;
+  let sends = 0;
+  const dispatcher = createFirestoreShiftCoveragePushDispatcher({firestore: db,
+    context: {environment: "develop", requireReady: async () => {}}, nowMillis: () => now,
+    transport: {submit: async () => { sends++; return {outcome: "accepted", acceptedTargetCount: 1}; }}});
+  const push = completion.collection("pushes").doc("d");
+  await ref("users", "d").collection("devices").doc("phone").set({fcmToken: "fixture-token"});
+  await assert.rejects(dispatcher.submit("d", eventId("d")), {code: "coverage_effects_readback_required"});
+  assert.equal((await push.get()).exists, false);
+  const existing = completion.collection("pushes").doc("a");
+  await existing.set({state: "accepted", eventId: eventId("a"), attemptId: "historical",
+    result: {outcome: "accepted", acceptedTargetCount: 1}});
+  const recorded = await existing.get();
+  assert.deepEqual(await dispatcher.submit("a", eventId("a")), {state: "accepted", replayed: true});
+  assert.deepEqual((await existing.get()).updateTime, recorded.updateTime);
+  assert.equal(sends, 0);
+  const before = sheets.mutations.length;
+  assert.equal((await worker.drain(complete.operationId)).replayed, true);
+  assert.equal((await worker.drain(complete.operationId)).replayed, true);
+  assert.equal(sheets.mutations.length, before + 1);
+  assert.deepEqual(await notifications(), delivered);
+  assert.deepEqual(await dispatcher.submit("d", eventId("d")), {state: "accepted", replayed: false});
+  assert.deepEqual(await dispatcher.submit("d", eventId("d")), {state: "accepted", replayed: true});
+  assert.equal(sends, 1);
+});
+
+run("completion after a lost Sheets acknowledgement inspects the exact prior batch and releases its notice once", async () => {
+  const accepted = await accept();
+  const before = sheets.mutations.length;
+  let stopped = false;
+  const firstWorker = createFirestoreShiftCoverageEffectsWorker({config, sheets, tabs, firestore: db,
+    context: {environment: "develop", requireReady: async () => {
+      if (stopped) throw new Error("worker stopped after Sheets commit");
+    }}, leaseDurationMillis: 60_000, readWorkbookVersion: async () => String(sheets.revision), nowMillis: () => now});
+  sheets.loseAcknowledgement = true;
+  sheets.onMutation = async () => { stopped = true; sheets.failRead = true; };
+  await assert.rejects(firstWorker.drain(accepted.operationId), /worker stopped after Sheets commit/);
+  assert.equal((await read("shiftCoverageEffects", accepted.operationId)).state, "pending");
+  now = Date.parse("2027-09-01T01:00:00Z");
+  const complete = await command("complete");
+  assert.deepEqual(await inbox(), []);
+  sheets.onMutation = null; sheets.failRead = false;
+  const results = await Promise.all([worker.inspect(complete.operationId), worker.inspect(complete.operationId)]);
+  assert.ok(results.every((result) => result.state === "completed"));
+  assert.equal((await worker.drain(complete.operationId)).replayed, true);
+  assert.equal(sheets.mutations.length, before + 1);
+  const pointer = await read("shiftPlanningState", "sheetsSubmission");
+  assert.equal(pointer.operationId, accepted.operationId);
+  assert.equal(pointer.evidence.workbookRevision, String(sheets.revision));
+  const outbox = await read("shiftCoverageEffects", complete.operationId);
+  assert.equal(outbox.value.projectionOperationId, accepted.operationId);
+  const expected = outbox.value.notifications.map((n) => n.push.data.eventId).sort();
+  assert.deepEqual((await inbox()).map(([path]) => path.split("/").pop()).sort(), expected);
+});
+
+run("inspection of an unobserved recorded batch keeps the claim and completion notice pending", async () => {
+  const accepted = await accept();
+  sheets.rejectBeforeApply = true;
+  assert.equal((await worker.drain(accepted.operationId)).state, "reconciliationRequired");
+  now = Date.parse("2027-09-01T01:00:00Z");
+  const complete = await command("complete");
+  sheets.rejectBeforeApply = false;
+  const writes = sheets.mutations.length, attempts = sheets.rejectedBatches;
+  const pointer = await read("shiftPlanningState", "sheetsSubmission");
+  for (const drain of [worker.inspect, worker.drain]) {
+    assert.equal((await drain(complete.operationId)).state, "reconciliationRequired");
+  }
+  assert.equal(sheets.mutations.length, writes); assert.equal(sheets.rejectedBatches, attempts);
+  assert.deepEqual(await read("shiftPlanningState", "sheetsSubmission"), pointer);
+  assert.deepEqual(await inbox(), []);
 });
 
 run("source drift after ambiguous submission blocks re-preparation and notifications", async () => {
@@ -572,6 +773,33 @@ const ambiguousProjection = async () => {
   sheets.onMutation = null; sheets.failRead = false; return value;
 };
 
+run("controlled recovery of a completion waits for its frozen acceptance, then releases the notice exactly once", async () => {
+  const accepted = await ambiguousProjection();
+  now = Date.parse("2027-09-01T01:00:00Z");
+  const complete = await command("complete");
+  const count = sheets.mutations.length;
+  let recovery = await prepareRecovery(complete.operationId, {recoveryId: "first-completion"});
+  try {
+    await assert.rejects(recovery.run(), {code: "coverage_effects_readback_required"});
+    assert.deepEqual(await inbox(), []);
+  } finally { await recovery.recovery.close(); }
+  recovery = await prepareRecovery(accepted.operationId, {recoveryId: "accepted-rows"});
+  try {
+    const result = await recovery.run();
+    assert.equal(result.state, "retired");
+    assert.equal(result.projection.kind, "verified");
+    assert.deepEqual(await inbox(), []);
+  } finally { await recovery.recovery.close(); }
+  recovery = await prepareRecovery(complete.operationId, {recoveryId: "completion-after-proof"});
+  try {
+    const result = await recovery.run();
+    assert.equal(result.state, "completed");
+    assert.deepEqual(await recovery.run(), {...result, replayed: true});
+    assert.equal((await inbox()).length, 2);
+    assert.equal(sheets.mutations.length, count);
+  } finally { await recovery.recovery.close(); }
+});
+
 run("governed recovery verifies projection after writer and roster drift without another Sheets write", async () => {
   const value = await ambiguousProjection();
   await ref("users", "e").update({displayName: "Updated unrelated member"});
@@ -636,6 +864,38 @@ run("recovery preserves push history and marks interrupted sends unknown without
       for (const push of result.pushes) assert.equal((await dispatcher.submit(push.memberId, push.eventId)).replayed, true);
       assert.equal(sends, 0);
     } finally { await dispatcher.close(); }
+  } finally { await recovery.recovery.close(); }
+});
+
+run("governed recovery keeps no-target receipts and binds an interrupted administrator retry to its own history", async () => {
+  const accepted = await accept(); await worker.drain(accepted.operationId);
+  const effect = ref("shiftCoverageEffects", accepted.operationId), data = (await effect.get()).data();
+  const [withoutDevice, recipient] = data.deliveredTo;
+  const push = (id) => effect.collection("pushes").doc(id);
+  const eventId = (id) => data.value.notifications.find((n) => n.userId === id).push.data.eventId;
+  const createdAt = Timestamp.fromMillis(now - 100);
+  await push(withoutDevice).set({state: "noTargets", eventId: eventId(withoutDevice), attemptId: "no-device",
+    startedAt: createdAt, completedAt: createdAt, result: {outcome: "noTargets"}});
+  const commandId = "operator-push-retry", attemptId = "interrupted-retry";
+  const submission = {state: "submitting", eventId: eventId(recipient), retryOperationId: commandId, attemptId,
+    sourceDigest: recoveryDigest("source"), targetsDigest: recoveryDigest("destinations"), startedAt: createdAt};
+  const previousAttempt = {eventId: eventId(recipient), attemptId: "rejected", state: "failed",
+    result: {outcome: "failed", failureCode: "all_targets_rejected"}};
+  const history = ref("shiftCoverageProjectionState", "pushRetries").collection("operations").doc(commandId);
+  await push(recipient).set(submission);
+  await history.set({...submission, operationId: commandId, actorUid: "admin-uid",
+    commandDigest: recoveryDigest("administrative-intent"), previousAttempt});
+  const untouched = await push(withoutDevice).get();
+  const recovery = await prepareRecovery(accepted.operationId);
+  try {
+    const result = await recovery.run();
+    assert.deepEqual(result.pushes.map((item) => item.disposition), ["noTargets", "unknown"]);
+    const recorded = (await history.get()).data();
+    assert.equal(recorded.state, "unknown"); assert.equal(recorded.result.failureCode, "coverage_submission_interrupted");
+    assert.equal(recorded.attemptId, attemptId); assert.deepEqual(recorded.previousAttempt, previousAttempt);
+    assert.equal((await push(recipient).get()).get("retryOperationId"), commandId);
+    assert.ok((await push(withoutDevice).get()).updateTime.isEqual(untouched.updateTime));
+    assert.equal((await recovery.run()).replayed, true);
   } finally { await recovery.recovery.close(); }
 });
 

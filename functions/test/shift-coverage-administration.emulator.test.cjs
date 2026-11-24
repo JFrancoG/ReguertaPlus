@@ -7,7 +7,7 @@ const {startProvisionalShiftCoverageServer} = require("../lib/shift-coverage-loc
 const {createProvisionalCreditFirestore} = require("../lib/shift-credit-publication.js");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {SHIFT_COVERAGE_POLICY_REVISION} = require("../lib/shift-coverage.js");
-const {materialize, initialTime, activeDigest} = require("./shift-coverage-fixture.cjs");
+const {materialize, initialTime, activeDigest, writeMembershipEligibility} = require("./shift-coverage-fixture.cjs");
 const projectId = "demo-reguerta-hu084-coverage", root = "develop/plus-collections";
 const enabled = process.env.GCLOUD_PROJECT === projectId && process.env.FIRESTORE_EMULATOR_HOST === "127.0.0.1:8798" &&
   process.env.FIREBASE_AUTH_EMULATOR_HOST === "127.0.0.1:9098";
@@ -75,8 +75,8 @@ beforeEach(async () => {
       body: JSON.stringify({email: `${id}@example.test`, password: "local-admin-password", returnSecureToken: true})});
     assert.equal(signed.ok, true); tokens[id] = (await signed.json()).idToken;
     await ref("authLinks", `auth-${id}`).set({memberId: id});
-    await ref("users", id).set({displayName: `Member ${id}`, authUid: `auth-${id}`, isActive: true,
-      isCommonPurchaseManager: false, roles: id === "admin" ? ["member", "admin"] : ["member"]});
+    await writeMembershipEligibility(ref("users", id), {displayName: `Member ${id}`, authUid: `auth-${id}`, isActive: true,
+      isCommonPurchaseManager: false, roles: id === "admin" ? ["member", "admin"] : ["member"]}, true);
   }
   for (const type of ["delivery", "market"]) {
     await ref("shiftRotations", type).set({schemaVersion: 1, type, stateRevision: 4,
@@ -87,7 +87,7 @@ beforeEach(async () => {
 });
 
 run("authenticated administration is role-bound and omits private reasons and accounting documents", async () => {
-  await seedCredit(); await ref("users", "d").update({isActive: false});
+  await seedCredit(); await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   await execute("d", {permanentDepartureReason: "Private departure reason"});
   const prior = await capture(); const result = await view();
   assert.equal(result.isAdmin, true); assert.equal(result.membershipWritable, true);
@@ -120,7 +120,7 @@ run("reconciliation admits both reserves and exact replay retains FIFO and minim
 run("source/accounting/authority drift rejects stale confirmations without partial mutation", async () => {
   for (const drift of ["source", "credit", "authority"]) {
     const command = await intent();
-    if (drift === "source") await ref("users", "d").update({isActive: false});
+    if (drift === "source") await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
     if (drift === "credit") await seedCredit();
     if (drift === "authority") await ref("shiftPlanningState", "current").update({stateRevision: 2});
     const prior = await capture(); const response = await call("admin", command);
@@ -130,7 +130,7 @@ run("source/accounting/authority drift rejects stale confirmations without parti
 });
 
 run("inactivity preserves credits; explicit permanent departure cancels them once; reentry never restores history", async () => {
-  await seedCredit(); await execute(); await ref("users", "d").update({isActive: false});
+  await seedCredit(); await execute(); await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   await execute(); assert.equal((await read("shiftCoverageCredits", "earned-service")).state, "pending");
   const {command} = await execute("d", {permanentDepartureReason: "Confirmed permanent departure"});
   assert.equal((await read("users", "d")).isActive, false);
@@ -138,7 +138,7 @@ run("inactivity preserves credits; explicit permanent departure cancels them onc
   assert.equal((await read("shiftCoverageMemberClaims", hash("delivery", "d"))).state, "released");
   assert.equal((await read("shiftCoverageLedgerState", "delivery")).revision, 2);
   assert.equal((await call("admin", command)).value.data.replayed, true);
-  await ref("users", "d").update({isActive: true}); now += 1000; await execute();
+  await writeMembershipEligibility(ref("users", "d"), {isActive: true}, true, "excusedDeparture"); now += 1000; await execute();
   const member = (await view()).members.find((row) => row.userId === "d");
   assert.equal(member.permanentDeparture, false); assert.equal(member.sourceActive, true);
   assert.equal(member.credits.find((row) => row.type === "delivery").cancelledCount, 1);

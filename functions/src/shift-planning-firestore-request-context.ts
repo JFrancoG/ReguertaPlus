@@ -1,3 +1,7 @@
+import {HttpRequestError} from "./backend-security.js";
+import {requireShiftCreditPlanningAccess, ShiftCreditPlanningContext} from
+  "./shift-credit-planning-context.js";
+import {parseShiftPlanningMaintenanceState} from "./shift-planning-wire.js";
 import {Firestore} from "firebase-admin/firestore";
 import {
   buildShiftPlanningRequestContext,
@@ -17,11 +21,27 @@ export const createFirestoreShiftPlanningRequestContextRepository = (
 ) => ({
   resolve: async (
     value: ShiftPlanningRequestContextInput,
+    creditPlanning?: ShiftCreditPlanningContext,
   ): Promise<ShiftPlanningRequestContext> => {
     const input = parseShiftPlanningRequestContextInput(value);
-    const snapshot = await firestore.doc(
-      `${input.environment}/plus-collections/shiftPlanningState/current`,
-    ).get();
-    return buildShiftPlanningRequestContext(input, snapshot.data());
+    return firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(firestore.doc(
+        `${input.environment}/plus-collections/shiftPlanningState/current`));
+      const state = snapshot.data();
+      try {
+        return buildShiftPlanningRequestContext(input, state);
+      } catch (error) {
+        if (!(error instanceof HttpRequestError) ||
+            error.code !== "shift_planning_maintenance" ||
+            !creditPlanning?.operationalReady) throw error;
+      }
+      // Shared planning must bind a fresh preview to the closed epoch.
+      // The admin receives only the same two preconditions as in open mode.
+      await requireShiftCreditPlanningAccess({firestore, transaction,
+        environment: input.environment, creditPlanning});
+      const closed = parseShiftPlanningMaintenanceState(state);
+      return {...input, expectedWriteEpoch: closed.writeEpoch,
+        expectedActiveRevision: closed.activeRevision};
+    }, {readOnly: true});
   },
 });

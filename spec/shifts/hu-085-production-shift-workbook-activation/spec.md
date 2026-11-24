@@ -457,7 +457,7 @@ targets/snapshot/digest/revisions and expires on drift.
 ### Out of scope
 
 - New product design beyond safety corrections required by HU-082/HU-083.
-- HU-084's assembly-gated coverage/credit policy.
+- HU-084 coverage and credits, which have their own acceptance and rollout.
 - Calling a complete-season activation a small canary.
 - Broad/unreviewed deploys, unrelated migrations, speculative access for both
   screenshot accounts, key files, or secrets in source/issues/logs.

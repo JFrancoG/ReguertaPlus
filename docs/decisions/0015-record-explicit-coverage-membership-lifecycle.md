@@ -1,5 +1,9 @@
 # ADR-0015: Record explicit coverage membership lifecycle
 
+**18 November 2026.** The maintainer reported approval of the member text,
+including the reserve exit and permanent-departure credit rules described here.
+Technical reconciliation and shared rollout remain in HU-084. [Decision record](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up).
+
 ## Status
 
 Accepted for HU-089 local implementation on 2026-10-11 under the maintainer's
@@ -64,3 +68,23 @@ the situation derives reserve transitions; permanent departure is a separate
 reasoned confirmation. Read models expose counts and status, never private
 departure reasons or raw credit/claim documents. This remains provisional local
 integration; collective ratification and shared activation are still pending.
+
+## Effective eligibility time for D01 · 21 November 2026
+
+On member creation or an eligibility change, `upsertMemberByAdmin` writes the member
+and the private `shiftMembershipState/{userId}/source/eligibility` document in one
+transaction. The Firestore write version of that document preserves the exact transition
+time across later profile edits and delayed reconciliation. Each transition has a fresh
+identifier, so recreating a deleted profile advances the version even when the member
+has the same roles. Re-entry records whether the member departed or was a real
+producer. The queue uses effective time and breaks
+exact ties by stable identifier. Editing a historical profile with an unknown transition
+date preserves that uncertainty.
+[Administrative writer test](../../functions/test/shift-membership-source.emulator.test.cjs).
+
+Before enabling D01 in a shared environment, its deployed Rules must reserve writes
+to the three eligibility fields and access to the private document for the backend.
+The [compatibility Rules](../../firestore.phase1.rules) and
+[strict Rules](../../firestore.strict.rules) satisfy that contract in the emulator.
+The sealed temporary Develop pause package preserves the historical production
+permissions. Enabling D01 there requires verifying the active Rules profile.

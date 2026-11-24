@@ -16,6 +16,7 @@ struct CoverageCaseDetailView: View {
                 }
                 CoverageFeedbackSection(model: model.coverage)
                 if model.hasCurrentSession, let item = model.coverage.caseItem(caseId) {
+                    let actions = model.coverage.actions(for: item)
                     Section {
                         Text(CoverageCopy.text(item.type.rawValue)).font(.headline)
                         Text(CoverageCopy.shiftDate(item.scheduledAtMillis))
@@ -32,7 +33,9 @@ struct CoverageCaseDetailView: View {
                             Text(CoverageCopy.text("read_only"))
                         }
                         if item.status == .offered, let offer = item.offer {
-                            LabeledContent(CoverageCopy.text("member"), value: model.coverage.memberName(offer.userId))
+                            LabeledContent(
+                                CoverageCopy.text("offer_recipient"), value: model.coverage.memberName(offer.userId)
+                            )
                             LabeledContent(
                                 CoverageCopy.text("offer_deadline"),
                                 value: CoverageCopy.date(offer.expiresAtMillis)
@@ -49,13 +52,25 @@ struct CoverageCaseDetailView: View {
                         }
                         if let administration = item.administration {
                             LabeledContent(CoverageCopy.text("reason"), value: administration.reason)
+                            if item.status == .open, let incident = administration.drawFailure {
+                                if let message = CoverageCopy.drawFailure(incident.code) {
+                                    Text(message)
+                                }
+                                if actions.contains(.revealDraw) {
+                                    Text("coverage.draw_retry_round")
+                                } else if item.selectionPhase == .adminRequired,
+                                          ["coverage_draw_provider_unavailable", "coverage_draw_provider_invalid"]
+                                            .contains(incident.code) {
+                                    Text("coverage.draw_admin_resolution")
+                                }
+                            }
                         }
                         if item.selectionPhase == .drawRequired, model.coverage.snapshot?.policy.drawAvailable != true {
                             Text(CoverageCopy.text("draw_unavailable"))
                         }
                     }
                     Section {
-                        ForEach(model.coverage.actions(for: item), id: \.rawValue) { action in
+                        ForEach(actions, id: \.rawValue) { action in
                             Button(CoverageCopy.text("action_\(action.rawValue)")) { model.present(action, item: item) }
                                 .accessibilityIdentifier("coverage.action.\(action.rawValue)")
                         }

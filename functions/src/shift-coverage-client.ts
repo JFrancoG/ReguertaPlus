@@ -1,7 +1,7 @@
 import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
 import {firstDueOrdinaryShift} from "./shift-membership-lifecycle.js";
-import {CoverageReserve, refreshCoverageSelection} from
-  "./shift-coverage-selection.js";
+import {CoverageReserve, coverageSelectionRetainsSlot,
+  refreshCoverageSelection} from "./shift-coverage-selection.js";
 import {readCoverageNotificationInbox, readCoverageNotificationReference} from
   "./shift-coverage-notification.js";
 import {readShiftCoverageChoices} from "./shift-coverage-choices.js";
@@ -96,9 +96,12 @@ export const projectShiftCoverageCase = (input: {
     updatedAtMillis: value.updatedAtMillis,
     openedByMe: value.openedByUserId === memberId,
     canResumeAdmin: Boolean(admin && value.status === "cancelled" &&
-      value.selection?.draw),
+      coverageSelectionRetainsSlot(value.selection)),
     administration: admin ? {openedByUserId: value.openedByUserId,
       reason: value.reason,
+      ...(selection?.drawFailure ? {drawFailure: {
+        code: selection.drawFailure.code,
+        reportedAtMillis: selection.drawFailure.reportedAtMillis}} : {}),
       volunteerCount: value.selection?.volunteers.filter((item) =>
         !item.withdrawn).length ?? 0} : null};
 };

@@ -29,7 +29,7 @@ export const createProvisionalShiftCoverageStore = (
   const store = createShiftCoverageStore({firestore: db,
     nowMillis: options.nowMillis,
     maximumOfferWindowMillis: options.maximumOfferWindowMillis,
-    selectionPolicy, beaconPolicy});
+    selectionPolicy, beaconPolicy, beaconFetcher: options.beaconFetcher});
   const requireDevelop = (value: unknown) => {
     if ((value as {environment?: string})?.environment !== "develop") {
       return rejectCoverage("invalid_coverage_environment");

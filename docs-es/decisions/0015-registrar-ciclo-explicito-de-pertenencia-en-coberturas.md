@@ -1,5 +1,9 @@
 # ADR-0015: Registrar el ciclo explícito de pertenencia en coberturas
 
+**18 de noviembre de 2026.** El mantenedor comunicó que la asamblea aprobó el
+escrito, que incluye las reglas de salida de reserva y créditos por baja permanente que recoge este ADR.
+El contraste técnico y la activación compartida siguen en HU-084. [Registro del acuerdo](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification-es.md#registro-del-acuerdo-y-trabajo-posterior).
+
 ## Estado
 
 Aceptado para la implementación local de HU-089 el 2026-10-11 por la instrucción
@@ -68,3 +72,23 @@ la situación deriva los cambios de reserva; la baja permanente exige una
 confirmación separada y un motivo. Las lecturas muestran cantidades y estado,
 nunca motivos privados ni documentos de compensaciones o bloqueos. La integración
 sigue siendo local y provisional; quedan la ratificación y la activación compartida.
+
+## Fecha efectiva de elegibilidad para D01 · 21 de noviembre de 2026
+
+Al crear un socio o cambiar su elegibilidad, `upsertMemberByAdmin` guarda la ficha y el
+documento privado `shiftMembershipState/{userId}/source/eligibility` en una misma
+transacción. La versión de escritura de ese documento en Firestore conserva el instante
+exacto de la transición aunque después se edite el perfil o se retrase la conciliación.
+Cada transición lleva un identificador nuevo. Si se vuelve a crear un perfil eliminado
+con los mismos roles, la versión refleja la fecha de esa reincorporación.
+Al reincorporarse el socio, el documento indica si había causado baja o era productor real.
+La cola usa la fecha efectiva y desempata por identificador estable. Una edición de un
+perfil histórico con fecha desconocida conserva esa incertidumbre.
+[Prueba del escritor administrativo](../../functions/test/shift-membership-source.emulator.test.cjs).
+
+Antes de habilitar D01 en un entorno compartido, las Rules desplegadas deben reservar
+al backend la escritura de los tres campos de elegibilidad y el acceso al documento
+privado. Las [Rules de compatibilidad](../../firestore.phase1.rules) y las
+[Rules estrictas](../../firestore.strict.rules) cumplen ese contrato en el emulador.
+El paquete temporal sellado para pausar Develop conserva los permisos históricos de
+producción. Activar D01 allí requiere verificar el perfil de Rules vigente.

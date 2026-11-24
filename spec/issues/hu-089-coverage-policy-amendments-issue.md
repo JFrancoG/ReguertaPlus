@@ -9,4 +9,5 @@ Issue #279 is closed. The child branch was removed locally and remotely after
 verifying that all four implementation commits are ancestors of the parent.
 This closes HU-089's local implementation, not HU-084 or live activation.
 
-The approved local execution plan and acceptance criteria are in [spec](../shifts/hu-089-coverage-policy-amendments/spec.md), [plan](../shifts/hu-089-coverage-policy-amendments/plan.md) and [tasks](../shifts/hu-089-coverage-policy-amendments/tasks.md). Collective ratification and live activation remain pending.
+The approved local execution plan and acceptance criteria are in [spec](../shifts/hu-089-coverage-policy-amendments/spec.md), [plan](../shifts/hu-089-coverage-policy-amendments/plan.md) and [tasks](../shifts/hu-089-coverage-policy-amendments/tasks.md). The maintainer reported that the assembly approved the member text on 2026-11-18.
+Technical reconciliation and live activation remain in HU-084. [Decision record](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up).

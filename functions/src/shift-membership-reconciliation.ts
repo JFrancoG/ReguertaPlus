@@ -13,6 +13,10 @@ import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {coverageId, coverageMember, rejectCoverage,
   SHIFT_COVERAGE_POLICY_REVISION} from "./shift-coverage.js";
 import {CoverageReserve} from "./shift-coverage-selection.js";
+import {assertReconciledMembershipEligibilityTime,
+  EligibilityTime, eligibilityTimeMillis, isEligibilityTime,
+  membershipEligibilityRef, reconcileEligibilityPeriod} from
+  "./shift-membership-eligibility-time.js";
 import {buildShiftCoverageOpening} from "./shift-coverage-opening.js";
 import {parseShiftPlanningPublicShiftDocument} from
   "./shift-planning-publication-contract.js";
@@ -20,7 +24,6 @@ import {parseShiftRotationAggregateWire} from "./shift-planning-wire.js";
 import {captureShiftPlanningWriterAuthority} from
   "./shift-planning-writer-authority.js";
 
-const root = "develop/plus-collections";
 const types = ["delivery", "market"] as const;
 const hash = (values: string[]) => digest(values).split(":").at(-1) as string;
 type Intent = {schemaVersion: 1; environment: AppEnvironment;
@@ -31,7 +34,8 @@ export type MemberSource = {isActive: boolean; roles: string[];
 export type MembershipState = {
   schemaVersion: 1; policyRevision: typeof SHIFT_COVERAGE_POLICY_REVISION;
   userId: string; revision: number; source: MemberSource; eligible: boolean;
-  observedAtMillis: number; pendingQueueTransition: boolean;
+  observedAtMillis: number; eligibilityChangedAt?: EligibilityTime;
+  pendingQueueTransition: boolean;
   admissionAfterRound: {delivery: number; market: number};
   admissionRequired?: {delivery: boolean; market: boolean};
   pendingTypes?: {delivery: boolean; market: boolean};
@@ -52,6 +56,10 @@ export const readShiftMembershipState = (
       state.revision >= Number.MAX_SAFE_INTEGER ||
       !Number.isSafeInteger(state.observedAtMillis) ||
       state.observedAtMillis < 0 ||
+      (state.eligibilityChangedAt !== undefined && (!state.source ||
+        !isEligibilityTime(state.eligibilityChangedAt) ||
+        eligibilityTimeMillis(state.eligibilityChangedAt) >
+          state.observedAtMillis)) ||
       typeof state.pendingQueueTransition !== "boolean" ||
       (state.admissionRequired !== undefined && (!state.admissionRequired ||
         Object.keys(state.admissionRequired).sort().join() !==
@@ -94,22 +102,37 @@ export const readShiftMembershipState = (
 
 /**
  * Ordinary planning cannot acknowledge pending membership transitions. Only the
- * provisional whole-unit path carries their complete evidence through source
+ * whole-unit path carries their complete evidence through source
  * capture, activation and inverse; matching an old cohort is not sufficient.
- * @param {Firestore} db Fixed provisional emulator client.
+ * @param {Firestore} db Admitted planning client.
  * @param {Transaction} transaction Planning source transaction.
+ * @param {string} environment Server-resolved namespace.
+ * @return {Promise<ReadonlySet<string>>} Members with reconciled state.
  */
 export const assertNoPendingShiftMembership = async (
   db: Firestore, transaction: Transaction,
-): Promise<void> => {
+  environment: AppEnvironment = "develop",
+): Promise<ReadonlySet<string>> => {
+  const root = `${environment}/plus-collections`;
   const states = await transaction.get(db.collection(
     `${root}/shiftMembershipState`).limit(251));
   if (states.size > 250) return rejectCoverage("membership_source_limit");
-  for (const doc of states.docs) {
-    if (readShiftMembershipState(doc.data(), doc.id)?.pendingQueueTransition) {
-      return rejectCoverage("membership_queue_transition_pending");
-    }
+  const periods = states.docs.map((doc) =>
+    readShiftMembershipState(doc.data(), doc.id) ??
+      rejectCoverage("invalid_shift_membership_state"));
+  if (periods.some((state) => state.pendingQueueTransition)) {
+    return rejectCoverage("membership_queue_transition_pending");
   }
+  if (periods.length) {
+    const refs = periods.map((state) =>
+      db.doc(`${root}/users/${state.userId}`));
+    const sources = await transaction.getAll(...refs.flatMap((ref) =>
+      [ref, membershipEligibilityRef(ref)]));
+    periods.forEach((state, index) => assertReconciledMembershipEligibilityTime(
+      sources[2 * index], sources[2 * index + 1], state,
+      states.docs[index].updateTime));
+  }
+  return new Set(periods.map((state) => state.userId));
 };
 
 /**
@@ -175,9 +198,11 @@ export const createShiftMembershipReconciliation = (
         }
         const stateRef = ref("shiftMembershipState", userId);
         const receiptRef = ref("shiftMembershipOperations", operationId);
-        const [actor, member, stateDoc, receipt, maintenance, ...rotationDocs] =
-        await transaction.getAll(ref("users", actorId), ref("users", userId),
-          stateRef, receiptRef, ref("shiftPlanningState", "current"),
+        const memberRef = ref("users", userId);
+        const [actor, member, evidence, stateDoc, receipt, maintenance,
+          ...rotationDocs] = await transaction.getAll(ref("users", actorId),
+          memberRef, membershipEligibilityRef(memberRef), stateRef, receiptRef,
+          ref("shiftPlanningState", "current"),
           ...types.map((type) => ref("shiftRotations", type)));
         if (!coverageMember(actor.data()).admin) {
           if (typeof actorSource !== "string") {
@@ -224,7 +249,11 @@ export const createShiftMembershipReconciliation = (
         (intent.permanentDepartureReason !== undefined ? {operationId,
           reason: intent.permanentDepartureReason.trim(), atMillis: now} :
           undefined);
+        const {effectiveTime, returnExclusion} = reconcileEligibilityPeriod(
+          member, evidence, eligible, previous, stateDoc.updateTime, now);
         const changed = !previous ||
+        digest(previous.eligibilityChangedAt ?? null) !==
+          digest(effectiveTime ?? null) ||
         digest(previous.source) !== digest(source) ||
         digest(previous.permanentDeparture ?? null) !==
           digest(permanentDeparture ?? null);
@@ -266,7 +295,8 @@ export const createShiftMembershipReconciliation = (
           const rotation = rotations[index];
           const inCohort = rotation.cursor.cohortUserIds.includes(userId);
           const entering = eligible &&
-          (previous ? !previous.eligible : !inCohort);
+          (Boolean(returnExclusion) ||
+            (previous ? !previous.eligible : !inCohort));
           admissionRequired[type] ||= entering;
           pendingTypes[type] ||= entering || (!eligible && inCohort) ||
           Boolean(previous?.eligible && !eligible);
@@ -290,6 +320,11 @@ export const createShiftMembershipReconciliation = (
               old.admissionAfterRound < 0)) {
             return rejectCoverage("invalid_coverage_reserve");
           }
+          if (eligible && admissionRequired[type] && !effectiveTime) {
+            return rejectCoverage("membership_eligibility_time_required");
+          }
+          // D04 orders offers by entry into the reserve. D01 uses the
+          // separate effective eligibility time recorded on membership state.
           const due = amendedLifecycle && !entering && old?.active && eligible ?
             firstDueOrdinaryShift(old, publicShifts, now) : undefined;
           if (entering || (old?.active && (!eligible || due))) {
@@ -307,9 +342,12 @@ export const createShiftMembershipReconciliation = (
         const next: MembershipState = {schemaVersion: 1,
           policyRevision: SHIFT_COVERAGE_POLICY_REVISION, userId,
           revision: (previous?.revision ?? 0) + (changed ? 1 : 0), source,
+          ...(effectiveTime ? {eligibilityChangedAt: effectiveTime} : {}),
           ...(permanentDeparture ? {permanentDeparture} : {}),
           ...(previous?.frozenExclusion ?
             {frozenExclusion: previous.frozenExclusion} : {}),
+          ...(returnExclusion ? {frozenExclusion: {reason: returnExclusion,
+            revision: (previous?.revision ?? 0) + 1}} : {}),
           ...(changed && !eligible ? {frozenExclusion: {
             reason: (!source || !source.isActive ? "excusedDeparture" :
               "excusedIneligible") as "excusedDeparture" | "excusedIneligible",

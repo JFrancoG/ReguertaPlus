@@ -139,3 +139,83 @@ run("cross-environment roster cannot release a coverage inbox", async () => {
   {code: "invalid_coverage_environment"});
   assert.equal((await db.collection(`${root("develop")}/users/d/notificationInbox`).get()).size, 0);
 });
+
+const {createFirebaseShiftCoverageNotificationTransport} = require("../lib/shift-coverage-push.js");
+const normal = (environment, messaging) => createFirestoreShiftCoveragePushDispatcher({
+  firestore: db, context: {environment, requireReady: async () => {}},
+  transport: createFirebaseShiftCoverageNotificationTransport(messaging, () => initialTime),
+  nowMillis: () => initialTime,
+});
+const setActor = async (memberId, roles) => {
+  await ref("develop", "users", memberId).set({authUid: memberId, isActive: true, isCommonPurchaseManager: false, roles});
+  await ref("develop", "authLinks", memberId).set({memberId});
+};
+const responses = (outcomes) => {
+  const results = outcomes.map((code) => code ? {success: false, error: {code}} : {success: true, messageId: "accepted"});
+  return {responses: results, successCount: outcomes.filter((code) => !code).length, failureCount: outcomes.filter(Boolean).length};
+};
+run("normal dispatch selects one address per installation and retries a certain rejection only once for the linked administrator", async () => {
+  const {receipt, eventId} = await prepare("develop");
+  await setActor("admin", ["member", "admin"]); await setActor("d", ["member"]);
+  const devices = ref("develop", "users", "d").collection("devices");
+  await devices.doc("android").set({firebaseInstallationId: "fid-d", fcmToken: "old-token"});
+  await devices.doc("legacy").set({fcmToken: "old-token"});
+  const messages = [];
+  const messaging = {sendEachForMulticast: async (message) => {
+    messages.push(message);
+    return responses([messages.length === 1 ? "messaging/registration-token-not-registered" : null]);
+  }};
+  assert.equal((await normal("develop", messaging).submit("d", eventId)).state, "failed");
+  const original = await receipt().get();
+  assert.equal(original.get("retryable"), true);
+  assert.deepEqual(messages[0].fids, ["fid-d"]);
+  assert.equal(messages[0].tokens, undefined);
+  assert.equal((await normal("develop", messaging).submit("d", eventId)).replayed, true);
+  const command = {operationId: "admin-recovery", expectedAttemptId: original.get("attemptId"), eventId, memberId: "d"};
+  await assert.rejects(normal("develop", messaging).retryRejected(command, {uid: "d"}), {code: "coverage_actor_forbidden"});
+  const results = await Promise.all([1, 2].map(() => normal("develop", messaging).retryRejected(command, {uid: "admin"})));
+  assert.equal(results.filter((result) => !result.replayed && result.state === "accepted").length, 1);
+  const recovered = await receipt().get();
+  assert.equal(recovered.get("state"), "accepted");
+  assert.equal(messages.length, 2);
+  assert.deepEqual(await normal("develop", messaging).retryRejected(command, {uid: "admin"}), {state: "accepted", replayed: true});
+  assert.deepEqual((await receipt().get()).updateTime, recovered.updateTime);
+  await assert.rejects(normal("develop", messaging).retryRejected({...command, operationId: "obsolete"}, {uid: "admin"}),
+    {code: "coverage_push_retry_unavailable"});
+  assert.equal((await ref("develop", "users", "d").collection("notificationInbox").get()).size, 1);
+  assert.equal(messages.length, 2);
+});
+
+run("an uncertain individual SDK error or a partial delivery never permits another notification", async () => {
+  await setActor("admin", ["member", "admin"]);
+  for (const [environment, outcomes, state] of [
+    ["develop", ["messaging/internal-error", "messaging/registration-token-not-registered"], "unknown"],
+    ["production", [null, "messaging/registration-token-not-registered"], "accepted"],
+  ]) {
+    const {receipt, eventId} = await prepare(environment);
+    const devices = ref(environment, "users", "d").collection("devices");
+    await devices.doc("one").set({fcmToken: "legacy-token-one"}); await devices.doc("two").set({fcmToken: "legacy-token-two"});
+    let sends = 0;
+    const messaging = {sendEachForMulticast: async () => { sends++; return responses(outcomes); }};
+    assert.equal((await normal(environment, messaging).submit("d", eventId)).state, state);
+    const current = await receipt().get();
+    assert.notEqual(current.get("retryable"), true);
+    assert.deepEqual(await normal(environment, messaging).submit("d", eventId), {state, replayed: true});
+    if (environment === "develop") {
+      await assert.rejects(normal(environment, messaging).retryRejected({eventId, memberId: "d",
+        operationId: "unsafe", expectedAttemptId: current.get("attemptId")}, {uid: "admin"}), {code: "coverage_push_retry_unavailable"});
+    }
+    assert.equal(sends, 1);
+  }
+});
+
+run("a member without devices keeps one inbox notice and an explicit no-targets outcome", async () => {
+  const {receipt, eventId} = await prepare("develop");
+  const service = normal("develop", {sendEachForMulticast: async () => assert.fail("no target")});
+  assert.deepEqual(await service.submit("d", eventId), {state: "noTargets", replayed: false});
+  const completed = await receipt().get();
+  assert.equal(completed.get("result.outcome"), "noTargets");
+  assert.deepEqual(await service.submit("d", eventId), {state: "noTargets", replayed: true});
+  assert.deepEqual((await receipt().get()).updateTime, completed.updateTime);
+  assert.equal((await ref("develop", "users", "d").collection("notificationInbox").get()).size, 1);
+});

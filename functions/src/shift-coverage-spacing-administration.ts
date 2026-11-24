@@ -6,7 +6,8 @@ import {requireRegisteredProvisionalCreditFirestore} from
 import {deliverySpacingConflicts, parseDeliverySpacingSource} from
   "./shift-delivery-spacing.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
-import {planShiftPlanningBundle} from "./shift-planning-bundle.js";
+import {planShiftPlanningDeliverySpacingDiagnostic} from
+  "./shift-planning-bundle.js";
 import {rebuildShiftPlanningLiveSourceInTransaction} from
   "./shift-planning-firestore-source-producer.js";
 import {parseShiftPlanningRequestEnvelope} from
@@ -54,7 +55,15 @@ export const readSpacingAdministration = async (
   if (requests.size > 20) return rejectCoverage("coverage_read_limit");
   const parsed = requests.docs.map((document) =>
     parseShiftPlanningRequestEnvelope(document, environment));
-  const previews = parsed.filter(({request, lifecycle}) =>
+  const latestByBundle = new Map<string, typeof parsed[number]>();
+  for (const preview of parsed.sort((a, b) =>
+    b.request.requestedAtMillis - a.request.requestedAtMillis ||
+      b.request.requestId.localeCompare(a.request.requestId))) {
+    if (!latestByBundle.has(preview.request.bundleId)) {
+      latestByBundle.set(preview.request.bundleId, preview);
+    }
+  }
+  const previews = [...latestByBundle.values()].filter(({request, lifecycle}) =>
     request.mode === "preview" && (!lifecycle ||
       (lifecycle.state === "failed" &&
         lifecycle.summary?.status === "failed" &&
@@ -68,7 +77,8 @@ export const readSpacingAdministration = async (
     `${root}/shiftPlanningState/sourcePolicy`));
   if (!policy.exists) return empty("no_planning_request");
   const source = await rebuildShiftPlanningLiveSourceInTransaction({
-    firestore: db, transaction, environment});
+    firestore: db, transaction, environment,
+    creditPlanning: context?.creditPlanning});
   if (source.inputs.fairnessSnapshot.deliverySpacing === undefined) {
     return empty("spacing_policy_unavailable");
   }
@@ -83,24 +93,15 @@ export const readSpacingAdministration = async (
       delivery: delivery.data(), market: market.data()}});
   const candidates = new Map<string, SpacingAdministrationCandidate>();
   let currentPreviewAvailable = false;
-  const bundles = new Map<string, typeof previews[number]>();
-  for (const preview of previews.sort((a, b) =>
-    b.request.requestedAtMillis - a.request.requestedAtMillis ||
-      b.request.requestId.localeCompare(a.request.requestId))) {
-    if (!bundles.has(preview.request.bundleId)) {
-      bundles.set(preview.request.bundleId, preview);
-    }
-  }
-  for (const {request} of bundles.values()) {
+  for (const {request} of previews) {
     if (request.expectedWriteEpoch !== state.maintenance.writeEpoch ||
         request.expectedActiveRevision !== state.maintenance.activeRevision) {
       continue;
     }
-    const snapshot = {...source.inputs.fairnessSnapshot};
-    delete snapshot.deliverySpacing;
-    const result = planShiftPlanningBundle({
+    const shifts = planShiftPlanningDeliverySpacingDiagnostic({
       request: serializeShiftPlanningRequestV2(request),
-      authoritativeState: state, fairnessSnapshot: snapshot,
+      authoritativeState: state,
+      fairnessSnapshot: source.inputs.fairnessSnapshot,
       delivery: source.inputs.delivery, market: source.inputs.market,
       transactionWriteLimit: source.inputs.transactionWriteLimit});
     currentPreviewAvailable = true;
@@ -124,8 +125,7 @@ export const readSpacingAdministration = async (
         entry.authorityDigest !== spacing.authorityDigest)) {
       return rejectCoverage("delivery_spacing_exception_unavailable");
     }
-    const conflicts = deliverySpacingConflicts({source: spacing,
-      shifts: result.delivery.shifts});
+    const conflicts = deliverySpacingConflicts({source: spacing, shifts});
     for (const conflict of conflicts) {
       if (Date.parse(conflict.date + "T00:00:00.000Z") <= now ||
           approved.some((entry) => entry.userId === conflict.userId &&

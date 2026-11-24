@@ -25,6 +25,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShiftCoverageClientTest {
+    @Test fun drawRejectionsIdentifyTheProviderFailureOrLateCommit() {
+        assertEquals(R.string.coverage_draw_provider_unavailable,
+            coverageFailureLabel(ShiftCoverageFailure.Rejected(409, "coverage_draw_provider_unavailable")))
+        assertEquals(R.string.coverage_draw_provider_invalid,
+            coverageFailureLabel(ShiftCoverageFailure.Rejected(409, "coverage_draw_provider_invalid")))
+        assertEquals(R.string.coverage_draw_commit_too_late,
+            coverageFailureLabel(ShiftCoverageFailure.Rejected(409, "coverage_draw_commit_too_late")))
+        assertEquals(R.string.coverage_draw_window_too_short,
+            coverageFailureLabel(ShiftCoverageFailure.Rejected(409, "coverage_draw_window_too_short")))
+        assertEquals(R.string.coverage_conflict, coverageFailureLabel(ShiftCoverageFailure.Rejected(409, "conflict")))
+    }
+
     @Test fun creditHistoryRetainsItsMeaningAfterReadingTheServer() = runTest {
         for ((state, expectedLabel) in listOf(
             "pending" to R.string.coverage_credit_pending,
@@ -222,13 +234,14 @@ class ShiftCoverageClientTest {
         assertNotNull(harness.model.state.value.pendingCommand)
         harness.transport.rejectionStatus = 401
         harness.model.retryPending()
+        assertFalse(harness.model.state.value.acceptanceRejectedBySession)
         assertNull(harness.model.state.value.session)
         assertNull(harness.model.state.value.snapshot)
         assertNull(harness.model.state.value.pendingCommand)
     }
 
     @Test fun definitiveRejectionClearsIntentAndRequiresFreshAuthority() = runTest {
-        for (status in listOf(400, 403, 409)) {
+        for (status in listOf(400, 401, 403, 409)) {
             val harness = Harness()
             harness.model.refresh()
             harness.transport.rejectionStatus = status
@@ -236,10 +249,24 @@ class ShiftCoverageClientTest {
             assertNull(harness.model.state.value.pendingCommand)
             assertNull(harness.model.state.value.snapshot)
             assertFalse(harness.model.state.value.isBusy)
-            assertEquals(status == 403, harness.model.state.value.session == null)
+            val accessRejected = status == 401 || status == 403
+            assertEquals(accessRejected, harness.model.state.value.session == null)
+            assertEquals(accessRejected, harness.model.state.value.acceptanceRejectedBySession)
             harness.model.retryPending()
             assertEquals(1, harness.transport.commands.size)
         }
+    }
+
+    @Test fun rejectedReadBackDoesNotReportThatAnAcknowledgedAcceptanceFailed() = runTest {
+        val harness = Harness()
+        harness.model.refresh()
+        harness.transport.whileRequestPending = {
+            if (harness.transport.commands.isNotEmpty()) harness.transport.rejectionStatus = 403
+        }
+        harness.model.submit(harness.command)
+        assertNull(harness.model.state.value.session)
+        assertFalse(harness.model.state.value.acceptanceRejectedBySession)
+        assertEquals(1, harness.transport.commands.size)
     }
 
     @Test fun cancellationAfterSendingKeepsIntentForExplicitReplay() = runTest {

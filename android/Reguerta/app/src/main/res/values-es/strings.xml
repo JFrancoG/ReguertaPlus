@@ -119,6 +119,7 @@
     <string name="shifts_next_title">Mis próximos turnos</string>
     <string name="shifts_next_subtitle">Consulta tu próximo reparto y tu próximo mercado.</string>
     <string name="shifts_next_delivery">Próximo reparto</string>
+    <string name="shifts_next_role_assignment">%1$s: %2$s</string>
     <string name="shifts_next_delivery_lead">Responsable</string>
     <string name="shifts_next_delivery_helper">Apoyo</string>
     <string name="shifts_next_market">Próximo mercado</string>
@@ -142,7 +143,7 @@
     <string name="shift_swap_requests_history">Actividad reciente</string>
     <string name="shift_swap_request_button_label">Solicitar cambio</string>
     <string name="shift_swap_request_screen_title">Solicitar cambio de turno</string>
-    <string name="shift_swap_request_screen_subtitle">Lanza la solicitud a todos los socios futuros válidos y añade el motivo si quieres.</string>
+    <string name="shift_swap_request_screen_subtitle">Pide intercambiar tu turno por el de otro socio. Tú eliges con quién confirmar el cambio entre quienes se ofrezcan.</string>
     <string name="shift_swap_request_broadcast_scope_format">Alcance: socios futuros de %1$s</string>
     <string name="shift_swap_request_shift_format">Turno: %1$s</string>
     <string name="shift_swap_request_offer_shift_format">Puede ofrecer el turno: %1$s</string>

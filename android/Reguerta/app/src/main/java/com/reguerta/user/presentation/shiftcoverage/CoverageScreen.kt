@@ -29,6 +29,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -77,6 +80,12 @@ internal fun CoverageScreen(
                     Text(rehearsalNote ?: stringResource(R.string.coverage_local_note))
                 } else if (expectedSession == null) Text(stringResource(R.string.coverage_personal_session_required))
             }
+            state.failure?.let { failure ->
+                item {
+                    val message = if (state.acceptanceRejectedBySession) R.string.coverage_acceptance_rejected_sign_in else coverageFailureLabel(failure)
+                    Text(stringResource(message), Modifier.testTag("coverage.failure").semantics { liveRegion = LiveRegionMode.Polite })
+                }
+            }
             if (state.session == null && rehearsal != null) {
                 item { CoverageLogin(rehearsal) }
             } else {
@@ -98,7 +107,6 @@ internal fun CoverageScreen(
                 }
                 item {
                     if (state.isBusy) CircularProgressIndicator()
-                    state.failure?.let { Text(stringResource(coverageFailureLabel(it)), Modifier.testTag("coverage.failure")) }
                     if (state.hasPendingMutation) {
                         Text(stringResource(R.string.coverage_uncertain))
                         Button(onClick = model::retryPending, enabled = !state.isBusy, modifier = Modifier.testTag("coverage.retry")) {
@@ -128,7 +136,7 @@ internal fun CoverageScreen(
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(stringResource(coverageKindLabel(item.type)), style = MaterialTheme.typography.titleMedium)
                                 Text(coverageShiftDate(item.scheduledAtMillis))
-                                Text(model.coverage.memberName(item.absentUserId))
+                                Text(stringResource(R.string.coverage_absent, model.coverage.memberName(item.absentUserId)))
                                 Text(stringResource(coverageStatusLabel(item.status)))
                             }
                         }
@@ -136,7 +144,7 @@ internal fun CoverageScreen(
                     state.snapshot?.let { snapshot -> item { CoverageAccounting(snapshot) } }
                 } else if (selected != null) {
                     item {
-                        CoverageDetail(selected, model, state.snapshot.policy.drawAvailable)
+                        CoverageDetail(selected, model, state.snapshot.policy.drawAvailable, Action.revealDraw in actions)
                         actions.forEach { action ->
                             Button(onClick = { model.present(action, selected) }, modifier = Modifier.fillMaxWidth().testTag("coverage.action.${action.name}")) {
                                 Text(stringResource(coverageActionLabel(action)))
@@ -165,23 +173,26 @@ private fun CoverageLogin(model: CoverageRehearsalViewModel) {
         Button(onClick = model::signIn, enabled = model.canSignIn, modifier = Modifier.testTag("coverage.signIn")) { Text(stringResource(R.string.coverage_sign_in)) }
         if (model.isSigningIn) Text(stringResource(R.string.coverage_loading))
         if (model.loginFailed) Text(stringResource(R.string.coverage_login_failed))
-        val state by model.coverage.state.collectAsStateWithLifecycle()
-        state.failure?.let { Text(stringResource(coverageFailureLabel(it))) }
     }
 }
 
 @Composable
-private fun CoverageDetail(item: ShiftCoverageSnapshot.Case, model: CoverageRouteViewModel, drawAvailable: Boolean) {
+private fun CoverageDetail(
+    item: ShiftCoverageSnapshot.Case,
+    model: CoverageRouteViewModel,
+    drawAvailable: Boolean,
+    canReveal: Boolean,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(coverageKindLabel(item.type)), style = MaterialTheme.typography.titleLarge)
         Text(coverageShiftDate(item.scheduledAtMillis))
         Text(stringResource(coverageStatusLabel(item.status)), Modifier.testTag("coverage.status"))
-        Text("${stringResource(R.string.coverage_absent)}: ${model.coverage.memberName(item.absentUserId)}")
-        item.acceptedUserId?.let { Text("${stringResource(R.string.coverage_replacement)}: ${model.coverage.memberName(it)}") }
+        Text(stringResource(R.string.coverage_absent, model.coverage.memberName(item.absentUserId)))
+        item.acceptedUserId?.let { Text(stringResource(R.string.coverage_replacement, model.coverage.memberName(it))) }
         item.selectionPhase?.let { Text(stringResource(coveragePhaseLabel(it))) }
         if (!item.writable) Text(stringResource(R.string.coverage_read_only))
         item.offer?.takeIf { item.status == ShiftCoverageSnapshot.Status.offered }?.let {
-            Text(model.coverage.memberName(it.userId))
+            Text(stringResource(R.string.coverage_offered_to, model.coverage.memberName(it.userId)))
             Text("${stringResource(R.string.coverage_offer_deadline)}: ${coverageDate(it.expiresAtMillis)}")
         }
         if (item.status == ShiftCoverageSnapshot.Status.open && item.phaseClosesAtMillis != null) {
@@ -190,6 +201,19 @@ private fun CoverageDetail(item: ShiftCoverageSnapshot.Case, model: CoverageRout
             item.volunteerClosesAtMillis?.let { Text("${stringResource(R.string.coverage_volunteer_deadline)}: ${coverageDate(it)}") }
         }
         item.administration?.let { Text("${stringResource(R.string.coverage_reason)}: ${it.reason}") }
+        val drawFailure = item.administration?.drawFailure
+        if (item.status == ShiftCoverageSnapshot.Status.open && drawFailure != null) {
+            val cause = drawFailureLabel(drawFailure.code)
+            cause?.let { Text(stringResource(it)) }
+            when (item.selectionPhase) {
+                ShiftCoverageSnapshot.Phase.drawRequired -> if (canReveal) Text(stringResource(R.string.coverage_draw_retry))
+                ShiftCoverageSnapshot.Phase.adminRequired -> if (cause != R.string.coverage_draw_commit_too_late &&
+                    cause != R.string.coverage_draw_window_too_short) {
+                    Text(stringResource(R.string.coverage_draw_admin_resolution))
+                }
+                else -> Unit
+            }
+        }
         if (item.selectionPhase == ShiftCoverageSnapshot.Phase.drawRequired && !drawAvailable) {
             Text(stringResource(R.string.coverage_draw_unavailable))
         }
@@ -227,10 +251,22 @@ internal fun coverageDate(millis: Long): String = DateTimeFormatter.ofLocalizedD
 
 internal fun coverageFailureLabel(failure: ShiftCoverageFailure): Int = when (failure) {
     ShiftCoverageFailure.SessionChanged -> R.string.coverage_access_lost
-    is ShiftCoverageFailure.Rejected -> if (failure.status in listOf(401, 403)) R.string.coverage_access_lost else R.string.coverage_conflict
+    is ShiftCoverageFailure.Rejected -> when (failure.status) {
+        401, 403 -> R.string.coverage_access_lost
+        409 -> drawFailureLabel(failure.code) ?: R.string.coverage_conflict
+        else -> R.string.coverage_conflict
+    }
     ShiftCoverageFailure.LocalOnly -> R.string.coverage_local_note
     ShiftCoverageFailure.Disabled -> R.string.coverage_feature_disabled
     ShiftCoverageFailure.InvalidResponse, ShiftCoverageFailure.Unavailable -> R.string.coverage_unavailable
+}
+
+private fun drawFailureLabel(code: String): Int? = when (code) {
+    "coverage_draw_provider_unavailable" -> R.string.coverage_draw_provider_unavailable
+    "coverage_draw_provider_invalid" -> R.string.coverage_draw_provider_invalid
+    "coverage_draw_commit_too_late" -> R.string.coverage_draw_commit_too_late
+    "coverage_draw_window_too_short" -> R.string.coverage_draw_window_too_short
+    else -> null
 }
 
 internal fun coverageShiftDate(millis: Long): String = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)

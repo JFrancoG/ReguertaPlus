@@ -29,7 +29,9 @@ export const releaseCoverageInbox = (input: {
     if (user && user.ref.path !== `${root}/users/${intent.userId}`) {
       return rejectCoverage("invalid_coverage_environment");
     }
-    if (!user || !coverageMember(user.data()).active) continue;
+    const recipient = user && coverageMember(user.data());
+    if (!recipient?.active ||
+        (input.value.drawFailureNotice && !recipient.admin)) continue;
     const eventId = intent.push.data.eventId;
     const inbox = buildNotificationInboxDocument(eventId, {
       ...intent.push.notification, type: intent.push.data.type,

@@ -629,6 +629,22 @@
       }
     }
   },
+  "coverage.absent_named %@": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Absent member: %@"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Socio ausente: %@"
+        }
+      }
+    }
+  },
   "coverage.replacement": {
     "localizations": {
       "en": {
@@ -1189,6 +1205,22 @@
       }
     }
   },
+  "coverage.offer_recipient": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Offered to"
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Oferta para"
+        }
+      }
+    }
+  },
   "coverage.member": {
     "localizations": {
       "en": {
@@ -1477,6 +1509,102 @@
       }
     }
   },
+  "coverage.draw_provider_unavailable": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The draw service is unavailable. The round and participant list are saved."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "El servicio del sorteo no responde. La ronda y la lista de participantes siguen guardadas."
+        }
+      }
+    }
+  },
+  "coverage.draw_provider_invalid": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The result for the saved round could not be verified."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "No se ha podido verificar el resultado de la ronda guardada."
+        }
+      }
+    }
+  },
+  "coverage.draw_commit_too_late": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The participant list was recorded after the round became public. A shift administrator must resolve the case."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "La lista quedó registrada cuando la ronda ya era pública. Administración debe resolver la cobertura."
+        }
+      }
+    }
+  },
+  "coverage.draw_retry_round": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "You can check the same round again."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Puedes volver a consultar la misma ronda."
+        }
+      }
+    }
+  },
+  "coverage.draw_admin_resolution": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The draw window has closed. A shift administrator must resolve the case."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Ha terminado el plazo del sorteo. Administración debe resolver la cobertura."
+        }
+      }
+    }
+  },
+  "coverage.draw_window_too_short": {
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "The draw window ends before the next available round. A shift administrator must resolve the case."
+        }
+      },
+      "es": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "El plazo del sorteo termina antes de la próxima ronda disponible. Administración debe resolver la cobertura."
+        }
+      }
+    }
+  },
   "coverage.draw_unavailable": {
     "localizations": {
       "en": {
@@ -1658,13 +1786,13 @@
       "en": {
         "stringUnit": {
           "state": "translated",
-          "value": "Resolve committed draw"
+          "value": "Check the saved round"
         }
       },
       "es": {
         "stringUnit": {
           "state": "translated",
-          "value": "Resolver sorteo comprometido"
+          "value": "Consultar la ronda guardada"
         }
       }
     }
@@ -11176,13 +11304,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review the shift, broadcast the request to members who can cover it, and add a reason if needed."
+            "value" : "Ask to swap your shift for another member’s shift. You choose which available member to swap with and confirm the exchange."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Revisa el turno, difunde la solicitud a los socios que pueden cubrirlo y añade el motivo si quieres."
+            "value" : "Pide intercambiar tu turno por el de otro socio. Tú eliges con quién confirmar el cambio entre quienes se ofrezcan."
           }
         }
       }

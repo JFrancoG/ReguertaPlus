@@ -1,5 +1,9 @@
 # ADR-0017: Keep administrative resolution open after its target deadline
 
+**18 November 2026.** The assembly approved the member text, including the
+administrative resolution window described here, as reported by the maintainer.
+Shared acceptance and rollout approval remain pending. [Decision record](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up).
+
 ## Status
 
 Accepted for HU-089 local implementation on 2026-10-11 under the maintainer's

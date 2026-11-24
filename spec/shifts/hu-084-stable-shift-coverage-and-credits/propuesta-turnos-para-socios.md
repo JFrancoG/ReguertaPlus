@@ -1,13 +1,10 @@
 # Propuesta para organizar las sustituciones en los turnos de La Regüerta
 
-**Documento para leer, comentar y, si procede, aprobar. Todavía no está aprobado.**
+**Aprobada en la asamblea de La Regüerta del 18 de noviembre de 2026.**
 
 Hasta ahora hemos resuelto las ausencias según iban surgiendo, intentando seguir
 un criterio razonable. Esta propuesta busca que todos sepamos qué hacer, que las
 decisiones sean claras y que ayudar a cubrir un turno tenga una compensación.
-Se ha comentado informalmente con el presidente y algunos miembros y ha tenido
-buena acogida entre esas personas. Ahora se presenta por escrito para que todos
-puedan conocerla y proponer cambios.
 
 ## 1. Respetar los turnos que ya conoce cada persona
 
@@ -73,7 +70,7 @@ aceptar expresamente.** Recibir un aviso no significa haber aceptado.
 Cada oferta tendrá una fecha y una hora límite para responder. Si vence sin
 respuesta, se continuará buscando a otra persona.
 
-Los plazos propuestos son:
+Se aplicarán los siguientes plazos:
 
 | Paso | Si faltan al menos 14 días | Si faltan entre 5 y menos de 14 días |
 | --- | --- | --- |
@@ -83,7 +80,6 @@ Los plazos propuestos son:
 | Resolución por responsables de turnos | 3 días | 1 día |
 
 El recorrido completo suma 14 días en el caso normal y 5 días en el urgente.
-Son plazos propuestos, todavía pendientes de aprobación.
 
 Los plazos de reserva, voluntarios y sorteo son máximos para cada paso completo
 y no se reinician con cada nueva persona. El de los responsables es un objetivo
@@ -103,9 +99,6 @@ de haber comenzado el turno.
 
 Se dará prioridad a quien se haya ofrecido primero. Si hay
 un empate exacto, se usará un orden de desempate fijo y registrado.
-
-Este criterio queda incorporado a la propuesta por indicación del mantenedor;
-sigue pendiente la aprobación del conjunto por los socios.
 
 ## 7. Cómo debe ser el sorteo
 
@@ -185,9 +178,8 @@ otra persona ni cambiar de reparto a mercado o al revés.
 
 ## 11. Límite para evitar acumulaciones
 
-El límite aceptado por el mantenedor para esta propuesta es que una persona
-no acepte una segunda sustitución del mismo tipo
-mientras tenga una primera aceptada sin terminar o una compensación pendiente.
+Una persona no podrá aceptar una segunda sustitución del mismo tipo mientras
+tenga una primera aceptada sin terminar o una compensación pendiente.
 
 Así se evita que unas pocas personas acumulen muchas sustituciones y descansos.
 Reparto y mercado se cuentan por separado. Si una sustitución finalmente no se
@@ -250,20 +242,27 @@ Quedarán anotadas las ofertas, respuestas, sustituciones, compensaciones y
 correcciones, para poder aclarar dudas. Los cambios posteriores no alterarán quién
 hizo realmente un turno pasado.
 
-## Presentación y aprobación de la propuesta
+## Acuerdo de la asamblea
 
-Ya se han concretado con el mantenedor los plazos y su cómputo, la gestión exclusiva
-por responsables cuando faltan menos de cinco días, la salida de la reserva,
-la prioridad del primer voluntario, el límite de acumulación, la cancelación de
-compensaciones por baja permanente y las 10 semanas entre turnos ordinarios de
-reparto, con las excepciones descritas.
+Según comunicó el mantenedor, la asamblea del 18 de noviembre de 2026 aprobó el
+escrito de sustituciones. Quedan pendientes la referencia al acta y la fecha de
+entrada en vigor. La aplicación de las reglas requiere comprobar que la app puede
+gestionarlas correctamente.
 
-El texto completo se presenta a los socios para que puedan aprobarlo o proponer
-cambios. Estas decisiones de preparación todavía no constituyen un acuerdo de
-asamblea ni significan que todas las reglas estén ya funcionando en la aplicación.
+En la asamblea también se indicó que, tras un tiempo de uso y varios casos, se podrán
+ampliar o acortar los plazos y hacer otros ajustes mediante actualizaciones de la
+app si todos los socios están de acuerdo. Para la puesta en marcha se mantienen
+los plazos de la sección 5.
 
-**Registro del acuerdo:** fecha __________; cambios acordados __________;
-texto final aprobado __________; fecha prevista de entrada en vigor __________.
+## Aclaración sobre sustituciones e intercambios
 
-La propuesta sólo entrará en vigor después de su aprobación y de comprobar que
-podemos aplicarla correctamente. Hasta entonces seguirá siendo un documento de trabajo.
+Esta aclaración se añadió al registrar el acuerdo para explicar los dos trámites
+de la app. Si un socio acepta en plazo una **sustitución** para la que cumple las
+condiciones, cubrirá ese turno y conservará las fechas de sus propios turnos.
+Obtendrá una compensación para una futura participación del mismo tipo cuando
+se confirme que ha hecho el turno que cubría.
+
+En una solicitud de **intercambio**, la respuesta de disponibilidad permite al
+solicitante elegir a ese socio. Cuando el solicitante confirma el cambio en la
+app, cada uno pasa a hacer el turno del otro. Véase la
+[solicitud de intercambio de turno](../hu-016-request-shift-swap/spec.md#acceptance-criteria).

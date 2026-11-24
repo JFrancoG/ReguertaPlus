@@ -61,9 +61,20 @@ enum CoverageCopy {
         ))
     }
 
+    static func drawFailure(_ code: String) -> LocalizedStringResource? {
+        switch code {
+        case "coverage_draw_provider_unavailable": "coverage.draw_provider_unavailable"
+        case "coverage_draw_provider_invalid": "coverage.draw_provider_invalid"
+        case "coverage_draw_commit_too_late": "coverage.draw_commit_too_late"
+        case "coverage_draw_window_too_short": "coverage.draw_window_too_short"
+        default: nil
+        }
+    }
+
     static func failure(_ failure: ShiftCoverageFailure) -> String {
         switch failure {
         case .sessionChanged: text("access_lost")
+        case .rejected(409, let code): drawFailure(code).map { String(localized: $0) } ?? text("conflict")
         case .rejected(let status, _): text([401, 403].contains(status) ? "access_lost" : "conflict")
         case .localOnly: text("local_note")
         case .invalidResponse, .unavailable: text("unavailable")

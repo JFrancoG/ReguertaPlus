@@ -1,5 +1,57 @@
 # HU-084 provisional review
 
+## Completed coverage delivery on 21 November 2026
+
+The local Firestore journey completed a delivery substitution before the worker received its acceptance event. Processing the completion first, losing the Sheets acknowledgement and redelivering both events produced one batch for the two affected seasonal rows. The worker verified the cells and operation marker before releasing the completion inbox entry. Its document and the substitute's single credit survived replay. A recorded batch whose outcome cannot be verified stays reserved for inspection. Older completions can recover the preceding acceptance using the case and revision. [Projection and end-to-end tests](../../../functions/test/shift-coverage-effects.emulator.test.cjs).
+
+The push transport rejected the first submission for the substitute. The authenticated administration endpoint listed the incident. Repeating the rejected event left it available for recovery. An administrator retried the named attempt, the transport accepted it once, and repeating the command and event preserved the same inbox entry. A missing acknowledgement or a partial acceptance prevents another send to the same audience. The Functions build, lint and 111 local checks passed, including 12 session, access and administration cases. Firestore and Auth ran in local emulators, with simulated Sheets and push transports. Shared delivery and opening the notice on a signed-in phone remain part of the two Develop journeys. [Push regressions](../../../functions/test/shift-coverage-shared-push.emulator.test.cjs) · [Authenticated access](../../../functions/test/shift-coverage-live.emulator.test.cjs) · [Recovery procedure](../../../docs-es/testing/hu084-relevo-backend.md#incidencias-de-entrega-de-coberturas-completadas).
+
+## Credit publication and delivery spacing on 21 November 2026
+
+The Firestore emulator exercised an accepted delivery substitution through the authenticated coverage service and the normal planning runtime. Both environment names were seeded in the same emulator. With twelve ordinary owners, repeating completion left one pending delivery credit for the substitute. Preview and stage preserved the balance. Publication redeemed that credit once, released its claim and skipped the substitute's next eligible ordinary position. A fresh worker replayed the receipt with the same credit, claim and ledger write times. Recovery restored the one pending credit, and repeating recovery preserved it. The other environment retained its original records. [End-to-end test](../../../functions/test/shift-credit-planner-live.emulator.test.cjs).
+
+With ten weekly owners, redeeming the same credit would leave nine pairs of ordinary deliveries 63 days apart. The preview recorded `delivery_spacing_conflict`, and replay preserved the pending credit and existing schedule. Each pair required its own reasoned administrative approval for the current planning authority. The next preview identified the approvals it used. A superseded preview cannot supply an approval. For a frozen round or a physical unit that needs its full staff, the private plan records why it deferred a credit. An unstaffable unit produces a terminal failure visible to administration. [Spacing rules](../../../docs/decisions/0016-bind-delivery-spacing-to-ordinary-planning-history.md) · [Unit deferral](../../../functions/test/shift-credit-season.test.cjs) · [Terminal failure](../../../functions/test/shift-planning-request-lifecycle.test.cjs).
+
+The first preview started with no fairness document. After a source change, staging an older preview failed and a fresh preview captured the current inputs. The administrator could read the new epoch during maintenance and approve the nine pairs there. A receipt from an earlier epoch remained readable and could be replayed. [Request context and publication](../../../functions/test/shift-credit-planner-live.emulator.test.cjs) · [Historical receipts](../../../functions/test/shift-coverage-spacing-administration.emulator.test.cjs).
+
+Functions lint and the TypeScript build passed. In the emulators, 83 tests covered credit, spacing and membership, 11 covered coverage admission and authentication, two covered the request context, and six checked the existing HU-082 source producer. All 102 selected cases passed. The standard planning unit command reported 358 passes and 55 skips. Native clients and their wire formats were unchanged.
+
+The shared service remains disabled in the exported Functions. The subsequent [completion delivery check](#completed-coverage-delivery-on-21-november-2026) exercised Sheets, member notification and recovery after an interrupted delivery. The two signed-in Develop journeys and four production calendar checks retain their existing acceptance criteria. [Roadmap](../../../docs-es/requirements/estado-y-hoja-de-ruta-turnos-2026-11-12.md).
+
+## D09 public draw on 21 November 2026
+
+The authenticated coverage service now uses drand Quicknet. The Firestore and Auth emulators recorded the synthetic participant list 26.460 seconds before public round 34,149,663. The test clock was offset to shorten the wait. The normal service schedules the round at least five minutes after reading its clock and independently checks the Firestore commit time. Only the public chain and round were sent to drand. [Public pulse](https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/34149663) · [Provider decision](../../../docs/decisions/0029-use-drand-quicknet-for-coverage-draws.md).
+
+A simulated outage produced one notification for the administrator. On recovery the service verified the public signature. Cancellation and reopening kept the original order, the first participant declined and the next accepted. The offline suite also covers an invalid signature, an operator losing access during the request, a late commitment and a round that would fall outside the remaining time. The last two conditions send the case directly to administration, where a reasoned offer still requires the member's acceptance. [Authenticated journey and failure cases](../../../functions/test/shift-coverage-live.emulator.test.cjs) · [Offline public vector](../../../functions/test/shift-coverage-drand.test.cjs).
+
+The five targeted coverage suites exercised 122 distinct cases across the main run and the added short-window case. Six final offline checks covered the revised retry receipts, inbox delivery, push admission and environment isolation. The archive test reproduces the public signature and order without a network request. Real device push delivery and shared activation remain covered by the later acceptance gates.
+
+The iOS 26.5 iPhone 17 gate passed 952 tests with five skips. The final retry-control change passed the focused Debug case and a Release build with zero warnings. Android passed 544 unit tests and 29 instrumented tests on API 35 with five opt-in skips. The focused instrumented case passed again after the final retry-control change. Android lint reported zero errors, 145 warnings and two hints. Both apps show the incident in Spanish and English and only offer to retry when checking the saved round is an available action. Functions lint and the TypeScript build passed. The two normal-account Develop scenarios and the four production activation checks remain open.
+
+## D01 effective eligibility on 21 November 2026
+
+The old planner followed the order of administrative reconciliation. In the regression case, Z became eligible first, A and B became eligible together, and administration processed B, A, Z. The next unfrozen delivery and market rounds now append Z, A, B. The exact tie is resolved by the stable member ID. B still receives the first reserve offer because B joined that list first.
+
+The administrative member write records each actual transition in a private Firestore document in the same transaction. Profile edits preserve its commit time. Reconciliation binds the time of entry into the current eligibility period, including a departure and return between observations. The planner checks the evidence again before publishing. Members already in a baseline retain their position. A new admission that depends on an unprovable historical date stops for reconciliation. [Membership lifecycle decision](../../../docs/decisions/0015-record-explicit-coverage-membership-lifecycle.md#effective-eligibility-time-for-d01--21-november-2026).
+
+Functions lint and the TypeScript build passed on Node 22. The eight local suites passed all 159 checks, including admission, reserve offers and publication with and without credits. The administrative endpoint passed its separate emulator test, and all 41 Firestore Rules checks passed. The two normal-client acceptance scenarios on Develop and the four production activation scenarios remain open. [Administrative writer](../../../functions/test/shift-membership-source.emulator.test.cjs) · [Membership lifecycle](../../../functions/test/shift-membership-lifecycle.emulator.test.cjs) · [Round admission](../../../functions/test/shift-membership-planning.test.cjs).
+
+## Maintainer feedback on 21 November 2026
+
+The maintainer reviewed the same market offer on iPhone and Android and found the roles and pending state understandable. They requested one UI and UX pass across all new Shifts screens once the feature is fully implemented, so the member and administration journeys follow the design of the rest of each app. That pass remains open. The [20 November rehearsal](#comparative-mobile-review-on-20-november-2026) records the focused fixes already verified.
+
+## Comparative mobile review on 20 November 2026
+
+Both clients showed the same local market offer for 4 September 2027. Member A was absent, member D had to respond and the offer was still pending. The list now labels the absent person. The detail identifies the offer recipient. After acceptance, the existing replacement field identifies the person covering the shift. On iPhone the accessibility tree paired both names with their roles at the largest Dynamic Type size. Opening and cancelling the confirmation preserved the pending offer.
+
+The Android layout check reproduced a blocked swap action on a 320 × 480 dp viewport at 200% text. The revised board keeps the next shift summary scrollable, separates roles from dates at large text sizes and leaves space to reach the market shift and its swap form. The Android test transport returned 403 before executing the acceptance. The rejection notice appeared above the login fields without manual scrolling. A confirmed first rejection, an uncertain delivery and a failed read after an acknowledged write have distinct outcomes.
+
+On iPhone the normal shift routes were exercised with four in-memory preview assignments injected into a separate temporary build. Both platform reviews reached the upcoming shift, switched between delivery and market, opened the swap form from the board and left without submitting. The form copy now explains that the requester selects an available member and confirms the exchange of both shifts. The original [swap contract](../hu-016-request-shift-swap/spec.md#acceptance-criteria) specifies the two assignments and the confirmation step.
+
+The iPhone 17 release gate on iOS 26.5 reported 952 passed, five skipped and zero failed across 957 tests. The final swap subtitle was compiled in both languages and checked on the Spanish swap form at maximum Dynamic Type in the separate fixture build. Android built and passed 543 unit tests. On API 35, 32 instrumented tests passed and the optional repository/Sheets fixture test was skipped. Lint reported zero errors, 145 warnings and two hints. The final swap copy was built and the affected board-to-form route passed in Spanish and English.
+
+The [previous product rehearsal](#ios-product-rehearsal--2026-11-04) covers administrative confirmation and credit consumption. Historical [physical accessibility evidence](#acceptance-matrix) remains scoped to the controls and revisions exercised. This review used local fixtures. The two scenarios with normal accounts in Develop are still outstanding. [Acceptance scenarios](../../../docs-es/requirements/estado-y-hoja-de-ruta-turnos-2026-11-12.md#los-seis-escenarios-de-aceptación-funcional).
+
 ## iOS session interruption — 2026-11-05
 
 In the local iPhone 17 rehearsal, member `e` opened the confirmation sheet for the 29 September 2027 delivery. While the sheet was open we revoked the member's emulator session and verified that a read with a pre-revocation token returned 401. The tester tapped «Confirmar» and inferred from the login form that signing in again was necessary. A capture of the settled screen showed «Tu sesión o tus permisos han cambiado. Vuelve a entrar.» below «Entrar». The tester missed the notice during the transition. Its duration was not measured.
@@ -93,6 +145,11 @@ generic workflow engine, automatic unknown-push retry or parallel writer lock.
 
 ## Acceptance matrix
 
+The member-facing policy was approved on 18 November, as reported by the
+maintainer. The matrix preserves the scope of existing evidence. Shared
+acceptance requires checking the candidate against the
+[approved rules](ratification.md#decision-record-and-follow-up).
+
 Numbers refer to the 25 criteria under `spec.md` / Acceptance criteria after approval,
 in their current order. `Local` means the provisional policy is implemented and
 has local evidence; it does not check off the assembly-approved criterion.
@@ -101,22 +158,22 @@ Paths below are relative to the repository root.
 | Criteria | Current evidence | Remaining boundary |
 | --- | --- | --- |
 | 1, 10 — stable dates, immutable owner/effective replacement | `functions/test/shift-coverage.emulator.test.cjs`: delivery/market acceptance and departure preservation | Local; no shared data exercise |
-| 2 — reserve and first unfrozen round | `shift-membership-planning.test.cjs`, membership scenarios in `shift-coverage.emulator.test.cjs`: FIFO, re-entry, per-type admission and August continuity | Reserve exit and simultaneous-entry policy still require ratification |
+| 2 — reserve and first unfrozen round | `shift-membership-planning.test.cjs`, membership scenarios in `shift-coverage.emulator.test.cjs`: FIFO, re-entry, per-type admission and August continuity | Verify approved reserve exit and simultaneous-entry order against the candidate |
 | 3, 4 — public departures versus frozen/unfrozen positions | Same membership suites plus `shift-credit-publication.test.cjs`: individual public cases and frozen ownership | Local tombstone proposal; pending swaps remain explicit resolution cases |
-| 5, 6 — atomic omissions and complete physical units | `shift-credit-unit.test.cjs`, `shift-credit-publication.test.cjs`: minimum cohorts, zero partial writes, publication/inverse and source drift | Ratify tombstones or fully specify the alternative |
-| 7, 8 — eligibility and company/role races | `shift-coverage.emulator.test.cjs`, `shift-membership-planning.test.cjs`, `shift-credit-publication.test.cjs`: purchase manager/producer, reactivation and demotion | Ratify reason-specific eligibility treatment |
-| 9 — reserve/volunteer/draw/admin hierarchy | `shift-coverage.emulator.test.cjs`: FIFO exhaustion, volunteers, draw and explicit admin recovery | Synthetic ordering/windows; final policy remains open |
+| 5, 6 — atomic omissions and complete physical units | `shift-credit-unit.test.cjs`, `shift-credit-publication.test.cjs`: minimum cohorts, zero partial writes, publication/inverse and source drift | Verify the proposed tombstone mechanics against the approved departure rule |
+| 7, 8 — eligibility and company/role races | `shift-coverage.emulator.test.cjs`, `shift-membership-planning.test.cjs`, `shift-credit-publication.test.cjs`: purchase manager/producer, reactivation and demotion | Verify the reason-specific implementation against the approved treatment |
+| 9 — reserve/volunteer/draw/admin hierarchy | `shift-coverage.emulator.test.cjs`: FIFO exhaustion, volunteers, draw and explicit admin recovery | Synthetic ordering/windows; verify the agreed priority and deadlines |
 | 11, 12 — adjacent leads and completed helper history | Coverage, credit-season and membership suites: predecessor/successor revisions, completed history and prospective helper updates | Local regression evidence, no rewriting completed helpers |
 | 13 — committed reproducible draw | `shift-coverage-draw.test.cjs`, draw emulator cases: signed future round, tamper rejection, concurrency, no new seed through cancellation | Synthetic issuer only; real provider/unpredictability not certified |
-| 14 — explicit response | Coverage emulator and both native client suites: accept/decline/expiry, stale response rejection | Local; final windows and fallback need ratification |
-| 15, 16 — earned credit and no stacking | Coverage emulator: only authoritative completion earns credit; simultaneous same-type acceptance rejects; failure releases claim | Ratify cap, expiry, prolonged leave and proximity policy |
+| 14 — explicit response | Coverage emulator and both native client suites: accept/decline/expiry, stale response rejection | Local; verify approved deadlines and administrative fallback |
+| 15, 16 — earned credit and no stacking | Coverage emulator: only authoritative completion earns credit; simultaneous same-type acceptance rejects; failure releases claim | Verify the approved cap, cancellation on permanent departure, temporary suspension and 10-week rule |
 | 17 — ledger binding and atomic consumption | `shift-credit-publication.test.cjs`: full source capture, stage drift, competing activation, exact inverse and monotonic revisions | Fixed demo only |
-| 18, 19, 20 — deferred credit and whole-unit backtracking | `shift-credit-unit.test.cjs`, `shift-credit-season.test.cjs`: all subsets of small cohorts, N=2, queue wrap, ten complete markets and credited carryover | Ratify reverse-order fallback; no unstated replacement-credit accounting |
+| 18, 19, 20 — deferred credit and whole-unit backtracking | `shift-credit-unit.test.cjs`, `shift-credit-season.test.cjs`: all subsets of small cohorts, N=2, queue wrap, ten complete markets and credited carryover | Verify approved reverse-order deferral and administrative escalation |
 | 21 — market staffing and delivery handover | Unit/seasonal planners plus coverage and publication emulator suites | Local |
 | 22 — independent HU-016 swaps | Existing swap/shift-planning unit regressions included in final Functions run; shared helper/lineage changes reviewed | Does not certify live swap deployment |
 | 23 — equivalent native member/admin states | Shared wire fixtures, Android client/operation tests, Swift client/rehearsal tests; local role/cancel and earlier accept/credit journeys | Bounded physical accessibility, API 29 and native notification matrix complete through 2026-10-04 below; live authenticated coverage composition remains separate |
 | 24 — backend-only authority | Strict/phase1 Rules matrix, nested recovery authorization/results/push records and Auth emulator revocation/link tests | No Rules deployment |
-| 25 — all ratified branches before activation | Provisional workflow/Auth/projection/inbox/push/recovery suites and native gates | Cannot certify a policy the assembly has not yet ratified |
+| 25 — all ratified branches before activation | Provisional workflow/Auth/projection/inbox/push/recovery suites and native gates | Compare the approved policy with local evidence before shared acceptance |
 
 Test names and historical journey evidence are retained in `plan.md` and the bilingual
 native rehearsal guides. Receipts establish audit history; they do not implement the

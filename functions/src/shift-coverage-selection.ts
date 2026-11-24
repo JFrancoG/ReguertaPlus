@@ -32,12 +32,23 @@ export type CoverageSelection = {
   snapshotDigest: string;
   phase: "reserve" | "volunteers" | "drawRequired" | "draw" | "adminRequired";
   draw?: CoverageDraw;
+  drawCommitOperationId?: string;
+  drawFailure?: {code: "coverage_draw_provider_unavailable" |
+    "coverage_draw_provider_invalid" | "coverage_draw_commit_too_late" |
+    "coverage_draw_window_too_short";
+    administratorId: string; reportedAtMillis: number;
+    alertOperationId: string};
   attemptedUserIds: string[];
   volunteers: {userId: string; receivedAtMillis: number; withdrawn: boolean}[];
   volunteerClosesAtMillis: number | null;
   latestExclusions: {userId: string; reason: string}[];
   timing?: CoverageTiming;
 };
+
+export const coverageSelectionRetainsSlot = (
+  selection?: CoverageSelection,
+): boolean => Boolean(selection?.draw ||
+  selection?.drawFailure?.code === "coverage_draw_window_too_short");
 
 /**
  * Discovery exclusions mirror the acceptance invariants. Proximity beyond

@@ -37,6 +37,7 @@ export type RotationProjectionPrefix = {
 };
 
 export type ShiftPlanningFailureCode =
+  | "credit_unit_unstaffable"
   | "adjacent_delivery_lead_conflict"
   | "invalid_delivery_spacing_source"
   | "delivery_spacing_history_required"

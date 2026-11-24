@@ -1,5 +1,9 @@
 # ADR-0016: Vincular la separación de repartos al historial ordinario
 
+**18 de noviembre de 2026.** El mantenedor comunicó que la asamblea aprobó el
+escrito, que incluye las diez semanas de separación entre repartos y sus excepciones.
+El contraste técnico y la activación compartida siguen en HU-084. [Registro del acuerdo](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification-es.md#registro-del-acuerdo-y-trabajo-posterior).
+
 ## Estado
 
 Aceptado para la implementación local de HU-089 el 2026-10-11 por instrucción
@@ -89,3 +93,7 @@ pareja exacta y su contexto completo de fuente y solicitud. Las apps no permiten
 escribir identidades, fechas, vueltas ni IDs de lote arbitrarios. Solo cambian el
 registro privado y su recibo, con repetición vinculada al UID y permisos actuales.
 La aprobación colectiva, la conexión real de fuentes y la activación siguen pendientes.
+
+## Excepciones de espaciado en el planificador el 21 de noviembre de 2026
+
+Cada propuesta usa la última previsualización de su lote, el entorno y el mismo recibo de inicialización que los créditos. Entrar en mantenimiento cambia la época de escritura. Durante esa época, una cuenta administradora activa puede revisar la propuesta vigente y autorizar cada pareja conflictiva con un motivo. La autorización de esa época tiene su propio registro inmutable y se conservan los recibos anteriores. La confirmación de coberturas y los cambios de pertenencia siguen sujetos al bloqueo de escrituras ordinarias. [Evidencia del planificador](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md#credit-publication-and-delivery-spacing-on-21-november-2026).

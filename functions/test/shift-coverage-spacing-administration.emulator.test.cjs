@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const {test, before, beforeEach, after} = require("node:test");
 const {Timestamp} = require("@google-cloud/firestore");
 const {createProvisionalCreditFirestore} = require("../lib/shift-credit-publication.js");
-const {createDeliverySpacingAdministration} = require("../lib/shift-delivery-spacing-store.js");
+const {createDeliverySpacingAdministration, captureDeliverySpacingSource} = require("../lib/shift-delivery-spacing-store.js");
 const {readSpacingAdministration, assertSpacingAdministrationContext} = require("../lib/shift-coverage-spacing-administration.js");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {parseShiftPlanningRequestV2, buildShiftPlanningFailureSummary} = require("../lib/shift-planning-wire.js");
@@ -90,16 +90,20 @@ run("missing preparation has an explicit empty state while corrupt source or req
   const corrupt = await capture(); await assert.rejects(() => read()); assert.deepEqual(await capture(), corrupt);
 });
 
-run("canonical failed spacing previews remain actionable but a forged lifecycle digest is rejected", async () => {
-  const intent = request();
+const recordFailedPreview = async (intent, code) => {
   const summary = buildShiftPlanningFailureSummary({mode: "preview", bundleId: intent.bundleId,
-    scope: "delivery", code: "delivery_spacing_conflict"});
-  const lifecycle = {schemaVersion: 1, operationId: "request-request-preview-2026",
+    scope: "delivery", code});
+  const lifecycle = {schemaVersion: 1, operationId: "request-" + intent.requestId,
     requestIntentDigest: digest(parseShiftPlanningRequestV2(intent)), state: "failed",
     lease: {workerId: "local-worker", fencingEpoch: 1,
       acquiredAt: Timestamp.fromMillis(now), expiresAt: Timestamp.fromMillis(now + 1000)},
     summary, artifact: null, terminalDigest: digest({summary, artifact: null})};
   await ref("shiftPlanningRequests", intent.requestId).set({...intent, status: "failed", lifecycle});
+};
+
+run("canonical failed spacing previews remain actionable but a forged lifecycle digest is rejected", async () => {
+  const intent = request();
+  await recordFailedPreview(intent, "delivery_spacing_conflict");
   assert.equal((await read()).spacingCandidates.length, 48);
   await ref("shiftPlanningRequests", intent.requestId).update({"lifecycle.requestIntentDigest": digest("forged")});
   const before = await capture(); await assert.rejects(() => read()); assert.deepEqual(await capture(), before);
@@ -157,4 +161,59 @@ run("all exact approvals leave a valid empty state rather than an unavailable pl
 run("an incompatible preview reports missing current planning rather than a completed empty list", async () => {
   await ref("shiftPlanningRequests", "request-preview-2026").set(request({expectedWriteEpoch: 8}));
   assert.deepEqual(await read(), {spacingCandidates: [], spacingUnavailableReason: "no_planning_request"});
+});
+
+run("a newer unrelated failure for the same bundle supersedes all older proposals and approvals", async () => {
+  await recordFailedPreview(request(), "delivery_spacing_conflict");
+  const oldChoice = select((await read()).spacingCandidates[0]);
+  const later = request({requestId: "later-unrelated-failure",
+    requestedAt: Timestamp.fromMillis(Date.parse("2026-07-01T00:00:00Z"))});
+  await recordFailedPreview(later, "invalid_delivery_continuity");
+  assert.deepEqual(await read(), {spacingCandidates: [], spacingUnavailableReason: "no_planning_request"});
+  const before = await capture();
+  await assert.rejects(() => authorize(oldChoice), {code: "coverage_administration_context_changed"});
+  assert.deepEqual(await capture(), before);
+});
+
+run("the same delivery pair can be approved in the new maintenance epoch without replacing its original receipt", async () => {
+  const stateRef = ref("shiftPlanningState", "current");
+  const closed = (await stateRef.get()).data();
+  await stateRef.set({...closed, maintenanceStatus: "open", intakeBarrier: null});
+  const original = (await read()).spacingCandidates[0];
+  const first = await authorize(select(original), {operationId: "approve-before-maintenance"});
+  // Older writers persisted this exact pair and receipt under a key independent of the write epoch.
+  const legacyId = digest([original.planningRequestId, original.userId, original.previousDate, original.previousRoundNumber,
+    original.date, original.roundNumber]).split(":").at(-1);
+  const legacy = {...first.result, id: legacyId};
+  const firstRef = ref("shiftDeliverySpacingExceptions", legacyId);
+  const batch = db.batch();
+  batch.delete(ref("shiftDeliverySpacingExceptions", first.result.id));
+  batch.create(firstRef, {value: legacy, digest: digest(legacy)});
+  batch.update(ref("shiftDeliverySpacingOperations", legacy.operationId), {result: legacy});
+  await batch.commit();
+  const firstWrite = await firstRef.get();
+  const replay = await authorize(select(original), {operationId: legacy.operationId});
+  assert.equal(replay.replayed, true);
+  assert.deepEqual(replay.result, legacy);
+  await stateRef.set({...closed, stateRevision: closed.stateRevision + 1, writeEpoch: closed.writeEpoch + 1});
+  const later = request({requestId: "preview-new-maintenance-epoch", expectedWriteEpoch: closed.writeEpoch + 1,
+    requestedAt: Timestamp.fromMillis(Date.parse("2026-07-01T00:00:00Z"))});
+  await ref("shiftPlanningRequests", later.requestId).set(later);
+  const current = (await read()).spacingCandidates.find(({id}) => id === original.id);
+  assert.ok(current);
+  assert.notEqual(current.contextDigest, original.contextDigest);
+  const second = await authorize(select(current), {operationId: "approve-in-maintenance"});
+  assert.equal(second.replayed, false);
+  assert.notEqual(second.result.id, legacy.id);
+  assert.notEqual(second.result.authorityDigest, first.result.authorityDigest);
+  assert.equal((await authorize(select(original), {operationId: "approve-before-maintenance"})).replayed, true);
+  assert.equal((await authorize(select(current), {operationId: "approve-in-maintenance"})).replayed, true);
+  assert.deepEqual((await firstRef.get()).updateTime, firstWrite.updateTime);
+  assert.deepEqual((await firstRef.parent.get()).docs.map(({id}) => id).sort(),
+    [legacy.id, second.result.id].sort());
+  const source = await db.runTransaction((transaction) => captureDeliverySpacingSource({
+    firestore: db, transaction, authorityDigest: second.result.authorityDigest,
+  }));
+  assert.deepEqual(source.exceptions.map(({id}) => id), [second.result.id]);
+  assert.ok(!(await read()).spacingCandidates.some(({id}) => id === original.id));
 });

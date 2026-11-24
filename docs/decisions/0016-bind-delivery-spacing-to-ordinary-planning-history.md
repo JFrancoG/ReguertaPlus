@@ -1,5 +1,9 @@
 # ADR-0016: Bind delivery spacing to ordinary planning history
 
+**18 November 2026.** The maintainer reported approval of the member text,
+including the 10-week delivery spacing and exceptions described here.
+Technical reconciliation and shared rollout remain in HU-084. [Decision record](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up).
+
 ## Status
 
 Accepted for HU-089 local implementation on 2026-10-11 under the maintainer's
@@ -85,3 +89,7 @@ complete source/request context. Clients cannot enter arbitrary identities,
 dates, rounds or bundle IDs. Approval changes only its private record/receipt,
 with authenticated UID-bound replay and current role checks. Collective approval,
 real source composition and production activation remain separate gates.
+
+## Spacing approvals in the environment planner on 21 November 2026
+
+Each proposal uses the latest preview for its bundle, the actual environment and the same bootstrap authority as the credit ledger. Entering maintenance changes the write epoch. An active administrator may review the current preview and approve each conflicting pair with a reason during that epoch. A fresh approval has its own immutable record for that authority. Earlier receipts remain readable. Closing maintenance to ordinary writers continues to block coverage completion and membership changes. [Planner evidence](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md#credit-publication-and-delivery-spacing-on-21-november-2026).

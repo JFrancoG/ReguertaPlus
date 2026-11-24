@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="coverage_absent">Absent member</string>
-    <string name="coverage_replacement">Covering member</string>
+    <string name="coverage_absent">Absent member: %1$s</string>
+    <string name="coverage_offered_to">Offered to: %1$s</string>
+    <string name="coverage_replacement">Covering member: %1$s</string>
+    <string name="coverage_acceptance_rejected_sign_in">The coverage offer could not be accepted. Sign in again to review it.</string>
     <string name="coverage_minutes">Response window (minutes)</string>
     <string name="coverage_title">Shift coverage</string>
     <string name="coverage_rehearsal">Local rehearsal</string>
@@ -54,6 +56,12 @@
     <string name="coverage_phase_draw">Committed draw</string>
     <string name="coverage_phase_adminrequired">Administrative resolution</string>
     <string name="coverage_draw_unavailable">The draw provider is not configured for this rehearsal.</string>
+    <string name="coverage_draw_provider_unavailable">The draw service is unavailable. The round and participant list are saved.</string>
+    <string name="coverage_draw_provider_invalid">The result of the saved round could not be verified.</string>
+    <string name="coverage_draw_commit_too_late">The participant list was recorded after the round became public. An administrator must resolve the coverage.</string>
+    <string name="coverage_draw_window_too_short">The draw window ends before the next available round. A shift administrator must resolve the case.</string>
+    <string name="coverage_draw_retry">You can check the same round again.</string>
+    <string name="coverage_draw_admin_resolution">An administrator must now resolve the coverage without repeating the draw.</string>
     <string name="coverage_action_open">Report an absence</string>
     <string name="coverage_action_offer">Offer coverage</string>
     <string name="coverage_action_accept">Accept coverage</string>
@@ -64,7 +72,7 @@
     <string name="coverage_action_volunteer">Volunteer</string>
     <string name="coverage_action_withdrawvolunteer">Withdraw volunteering</string>
     <string name="coverage_action_commitdraw">Commit draw</string>
-    <string name="coverage_action_revealdraw">Resolve committed draw</string>
+    <string name="coverage_action_revealdraw">Check the saved round</string>
     <string name="coverage_action_offernext">Continue selection</string>
     <string name="coverage_action_offeradmin">Offer administrative coverage</string>
     <string name="coverage_action_resumeadmin">Resume administrative resolution</string>

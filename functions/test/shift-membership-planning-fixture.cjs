@@ -5,6 +5,8 @@ const recordFor = (member, entering, floor = 0, observedAtMillis = 10) => {
   const value = {schemaVersion: 1, policyRevision: "hu084-provisional-v1", userId: member.userId,
     revision: 3, source: {isActive: member.isActive, roles: [...member.roles].sort(),
       isCommonPurchaseManager: member.isCommonPurchaseManager}, eligible: member.isActive,
+    ...(entering ? {eligibilityChangedAt: {seconds: Math.floor(observedAtMillis / 1000),
+      nanoseconds: (observedAtMillis % 1000) * 1_000_000}} : {}),
     observedAtMillis, pendingQueueTransition: true,
     pendingTypes: {delivery: true, market: true},
     ...(!member.isActive || member.userId === "member-1" ?

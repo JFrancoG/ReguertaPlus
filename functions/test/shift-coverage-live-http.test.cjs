@@ -62,3 +62,25 @@ test("reviewer environment changes require a refreshed canonical context and nev
     assert.deepEqual(calls, [["production", "reviewer"]]);
   }
 });
+
+test("administrative delivery rejects forged actors and incomplete recovery targets before authentication", async () => {
+  const query = {...access, action: "deliveryIncidents"};
+  const resume = {...access, action: "retryDelivery", mode: "resume", effectOperationId: "completion"};
+  const retry = {...resume, mode: "retryPush", memberId: "member", eventId: "event",
+    expectedAttemptId: "prior", operationId: "admin-decision"};
+  for (const body of [{...query, actorId: "admin"}, {...query, after: "develop/private"}, {...resume, force: true},
+    {...retry, expectedAttemptId: null}, {...retry, operationId: undefined}, {...retry, mode: "inspect"}]) {
+    const {calls, dependencies} = forbiddenDependencies();
+    await assert.rejects(executeShiftCoverageRequest(request(body), dependencies), {status: 400});
+    assert.deepEqual(calls, []);
+  }
+  for (const body of [query, {...query, after: "cursor"}, resume, {...resume, mode: "inspect"}, retry]) {
+    const identity = {uid: "linked-admin"};
+    const result = await executeShiftCoverageRequest(request(body), {verifyIdentity: async () => identity,
+      resolveEnvironment: async () => body.environment, serviceFor: (environment) => ({
+        administerDelivery: (parsed, actor) => { assert.equal(environment, body.environment);
+          assert.deepEqual(parsed, body); assert.equal(actor, identity); return "routed"; },
+      })});
+    assert.equal(result, "routed");
+  }
+});

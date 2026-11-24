@@ -1,13 +1,27 @@
 "use strict";
+const {randomUUID} = require("node:crypto");
 const {Timestamp} = require("@google-cloud/firestore");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {buildShiftPlanningPublicShiftMaterialization, createShiftPlanningActivationOperationTerminal,
   attachShiftPlanningBackendMutationMarker} = require("../lib/shift-planning-publication-contract.js");
 const initialTime = Date.parse("2027-08-25T00:00:00Z");
+const {membershipEligibilityRef} = require("../lib/shift-membership-eligibility-time.js");
+
+const eligibilitySource = (eligible, previousExclusion) => ({
+  eligible, transitionId: randomUUID(), ...(previousExclusion ? {previousExclusion} : {}),
+});
+const writeMembershipEligibility = async (memberRef, fields, eligible, previousExclusion) => {
+  const batch = memberRef.firestore.batch();
+  batch.set(memberRef, fields, {merge: true});
+  batch.set(membershipEligibilityRef(memberRef), eligibilitySource(eligible, previousExclusion));
+  const [, source] = await batch.commit();
+  return source.writeTime;
+};
 const activeDigest = digest({fixture: "coverage"});
-const materialize = (id, type, date, assigned, helper = null, round = 1, environment = "develop") => {
+const materialize = (id, type, date, assigned, helper = null, round = 1, environment = "develop",
+  publishedAt = initialTime - 1_000_000) => {
   const item = buildShiftPlanningPublicShiftMaterialization({environment,
-    attemptedAt: Timestamp.fromMillis(initialTime - 1_000_000), position: {
+    attemptedAt: Timestamp.fromMillis(publishedAt), position: {
       schemaVersion: 1, positionId: id, shiftId: id, type, scheduledDate: date,
       candidateId: "candidate", projectionSeasonStartYear: Number(date.slice(0, 4)) - (Number(date.slice(5, 7)) < 9 ? 1 : 0),
       rotationOwnerUserIds: assigned, assignedUserIds: assigned,
@@ -19,7 +33,7 @@ const materialize = (id, type, date, assigned, helper = null, round = 1, environ
   const operation = createShiftPlanningActivationOperationTerminal({operationId: "initial",
     environment, requestId: "initial", candidateId: "candidate", bundleRevision: "active-1",
     bundleDigest: activeDigest, forwardManifestDigest: digest("forward"), expectedStateDigest: digest("before"),
-    writeEpoch: 1, attemptedAt: Timestamp.fromMillis(initialTime - 1_000_000),
+    writeEpoch: 1, attemptedAt: Timestamp.fromMillis(publishedAt),
     publicMutations: [{mutationKind: "create", targetPath: item.targetPath,
       documentRevision: item.documentRevision, payloadDigest: item.payloadDigest}], beforeImages: []});
   return attachShiftPlanningBackendMutationMarker({materialization: item, operation});
@@ -33,4 +47,4 @@ const coverageWorkbookSubmission = ({environment = "develop", workbookId = "cove
     partitions: [{type: "delivery", partitionKey: "delivery", stateRevision: 2, epoch: 1}]},
   batch: null, evidence: null,
 });
-module.exports = {materialize, initialTime, activeDigest, coverageWorkbookSubmission};
+module.exports = {materialize, initialTime, activeDigest, coverageWorkbookSubmission, writeMembershipEligibility, eligibilitySource};

@@ -5,6 +5,7 @@ const {Timestamp} = require("firebase-admin/firestore");
 const {
   parseShiftPlanningExpectedState,
   planShiftPlanningBundle,
+  planShiftPlanningDeliverySpacingDiagnostic,
 } = require("../lib/shift-planning-bundle.js");
 const {
   buildShiftPlanningAuthoritativeState,
@@ -466,6 +467,30 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
     ),
     false,
   );
+});
+
+test("credit-aware diagnostics retain the same activation as the publishable planning source", () => {
+  const {deliverySpacingAuthorityDigest} = require("../lib/shift-delivery-spacing.js");
+  const input = bundleInput();
+  const snapshot = input.fairnessSnapshot;
+  const activationDigest = createShiftPlanningDigest("ratified shared source");
+  const ledger = {claims: [], credits: [], frozenThroughRound: 0, ledger: null};
+  snapshot.creditLedger = {enabled: true, policyRevision: "hu084-provisional-v1",
+    sources: {environment: snapshot.environment, activationDigest, market: ledger, delivery: ledger}};
+  assert.throws(() => planShiftPlanningDeliverySpacingDiagnostic(input), errorCode("invalid_planning_state"));
+
+  const spacing = {environment: snapshot.environment, activationDigest, version: "hu089-delivery-spacing-v1",
+    authorityDigest: deliverySpacingAuthorityDigest(input.authoritativeState.maintenance, snapshot.rotations.delivery),
+    history: [], exceptions: []};
+  snapshot.deliverySpacing = spacing;
+  assert.throws(() => planShiftPlanningBundle(input), errorCode("delivery_spacing_conflict"));
+  const shifts = planShiftPlanningDeliverySpacingDiagnostic(input);
+  assert.ok(shifts.length > 0 && shifts.every((shift) => shift.type === "delivery"));
+  for (const mismatch of [{environment: "production"}, {activationDigest: createShiftPlanningDigest("another ratification")}]) {
+    snapshot.deliverySpacing = {...spacing, ...mismatch};
+    assert.throws(() => planShiftPlanningBundle(input), errorCode("invalid_planning_state"));
+    assert.throws(() => planShiftPlanningDeliverySpacingDiagnostic(input), errorCode("invalid_planning_state"));
+  }
 });
 
 test("normalizes roster query and role order in the combined digest", () => {

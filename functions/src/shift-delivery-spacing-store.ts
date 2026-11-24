@@ -6,6 +6,8 @@ import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {coverageId, coverageMember, rejectCoverage} from "./shift-coverage.js";
 import {requireRegisteredProvisionalCreditFirestore} from
   "./shift-credit-publication.js";
+import {requireShiftCreditPlanningAccess, ShiftCreditPlanningContext} from
+  "./shift-credit-planning-context.js";
 import {DeliverySpacingSource, deliverySpacingAuthorityDigest,
   parseDeliverySpacingSource} from "./shift-delivery-spacing.js";
 import {addBusinessDays} from "./shift-planning-calendar.js";
@@ -18,7 +20,6 @@ import {parseShiftPlanningMaintenanceState,
   parseShiftRotationAggregateWire} from
   "./shift-planning-wire.js";
 
-const root = "develop/plus-collections";
 const version = "hu089-delivery-spacing-v1" as const;
 type Data = Record<string, unknown>;
 type Approval = Omit<DeliverySpacingSource["exceptions"][number], "authorized">;
@@ -32,9 +33,11 @@ type AdministrationGuard = {contextDigest: string;
   verify: (transaction: Transaction) => Promise<void>};
 
 const pairId = (value: Pick<Intent, "planningRequestId" | "userId" |
-  "previousDate" | "previousRoundNumber" | "date" | "roundNumber">) =>
+  "previousDate" | "previousRoundNumber" | "date" | "roundNumber">,
+authorityDigest?: string) =>
   digest([value.planningRequestId, value.userId, value.previousDate,
-    value.previousRoundNumber, value.date, value.roundNumber])
+    value.previousRoundNumber, value.date, value.roundNumber,
+    ...(authorityDigest ? [authorityDigest] : [])])
     .slice("shift-planning:v1:sha256:".length);
 
 const parseIntent = (
@@ -76,7 +79,8 @@ const parseApproval = (value: unknown): Approval => {
   parseDeliverySpacingSource({version,
     authorityDigest: approval.authorityDigest, history: [],
     exceptions: [{...approval, authorized: true}]});
-  if (approval.id !== pairId(approval)) {
+  if (approval.id !== pairId(approval, approval.authorityDigest) &&
+      approval.id !== pairId(approval)) {
     return rejectCoverage("invalid_delivery_spacing_exception");
   }
   return structuredClone(approval);
@@ -94,11 +98,17 @@ const readApproval = (id: string, data: Data | undefined): Approval => {
   return approval;
 };
 
-const captureSource = async (input: {
+type SpacingCaptureInput = {
   firestore: Firestore; transaction: Transaction; authorityDigest: string;
+  environment?: AppEnvironment; creditPlanning?: ShiftCreditPlanningContext;
+};
+
+const captureSource = async (input: SpacingCaptureInput & {
+  activationDigest?: string;
   excludedPaths?: ReadonlySet<string>;
 }): Promise<DeliverySpacingSource> => {
-  requireRegisteredProvisionalCreditFirestore(input.firestore);
+  const environment = input.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
   const maximumRows = 1000 + (input.excludedPaths?.size ?? 0);
   const shifts = await input.transaction.get(input.firestore.collection(
     `${root}/shifts`).where("type", "==", "delivery").limit(maximumRows + 1));
@@ -138,6 +148,8 @@ const captureSource = async (input: {
       authorized: administrators.get(approval.approvedByUserId) ?? false});
   }
   return parseDeliverySpacingSource({version,
+    ...(input.activationDigest ? {environment,
+      activationDigest: input.activationDigest} : {}),
     authorityDigest: input.authorityDigest, history, exceptions});
 };
 
@@ -145,12 +157,15 @@ const captureSource = async (input: {
  * Bind all ordinary published owners and current-authority approvals, including
  * approvals for other requests. Substitution assignees and helpers do not enter
  * ordinary history. Authorization is observed again on every transaction retry.
- * @param {object} input Registered emulator and planning transaction authority.
+ * @param {object} input Environment and planning transaction authority.
  * @return {Promise<DeliverySpacingSource>} Immutable governed evidence.
  */
-export const captureDeliverySpacingSource = (input: {
-  firestore: Firestore; transaction: Transaction; authorityDigest: string;
-}): Promise<DeliverySpacingSource> => captureSource(input);
+export const captureDeliverySpacingSource = async (
+  input: SpacingCaptureInput,
+): Promise<DeliverySpacingSource> => {
+  const activationDigest = await requireShiftCreditPlanningAccess(input);
+  return captureSource({...input, activationDigest});
+};
 
 /**
  * Compare the captured source and current forward authority before publication.
@@ -163,10 +178,17 @@ export const captureDeliverySpacingSource = (input: {
  */
 export const assertDeliverySpacingSource = async (input: {
   firestore: Firestore; transaction: Transaction; source: DeliverySpacingSource;
+  environment?: AppEnvironment; creditPlanning?: ShiftCreditPlanningContext;
   ownPublishedPaths?: readonly string[];
 }): Promise<void> => {
-  requireRegisteredProvisionalCreditFirestore(input.firestore);
+  const activationDigest = await requireShiftCreditPlanningAccess(input);
+  const environment = input.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
   const source = parseDeliverySpacingSource(input.source);
+  if (source.activationDigest !== activationDigest ||
+      (activationDigest && source.environment !== environment)) {
+    return rejectCoverage("delivery_spacing_source_changed");
+  }
   if (input.ownPublishedPaths === undefined) {
     const [maintenance, rotation] = await input.transaction.getAll(
       input.firestore.doc(`${root}/shiftPlanningState/current`),
@@ -196,7 +218,7 @@ export const assertDeliverySpacingSource = async (input: {
     coverageId(path.slice(`${root}/shifts/`.length));
     if (!originalPaths.has(path)) excludedPaths.add(path);
   }
-  const current = await captureSource({...input,
+  const current = await captureSource({...input, activationDigest,
     authorityDigest: source.authorityDigest, excludedPaths});
   if (digest(current) !== digest(source)) {
     return rejectCoverage("delivery_spacing_source_changed");
@@ -233,7 +255,7 @@ export const createDeliverySpacingAdministration = (
         .test(guard.contextDigest) || typeof guard.verify !== "function")) {
         return rejectCoverage("invalid_delivery_spacing_command");
       }
-      const id = pairId(intent);
+      const legacyId = pairId(intent);
       return db.runTransaction(async (transaction) => {
         if (context) await context.requireReady(transaction);
         else requireRegisteredProvisionalCreditFirestore(db);
@@ -248,13 +270,13 @@ export const createDeliverySpacingAdministration = (
         if (!Number.isSafeInteger(now) || now < 0) {
           return rejectCoverage("invalid_coverage_clock");
         }
-        const approvalRef = ref("shiftDeliverySpacingExceptions", id);
+        const legacyRef = ref("shiftDeliverySpacingExceptions", legacyId);
         const receiptRef = ref("shiftDeliverySpacingOperations",
           intent.operationId);
-        const [actor, member, maintenance, rotation, approval, receipt] =
+        const [actor, member, maintenance, rotation, legacy, receipt] =
           await transaction.getAll(ref("users", actorId),
             ref("users", intent.userId), ref("shiftPlanningState", "current"),
-            ref("shiftRotations", "delivery"), approvalRef, receiptRef);
+            ref("shiftRotations", "delivery"), legacyRef, receiptRef);
         if (!actor.exists || !coverageMember(actor.data()).admin) {
           if (typeof actorSource !== "string") {
             throw new HttpRequestError(403, "coverage_actor_forbidden",
@@ -281,7 +303,11 @@ export const createDeliverySpacingAdministration = (
             return rejectCoverage("delivery_spacing_operation_conflict");
           }
           const result = parseApproval(stored.result);
-          if (result.id !== id || result.operationId !== intent.operationId ||
+          const approval = result.id === legacyId ? legacy :
+            await transaction.get(ref("shiftDeliverySpacingExceptions",
+              result.id));
+          if (pairId(result) !== legacyId ||
+              result.operationId !== intent.operationId ||
               result.approvedByUserId !== actorId || !approval.exists ||
               digest(readApproval(approval.id, approval.data())) !==
                 digest(result)) {
@@ -290,8 +316,15 @@ export const createDeliverySpacingAdministration = (
           return {result, replayed: true};
         }
         if (guard) await guard.verify(transaction);
-        if (approval.exists) {
-          readApproval(approval.id, approval.data());
+        // Old receipts use the pair alone. Keep them replayable, and prevent
+        // a second approval of a legacy pair within its original authority.
+        const id = pairId(intent, authorityDigest);
+        const approvalRef = ref("shiftDeliverySpacingExceptions", id);
+        const approval = await transaction.get(approvalRef);
+        if (approval.exists || (legacy.exists &&
+            readApproval(legacyId, legacy.data()).authorityDigest ===
+              authorityDigest)) {
+          if (approval.exists) readApproval(id, approval.data());
           return rejectCoverage("delivery_spacing_pair_already_authorized");
         }
         if (Date.parse(`${intent.date}T00:00:00.000Z`) <= now) {

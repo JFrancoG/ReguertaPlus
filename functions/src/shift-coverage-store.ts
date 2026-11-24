@@ -1,4 +1,4 @@
-import {Firestore, Timestamp} from "@google-cloud/firestore";
+import {Firestore, Timestamp, Transaction} from "@google-cloud/firestore";
 import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
 import {createDeliverySpacingAdministration} from
   "./shift-delivery-spacing-store.js";
@@ -10,7 +10,7 @@ import {coveragePublicEventBindingId, describeCoveragePublicEvent} from
   "./shift-coverage-public-event.js";
 import {parseShiftSheetsWorkbookSubmission} from
   "./shift-planning-sheets-submission.js";
-import {VerifiedIdentity} from "./backend-security.js";
+import {HttpRequestError, VerifiedIdentity} from "./backend-security.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {createShiftCoverageClientReader} from "./shift-coverage-client.js";
 import {createShiftMembershipReconciliation, readShiftMembershipState} from
@@ -23,16 +23,22 @@ import {requireRegisteredProvisionalCreditFirestore,
   "./shift-credit-publication.js";
 import {
   commitCoverageDraw,
+  CoverageBeaconEvidence,
   CoverageBeaconPolicy,
+  CoverageDraw,
   parseCoverageBeaconPolicy,
   revealCoverageDraw,
 } from "./shift-coverage-draw.js";
+import {fetchDrandCoverageEvidence, isDrandCoveragePolicy} from
+  "./shift-coverage-drand.js";
 import {
   advanceCoverageSelection,
   coverageCandidateExclusion,
   CoverageCandidate,
   CoverageReserve,
+  CoverageSelection,
   CoverageSelectionPolicy,
+  coverageSelectionRetainsSlot,
   createCoverageSelection,
   enterCoverageSelectionPhase,
   parseCoverageSelectionPolicy,
@@ -65,6 +71,33 @@ const context = (shift: ShiftPlanningPublicShiftDocument | undefined) =>
     completion: shift.completion.state,
     revision: shift.completion.revision} : null;
 
+type DrawFailureCode = NonNullable<CoverageSelection["drawFailure"]>["code"];
+type PublicPulse = {commitmentDigest: string} &
+  ({evidence: CoverageBeaconEvidence} | {failure: DrawFailureCode});
+type CommandResult = {case: ShiftCoverageCase; replayed: boolean};
+type AttemptResult = CommandResult | {fetchDraw: CoverageDraw} |
+  {failure: DrawFailureCode};
+
+const fetchPublicPulse = async (
+  draw: CoverageDraw, fetcher?: typeof fetch,
+): Promise<PublicPulse> => {
+  const {commitmentDigest} = draw;
+  try {
+    return {commitmentDigest, evidence: await fetchDrandCoverageEvidence(
+      draw, fetcher)};
+  } catch (error) {
+    if (!(error instanceof HttpRequestError)) throw error;
+    if (error.code === "coverage_beacon_unavailable") {
+      return {commitmentDigest, failure: "coverage_draw_provider_unavailable"};
+    }
+    if (error.code === "coverage_beacon_evidence_invalid" ||
+        error.code === "coverage_beacon_signature_invalid") {
+      return {commitmentDigest, failure: "coverage_draw_provider_invalid"};
+    }
+    throw error;
+  }
+};
+
 /**
  * Shared coverage implementation. Trusted composition supplies
  * the database, environment and readiness fence. Identity is never
@@ -81,6 +114,7 @@ export const createShiftCoverageStore = (options: {
   maximumOfferWindowMillis: number;
   selectionPolicy?: CoverageSelectionPolicy;
   beaconPolicy?: CoverageBeaconPolicy;
+  beaconFetcher?: typeof fetch;
 }) => {
   if (!Number.isSafeInteger(options.maximumOfferWindowMillis) ||
       options.maximumOfferWindowMillis <= 0) {
@@ -124,7 +158,10 @@ export const createShiftCoverageStore = (options: {
       }
       const caseRef = ref("shiftCoverageCases", command.caseId);
       const receiptRef = ref("shiftCoverageOperations", command.operationId);
-      return db.runTransaction(async (transaction) => {
+      let pulse: PublicPulse | undefined;
+      const attempt = async (
+        transaction: Transaction,
+      ): Promise<AttemptResult> => {
         await options.context?.requireReady(transaction);
         const actorId = typeof actorSource === "string" ?
           coverageId(actorSource) : (await readShiftCoverageActor(
@@ -153,6 +190,9 @@ export const createShiftCoverageStore = (options: {
             rejectCoverage("invalid_coverage_receipt");
           if (receipt.commandDigest !== commandDigest) {
             return rejectCoverage("coverage_operation_conflict");
+          }
+          if (receipt.drawFailure) {
+            return {failure: receipt.drawFailure};
           }
           return {case: receipt.result as ShiftCoverageCase, replayed: true};
         }
@@ -197,6 +237,12 @@ export const createShiftCoverageStore = (options: {
             shift.bundleDigest !== authority.activeDigest) {
           return rejectCoverage("coverage_shift_changed");
         }
+        const pending = () => {
+          if (shift.completion.state !== "uncompleted" ||
+              shift.status === "swap_pending" || shift.date.toMillis() <= now) {
+            return rejectCoverage("coverage_shift_unavailable");
+          }
+        };
         const positionIndex = command.action === "open" ?
           shift.assignedUserIds.indexOf(command.absentUserId) :
           (previous?.positionIndex ?? -1);
@@ -366,15 +412,27 @@ export const createShiftCoverageStore = (options: {
             if (preparedDraw.availableAtMillis >= shift.date.toMillis() ||
                 (preparedSelection.timing && preparedDraw.availableAtMillis >=
                   preparedSelection.timing.phaseClosesAtMillis)) {
-              return rejectCoverage("coverage_draw_too_late");
+              if (!isDrandCoveragePolicy(preparedDraw.beacon)) {
+                return rejectCoverage("coverage_draw_too_late");
+              }
+              preparedSelection = enterCoverageSelectionPhase(
+                preparedSelection, "adminRequired", now);
+              preparedSelection.drawFailure = {
+                code: "coverage_draw_window_too_short",
+                administratorId: actorId, reportedAtMillis: now,
+                alertOperationId: command.operationId};
+            } else if (isDrandCoveragePolicy(preparedDraw.beacon)) {
+              preparedSelection.drawCommitOperationId = command.operationId;
+              preparedSelection.draw = preparedDraw;
+            } else {
+              const published = await transaction.get(
+                ref("shiftCoverageBeaconRounds", hashId([
+                  preparedDraw.beacon.sourceId, String(preparedDraw.round)])));
+              if (published.exists) {
+                return rejectCoverage("coverage_entropy_already_available");
+              }
+              preparedSelection.draw = preparedDraw;
             }
-            const published = await transaction.get(
-              ref("shiftCoverageBeaconRounds", hashId([
-                preparedDraw.beacon.sourceId, String(preparedDraw.round)])));
-            if (published.exists) {
-              return rejectCoverage("coverage_entropy_already_available");
-            }
-            preparedSelection.draw = preparedDraw;
           }
         } else if (command.action === "revealDraw") {
           if (previous?.status !== "open" ||
@@ -385,12 +443,66 @@ export const createShiftCoverageStore = (options: {
               assignmentContextDigest) {
             return rejectCoverage("coverage_draw_source_changed");
           }
-          const published = await transaction.get(
-            ref("shiftCoverageBeaconRounds", hashId([
-              preparedDraw.beacon.sourceId, String(preparedDraw.round)])));
-          preparedSelection = {...preparedSelection, phase: "draw",
-            draw: revealCoverageDraw({draw: preparedDraw,
-              value: published.data(), now})};
+          pending();
+          if (isDrandCoveragePolicy(beaconPolicy) &&
+              !isDrandCoveragePolicy(preparedDraw.beacon)) {
+            return rejectCoverage("coverage_beacon_policy_required");
+          }
+          if (isDrandCoveragePolicy(preparedDraw.beacon)) {
+            if (now < preparedDraw.availableAtMillis) {
+              return rejectCoverage("coverage_entropy_not_available");
+            }
+            // Only the immutable commit operation proves when the frozen
+            // inputs reached Firestore. Later case edits can change updateTime.
+            const commitId = coverageId(
+              preparedSelection.drawCommitOperationId);
+            const commit = await transaction.get(
+              ref("shiftCoverageOperations", commitId));
+            const record = commit.data();
+            if (!commit.createTime ||
+                record?.command?.action !== "commitDraw" ||
+                record.command.caseId !== command.caseId ||
+                record.command.operationId !== commitId ||
+                !record.result?.selection?.draw ||
+                digest(record.result.selection.draw) !== digest(preparedDraw)) {
+              return rejectCoverage("coverage_draw_commit_receipt_invalid");
+            }
+            let failure: DrawFailureCode | undefined;
+            if (commit.createTime.toMillis() >=
+                preparedDraw.availableAtMillis) {
+              failure = "coverage_draw_commit_too_late";
+            } else if (!pulse) {
+              return {fetchDraw: preparedDraw};
+            } else if (pulse.commitmentDigest !==
+                preparedDraw.commitmentDigest) {
+              return rejectCoverage("coverage_draw_source_changed");
+            } else if ("failure" in pulse) {
+              failure = pulse.failure;
+            } else {
+              preparedSelection.draw = revealCoverageDraw({draw: preparedDraw,
+                value: pulse.evidence, now});
+              preparedSelection.phase = "draw";
+              delete preparedSelection.drawFailure;
+            }
+            if (failure) {
+              const original = preparedSelection.drawFailure;
+              if (failure === "coverage_draw_commit_too_late") {
+                preparedSelection = enterCoverageSelectionPhase(
+                  preparedSelection, "adminRequired", now);
+              }
+              preparedSelection.drawFailure = {code: failure,
+                administratorId: original?.administratorId ?? actorId,
+                alertOperationId: original?.alertOperationId ??
+                  command.operationId, reportedAtMillis: now};
+            }
+          } else {
+            const published = await transaction.get(
+              ref("shiftCoverageBeaconRounds", hashId([
+                preparedDraw.beacon.sourceId, String(preparedDraw.round)])));
+            preparedSelection = {...preparedSelection, phase: "draw",
+              draw: revealCoverageDraw({draw: preparedDraw,
+                value: published.data(), now})};
+          }
         }
         const candidateId = command.action === "offerNext" ? selectedUserId :
           command.action === "offer" || command.action === "offerAdmin" ?
@@ -413,12 +525,6 @@ export const createShiftCoverageStore = (options: {
           return rejectCoverage("invalid_coverage_clock");
         }
         const departure = completionMembership?.permanentDeparture;
-        const pending = () => {
-          if (shift.completion.state !== "uncompleted" ||
-              shift.status === "swap_pending" || shift.date.toMillis() <= now) {
-            return rejectCoverage("coverage_shift_unavailable");
-          }
-        };
         const eligible = () => {
           if (!candidate?.eligible || !candidateId ||
               shift.assignedUserIds.includes(candidateId) ||
@@ -501,15 +607,23 @@ export const createShiftCoverageStore = (options: {
           }
           case "resumeAdmin":
             pending();
-            if (current.status !== "cancelled" || !current.selection?.draw ||
+            if (current.status !== "cancelled" || !current.selection ||
+                !coverageSelectionRetainsSlot(current.selection) ||
                 shift.assignedUserIds[positionIndex] !== current.absentUserId) {
               return rejectCoverage("coverage_admin_resume_forbidden");
             }
             next.status = "open";
-            next.selection = enterCoverageSelectionPhase(
-              preparedSelection ?? current.selection, "adminRequired",
-              preparedSelection?.phase === "adminRequired" ?
-                preparedSelection.timing?.phaseStartedAtMillis ?? now : now);
+            // Cancelling a public draw cannot bypass its committed order.
+            // Resume the same phase and let its existing deadline advance it.
+            if (!current.selection.draw ||
+                isDrandCoveragePolicy(current.selection.draw.beacon)) {
+              next.selection = preparedSelection;
+            } else {
+              next.selection = enterCoverageSelectionPhase(
+                preparedSelection ?? current.selection, "adminRequired",
+                preparedSelection?.phase === "adminRequired" ?
+                  preparedSelection.timing?.phaseStartedAtMillis ?? now : now);
+            }
             break;
           case "offer": case "offerNext": case "offerAdmin":
             pending();
@@ -623,9 +737,8 @@ export const createShiftCoverageStore = (options: {
             }
             next.status = "cancelled";
             next.offer = null;
-            // Retain a committed draw's vacancy through cancellation so a new
-            // case cannot reset its seed. Explicit admin resume keeps evidence.
-            releaseSlot = !current.selection?.draw;
+            // A new case cannot reset a draw or reopen its expired window.
+            releaseSlot = !coverageSelectionRetainsSlot(current.selection);
             break;
           case "fail": case "complete": {
             if (current.status !== "accepted" || !candidateId ||
@@ -696,9 +809,13 @@ export const createShiftCoverageStore = (options: {
           return [path, parseShiftPlanningPublicShiftDocument({
             targetPath: path, value: source?.data()})] as const;
         }));
-        const effects = buildShiftCoverageEffects({operationId:
+        const projectionOperationId = command.action === "complete" &&
+          stored?.acceptanceOperationId !== undefined ?
+          coverageId(stored.acceptanceOperationId) : undefined;
+        const effects = buildShiftCoverageEffects({projectionOperationId,
+          operationId:
           command.operationId, action: command.action, previous, next,
-        before, writes});
+          before, writes});
         const publicEvents = [...writes].map(([targetPath, after]) => {
           const descriptor = describeCoveragePublicEvent({targetPath,
             before: before.get(targetPath) ?? null, after});
@@ -749,21 +866,40 @@ export const createShiftCoverageStore = (options: {
             effectsDigest: effects.effectsDigest});
         }
         transaction.set(caseRef, {value: next, digest: digest(next),
-          authority});
+          ...(command.action === "complete" && writes.has(target.ref.path) ?
+            {projectionPreviousUpdateTime: target.updateTime} : {}),
+          authority, ...(command.action === "accept" ?
+            {acceptanceOperationId: command.operationId} : {})});
         transaction.create(ref("shiftCoverageEffects", command.operationId),
           {value: effects, state: "pending", authority, publicEventDigests});
+        const drawFailure = ["revealDraw", "commitDraw"]
+          .includes(command.action) ? next.selection?.drawFailure : undefined;
         transaction.create(receiptRef, {commandDigest, command,
           publicEventDigests,
           effectsDigest: effects.effectsDigest,
           actorMemberId: actorId, ...authBinding,
+          ...(drawFailure ? {drawFailure: drawFailure.code} : {}),
           ...(command.action === "offerAdmin" && preparedSelection?.timing &&
             now >= preparedSelection.timing.phaseClosesAtMillis ? {
               delayedAdministration: {phaseClosesAtMillis:
                 preparedSelection.timing.phaseClosesAtMillis,
               offeredAtMillis: now}} : {}),
           result: next, previousRevision: previous?.revision ?? 0});
+        if (drawFailure) return {failure: drawFailure.code};
         return {case: next, replayed: false};
-      });
+      };
+      let result = await db.runTransaction(attempt);
+      if ("fetchDraw" in result) {
+        // No relay I/O occurs on a transaction retry. The write pass repeats
+        // the same access, revision, source, deadline and commitment checks.
+        pulse = await fetchPublicPulse(result.fetchDraw, options.beaconFetcher);
+        result = await db.runTransaction(attempt);
+      }
+      if ("failure" in result) return rejectCoverage(result.failure);
+      if ("fetchDraw" in result) {
+        return rejectCoverage("coverage_draw_source_changed");
+      }
+      return result;
     },
   };
 };

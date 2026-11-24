@@ -2,6 +2,12 @@
 
 Sustituido parcialmente el 2026-09-08 por [ADR-0014](0014-usar-transacciones-publicas-firestore-para-turnos.md) para admisión de transacciones y resultados de intento. Se conserva debajo la decisión original como historial.
 
+**18 de noviembre de 2026.** El mantenedor comunicó que la asamblea aprobó
+el escrito de HU-084 sobre altas, bajas, reservas, coberturas y créditos.
+Las referencias a la aprobación pendiente que figuran debajo corresponden
+a estados anteriores. HU-084 aún requiere el contraste técnico, la aceptación
+compartida y la autorización de activación que recoge el [registro del acuerdo](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification-es.md#registro-del-acuerdo-y-trabajo-posterior).
+
 ## Estado
 
 Aceptada
@@ -1111,3 +1117,7 @@ admitir entregas bajo una época nueva son operaciones gobernadas independientes
 No se renueva la autoridad original del efecto. Esta composición local no despliega
 endpoint de recuperación, emisor de autorizaciones ni controlador real. Su conexión
 y evidencia en vivo siguen siendo responsabilidad de HU-085.
+
+## Planificación de créditos por entorno el 21 de noviembre de 2026
+
+Con coberturas habilitadas, la previsualización reconstruye la fuente privada con los datos actuales de Firestore y actualiza el documento derivado si ha cambiado. Así, la primera propuesta después de una cobertura o una excepción incorpora el crédito y el historial de repartos vigentes. Preparar y publicar la candidata sigue requiriendo la fuente exacta de esa propuesta. La publicación actualiza el crédito, su reserva del mismo tipo y el calendario en una transacción. La recuperación comprueba lo que se escribió antes de restaurarlo. La fuente y el registro privado vinculan el entorno, la política ratificada y el recibo de inicialización verificado. El calendario base conserva su contrato de planificación. [Evidencia](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md#credit-publication-and-delivery-spacing-on-21-november-2026).

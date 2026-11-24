@@ -2,13 +2,15 @@ import {DocumentSnapshot, Firestore, Timestamp, Transaction} from
   "@google-cloud/firestore";
 import type {sheets_v4 as SheetsV4} from "googleapis";
 import {coverageId, coverageMember, rejectCoverage} from "./shift-coverage.js";
-import {coverageSheetRow, ShiftCoverageEffects} from
+import {coverageSheetRow, isCurrentCoverageEffect, ShiftCoverageEffects} from
   "./shift-coverage-effects.js";
 import {completeCoverageWorkbook, CoverageSubmission,
   requireCoverageWorkbookOwnership} from "./shift-coverage-effects-worker.js";
 import {parseShiftCoverageSheetsSubmission,
   requireShiftSheetsWorkbookVersion} from
   "./shift-planning-sheets-submission.js";
+import {isVerifiedCoverageProjection, readCoverageAcceptanceProjection} from
+  "./shift-coverage-projection.js";
 import {releaseCoverageInbox} from "./shift-coverage-inbox.js";
 import {createProvisionalCreditFirestore} from "./shift-credit-publication.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
@@ -120,9 +122,12 @@ export const createFirestoreShiftCoverageRecovery = (
     }
     const unresolved = ["pending", "reconciliationRequired"]
       .includes(record?.state);
+    const acceptance = unresolved && value.action === "complete" ?
+      await readCoverageAcceptanceProjection(db, tx, value) : null;
     const owned = unresolved && value.changes.length && workbook ?
       requireCoverageWorkbookOwnership({policy, pointer: lock,
         receipt: workbook}) : null;
+    const interruptedRetries = new Map<string, DocumentSnapshot>();
     for (const push of pushes.docs) {
       const data = push.data();
       const terminal = data.state !== "submitting";
@@ -133,7 +138,8 @@ export const createFirestoreShiftCoverageRecovery = (
         typeof data.attemptId !== "string" || !data.attemptId.trim() ||
         !(data.startedAt instanceof Timestamp) ||
         data.startedAt.toMillis() > input.nowMillis() ||
-        !["submitting", "accepted", "failed", "unknown"].includes(data.state) ||
+        !["submitting", "accepted", "failed", "unknown", "noTargets"]
+          .includes(data.state) ||
         (terminal && (!(data.completedAt instanceof Timestamp) ||
           data.completedAt.toMillis() < data.startedAt.toMillis() ||
           data.completedAt.toMillis() > input.nowMillis() ||
@@ -142,11 +148,26 @@ export const createFirestoreShiftCoverageRecovery = (
           data.completedAt !== undefined))) {
         return rejectCoverage("coverage_recovery_push_changed");
       }
+      if (!terminal && data.retryOperationId !== undefined) {
+        const operation = coverageId(data.retryOperationId);
+        const history = await tx.get(db.doc(`${root}/` +
+          `shiftCoverageProjectionState/pushRetries/operations/${operation}`));
+        if (history.get("state") !== "submitting" ||
+            history.get("operationId") !== operation ||
+            history.get("eventId") !== data.eventId ||
+            history.get("attemptId") !== data.attemptId ||
+            history.get("sourceDigest") !== data.sourceDigest ||
+            history.get("targetsDigest") !== data.targetsDigest) {
+          return rejectCoverage("coverage_recovery_push_changed");
+        }
+        interruptedRetries.set(push.id, history);
+      }
     }
     const snapshots = [effect, receipt, maintenance, lock, policy, current,
-      ...users.docs, ...shifts.docs, ...pushes.docs];
+      ...users.docs, ...shifts.docs, ...pushes.docs,
+      ...(acceptance ? [acceptance] : []), ...interruptedRetries.values()];
     return {effect, record, value, submission, current, users, shifts, pushes,
-      unresolved, workbook, owned,
+      unresolved, workbook, owned, acceptance, interruptedRetries,
       maintenance: parseShiftPlanningMaintenanceState(maintenance.data()),
       lock, evidenceDigest: digest(snapshots.map(version))};
   };
@@ -264,6 +285,10 @@ export const createFirestoreShiftCoverageRecovery = (
             let state = fresh.record?.state as string;
             let deliveredTo: string[] = fresh.record?.deliveredTo ?? [];
             if (fresh.unresolved) {
+              if (fresh.acceptance &&
+                  !isVerifiedCoverageProjection(fresh.acceptance)) {
+                return rejectCoverage("coverage_effects_readback_required");
+              }
               for (const change of fresh.value.changes) {
                 const doc = fresh.shifts.docs.find((d) =>
                   d.id === change.after.id);
@@ -279,8 +304,8 @@ export const createFirestoreShiftCoverageRecovery = (
                   projection?.kind !== "verified")) {
                 return rejectCoverage("coverage_effects_workbook_reserved");
               }
-              const obsolete = fresh.current.data()?.digest !==
-                fresh.value.caseDigest ||
+              const obsolete = !isCurrentCoverageEffect(
+                fresh.value, fresh.current.data()) ||
                 (fresh.value.action.startsWith("offer") &&
                   fresh.current.data()?.value.offer?.expiresAtMillis <= now);
               state = obsolete ? "retired" : "completed";
@@ -303,10 +328,13 @@ export const createFirestoreShiftCoverageRecovery = (
             const pushes = fresh.pushes.docs.map((doc) => {
               const data = doc.data();
               if (data.state === "submitting") {
-                tx.update(doc.ref, {state: "unknown", recoveryId,
+                const interrupted = {state: "unknown", recoveryId,
                   result: {outcome: "unknown",
                     failureCode: "coverage_submission_interrupted"},
-                  completedAt: Timestamp.fromMillis(now)});
+                  completedAt: Timestamp.fromMillis(now)};
+                tx.update(doc.ref, interrupted);
+                const history = fresh.interruptedRetries.get(doc.id);
+                if (history) tx.update(history.ref, interrupted);
               }
               return {memberId: doc.id, eventId: data.eventId,
                 attemptId: data.attemptId,

@@ -17,7 +17,8 @@ export type ShiftPlanningNotificationTransportRequest = {
 
 export type ShiftPlanningNotificationTransportResult =
   | {outcome: "accepted"; acceptedTargetCount: number}
-  | {outcome: "failed" | "unknown"; failureCode: string};
+  | {outcome: "failed"; failureCode: string; rejectionConfirmed?: true}
+  | {outcome: "unknown"; failureCode: string};
 
 export type ShiftPlanningNotificationTransport = {
   submit(
@@ -38,13 +39,19 @@ const chunks = <Value>(
   return result;
 };
 
-const responseCountsAreExact = (
-  response: BatchResponse,
-  expectedCount: number,
-): boolean => response.responses.length === expectedCount &&
-  response.successCount + response.failureCount === expectedCount &&
-  response.responses.filter(({success}) => success).length ===
-    response.successCount;
+const batchProblem = (
+  response: BatchResponse, expectedCount: number,
+  confirmsRejection?: (code: string) => boolean,
+): string | null => {
+  if (response.responses.length !== expectedCount ||
+      response.successCount + response.failureCount !== expectedCount ||
+      response.responses.filter(({success}) => success).length !==
+        response.successCount) return "transport_response_mismatch";
+  if (response.successCount === 0 && confirmsRejection &&
+      response.responses.some((item) => !confirmsRejection(
+        item.error?.code ?? ""))) return "transport_ambiguous_error";
+  return null;
+};
 
 const baseMessage = (push: ShiftPlanningGenericPush) => ({
   notification: {...push.notification},
@@ -66,11 +73,13 @@ const ambiguousOrAccepted = (
  * submission has already begun and its acknowledgement may be unavailable.
  * @param {Messaging} messaging Injected modular Firebase Messaging client.
  * @param {Function} nowMillis Clock checked before each new SDK submission.
+ * @param {Function} confirmsRejection Classify all-failed batches for retries.
  * @return {ShiftPlanningNotificationTransport} Generic bounded-call adapter.
  */
 export const createFirebaseShiftPlanningNotificationTransport = (
   messaging: Pick<Messaging, "sendEachForMulticast">,
   nowMillis: () => number = Date.now,
+  confirmsRejection?: (code: string) => boolean,
 ): ShiftPlanningNotificationTransport => ({
   async submit(request): Promise<ShiftPlanningNotificationTransportResult> {
     let acceptedTargetCount = 0;
@@ -95,12 +104,9 @@ export const createFirebaseShiftPlanningNotificationTransport = (
           ...baseMessage(request.push),
           tokens: tokenChunk,
         });
-        if (!responseCountsAreExact(response, tokenChunk.length)) {
-          return ambiguousOrAccepted(
-            acceptedTargetCount,
-            "transport_response_mismatch",
-          );
-        }
+        const problem = batchProblem(response, tokenChunk.length,
+          confirmsRejection);
+        if (problem) return ambiguousOrAccepted(acceptedTargetCount, problem);
         acceptedTargetCount += response.successCount;
       }
       for (const fidChunk of chunks(
@@ -116,12 +122,9 @@ export const createFirebaseShiftPlanningNotificationTransport = (
           ...baseMessage(request.push),
           fids: fidChunk,
         });
-        if (!responseCountsAreExact(response, fidChunk.length)) {
-          return ambiguousOrAccepted(
-            acceptedTargetCount,
-            "transport_response_mismatch",
-          );
-        }
+        const problem = batchProblem(response, fidChunk.length,
+          confirmsRejection);
+        if (problem) return ambiguousOrAccepted(acceptedTargetCount, problem);
         acceptedTargetCount += response.successCount;
       }
     } catch {
@@ -132,6 +135,7 @@ export const createFirebaseShiftPlanningNotificationTransport = (
     }
     return acceptedTargetCount > 0 ?
       {outcome: "accepted", acceptedTargetCount} :
-      {outcome: "failed", failureCode: "all_targets_rejected"};
+      {outcome: "failed", failureCode: "all_targets_rejected",
+        ...(confirmsRejection ? {rejectionConfirmed: true as const} : {})};
   },
 });

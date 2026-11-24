@@ -1,5 +1,16 @@
 # Tasks - HU-084 (Stable shift coverage and earned credits)
 
+- [x] Bind D09 to a future Quicknet round, verify its public signature and recover the original order after a provider outage. [Evidence](review.md#d09-public-draw-on-21-november-2026).
+- [x] Integrate credits and delivery spacing into the environment-bound planner. Verify single issuance and consumption, justified deferral, forward replay and inverse recovery in the emulator. [Planner evidence](review.md#credit-publication-and-delivery-spacing-on-21-november-2026).
+- [x] Connect completion to the verified Sheets assignment and the member notice. Verify out-of-order events, lost acknowledgements and administrative recovery of a confirmed rejection in the emulator. [Delivery evidence](review.md#completed-coverage-delivery-on-21-november-2026).
+- [ ] Integrate the current candidate with main for PR #278 and verify environment, session and worker admission before the two Develop journeys. [Acceptance criteria](plan.md#remaining-work-as-of-2026-11-20).
+- [x] Apply D01 to new unfrozen rounds using the effective eligibility transition. Verify reversed processing, exact ties and preservation of reserve FIFO in the local emulator. [D01 evidence](review.md#d01-effective-eligibility-on-21-november-2026).
+- [x] Record the maintainer’s review of the offer labels on iOS and Android. [Feedback](review.md#maintainer-feedback-on-21-november-2026).
+- [ ] Complete one UI and UX pass across all new member and administration screens on both platforms once Shifts is fully implemented and before release. [Scope and acceptance](plan.md#remaining-work-as-of-2026-11-20).
+
+- [x] Compare the approved D01–D15 policy against the candidate and identify the engineering work needed before shared acceptance. [Reconciliation](ratification.md#technical-reconciliation-on-20-november-2026).
+- [x] Label the absent member and the offer recipient on both clients, and preserve the distinction between confirmed rejection and uncertain acceptance on Android. [Comparative review](review.md#comparative-mobile-review-on-20-november-2026).
+
 - [x] Record the third stopped attempt and locally verify bounded waiting and diagnostics for the native sharing controls. [Evidence](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-interactivo-detenido-antes-de-la-concesión--2026-11-02).
 - [x] Exercise the revised controls in the real Develop sharing form without submitting; cancel and confirm the writer is absent before preparing fresh migration evidence. [Observed on 11 November](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
 - [x] Renew Cloud/Firestore and direct workbook/parent observations; preserve the current minimum iOS version in a new static candidate while keeping turn content, dates and order. [Read-only evidence](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#renovación-directa-de-la-hoja-y-la-carpeta).
@@ -64,8 +75,8 @@
   state, reusing acceptance/completion and adding race/Rules tests.
 - [x] Add local committed future-round draw, signed evidence verification, fixed
   retries, administrative offers and cancellation recovery without reroll.
-- [ ] Select/ratify the real entropy provider and complete live backend integration
-  (outcome group 1).
+- [x] Select and wire the D09 public provider into the authenticated service. [Provider decision](../../../docs/decisions/0029-use-drand-quicknet-for-coverage-draws.md).
+- [ ] Complete shared-environment integration and acceptance for outcome group 1.
 - [x] Add pure whole-unit credit/backtracking planning and atomic local
   preview/stage/consumption rehearsal with full-ledger binding and claim release.
 - [x] Integrate credits into existing complete seasonal planners, including boundary
@@ -118,26 +129,23 @@ is not completion of those production tasks. See `plan.md` for the current bound
 
 ## 0. Live activation decision gate
 
-- [ ] Present normal-round placement/tie order for joins/reactivations, reserve
-  lifecycle and exit boundary, volunteer, draw, admin fallback, deadlines,
-  completion, committed seed/no-reroll, pending-coverage/credit stacking,
-  whole-unit credit rollback/fallback, frozen-round unpublished departure handling,
-  non-membership eligibility transitions/re-entry, and credit questions
-  to the assembly.
-- [ ] Link the assembly decision/date and exact accepted wording.
-- [ ] Update authoritative English and Spanish requirements/user stories.
-- [ ] Reconcile issue #268 and this spec with any amendments.
-- [ ] Obtain maintainer approval of the reconciled implementation scope.
-- [ ] Only then authorize live activation of the reconciled implementation.
+- [x] Record the [member text approved on 18 November](ratification.md#decision-record-and-follow-up)
+  and link it from the English and Spanish requirements.
+- [ ] Link the official minutes reference when available.
+- [ ] Reconcile D01–D15 with contracts, implementation and tests. Record which
+  approved rules already have evidence and which require changes.
+- [ ] Record the agreed technical scope in this spec and issue #268.
+- [ ] Obtain maintainer approval of the reconciled scope and verify shared acceptance
+  before requesting separate live activation authorization.
 
 ## 1. Threat model and contracts
 
 - [ ] Define coverage case, offer, response, candidate snapshot, selection,
   completion, reserve, and credit-ledger states.
 - [ ] Define immutable ownership versus effective assignment fields.
-- [ ] Define frozen/unfrozen departure transitions. Ratify the proposed idempotent
-  `excusedDeparture` tombstone/skip or a complete coverage alternative, including
-  slot, owner, cursor, round closure, completion/failure, and credit effects.
+- [ ] Verify the proposed idempotent `excusedDeparture` accounting against the
+  approved departure rule, including slot, owner, cursor, round closure, completion,
+  failure and credit effects.
 - [ ] Map every HU-082 predicate transition reason across frozen/unfrozen and
   preview/stage/public states. Define deterministic remove/append, reason-coded
   `excusedIneligible` versus coverage, and re-entry without position revival.
@@ -148,8 +156,7 @@ is not completion of those production tasks. See `plan.md` for the current bound
 - [ ] Define pending accepted-coverage eligibility and credit stacking cap/proximity,
   deterministic order, cancellation, and consumption. By default, block a second
   same-type acceptance while coverage is accepted/incomplete and then while its
-  earned credit is pending; cancel/failure without credit releases eligibility unless
-  the assembly ratifies another bounded terminal outcome.
+  earned credit is pending. Verify release on cancellation or failure without credit.
 - [ ] Define the complete same-type ledger version included in planner
   snapshots/digests and the atomic activation precondition.
 - [ ] Threat-model forged completion/credit, self-assignment, replay, late
@@ -197,9 +204,8 @@ is not completion of those production tasks. See `plan.md` for the current bound
 - [ ] Roll back tentative consumptions in reverse queue order until the unit is
   staffable; make each restored owner work/serve that normal position and advance
   the cursor while preserving only their credit for retry.
-- [ ] If the assembly rejects backtracking for a coverage fallback, first define
-  and test original-credit consumption, replacement-credit issuance, failed
-  coverage, and the original-owner-works outcome; do not infer that accounting.
+- [ ] If deferral still leaves a unit unstaffable, verify that activation stays
+  blocked and the case goes to administration with no change to the credits.
 - [ ] Preserve market distinctness, delivery handover, HU-016 swaps, and HU-082
   cursor invariants.
 

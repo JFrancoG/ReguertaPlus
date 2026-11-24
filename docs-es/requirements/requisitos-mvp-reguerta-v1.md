@@ -121,16 +121,23 @@ Fuera de MVP (fase posterior):
 - `RF-TURN-01` Debe existir pantalla de consulta global de turnos (reparto y mercado).
 - `RF-TURN-02` Debe mostrarse de forma visible el próximo turno personal (reparto y mercado).
 - `RF-TURN-03` La planificación de turnos usa socios en alta que no sean productores reales. Los encargados comunes de compras representados como productores de `Compras Regüerta` siguen siendo seleccionables.
-- `RF-TURN-04` Cada tipo de turno mantiene una rotación continua entre proyecciones estacionales. Los cambios de socios nunca reordenan una ronda congelada/pública; hasta que la asamblea ratifique la política de reserva, entrada, baja y reincorporación, cualquier cambio de elegibilidad posterior al congelado bloquea una nueva activación sin cambiar asignaciones publicadas.
-- `RF-TURN-05` Debe existir solicitud/aceptación/confirmación de intercambio de turnos.
+- `RF-TURN-04` Cada tipo de turno mantiene una rotación continua entre proyecciones estacionales. Los cambios de socios nunca reordenan una ronda congelada o publicada. Hasta que se valide y active la gestión de altas, bajas, reincorporaciones y cambios de elegibilidad de HU-084, todo cambio de elegibilidad posterior a la congelación bloquea una nueva activación y conserva las asignaciones publicadas.
+- `RF-TURN-05` En una [permuta de turnos](../../spec/shifts/hu-016-request-shift-swap/spec.md), los socios elegibles responden si están disponibles. El solicitante elige a uno de los socios disponibles y confirma la permuta para intercambiar ambos turnos.
 - `RF-TURN-06` Al materializar un cambio de turno, se debe notificar a todos.
 - `RF-TURN-07` Cada fecha de mercado tiene exactamente 3 socios seleccionables distintos. Sus 30 posiciones de la temporada objetivo consumen la rotación continua de mercado y materializan en proyecciones posteriores el resto de la ronda activa en el límite; con menos de 3 seleccionables se falla de forma cerrada.
 
-Nota de gobierno: la política definitiva para cubrir bajas sobrevenidas tras publicar turnos queda para asamblea.
+Según comunicó el mantenedor, la asamblea del 18 de noviembre de 2026 aprobó el
+[escrito de sustituciones de HU-084](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/propuesta-turnos-para-socios.md).
+En una sustitución, una persona elegible acepta expresamente dentro del plazo
+cubrir un turno concreto y conserva su propio turno. La compensación se genera
+cuando los responsables de turnos confirman que esa persona hizo la sustitución.
 
-Autorización del mantenedor (2026-09-12): HU-084 puede implementarse de forma
-provisional en el emulador local. No autoriza la activación real ni ratifica la
-política; véanse la aclaración fechada de ADR-0013 y el plan de HU-084.
+Se aplicarán inicialmente los plazos del escrito. Tras un tiempo de uso y varios
+casos, se podrán alargar o acortar plazos y ajustar otras reglas en futuras
+actualizaciones de la app si todos los socios están de acuerdo. Quedan pendientes
+el contraste con la implementación provisional, la validación integrada y la
+autorización de la activación. Véase el
+[registro del acuerdo](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification-es.md).
 
 
 ### 3.8 Noticias y comunicación
@@ -193,7 +200,6 @@ política; véanse la aclaración fechada de ADR-0013 y el plan de HU-084.
 
 ## 6. Riesgos y decisiones abiertas (no bloqueantes)
 
-- Definir en asamblea política final de reemplazo cuando hay baja sobrevenida tras publicación de turnos.
 - Definir restricciones adicionales de edición de producto (además de `vendorId` inmutable).
 - Definir estrategia exacta Android para fallback de recordatorios (push vs alarma local según versión/políticas).
 - Referencia: `docs-es/requirements/reconciliacion-features-implementadas-v1.md`.

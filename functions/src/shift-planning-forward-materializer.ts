@@ -1,7 +1,8 @@
+import {ShiftCreditPlanningContext} from "./shift-credit-planning-context.js";
 import {assertDeliverySpacingSource} from "./shift-delivery-spacing-store.js";
 import {assertProvisionalShiftMembershipSource,
   assertShiftCreditPublicationSource,
-  requireProvisionalCreditPublication, shiftCreditPublicationAfter} from
+  parseShiftCreditPublicationSources, shiftCreditPublicationAfter} from
   "./shift-credit-publication.js";
 import {
   DocumentData,
@@ -11,6 +12,7 @@ import {
 } from "@google-cloud/firestore";
 import {
   ShiftPlanningBundleResult,
+  assertShiftPlanningCoverageBinding,
   parseShiftPlanningExpectedState,
   validateShiftPlanningStagedCandidate,
 } from "./shift-planning-bundle.js";
@@ -93,6 +95,7 @@ export type ApplyShiftPlanningForwardActivationAttemptInput =
   MaterializeShiftPlanningForwardActivationInput & {
     firestore: Firestore;
     transaction: Transaction;
+    creditPlanning?: ShiftCreditPlanningContext;
   };
 
 export type ShiftPlanningForwardActivationAttempt = {
@@ -267,9 +270,11 @@ const requireLiveLineage = (input: {
       "Credit-ledger forward writes require the HU-084 materializer.",
     );
   }
-  if (liveArtifact.manifests.forward.creditPublication) {
-    requireProvisionalCreditPublication(request.environment);
-  }
+  const publication = liveArtifact.manifests.forward.creditPublication;
+  const creditSources = publication ? parseShiftCreditPublicationSources(
+    publication.sources, request.environment) : undefined;
+  assertShiftPlanningCoverageBinding(creditSources,
+    liveArtifact.delivery.spacingEvidence?.source, request.environment);
   return {request, artifact: liveArtifact, positions};
 };
 
@@ -824,15 +829,23 @@ export const applyShiftPlanningForwardActivationAttempt = async (
 ): Promise<ShiftPlanningForwardActivationAttempt> => {
   const materialization = materializeShiftPlanningForwardActivation(input);
   const artifact = input.preflight.bundle.artifact;
+  const environment = artifact.expectedState.authoritativeState.environment;
   if (artifact.delivery.spacingEvidence) {
-    await assertDeliverySpacingSource({...input,
+    await assertDeliverySpacingSource({...input, environment,
       source: artifact.delivery.spacingEvidence.source});
   }
+  const membershipCandidates = {
+    rotations: artifact.expectedState.authoritativeState.rotations,
+    plannedMemberIds: [...artifact.delivery.nextRotation.cohortUserIds,
+      ...artifact.market.nextRotation.cohortUserIds],
+  };
   if (artifact.manifests.forward.creditPublication) {
-    await assertShiftCreditPublicationSource({...input,
+    await assertShiftCreditPublicationSource({...input, environment,
+      membershipCandidates,
       publication: artifact.manifests.forward.creditPublication});
   } else {
-    await assertProvisionalShiftMembershipSource(input);
+    await assertProvisionalShiftMembershipSource({
+      ...input, environment, membershipCandidates});
   }
   const measurement =
     await applyShiftPlanningFirestoreTransactionAttempt({

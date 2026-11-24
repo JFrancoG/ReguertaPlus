@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="coverage_absent">Socio ausente</string>
-    <string name="coverage_replacement">Socio que cubre</string>
+    <string name="coverage_absent">Socio ausente: %1$s</string>
+    <string name="coverage_offered_to">Oferta para: %1$s</string>
+    <string name="coverage_replacement">Socio que cubre: %1$s</string>
+    <string name="coverage_acceptance_rejected_sign_in">No se ha podido aceptar la cobertura. Vuelve a entrar para revisar la oferta.</string>
     <string name="coverage_minutes">Plazo de respuesta (minutos)</string>
     <string name="coverage_title">Coberturas de turnos</string>
     <string name="coverage_rehearsal">Ensayo local</string>
@@ -54,6 +56,12 @@
     <string name="coverage_phase_draw">Sorteo comprometido</string>
     <string name="coverage_phase_adminrequired">Resolución administrativa</string>
     <string name="coverage_draw_unavailable">El proveedor de sorteo no está configurado para este ensayo.</string>
+    <string name="coverage_draw_provider_unavailable">El servicio del sorteo no responde. La ronda y la lista de participantes siguen guardadas.</string>
+    <string name="coverage_draw_provider_invalid">No se ha podido verificar el resultado de la ronda guardada.</string>
+    <string name="coverage_draw_commit_too_late">La lista quedó registrada cuando la ronda ya era pública. Administración debe resolver la cobertura.</string>
+    <string name="coverage_draw_window_too_short">El plazo del sorteo termina antes de la próxima ronda disponible. Administración debe resolver la cobertura.</string>
+    <string name="coverage_draw_retry">Puedes volver a consultar la misma ronda.</string>
+    <string name="coverage_draw_admin_resolution">Ahora corresponde a administración resolver la cobertura sin repetir el sorteo.</string>
     <string name="coverage_action_open">Comunicar ausencia</string>
     <string name="coverage_action_offer">Ofrecer cobertura</string>
     <string name="coverage_action_accept">Aceptar cobertura</string>
@@ -64,7 +72,7 @@
     <string name="coverage_action_volunteer">Ofrecerme voluntario</string>
     <string name="coverage_action_withdrawvolunteer">Retirar voluntariado</string>
     <string name="coverage_action_commitdraw">Comprometer sorteo</string>
-    <string name="coverage_action_revealdraw">Resolver sorteo comprometido</string>
+    <string name="coverage_action_revealdraw">Consultar la ronda guardada</string>
     <string name="coverage_action_offernext">Continuar selección</string>
     <string name="coverage_action_offeradmin">Ofrecer cobertura administrativa</string>
     <string name="coverage_action_resumeadmin">Retomar resolución administrativa</string>

@@ -6,7 +6,7 @@ const {publicKey, privateKey} = generateKeyPairSync("ed25519");
 const {Firestore, Timestamp} = require("@google-cloud/firestore");
 const {createProvisionalShiftCoverageStore} = require("../lib/shift-coverage-provisional-store.js");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
-const {materialize, initialTime, activeDigest} = require("./shift-coverage-fixture.cjs");
+const {materialize, initialTime, activeDigest, writeMembershipEligibility} = require("./shift-coverage-fixture.cjs");
 
 const enabled = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const run = (name, fn) => test(name, {skip: !enabled}, fn);
@@ -566,6 +566,19 @@ run("competing local activations cannot spend a credit or cursor twice", async (
   assert.equal((await db.collection(`${root}/shiftCoverageCreditUnits`).get()).size, 1);
 });
 
+run("a first unreconciled entry or return holds single-unit credit publication", async () => {
+  await prepareEarnedCredit();
+  const staged = await store.stageCreditUnit(creditIntent(), "admin");
+  const entrant = ref("users", "newcomer");
+  await writeMembershipEligibility(entrant, member(), true);
+  await creditRejectWithoutWrites(() => activatePlan(staged), "membership_source_not_reconciled");
+  await entrant.delete();
+  await writeMembershipEligibility(ref("users", "a"), {isActive: false}, false);
+  await writeMembershipEligibility(ref("users", "a"), {isActive: true}, true, "excusedDeparture");
+  await creditRejectWithoutWrites(() => store.stageCreditUnit(creditIntent("returned"), "admin"),
+    "membership_source_not_reconciled");
+});
+
 run("admin demotion, membership drift and changed maintenance authority reject credit activation atomically", async () => {
   await prepareEarnedCredit();
   const plan = await store.stageCreditUnit(creditIntent(), "admin");
@@ -709,7 +722,7 @@ run("new membership enters both FIFO pools, stays reserved across August and nor
 run("departure opens only affected future cases, preserves history and re-entry cannot revive old positions", async () => {
   await seedMembershipRotations(); await reconcile("a");
   const before = await snapshot();
-  await ref("users", "a").update({isActive: false});
+  await writeMembershipEligibility(ref("users", "a"), {isActive: false}, false);
   const departed = await reconcile("a");
   assert.equal(departed.result.state.pendingQueueTransition, true);
   assert.deepEqual(departed.result.state.pendingTypes, {delivery: true, market: true});
@@ -727,7 +740,7 @@ run("departure opens only affected future cases, preserves history and re-entry 
   const repeat = await reconcile("a");
   assert.ok(repeat.result.coverage.every((c) => c.status === "existing_case"));
   now += 100;
-  await ref("users", "a").update({isActive: true});
+  await writeMembershipEligibility(ref("users", "a"), {isActive: true}, true, "excusedDeparture");
   const restored = await reconcile("a");
   assert.equal(restored.result.state.pendingQueueTransition, true);
   assert.deepEqual(restored.result.state.frozenExclusion, departed.result.state.frozenExclusion);
@@ -747,14 +760,14 @@ run("departure opens only affected future cases, preserves history and re-entry 
 run("producer/company eligibility changes deactivate reserves and re-entry goes to the FIFO tail", async () => {
   await seedMembershipRotations(); await reconcile("d");
   now += 10; await reconcile("e");
-  now += 10; await ref("users", "d").update({roles: ["member", "producer"]});
+  now += 10; await writeMembershipEligibility(ref("users", "d"), {roles: ["member", "producer"]}, false);
   const producer = await reconcile("d");
   assert.equal(producer.result.state.eligible, false);
   assert.deepEqual(producer.result.state.frozenExclusion,
     {reason: "excusedIneligible", revision: producer.result.state.revision});
   assert.equal((await reserveFor("d")).active, false);
   assert.equal((await reserveFor("d")).revision, 2);
-  now += 10; await ref("users", "d").update({isCommonPurchaseManager: true});
+  now += 10; await writeMembershipEligibility(ref("users", "d"), {isCommonPurchaseManager: true}, true, "excusedIneligible");
   const manager = await reconcile("d");
   assert.equal(manager.result.state.eligible, true);
   assert.deepEqual(manager.result.state.frozenExclusion, producer.result.state.frozenExclusion);
@@ -769,8 +782,8 @@ run("reactivation invalidates an older reserve offer even when current user fiel
   await seedMembershipRotations(); await reconcile("d");
   await open(); await execute("case-1", "startSelection", "admin");
   await execute("case-1", "offerNext", "admin", {expiresAtMillis: now + 10_000});
-  now += 1; await ref("users", "d").update({isActive: false}); await reconcile("d");
-  now += 1; await ref("users", "d").update({isActive: true}); await reconcile("d");
+  now += 1; await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false); await reconcile("d");
+  now += 1; await writeMembershipEligibility(ref("users", "d"), {isActive: true}, true, "excusedDeparture"); await reconcile("d");
   await rejectWithoutWrites(await makeCommand("case-1", "accept"), "d");
 });
 
@@ -801,7 +814,7 @@ run("membership commands fail closed for unauthorized actors, malformed source, 
   await ref("users", "d").update({roles: "member"}); before = await snapshot();
   await assert.rejects(store.reconcileMembership(command, "admin"), {code: "invalid_coverage_member"});
   assert.deepEqual(await snapshot(), before);
-  await ref("users", "d").set(member());
+  await writeMembershipEligibility(ref("users", "d"), member(), true);
   await ref("shiftRotations", "market").update({activeRevision: "stale"}); before = await snapshot();
   await assert.rejects(store.reconcileMembership(command, "admin"), {code: "membership_rotation_changed"});
   assert.deepEqual(await snapshot(), before);
@@ -817,7 +830,7 @@ run("deleted members become audited departures and existing cases are reused", a
 });
 
 run("oversized departure reconciliations leave reserves, cases, state and rotations untouched", async () => {
-  await seedMembershipRotations(); await ref("users", "a").update({isActive: false});
+  await seedMembershipRotations(); await writeMembershipEligibility(ref("users", "a"), {isActive: false}, false);
   const batch = db.batch();
   for (let i = 0; i < 250; i++) {
     const date = new Date(Date.parse("2028-01-01T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10);
@@ -831,7 +844,7 @@ run("oversized departure reconciliations leave reserves, cases, state and rotati
 });
 
 run("membership reconciliation leaves pending swaps for resolution and rejects orphan coverage claims atomically", async () => {
-  await seedMembershipRotations(); await ref("users", "a").update({isActive: false});
+  await seedMembershipRotations(); await writeMembershipEligibility(ref("users", "a"), {isActive: false}, false);
   await ref("shifts", "shift_delivery_20270901").update({status: "swap_pending"});
   const first = await reconcile("a");
   assert.deepEqual(first.result.coverage.find((c) => c.shiftId === "shift_delivery_20270901"),

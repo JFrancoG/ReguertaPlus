@@ -21,6 +21,23 @@ test("new-round admission retains order, appends re-entry/new members by FIFO th
   assert.deepEqual(snapshot, before);
 });
 
+test("sub-millisecond eligibility order wins over member ID; an exact tie uses member ID", () => {
+  const snapshot = admissionSnapshot();
+  const membership = snapshot.creditLedger.sources.membership;
+  const earlier = membership.records.find((row) => row.id === "member-7");
+  const later = membership.records.find((row) => row.id === "member-1");
+  const start = earlier.data.value.eligibilityChangedAt;
+  later.data.value.eligibilityChangedAt = {...start, nanoseconds: start.nanoseconds + 1000};
+  later.data.digest = digest(later.data.value);
+  const ordered = plan(inputFor(snapshot));
+  for (const type of ["delivery", "market"]) assert.deepEqual(ordered.cohorts[type].slice(-2), ["member-7", "member-1"]);
+
+  later.data.value.eligibilityChangedAt = {...start};
+  later.data.digest = digest(later.data.value);
+  const tied = plan(inputFor(snapshot));
+  for (const type of ["delivery", "market"]) assert.deepEqual(tied.cohorts[type].slice(-2), ["member-1", "member-7"]);
+});
+
 test("combined seasonal candidate binds membership acknowledgements and publishes complete market groups", () => {
   const snapshot = admissionSnapshot(); const value = fixture(snapshot);
   const planned = value.liveResult;

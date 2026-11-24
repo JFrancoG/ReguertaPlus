@@ -39,6 +39,7 @@ const seed = async (environment) => {
 
 const governed = async (environment = "develop", options = {}) => {
   await seed(environment);
+  await options.afterSeed?.();
   let held, failed = null, controls = 0, readBacks = 0;
   const service = createFirestoreShiftCoverageBootstrap({firestore: options.firestore ?? db, environment,
     nowMillis: () => now, controlPlane: {
@@ -114,6 +115,25 @@ run("SDK bootstrap isolates environments, creates exact private baseline atomica
     assert.equal((await ref(environment, "shiftMembershipState/admin").get()).data().value.revision, 1);
     assert.deepEqual(await f.apply(), {...result, replayed: true});
   }
+});
+
+run("baseline accepts an earlier eligibility commit and requires reconciliation after an unseen leave and return", async () => {
+  const {captureShiftMembershipPlanningSource} = require("../lib/shift-membership-planning.js");
+  const member = ref("develop", "users/a");
+  const state = ref("develop", "shiftMembershipState/a");
+  const {writeMembershipEligibility} = require("./shift-coverage-fixture.cjs");
+  const transition = (active, reason) => writeMembershipEligibility(member, {isActive: active}, active, reason);
+  const bootstrap = await governed("develop", {afterSeed: async () => {
+    await transition(false);
+    await transition(true, "excusedDeparture");
+  }});
+  await bootstrap.apply();
+  assert.equal(Object.hasOwn((await state.get()).data().value, "eligibilityChangedAt"), false);
+  const capture = () => db.runTransaction((tx) => captureShiftMembershipPlanningSource(db, tx));
+  assert.equal((await capture()).records.length, 7);
+  await transition(false);
+  await transition(true, "excusedDeparture");
+  await assert.rejects(capture(), {code: "membership_source_not_reconciled"});
 });
 
 run("exact replay retains later private history and still requires reciprocal current administrator", async () => {

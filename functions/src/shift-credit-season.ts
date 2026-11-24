@@ -1,6 +1,7 @@
 import {consumeRotationPositions, ServedRotationPosition,
-  ShiftRotationCursor} from
+  ShiftPlanningError, ShiftRotationCursor} from
   "./shift-planning-contract.js";
+import {HttpRequestError} from "./backend-security.js";
 import {coverageId, rejectCoverage, ShiftCoverageCredit} from
   "./shift-coverage.js";
 import {parseShiftCoverageCredit, planShiftCreditUnit, ShiftCreditUnit,
@@ -8,12 +9,13 @@ import {parseShiftCoverageCredit, planShiftCreditUnit, ShiftCreditUnit,
   "./shift-credit-unit.js";
 import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 
-/** Provisional input; production bundle intake still rejects credits. */
+/** Complete ledger and frozen prefix captured by the governed planner. */
 export type ProvisionalSeasonCredits = {
   credits: readonly ShiftCoverageCredit[];
   frozenThroughRound: number;
   membership?: ShiftMembershipUnitPolicy;
   inheritedUnits?: readonly (readonly ServedRotationPosition[])[];
+  recordDeferralReasons?: boolean;
 };
 
 export type ShiftSeasonCreditProjection = {
@@ -30,7 +32,7 @@ export type ShiftSeasonCreditProjection = {
  * market may need a final group, as in the ordinary seasonal planner.
  * Bind the complete ledger even when a credit cannot be used. No consumption
  * timestamp, persistence, claim release or publication is implied.
- * @param {object} input Canonical cursor and provisional complete ledger.
+ * @param {object} input Canonical cursor and complete ledger.
  * @return {object} Immutable ledger proposal and both seasonal cursors.
  */
 export const planShiftSeasonCreditUnits = (input: {
@@ -62,12 +64,21 @@ export const planShiftSeasonCreditUnits = (input: {
   let previous = input.previousDeliveryUserId ?? null;
   let membershipApplied = false;
   const append = (stopAfterRound?: number) => {
-    const unit = planShiftCreditUnit({rotation: cursor,
-      credits: ledger.filter((credit) => !consumed.has(credit.id)),
-      frozenThroughRound: input.policy.frozenThroughRound,
-      adjacentDeliveryUserIds: previous ? [previous] : [],
-      stopAfterRound,
-      membership: membershipApplied ? undefined : input.policy.membership});
+    let unit: ShiftCreditUnit;
+    try {
+      unit = planShiftCreditUnit({rotation: cursor,
+        credits: ledger.filter((credit) => !consumed.has(credit.id)),
+        frozenThroughRound: input.policy.frozenThroughRound,
+        adjacentDeliveryUserIds: previous ? [previous] : [],
+        recordDeferralReasons: input.policy.recordDeferralReasons,
+        stopAfterRound,
+        membership: membershipApplied ? undefined : input.policy.membership});
+    } catch (error) {
+      if (!(error instanceof HttpRequestError) ||
+          error.code !== "credit_unit_unstaffable") throw error;
+      throw new ShiftPlanningError("credit_unit_unstaffable",
+        "The rotation cannot staff a full unit after deferring its credits.");
+    }
     units.push(unit);
     membershipApplied ||= unit.membershipApplied ?? false;
     for (const id of unit.consumedCreditIds) consumed.add(id);
@@ -94,7 +105,7 @@ export const planShiftSeasonCreditUnits = (input: {
 };
 
 /**
- * Credit before/after images for a future atomic HU-082 manifest. The inverse
+ * Credit before/after images for an atomic HU-082 manifest. The inverse
  * must CAS the full post-activation ledger and restore exact before images;
  * it must not blindly restore every consumed credit to pending. This pure
  * builder neither authorizes a writer nor activates/reverts a plan.

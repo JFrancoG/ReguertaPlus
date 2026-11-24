@@ -1,10 +1,13 @@
 import {createPublicKey, verify} from "node:crypto";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
+import {DRAND_QUICKNET, DrandCoveragePolicy, drandCoverageRoundTime,
+  isDrandCoveragePolicy, nextDrandCoverageRound, verifyDrandCoverageSignature}
+  from "./shift-coverage-drand.js";
 import {coverageId, rejectCoverage} from "./shift-coverage.js";
 import type {CoverageCandidate} from "./shift-coverage-selection.js";
 
-/** Signed-beacon protocol exclusively for the local rehearsal. */
-export type CoverageBeaconPolicy = {
+/** Ed25519 is retained for already committed local rehearsals. */
+export type CoverageBeaconPolicy = DrandCoveragePolicy | {
   sourceId: string;
   publicKeyPem: string;
   genesisMillis: number;
@@ -27,7 +30,7 @@ export type CoverageDraw = {
 };
 
 export type CoverageBeaconEvidence = {
-  domain: "hu084-local-beacon-v1";
+  domain: "hu084-local-beacon-v1" | "drand-quicknet-v1";
   sourceId: string;
   round: number;
   publishedAtMillis: number;
@@ -38,7 +41,10 @@ export type CoverageBeaconEvidence = {
 export const parseCoverageBeaconPolicy = (
   value: CoverageBeaconPolicy | undefined,
 ): CoverageBeaconPolicy => {
-  if (!value || !Number.isSafeInteger(value.genesisMillis) ||
+  if (isDrandCoveragePolicy(value)) return DRAND_QUICKNET;
+  if (!value || typeof value !== "object" ||
+      value.sourceId === DRAND_QUICKNET.sourceId ||
+      "chainHash" in value || !Number.isSafeInteger(value.genesisMillis) ||
       value.genesisMillis < 0 || !Number.isSafeInteger(value.periodMillis) ||
       value.periodMillis <= 0 || typeof value.publicKeyPem !== "string") {
     return rejectCoverage("coverage_beacon_policy_required");
@@ -72,10 +78,13 @@ export const commitCoverageDraw = (input: {
   now: number;
 }): CoverageDraw => {
   const beacon = parseCoverageBeaconPolicy(input.policy);
-  const round = Math.floor((input.now - beacon.genesisMillis) /
-    beacon.periodMillis) + 2;
-  const availableAtMillis = beacon.genesisMillis + round * beacon.periodMillis;
-  if (input.now < beacon.genesisMillis || !Number.isSafeInteger(round) ||
+  const publicRound = isDrandCoveragePolicy(beacon);
+  const round = publicRound ? nextDrandCoverageRound(input.now) :
+    Math.floor((input.now - beacon.genesisMillis) / beacon.periodMillis) + 2;
+  const availableAtMillis = publicRound ? drandCoverageRoundTime(round) :
+    beacon.genesisMillis + round * beacon.periodMillis;
+  if (!Number.isSafeInteger(input.now) || input.now < beacon.genesisMillis ||
+      !Number.isSafeInteger(round) ||
       !Number.isSafeInteger(availableAtMillis) ||
       availableAtMillis <= input.now) {
     return rejectCoverage("coverage_beacon_round_invalid");
@@ -95,9 +104,8 @@ export const commitCoverageDraw = (input: {
 };
 
 /**
- * Verify the fixed source, round, publication time and Ed25519 signature before
- * deriving one ordering. The local issuer remains a trust assumption. A
- * signature authenticates it but does not prove unbiased/unpredictable entropy.
+ * Recheck the pinned source, exact round and authenticated randomness before
+ * deriving the order. Stored evidence can be checked again without the relay.
  * @param {object} input Stored commitment and backend-only beacon evidence.
  * @return {CoverageDraw} Result retaining the complete signed evidence.
  */
@@ -115,22 +123,32 @@ export const revealCoverageDraw = (input: {
     return rejectCoverage("coverage_entropy_not_available");
   }
   const value = input.value as CoverageBeaconEvidence | undefined;
-  if (!value || value.domain !== "hu084-local-beacon-v1" ||
+  const beacon = parseCoverageBeaconPolicy(commitment.beacon);
+  const publicRound = isDrandCoveragePolicy(beacon);
+  const domain = publicRound ? "drand-quicknet-v1" : "hu084-local-beacon-v1";
+  if (publicRound && (commitment.round !==
+      nextDrandCoverageRound(commitment.committedAtMillis) ||
+      commitment.availableAtMillis !== drandCoverageRoundTime(commitment.round)
+  )) return rejectCoverage("coverage_beacon_round_invalid");
+  if (!value || value.domain !== domain ||
       value.sourceId !== commitment.beacon.sourceId ||
       value.round !== commitment.round ||
       value.publishedAtMillis !== commitment.availableAtMillis ||
       typeof value.randomness !== "string" ||
       !/^[0-9a-f]{64}$/.test(value.randomness) ||
       typeof value.signatureHex !== "string" ||
-      !/^[0-9a-f]{128}$/.test(value.signatureHex)) {
+      !(publicRound ? /^[0-9a-f]{96}$/ : /^[0-9a-f]{128}$/)
+        .test(value.signatureHex)) {
     return rejectCoverage("coverage_beacon_evidence_invalid");
   }
   const payload = {domain: value.domain, sourceId: value.sourceId,
     round: value.round, publishedAtMillis: value.publishedAtMillis,
     randomness: value.randomness};
-  if (!verify(null, Buffer.from(digest(payload)),
-    createPublicKey(commitment.beacon.publicKeyPem),
-    Buffer.from(value.signatureHex, "hex"))) {
+  const valid = publicRound ? verifyDrandCoverageSignature(value.round,
+    value.signatureHex, value.randomness) : verify(null,
+    Buffer.from(digest(payload)), createPublicKey(beacon.publicKeyPem),
+    Buffer.from(value.signatureHex, "hex"));
+  if (!valid) {
     return rejectCoverage("coverage_beacon_signature_invalid");
   }
   const scores = commitment.candidates.filter((item) => !item.exclusion)

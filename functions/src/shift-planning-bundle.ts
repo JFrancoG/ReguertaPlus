@@ -725,6 +725,25 @@ const parseRotationSnapshot = (
   };
 };
 
+/**
+ * Shared plans must carry both policies from the same environment and
+ * ratification. Legacy emulator envelopes predate both activation markers.
+ * @param {object} credits Captured credit authority, when enabled.
+ * @param {object} spacing Captured ordinary spacing authority, when enabled.
+ * @param {string} environment Trusted planning request or bundle environment.
+ */
+export const assertShiftPlanningCoverageBinding = (
+  credits: ShiftCreditPublicationSources | undefined,
+  spacing: DeliverySpacingSource | undefined,
+  environment: ShiftPlanningEnvironment,
+): void => {
+  if (credits?.activationDigest !== spacing?.activationDigest ||
+      (spacing?.environment !== undefined &&
+        spacing.environment !== environment)) {
+    failState("Credits and spacing require the same activation.");
+  }
+};
+
 const parseBundleFairnessSnapshot = (
   value: unknown,
   authoritativeValue: unknown,
@@ -873,6 +892,8 @@ const parseBundleFairnessSnapshot = (
   }
   const deliverySpacing = normalized.deliverySpacing !== undefined ?
     parseDeliverySpacingSource(normalized.deliverySpacing) : undefined;
+  assertShiftPlanningCoverageBinding(creditSources, deliverySpacing,
+    authoritativeState.environment);
   if (deliverySpacing && deliverySpacing.authorityDigest !==
       deliverySpacingAuthorityDigest(authoritativeState.maintenance,
         authoritativeState.rotations.delivery)) {
@@ -2041,16 +2062,9 @@ const heldNotificationIntents = (input: {
   }),
 );
 
-/**
- * Plans one deterministic delivery-plus-market candidate without persistence.
- * Preview, stage, and activate share the same revision/digest because request
- * lifecycle metadata is excluded while every planning input and derived public
- * manifest remains bound.
- * @param {ShiftPlanningBundleInput} input Untrusted request plus fair state.
- * @return {ShiftPlanningBundleResult} Side-effect-free combined candidate.
- */
-export const planShiftPlanningBundle = (
+const buildPlanningBundle = (
   input: ShiftPlanningBundleInput,
+  spacingDiagnostic: boolean,
 ): ShiftPlanningBundleResult => {
   if ("transactionEvidence" in input) {
     failState(
@@ -2062,6 +2076,10 @@ export const planShiftPlanningBundle = (
     input.fairnessSnapshot,
     input.authoritativeState,
   );
+  if (spacingDiagnostic && (request.mode !== "preview" ||
+      !snapshot.deliverySpacing)) {
+    return failState("Spacing diagnostics require a governed preview.");
+  }
   validateRequestAgainstSnapshot(request, snapshot);
   validateModeGate(request, snapshot);
   const writeLimit = requireTransactionWriteLimit(
@@ -2103,9 +2121,10 @@ export const planShiftPlanningBundle = (
     rotation: snapshot.delivery.cursor,
     inheritedTargetPrefix: input.delivery.inheritedTargetPrefix ?? null,
     continuity: input.delivery.continuity,
-    ordinarySpacing: snapshot.deliverySpacing,
+    ordinarySpacing: spacingDiagnostic ? undefined : snapshot.deliverySpacing,
     provisionalCredits: snapshot.creditSources ? {
       ...snapshot.creditSources.delivery,
+      recordDeferralReasons: !!snapshot.creditSources.activationDigest,
       ...(snapshot.membershipAdmission?.policies.delivery ? {membership:
         snapshot.membershipAdmission.policies.delivery} : {})} : undefined,
   });
@@ -2116,19 +2135,22 @@ export const planShiftPlanningBundle = (
     inheritedTargetPrefix: input.market.inheritedTargetPrefix ?? null,
     provisionalCredits: snapshot.creditSources ? {
       ...snapshot.creditSources.market,
+      recordDeferralReasons: !!snapshot.creditSources.activationDigest,
       ...(snapshot.membershipAdmission?.policies.market ? {membership:
         snapshot.membershipAdmission.policies.market} : {})} : undefined,
   });
   if (snapshot.creditSources && delivery.creditProjection &&
       market.creditProjection) {
     snapshot.creditPublication = buildShiftCreditPublication({
+      environment: request.environment,
       sources: snapshot.creditSources, delivery: delivery.creditProjection,
       market: market.creditProjection, planId: request.bundleId,
       membershipChanges: snapshot.creditSources.membership ?
         buildShiftMembershipAcknowledgements(
           snapshot.creditSources.membership, {
             delivery: delivery.creditProjection.membershipApplied ?? false,
-            market: market.creditProjection.membershipApplied ?? false}) : []});
+            market: market.creditProjection.membershipApplied ?? false},
+          request.environment) : []});
     snapshot.creditLedgerWriteCount = snapshot.creditPublication.changes.length;
   }
   const recipients = recipientManifest(delivery, market, snapshot.roster);
@@ -2297,3 +2319,25 @@ export const planShiftPlanningBundle = (
     previewReceiptDigest: persistedChain.previewReceiptDigest,
   };
 };
+
+/**
+ * Plans one deterministic delivery-plus-market candidate without persistence.
+ * Preview, stage, and activate share the same revision/digest because request
+ * lifecycle metadata is excluded while every planning input and derived public
+ * manifest remains bound.
+ * @param {ShiftPlanningBundleInput} input Untrusted request plus fair state.
+ * @return {ShiftPlanningBundleResult} Side-effect-free combined candidate.
+ */
+export const planShiftPlanningBundle = (
+  input: ShiftPlanningBundleInput,
+): ShiftPlanningBundleResult => buildPlanningBundle(input, false);
+
+/**
+ * Reproduce the ordinary plan for an administrator reviewing exact spacing
+ * exceptions. Only delivery rows leave this private preview calculation.
+ * @param {ShiftPlanningBundleInput} input Complete governed source.
+ * @return {Array} Generated leads used to identify the conflicting pairs.
+ */
+export const planShiftPlanningDeliverySpacingDiagnostic = (
+  input: ShiftPlanningBundleInput,
+): DeliveryPlan["shifts"] => buildPlanningBundle(input, true).delivery.shifts;

@@ -1,5 +1,7 @@
 import type {Transaction} from "@google-cloud/firestore";
 import type {AppEnvironment} from "./backend-security.js";
+import type {ShiftCreditPlanningContext} from
+  "./shift-credit-planning-context.js";
 import {SHIFT_COVERAGE_POLICY_REVISION} from "./shift-coverage.js";
 
 export type ShiftCoverageActivation = {
@@ -43,5 +45,6 @@ export const parseShiftCoverageActivation = (
  */
 export type ShiftCoverageStoreContext = {
   environment: AppEnvironment;
+  creditPlanning?: ShiftCreditPlanningContext;
   requireReady: (transaction: Transaction) => Promise<void>;
 };

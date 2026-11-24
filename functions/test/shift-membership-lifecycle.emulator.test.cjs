@@ -1,13 +1,15 @@
 "use strict";
 const assert = require("node:assert/strict");
 const {test, before, beforeEach, after} = require("node:test");
+const {membershipEligibilityRef} = require("../lib/shift-membership-eligibility-time.js");
 const {Firestore, Timestamp} = require("@google-cloud/firestore");
+const {captureShiftMembershipPlanningSource, planShiftMembershipAdmission} = require("../lib/shift-membership-planning.js");
 const {createProvisionalShiftCoverageStore} = require("../lib/shift-coverage-provisional-store.js");
 const {createShiftPlanningDigest: digest} = require("../lib/shift-planning-digest.js");
 const {SHIFT_COVERAGE_POLICY_REVISION} = require("../lib/shift-coverage.js");
 const {buildShiftPlanningPublicShiftMaterialization, createShiftPlanningActivationOperationTerminal,
   attachShiftPlanningBackendMutationMarker} = require("../lib/shift-planning-publication-contract.js");
-const {initialTime, activeDigest} = require("./shift-coverage-fixture.cjs");
+const {initialTime, activeDigest, writeMembershipEligibility, eligibilitySource} = require("./shift-coverage-fixture.cjs");
 
 const enabled = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const run = (name, fn) => test(name, {skip: !enabled}, fn);
@@ -100,8 +102,8 @@ beforeEach(async () => {
   await ref("shiftPlanningState", "current").set({schemaVersion: 1, stateRevision: 1, writeEpoch: 1,
     maintenanceStatus: "open", activeRevision: "active-1", activeDigest, intakeBarrier: null, lastTransitionId: "initial"});
   for (const id of ["a", "b", "c", "d", "e", "admin"]) {
-    await ref("users", id).set({isActive: true, roles: id === "admin" ? ["admin", "member"] : ["member"],
-      isCommonPurchaseManager: false});
+    await writeMembershipEligibility(ref("users", id), {isActive: true, roles: id === "admin" ? ["admin", "member"] : ["member"],
+      isCommonPurchaseManager: false}, true);
   }
   for (const type of ["delivery", "market"]) {
     await ref("shiftRotations", type).set({schemaVersion: 1, type, stateRevision: 4,
@@ -109,6 +111,131 @@ beforeEach(async () => {
       planningFrontierSeasonStartYear: 2027, cohortFrozen: true, frozenCohortUserIds: ["a", "b", "c"],
       activeRevision: "active-1", activeDigest, lastIdempotencyKey: null, migrationBaseline: null, releaseLease: null});
   }
+});
+
+const useExistingMembersAsFrozenCohort = async () => {
+  const cohort = ["a", "b", "c", "d", "e", "admin"];
+  for (const type of ["delivery", "market"]) {
+    await ref("shiftRotations", type).update({"cursor.cohortUserIds": cohort, frozenCohortUserIds: cohort});
+  }
+  return cohort;
+};
+const nextAdmissionPlan = async () => {
+  const source = await db.runTransaction((transaction) => captureShiftMembershipPlanningSource(db, transaction));
+  const roster = (await db.collection(`${root}/users`).get()).docs.map((doc) => ({...doc.data(), userId: doc.id}));
+  const rotations = {};
+  for (const type of ["delivery", "market"]) rotations[type] = (await read("shiftRotations", type)).cursor;
+  return planShiftMembershipAdmission({source, roster, rotations, frozenThroughRound: {delivery: 1, market: 1}});
+};
+
+run("D01 admits by the effective source instant even if reconciled in reverse, then by ID for exact ties", async () => {
+  const cohort = await useExistingMembersAsFrozenCohort();
+  const member = {isActive: true, roles: ["member"], isCommonPurchaseManager: false};
+  const first = await writeMembershipEligibility(ref("users", "new-z"), member, true);
+  // Two new members in the same Firestore commit have an exact chronological tie.
+  const batch = db.batch();
+  for (const id of ["new-b", "new-a"]) {
+    const user = ref("users", id);
+    batch.create(user, member);
+    batch.create(membershipEligibilityRef(user), eligibilitySource(true));
+  }
+  const [second] = await batch.commit();
+  assert.ok(first.valueOf() < second.writeTime.valueOf());
+  await ref("users", "new-z").update({displayName: "Changed later"});
+  let lastCommand;
+  for (const id of ["new-b", "new-a", "new-z"]) {
+    now += 1000;
+    lastCommand = await membershipCommand(id);
+    await store.reconcileMembership(lastCommand, "admin");
+  }
+
+  const plan = await nextAdmissionPlan();
+  for (const type of ["delivery", "market"]) {
+    assert.deepEqual(plan.cohorts[type], [...cohort, "new-z", "new-a", "new-b"]);
+    assert.equal(plan.policies[type].startRound, 2);
+  }
+  const after = await snapshot();
+  assert.equal((await store.reconcileMembership(lastCommand, "admin")).replayed, true);
+  assert.deepEqual(await snapshot(), after);
+
+  const shiftId = await seedShift("market", "2027-09-18", ["a", "b", "c"]);
+  await coverage("fifo", "open", "a", {shiftId, absentUserId: "a", reason: "Unavailable"});
+  await coverage("fifo", "startSelection");
+  const offered = await coverage("fifo", "offerNext", "admin", {expiresAtMillis: now + 1000});
+  assert.equal(offered.case.offer.source, "reserve");
+  assert.equal(offered.case.offer.userId, "new-b");
+});
+
+run("D01 observes a complete departure and return between reconciliations without restoring the old cohort place", async () => {
+  const first = await reconcile("a");
+  assert.equal(first.result.state.pendingQueueTransition, false);
+  await writeMembershipEligibility(ref("users", "a"), {isActive: false}, false);
+  await writeMembershipEligibility(ref("users", "a"), {isActive: true}, true, "excusedDeparture");
+  const restoredAt = (await membershipEligibilityRef(ref("users", "a")).get()).updateTime;
+  await ref("users", "a").update({displayName: "Edited after return"});
+  now += day;
+
+  const restored = await reconcile("a");
+  assert.deepEqual(restored.result.state.eligibilityChangedAt, {seconds: restoredAt.seconds, nanoseconds: restoredAt.nanoseconds});
+  assert.deepEqual(restored.result.state.admissionRequired, {delivery: true, market: true});
+  assert.equal(restored.result.state.frozenExclusion.reason, "excusedDeparture");
+  for (const type of ["delivery", "market"]) {
+    const reserve = await reserveFor(type, "a");
+    assert.equal(reserve.enteredAtMillis, now);
+    assert.equal(reserve.admissionAfterRound, 1);
+  }
+  const retained = await reserveFor("delivery", "a");
+  await ref("users", "a").update({displayName: "Another profile edit"});
+  now += 1000;
+  assert.equal((await reconcile("a")).result.state.revision, restored.result.state.revision);
+  assert.deepEqual(await reserveFor("delivery", "a"), retained);
+});
+
+run("D01 first reconciliation of a returned cohort member defers the old place through the frozen round", async () => {
+  const cohort = await useExistingMembersAsFrozenCohort();
+  const user = ref("users", "a");
+  const published = await seedShift("delivery", "2027-09-01", ["a"], 2);
+  const before = await read("shifts", published);
+  await writeMembershipEligibility(user, {roles: ["member", "producer"]}, false);
+  const returned = await writeMembershipEligibility(user, {isCommonPurchaseManager: true}, true, "excusedIneligible");
+  assert.equal(await read("shiftMembershipState", "a"), undefined);
+  const state = (await reconcile("a")).result.state;
+  assert.equal(state.frozenExclusion.reason, "excusedIneligible");
+  assert.deepEqual(state.eligibilityChangedAt, {seconds: returned.seconds, nanoseconds: returned.nanoseconds});
+  assert.deepEqual(state.admissionRequired, {delivery: true, market: true});
+  assert.deepEqual(state.admissionAfterRound, {delivery: 2, market: 1});
+  const plan = await nextAdmissionPlan();
+  for (const type of ["delivery", "market"]) assert.deepEqual(plan.cohorts[type], [...cohort.slice(1), "a"]);
+  assert.equal(plan.policies.delivery.startRound, 3);
+  assert.equal(plan.policies.market.startRound, 2);
+  assert.deepEqual(await read("shifts", published), before);
+});
+
+run("D01 reuses an untouched legacy creation, preserves established cohort members and rejects an undated legacy entrant", async () => {
+  const raw = {roles: ["member"], isActive: true, isCommonPurchaseManager: false};
+  const fresh = ref("users", "legacy-new");
+  await fresh.create(raw);
+  const createdAt = (await fresh.get()).createTime;
+  const joined = await reconcile("legacy-new");
+  assert.deepEqual(joined.result.state.eligibilityChangedAt, {seconds: createdAt.seconds, nanoseconds: createdAt.nanoseconds});
+  const originalReserve = await reserveFor("market", "legacy-new");
+  assert.equal(originalReserve.enteredAtMillis, now);
+  await fresh.update({displayName: "Edited after creation was observed"});
+  now += 1000;
+  assert.deepEqual((await reconcile("legacy-new")).result.state.eligibilityChangedAt, joined.result.state.eligibilityChangedAt);
+  assert.deepEqual(await reserveFor("market", "legacy-new"), originalReserve);
+
+  const unknown = ref("users", "legacy-unknown");
+  await unknown.create(raw);
+  await unknown.update({displayName: "Last unrelated write"});
+  const input = await membershipCommand("legacy-unknown");
+  await rejectMembershipWithoutWrites(input, "membership_eligibility_time_required");
+
+  // A legacy baseline in the retained cohort does not enqueue an entrant.
+  await membershipEligibilityRef(ref("users", "a")).delete();
+  await ref("users", "a").update({displayName: "Existing member"});
+  assert.equal((await reconcile("a")).result.state.pendingQueueTransition, false);
+  assert.equal(await reserveFor("delivery", "a"), undefined);
 });
 
 run("reserve exit is due-time bound, preserves admission evidence and follows ordinary owner independently by type", async () => {
@@ -158,9 +285,9 @@ run("re-entry starts a new reserve epoch and cannot exit through positions froze
   await reconcile();
   await seedShift("delivery", "2027-09-01", ["d"], 2, ["e"], "b");
   now += 1000;
-  await ref("users", "d").update({isActive: false}); await reconcile();
+  await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false); await reconcile();
   now += 1000;
-  await ref("users", "d").update({isActive: true}); await reconcile();
+  await writeMembershipEligibility(ref("users", "d"), {isActive: true}, true, "excusedDeparture"); await reconcile();
   const reentry = await reserveFor();
   assert.equal(reentry.admissionAfterRound, 2);
   assert.equal(reentry.enteredAtMillis, now);
@@ -184,11 +311,11 @@ run("temporary inactivity and later re-entry retain pending and consumed credit 
   const pending = await seedCredit("earned-delivery"), consumed = await seedCredit("consumed-delivery", "delivery", "d", "consumed");
   await ref("shiftCoverageLedgerState", "delivery").set({revision: 5});
   const claim = await claimFor();
-  now += 1000; await ref("users", "d").update({isActive: false});
+  now += 1000; await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   const departed = await reconcile();
   assert.equal(departed.result.state.permanentDeparture, undefined);
   assert.equal((await reserveFor()).active, false);
-  now += 1000; await ref("users", "d").update({isActive: true}); await reconcile();
+  now += 1000; await writeMembershipEligibility(ref("users", "d"), {isActive: true}, true, "excusedDeparture"); await reconcile();
   assert.equal((await reserveFor()).active, true);
   assert.deepEqual(await read("shiftCoverageCredits", pending.id), pending);
   assert.deepEqual(await read("shiftCoverageCredits", consumed.id), consumed);
@@ -202,7 +329,7 @@ run("explicit permanent departure cancels only own pending balances, releases cl
   const consumed = await seedCredit("consumed-delivery", "delivery", "d", "consumed"), other = await seedCredit("other-member", "market", "e");
   await ref("shiftCoverageLedgerState", "delivery").set({revision: 5});
   await ref("shiftCoverageLedgerState", "market").set({revision: 8});
-  now += 1000; await ref("users", "d").update({isActive: false});
+  now += 1000; await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   const input = await membershipCommand("d", {permanentDepartureReason: "Confirmed permanent departure"});
   const result = await store.reconcileMembership(input, "admin");
   assert.deepEqual(result.result.state.permanentDeparture,
@@ -223,7 +350,7 @@ run("explicit permanent departure cancels only own pending balances, releases cl
   assert.deepEqual(await snapshot(), prior);
   await reconcile();
   assert.deepEqual(await read("shiftCoverageLedgerState", "delivery"), {revision: 6});
-  now += 1000; await ref("users", "d").update({isActive: true});
+  now += 1000; await writeMembershipEligibility(ref("users", "d"), {isActive: true}, true, "excusedDeparture");
   const returned = await reconcile();
   assert.equal(returned.result.state.permanentDeparture, undefined);
   assert.equal((await reserveFor()).active, true);
@@ -240,7 +367,7 @@ run("explicit permanent departure cancels only own pending balances, releases cl
 
 run("completion recorded after permanent departure retains earned history without creating a spendable credit", async () => {
   const shiftId = await acceptMarketCoverage();
-  now += 1; await ref("users", "d").update({isActive: false});
+  now += 1; await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   const input = await membershipCommand("d", {permanentDepartureReason: "Departure confirmed before completion"});
   await store.reconcileMembership(input, "admin");
   now = (await read("shifts", shiftId)).date.toMillis();
@@ -263,7 +390,7 @@ run("permanent departure requires an inactive or missing member, administrative 
   await reconcile();
   const input = await membershipCommand("d", {permanentDepartureReason: "Confirmed departure"});
   await rejectMembershipWithoutWrites(input, "membership_permanent_departure_requires_inactive");
-  await ref("users", "d").update({isActive: false});
+  await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   await rejectMembershipWithoutWrites(input, "coverage_actor_forbidden", "a");
   for (const extra of [{cancelledCredits: ["chosen"]}, {permanentDeparture: {operationId: "chosen"}},
     {permanentDepartureReason: " "}, {permanentDepartureReason: "x".repeat(501)}]) {
@@ -282,7 +409,7 @@ run("permanent departure requires an inactive or missing member, administrative 
 run("missing or forged claims, duplicate pending credits and invalid ledgers reject permanent cancellation atomically", async () => {
   await reconcile(); await seedCredit("earned");
   await ref("shiftCoverageLedgerState", "delivery").set({revision: 5});
-  await ref("users", "d").update({isActive: false});
+  await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   const validClaim = await claimFor();
   const input = await membershipCommand("d", {permanentDepartureReason: "Confirmed departure"});
   await ref("shiftCoverageMemberClaims", hash(["delivery", "d"])).delete();
@@ -306,7 +433,7 @@ run("missing or forged claims, duplicate pending credits and invalid ledgers rej
 });
 
 run("an orphan pending claim and an oversized member history reject without any reserve, credit or audit write", async () => {
-  await reconcile(); await ref("users", "d").update({isActive: false});
+  await reconcile(); await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   const input = await membershipCommand("d", {permanentDepartureReason: "Confirmed departure"});
   await ref("shiftCoverageMemberClaims", hash(["delivery", "d"])).set({caseId: "missing-credit", type: "delivery",
     userId: "d", state: "creditPending"});
@@ -326,7 +453,7 @@ run("an orphan pending claim and an oversized member history reject without any 
 run("concurrent explicit departures cancel once and leave one administrative receipt and one ledger increment", async () => {
   await reconcile(); await seedCredit("earned");
   await ref("shiftCoverageLedgerState", "delivery").set({revision: 5});
-  await ref("users", "d").update({isActive: false});
+  await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   const inputs = await Promise.all([membershipCommand("d", {permanentDepartureReason: "First report"}),
     membershipCommand("d", {permanentDepartureReason: "Second report"})]);
   const beforeCount = (await db.collection(`${root}/shiftMembershipOperations`).get()).size;
@@ -349,7 +476,7 @@ run("concurrent explicit departures cancel once and leave one administrative rec
 run("racing completion with permanent departure cannot leave a spendable credit regardless of commit order", async () => {
   const shiftId = await acceptMarketCoverage();
   now = (await read("shifts", shiftId)).date.toMillis();
-  await ref("users", "d").update({isActive: false});
+  await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   const departure = await membershipCommand("d", {permanentDepartureReason: "Confirmed while completion was pending"});
   const complete = await coverageCommand("covered", "complete");
   const operations = [() => store.reconcileMembership(departure, "admin"), () => store.execute(complete, "admin")];
@@ -413,7 +540,7 @@ run("acceptance rejects an otherwise unexpired reserve offer when the beneficiar
 run("completion cannot outrun a later recorded permanent-departure observation by moving the clock backwards", async () => {
   const shiftId = await acceptMarketCoverage();
   const due = (await read("shifts", shiftId)).date.toMillis();
-  now = due + day; await ref("users", "d").update({isActive: false});
+  now = due + day; await writeMembershipEligibility(ref("users", "d"), {isActive: false}, false);
   await reconcile("d", {permanentDepartureReason: "Confirmed departure"});
   now = due;
   const prior = await snapshot();

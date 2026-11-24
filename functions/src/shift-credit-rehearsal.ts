@@ -1,5 +1,7 @@
 import {assertNoPendingShiftMembership} from
   "./shift-membership-reconciliation.js";
+import {assertNoUnreconciledMembershipEntries} from
+  "./shift-membership-eligibility-time.js";
 import {SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT} from
   "./shift-planning-bundle.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
@@ -69,7 +71,8 @@ export const createShiftCreditRehearsal = (
   const capture = async (transaction: Transaction, intent: Intent,
     authority: NonNullable<ReturnType<
       typeof captureShiftPlanningWriterAuthority>>) => {
-    await assertNoPendingShiftMembership(db, transaction);
+    const reconciledMembers = await assertNoPendingShiftMembership(
+      db, transaction);
     const now = nowMillis();
     const dateMillis = Date.parse(`${intent.scheduledDate}T12:00:00Z`);
     if (!Number.isSafeInteger(now) || now < 0 || dateMillis <= now) {
@@ -122,6 +125,8 @@ export const createShiftCreditRehearsal = (
         return rejectCoverage("credit_cohort_ineligible");
       }
     }
+    await assertNoUnreconciledMembershipEntries(
+      transaction, users, reconciledMembers, cohort);
     for (const credit of credits.filter((item) => item.state === "pending")) {
       const expectedId = digest([intent.type, credit.userId])
         .slice("shift-planning:v1:sha256:".length);

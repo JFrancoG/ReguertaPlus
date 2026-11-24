@@ -1,3 +1,4 @@
+import {ShiftCreditPlanningContext} from "./shift-credit-planning-context.js";
 import {
   Firestore,
   Timestamp,
@@ -132,6 +133,7 @@ export type ShiftPlanningFirestoreCasRuntime = {
 };
 
 type ShiftPlanningFirestoreCasRuntimeDependencies = {
+  creditPlanning?: ShiftCreditPlanningContext;
   outcomePersistence?: ShiftPlanningAttemptOutcomePersistence;
   clock?: () => Timestamp;
   applyForwardAttempt?:
@@ -458,6 +460,7 @@ export const createFirestoreShiftPlanningCasRuntime = (
           });
           const measured = await applyForwardAttempt({
             ...resolution,
+            creditPlanning: dependencies.creditPlanning,
             firestore,
             transaction,
             operationId,
@@ -587,6 +590,7 @@ export const createFirestoreShiftPlanningCasRuntime = (
           });
           const measured = await applyInverseAttempt({
             ...resolution,
+            creditPlanning: dependencies.creditPlanning,
             firestore,
             transaction,
             recoveryOperationId,

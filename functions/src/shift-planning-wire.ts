@@ -838,6 +838,7 @@ export const parseShiftRotationAggregateWire = (
 };
 
 const failureMessageKeys: Record<ShiftPlanningFailureCode, string> = {
+  credit_unit_unstaffable: "creditUnitUnstaffable",
   adjacent_delivery_lead_conflict: "adjacentDeliveryLeadConflict",
   invalid_delivery_spacing_source: "invalidDeliverySpacingSource",
   delivery_spacing_history_required: "deliverySpacingHistoryRequired",

@@ -78,7 +78,15 @@ internal data class ShiftCoverageSnapshot(
     data class Offer(val userId: String, val source: OfferSource, val expiresAtMillis: Long)
 
     @Serializable
-    data class Administration(val openedByUserId: String, val reason: String, val volunteerCount: Int)
+    data class Administration(
+        val openedByUserId: String,
+        val reason: String,
+        val volunteerCount: Int,
+        val drawFailure: DrawFailure? = null,
+    )
+
+    @Serializable
+    data class DrawFailure(val code: String, val reportedAtMillis: Long)
 
     @Serializable
     data class Credit(

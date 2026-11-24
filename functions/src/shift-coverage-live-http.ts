@@ -1,5 +1,7 @@
 import {AppEnvironment, HttpRequestError, requirePostMethod,
   VerifiedIdentity} from "./backend-security.js";
+import {parseCoverageDeliveryRequest} from
+  "./shift-coverage-delivery-administration.js";
 import {parseShiftCoverageCommand} from "./shift-coverage.js";
 import {parseShiftCoverageQuery} from "./shift-coverage-client.js";
 import {parseShiftAdministrationCommand, parseShiftAdministrationQuery} from
@@ -75,6 +77,17 @@ export const executeShiftCoverageRequest = async (
   request: Request, dependencies: Dependencies,
 ): Promise<unknown> => {
   const body = bodyFor(request);
+  if (body.action === "deliveryIncidents" || body.action === "retryDelivery") {
+    let request;
+    try {
+      request = parseCoverageDeliveryRequest(body);
+    } catch {
+      return invalid();
+    }
+    const identity = await identityFor(request.environment, dependencies);
+    return dependencies.serviceFor(request.environment)
+      .administerDelivery(request, identity);
+  }
   let parsed;
   try {
     parsed = body.action === "administration" ?

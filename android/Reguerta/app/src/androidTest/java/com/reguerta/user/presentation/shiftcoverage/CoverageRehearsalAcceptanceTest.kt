@@ -5,8 +5,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -22,7 +24,13 @@ import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import androidx.test.platform.app.InstrumentationRegistry
+import com.reguerta.user.R
 import com.reguerta.user.data.shiftcoverage.LocalCoverageRehearsalAccess
+import com.reguerta.user.domain.shiftcoverage.CoverageRehearsalAccess
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageCommand
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageFailure
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageRepository
+import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSession
 import com.reguerta.user.domain.shiftcoverage.ShiftCoverageSnapshot
 import com.reguerta.user.ui.theme.ReguertaTheme
 import org.junit.Assert.assertEquals
@@ -67,6 +75,14 @@ class CoverageRehearsalAcceptanceTest {
         show("coverage.notification.$eventId")
         compose.onNodeWithTag("coverage.notification.$eventId").performClick()
         compose.waitUntil(15_000) { model.selectedCaseId == "native-market" && !model.coverage.state.value.isBusy }
+        val offerLabel = compose.runOnIdle {
+            val offer = requireNotNull(model.coverage.state.value.snapshot!!.cases.single().offer)
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(
+                R.string.coverage_offered_to, model.coverage.memberName(offer.userId),
+            )
+        }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(offerLabel))
+        compose.onNodeWithText(offerLabel).assertIsDisplayed()
         show("coverage.action.accept")
         compose.onNodeWithTag("coverage.action.accept").assertIsEnabled().performClick()
         compose.onNodeWithTag("coverage.confirm").performScrollTo().assertIsDisplayed().assertIsEnabled()
@@ -86,6 +102,30 @@ class CoverageRehearsalAcceptanceTest {
             assertEquals(2L, current.revision)
         }
         signOut()
+    }
+
+    @Test fun rejectedAcceptanceIdentifiesTheActionWhenTheMemberReturnsToSignIn() {
+        val local = LocalCoverageRehearsalAccess()
+        val access = object : CoverageRehearsalAccess by local {
+            override val repository = object : ShiftCoverageRepository by local.repository {
+                override suspend fun execute(command: ShiftCoverageCommand, session: ShiftCoverageSession) {
+                    assertEquals(ShiftCoverageCommand.Action.accept, command.action)
+                    throw ShiftCoverageFailure.Rejected(403, "auth_invalid")
+                }
+            }
+        }
+        start("d", access)
+        show("coverage.case.native-market")
+        compose.onNodeWithTag("coverage.case.native-market").performClick()
+        show("coverage.action.accept")
+        compose.onNodeWithTag("coverage.action.accept").performClick()
+        compose.onNodeWithTag("coverage.confirm").performScrollTo().performClick()
+        compose.waitUntil(5_000) { model.coverage.state.value.acceptanceRejectedBySession }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val notice = context.getString(R.string.coverage_acceptance_rejected_sign_in)
+        compose.onNodeWithText(notice).assertIsDisplayed()
+        compose.onNodeWithTag("coverage.email").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("coverage.action.accept").assertDoesNotExist()
     }
 
     @Test fun adminCompletionCanBeCancelledWithoutGrantingMemberControlsAtLargeText() {
@@ -115,9 +155,9 @@ class CoverageRehearsalAcceptanceTest {
         signOut()
     }
 
-    private fun start(member: String) {
+    private fun start(member: String, access: CoverageRehearsalAccess = LocalCoverageRehearsalAccess()) {
         assumeTrue(InstrumentationRegistry.getArguments().getString("hu084Acceptance") == "true")
-        compose.runOnIdle { model = CoverageRehearsalViewModel(LocalCoverageRehearsalAccess()) }
+        compose.runOnIdle { model = CoverageRehearsalViewModel(access) }
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {

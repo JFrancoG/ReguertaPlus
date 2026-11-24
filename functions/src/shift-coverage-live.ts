@@ -1,14 +1,21 @@
 import {Firestore, Transaction} from "@google-cloud/firestore";
 import {AppEnvironment, HttpRequestError, VerifiedIdentity} from
   "./backend-security.js";
+import {administerCoverageDelivery, CoverageDeliveryPort,
+  parseCoverageDeliveryRequest} from
+  "./shift-coverage-delivery-administration.js";
+import type {ShiftCoverageStoreContext} from
+  "./shift-coverage-store-context.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
+import {parseShiftAdministrationCommand} from
+  "./shift-coverage-administration.js";
 import {createShiftCoverageStore} from "./shift-coverage-store.js";
-import {parseShiftCoverageActivation} from "./shift-coverage-store-context.js";
-import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
-import {captureShiftPlanningWriterAuthority} from
-  "./shift-planning-writer-authority.js";
-import {readVerifiedShiftCoverageBootstrap} from
-  "./shift-coverage-bootstrap-firestore.js";
+import {DRAND_QUICKNET} from "./shift-coverage-drand.js";
+import {readShiftCoverageActivation} from "./shift-coverage-activation.js";
+import {createShiftCreditPlanningContext} from
+  "./shift-credit-planning-context.js";
+import {ShiftPlanningError} from "./shift-planning-contract.js";
+import {parseShiftPlanningMaintenanceState} from "./shift-planning-wire.js";
 
 export type ShiftCoverageAccess = {
   schemaVersion: 1;
@@ -28,7 +35,7 @@ const unavailable = (): never => {
  * Firebase clients; this service never creates or terminates an SDK instance.
  * Operational readiness is a trusted composition decision, independent of the
  * ratified environment-bound policy. The index composition keeps it off
- * until external effect ownership, leases, intake and real entropy are wired.
+ * until the shared writers and effect consumers are ready.
  * @param {object} input Shared Admin SDK authority and operational admission.
  * @return {object} Authenticated access and the existing transactional store.
  */
@@ -37,83 +44,106 @@ export const createFirestoreShiftCoverageService = (input: {
   environment: AppEnvironment;
   operationalReady: boolean;
   nowMillis: () => number;
+  beaconFetcher?: typeof fetch;
+  effectDeliveryFor?: (context: ShiftCoverageStoreContext) =>
+    CoverageDeliveryPort;
 }) => {
   if (!["develop", "production"].includes(input.environment)) {
     return unavailable();
   }
   const {firestore, environment} = input;
   const root = `${environment}/plus-collections`;
-  const readActivation = async (transaction: Transaction) => {
+  const creditPlanning = createShiftCreditPlanningContext({firestore,
+    environment, operationalReady: input.operationalReady});
+  // Spacing approvals bind the current write epoch. Entering maintenance
+  // advances it, so admins can review and approve pairs in that same epoch.
+  type Access = "ordinary" | "reviewSpacing";
+  const readActivation = async (transaction: Transaction,
+    admin: boolean, access: Access) => {
     if (!input.operationalReady) return null;
-    const [source, maintenance] = await transaction.getAll(
-      firestore.doc(`${root}/shiftPlanningState/sourcePolicy`),
-      firestore.doc(`${root}/shiftPlanningState/current`));
-    const sourcePolicy = source.data();
-    const policy = parseShiftCoverageActivation(
-      sourcePolicy?.coverage, environment);
-    if (!policy?.enabled || sourcePolicy?.environment !== environment ||
-        sourcePolicy.creditLedger?.enabled !== true ||
-        sourcePolicy.creditLedger?.policyRevision !== policy.policyRevision ||
-        sourcePolicy.deliverySpacing?.version !==
-          "hu089-delivery-spacing-v1") return null;
+    const maintenance = await transaction.get(firestore.doc(
+      `${root}/shiftPlanningState/current`));
     try {
-      const authority = captureShiftPlanningWriterAuthority(maintenance.data());
-      if (!authority?.activeRevision || !authority.activeDigest) return null;
+      const state = parseShiftPlanningMaintenanceState(maintenance.data());
+      if (!state.activeRevision || !state.activeDigest ||
+          (state.maintenanceStatus === "closed" &&
+            !(admin && access === "reviewSpacing"))) return null;
     } catch (error) {
-      if (!(error instanceof HttpRequestError)) throw error;
+      if (!(error instanceof ShiftPlanningError)) throw error;
       return null;
     }
-    const initialization = await readVerifiedShiftCoverageBootstrap(
-      firestore, transaction, environment);
-    if (!initialization) return null;
-    return {policy, digest: digest({policy,
-      initializationReceiptDigest: initialization.receiptDigest})};
+    return readShiftCoverageActivation(firestore, transaction, environment);
   };
-  const readContext = (identity: VerifiedIdentity) =>
+  const readContext = (identity: VerifiedIdentity, access: Access) =>
     firestore.runTransaction(async (transaction) => {
       const actor = await readShiftCoverageActor(
         firestore, transaction, identity, environment);
-      return {actor, activation: await readActivation(transaction)};
+      return {actor, activation: await readActivation(transaction,
+        actor.admin, access)};
     });
-  const storeFor = async (identity: VerifiedIdentity) => {
-    const context = await readContext(identity);
+  const contextFor = async (identity: VerifiedIdentity, access: Access) => {
+    const context = await readContext(identity, access);
     const captured = context.activation ?? unavailable();
+    const requireReady = async (transaction: Transaction) => {
+      const actor = await readShiftCoverageActor(
+        firestore, transaction, identity, environment);
+      if (actor.memberId !== context.actor.memberId ||
+          actor.admin !== context.actor.admin ||
+          actor.eligible !== context.actor.eligible) {
+        throw new HttpRequestError(409, "coverage_session_changed",
+          "The linked account changed; refresh shift coverage");
+      }
+      const current = await readActivation(transaction, actor.admin, access);
+      if (!current || current.digest !== captured.digest) unavailable();
+    };
+    return {scope: {environment, creditPlanning, requireReady},
+      policy: captured.policy, admin: context.actor.admin};
+  };
+  const storeFor = async (identity: VerifiedIdentity,
+    access: Access = "ordinary") => {
+    const {scope, policy} = await contextFor(identity, access);
     return createShiftCoverageStore({firestore, nowMillis: input.nowMillis,
-      maximumOfferWindowMillis: captured.policy.maximumOfferWindowMillis,
+      maximumOfferWindowMillis: policy.maximumOfferWindowMillis,
       selectionPolicy: {version: "hu089-provisional-v1"},
-      context: {environment, requireReady: async (transaction) => {
-        const actor = await readShiftCoverageActor(
-          firestore, transaction, identity, environment);
-        if (actor.memberId !== context.actor.memberId ||
-            actor.admin !== context.actor.admin ||
-            actor.eligible !== context.actor.eligible) {
-          throw new HttpRequestError(409, "coverage_session_changed",
-            "The linked account changed; refresh shift coverage");
-        }
-        const current = await readActivation(transaction);
-        if (!current || current.digest !== captured.digest) unavailable();
-      }}});
+      beaconPolicy: DRAND_QUICKNET, beaconFetcher: input.beaconFetcher,
+      context: scope});
   };
   return {
     async resolveAccess(
       identity: VerifiedIdentity,
     ): Promise<ShiftCoverageAccess> {
-      const context = await readContext(identity);
+      const context = await readContext(identity, "reviewSpacing");
       return {schemaVersion: 1, environment,
         memberId: context.actor.memberId, enabled: Boolean(context.activation),
         policyRevision: context.activation?.policy.policyRevision ?? null};
     },
     async readClient(value: unknown, identity: VerifiedIdentity) {
-      return (await storeFor(identity)).readClient(value, identity);
+      const store = await storeFor(identity, "reviewSpacing");
+      return store.readClient(value, identity);
     },
     async execute(value: unknown, identity: VerifiedIdentity) {
       return (await storeFor(identity)).execute(value, identity);
     },
+    async administerDelivery(value: unknown, identity: VerifiedIdentity) {
+      const request = parseCoverageDeliveryRequest(value);
+      const {scope, admin} = await contextFor(identity, "ordinary");
+      if (!admin) {
+        throw new HttpRequestError(403, "coverage_actor_forbidden", "Denied");
+      }
+      const delivery = input.effectDeliveryFor?.(scope) ?? unavailable();
+      return administerCoverageDelivery({firestore, context: scope, identity,
+        request, delivery});
+    },
     async readAdministration(value: unknown, identity: VerifiedIdentity) {
-      return (await storeFor(identity)).readAdministration(value, identity);
+      const store = await storeFor(identity, "reviewSpacing");
+      return store.readAdministration(value, identity);
     },
     async executeAdministration(value: unknown, identity: VerifiedIdentity) {
-      return (await storeFor(identity)).executeAdministration(value, identity);
+      const command = parseShiftAdministrationCommand(value);
+      const store = await storeFor(identity,
+        command.action === "authorizeDeliverySpacingException" ?
+          "reviewSpacing" : "ordinary");
+      return store.executeAdministration(command, identity);
     },
   };
 };

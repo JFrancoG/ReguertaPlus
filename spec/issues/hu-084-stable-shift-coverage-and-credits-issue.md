@@ -1,8 +1,14 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Product feedback on 21 November 2026
+
+The maintainer reviewed the same offer on iOS and Android and understood who was absent, who should respond and that the offer was pending. D01 has been implemented and verified locally. New and returning members join the rotation in effective eligibility order even when administration processes them in reverse. Stable member identifiers break exact ties. Offers retain the order in which members entered each reserve. [D01 evidence](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#d01-effective-eligibility-on-21-november-2026). Once implementation is complete, review the UX and visual consistency of all new Shifts screens together on both platforms before publication. Two coverage scenarios in Develop and four base-calendar scenarios at production activation remain. [Mobile review](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#comparative-mobile-review-on-20-november-2026) · [Implementation plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md).
+
+D09 passed local acceptance with a real public Quicknet round, one administrative outage alert and recovery of the same order. The environment-bound planner now retains a single credit across retries of completion, publication and recovery. Completion now waits for the verified Sheets row before releasing the member notice. Local replay and administrative recovery preserve one projected change and one inbox entry. Next reconcile PR #278 with main and check access and delivery controls on the integrated candidate. [Completion delivery](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#completed-coverage-delivery-on-21-november-2026). [Credit and spacing evidence](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#credit-publication-and-delivery-spacing-on-21-november-2026). [D09 evidence](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#d09-public-draw-on-21-november-2026).
+
 ## Develop migration complete on 20 November 2026
 
-A separately authorized Sheets continuation applied one batch to the existing operation. The owner verified 53 cells, two markers and the workbook preservation check. Firestore was read-only and all 203 committed destinations were verified. Temporary permissions were removed. The next product work is the comparative iOS/Android UI review and candidate policy review. Two Develop coverage scenarios and four production base-calendar scenarios remain open. [Verified outcome](../../docs/testing/hu084-develop-initial-evidence-window.md#develop-migration-verified-on-20-november-2026).
+A separately authorized Sheets continuation applied one batch to the existing operation. The owner verified 53 cells, two markers and the workbook preservation check. Firestore was read-only and all 203 committed destinations were verified. Temporary permissions were removed. [Verified outcome](../../docs/testing/hu084-develop-initial-evidence-window.md#develop-migration-verified-on-20-november-2026).
 
 ## Local Sheets continuation for attempt 15
 
@@ -32,6 +38,13 @@ All eleven replies arrived. The operator passed admission, minted the writer cre
 
 All eight requested replies arrived. Admission stopped before writer issuance. Independent postflight confirmed removal of temporary access and preservation of all 62 shifts and 117 notices. Two focused regressions verified the local correction to the displayed deadline of the initial and subsequent activity reports. The Functions build and lint passed. The correction has not been deployed. The three corrected modules were subsequently incorporated into the local package 13 operator. Package 12 is consumed and immutable. Any later window requires separate authorization. [Attempt 12 outcome and correction](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-12-closed-during-admission--2026-11-20).
 
+## Assembly approval — 2026-11-18
+
+The maintainer reported that the assembly approved the [member text](../shifts/hu-084-stable-shift-coverage-and-credits/propuesta-turnos-para-socios.md).
+The [decision record](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up)
+records the agreed policy and the condition for future adjustments after use.
+The official minutes reference and effective date are pending. The [candidate review](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#technical-reconciliation-on-20-november-2026) records the implementation gaps for D01–D15.
+Develop integration, shared acceptance and separate rollout approval remain open.
 
 ## Attempt 11 consumed and closed — 2026-11-12
 
@@ -78,7 +91,7 @@ Issue #268 stays open and PR #278 stays draft.
 
 ## Documentation and product rehearsal checkpoint — 2026-11-05
 
-The [remaining-work plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-20) is the current next-step index. Repeated historical evidence now links to its retained plan sections. The [4 November iOS rehearsal](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-product-rehearsal--2026-11-04) records market acceptance, delivery completion, an earned credit and its single use in a private local planning unit, followed by the tester seeing «Crédito utilizado».
+The [remaining-work plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-04) is the current next-step index. Repeated historical evidence now links to its retained plan sections. The [4 November iOS rehearsal](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-product-rehearsal--2026-11-04) records market acceptance, delivery completion, an earned credit and its single use in a private local planning unit, followed by the tester seeing «Crédito utilizado».
 
 The [5 November iOS retest](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-session-interruption--2026-11-05) verified that the member understood the rejected acceptance and how to resume. The next product decision is assembly ratification. The real draw provider, operational observability and shared Develop acceptance remain open. The separate local Google adapter correction and stopped-window evidence are excluded from this checkpoint. Issue #268 stays open and PR #278 stays draft.
 
@@ -441,16 +454,15 @@ HU-083 projection/event infrastructure. Detailed plan: the existing `plan.md` be
 ## Summary
 
 Keep every unaffected published assignment stable. Resolve one vacancy through
-the proposed sequence `reserve FIFO -> volunteers -> compensated auditable draw
+the approved sequence `reserve FIFO -> volunteers -> compensated auditable draw
 -> admin`, always with explicit acceptance. A completed coverage earns one
 same-type credit whose first skip attempt is the owner's first eligible
 unactivated occurrence; safe staffing may defer it for retry.
 
-This is a proposal derived from the maintainer's joins/departures/volunteer
-questions. The authoritative requirements reserve the final policy for the
-assembly, so issue creation is traceability, not approval.
+The approved member rules and the technical reconciliation are tracked in the
+[assembly decision record](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md).
 
-## Non-negotiable safety properties in the proposal
+## Coverage integrity requirements
 
 - Never shift everybody's published dates after a join/departure/absence.
 - Keep immutable rotation ownership separate from effective assignment.
@@ -461,9 +473,8 @@ assembly, so issue creation is traceability, not approval.
   previously active/public round.
 - A credit is first attempted at the owner's first eligible unactivated
   occurrence; a safely deferred credit stays pending and retries later.
-- Safe default: one accepted/incomplete same-type coverage or unconsumed credit at a
-  time. The assembly must ratify it or define the stacking cap/proximity, eligibility,
-  ordering, cancellation, and consumption rules.
+- Block a new same-type coverage while one is accepted/incomplete or a credit
+  is pending.
 - One whole delivery slot or three-person market is solved atomically. Resting
   credited owners cannot work that unit; if staffing is impossible, tentative
   consumptions roll back in reverse queue order until feasible. A restored owner
@@ -472,9 +483,8 @@ assembly, so issue creation is traceability, not approval.
   leads. CAS includes adjacent assignment/completion revisions; if N=2 or any other
   case has no valid filler, the credit defers/backtracks or coverage escalates rather
   than creating the same lead/helper.
-- Backtracking is the complete safe proposal. Any alternative coverage fallback
-  requires assembly-approved accounting for both credits, completion/failure,
-  and the original owner ultimately working.
+- Escalate to administration if deferring credits still leaves the physical unit
+  unstaffable.
 - The full same-type ledger version is in the stage digest. Any intervening
   issue/consume/cancel change invalidates activation, which commits selected
   credit and cursor transitions atomically.
@@ -484,20 +494,20 @@ assembly, so issue creation is traceability, not approval.
   cohort never change: public positions use coverage; the safe proposal gives an
   unpublished owner position an `excusedDeparture` tombstone that proposes round
   advancement only through the complete-unit atomic activation below, without a
-  shift, completion, credit, or replacement owner. The
-  assembly may choose coverage instead only with complete slot/cursor/credit rules.
+  shift, completion, credit, or replacement owner. Verify that this internal
+  accounting matches the approved rule for future unpublished turns.
 - A tombstone never advances alone: it commits atomically with cursor/round closure
   and a complete affected physical unit. If delivery N=2, market N=3, or multiple
   losses cannot staff that unit under all invariants, nothing changes and the
   ratified coverage/admin fallback or blocked state applies.
 - Eligibility can change without membership exit. The live HU-082 predicate governs:
   unfrozen rounds deterministically remove/append after invalidating preview/stage;
-  frozen rounds preserve owner/cohort and use ratified reason-specific coverage or
-  `excusedIneligible`. Re-eligibility enters reserve/next unfrozen round and never
-  revives an old tombstone. `Compras Regüerta` remains eligible; real producers do not.
-- The proposed reserve FIFO crosses the seasonal boundary. The assembly must
-  decide whether reserve status ends on future-cohort activation, when the first
-  regular turn is due/completed, or at another explicit boundary.
+  frozen rounds preserve owner/cohort. Verify the mapping of reason-specific
+  coverage and `excusedIneligible` against the approved rules. Re-eligibility
+  enters reserve and the next unfrozen round without reviving an old position.
+  `Compras Regüerta` remains eligible. Real producers are excluded.
+- Reserve FIFO crosses the seasonal boundary. Reserve status ends when the first
+  regular shift of the same type becomes due, or earlier on loss of eligibility.
 - Helper recomputation is prospective: an uncompleted predecessor follows the next
   effective lead; completion freezes its actual helper/revision/time. Later coverage/
   credit or HU-016 swap preserves completed history and rotation ownership.
@@ -586,24 +596,19 @@ Checkpoint release is not claimed and no further attempt is authorized.
 
 ## Live activation gate
 
-- [ ] Assembly decision/date and accepted wording linked.
-- [ ] Normal-round tail placement and simultaneous-join ordering explicitly
-  ratified or amended.
-- [ ] Frozen-round unpublished departure handling is ratified: proposed audited
-  tombstone/skip or a complete coverage alternative with physical-slot, owner,
-  cursor, round-closure, completion/failure, and credit accounting.
-- [ ] Tombstone/eligibility skip atomicity with the next complete physical unit and
-  the zero-mutation N=2 delivery/N=3 market/multiple-loss fallback is ratified.
-- [ ] Every HU-082 eligibility-transition reason is mapped across unfrozen/frozen
-  and preview/stage/public states, including re-entry ordering and whether frozen
-  unpublished positions use coverage or reason-coded `excusedIneligible`.
-- [ ] Reserve-exit boundary and deterministic whole-unit credit rollback or
-  fully accounted coverage fallback explicitly ratified.
-- [ ] English/Spanish requirements updated.
-- [ ] Spec/issue reconciled and maintainer-approved.
+- [x] Link the [reported decision, date and approved member text](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up).
+- [ ] Link the official minutes when available.
+- [x] Link the approved policy from [English](../../docs/requirements/mvp-requirements-reguerta-v1.md)
+  and [Spanish](../../docs-es/requirements/requisitos-mvp-reguerta-v1.md) requirements.
+- [ ] Verify joins/order, reserve exit, offers and credit deferral against the
+  approved rules and record evidence for each affected case.
+- [ ] Verify the technical mapping of eligibility, re-entry and unpublished
+  frozen positions, including complete-unit atomicity and the unstaffable
+  delivery/market fallback.
+- [ ] Reconcile the implementation scope with the maintainer.
 - [x] Implementation branch explicitly requested and created on 2026-09-12.
 - [x] Provisional local implementation explicitly authorized on 2026-09-12.
-- [ ] Assembly ratification and complete integration authorize live activation.
+- [ ] Complete integration and shared acceptance before requesting live activation.
 
 ## Suggested labels
 

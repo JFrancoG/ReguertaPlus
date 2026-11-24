@@ -1,3 +1,4 @@
+import type {AppEnvironment} from "./backend-security.js";
 import {addBusinessDays} from "./shift-planning-calendar.js";
 import {ShiftPlanningError,
   ShiftPlanningFailureCode} from "./shift-planning-contract.js";
@@ -16,6 +17,7 @@ export type DeliverySpacingException = {
 export type DeliverySpacingSource = {
   version: "hu089-delivery-spacing-v1"; authorityDigest: string;
   history: DeliverySpacingHistory[]; exceptions: DeliverySpacingException[];
+  environment?: AppEnvironment; activationDigest?: string;
 };
 
 export type DeliverySpacingConflict = {
@@ -61,7 +63,16 @@ export const parseDeliverySpacingSource = (
   value: unknown,
 ): DeliverySpacingSource => {
   const source = value as DeliverySpacingSource | undefined;
-  if (!source || !exact(source, "authorityDigest,exceptions,history,version") ||
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    return fail();
+  }
+  const scoped = "environment" in source || "activationDigest" in source;
+  const keys = scoped ?
+    "activationDigest,authorityDigest,environment,exceptions,history,version" :
+    "authorityDigest,exceptions,history,version";
+  const validScope = !scoped || ((source.environment === "develop" ||
+    source.environment === "production") && isDigest(source.activationDigest));
+  if (!exact(source, keys) || !validScope ||
       source.version !== "hu089-delivery-spacing-v1" ||
       !isDigest(source.authorityDigest) || !Array.isArray(source.history) ||
       !Array.isArray(source.exceptions) || source.history.length > 1000 ||

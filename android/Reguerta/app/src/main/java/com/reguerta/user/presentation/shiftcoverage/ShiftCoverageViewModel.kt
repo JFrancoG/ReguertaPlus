@@ -22,6 +22,7 @@ internal data class ShiftCoverageState(
     val pendingAdministration: ShiftCoverageAdministrationCommand? = null,
     val isAdministration: Boolean = false,
     val failure: ShiftCoverageFailure? = null,
+    val acceptanceRejectedBySession: Boolean = false,
     val isBusy: Boolean = false,
 ) {
     val hasPendingMutation: Boolean get() = pendingCommand != null || pendingAdministration != null
@@ -105,17 +106,17 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
         val session = current.session ?: return
         if (current.isBusy || current.snapshot == null || current.hasPendingMutation || current.isAdministration) return
         mutableState.value = current.copy(pendingCommand = command)
-        executePending(session)
+        executePending(session, isRetry = false)
     }
 
     suspend fun retryPending() {
         val current = state.value
         val session = current.session ?: return
         if (current.isBusy || !current.hasPendingMutation) return
-        if (current.pendingAdministration != null) executePendingAdministration(session) else executePending(session)
+        if (current.pendingAdministration != null) executePendingAdministration(session) else executePending(session, isRetry = true)
     }
 
-    private suspend fun executePending(session: ShiftCoverageSession) {
+    private suspend fun executePending(session: ShiftCoverageSession, isRetry: Boolean) {
         val command = state.value.pendingCommand ?: return
         val owner = generation
         mutableState.value = state.value.copy(isBusy = true, snapshot = null, failure = null)
@@ -133,10 +134,12 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
             mutableState.value = state.value.copy(snapshot = result)
         } catch (error: Exception) {
             if (owner != generation) return
+            // A rejected read-back or retry does not establish whether the original offer was accepted.
+            val initialAcceptance = command.action == ShiftCoverageCommand.Action.accept && !isRetry && state.value.pendingCommand != null
             if (error is ShiftCoverageFailure.Rejected && error.status in listOf(400, 401, 403, 409)) {
                 mutableState.value = state.value.copy(pendingCommand = null)
             }
-            record(error)
+            record(error, initialAcceptance)
         } finally {
             if (owner == generation) mutableState.value = state.value.copy(isBusy = false)
         }
@@ -212,13 +215,12 @@ internal class ShiftCoverageViewModel(private val repository: ShiftCoverageRepos
         if (owner == generation && overviewRequested) refreshOverview()
     }
 
-    private fun record(error: Exception) {
+    private fun record(error: Exception, initialAcceptance: Boolean = false) {
         val failure = error as? ShiftCoverageFailure ?: ShiftCoverageFailure.Unavailable
-        if (failure == ShiftCoverageFailure.SessionChanged ||
-            failure is ShiftCoverageFailure.Rejected && failure.status in listOf(401, 403)
-        ) {
+        val accessRejected = failure is ShiftCoverageFailure.Rejected && failure.status in listOf(401, 403)
+        if (failure == ShiftCoverageFailure.SessionChanged || accessRejected) {
             bind(null)
         }
-        mutableState.value = state.value.copy(failure = failure)
+        mutableState.value = state.value.copy(failure = failure, acceptanceRejectedBySession = initialAcceptance && accessRejected)
     }
 }

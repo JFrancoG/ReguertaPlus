@@ -2,6 +2,12 @@
 
 Partially superseded on 2026-09-08 by [ADR-0014](0014-use-public-firestore-transactions-for-shift-planning.md) for transaction admission and attempt outcomes. The original decision below is retained as history.
 
+**18 November 2026.** The maintainer reported assembly approval of the
+HU-084 member policy for joins, departures, reserves, coverage and credits.
+The assembly-gate references below describe earlier checkpoints. HU-084 still
+requires the technical reconciliation, shared acceptance and separately
+authorized activation tracked in its [decision record](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up).
+
 ## Status
 
 Accepted
@@ -1056,3 +1062,7 @@ Controls remain closed; re-opening and admitting delivery under a new writer epo
 are separate governed operations. Existing effect writer authority is not renewed.
 There is no deployed recovery endpoint, allowlist issuer or real control-plane driver
 in this local composition. Their wiring and live evidence remain HU-085 responsibilities.
+
+## Environment-bound credit planning on 21 November 2026
+
+An admitted coverage preview rebuilds the private planning source from current Firestore inputs. It refreshes the derived fairness document when the source changes. This gives the first preview after completion or an approval the current ledger and ordinary delivery history. Stage and activation still require the exact source bound to the candidate. Publication changes the credit, its same-type claim and the calendar in one transaction. Recovery checks the committed images before restoring them. The source and private artifact bind the environment, ratified policy and verified initialization receipt. Ordinary planning keeps its existing source contract. [Integration evidence](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md#credit-publication-and-delivery-spacing-on-21-november-2026).

@@ -732,3 +732,18 @@ This applies to **direct client Firestore writes**. Rules do not constrain serve
 functions, other Admin/IAM writers or the still-enabled reminder jobs. The accepted
 ADR-0022 policy does not mark those controls fenced, prove old work drained or admit
 shared maintenance; `legacyUntracked:true` and `canEnterMaintenance:false` remain.
+
+## Delivery incidents for completed coverage
+
+An active Regüerta administrator can inspect completed coverages through the authenticated `shiftCoverage` function once coverage is enabled in the selected environment. Use the configured function URL and a Firebase ID token from the administrator's current session. The service rechecks the administrator during recovery. The [Spanish runbook](../../docs-es/testing/hu084-relevo-backend.md#incidencias-de-entrega-de-coberturas-completadas) contains an executable shell example.
+
+Send a JSON POST with `schemaVersion: 1`, the expected `environment` and `action: "deliveryIncidents"`. Each page examines 25 completions. Read `data.incidents` and pass any `data.nextCursor` back in `after`, including after an empty page. Use the case and operation identifiers returned by the service.
+
+| Returned mode | Recovery request |
+| --- | --- |
+| `resume` | POST `action: "retryDelivery"` with the returned `effectOperationId` and `mode` to resume the pending completion and any notices awaiting submission. |
+| `inspect` | POST the same fields with `mode: "inspect"` to verify the submitted workbook batch through its cells and marker. An unverified batch retains its reservation for governed reconciliation. |
+| `retryPush` | Include the returned `memberId`, `eventId` and `expectedAttemptId`. Generate an `operationId` once for the administrator's decision and reuse the entire request if the response is lost. Only a proven rejection by every destination admits a new submission. |
+| `null` | For `pushUnconfirmed`, retain the original inbox item. For `governedReconciliation`, use `projectionOperationId` with the governed operator procedure. For `invalidEvidence`, inspect the private records for the indicated completion. |
+
+Repeat the incident query after recovery. Provider acceptance is recorded separately from receipt or opening on a device. [Administrative endpoint coverage](../../functions/test/shift-coverage-live.emulator.test.cjs).

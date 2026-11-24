@@ -1,7 +1,16 @@
+import type {AppEnvironment} from "./backend-security.js";
+import {isRegisteredProvisionalCreditFirestore, requireOrdinaryShiftCreditPlan,
+  requireProvisionalCreditPublication, requireShiftCreditPlanningAccess,
+  ShiftCreditPlanningAccess} from "./shift-credit-planning-context.js";
+export {createProvisionalCreditFirestore, requireProvisionalCreditPublication,
+  requireRegisteredProvisionalCreditFirestore} from
+  "./shift-credit-planning-context.js";
 import {assertShiftMembershipPlanningSource,
   captureShiftMembershipPlanningSource, parseShiftMembershipPlanningSource,
   ShiftMembershipPlanningSource, ShiftMembershipPlanningChange} from
   "./shift-membership-planning.js";
+import {assertNoUnreconciledMembershipEntries} from
+  "./shift-membership-eligibility-time.js";
 import {assertNoPendingShiftMembership} from
   "./shift-membership-reconciliation.js";
 import {consumeRotationPositions, RotationProjectionPrefix,
@@ -11,7 +20,8 @@ import {ShiftRotationAggregateWire} from "./shift-planning-wire.js";
 import {parseShiftPlanningPublicShiftDocument,
   ShiftPlanningPublicShiftDocument} from
   "./shift-planning-publication-contract.js";
-import {Firestore, Transaction} from "@google-cloud/firestore";
+import {DocumentSnapshot, Firestore, Transaction} from
+  "@google-cloud/firestore";
 import {coverageId, rejectCoverage, ShiftCoverageCredit,
   SHIFT_COVERAGE_POLICY_REVISION} from "./shift-coverage.js";
 import {parseShiftCoverageCredit} from "./shift-credit-unit.js";
@@ -26,6 +36,8 @@ export type ShiftCreditPublicationSource = ProvisionalSeasonCredits & {
   claims: Claim[];
 };
 export type ShiftCreditPublicationSources = {
+  environment?: AppEnvironment;
+  activationDigest?: string;
   delivery: ShiftCreditPublicationSource;
   market: ShiftCreditPublicationSource;
   membership?: ShiftMembershipPlanningSource;
@@ -46,54 +58,87 @@ const publishedPositionKeys = (shift: ShiftPlanningPublicShiftDocument) => {
   return positions.map((position) => rotationOwnerPositionKey(
     shift.type, position));
 };
-const root = "develop/plus-collections";
-const provisionalDatabases = new WeakSet<Firestore>();
+type MembershipCandidates = {
+  rotations: {delivery: ShiftRotationAggregateWire;
+    market: ShiftRotationAggregateWire};
+  users?: readonly DocumentSnapshot[];
+  plannedMemberIds?: readonly string[];
+};
 
-export const createProvisionalCreditFirestore = (): Firestore => {
-  requireProvisionalCreditPublication("develop");
-  const db = new Firestore({projectId: "demo-reguerta-hu084-coverage",
-    host: "127.0.0.1:8798", ssl: false});
-  provisionalDatabases.add(db);
-  return db;
-};
-export const requireRegisteredProvisionalCreditFirestore = (db: Firestore) => {
-  requireProvisionalCreditPublication("develop");
-  if (!provisionalDatabases.has(db)) {
-    return rejectCoverage("coverage_provisional_emulator_required");
+const assertReconciledCandidates = async (
+  db: Firestore, transaction: Transaction, known: ReadonlySet<string>,
+  candidates: MembershipCandidates, environment: AppEnvironment,
+) => {
+  const root = `${environment}/plus-collections`;
+  const delivery = candidates.rotations.delivery.cursor.cohortUserIds;
+  const market = new Set(candidates.rotations.market.cursor.cohortUserIds);
+  const inBoth = new Set(delivery.filter((id) => market.has(id)));
+  let users = candidates.users;
+  if (!users) {
+    // A staged forward has no raw roster. Check the old and planned cohorts.
+    const ids = new Set([...delivery, ...market,
+      ...(candidates.plannedMemberIds ?? [])]);
+    const refs = [...ids].filter((id) => !known.has(id))
+      .map((id) => db.doc(`${root}/users/${id}`));
+    users = refs.length ? await transaction.getAll(...refs) : [];
   }
+  if (users.some((member) => member.ref.firestore !== db ||
+      member.ref.parent.path !== `${root}/users`)) {
+    return rejectCoverage("invalid_membership_source");
+  }
+  await assertNoUnreconciledMembershipEntries(
+    transaction, users, known, inBoth);
 };
+
 /**
- * Local membership transitions also fence ordinary (credit-disabled) plans.
- * Live and legacy test clients keep their existing authority contract.
- * @param {object} input Transaction and its registered emulator client.
+ * Ordinary bundles cannot acknowledge transitions or spend credits. Reject a
+ * stale ordinary bundle if a shared coverage authority has since been enabled.
+ * @param {object} input Transaction and the server-bound SDK environment.
  */
-export const assertProvisionalShiftMembershipSource = async (input: {
-  firestore: Firestore; transaction: Transaction;
-}) => {
-  if (provisionalDatabases.has(input.firestore)) {
-    await assertNoPendingShiftMembership(input.firestore, input.transaction);
+export const assertProvisionalShiftMembershipSource = async (
+  input: ShiftCreditPlanningAccess & {
+    membershipCandidates?: MembershipCandidates},
+) => {
+  await requireOrdinaryShiftCreditPlan(input);
+  if (isRegisteredProvisionalCreditFirestore(input.firestore)) {
+    const environment = input.environment ?? "develop";
+    requireProvisionalCreditPublication(environment);
+    const known = await assertNoPendingShiftMembership(
+      input.firestore, input.transaction, environment);
+    if (input.membershipCandidates) {
+      await assertReconciledCandidates(input.firestore, input.transaction,
+        known, input.membershipCandidates, environment);
+    }
   }
 };
 
 const claimId = (type: string, id: string) => digest([type, id])
   .slice("shift-planning:v1:sha256:".length);
 
-export const requireProvisionalCreditPublication = (environment: string) => {
-  if (environment !== "develop" ||
-      process.env.GCLOUD_PROJECT !== "demo-reguerta-hu084-coverage" ||
-      process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8798") {
-    return rejectCoverage("coverage_provisional_emulator_required");
-  }
-};
-
 export const parseShiftCreditPublicationSources = (
   value: unknown,
   environment: string,
 ): ShiftCreditPublicationSources => {
-  requireProvisionalCreditPublication(environment);
   const sources = value as ShiftCreditPublicationSources;
-  if (!sources || !["delivery,market", "delivery,market,membership"].includes(
-    Object.keys(sources).sort().join())) {
+  if (!sources || typeof sources !== "object" || Array.isArray(sources)) {
+    return rejectCoverage("invalid_credit_publication_source");
+  }
+  const shared = "environment" in sources || "activationDigest" in sources;
+  if (shared) {
+    if (!["develop", "production"].includes(environment) ||
+        sources.environment !== environment ||
+        typeof sources.activationDigest !== "string" ||
+        !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(
+          sources.activationDigest)) {
+      return rejectCoverage("invalid_credit_publication_source");
+    }
+  } else {
+    requireProvisionalCreditPublication(environment);
+  }
+  const fields = ["delivery", "market"];
+  if (shared) fields.push("environment", "activationDigest");
+  if ("membership" in sources) fields.push("membership");
+  if (Object.keys(sources).sort().join() !== fields.sort().join()) {
     return rejectCoverage("invalid_credit_publication_source");
   }
   if ("membership" in sources) {
@@ -189,20 +234,32 @@ export const isReleasedShiftCoverageClaim = (value: unknown): boolean => {
 
 export const buildShiftCreditPublication = (input: {
   sources: ShiftCreditPublicationSources;
+  environment?: AppEnvironment;
   delivery: ShiftSeasonCreditProjection;
   market: ShiftSeasonCreditProjection;
   planId: string;
   membershipChanges?: ShiftMembershipPlanningChange[];
 }): ShiftCreditPublication => {
   coverageId(input.planId);
+  const environment = input.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
+  if ((input.sources.environment ?? "develop") !== environment) {
+    return rejectCoverage("invalid_credit_publication_source");
+  }
   const changes: ShiftCreditPublication["changes"] =
     [...input.membershipChanges ?? []];
+  const membership = new Set(input.sources.membership?.records.map((record) =>
+    `${root}/shiftMembershipState/${record.id}`));
+  if (changes.some((change) => !membership.has(change.targetPath))) {
+    return rejectCoverage("membership_plan_source_changed");
+  }
   for (const type of ["delivery", "market"] as const) {
     const source = input.sources[type];
     const projection = input[type];
     for (const id of projection.consumedCreditIds) {
       const credit = source.credits.find((item) => item.id === id);
       const claim = source.claims.find((item) => item.data.caseId === id &&
+        item.data.userId === credit?.userId &&
         item.data.state === "creditPending");
       if (!credit || credit.state !== "pending" || !claim) {
         return rejectCoverage("credit_claim_changed");
@@ -219,6 +276,10 @@ export const buildShiftCreditPublication = (input: {
       changes.push({targetPath: `${root}/shiftCoverageLedgerState/${type}`,
         before: source.ledger, after: {revision: source.ledger.revision + 1}});
     }
+  }
+  if (new Set(changes.map((change) => change.targetPath)).size !==
+      changes.length) {
+    return rejectCoverage("credit_plan_source_changed");
   }
   const excusedOwnerPositionKeys = ["delivery", "market"].flatMap((type) =>
     input[type as "delivery" | "market"].units.flatMap((unit) =>
@@ -253,15 +314,19 @@ export const shiftCreditPublicationAfter = (
  * inserted after stage or activation. The caller queues no writes beforehand.
  * @param {object} input Same-attempt source and activation time for inverse.
  */
-export const assertShiftCreditPublicationSource = async (input: {
-  firestore: Firestore;
-  transaction: Transaction;
+export const assertShiftCreditPublicationSource = async (input:
+  ShiftCreditPlanningAccess & {
   publication: ShiftCreditPublication;
   activatedAtMillis?: number;
+  membershipCandidates?: MembershipCandidates;
 }) => {
-  requireProvisionalCreditPublication("develop");
-  if (!provisionalDatabases.has(input.firestore)) {
-    return rejectCoverage("coverage_provisional_emulator_required");
+  const environment = input.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
+  const activationDigest = await requireShiftCreditPlanningAccess(input);
+  const sources = input.publication.sources;
+  if (sources.activationDigest !== activationDigest || sources.environment !==
+      (activationDigest ? environment : undefined)) {
+    return rejectCoverage("credit_plan_source_changed");
   }
   if (input.publication.excusedOwnerPositionKeys?.length) {
     const shifts = await input.transaction.get(input.firestore.collection(
@@ -279,6 +344,14 @@ export const assertShiftCreditPublicationSource = async (input: {
     source: input.publication.sources.membership,
     activatedChanges: input.activatedAtMillis === undefined ? undefined :
       input.publication.changes});
+  if (input.membershipCandidates) {
+    const known = new Set(input.publication.sources.membership?.records
+      .map((record) => record.id));
+    await assertReconciledCandidates(input.firestore, input.transaction,
+      known, input.membershipCandidates, environment);
+  }
+  const allowedPaths = new Set(sources.membership?.records.map((record) =>
+    `${root}/shiftMembershipState/${record.id}`));
   for (const type of ["delivery", "market"] as const) {
     const source = input.publication.sources[type];
     const expected = new Map<string, unknown>([
@@ -288,6 +361,9 @@ export const assertShiftCreditPublicationSource = async (input: {
       ...source.claims.map((claim): [string, Data] =>
         [`${root}/shiftCoverageMemberClaims/${claim.id}`, claim.data]),
     ]);
+    for (const [path, value] of expected) {
+      if (value !== null) allowedPaths.add(path);
+    }
     if (input.activatedAtMillis !== undefined) {
       for (const change of input.publication.changes) {
         if (expected.has(change.targetPath)) {
@@ -313,6 +389,11 @@ export const assertShiftCreditPublicationSource = async (input: {
       return rejectCoverage("credit_plan_source_changed");
     }
   }
+  const paths = input.publication.changes.map((change) => change.targetPath);
+  if (new Set(paths).size !== paths.length ||
+      paths.some((path) => !allowedPaths.has(path))) {
+    return rejectCoverage("credit_plan_source_changed");
+  }
 };
 
 /**
@@ -322,19 +403,19 @@ export const assertShiftCreditPublicationSource = async (input: {
  * @param {object} input Same-transaction database and authoritative rotations.
  * @return {Promise<ShiftCreditPublicationSources>} Complete immutable sources.
  */
-export const captureShiftCreditPublicationSources = async (input: {
-  firestore: Firestore;
-  transaction: Transaction;
+export const captureShiftCreditPublicationSources = async (input:
+  ShiftCreditPlanningAccess & {
   rotations: {delivery: ShiftRotationAggregateWire;
     market: ShiftRotationAggregateWire};
+  users?: readonly DocumentSnapshot[];
   prefixes: {delivery: RotationProjectionPrefix | null;
     market: RotationProjectionPrefix | null};
 }): Promise<ShiftCreditPublicationSources> => {
-  requireProvisionalCreditPublication("develop");
-  if (!provisionalDatabases.has(input.firestore)) {
-    return rejectCoverage("coverage_provisional_emulator_required");
-  }
-  const sources = {} as ShiftCreditPublicationSources;
+  const environment = input.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
+  const activationDigest = await requireShiftCreditPlanningAccess(input);
+  const sources = (activationDigest ? {environment, activationDigest} : {}) as
+    ShiftCreditPublicationSources;
   const publicPositionKeys: string[] = [];
   for (const type of ["delivery", "market"] as const) {
     const rotation = input.rotations[type];
@@ -399,10 +480,12 @@ export const captureShiftCreditPublicationSources = async (input: {
     sources[type] = source;
   }
   const membership = await captureShiftMembershipPlanningSource(
-    input.firestore, input.transaction);
+    input.firestore, input.transaction, environment);
+  await assertReconciledCandidates(input.firestore, input.transaction,
+    new Set(membership.records.map((record) => record.id)), input, environment);
   if (membership.records.length || membership.reserves.length) {
     sources.membership = {...membership,
       publishedOwnerPositionKeys: [...new Set(publicPositionKeys)].sort()};
   }
-  return parseShiftCreditPublicationSources(sources, "develop");
+  return parseShiftCreditPublicationSources(sources, environment);
 };

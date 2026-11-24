@@ -1,5 +1,10 @@
 # ADR-0017: Mantener la resolución administrativa tras su plazo objetivo
 
+**18 de noviembre de 2026.** El mantenedor comunicó que la asamblea aprobó
+el escrito, incluido el plazo de resolución administrativa descrito aquí.
+Siguen pendientes la aceptación compartida y la autorización de activación.
+[Registro del acuerdo](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/ratification-es.md#registro-del-acuerdo-y-trabajo-posterior).
+
 ## Estado
 
 Aceptado para la implementación local de HU-089 el 2026-10-11 por decisión

@@ -2,7 +2,9 @@
 
 ## Remaining work as of 2026-11-20
 
-**Current next action.** Complete one comparative iOS/Android UI review of the shift board, next shift, swaps and the Debug coverage rehearsal. In parallel, reconcile the approved D01–D15 rules with the candidate and finish the outstanding backend and access gates. The Develop data migration is complete. Two normal-app coverage scenarios on Develop and four base-calendar checks at production activation remain open. [Verified Develop migration](../../../docs/testing/hu084-develop-initial-evidence-window.md#develop-migration-verified-on-20-november-2026).
+**Policy update on 18 November.** The maintainer reported the assembly's approval of the member text. The source review of D01–D15 identified a D01 ordering defect, a missing verifiable draw provider and gaps in shared planning and effect delivery. The official minutes reference is still pending. [Candidate reconciliation](ratification.md#technical-reconciliation-on-20-november-2026). [Decision and follow-up](ratification.md#decision-record-and-follow-up).
+
+**Current next action.** Prepare an integrated candidate for draft PR #278 against the current main branch. Resolve the integration conflicts, then verify the session and environment checks, control of both delivery workers and administrator access to incidents on that candidate before scheduling the two Develop journeys. The local completion flow preserves one Sheets update and one member notice across retries and supports administrative recovery of confirmed rejection. [Delivery evidence](review.md#completed-coverage-delivery-on-21-november-2026). Credit publication and delivery spacing now run through the environment-bound planner. [Planner evidence](review.md#credit-publication-and-delivery-spacing-on-21-november-2026). [Public draw and recovery verified locally](review.md#d09-public-draw-on-21-november-2026). [D01 now verified locally](review.md#d01-effective-eligibility-on-21-november-2026). The [comparative mobile review](review.md#comparative-mobile-review-on-20-november-2026) exercised the normal board and swap form with in-memory data and the affected coverage screens in the local rehearsal. On 21 November the maintainer confirmed that the two screenshots were understandable. Schedule a single UI and UX pass across all new Shifts screens after implementation is complete and before release. [Maintainer feedback](review.md#maintainer-feedback-on-21-november-2026). The Develop data migration is complete. Two normal-app coverage scenarios on Develop and four base-calendar checks at production activation remain open. [Verified Develop migration](../../../docs/testing/hu084-develop-initial-evidence-window.md#develop-migration-verified-on-20-november-2026).
 
 The base planner and seasonal Sheets adapter are on `main`. Coverage and credits, including HU-089, are in [draft PR #278](https://github.com/JFrancoG/ReguertaPlus/pull/278). Both apps have a Debug rehearsal. The normal apps check access per session and the exported backend still sets `operationalReady` to `false`.
 
@@ -10,11 +12,12 @@ Preparation 06 was delivered in `29ea717c`. Its authorized attempt ended at the 
 
 | Step | Owner and action | Acceptance |
 | --- | --- | --- |
-| 1. Product feedback now | Maintainer and testers use the [Debug rehearsal](../../../docs-es/testing/hu084-ensayo-nativo.md) on iOS or Android. Accept the seeded market offer. Separately, confirm the already accepted delivery as admin and read its credit as that substitute. | The tester can identify who owns each shift, who will work it and who earned the credit. The [iOS rehearsal and session feedback](review.md#ios-product-rehearsal--2026-11-04) are recorded. The two complete backend journeys passed on 4 November in local Auth/Firestore emulators at `b2f9d757`. |
-| 2. Agree the policy | The assembly ratifies or amends the [member proposal](propuesta-turnos-para-socios.md). Record the date and wording against [D01–D15](ratification-es.md). | Reconcile the bilingual requirements and implement and test only the differences from the provisional rules. Product feedback can proceed before the meeting. |
-| 3. Finish the shared coverage backend | Engineering integrates the agreed verifiable draw and its outage behavior, exposes stuck cases, exhausted selection, retries and credit failures, and connects the verified initial state, effect consumers and activation checks to the real environment. | A fixed candidate set produces one verifiable order without rerolls. Retry or lost acknowledgement creates one business effect and one credit. An operator can identify and reconcile a failed projection or notification. |
+| 1. Review the mobile screens | The normal shift board, upcoming shift, swap draft and revised role labels were exercised on both platforms. The maintainer confirmed the roles and offer state were understandable in both screenshots. [Current review](review.md#comparative-mobile-review-on-20-november-2026) | The tester can identify who is absent, who must respond and whether the offer is still pending. The prior [product rehearsal](review.md#ios-product-rehearsal--2026-11-04) already records administrative confirmation and the substitute's credit. |
+| 2. Address differences with the approved policy | The assembly approved the [member text](propuesta-turnos-para-socios.md) on 18 November. Engineering recorded the evidence for [D01–D15](ratification.md#technical-reconciliation-on-20-november-2026). Link the official minutes when available. | Round admission now uses effective eligibility time and preserves reserve offer order. The reverse-processing case passed locally. The draw and its outage handling also have local evidence. Credit publication and delivery spacing have local integration evidence. Shared effect delivery remains open. |
+| 3. Finish the shared coverage backend | Credit publication, spacing, completion delivery and administrative recovery are integrated locally. Engineering exposes stuck cases, exhausted selection, retries and credit failures, and connects the verified initial state, effect consumers and activation checks to the real environment. | A fixed candidate set produces one verifiable order without rerolls. Retry or lost acknowledgement creates one business effect and one credit. An operator can identify and reconcile a failed projection or notification. |
 | 4. Accept the normal apps on Develop | The shared Develop migration is verified. Use the integrated coverage candidate with normal sign-in once the agreed behavior, backend and access controls are ready. Preserve the published rows. Decide the July/August 2027 market horizon in a separate preview. Develop and production share Functions and Rules, so review the impact on both before authorizing activation. | Use normal sign-in on both platforms. Complete a market and delivery across accounts, including one declined or expired offer. Compare published owners/dates and effective workers in Firestore and Sheets. Verify one credit on completion, its single use or justified deferral at the next eligible turn, and authorized opening of the resulting notification. Exercise retry and revoked access. |
-| 5. Activate the base and coverage on their own terms | [HU-085](../hu-085-production-shift-workbook-activation/spec.md) can progress independently of coverage ratification. The operator follows its backup, restore rehearsal, private preview, stage, approved activation and separate notification release. Engineering reviews and integrates the HU-084 candidate through PR #278, runs the affected delivery gates and obtains separate approval for coverage rollout. | Close [#269](https://github.com/JFrancoG/ReguertaPlus/issues/269) after checking the season boundary, delivery handovers, three distinct market workers and an existing swap across the active plan, workbook and both clients, reconciling notifications and resuming normal operation. Close [#268](https://github.com/JFrancoG/ReguertaPlus/issues/268) after the agreed coverage behavior, permissions, recovery and shared operation have evidence. |
+| Final UI and UX pass before publishing the feature | Once the full feature is implemented, review every new member and administration screen on iOS and Android against comparable screens in the same app. Walk through the complete journeys once. | Navigation, action placement, information hierarchy, spacing and status feedback follow each app’s conventions. Check accessibility and re-run the specific journeys affected by a fix. Reuse the functional evidence already recorded. |
+| 5. Activate the base and coverage on their own terms | [HU-085](../hu-085-production-shift-workbook-activation/spec.md) can progress independently of coverage rollout. The operator follows its backup, restore rehearsal, private preview, stage, approved activation and separate notification release. Engineering reviews and integrates the HU-084 candidate through PR #278, runs the affected delivery gates and obtains separate approval for coverage rollout. | Close [#269](https://github.com/JFrancoG/ReguertaPlus/issues/269) after checking the season boundary, delivery handovers, three distinct market workers and an existing swap across the active plan, workbook and both clients, reconciling notifications and resuming normal operation. Close [#268](https://github.com/JFrancoG/ReguertaPlus/issues/268) after the agreed coverage behavior, permissions, recovery and shared operation have evidence. |
 
 Use this table for the next decision. Keep detailed results once in the relevant runbook or acceptance record. Reuse the completed physical accessibility and push-transport evidence for unchanged clients. Repeat the affected journey for a changed contract or a reproducible defect. The dated checkpoints below describe earlier revisions.
 
@@ -46,7 +49,7 @@ sole blocker was `window_scope_missing`; this was not full maintenance admission
 Forms were initially unconfirmed. Authorization and the actual window were later
 collected and consumed in the stopped attempt described above. [Preparation evidence](../../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#revisión-renovada-para-el-intento-05--2026-11-11).
 
-The [controlled iOS interruption and retest on 5 November](review.md#ios-session-interruption--2026-11-05) closed the sign-in notice check. The tester understood that the offer was still pending and how to return to it. The next product decision is assembly review of the proposed rules in step 2. Seasonal publication, real Sheets projection and notification delivery remain in step 4.
+The [controlled iOS interruption and retest on 5 November](review.md#ios-session-interruption--2026-11-05) closed the sign-in notice check. The tester understood that the offer was still pending and how to return to it. The policy approved on 18 November is recorded in step 2. Seasonal publication, real Sheets projection and notification delivery remain in step 4.
 
 ## Start checkpoint — 2026-09-12
 
@@ -652,21 +655,18 @@ a credit ledger. Every mutable aggregate needs a version and idempotency key.
 
 ## 4. Phased sequence
 
-### Phase 0 - Assembly gate
+### Phase 0 - Assembly approval and technical reconciliation
 
-- Present the decision list from the spec with concrete examples.
-- Include normal-round placement/tie order for joins and reactivations; do not
-  treat the proposed tail placement as already accepted.
-- Include frozen-round departure handling: free regeneration only before cohort
-  freeze; after freeze, proposed `excusedDeparture` tombstone for an unpublished
-  owner position versus a fully accounted coverage alternative.
-- Include eligibility drift without membership exit: reason mapping, unfrozen
-  remove/append order, frozen coverage/tombstone behavior, and re-entry without
-  reviving prior owner positions.
-- Record accepted wording, thresholds, deadlines, authorities, and any rejected
-  option.
-- Update English/Spanish requirements and user stories.
-- Re-review this spec and issue before authorizing live activation.
+- The assembly approved the [member text](propuesta-turnos-para-socios.md) on
+  18 November. See the [decision record](ratification.md#decision-record-and-follow-up).
+- Record the official minutes reference when available. Keep the bilingual
+  requirements linked to the approved text.
+- Verify tail placement, tie ordering, eligibility drift and frozen-round
+  accounting against the approved rules. Record the technical treatment of
+  published versus unpublished positions and the complete-unit fallback.
+- Reconcile the affected requirements, contracts, implementation and evidence.
+  Obtain maintainer approval of that technical scope and complete shared
+  acceptance before requesting separate rollout authorization.
 
 ### Phase 1 - Threat model and RED contract
 
@@ -711,9 +711,8 @@ a credit ledger. Every mutable aggregate needs a version and idempotency key.
   completion, and revision.
 - If staffing is impossible, roll back tentative consumptions in reverse queue
   order until feasible. The restored owner works and serves that position while
-  only the credit remains pending for a later eligible occurrence. Use an
-  alternative coverage fallback only if the assembly ratifies its complete
-  original-credit/replacement-credit/failure accounting.
+  only the credit remains pending for a later eligible occurrence. Escalate to
+  administration if the unit is still unstaffable.
 - CAS the complete affected delivery predecessor/current/successor chain at coverage/
   credit activation. Recompute only an uncompleted predecessor's planned helper;
   preserve completed actual helper history and reject equal-adjacent/stale results.
@@ -752,7 +751,7 @@ a credit ledger. Every mutable aggregate needs a version and idempotency key.
 ## 5. Test matrix
 
 - Join/reactivation before and after one or multiple active/public rounds,
-  including every proposed reserve-exit boundary.
+  including reserve exit at the first ordinary same-type due date or loss of eligibility.
 - Reserve accepts, declines, times out, becomes ineligible, or changes context.
 - Zero/one/multiple volunteers and ratified tie-breaking.
 - Draw with committed snapshot/non-manipulable seed, no reroll, exclusions, retry
@@ -760,8 +759,8 @@ a credit ledger. Every mutable aggregate needs a version and idempotency key.
 - Temporary absence versus permanent departure across delivery/market and the
   `unfrozen|frozen x preview|stage|public` matrix, with unaffected rows unchanged.
 - `excusedDeparture` tombstone idempotency/replay/concurrency, deterministic cursor/
-  round closure and next real slot, no completion/credit, and no replacement owner;
-  if assembly chooses coverage instead, test its complete accounting.
+  round closure and next real slot, no completion/credit, and no replacement owner.
+  Verify this representation against the approved rule for unpublished positions.
 - Atomic tombstone plus next-unit planning for delivery N=2, market N=3, larger and
   multiple-loss cohorts; prove no cursor/round/tombstone/credit mutation on an
   unstaffable unit and no unfilled calendar date/group.
@@ -829,7 +828,7 @@ a credit ledger. Every mutable aggregate needs a version and idempotency key.
 
 ## 8. Main risks
 
-- **Unratified business behavior**: hard stop at Phase 0.
+- **Mismatch with the approved policy**: resolve the documented gap before shared acceptance.
 - **Hidden coercion**: explicit acceptance and admin escalation.
 - **Credit double-spend**: append-only ledger plus transactional consumption.
 - **Stale staged fairness**: digest and recheck the complete relevant ledger

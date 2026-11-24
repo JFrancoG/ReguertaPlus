@@ -38,6 +38,8 @@ test("zero baseline observes canonical users, preserves all source documents and
     const member = (id) => decode(result.creates.find((item) => item.path.endsWith(`/shiftMembershipState/${id}`)).value).value;
     assert.equal(member("buyer").eligible, true, "purchase manager remains eligible despite producer role");
     assert.equal(member("admin").eligible, true);
+    assert.equal(Object.hasOwn(member("buyer"), "eligibilityChangedAt"), false);
+    assert.deepEqual(member("buyer").admissionRequired, {delivery: false, market: false});
     assert.equal(member("real-producer").eligible, false);
     assert.equal(member("inactive").eligible, false);
     assert.equal(member("a").observedAtMillis, initialTime);

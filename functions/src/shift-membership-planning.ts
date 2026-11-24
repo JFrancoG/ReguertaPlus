@@ -1,13 +1,16 @@
+import type {AppEnvironment} from "./backend-security.js";
 import type {ShiftMembershipUnitPolicy} from "./shift-credit-unit.js";
 import {Firestore, Transaction} from "@google-cloud/firestore";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
 import {ShiftRotationCursor} from "./shift-planning-contract.js";
 import {coverageId, coverageMember, rejectCoverage} from "./shift-coverage.js";
 import {CoverageReserve} from "./shift-coverage-selection.js";
-import {MemberSource, readShiftMembershipState} from
+import {assertReconciledMembershipEligibilityTime, compareEligibilityTimes,
+  eligibilityTimeMillis, membershipEligibilityRef} from
+  "./shift-membership-eligibility-time.js";
+import {MemberSource, MembershipState, readShiftMembershipState} from
   "./shift-membership-reconciliation.js";
 
-const root = "develop/plus-collections";
 const types = ["delivery", "market"] as const;
 type RecordValue = Record<string, unknown>;
 type RecordDocument = {id: string; data: RecordValue};
@@ -77,26 +80,64 @@ export const parseShiftMembershipPlanningSource = (
 /**
  * Capture all membership/reserve evidence, including nonpending records, so a
  * later eligibility reversal or FIFO change invalidates the staged candidate.
- * @param {Firestore} db Registered local emulator client.
+ * @param {Firestore} db Admitted planning client.
  * @param {Transaction} transaction Planning source transaction.
+ * @param {string} environment Server-resolved namespace.
  * @return {Promise<ShiftMembershipPlanningSource>} Complete bounded evidence.
  */
 export const captureShiftMembershipPlanningSource = async (
   db: Firestore, transaction: Transaction,
+  environment: AppEnvironment = "develop",
 ): Promise<ShiftMembershipPlanningSource> => {
+  const root = `${environment}/plus-collections`;
   const records = await transaction.get(db.collection(
     `${root}/shiftMembershipState`).orderBy("__name__").limit(251));
   const reserves = await transaction.get(db.collection(
     `${root}/shiftCoverageReserves`).orderBy("__name__").limit(501));
-  return parseShiftMembershipPlanningSource({
+  const source = parseShiftMembershipPlanningSource({
     records: records.docs.map((doc) => ({id: doc.id, data: doc.data()})),
     reserves: reserves.docs.map((doc) => ({id: doc.id, data: doc.data()})),
   });
+  if (source.records.length) {
+    const members = source.records.map((record) =>
+      db.doc(`${root}/users/${record.id}`));
+    const snapshots = await transaction.getAll(
+      ...members, ...members.map(membershipEligibilityRef));
+    for (const [index, record] of source.records.entries()) {
+      const user = snapshots[index];
+      const evidence = snapshots[members.length + index];
+      const state = readShiftMembershipState(record.data, record.id) ??
+        rejectCoverage("invalid_shift_membership_state");
+      if (digest(state.source) !== digest(memberSource(user.data()))) {
+        return rejectCoverage("membership_source_not_reconciled");
+      }
+      assertReconciledMembershipEligibilityTime(user, evidence, state,
+        records.docs[index].updateTime);
+    }
+  }
+  return source;
+};
+
+const admissionTime = (source: ShiftMembershipPlanningSource,
+  state: MembershipState, type: typeof types[number]) => {
+  const reserve = source.reserves.find((record) =>
+    record.data.type === type && record.data.userId === state.userId)?.data;
+  if (!reserve?.active || (reserve.enteredAtMillis as number) >
+      state.observedAtMillis) {
+    return rejectCoverage("membership_reserve_evidence_required");
+  }
+  const time = state.eligibilityChangedAt ??
+    rejectCoverage("membership_eligibility_time_required");
+  // Joining a reserve can take place after the member became eligible.
+  if ((reserve.enteredAtMillis as number) < eligibilityTimeMillis(time)) {
+    return rejectCoverage("membership_reserve_evidence_required");
+  }
+  return time;
 };
 
 /**
  * Rebuild cohorts only at wholly new round boundaries. Retained owners keep
- * order; new/re-entering members append by reserve entry time then UID.
+ * order; entrants append by their effective eligibility instant, then UID.
  * Prefixes and canonical input cursors are unchanged until the combined bundle
  * commits. Frozen exclusions are proposed with their original owner and reason;
  * planners must pair them with a full physical unit before acknowledgement.
@@ -149,14 +190,8 @@ export const planShiftMembershipAdmission = (input: {
     }
     const entrants = pendingForType.filter(({state}) => state.eligible &&
       state.admissionRequired?.[type]).map(({state}) => {
-      const reserve = source.reserves.find((record) =>
-        record.data.type === type && record.data.userId === state.userId)?.data;
-      if (!reserve?.active || (reserve.enteredAtMillis as number) >
-          state.observedAtMillis) {
-        return rejectCoverage("membership_reserve_evidence_required");
-      }
-      return {id: state.userId, time: reserve.enteredAtMillis as number};
-    }).sort((a, b) => a.time - b.time ||
+      return {id: state.userId, time: admissionTime(source, state, type)};
+    }).sort((a, b) => compareEligibilityTimes(a.time, b.time) ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     cohorts[type] = [...cursor.cohortUserIds.filter((id) =>
       eligibleIds.includes(id) && !entrants.some((entry) => entry.id === id)),
@@ -193,12 +228,15 @@ export const planShiftMembershipAdmission = (input: {
  * The other rotation may retain its pending evidence for a later frontier.
  * @param {ShiftMembershipPlanningSource} source Bound pre-activation records.
  * @param {object} applied Complete-unit admission outcomes by rotation.
+ * @param {string} environment Server-resolved namespace.
  * @return {ShiftMembershipPlanningChange[]} Exact transactional state images.
  */
 export const buildShiftMembershipAcknowledgements = (
   source: ShiftMembershipPlanningSource,
   applied: {delivery: boolean; market: boolean},
+  environment: AppEnvironment = "develop",
 ): ShiftMembershipPlanningChange[] => {
+  const root = `${environment}/plus-collections`;
   const changes: ShiftMembershipPlanningChange[] = [];
   for (const record of source.records) {
     const state = readShiftMembershipState(record.data, record.id);
@@ -233,12 +271,14 @@ export const buildShiftMembershipAcknowledgements = (
  * @param {object} input Same-attempt source and optional activated images.
  */
 export const assertShiftMembershipPlanningSource = async (input: {
-  firestore: Firestore; transaction: Transaction;
+  firestore: Firestore; transaction: Transaction; environment?: AppEnvironment;
   source?: ShiftMembershipPlanningSource;
   activatedChanges?: ShiftMembershipPlanningChange[];
 }) => {
+  const environment = input.environment ?? "develop";
+  const root = `${environment}/plus-collections`;
   const actual = await captureShiftMembershipPlanningSource(
-    input.firestore, input.transaction);
+    input.firestore, input.transaction, environment);
   const expected = structuredClone(input.source ?? {records: [], reserves: []});
   for (const change of input.activatedChanges ?? []) {
     const record = expected.records.find((record) =>
@@ -252,14 +292,18 @@ export const assertShiftMembershipPlanningSource = async (input: {
   if (digest(ordered(actual)) !== digest(ordered(expected))) {
     return rejectCoverage("membership_plan_source_changed");
   }
-  if (!input.source?.records.length) return;
-  const users = await input.transaction.getAll(...input.source.records.map(
-    (record) => input.firestore.doc(`${root}/users/${record.id}`)));
-  for (const [index, user] of users.entries()) {
-    const record = input.source.records[index];
-    const state = readShiftMembershipState(record.data, record.id);
-    if (digest(state?.source) !== digest(memberSource(user.data()))) {
-      return rejectCoverage("membership_source_not_reconciled");
+  // A previously staged manifest may predate effective eligibility timestamps.
+  // Do not admit its pending entrants on the strength of reconciliation time.
+  if (!input.activatedChanges) {
+    for (const record of actual.records) {
+      const state = readShiftMembershipState(record.data, record.id);
+      if (!state?.eligible || !state.pendingQueueTransition) continue;
+      for (const type of types) {
+        if (state.admissionRequired?.[type] &&
+            (state.pendingTypes?.[type] ?? true)) {
+          admissionTime(actual, state, type);
+        }
+      }
     }
   }
 };

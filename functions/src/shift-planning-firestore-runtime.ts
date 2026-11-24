@@ -1,3 +1,4 @@
+import {ShiftCreditPlanningContext} from "./shift-credit-planning-context.js";
 import {Firestore} from "@google-cloud/firestore";
 import {
   ShiftPlanningBundleResult,
@@ -125,16 +126,19 @@ const requireRequestIdentity = (input: {
  * activation claims its request-only lease before entering the retry-scoped
  * CAS, so terminal replays never depend on an out-of-transaction preflight.
  * @param {Firestore} firestore Pinned Firestore authority.
+ * @param {ShiftCreditPlanningContext} creditPlanning Trusted coverage scope.
  * @return {ShiftPlanningFirestoreRuntime} Request and recovery runtime ports.
  */
 export const createFirestoreShiftPlanningRuntime = (
   firestore: Firestore,
+  creditPlanning?: ShiftCreditPlanningContext,
 ): ShiftPlanningFirestoreRuntime => {
   const persistence = createFirestoreShiftPlanningRepository(firestore);
   const statePersistence = createFirestoreShiftPlanningStateRepository(
     firestore,
   );
-  const casRuntime = createFirestoreShiftPlanningCasRuntime(firestore);
+  const casRuntime = createFirestoreShiftPlanningCasRuntime(firestore,
+    {creditPlanning});
 
   return {
     async executeRequest(input): Promise<
@@ -197,6 +201,7 @@ export const createFirestoreShiftPlanningRuntime = (
               SHIFT_PLANNING_REQUEST_LEASE_DURATION_MILLIS,
             resolveAttempt:
               createGovernedShiftPlanningForwardActivationResolver({
+                creditPlanning,
                 environment: request.environment,
                 requestId: request.requestId,
               }),
@@ -256,8 +261,10 @@ export const createFirestoreShiftPlanningRuntime = (
           authoritativeState,
         }): Promise<ShiftPlanningBundleResult> => {
           const source = await loadCurrentShiftPlanningLiveSource({
+            creditPlanning,
             firestore,
             environment: claimedRequest.environment,
+            refreshForPreview: claimedRequest.mode === "preview",
           });
           return planShiftPlanningBundle({
             request: serializeShiftPlanningRequestV2(claimedRequest),

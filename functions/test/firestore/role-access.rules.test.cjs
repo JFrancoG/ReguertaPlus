@@ -451,6 +451,16 @@ test("a member cannot escalate roles or write another member profile", async () 
     const ownUser = db.doc(docPath(env, "users", actors.member.memberId));
     const adminUser = db.doc(docPath(env, "users", actors.admin.memberId));
     await assertFails(ownUser.update({roles: ["member", "admin"]}));
+    const sourcePath = docPath(env, "shiftMembershipState", actors.member.memberId) + "/source/eligibility";
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(sourcePath).set({eligible: true});
+    });
+    for (const actor of [actors.member, actors.admin]) {
+      const source = contextFor(actor).firestore().doc(sourcePath);
+      await assertFails(source.get());
+      await assertFails(source.set({eligible: false}));
+      await assertFails(source.delete());
+    }
     await assertFails(adminUser.update({isActive: false}));
     await assertSucceeds(ownUser.update({
       lastDeviceId: `device_${actors.member.memberId}`,

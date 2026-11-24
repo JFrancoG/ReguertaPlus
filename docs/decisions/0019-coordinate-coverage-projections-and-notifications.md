@@ -70,6 +70,14 @@ races and failure retention without changing shared data or sending real push.
 They do not establish deployed IAM fencing or real provider delivery. Native
 code is unchanged by this backend block.
 
+## Completion delivery on 21 November 2026
+
+Acceptance owns the Sheets batch that changes the effective assignee and, for a delivery, the preceding helper where applicable. Completion stores the acceptance operation ID and waits for verified read-back before it releases the completion inbox entries. A pending older completion resolves its acceptance from the case and preceding revision and checks both receipts. If completion arrives first, the worker projects the assignment once and suppresses the superseded acceptance notice. Replaying a historical completion whose notice had already been released can repair the missing projection while preserving the inbox entry and its original time. [Projection and receipts](../../functions/src/shift-coverage-projection.ts).
+
+The Firestore creation triggers `onShiftCoverageEffectCreated` and `onShiftCoverageInboxCreated` run the existing inventory workers `worker-shift-coverage-effects` and `worker-shift-coverage-push`, respectively. Each uses the event environment and server-side activation policy. A coverage push requires the member's released inbox entry and its stable event ID. Event redelivery consults the same operation and recipient receipts. The exported operational switch remains disabled. [Composition](../../functions/src/index.ts) · [Event routing](../../functions/src/shift-coverage-delivery.ts).
+
+The authenticated administration API lists completion delivery incidents and checks the linked administrator again on recovery. An unsent operation can resume. A pending Sheets operation with a recorded batch can be inspected against its marker, exact cells, advanced stable Drive version and current lease. A frozen operation retains its reservation for recovery under the closed intake barrier. Positive verification of the acceptance is required there too before the completion notice can be released. A new push attempt requires a recorded, definitive rejection of every submitted destination and the expected attempt ID. An acknowledged acceptance by any target completes the push for that member. If the provider response leaves all acceptances uncertain, the receipt stays unconfirmed. Both outcomes preserve the original inbox entry and prevent resubmission. A provider acknowledgement records acceptance by the provider. Device receipt is checked separately. [Administration](../../functions/src/shift-coverage-delivery-administration.ts) · [Emulator cases](../../functions/test/shift-coverage-effects.emulator.test.cjs).
+
 ## References
 
 - [ADR-0018](0018-bind-native-coverage-to-authenticated-backend-readiness.md)

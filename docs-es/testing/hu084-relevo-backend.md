@@ -777,3 +777,40 @@ Functions, otros escritores Admin/IAM ni los jobs de recordatorios aún habilita
 Aceptar ADR-0022 no declara esos controles bloqueados, no demuestra vaciado antiguo
 ni admite mantenimiento compartido; se mantienen `legacyUntracked:true` y
 `canEnterMaintenance:false`.
+
+## Incidencias de entrega de coberturas completadas
+
+La cuenta administradora de Regüerta puede consultar los cierres pendientes en la función autenticada `shiftCoverage` una vez habilitadas las coberturas en ese entorno. El endpoint usa la sesión Firebase de la cuenta y comprueba su rol también durante la recuperación. Los ejemplos presuponen que el cliente de operación ya proporciona en memoria `REGUERTA_COVERAGE_URL` y `REGUERTA_FIREBASE_ID_TOKEN` de esa sesión. Elige el endpoint configurado para ese proyecto y entorno.
+
+```sh
+coverage_delivery() {
+  node --input-type=module -e '
+    const response = await fetch(process.env.REGUERTA_COVERAGE_URL, {
+      method: "POST",
+      headers: {Authorization: "Bearer " + process.env.REGUERTA_FIREBASE_ID_TOKEN,
+        "Content-Type": "application/json"},
+      body: process.argv[1]
+    })
+    console.log(await response.text())
+    if (!response.ok) process.exitCode = 1
+  ' "$1"
+}
+coverage_delivery '{"schemaVersion":1,"environment":"develop","action":"deliveryIncidents"}'
+```
+
+Cada página examina hasta 25 cierres y devuelve las incidencias en `data.incidents`. Si hay `data.nextCursor`, incluye ese valor en el campo `after` de la siguiente consulta, incluso si la página está vacía. Identifica la cobertura por `caseId`. Para tramitarla, usa los identificadores y el modo exactos de la fila.
+
+| Modo | Acción de administración |
+| --- | --- |
+| `resume` | Envía `retryDelivery` con `effectOperationId` y `mode`. El consumidor reanuda el cierre y los avisos que aún no tenían recibo. |
+| `inspect` | Envía los mismos campos con `mode` igual a `inspect`. El operador comprueba las celdas y el marcador del lote anterior. Si la comprobación queda pendiente, conserva el identificador para la conciliación bajo la barrera. |
+| `retryPush` | Un rechazo definitivo de todos los destinos admite un nuevo intento. Incluye `memberId`, `eventId` y `expectedAttemptId` de la fila y genera una sola vez un `operationId` para esa decisión. Si se pierde la respuesta, repite el mismo cuerpo. |
+| `null` | Para `pushUnconfirmed`, conserva el único aviso en la bandeja. Para `governedReconciliation`, el operador usa `projectionOperationId` con el procedimiento de conciliación bajo barrera. Para `invalidEvidence`, revisa los documentos privados que corresponden al cierre. |
+
+Por ejemplo, para comprobar el resultado del lote que ya se envió, sustituye `ID_DEL_CIERRE` por el `effectOperationId` devuelto por la consulta.
+
+```sh
+coverage_delivery '{"schemaVersion":1,"environment":"develop","action":"retryDelivery","effectOperationId":"ID_DEL_CIERRE","mode":"inspect"}'
+```
+
+Tras la recuperación, vuelve a consultar las incidencias. Los recibos distinguen la aceptación por el servicio de notificaciones de la lectura del aviso en el dispositivo. [Prueba del endpoint de administración](../../functions/test/shift-coverage-live.emulator.test.cjs).

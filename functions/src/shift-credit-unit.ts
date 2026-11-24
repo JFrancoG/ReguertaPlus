@@ -15,6 +15,9 @@ export type ShiftMembershipUnitPolicy = {
   publishedOwnerPositionKeys: readonly string[];
 };
 
+type CreditDeferralReason = "frozenRound" | "completeUnitRequired" |
+  "excusedDeparture" | "excusedIneligible";
+
 export type ShiftCreditUnit = {
   type: "delivery" | "market";
   assignments: PlannedRotationPosition[];
@@ -22,6 +25,7 @@ export type ShiftCreditUnit = {
   membershipApplied?: boolean;
   consumedCreditIds: string[];
   deferredCreditIds: string[];
+  creditDeferrals?: {creditId: string; reason: CreditDeferralReason}[];
   nextRotation: ShiftRotationCursor;
 };
 
@@ -83,6 +87,7 @@ export const planShiftCreditUnit = (input: {
   frozenThroughRound: number;
   adjacentDeliveryUserIds: readonly string[];
   stopAfterRound?: number;
+  recordDeferralReasons?: boolean;
   membership?: ShiftMembershipUnitPolicy;
 }): ShiftCreditUnit => {
   const rotation = consumeRotationPositions(input.rotation, 0).nextRotation;
@@ -132,7 +137,7 @@ export const planShiftCreditUnit = (input: {
     const servedPositions: ShiftCreditUnit["servedPositions"] = [];
     const consumed: ShiftCoverageCredit[] = [];
     const resting = new Set<string>();
-    const deferred = new Set<string>();
+    const deferred = new Map<string, CreditDeferralReason>();
     let membershipApplied = false;
     let hasExcuses = false;
     // Every returned omission belongs to a fully staffed physical unit.
@@ -165,7 +170,7 @@ export const planShiftCreditUnit = (input: {
           reason: excuse.reason,
           membershipRevision: excuse.membershipRevision}});
         hasExcuses = true;
-        if (credit) deferred.add(credit.id);
+        if (credit) deferred.set(credit.id, excuse.reason);
         cursor = traversal.nextRotation;
         continue;
       }
@@ -182,13 +187,19 @@ export const planShiftCreditUnit = (input: {
             input.adjacentDeliveryUserIds.includes(owner)) break;
         assignments.push(position);
         servedPositions.push({...position, creditId: null, ...evidence});
-        if (credit) deferred.add(credit.id);
+        if (credit) {
+          deferred.set(credit.id, position.roundNumber <=
+            input.frozenThroughRound ? "frozenRound" : "completeUnitRequired");
+        }
       }
       cursor = traversal.nextRotation;
       if (assignments.length === width) {
         return {type: rotation.type, assignments, servedPositions,
           consumedCreditIds: consumed.map((credit) => credit.id),
-          deferredCreditIds: [...deferred], nextRotation: cursor,
+          deferredCreditIds: [...deferred.keys()], nextRotation: cursor,
+          ...(input.recordDeferralReasons && deferred.size ? {creditDeferrals:
+            [...deferred].map(([creditId, reason]) => ({creditId, reason}))} :
+            {}),
           ...(membership ? {membershipApplied} : {})};
       }
     }

@@ -237,10 +237,29 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // The administrative upsert records eligibility transitions at commit time.
+    function shiftEligibilityFields() {
+      return ["isActive", "roles", "isCommonPurchaseManager"];
+    }
+
+    match /{env}/plus-collections/users/{userId} {
+      allow read: if isSignedIn() && isSupportedEnv(env);
+      allow create: if isSignedIn() && isSupportedEnv(env) &&
+        !request.resource.data.keys().hasAny(shiftEligibilityFields());
+      allow update: if isSignedIn() && isSupportedEnv(env) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(shiftEligibilityFields());
+      allow delete: if isSignedIn() && isSupportedEnv(env) &&
+        !resource.data.keys().hasAny(shiftEligibilityFields());
+      match /{subcollection}/{document=**} {
+        allow read, write: if isSignedIn() && isSupportedEnv(env);
+      }
+    }
+
     match /{env}/{dataset}/{collectionId}/{document=**} {
       allow read, write: if isSignedIn() &&
         isSupportedEnv(env) &&
         isSupportedDataset(dataset) &&
+        collectionId != "users" &&
         collectionId != "orders" &&
         collectionId != "deliveryCalendar" &&
         collectionId != "shifts" &&

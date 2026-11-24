@@ -83,7 +83,8 @@ struct ShiftCoverageRouteView: View {
                                     VStack(alignment: .leading) {
                                         Text(CoverageCopy.text(item.type.rawValue)).font(.headline)
                                         Text(CoverageCopy.shiftDate(item.scheduledAtMillis))
-                                        Text(model.coverage.memberName(item.absentUserId))
+                                        let absentMember = model.coverage.memberName(item.absentUserId)
+                                        Text("coverage.absent_named \(absentMember)")
                                         Text(CoverageCopy.text("status_\(item.status.rawValue)"))
                                     }
                                 }

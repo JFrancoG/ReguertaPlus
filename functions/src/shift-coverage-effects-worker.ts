@@ -3,8 +3,10 @@ import {randomUUID} from "node:crypto";
 import {DocumentSnapshot, FieldPath, Firestore, Transaction, Timestamp} from
   "@google-cloud/firestore";
 import {coverageId, rejectCoverage} from "./shift-coverage.js";
+import {isCompletedCoverageAcceptance, isVerifiedCoverageProjection,
+  readCoverageAcceptanceProjection} from "./shift-coverage-projection.js";
 import {releaseCoverageInbox} from "./shift-coverage-inbox.js";
-import {coverageSheetRow, ShiftCoverageEffects} from
+import {coverageSheetRow, isCurrentCoverageEffect, ShiftCoverageEffects} from
   "./shift-coverage-effects.js";
 import {createProvisionalCreditFirestore} from "./shift-credit-publication.js";
 import {createShiftPlanningDigest as digest} from "./shift-planning-digest.js";
@@ -173,9 +175,17 @@ export const createFirestoreShiftCoverageEffectsWorker = (
       changedMessage: "Coverage effects lost their writer authority"});
     const current = await tx.get(db.doc(
       `${root}/shiftCoverageCases/${value.caseId}`));
-    if (current.data()?.digest !== value.caseDigest ||
-      digest(current.data()?.value) !== value.caseDigest) {
+    const acceptanceCompleted = isCompletedCoverageAcceptance(value,
+      receipt.data()?.result, current.data());
+    const caseCurrent = isCurrentCoverageEffect(value, current.data());
+    if (!acceptanceCompleted && !caseCurrent) {
       return rejectCoverage("coverage_effects_superseded");
+    }
+    if (value.action === "complete") {
+      const projection = await readCoverageAcceptanceProjection(db, tx, value);
+      if (!isVerifiedCoverageProjection(projection)) {
+        return rejectCoverage("coverage_effects_readback_required");
+      }
     }
     if (value.action.startsWith("offer") &&
       current.data()?.value.offer?.expiresAtMillis <= input.nowMillis()) {
@@ -198,10 +208,26 @@ export const createFirestoreShiftCoverageEffectsWorker = (
         return rejectCoverage("coverage_effects_source_changed");
       }
     }
-    const sourceDigest = digest([shifts, users, calendar].map((s) =>
-      s.docs.map((doc) => [doc.id, doc.updateTime?.seconds,
-        doc.updateTime?.nanoseconds])));
     const submission = record?.submission as CoverageSubmission | undefined;
+    const acceptedShift = receipt.get("result.shiftId");
+    const acceptedVersion = acceptanceCompleted ? shifts.docs.find((doc) =>
+      doc.id === acceptedShift)?.updateTime : undefined;
+    const versions = (previous?: Timestamp) =>
+      digest([shifts, users, calendar].map((s) => s.docs.map((doc) => {
+        const time = previous && s === shifts && acceptedShift === doc.id ?
+          previous : doc.updateTime;
+        return [doc.id, time?.seconds, time?.nanoseconds];
+      })));
+    let sourceDigest = versions();
+    if (acceptedVersion && submission?.sourceDigest !== sourceDigest &&
+        current.updateTime?.isEqual(acceptedVersion)) {
+      // Only the same atomic completion advanced the target document. Earlier
+      // submissions retain their exact original version. Older completions
+      // can match the original acceptance commit if nothing else intervened.
+      const priorTime = current.get("projectionPreviousUpdateTime") ??
+        receipt.createTime;
+      if (priorTime instanceof Timestamp) sourceDigest = versions(priorTime);
+    }
     if (submission && (submission.sourceDigest !== sourceDigest ||
       digest(submission) !== record?.submissionDigest)) {
       return rejectCoverage("coverage_effects_source_changed");
@@ -233,19 +259,24 @@ export const createFirestoreShiftCoverageEffectsWorker = (
     }
     return {completed: false as const, frozen: false as const,
       value, rows, users, calendar, sourceDigest, submission, workbook,
-      owned, policy, lock};
+      owned, policy, lock, acceptanceCompleted};
   };
 
-  return {
-    async drain(operationId: string) {
+  const delivery = {
+    async process(operationId: string, inspectOnly: boolean) {
       const id = coverageId(operationId);
       const attemptId = randomUUID();
-      const source = await db.runTransaction((tx) => load(tx, id));
+      const read = (tx: Transaction) => load(tx, id);
+      const source = await db.runTransaction(read);
       if (source.completed) return {state: "completed", replayed: true};
       if (source.frozen) {
         return {state: "reconciliationRequired", replayed: true};
       }
-      if (source.workbook &&
+      if (inspectOnly && source.value.changes.length &&
+          !source.workbook?.batch) {
+        return {state: "pending", replayed: true};
+      }
+      if (!inspectOnly && source.workbook &&
           source.workbook.claim.expiresAt.toMillis() > clock()) {
         return {state: "pending", replayed: false};
       }
@@ -341,7 +372,7 @@ export const createFirestoreShiftCoverageEffectsWorker = (
         const prepared = submission;
         const before = beforeWorkbookRevision as string;
         workbook = await db.runTransaction(async (tx) => {
-          const fresh = await load(tx, id);
+          const fresh = await read(tx);
           if (fresh.completed || fresh.frozen) return null;
           if (fresh.workbook?.batch) return fresh.workbook;
           const now = clock();
@@ -415,7 +446,8 @@ export const createFirestoreShiftCoverageEffectsWorker = (
         });
         if (!workbook) return {state: "pending", replayed: false};
       }
-      if (workbook?.batch && workbook.claim.expiresAt.toMillis() > clock()) {
+      if (!inspectOnly && workbook?.batch &&
+          workbook.claim.expiresAt.toMillis() > clock()) {
         return {state: "pending", replayed: false};
       }
       const inspect = async () => {
@@ -452,7 +484,7 @@ export const createFirestoreShiftCoverageEffectsWorker = (
               await input.readWorkbookVersion(),
             );
             workbook = await db.runTransaction(async (tx) => {
-              const fresh = await load(tx, id);
+              const fresh = await read(tx);
               if (fresh.completed || fresh.frozen || !fresh.workbook ||
                   fresh.workbook.batch ||
                   receiptDigest(fresh.workbook.claim) !==
@@ -478,8 +510,12 @@ export const createFirestoreShiftCoverageEffectsWorker = (
       }
       const observed = submission ? await inspect().catch(() => null) : null;
       if (submission && !observed) {
+        if (inspectOnly && workbook &&
+            workbook.claim.expiresAt.toMillis() > clock()) {
+          return {state: "pending", replayed: true};
+        }
         return db.runTransaction(async (tx) => {
-          const fresh = await load(tx, id);
+          const fresh = await read(tx);
           if (fresh.completed) return {state: "completed", replayed: true};
           if (!fresh.frozen) {
             if (!fresh.workbook?.batch) {
@@ -491,7 +527,7 @@ export const createFirestoreShiftCoverageEffectsWorker = (
         });
       }
       return db.runTransaction(async (tx) => {
-        const fresh = await load(tx, id);
+        const fresh = await read(tx);
         if (fresh.completed) return {state: "completed", replayed: true};
         if (fresh.frozen) {
           return {state: "reconciliationRequired", replayed: true};
@@ -502,9 +538,9 @@ export const createFirestoreShiftCoverageEffectsWorker = (
           return rejectCoverage("coverage_effects_readback_required");
         }
         const now = clock();
-        const deliveredTo = releaseCoverageInbox({
-          db, tx, value: fresh.value, users: fresh.users, now,
-        });
+        const deliveredTo = fresh.acceptanceCompleted ? [] :
+          releaseCoverageInbox({db, tx, value: fresh.value,
+            users: fresh.users, now});
         const verified = observed && fresh.workbook && fresh.owned ?
           completeCoverageWorkbook({tx, owned: fresh.owned,
             receipt: fresh.workbook, evidence: observed.evidence}) : null;
@@ -515,6 +551,35 @@ export const createFirestoreShiftCoverageEffectsWorker = (
         return {state: "completed", replayed: false};
       });
     },
+  };
+  const deliver = async (operationId: string, inspectOnly: boolean) => {
+    const id = coverageId(operationId);
+    const dependency = await db.runTransaction(async (tx) => {
+      await input.context.requireReady(tx);
+      const snapshot = await tx.get(effectRef(id));
+      const effect = snapshot.get("value") as ShiftCoverageEffects | undefined;
+      if (effect?.action !== "complete") return null;
+      const receipt = await tx.get(db.doc(
+        `${root}/shiftCoverageOperations/${id}`));
+      const {effectsDigest, ...core} = effect;
+      if (effect.operationId !== id || effect.environment !==
+          input.context.environment || effectsDigest !== digest(core) ||
+          receipt.get("effectsDigest") !== effectsDigest ||
+          digest(receipt.get("result")) !== effect.caseDigest) {
+        return rejectCoverage("coverage_effects_changed");
+      }
+      const acceptance = await readCoverageAcceptanceProjection(db, tx, effect);
+      return isVerifiedCoverageProjection(acceptance) ? null : acceptance.id;
+    });
+    if (dependency) {
+      const prior = await delivery.process(dependency, inspectOnly);
+      if (prior.state !== "completed") return prior;
+    }
+    return delivery.process(id, inspectOnly);
+  };
+  return {
+    drain: (id: string) => deliver(id, false),
+    inspect: (id: string) => deliver(id, true),
   };
 };
 

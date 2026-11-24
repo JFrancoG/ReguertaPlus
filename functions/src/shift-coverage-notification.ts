@@ -17,7 +17,7 @@ const unavailable = () => rejectCoverage("coverage_notification_unavailable");
  * @param {string} environment Authenticated notification environment.
  * @return {Promise<object>} Verified case and minimum delivered revision.
  */
-export const readCoverageNotificationReference = async (
+export const readCoverageNotificationDelivery = async (
   db: Firestore, tx: Transaction, memberId: string, eventId: string,
   environment: AppEnvironment = "develop",
 ) => {
@@ -42,7 +42,18 @@ export const readCoverageNotificationReference = async (
     receipt.data()?.effectsDigest !== effectsDigest ||
     !value.notifications.some((intent) => intent.userId === memberId &&
       intent.push.data.eventId === eventId)) return unavailable();
-  return {eventId, caseId: value.caseId, caseRevision: value.caseRevision};
+  return {eventId, operationId, caseId: value.caseId,
+    caseRevision: value.caseRevision};
+};
+
+export const readCoverageNotificationReference = async (
+  db: Firestore, tx: Transaction, memberId: string, eventId: string,
+  environment: AppEnvironment = "develop",
+) => {
+  const delivery = await readCoverageNotificationDelivery(
+    db, tx, memberId, eventId, environment);
+  return {eventId, caseId: delivery.caseId,
+    caseRevision: delivery.caseRevision};
 };
 
 export const readCoverageNotificationInbox = async (

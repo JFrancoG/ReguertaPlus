@@ -78,6 +78,12 @@ struct ShiftCoverageSnapshot: Decodable, Equatable {
         let openedByUserId: String
         let reason: String
         let volunteerCount: Int
+        var drawFailure: DrawFailure?
+    }
+
+    struct DrawFailure: Decodable, Equatable {
+        let code: String
+        let reportedAtMillis: Int64
     }
 
     struct Credit: Decodable, Equatable {

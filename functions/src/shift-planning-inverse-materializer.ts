@@ -1,9 +1,11 @@
+import {assertShiftPlanningCoverageBinding} from "./shift-planning-bundle.js";
+import {ShiftCreditPlanningContext} from "./shift-credit-planning-context.js";
 import {assertDeliverySpacingSource} from "./shift-delivery-spacing-store.js";
 import {restoreShiftMembershipPlanningRecord} from
   "./shift-membership-planning.js";
 import {assertProvisionalShiftMembershipSource,
   assertShiftCreditPublicationSource,
-  requireProvisionalCreditPublication, shiftCreditPublicationAfter} from
+  parseShiftCreditPublicationSources, shiftCreditPublicationAfter} from
   "./shift-credit-publication.js";
 import {
   DocumentData,
@@ -97,6 +99,7 @@ export type ApplyShiftPlanningInverseRecoveryAttemptInput =
   MaterializeShiftPlanningInverseRecoveryInput & {
     firestore: Firestore;
     transaction: Transaction;
+    creditPlanning?: ShiftCreditPlanningContext;
   };
 
 export type ShiftPlanningInverseRecoveryAttempt = {
@@ -332,9 +335,11 @@ const requireBundle = (bundle: ShiftPlanningPersistedBundle) => {
   ) {
     return failInverse("Persisted inverse bundle authority has drifted.");
   }
-  if (artifact.manifests.forward?.creditPublication) {
-    requireProvisionalCreditPublication(bundle.environment);
-  }
+  const publication = artifact.manifests.forward?.creditPublication;
+  const creditSources = publication ? parseShiftCreditPublicationSources(
+    publication.sources, bundle.environment) : undefined;
+  assertShiftPlanningCoverageBinding(creditSources,
+    artifact.delivery.spacingEvidence?.source, bundle.environment);
   return artifact;
 };
 
@@ -1306,6 +1311,7 @@ export const applyShiftPlanningInverseRecoveryAttempt = async (
     const operation = parseShiftPlanningActivationOperationTerminal(
       input.activationOperationDocument.data);
     await assertDeliverySpacingSource({...input,
+      environment: input.bundle.environment,
       source: artifact.delivery.spacingEvidence.source,
       ownPublishedPaths: operation.publicMutations.filter((mutation) =>
         mutation.mutationKind === "create").map((mutation) =>
@@ -1315,10 +1321,12 @@ export const applyShiftPlanningInverseRecoveryAttempt = async (
     const activation = parseShiftPlanningActivationOperationTerminal(
       input.activationOperationDocument.data);
     await assertShiftCreditPublicationSource({...input,
+      environment: input.bundle.environment,
       publication: artifact.manifests.forward?.creditPublication,
       activatedAtMillis: activation.attemptedAt.toMillis()});
   } else {
-    await assertProvisionalShiftMembershipSource(input);
+    await assertProvisionalShiftMembershipSource({...input,
+      environment: input.bundle.environment});
   }
   const measurement =
     await applyShiftPlanningFirestoreTransactionAttempt({

@@ -5,9 +5,9 @@
 - Implementation branch: `codex/hu-089-coverage-policy-amendments` (merged and deleted).
 - Current integration branch: `codex/hu-084-stable-shift-coverage-and-credits`.
 - Base: `5f36e041394ada8d3db3949b10691e9974e91669` (HU-084, unmerged).
-- Status: local delivery complete through merged PR #280 and closed issue #279 on 2026-10-11; parent HU-084/main integration and collective ratification/activation remain pending.
+- Status: local delivery complete through merged PR #280 and closed issue #279 on 2026-10-11; parent HU-084/main integration and shared activation remain pending. The assembly approved the member text on 2026-11-18 as reported by the maintainer.
 
-Canonical decisions: [proposal](../hu-084-stable-shift-coverage-and-credits/propuesta-turnos-para-socios.md) and [matrix](../hu-084-stable-shift-coverage-and-credits/ratification.md).
+Canonical decisions: [approved member text](../hu-084-stable-shift-coverage-and-credits/propuesta-turnos-para-socios.md) and [matrix](../hu-084-stable-shift-coverage-and-credits/ratification.md).
 
 ## Acceptance
 

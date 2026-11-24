@@ -8,13 +8,17 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.espresso.Espresso.pressBack
+import com.reguerta.user.R
 import com.reguerta.user.data.access.AuthenticatedFirebaseFunctionsClient
 import com.reguerta.user.data.access.FirebaseIdTokenProvider
 import com.reguerta.user.data.access.FirebaseJsonPostTransport
@@ -95,7 +99,43 @@ class CoverageAuthenticatedAcceptanceTest {
         }
     }
 
-    private fun start() {
+    @Test fun anAdminCanCheckTheSameRoundAndResolveCoverageWhenTheDrawPhaseEnds() {
+        fun drawCase(id: String, phase: String, code: String) = """{"caseId":"$id","shiftId":"shift-$id","type":"market",
+            "positionIndex":0,"status":"open","revision":4,"shiftRevision":2,"scheduledAtMillis":1900000000000,
+            "writable":true,"absentUserId":"member-b","acceptedUserId":null,"offer":null,"selectionPhase":"$phase",
+            "volunteerClosesAtMillis":null,"volunteered":false,"updatedAtMillis":1799999900000,"drawCommitted":true,
+            "drawAvailableAtMillis":1799999900000,"administration":{"openedByUserId":"member-b","reason":"Away",
+            "volunteerCount":0,"drawFailure":{"code":"$code","reportedAtMillis":1799999900000}}}"""
+        val cases = listOf(drawCase("retry", "drawRequired", "coverage_draw_provider_unavailable"),
+            drawCase("admin", "adminRequired", "coverage_draw_provider_invalid"))
+        start(cases.joinToString(prefix = "[", postfix = "]"))
+        compose.waitUntil(10_000) { model.isAvailable }
+        compose.onNodeWithTag("shifts.coverage").performClick()
+        compose.waitUntil(10_000) { model.coverage.state.value.snapshot != null && !model.coverage.state.value.isBusy }
+
+        fun verifyText(resourceId: Int) {
+            val message = InstrumentationRegistry.getInstrumentation().targetContext.getString(resourceId)
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText(message))
+            compose.onNodeWithText(message).assertIsDisplayed()
+        }
+        show("coverage.case.retry")
+        compose.onNodeWithTag("coverage.case.retry").performClick()
+        verifyText(R.string.coverage_draw_provider_unavailable)
+        verifyText(R.string.coverage_draw_retry)
+        show("coverage.action.revealDraw")
+        compose.onNodeWithTag("coverage.action.revealDraw").assertIsEnabled()
+        compose.onNodeWithTag("coverage.action.commitDraw").assertDoesNotExist()
+        pressBack()
+        show("coverage.case.admin")
+        compose.onNodeWithTag("coverage.case.admin").performClick()
+        verifyText(R.string.coverage_draw_provider_invalid)
+        verifyText(R.string.coverage_draw_admin_resolution)
+        show("coverage.action.offerAdmin")
+        compose.onNodeWithTag("coverage.action.offerAdmin").assertIsEnabled()
+        compose.onNodeWithTag("coverage.action.revealDraw").assertDoesNotExist()
+    }
+
+    private fun start(drawCases: String = "[]") {
         val caller = AuthenticatedFirebaseFunctionsClient(
             FirebaseIdTokenProvider { token() }, FirebaseProjectIdProvider { "reguerta-acceptance" },
             FirebaseJsonPostTransport { url, _, body ->
@@ -107,8 +147,8 @@ class CoverageAuthenticatedAcceptanceTest {
                     action == "administration" -> administration()
                     action == "overview" -> """{"ok":true,"data":{"schemaVersion":1,"environment":"production","memberId":"member-a",
                         "isAdmin":true,"eligible":true,"serverTimeMillis":1800000000000,"policyRevision":"hu084-provisional-v1",
-                        "policy":{"maximumOfferWindowMillis":86400000,"volunteerWindowMillis":null,"drawAvailable":false},
-                        "cases":[],"credits":[],"reserves":[]}}"""
+                        "policy":{"maximumOfferWindowMillis":86400000,"volunteerWindowMillis":null,"drawAvailable":${drawCases != "[]"}},
+                        "cases":$drawCases,"credits":[],"reserves":[]}}"""
                     action == "reconcileMembership" -> {
                         committed = true
                         """{"ok":true,"data":{"schemaVersion":1,"environment":"production","operationId":${body.getValue("operationId")},

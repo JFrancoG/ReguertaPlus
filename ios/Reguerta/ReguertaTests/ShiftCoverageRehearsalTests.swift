@@ -105,10 +105,19 @@ struct ShiftCoverageRehearsalTests {
         #expect(harness.model.actions(for: try #require(harness.model.snapshot?.cases.first)).contains(.commitDraw))
         harness.transport.overview = harness.transport.overview.replacingOccurrences(
             of: "\"administration\": null",
-            with: "\"administration\": null, \"drawCommitted\": true, \"drawAvailableAtMillis\": 1799999999999"
+            with: """
+            "administration": { "openedByUserId": "member-a", "reason": "absence", "volunteerCount": 0,
+              "drawFailure": { "code": "coverage_draw_provider_invalid", "reportedAtMillis": 1800000000000 } },
+            "drawCommitted": true, "drawAvailableAtMillis": 1799999999999
+            """
         )
         await harness.model.refresh()
-        let actions = harness.model.actions(for: try #require(harness.model.snapshot?.cases.first))
+        let item = try #require(harness.model.snapshot?.cases.first)
+        let incident = try #require(item.administration?.drawFailure)
+        var message = try #require(CoverageCopy.drawFailure(incident.code))
+        message.locale = Locale(identifier: "es")
+        #expect(String(localized: message) == "No se ha podido verificar el resultado de la ronda guardada.")
+        let actions = harness.model.actions(for: item)
         #expect(actions.contains(.revealDraw))
         #expect(!actions.contains(.commitDraw))
     }
