@@ -58,6 +58,7 @@ fastlane/test_output/
 
 # Android / Gradle
 .gradle/
+.kotlin/
 local.properties
 **/build/
 bin/

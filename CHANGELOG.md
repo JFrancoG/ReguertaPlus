@@ -64,6 +64,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-11-24 | 🔧 chore(shifts): integrate main into coverage candidate
+
 - 2026-10-31 | 🔧 chore(shifts): bind original writer proof to admission
 
 - 2026-10-31 | 🔧 chore(shifts): prepare original writer executor
@@ -77,6 +79,8 @@ All notable changes to this project will be documented in this file.
 - 2026-10-29 | 🔧 chore(shifts): bind develop fence to maintenance preparation
 
 ### Documentation
+
+- 2026-11-10 | 📝 docs(agents): clarify task resource selection
 
 - 2026-11-11 | 📝 docs(shifts): record develop confirmation deadline outcome
 
@@ -415,6 +419,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-11-05 | 🐛 fix(ios): patch Firestore certificate trust
+
 - 2026-11-02 | 🐛 fix(shifts): seal evidence after permission closure
 
 - 2026-11-01 | 🐛 fix(shifts): verify derived Sheets marker locations
@@ -639,6 +645,12 @@ All notable changes to this project will be documented in this file.
 - 2026-03-19 | 📝 docs(orders): define consumer name snapshots
 
 ### Maintenance
+
+- 2026-11-10 | 📦 build(ios): align test target platforms
+
+- 2026-11-10 | 📦 build(ios): update session fetcher to 5.2.0
+
+- 2026-11-10 | 📦 build(android): refresh toolchain and SDK pins
 
 - 2026-10-29 | 🔧 chore(shifts): prepare develop planner entry
 
