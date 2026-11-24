@@ -34,7 +34,8 @@ struct CoverageCaseDetailView: View {
                         }
                         if item.status == .offered, let offer = item.offer {
                             LabeledContent(
-                                CoverageCopy.text("offer_recipient"), value: model.coverage.memberName(offer.userId)
+                                CoverageCopy.text("offer_recipient"),
+                                value: model.coverage.memberName(offer.userId)
                             )
                             LabeledContent(
                                 CoverageCopy.text("offer_deadline"),
