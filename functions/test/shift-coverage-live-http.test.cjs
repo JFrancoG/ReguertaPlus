@@ -84,3 +84,25 @@ test("administrative delivery rejects forged actors and incomplete recovery targ
     assert.equal(result, "routed");
   }
 });
+
+test("the deployment opt-in admits only Develop and closed triggers never open a database transaction", async () => {
+  const {createDevelopCoverageAdmission} = require("../lib/shift-coverage-activation.js");
+  const {createShiftCoverageDeliveryEventHandler} = require("../lib/shift-coverage-delivery.js");
+  for (const value of [undefined, "[]", "{}", "unparsed", '["a","a"]', '["a/b"]']) {
+    assert.equal(createDevelopCoverageAdmission({SHIFT_COVERAGE_DEVELOP_ENABLED: "true",
+      SHIFT_COVERAGE_DEVELOP_MEMBERS: value}).allows("develop"), false);
+  }
+  for (const setting of [undefined, "", "false", "TRUE", "production", "true"]) {
+    const {allows: operationalReady} = createDevelopCoverageAdmission({SHIFT_COVERAGE_DEVELOP_ENABLED: setting,
+      SHIFT_COVERAGE_DEVELOP_MEMBERS: '["member"]'});
+    assert.equal(operationalReady("develop"), setting === "true");
+    assert.equal(operationalReady("production"), false);
+    const handle = createShiftCoverageDeliveryEventHandler({operationalReady,
+      firestore: {runTransaction: () => assert.fail("closed worker reached Firestore")},
+      deliveryFor: () => assert.fail("closed worker reached delivery")});
+    for (const environment of ["production", "invalid", ...(setting === "true" ? [] : ["develop"])]) {
+      await handle({kind: "effect", environment, operationId: "effect"});
+      await handle({kind: "inbox", environment, memberId: "member", eventId: "coverage-event", coverageOperationId: "effect"});
+    }
+  }
+});

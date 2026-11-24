@@ -115,7 +115,8 @@ test("phase 1 preserves profile writes and keeps eligibility history with the ad
     await assertFails(member.set(eligible));
     await assertFails(source.set({eligible: true}));
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(path).set(eligible);
+      await context.firestore().doc(path).set({...eligible, authUid: "profile-client"});
+      await context.firestore().doc(`${env}/plus-collections/authLinks/profile-client`).set({memberId: "person"});
       await context.firestore().doc(sourcePath).set({eligible: true});
     });
     await assertSucceeds(member.update({displayName: "Renamed"}));

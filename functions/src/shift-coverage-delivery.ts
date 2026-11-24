@@ -1,5 +1,5 @@
 import type {Firestore, Transaction} from "@google-cloud/firestore";
-import {HttpRequestError} from "./backend-security.js";
+import {type AppEnvironment, HttpRequestError} from "./backend-security.js";
 import {readShiftCoverageActivation} from "./shift-coverage-activation.js";
 import type {ShiftCoverageEffects} from "./shift-coverage-effects.js";
 import type {createFirestoreShiftCoverageEffectsWorker} from
@@ -80,14 +80,15 @@ type Event = {kind: "effect"; environment: string; operationId: string} |
  * @return {Function} Handler shared by both Firestore creation events.
  */
 export const createShiftCoverageDeliveryEventHandler = (input: {
-  firestore: Firestore; operationalReady: boolean;
+  firestore: Firestore; operationalReady(environment: AppEnvironment): boolean;
+  participants?: ReadonlySet<string>;
   deliveryFor(context: ShiftCoverageStoreContext):
     Pick<ReturnType<typeof createFirestoreShiftCoverageDelivery>,
       "project" | "submit">;
 }) => async (event: Event) => {
   const environment = event.environment;
-  if (!input.operationalReady ||
-      (environment !== "develop" && environment !== "production")) return;
+  if ((environment !== "develop" && environment !== "production") ||
+      !input.operationalReady(environment)) return;
   if (event.kind === "inbox" && (typeof event.coverageOperationId !==
       "string" || !event.eventId.startsWith("coverage-"))) return;
 
@@ -102,6 +103,7 @@ export const createShiftCoverageDeliveryEventHandler = (input: {
     const activation = await input.firestore.runTransaction(readActivation);
     if (!activation) return;
     const delivery = input.deliveryFor({environment,
+      participants: input.participants,
       requireReady: async (tx) => {
         if ((await readActivation(tx))?.digest !== activation.digest) {
           return rejectCoverage("coverage_unavailable");
@@ -120,6 +122,7 @@ export const createShiftCoverageDeliveryEventHandler = (input: {
     if (error instanceof HttpRequestError && [
       "coverage_effects_superseded", "coverage_effects_expired",
       "coverage_effects_retired", "coverage_push_stale",
+      "coverage_participant_out_of_scope",
     ].includes(error.code)) return;
     // Eventarc retains the error. Provider exceptions can include tokens,
     // workbook data or a complete SDK request.

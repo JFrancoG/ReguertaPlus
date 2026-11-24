@@ -19,7 +19,8 @@ import {createShiftSheetsMemberResolver, readShiftSheetsImport,
   ShiftSheetsImportTab} from
   "./shift-sheets-import.js";
 import {ShiftSheetsConfig} from "./shift-sheets-config.js";
-import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
+import {requireCoverageParticipants, ShiftCoverageStoreContext} from
+  "./shift-coverage-store-context.js";
 import {parseShiftPlanningWorkbookPartition} from
   "./shift-planning-firestore-sync-command-repository.js";
 import {parseShiftCoverageSheetsSubmission,
@@ -157,6 +158,10 @@ export const createFirestoreShiftCoverageEffectsWorker = (
       receipt.data()?.effectsDigest !== effectsDigest) {
       return rejectCoverage("coverage_effects_changed");
     }
+    requireCoverageParticipants(input.context.participants, [
+      ...value.notifications.map((notice) => notice.userId),
+      receipt.get("result.openedByUserId"), receipt.get("result.absentUserId"),
+    ]);
     if (record?.state === "completed") {
       return {completed: true as const, value};
     }

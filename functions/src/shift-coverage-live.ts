@@ -4,7 +4,7 @@ import {AppEnvironment, HttpRequestError, VerifiedIdentity} from
 import {administerCoverageDelivery, CoverageDeliveryPort,
   parseCoverageDeliveryRequest} from
   "./shift-coverage-delivery-administration.js";
-import type {ShiftCoverageStoreContext} from
+import {requireCoverageParticipants, type ShiftCoverageStoreContext} from
   "./shift-coverage-store-context.js";
 import {readShiftCoverageActor} from "./shift-coverage-access.js";
 import {parseShiftAdministrationCommand} from
@@ -43,6 +43,7 @@ export const createFirestoreShiftCoverageService = (input: {
   firestore: Firestore;
   environment: AppEnvironment;
   operationalReady: boolean;
+  participants?: ReadonlySet<string>;
   nowMillis: () => number;
   beaconFetcher?: typeof fetch;
   effectDeliveryFor?: (context: ShiftCoverageStoreContext) =>
@@ -78,8 +79,10 @@ export const createFirestoreShiftCoverageService = (input: {
     firestore.runTransaction(async (transaction) => {
       const actor = await readShiftCoverageActor(
         firestore, transaction, identity, environment);
-      return {actor, activation: await readActivation(transaction,
-        actor.admin, access)};
+      const admitted = !input.participants ||
+        input.participants.has(actor.memberId);
+      return {actor, activation: admitted ?
+        await readActivation(transaction, actor.admin, access) : null};
     });
   const contextFor = async (identity: VerifiedIdentity, access: Access) => {
     const context = await readContext(identity, access);
@@ -93,15 +96,23 @@ export const createFirestoreShiftCoverageService = (input: {
         throw new HttpRequestError(409, "coverage_session_changed",
           "The linked account changed; refresh shift coverage");
       }
+      requireCoverageParticipants(input.participants, [actor.memberId]);
       const current = await readActivation(transaction, actor.admin, access);
       if (!current || current.digest !== captured.digest) unavailable();
     };
-    return {scope: {environment, creditPlanning, requireReady},
-      policy: captured.policy, admin: context.actor.admin};
+    const scope = {environment, creditPlanning, requireReady,
+      participants: input.participants};
+    return {scope, policy: captured.policy, admin: context.actor.admin};
   };
   const storeFor = async (identity: VerifiedIdentity,
-    access: Access = "ordinary") => {
-    const {scope, policy} = await contextFor(identity, access);
+    access: Access = "ordinary", adminTarget?: string) => {
+    const {scope, policy, admin} = await contextFor(identity, access);
+    if (adminTarget !== undefined) {
+      if (!admin) {
+        throw new HttpRequestError(403, "coverage_actor_forbidden", "Denied");
+      }
+      requireCoverageParticipants(input.participants, [adminTarget]);
+    }
     return createShiftCoverageStore({firestore, nowMillis: input.nowMillis,
       maximumOfferWindowMillis: policy.maximumOfferWindowMillis,
       selectionPolicy: {version: "hu089-provisional-v1"},
@@ -142,7 +153,7 @@ export const createFirestoreShiftCoverageService = (input: {
       const command = parseShiftAdministrationCommand(value);
       const store = await storeFor(identity,
         command.action === "authorizeDeliverySpacingException" ?
-          "reviewSpacing" : "ordinary");
+          "reviewSpacing" : "ordinary", command.userId);
       return store.executeAdministration(command, identity);
     },
   };

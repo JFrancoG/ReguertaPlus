@@ -160,6 +160,7 @@ import type {ShiftCoverageStoreContext} from
   "./shift-coverage-store-context.js";
 import {createShiftCreditPlanningContext} from
   "./shift-credit-planning-context.js";
+import {createDevelopCoverageAdmission} from "./shift-coverage-activation.js";
 import {readCoveragePublicEventOwnership} from
   "./shift-coverage-public-event.js";
 import {executeShiftCoverageAccessRequest, executeShiftCoverageRequest} from
@@ -169,11 +170,10 @@ const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 const messaging = getMessaging(firebaseApp);
-// Shared activation awaits the reviewed writer controls and Develop acceptance.
-const coverageOperationalReady = false;
+const coverageAdmission = createDevelopCoverageAdmission();
 const creditPlanningFor = (environment: AppEnvironment) =>
   createShiftCreditPlanningContext({firestore, environment,
-    operationalReady: coverageOperationalReady});
+    operationalReady: coverageAdmission.allows(environment)});
 const shiftPlanningRecoveryExecutor =
   createFirestoreShiftPlanningOperatorRecoveryExecutor(firestore,
     {creditPlanningFor});
@@ -3222,7 +3222,8 @@ export const resolveDeliveryCalendarMutationContext = onRequest(
 
 const liveShiftCoverageServiceFor = (environment: AppEnvironment) =>
   createFirestoreShiftCoverageService({firestore, environment,
-    operationalReady: coverageOperationalReady, nowMillis: Date.now,
+    operationalReady: coverageAdmission.allows(environment),
+    participants: coverageAdmission.participants, nowMillis: Date.now,
     effectDeliveryFor: coverageDeliveryFor});
 
 export const resolveShiftCoverageAccess = onRequest(async (req, res) => {
@@ -3441,7 +3442,8 @@ const coverageDeliveryFor = (context: ShiftCoverageStoreContext) =>
     }});
 
 const deliverCoverageEvent = createShiftCoverageDeliveryEventHandler({
-  firestore, operationalReady: coverageOperationalReady,
+  firestore, operationalReady: coverageAdmission.allows,
+  participants: coverageAdmission.participants,
   deliveryFor: coverageDeliveryFor});
 
 export const onShiftCoverageEffectCreated = onDocumentCreated({

@@ -48,6 +48,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-11-24 | 🐛 fix(shifts): scope Develop coverage to the test roster
+
 - 2026-11-20 | 🐛 fix(shifts): complete the Develop migration
 
 - 2026-11-12 | 🐛 fix(shifts): preserve deferred writer and admission timing

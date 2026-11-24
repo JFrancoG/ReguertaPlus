@@ -21,7 +21,8 @@ import {genericShiftPlanningPush} from
 import {createFirebaseShiftPlanningNotificationTransport,
   ShiftPlanningNotificationTransport} from
   "./shift-planning-firebase-notification-transport.js";
-import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
+import {requireCoverageParticipants, ShiftCoverageStoreContext} from
+  "./shift-coverage-store-context.js";
 
 type Targets = {
   firebaseInstallationIds: readonly string[];
@@ -134,6 +135,7 @@ export const createFirestoreShiftCoveragePushDispatcher = (
     tx: Transaction, memberId: string, eventId: string,
   ) => {
     await input.context.requireReady(tx);
+    requireCoverageParticipants(input.context.participants, [memberId]);
     const reference = await readCoverageNotificationDelivery(
       db, tx, memberId, eventId, environment);
     const {operationId} = reference;

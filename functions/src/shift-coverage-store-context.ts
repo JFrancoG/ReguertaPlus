@@ -1,3 +1,4 @@
+import {HttpRequestError} from "./backend-security.js";
 import type {Transaction} from "@google-cloud/firestore";
 import type {AppEnvironment} from "./backend-security.js";
 import type {ShiftCreditPlanningContext} from
@@ -45,6 +46,17 @@ export const parseShiftCoverageActivation = (
  */
 export type ShiftCoverageStoreContext = {
   environment: AppEnvironment;
+  participants?: ReadonlySet<string>;
   creditPlanning?: ShiftCreditPlanningContext;
   requireReady: (transaction: Transaction) => Promise<void>;
+};
+
+export const requireCoverageParticipants = (
+  participants: ReadonlySet<string> | undefined,
+  members: readonly string[],
+) => {
+  if (participants && members.some((id) => !participants.has(id))) {
+    throw new HttpRequestError(403, "coverage_participant_out_of_scope",
+      "Coverage is outside the admitted participants");
+  }
 };

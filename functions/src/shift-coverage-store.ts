@@ -1,5 +1,6 @@
 import {Firestore, Timestamp, Transaction} from "@google-cloud/firestore";
-import {ShiftCoverageStoreContext} from "./shift-coverage-store-context.js";
+import {requireCoverageParticipants, ShiftCoverageStoreContext} from
+  "./shift-coverage-store-context.js";
 import {createDeliverySpacingAdministration} from
   "./shift-delivery-spacing-store.js";
 import {createShiftCoverageAdministration} from
@@ -816,6 +817,10 @@ export const createShiftCoverageStore = (options: {
           operationId:
           command.operationId, action: command.action, previous, next,
           before, writes});
+        requireCoverageParticipants(options.context?.participants, [
+          next.openedByUserId, next.absentUserId,
+          ...effects.notifications.map((notice) => notice.userId),
+        ]);
         const publicEvents = [...writes].map(([targetPath, after]) => {
           const descriptor = describeCoveragePublicEvent({targetPath,
             before: before.get(targetPath) ?? null, after});

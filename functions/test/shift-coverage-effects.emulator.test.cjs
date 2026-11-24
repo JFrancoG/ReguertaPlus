@@ -102,6 +102,9 @@ run("completion delivered out of order verifies one Sheets batch and admin recov
     require("../lib/shift-coverage-push.js");
   const {writeProof} = require("./shift-coverage-bootstrap-proof-fixture.cjs");
   const {SHIFT_COVERAGE_POLICY_REVISION: revision} = require("../lib/shift-coverage.js");
+  const {createDevelopCoverageAdmission} = require("../lib/shift-coverage-activation.js");
+  const {allows: operationalReady, participants} = createDevelopCoverageAdmission({SHIFT_COVERAGE_DEVELOP_ENABLED: "true",
+    SHIFT_COVERAGE_DEVELOP_MEMBERS: JSON.stringify(["admin", "a", "b", "c", "d", "e"])});
   const environment = "develop";
   const {scoped, accepted, config, tabs, api} = await sharedFixture(environment);
   await scoped("shiftPlanningState", "sourcePolicy").set({
@@ -126,17 +129,29 @@ run("completion delivered out of order verifies one Sheets batch and admin recov
         return {successCount: 1, failureCount: 0, responses: [{success: true}]};
       }}, () => now)})});
   const service = createFirestoreShiftCoverageService({firestore: db, environment,
-    operationalReady: true, nowMillis: () => now, effectDeliveryFor: deliveryFor});
+    operationalReady: operationalReady(environment), participants, nowMillis: () => now, effectDeliveryFor: deliveryFor});
   const call = (body, uid = "auth-admin") => executeShiftCoverageRequest({method: "POST", query: {},
     body: {schemaVersion: 1, environment, ...body}}, {verifyIdentity: async () => ({uid}),
     resolveEnvironment: async () => environment, serviceFor: () => service});
-  const route = createShiftCoverageDeliveryEventHandler({firestore: db, operationalReady: true, deliveryFor});
+  const route = createShiftCoverageDeliveryEventHandler({firestore: db, operationalReady, deliveryFor, participants});
   const caseId = "shared-case", operationId = "member-completion";
   const shift = await scoped("shifts", "shift_delivery_20270901").get();
   now = shift.get("date").toMillis() + 1000;
   const complete = {action: "complete", operationId, caseId,
     expectedRevision: (await scoped("shiftCoverageCases", caseId).get()).get("value.revision"),
     expectedShiftRevision: shift.get("documentRevision")};
+  const limited = new Set(["admin"]);
+  const limitedService = createFirestoreShiftCoverageService({firestore: db, environment, operationalReady: true,
+    participants: limited, nowMillis: () => now, effectDeliveryFor: deliveryFor});
+  assert.equal((await limitedService.resolveAccess({uid: "auth-d"})).enabled, false);
+  await assert.rejects(limitedService.execute({schemaVersion: 1, environment, ...complete}, {uid: "auth-admin"}),
+    {code: "coverage_participant_out_of_scope"});
+  assert.equal((await scoped("shiftCoverageOperations", operationId).get()).exists, false);
+  const excludedEvent = createShiftCoverageDeliveryEventHandler({firestore: db, operationalReady,
+    participants: limited, deliveryFor});
+  const beforeExcluded = api.mutations.length;
+  await excludedEvent({kind: "effect", environment, operationId: accepted.operationId});
+  assert.equal(api.mutations.length, beforeExcluded);
   assert.equal((await call(complete)).replayed, false);
   assert.equal((await call(complete)).replayed, true);
   const before = api.mutations.length;
@@ -155,6 +170,8 @@ run("completion delivered out of order verifies one Sheets batch and admin recov
   const [notice] = userInbox.docs;
   assert.equal(notice.get("coverageOperationId"), operationId);
   const inboxEvent = {kind: "inbox", environment, memberId: "d", eventId: notice.id, coverageOperationId: operationId};
+  await excludedEvent(inboxEvent);
+  assert.equal(attemptedTokens.length, 0);
   await route(inboxEvent);
   await route(inboxEvent);
   assert.deepEqual(attemptedTokens, ["old-token"]);
