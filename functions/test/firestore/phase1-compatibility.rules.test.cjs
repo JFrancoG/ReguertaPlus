@@ -103,6 +103,35 @@ test("phase 1 leaves the previously deployed plus contract unchanged", async () 
   }
 });
 
+test("phase 1 preserves profile writes and keeps eligibility history with the admin upsert", async () => {
+  const db = testEnv.authenticatedContext("profile-client").firestore();
+  for (const env of envs) {
+    const path = `${env}/plus-collections/users/person`;
+    const member = db.doc(path);
+    const eligible = {roles: ["member"], isActive: true, isCommonPurchaseManager: false};
+    const sourcePath = `${env}/plus-collections/shiftMembershipState/person/source/eligibility`;
+    const source = db.doc(sourcePath);
+    const date = new Date(1_700_000_000_000);
+    await assertFails(member.set(eligible));
+    await assertFails(source.set({eligible: true}));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(path).set({...eligible, authUid: "profile-client"});
+      await context.firestore().doc(`${env}/plus-collections/authLinks/profile-client`).set({memberId: "person"});
+      await context.firestore().doc(sourcePath).set({eligible: true});
+    });
+    await assertSucceeds(member.update({displayName: "Renamed"}));
+    await assertSucceeds(member.collection("devices").doc("local").set({lastSeen: date}));
+    await assertFails(member.update({isActive: false}));
+    await assertFails(member.update({roles: ["member", "producer"]}));
+    await assertFails(member.update({isCommonPurchaseManager: true}));
+    await assertFails(member.set({displayName: "Dropped eligibility"}));
+    await assertFails(source.get());
+    await assertFails(source.update({eligible: false}));
+    await assertFails(source.delete());
+    await assertFails(member.delete());
+  }
+});
+
 test("phase 1 keeps delivery calendar readable but rejects every direct write", async () => {
   const db = testEnv.authenticatedContext("plus-user").firestore();
   const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();

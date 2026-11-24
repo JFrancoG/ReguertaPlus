@@ -122,9 +122,12 @@ Deferred:
 
 ## 6. Governance-dependent points
 
-These need assembly-level decisions and are tracked as non-blocking governance items:
-- Post-publication shift replacement policy when a member drops out.
-- Additional product field edit restrictions beyond immutable `vendorId`.
+Additional product field edit restrictions beyond immutable `vendorId` remain
+open as a non-blocking governance item.
+
+The maintainer reported that the 18 November 2026 assembly approved the
+[HU-084 shift coverage proposal](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/propuesta-turnos-para-socios.md),
+which covers absences and departures after publication.
 
 ## 7. Derivative artifacts already produced
 

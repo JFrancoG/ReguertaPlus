@@ -10,6 +10,7 @@ import {
   planShiftPlanningBundle,
 } from "./shift-planning-bundle.js";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
+import {HttpRequestError} from "./backend-security.js";
 import {
   ShiftPlanningDigest,
   ShiftPlanningFairnessSnapshot,
@@ -333,6 +334,8 @@ const requireRecoveryReadDocument = (
  * reloads the immutable staged package, cached envelope, rebuilt governed
  * source, both authoritative rotations/state, and every before-image target
  * before the runtime is allowed to materialize a write.
+ * A domain conflict while rebuilding a previously staged source means that
+ * its governed inputs are no longer reproducible in this transaction.
  * @param {object} input Environment, request identity, and source rebuilder.
  * @return {ShiftPlanningForwardActivationAttemptResolver} Retry-scoped
  * forward resolver.
@@ -403,10 +406,15 @@ export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
       });
     } catch (error) {
       if (
-        error instanceof ShiftPlanningError &&
         (
-          error.code === "invalid_planning_transaction" ||
-          error.code === "invalid_shift_planning_fairness_snapshot"
+          error instanceof ShiftPlanningError &&
+          (
+            error.code === "invalid_planning_transaction" ||
+            error.code === "invalid_shift_planning_fairness_snapshot"
+          )
+        ) ||
+        (
+          error instanceof HttpRequestError && error.status === 409
         )
       ) {
         throw new ShiftPlanningError(

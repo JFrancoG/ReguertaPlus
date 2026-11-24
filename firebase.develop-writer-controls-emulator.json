@@ -1,0 +1,21 @@
+{
+  "firestore": {
+    "rules": "firestore.develop-writer-controls.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8897
+    },
+    "hub": {
+      "port": 4467
+    },
+    "logging": {
+      "port": 4567
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": false
+  }
+}

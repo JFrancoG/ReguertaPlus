@@ -10,6 +10,7 @@ final class ShiftsFeatureViewModel {
     @ObservationIgnored let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     @ObservationIgnored let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
     @ObservationIgnored let deliveryCalendarRepository: any DeliveryCalendarRepository
+    @ObservationIgnored let coverage: CoverageRouteViewModel
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
     @ObservationIgnored let planningRequestIDProvider: @MainActor () -> String
     @ObservationIgnored let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
@@ -115,6 +116,9 @@ final class ShiftsFeatureViewModel {
         shiftSwapRequestRepository: any ShiftSwapRequestRepository,
         shiftPlanningRequestRepository: any ShiftPlanningRequestRepository,
         deliveryCalendarRepository: any DeliveryCalendarRepository,
+        coverageRepositoryFactory: @MainActor (
+            @escaping @MainActor () -> ShiftCoverageSession?
+        ) -> any ShiftCoverageRepository,
         nowMillisProvider: @escaping @MainActor () -> Int64,
         planningRequestIDProvider: @escaping @MainActor () -> String = {
             UUID().uuidString.lowercased()
@@ -134,6 +138,22 @@ final class ShiftsFeatureViewModel {
         self.planningRequestIDProvider = planningRequestIDProvider
         self.shiftsRetrySleeper = shiftsRetrySleeper
         self.environmentProvider = environmentProvider
+        let coverageSession: @MainActor () -> ShiftCoverageSession? = { [weak sessionViewModel] in
+            guard let sessionViewModel, case .authorized(let session) = sessionViewModel.mode,
+                  session.representsActiveAuthorization,
+                  session.member.id == session.authenticatedMember.id,
+                  session.member.authUid == session.principal.uid,
+                  session.environment == environmentProvider() else { return nil }
+            return ShiftCoverageSession(
+                environment: session.environment,
+                uid: session.principal.uid,
+                memberId: session.authenticatedMember.id,
+                authorizationRevision: sessionViewModel.sessionStateRevision
+            )
+        }
+        coverage = CoverageRouteViewModel(
+            repository: coverageRepositoryFactory(coverageSession), sessionProvider: coverageSession
+        )
         handledShiftSwapAuthorizationBoundaryRevision = sessionViewModel.shiftSwapAuthorizationBoundaryRevision
         if case .authorized(let session) = sessionViewModel.mode, session.representsActiveAuthorization {
             currentSession = session

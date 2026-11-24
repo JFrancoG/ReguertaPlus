@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 struct FirebaseAuthSessionProvider: AuthSessionProvider {
     private let storedAuth: Auth
+    var currentUserID: String? { storedAuth.currentUser?.uid }
 
     func signIn(email: String, password: String) async -> AuthSignInResult {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)

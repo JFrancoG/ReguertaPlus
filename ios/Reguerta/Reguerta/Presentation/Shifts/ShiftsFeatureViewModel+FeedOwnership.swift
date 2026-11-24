@@ -2,7 +2,7 @@ import Foundation
 
 extension ShiftsFeatureViewModel {
     func handleSessionModeChange(_ mode: SessionMode) {
-        handleShiftSwapAuthorizationBoundaryChange()
+        synchronizeAuthorizationBoundaries()
         let boundaryReceipts = shiftSwapMutationReceipts
         switch mode {
         case .authorized(let session):
@@ -52,6 +52,11 @@ extension ShiftsFeatureViewModel {
             sessionIdentityEpoch += 1
             reset()
         }
+    }
+
+    private func synchronizeAuthorizationBoundaries() {
+        coverage.synchronizeSession()
+        handleShiftSwapAuthorizationBoundaryChange()
     }
 
     private func startAuthorizedShiftReads() {

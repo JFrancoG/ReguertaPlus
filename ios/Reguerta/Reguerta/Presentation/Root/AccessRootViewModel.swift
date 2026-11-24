@@ -267,6 +267,7 @@ private extension AccessRootViewModel {
             shiftSwapRequestRepository: dependencies.shiftSwapRequestRepository,
             shiftPlanningRequestRepository: dependencies.shiftPlanningRequestRepository,
             deliveryCalendarRepository: dependencies.deliveryCalendarRepository,
+            coverageRepositoryFactory: dependencies.coverageRepositoryFactory,
             nowMillisProvider: dependencies.nowMillisProvider,
             environmentProvider: dependencies.environmentProvider
         )

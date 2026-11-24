@@ -1,3 +1,4 @@
+import {ShiftCreditPlanningContext} from "./shift-credit-planning-context.js";
 import {
   DocumentSnapshot,
   Firestore,
@@ -420,15 +421,16 @@ const requireMaintenanceBinding = (
  * Composes the local recovery executor around an exact backend allowlist read.
  * The HTTP/IAM export remains separate so deployment cannot invent an operator.
  * @param {Firestore} firestore Pinned Firestore authority.
- * @param {object} dependencies Testable clock.
+ * @param {object} dependencies Trusted clock and coverage scope by environment.
  * @return {ShiftPlanningOperatorRecoveryExecutor} Allowlisted recovery port.
  */
 export const createFirestoreShiftPlanningOperatorRecoveryExecutor = (
   firestore: Firestore,
-  dependencies: {clock?: () => Timestamp} = {},
+  dependencies: {clock?: () => Timestamp;
+    creditPlanningFor?: (environment: ShiftPlanningEnvironment) =>
+      ShiftCreditPlanningContext} = {},
 ): ShiftPlanningOperatorRecoveryExecutor => {
   const clock = dependencies.clock ?? (() => Timestamp.now());
-  const casRuntime = createFirestoreShiftPlanningCasRuntime(firestore, {clock});
   return {
     async execute(rawCommand) {
       const command = parseShiftPlanningOperatorRecoveryCommand(rawCommand);
@@ -444,6 +446,9 @@ export const createFirestoreShiftPlanningOperatorRecoveryExecutor = (
         environment: command.environment,
         activationOperationId: command.activationOperationId,
       });
+      const casRuntime = createFirestoreShiftPlanningCasRuntime(firestore,
+        {clock, creditPlanning: dependencies.creditPlanningFor?.(
+          command.environment)});
       try {
         return await casRuntime.executeInverseRecovery({
           environment: command.environment,

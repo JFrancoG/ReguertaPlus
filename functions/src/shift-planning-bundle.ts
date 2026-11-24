@@ -1,3 +1,11 @@
+import {DeliverySpacingSource, deliverySpacingAuthorityDigest,
+  parseDeliverySpacingSource} from
+  "./shift-delivery-spacing.js";
+import {planShiftMembershipAdmission, buildShiftMembershipAcknowledgements} from
+  "./shift-membership-planning.js";
+import {buildShiftCreditPublication, parseShiftCreditPublicationSources,
+  ShiftCreditPublication, ShiftCreditPublicationSources} from
+  "./shift-credit-publication.js";
 import {
   DeliveryPlan,
   DeliveryPlanningContinuity,
@@ -248,6 +256,7 @@ export type ShiftPlanningActivationManifest = {
   ];
   heldRecipients: readonly RecipientManifest[];
   creditLedgerWriteCount: number;
+  creditPublication?: ShiftCreditPublication;
   releaseLeaseIntents: readonly [
     Omit<
       ShiftPlanningReleaseLeaseIntent,
@@ -429,6 +438,7 @@ type BundleRotationSnapshot = {
 };
 
 type BundleFairnessSnapshot = {
+  deliverySpacing?: DeliverySpacingSource;
   normalized: ShiftPlanningFairnessSnapshot;
   authoritativeState: ShiftPlanningAuthoritativeState;
   environment: ShiftPlanningEnvironment;
@@ -440,6 +450,9 @@ type BundleFairnessSnapshot = {
   market: BundleRotationSnapshot;
   deliveryWeekday: BusinessWeekday;
   creditLedgerWriteCount: number;
+  creditSources?: ShiftCreditPublicationSources;
+  membershipAdmission?: ReturnType<typeof planShiftMembershipAdmission>;
+  creditPublication?: ShiftCreditPublication;
   releaseLeaseDurationMillis: number;
   syncLeaseDurationMillis: number;
   workbookPartitions: {
@@ -712,6 +725,25 @@ const parseRotationSnapshot = (
   };
 };
 
+/**
+ * Shared plans must carry both policies from the same environment and
+ * ratification. Legacy emulator envelopes predate both activation markers.
+ * @param {object} credits Captured credit authority, when enabled.
+ * @param {object} spacing Captured ordinary spacing authority, when enabled.
+ * @param {string} environment Trusted planning request or bundle environment.
+ */
+export const assertShiftPlanningCoverageBinding = (
+  credits: ShiftCreditPublicationSources | undefined,
+  spacing: DeliverySpacingSource | undefined,
+  environment: ShiftPlanningEnvironment,
+): void => {
+  if (credits?.activationDigest !== spacing?.activationDigest ||
+      (spacing?.environment !== undefined &&
+        spacing.environment !== environment)) {
+    failState("Credits and spacing require the same activation.");
+  }
+};
+
 const parseBundleFairnessSnapshot = (
   value: unknown,
   authoritativeValue: unknown,
@@ -837,18 +869,46 @@ const parseBundleFairnessSnapshot = (
   ) {
     return failState("Workbook partition identities are inconsistent.");
   }
-  const creditLedgerWriteCount = requireNonNegativeInteger(
-    creditLedger.plannedWriteCount,
-    "creditLedger.plannedWriteCount",
-  );
-  if (creditLedger.enabled !== false || creditLedgerWriteCount !== 0) {
-    return failState(
-      "Coverage-credit transitions remain disabled until HU-084.",
-    );
+  let creditSources: ShiftCreditPublicationSources | undefined;
+  if (creditLedger.enabled === true) {
+    if (Object.keys(creditLedger).sort().join() !==
+        "enabled,policyRevision,sources" ||
+        creditLedger.policyRevision !== "hu084-provisional-v1") {
+      return failState("HU-084 credit policy fields are not exact.");
+    }
+    creditSources = parseShiftCreditPublicationSources(
+      creditLedger.sources, authoritativeState.environment);
+    for (const type of ["delivery", "market"] as const) {
+      const rotation = authoritativeState.rotations[type];
+      if (rotation.cohortFrozen && creditSources[type].frozenThroughRound <
+          rotation.cursor.roundNumber) {
+        return failState("Credit policy cannot thaw an authoritative round.");
+      }
+    }
+  } else if (creditLedger.enabled !== false ||
+      requireNonNegativeInteger(creditLedger.plannedWriteCount,
+        "creditLedger.plannedWriteCount") !== 0) {
+    return failState("Coverage-credit transitions remain disabled.");
   }
+  const deliverySpacing = normalized.deliverySpacing !== undefined ?
+    parseDeliverySpacingSource(normalized.deliverySpacing) : undefined;
+  assertShiftPlanningCoverageBinding(creditSources, deliverySpacing,
+    authoritativeState.environment);
+  if (deliverySpacing && deliverySpacing.authorityDigest !==
+      deliverySpacingAuthorityDigest(authoritativeState.maintenance,
+        authoritativeState.rotations.delivery)) {
+    return failState("Delivery spacing approvals belong to another authority.");
+  }
+  const membershipAdmission = creditSources?.membership ?
+    planShiftMembershipAdmission({source: creditSources.membership,
+      rotations: {delivery: delivery.cursor, market: market.cursor},
+      frozenThroughRound: {delivery: creditSources.delivery.frozenThroughRound,
+        market: creditSources.market.frozenThroughRound}, roster}) : undefined;
   return {
     normalized,
     authoritativeState,
+    ...(deliverySpacing ? {deliverySpacing} : {}),
+    ...(membershipAdmission ? {membershipAdmission} : {}),
     environment: authoritativeState.environment,
     activeRevision: authoritativeState.maintenance.activeRevision,
     activeDigest: authoritativeState.maintenance.activeDigest,
@@ -863,7 +923,8 @@ const parseBundleFairnessSnapshot = (
       "market",
     ),
     deliveryWeekday: config.deliveryWeekday as BusinessWeekday,
-    creditLedgerWriteCount,
+    creditLedgerWriteCount: 0,
+    ...(creditSources ? {creditSources} : {}),
     releaseLeaseDurationMillis,
     syncLeaseDurationMillis,
     workbookPartitions,
@@ -934,13 +995,19 @@ const validateModeGate = (
   validateCohort(
     request.mode,
     "delivery",
-    snapshot.delivery,
+    snapshot.membershipAdmission ? {...snapshot.delivery,
+      cursor: {...snapshot.delivery.cursor,
+        cohortUserIds: snapshot.membershipAdmission.cohorts.delivery}} :
+      snapshot.delivery,
     snapshot.eligibleUserIds,
   );
   validateCohort(
     request.mode,
     "market",
-    snapshot.market,
+    snapshot.membershipAdmission ? {...snapshot.market,
+      cursor: {...snapshot.market.cursor,
+        cohortUserIds: snapshot.membershipAdmission.cohorts.market}} :
+      snapshot.market,
     snapshot.eligibleUserIds,
   );
   if (
@@ -1442,6 +1509,8 @@ const activationManifest = (input: {
   ],
   heldRecipients: input.recipients,
   creditLedgerWriteCount: input.snapshot.creditLedgerWriteCount,
+  ...(input.snapshot.creditPublication ?
+    {creditPublication: input.snapshot.creditPublication} : {}),
   releaseLeaseIntents: input.releaseLeaseIntents,
 });
 
@@ -1489,6 +1558,9 @@ const recoveryManifest = (input: {
       contract: input.snapshot.authoritativeState.maintenance,
     },
   ];
+  for (const change of input.snapshot.creditPublication?.changes ?? []) {
+    beforeImageTargets.push({path: change.targetPath, contract: change.before});
+  }
   if (input.delivery.predecessorHelperUpdate !== null) {
     const predecessorGuard = input.delivery.predecessorGuard;
     if (predecessorGuard === null) {
@@ -1990,16 +2062,9 @@ const heldNotificationIntents = (input: {
   }),
 );
 
-/**
- * Plans one deterministic delivery-plus-market candidate without persistence.
- * Preview, stage, and activate share the same revision/digest because request
- * lifecycle metadata is excluded while every planning input and derived public
- * manifest remains bound.
- * @param {ShiftPlanningBundleInput} input Untrusted request plus fair state.
- * @return {ShiftPlanningBundleResult} Side-effect-free combined candidate.
- */
-export const planShiftPlanningBundle = (
+const buildPlanningBundle = (
   input: ShiftPlanningBundleInput,
+  spacingDiagnostic: boolean,
 ): ShiftPlanningBundleResult => {
   if ("transactionEvidence" in input) {
     failState(
@@ -2011,6 +2076,10 @@ export const planShiftPlanningBundle = (
     input.fairnessSnapshot,
     input.authoritativeState,
   );
+  if (spacingDiagnostic && (request.mode !== "preview" ||
+      !snapshot.deliverySpacing)) {
+    return failState("Spacing diagnostics require a governed preview.");
+  }
   validateRequestAgainstSnapshot(request, snapshot);
   validateModeGate(request, snapshot);
   const writeLimit = requireTransactionWriteLimit(
@@ -2052,13 +2121,38 @@ export const planShiftPlanningBundle = (
     rotation: snapshot.delivery.cursor,
     inheritedTargetPrefix: input.delivery.inheritedTargetPrefix ?? null,
     continuity: input.delivery.continuity,
+    ordinarySpacing: spacingDiagnostic ? undefined : snapshot.deliverySpacing,
+    provisionalCredits: snapshot.creditSources ? {
+      ...snapshot.creditSources.delivery,
+      recordDeferralReasons: !!snapshot.creditSources.activationDigest,
+      ...(snapshot.membershipAdmission?.policies.delivery ? {membership:
+        snapshot.membershipAdmission.policies.delivery} : {})} : undefined,
   });
   const market = planMarketShifts({
     planningRequestId: request.bundleId,
     targetSeasonStartYear: request.subplans.market.targetSeasonStartYear,
     rotation: snapshot.market.cursor,
     inheritedTargetPrefix: input.market.inheritedTargetPrefix ?? null,
+    provisionalCredits: snapshot.creditSources ? {
+      ...snapshot.creditSources.market,
+      recordDeferralReasons: !!snapshot.creditSources.activationDigest,
+      ...(snapshot.membershipAdmission?.policies.market ? {membership:
+        snapshot.membershipAdmission.policies.market} : {})} : undefined,
   });
+  if (snapshot.creditSources && delivery.creditProjection &&
+      market.creditProjection) {
+    snapshot.creditPublication = buildShiftCreditPublication({
+      environment: request.environment,
+      sources: snapshot.creditSources, delivery: delivery.creditProjection,
+      market: market.creditProjection, planId: request.bundleId,
+      membershipChanges: snapshot.creditSources.membership ?
+        buildShiftMembershipAcknowledgements(
+          snapshot.creditSources.membership, {
+            delivery: delivery.creditProjection.membershipApplied ?? false,
+            market: market.creditProjection.membershipApplied ?? false},
+          request.environment) : []});
+    snapshot.creditLedgerWriteCount = snapshot.creditPublication.changes.length;
+  }
   const recipients = recipientManifest(delivery, market, snapshot.roster);
   const frontiers = frontierTransitions({
     snapshot,
@@ -2225,3 +2319,25 @@ export const planShiftPlanningBundle = (
     previewReceiptDigest: persistedChain.previewReceiptDigest,
   };
 };
+
+/**
+ * Plans one deterministic delivery-plus-market candidate without persistence.
+ * Preview, stage, and activate share the same revision/digest because request
+ * lifecycle metadata is excluded while every planning input and derived public
+ * manifest remains bound.
+ * @param {ShiftPlanningBundleInput} input Untrusted request plus fair state.
+ * @return {ShiftPlanningBundleResult} Side-effect-free combined candidate.
+ */
+export const planShiftPlanningBundle = (
+  input: ShiftPlanningBundleInput,
+): ShiftPlanningBundleResult => buildPlanningBundle(input, false);
+
+/**
+ * Reproduce the ordinary plan for an administrator reviewing exact spacing
+ * exceptions. Only delivery rows leave this private preview calculation.
+ * @param {ShiftPlanningBundleInput} input Complete governed source.
+ * @return {Array} Generated leads used to identify the conflicting pairs.
+ */
+export const planShiftPlanningDeliverySpacingDiagnostic = (
+  input: ShiftPlanningBundleInput,
+): DeliveryPlan["shifts"] => buildPlanningBundle(input, true).delivery.shifts;

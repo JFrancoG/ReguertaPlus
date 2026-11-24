@@ -42,6 +42,25 @@ service cloud.firestore {
         "shiftPlanningOperations",
         "shiftPlanningPublicEventLedgers",
         "deliveryCalendarMutationReceipts",
+        "shiftCoverageCreditPlans",
+        "shiftCoverageCreditUnits",
+        "shiftCoverageCases",
+        "shiftCoverageEffects",
+        "shiftCoverageProjectionState",
+        "shiftCoverageReserves",
+        "shiftMembershipState",
+        "shiftMembershipOperations",
+        "shiftDeliverySpacingExceptions",
+        "shiftDeliverySpacingOperations",
+        "shiftCoverageBeaconRounds",
+        "shiftCoverageOperations",
+        "shiftCoverageMigrations",
+        "shiftCoveragePublicWrites",
+        "shiftSheetsOrdinaryOperations",
+        "shiftCoverageSlots",
+        "shiftCoverageMemberClaims",
+        "shiftCoverageCredits",
+        "shiftCoverageLedgerState",
       ];
     }
 
@@ -170,6 +189,34 @@ service cloud.firestore {
         isLegacyCollection(collectionId);
     }
 
+    // Develop coverage uses the reciprocal server-owned link and current member.
+    function developActorId() {
+      return get(/databases/$(database)/documents/develop/plus-collections/authLinks/$(request.auth.uid)).data.memberId;
+    }
+
+    function isActiveDevelopOwner(memberId) {
+      let member = get(/databases/$(database)/documents/develop/plus-collections/users/$(memberId)).data;
+      let roles = member.get("roles", []);
+      return isSignedIn() && developActorId() == memberId &&
+        member.get("authUid", "") == request.auth.uid && member.get("isActive", false) == true &&
+        roles is list && roles.hasAny(["member"]);
+    }
+
+    function canReadDevelopConfig(configId) {
+      let memberId = developActorId();
+      return isActiveDevelopOwner(memberId) && (configId == "member" ||
+        (configId == "global" &&
+          get(/databases/$(database)/documents/develop/plus-collections/users/$(memberId)).data.roles.hasAny(["admin"])));
+    }
+
+    match /develop/plus-collections/authLinks/{uid} {
+      allow get: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /develop/plus-collections/config/{configId} {
+      allow get: if isSignedIn() && canReadDevelopConfig(configId);
+    }
+
     // Startup version gating runs before authentication and contains no member data.
     match /{env}/plus-collections/config/public {
       allow get: if isSupportedEnv(env);
@@ -218,10 +265,43 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // The administrative upsert records eligibility transitions at commit time.
+    function protectedMemberFields(env) {
+      return env == "develop" ?
+        ["isActive", "roles", "isCommonPurchaseManager", "authUid", "isAdmin", "isProducer",
+          "normalizedEmail", "emailNormalized", "email"] :
+        ["isActive", "roles", "isCommonPurchaseManager"];
+    }
+
+    match /{env}/plus-collections/users/{userId} {
+      allow read: if isSignedIn() && isSupportedEnv(env);
+      allow create: if isSignedIn() && isSupportedEnv(env) &&
+        !request.resource.data.keys().hasAny(protectedMemberFields(env));
+      allow update: if isSignedIn() && isSupportedEnv(env) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(protectedMemberFields(env));
+      allow delete: if isSignedIn() && isSupportedEnv(env) &&
+        !resource.data.keys().hasAny(protectedMemberFields(env));
+      match /notificationInbox/{eventId} {
+        allow read: if env == "develop" && isActiveDevelopOwner(userId);
+      }
+      match /devices/{deviceId} {
+        allow read, write: if env == "develop" && isActiveDevelopOwner(userId);
+      }
+      match /notificationReads/{eventId} {
+        allow read, write: if env == "develop" && isActiveDevelopOwner(userId);
+      }
+      match /{subcollection}/{document=**} {
+        allow read, write: if isSignedIn() && isSupportedEnv(env) &&
+          (env != "develop" || !(subcollection in ["notificationInbox", "notificationReads", "devices"]));
+      }
+    }
+
     match /{env}/{dataset}/{collectionId}/{document=**} {
       allow read, write: if isSignedIn() &&
         isSupportedEnv(env) &&
         isSupportedDataset(dataset) &&
+        (env != "develop" || !(collectionId in ["authLinks", "config", "notificationEvents"])) &&
+        collectionId != "users" &&
         collectionId != "orders" &&
         collectionId != "deliveryCalendar" &&
         collectionId != "shifts" &&

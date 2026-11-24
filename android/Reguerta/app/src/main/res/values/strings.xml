@@ -119,6 +119,7 @@
     <string name="shifts_next_title">My next shifts</string>
     <string name="shifts_next_subtitle">Keep track of your upcoming delivery and market assignments.</string>
     <string name="shifts_next_delivery">Next delivery</string>
+    <string name="shifts_next_role_assignment">%1$s: %2$s</string>
     <string name="shifts_next_delivery_lead">Responsible</string>
     <string name="shifts_next_delivery_helper">Support</string>
     <string name="shifts_next_market">Next market</string>
@@ -142,7 +143,7 @@
     <string name="shift_swap_requests_history">Recent activity</string>
     <string name="shift_swap_request_button_label">Request swap</string>
     <string name="shift_swap_request_screen_title">Request shift swap</string>
-    <string name="shift_swap_request_screen_subtitle">Send the request to all valid future members and explain briefly why you need the change.</string>
+    <string name="shift_swap_request_screen_subtitle">Ask to swap your shift for another member’s shift. You choose which available member to swap with and confirm the exchange.</string>
     <string name="shift_swap_request_broadcast_scope_format">Audience: future %1$s members</string>
     <string name="shift_swap_request_shift_format">Shift: %1$s</string>
     <string name="shift_swap_request_offer_shift_format">Available from shift: %1$s</string>
@@ -637,4 +638,7 @@
     <string name="profile_shared_empty">There are no shared profiles yet.</string>
     <string name="profile_shared_saved_dialog_title">Profile saved</string>
     <string name="profile_shared_saved_dialog_message">Your community profile has been saved successfully.</string>
+    <string name="coverage_notifications">Coverage notifications</string>
+    <string name="coverage_no_notifications">No coverage notifications.</string>
+    <string name="coverage_notification_title">View updated coverage</string>
 </resources>

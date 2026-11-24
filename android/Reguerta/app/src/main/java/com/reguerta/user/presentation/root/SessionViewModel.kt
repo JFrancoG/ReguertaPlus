@@ -42,6 +42,9 @@ import com.reguerta.user.presentation.products.SessionProductActions
 import com.reguerta.user.presentation.shifts.SessionShiftActions
 import com.reguerta.user.presentation.users.SessionMemberActions
 import kotlinx.coroutines.flow.MutableSharedFlow
+import com.reguerta.user.presentation.shiftcoverage.coverageSession
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,7 +54,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
-class SessionViewModel(
+class SessionViewModel internal constructor(
     private val repository: MemberRepository,
     private val newsRepository: NewsRepository,
     private val notificationRepository: NotificationRepository,
@@ -102,11 +105,25 @@ class SessionViewModel(
     private val runtimeEnvironmentProvider: () -> String? = { null },
     private val developImpersonationEnabled: Boolean = false,
     initialNowOverrideMillis: Long? = null,
+    shiftCoverageRepository: com.reguerta.user.domain.shiftcoverage.ShiftCoverageRepository? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         SessionUiState(nowOverrideMillis = initialNowOverrideMillis),
     )
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
+    internal val coverageRoute = shiftCoverageRepository?.let {
+        com.reguerta.user.presentation.shiftcoverage.CoverageRouteViewModel(it, viewModelScope)
+    }
+
+    internal fun currentCoverageSession() = _uiState.value.coverageSession()
+
+    init {
+        coverageRoute?.let { route ->
+            viewModelScope.launch {
+                uiState.map { it.coverageSession() }.distinctUntilChanged().collect { route.bindSession(it) }
+            }
+        }
+    }
 
     private val _uiEvents = MutableSharedFlow<SessionUiEvent>(replay = 0)
     val uiEvents: SharedFlow<SessionUiEvent> = _uiEvents.asSharedFlow()
@@ -538,6 +555,7 @@ class SessionViewModel(
     }
 
     override fun onCleared() {
+        coverageRoute?.bindSession(null)
         bylawsOnDeviceAssistant.close()
     }
 }

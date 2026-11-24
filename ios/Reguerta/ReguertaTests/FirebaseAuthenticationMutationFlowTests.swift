@@ -18,7 +18,6 @@ struct FirebaseAuthenticationMutationFlowTests {
         guard await phase.waitUntilStarted() else {
             task.cancel()
             await phase.complete()
-            _ = try? await task.value
             return
         }
         task.cancel()
@@ -42,7 +41,6 @@ struct FirebaseAuthenticationMutationFlowTests {
         guard await phase.waitUntilStarted() else {
             task.cancel()
             await phase.complete()
-            _ = await task.value
             return
         }
         task.cancel()
@@ -74,7 +72,11 @@ struct FirebaseAuthenticationMutationFlowTests {
             }
         }
 
-        guard await phase.waitUntilStarted() else { return }
+        guard await phase.waitUntilStarted() else {
+            task.cancel()
+            await phase.complete()
+            return
+        }
         task.cancel()
         await phase.complete()
         await task.value
@@ -206,12 +208,13 @@ private enum FirebaseMutationCheckpointEvent: Equatable {
 }
 
 private actor ControlledFirebaseMutationPhase {
-    private var started = false
+    private let start = AsyncStream<Void>.makeStream()
     private var isComplete = false
     private var continuation: CheckedContinuation<Void, Never>?
 
     func run() async {
-        started = true
+        start.continuation.yield(())
+        start.continuation.finish()
         guard !isComplete else { return }
         await withCheckedContinuation { continuation in
             self.continuation = continuation
@@ -219,13 +222,15 @@ private actor ControlledFirebaseMutationPhase {
     }
 
     func waitUntilStarted() async -> Bool {
-        for _ in 0 ..< 1_000 {
-            if started {
-                return true
-            }
-            await Task.yield()
+        let timeout = Task {
+            try await Task.sleep(for: .seconds(10))
+            start.continuation.finish()
         }
-        Issue.record("La mutación Firebase controlada no se inició")
+        defer { timeout.cancel() }
+        for await _ in start.stream {
+            return true
+        }
+        Issue.record("La mutación Firebase controlada no se inició en diez segundos")
         return false
     }
 

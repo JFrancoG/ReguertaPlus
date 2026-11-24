@@ -46,7 +46,13 @@ enum IDTokenProviderError: Error, Equatable {
 
 @MainActor
 protocol FirebaseIDTokenProviding {
+    /// Reads SDK identity synchronously so scoped requests can refuse a replaced account before UI observers catch up.
+    var currentUserID: String? { get }
     func validIDToken(forcingRefresh: Bool) async throws -> String
+}
+
+extension FirebaseIDTokenProviding {
+    var currentUserID: String? { nil }
 }
 
 @MainActor

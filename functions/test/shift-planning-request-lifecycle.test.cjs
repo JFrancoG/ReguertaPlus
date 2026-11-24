@@ -490,6 +490,43 @@ test("typed planning errors persist stable failure without raw copy", async () =
   assert.equal(calls.at(-1)[0], "failRequest");
 });
 
+test("an unstaffable credit unit persists a terminal failure for the responsible administrator", async () => {
+  const {planShiftSeasonCreditUnits} = require("../lib/shift-credit-season.js");
+  const value = request("preview");
+  const {calls, persistence, statePersistence} = fakePersistence({request: value});
+  const result = await execute(persistence, statePersistence, async () => {
+    const cursor = rotation("delivery").cursor;
+    return planShiftSeasonCreditUnits({rotation: cursor, targetUnitCount: 1,
+      policy: {credits: [], frozenThroughRound: 0},
+      previousDeliveryUserId: cursor.cohortUserIds[0]});
+  }, value);
+  assert.equal(result.kind, "failed");
+  assert.deepEqual(result.summary.failure, {scope: "bundle", code: "credit_unit_unstaffable",
+    messageKey: "shiftPlanning.error.creditUnitUnstaffable"});
+  assert.equal(calls.at(-1)[0], "failRequest");
+});
+
+test("spacing failures retain delivery scope and stable public keys without leaking approval evidence", async () => {
+  for (const [code, key] of [
+    ["invalid_delivery_spacing_source", "invalidDeliverySpacingSource"],
+    ["delivery_spacing_history_required", "deliverySpacingHistoryRequired"],
+    ["delivery_spacing_conflict", "deliverySpacingConflict"],
+    ["delivery_spacing_exception_unavailable", "deliverySpacingExceptionUnavailable"],
+    ["delivery_spacing_exception_unused", "deliverySpacingExceptionUnused"],
+  ]) {
+    const value = request("preview");
+    const {calls, persistence, statePersistence} = fakePersistence({request: value});
+    const result = await execute(persistence, statePersistence, async () => {
+      throw new ShiftPlanningError(code, "private force-majeure evidence");
+    }, value);
+    assert.equal(result.kind, "failed");
+    assert.deepEqual(result.summary.failure, {scope: "delivery", code,
+      messageKey: `shiftPlanning.error.${key}`});
+    assert.equal(JSON.stringify(result.summary).includes("private force-majeure evidence"), false);
+    assert.equal(calls.at(-1)[0], "failRequest");
+  }
+});
+
 test("digest boundary errors are deterministic bundle failures", async () => {
   const value = request("stage");
   const {calls, persistence, statePersistence} = fakePersistence({request: value});

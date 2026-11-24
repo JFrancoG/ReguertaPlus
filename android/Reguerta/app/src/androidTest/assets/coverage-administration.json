@@ -1,0 +1,9 @@
+{"ok":true,"data":{"schemaVersion":1,"environment":"develop","memberId":"member-a",
+            "isAdmin":true,"serverTimeMillis":1800000000000,"policyRevision":"hu084-provisional-v1","membershipWritable":true,
+            "members":[{"userId":"departing-member","displayName":"Socio de ensayo","membershipRevision":5,"sourceActive":false,
+            "eligible":false,"permanentDeparture":false,"pendingQueueTransition":false,"contextDigest":"context-a",
+            "reserves":[{"type":"delivery","active":false,"enteredAtMillis":1700000000000,"admissionAfterRound":2}],
+            "credits":[{"type":"delivery","pendingCount":2,"consumedCount":1,"cancelledCount":3}]}],
+            "spacingCandidates":[{"id":"pair-a","userId":"member-b","displayName":"Responsable de ensayo","planningRequestId":"bundle-a",
+            "previousDate":"2030-01-01","previousRoundNumber":2,"date":"2030-02-01","roundNumber":3,"contextDigest":"spacing-context"}],
+            "spacingUnavailableReason":null}}

@@ -1,28 +1,468 @@
 # [HU-084] Stable shift coverage and earned credits
 
+## Product feedback on 21 November 2026
+
+The maintainer reviewed the same offer on iOS and Android and understood who was absent, who should respond and that the offer was pending. D01 has been implemented and verified locally. New and returning members join the rotation in effective eligibility order even when administration processes them in reverse. Stable member identifiers break exact ties. Offers retain the order in which members entered each reserve. [D01 evidence](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#d01-effective-eligibility-on-21-november-2026). Once implementation is complete, review the UX and visual consistency of all new Shifts screens together on both platforms before publication. Two coverage scenarios in Develop and four base-calendar scenarios at production activation remain. [Mobile review](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#comparative-mobile-review-on-20-november-2026) · [Implementation plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md).
+
+D09 passed local acceptance with a real public Quicknet round, one administrative outage alert and recovery of the same order. The environment-bound planner now retains a single credit across retries of completion, publication and recovery. Completion now waits for the verified Sheets row before releasing the member notice. Local replay and administrative recovery preserve one projected change and one inbox entry. Main is integrated. The shared project still needs the scoped deployment, verified writer access, and coverage initialization before the two Develop journeys. [Integrated candidate and live admission](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#integrated-candidate-and-develop-admission-on-24-november-2026). [Completion delivery](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#completed-coverage-delivery-on-21-november-2026). [Credit and spacing evidence](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#credit-publication-and-delivery-spacing-on-21-november-2026). [D09 evidence](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#d09-public-draw-on-21-november-2026).
+
+## Develop migration complete on 20 November 2026
+
+A separately authorized Sheets continuation applied one batch to the existing operation. The owner verified 53 cells, two markers and the workbook preservation check. Firestore was read-only and all 203 committed destinations were verified. Temporary permissions were removed. [Verified outcome](../../docs/testing/hu084-develop-initial-evidence-window.md#develop-migration-verified-on-20-november-2026).
+
+## Local Sheets continuation for attempt 15
+
+Four focused local scenarios passed before the separately authorized completion. [Implementation and local results](../../docs/testing/hu084-develop-initial-evidence-window.md#local-sheets-continuation-for-the-existing-operation).
+
+## Attempt 15 closed with Firestore verified and Sheets pending — 2026-11-20
+
+The one authorized execution committed all 203 Firestore writes and preserved the 117 notices. All 53 Sheets targets retained their original values, and temporary access was removed. At that point the pending decision concerned completing the Sheets projection for the existing operation. [Verified postflight](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-15-closed-with-firestore-verified-and-sheets-pending--2026-11-20).
+
+## Package 15 ready for authorization — 2026-11-20
+
+Package 15 binds the desktop startup correction to fresh read-only observations. The actual desktop verified 345 files and reconstructed the reviewed operation. The decision is one Develop attempt with temporary Drive and IAM permissions and acceptance of historical risk. The maintainer subsequently authorized and started this window. [Package evidence](../../docs/testing/hu084-develop-initial-evidence-window.md#package-15-ready-for-authorization--2026-11-20).
+
+## Attempt 14 closed before the execution journal — 2026-11-20
+
+One forward operation was authorized and its start confirmed. The desktop process retained code from the preceding operator and failed during preparation. All 203 destinations and 117 notices retained their original state. The writer was isolated and the temporary owner read grant was revoked. The six workbook tabs retained all 742 cell values and formulas. The corrected startup rejected the stale desktop session and rebuilt the full package in a fresh one. These findings informed the preparation of package 15. [Readback and diagnosis](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-14-closed-before-the-execution-journal--2026-11-20).
+
+## Package 14 ready for authorization — 2026-11-20
+
+The owner read verified workbook version 307 and its read grant was revoked. The reviewed package is sealed for one forward attempt. Its four new operation keys were vacant. The maintainer subsequently authorized that operation and the startup consumed its authorization. [Review and scope](../../docs/testing/hu084-develop-initial-evidence-window.md#package-14-ready-for-authorization--2026-11-20).
+
+## Attempt 13 closed during Firestore execution — 2026-11-20
+
+All eleven replies arrived. The operator passed admission, minted the writer credential and retained a Firestore operation incident. Question 11 was the incident readback. The original business records and workbook matched the independent readback, and all temporary access was removed. The corrected operator passed the local joint rehearsal and retains the first classified failure. Package 14 incorporates the correction. [Attempt 13 outcome](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-13-closed-during-firestore-execution--2026-11-20) · [Local rehearsal](../../docs/testing/hu084-develop-initial-evidence-window.md#post-attempt-13-local-rehearsal).
+
+## Attempt 12 closed during admission — 2026-11-20
+
+All eight requested replies arrived. Admission stopped before writer issuance. Independent postflight confirmed removal of temporary access and preservation of all 62 shifts and 117 notices. Two focused regressions verified the local correction to the displayed deadline of the initial and subsequent activity reports. The Functions build and lint passed. The correction has not been deployed. The three corrected modules were subsequently incorporated into the local package 13 operator. Package 12 is consumed and immutable. Any later window requires separate authorization. [Attempt 12 outcome and correction](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-12-closed-during-admission--2026-11-20).
+
+## Assembly approval — 2026-11-18
+
+The maintainer reported that the assembly approved the [member text](../shifts/hu-084-stable-shift-coverage-and-credits/propuesta-turnos-para-socios.md).
+The [decision record](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up)
+records the agreed policy and the condition for future adjustments after use.
+The official minutes reference and effective date are pending. The [candidate review](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#technical-reconciliation-on-20-november-2026) records the implementation gaps for D01–D15.
+Develop integration, shared acceptance and separate rollout approval remain open.
+
+## Attempt 11 consumed and closed — 2026-11-12
+
+The first owner challenge expired before a reply was recorded; no migration or writer token. Native access removal and independent postflight verified containment and the original 62 shifts and 117 notices. The maintainer was notified to reopen the sheet. A later availability prompt and reply verified the chat round trip with the sheet available. The preparatory owner read found version 303, and all 742 populated cells and 63 merges were reconciled. The complete owner grid was truncated. The temporary grant was revoked. The new packet remains pending. [Outcome](../../docs/testing/hu084-develop-initial-evidence-window.md#attempt-11-closed-before-migration--2026-11-12).
+
+## Develop successor prepared locally — 2026-11-12
+
+The attended successor uses the canonical session helper. The 72-record journal and postflight confirm no business change in attempt 10; its retained barrier excludes reusing its operation. Develop census and control reads have been renewed. The renewed owner read of workbook version 301 and its parent produced a new packet. Two passive transactions verified source and both empty barrier slots. The independently reviewed operator is bound to the packet, with readiness for fresh authorization verified offline. The next decisions are forward-only operation authorization and separate historical-risk acceptance before confirming a window. The issue remains open. [Evidence](../../docs/testing/hu084-develop-initial-evidence-window.md#successor-operator-and-attempt-10-review--2026-11-12).
+
+## Disabled-writer permission cycle passed — 2026-11-11
+
+Published correction `fcdab63e` passed one real native grant/removal with
+independent ACL checks and the writer disabled throughout, zero keys/IAM
+bindings, no writer token, Sheets calls or migration. Owner metadata OAuth was
+revoked (200, then same-token Drive 401), and the final dialog retains the owner
+and four readers without the writer. [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#concesión-y-retirada-con-el-escritor-deshabilitado--2026-11-11).
+Next refresh affected observations/reviews before requesting a new migration
+window. Issue #268 and draft PR #278 remain open.
+
+## Attempt 04 contained after native grant — 2026-11-11
+
+The authorized single attempt granted temporary editor access but stopped in the
+post-grant UI check; automatic removal then failed its reopened-dialog check.
+No writer token, maintenance or migration started. Manual file removal restored
+the owner/four-reader list; independent IAM/OAuth/source checks passed. A linked
+manual recovery preserves the original `file-unverified` failure and releases
+only the local protective fence. Next verify post-submit/reopen settlement and
+uncertain-grant containment before another migration request. [Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-04-detenido-tras-conceder-el-permiso--2026-11-11).
+Issue #268 and draft PR #278 remain open; the attempt cannot be resumed/repeated.
+
+## Develop form and read-only refresh — 2026-11-11
+
+Delivered adapter correction `caefdcf7` passes 12 tests plus Functions lint/build
+under Node 22. The real form was then exercised with submission blocked and
+cancelled, leaving the owner and four readers visible without the writer. This
+does not validate effective ACL changes or admit migration. Cloud controls,
+writer isolation and indexes match the retained review. The old packet's config
+differs only in the minimum iOS version. A new atomic capture preserves this
+setting; the candidate retains turn content and passes read-only source admission.
+Direct workbook/parent observations also match version 287 and the preserved
+image. The refreshed candidate still requires new execution authorization and a
+real window with fresh admission. See the [window evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#formulario-real-verificado-sin-envío--2026-11-11).
+Issue #268 stays open and PR #278 stays draft.
+
+## Documentation and product rehearsal checkpoint — 2026-11-05
+
+The [remaining-work plan](../shifts/hu-084-stable-shift-coverage-and-credits/plan.md#remaining-work-as-of-2026-11-04) is the current next-step index. Repeated historical evidence now links to its retained plan sections. The [4 November iOS rehearsal](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-product-rehearsal--2026-11-04) records market acceptance, delivery completion, an earned credit and its single use in a private local planning unit, followed by the tester seeing «Crédito utilizado».
+
+The [5 November iOS retest](../shifts/hu-084-stable-shift-coverage-and-credits/review.md#ios-session-interruption--2026-11-05) verified that the member understood the rejected acceptance and how to resume. The next product decision is assembly ratification. The real draw provider, operational observability and shared Develop acceptance remain open. The separate local Google adapter correction and stopped-window evidence are excluded from this checkpoint. Issue #268 stays open and PR #278 stays draft.
+
+## Latest reconciliation checkpoint — 2026-10-28
+
+Delivered `afbcd098` and verified remote/draft PR heads. The subsequent approved
+read-only reconciliation is implemented locally:12 exact synthetic captures,
+observed import62 terminal/HTTP200 and12 recent reminder terminals/HTTP200s;
+all117 historical notices remain possibly delivered/unreplayable. Four seasonal
+grids retain399 exact typed literals. Before/after census and paused jobs preserve
+the accepted state. Build/full lint and40 offline regressions pass without failures/
+skips; independent receipt/census monotonicity finding is fixed. See the bilingual
+legacy-reconciliation acceptance guide. The maintainer authorizes this source delivery; complete
+automated authority/queue/in-flight evidence and the participant/window agreement
+still precede maintenance/migration admission. Both stories and draft PR stay open.
+
+
+## Latest grouped server checkpoint — 2026-10-28
+
+Delivered `e29b6bdd` and verified the remote/draft PR head. The explicit ADR-0022
+administrator v3 contract and two exact-source HTTP packs are implemented locally;
+Functions build/full lint, 400 planning tests and a separate 228-control run pass
+without failures/skips. Three develop-only reminder jobs are now PAUSED, with
+one attempt each and unchanged semantic configuration/Function sources/IAM.
+The nine shared HTTP updates are separately authorized, deployed and read back
+with exact source archives/controls: seven application503 and two existing IAM403. Actual complete participant confirmations, automated authority and
+prior-effect reconciliation still block maintenance; keep `legacyUntracked:true`
+and migration closed. Both issues and draft PR remain open. See the current
+story plan/tasks and bilingual selective-pause guides for acceptance details.
+
+
+## Current checkpoint — 2026-10-27
+
+Normal authenticated Android/iOS composition, shared effect coordination and the
+initial private-state bootstrap are validated and pushed through
+`537188bdbab03c0e6fd81f9ef370068545711a3d`; exact
+remote identity is verified. Issue #268 remains open and PR #278 remains draft.
+The maintainer confirms zero pending credits and no known active reserves.
+Current acceptance and
+validation live in the story's plan/tasks/review, bilingual ADR-0020 and initial
+state operator guides. The next authorized preparation preserves the 72 published
+develop dates/108 ordered places against fresh read-only evidence and the retained
+approved synthetic lineage. Its private semantic proposal is not a live command.
+The 53 helper projection differences, two missing market months, 62 legacy rows
+and missing real Drive/runtime authority remain explicit; all five planning-state
+paths are absent. See the story's `develop-planner-base-preparation.md`.
+Activation remains closed. Actual migration, destination/
+provider/operator admission, ratification and authorized rollout remain open.
+Older dated assessments below are historical evidence.
+
+The content preparation is now delivered as `73001988`. The next authorized
+local rehearsal passes its complete 203-write forward/140-write inverse,
+preserving 72 dates/108 ordered places and restoring the 62 legacy payloads while
+retaining closed epoch 2 and audit authority. Actual handlers and the separate
+53-cell Sheets inverse are verified, with 91 backend/acceptance passes and no
+external calls. See `docs/testing/hu084-develop-migration-rehearsal.md` and its
+Spanish counterpart. This newer implementation/evidence remains local after
+`73001988`; live writer/Drive/index/operator admission and application remain open.
+
+## Pre-PR assessment — 2026-09-13
+
+The next recommended step is one final branch review and validation pass, not more
+independent feature cuts. A PR may review the explicitly provisional, demo-only
+implementation with `Refs #268`. It must not claim the assembly-approved Definition
+of Done or close #268. No PR, merge or activation is authorized by this checkpoint.
+
+Before presenting that PR as ready for review:
+
+1. Reconcile the full branch against the acceptance criteria in one current matrix;
+   review cross-feature regressions, source/ownership boundaries and unnecessary
+   complexity. Historical checkpoints and unchecked live tasks are not that matrix.
+2. Validate the final revision: Functions suites including HU-016/HU-082 regressions,
+   Android unit/lint/connected gates, and the canonical iOS release gate. Reuse
+   unaffected recent evidence explicitly. The last full iOS release gate predates
+   the final push callback; later focused/smoke tests do not replace that full gate.
+   Separate the 137 recorded Android baseline lint findings from new diagnostics.
+3. Attach the exact residual acceptance list: physical VoiceOver/TalkBack, Android
+   API 29, Android notification-tray opening and iOS cold-process notification
+   opening. Run feasible local checks; an unperformed check stays visible and cannot
+   be marked passed. Real APNs/FCM delivery is also unverified.
+
+Full HU-084 closure additionally requires the linked assembly decision and bilingual
+ratified requirements, reconciliation/testing of any policy amendments (reserve exit,
+windows/order, eligibility/departures, draw and credits), the real entropy-provider
+contract, and completion or explicit disposition of operational observability:
+structured logs/metrics for stuck cases, exhaustion, retries and credit failures.
+Persisted audit receipts alone do not complete that observability task. Live backend,
+mobile composition, destination admission and operational recovery remain unwired;
+they need an explicitly scoped coverage activation handoff after ratification.
+
+HU-085/#269 currently owns the base planner/workbook rollout and is independent of
+HU-084. Its existing scope must not be treated as implicit completion or automatic
+ownership of every remaining coverage task. Real IAM/Drive fencing, deployment and
+production writes remain separately authorized activation work.
+
+## Governed recovery checkpoint — 2026-09-13
+
+This checkpoint builds on pushed commit `2779b2e` (coverage push dispatch and
+routing) and implements and validates the grouped local recovery block.
+It reuses the HU-082 trusted closed-intake adapter, evidence verifier and immutable
+failure journal, plus HU-083 read-only projection inspection. No alternate lock,
+live endpoint, IAM/Drive controller or automatic retry scheduler is introduced.
+
+Backend-owned authorization beneath the exact effect binds an active administrator,
+closed maintenance, workbook and source versions. Source, role and authorization
+changes reject before effect completion. Matching canonical assignments and exact
+Sheet read-back can atomically complete the effect, release its generic inbox and
+remove its reservation without a new Sheets write. Shared inbox construction retains
+the ordinary worker's behavior. Superseded/expired notification-only effects retire;
+missing/conflicting projections or changed assignments keep the reservation.
+
+Recovery preserves accepted, failed and unknown push history; an interrupted
+submitting record becomes unknown with the original attempt and destination digest.
+Recipients with no submission are listed separately. None is automatically resent.
+Concurrent/repeated recovery produces one receipt/inbox release. A failed final
+barrier check after commit leaves the receipt and a durable incident; retry cannot
+claim clean completion. Writers remain closed, and the original effect authority is
+not renewed. Future push admission after a new epoch requires its governed path.
+
+Validation:
+
+- Functions build and lint pass.
+- 122 fixed-demo emulator/Rules scenarios pass, zero failures/skips, including
+  14 new recovery scenarios. This covers lost projection acknowledgement, roster
+  and writer drift, manual conflicts, canonical assignment drift, expired evidence,
+  active/inactive administrator, missing/forged/revoked authorization, in-flight
+  writers, another workbook, concurrent recovery, malformed push evidence, missing
+  submissions and a lost final barrier acknowledgement. Nested authorization,
+  recovery and push records deny client reads/writes under strict and phase1 Rules.
+- 86 units pass, zero failures/skips: coverage/credits plus intake-barrier,
+  trusted-adapter and notification-reconciliation regressions. The barrier fixture
+  is shared with the pre-existing HU-082 tests rather than copied into a new framework.
+- Source review and `git diff --check` pass. No Android/iOS code changed in this
+  block, so their accepted push-block validations are retained without rerunning
+  native builds. There is no new platform parity gap.
+
+Evidence logs: `/tmp/hu084-recovery-emulator-final.log`,
+`/tmp/hu084-recovery-units-final.log`, `/tmp/hu084-recovery-lint-final.log`.
+Tests use real local Firestore/Rules and a stateful Sheets fake; the external
+control-plane proof is simulated, not evidence of deployed IAM or Drive fencing.
+No production/shared data or real notification endpoint was accessed.
+
+Next: review the HU-084 acceptance matrix for closeout and consolidate remaining
+local/manual evidence versus HU-085 activation work. Physical assistive-technology,
+API 29, Android tray/FCM, iOS cold-process/APNs delivery, real entropy/provider and
+assembly decisions remain explicit gaps. Issue #268 remains open.
+
+## Coverage push rehearsal checkpoint — 2026-09-13
+
+Commit `3dcc84c` (`test(shifts): validate native coverage acceptance`) is pushed.
+The push block is committed and pushed as `2779b2e`. It reuses
+our generic Messaging transport with injected demo destinations and simulated SDK
+submission. A verified inbox/effect is required; membership, offer expiry, case
+revision and writer authority are checked again before claiming a send. Each
+recipient has one durable submission receipt, with no raw tokens. Replays return
+that receipt even if the case or destinations later change; submitting/unknown
+outcomes never trigger automatic resend. APNs collapse identifiers are 64 bytes;
+the longer opaque event ID remains intact in the generic payload.
+
+Both native rehearsal routes defer coverage push opening until authentication and
+until an active draft or uncertain command is resolved. Logout invalidates late
+responses. Opening a notice already on screen preserves case navigation. Normal
+live routes do not forward coverage events into the seasonal-planning detail.
+The iOS system-tap journey exposed a UIKit main-thread assertion in the existing
+async delegate completion bridge. The supported completion-handler signature now
+copies the immutable reference and finishes on MainActor, including invalid payloads.
+No SDK notification crosses the actor boundary.
+
+Validation:
+
+- Functions lint/build and 45 coverage unit tests pass; 108 coverage/Rules emulator
+  scenarios pass, including concurrent submission, unknown SDK outcome, expired
+  offers, source/writer drift and receipt replay after state/destination changes.
+- Android: 502 unit tests, lint and all 25 connected tests pass on Pixel 8 Pro/API
+  35, with both HU-084 opt-in journeys. The separate HU-083 fixture class is excluded.
+  Cold activity Intent before login and warm `onNewIntent` both open the correct
+  offered market case. Android shell notification posting is denied by the OS;
+  notification-tray and real FCM delivery are not certified by those Intent checks.
+- iOS: fast-unit passes 908 tests with one existing HU-083 opt-in skip; four UI-smoke
+  journeys pass on iPhone 17/iOS 26.5. The final callback/composition change passes
+  18 focused tests (19 parameterized executions), simulator build, Xcode MCP build
+  and zero MCP warnings. The prior full release-gate evidence belongs to `3dcc84c`.
+- On iPhone SE (3rd generation)/iOS 26.5, `simctl push` plus an actual Notification
+  Center Open action retains the reference before login and opens the September 4
+  market offer after authenticating as `d@example.test`, without accepting it.
+  A second system tap with detail open preserves that case. The callback no longer
+  crashes. This proves simulated OS routing, not APNs delivery or a cold-process launch.
+- Recursive fixed-demo read-back contains 51 documents: the original three cases
+  retain accepted/revision 3, offered/revision 2 and open/revision 1 states; six new
+  receipts record simulated accepted submissions. All 51 documents remain unchanged
+  after the final iOS journeys. No credit is created.
+- Independent source review and Swift source-style audit pass after resolving the
+  collapse-key, navigation, receipt-replay and callback findings. `git diff --check`
+  is clean. No shared Firebase project, workbook or real Messaging endpoint is used.
+
+Next grouped outcome: governed reconciliation for uncertain notification/projection
+outcomes and shared-writer recovery. Real destination admission, provider selection,
+physical assistive-technology/device evidence, assembly ratification and HU-085
+remain explicit live gates. Issue #268 stays open. Reproduction instructions and
+local evidence limits are in the bilingual native rehearsal guides.
+
+## Native acceptance and release checkpoint — 2026-09-13
+
+Commit `d0dbec5` (`feat(shifts): open authenticated coverage notifications`) is
+pushed. The native acceptance block was subsequently committed and pushed as
+`3dcc84c`; it adds opt-in native acceptance tests and documentation. Product behavior and the fixed-demo backend are unchanged.
+Both platforms authenticate real local demo roles, open/cancel acceptance and
+completion forms, restore the full overview and read current server state again.
+Android uses production Compose at font scale 2; iOS uses Spanish and AX5.
+The existing Android drawer test now scrolls before checking its offscreen rows.
+
+Validation:
+
+- Android: 501 unit tests pass; lint passes with 137 existing unrelated findings
+  and zero shiftcoverage findings. All 25 connected tests pass on both Pixel 8 Pro
+  and Small Phone, API 35, including the two new opt-in scenarios. The separate
+  HU-083 Sheets acceptance class is excluded because its fixture is not running.
+- iOS canonical release gate: 917 passes, five expected skips, zero failures on
+  iPhone 17/iOS 26.5; Debug/Release builds and SwiftLint (509 files, zero violations)
+  pass. Skips are three local HU-084 opt-in journeys, the HU-083 opt-in journey and
+  the conditional launch/performance test. Strict Swift 6/nonisolated settings
+  remain intact. Test-harness-only adjustments were rebuilt in the focused lane.
+- Spanish AX5 role/cancellation acceptance passes on iPhone SE (3rd generation),
+  and iPad mini (A17 Pro) in landscape, iOS 26.5. The xcresult retains
+  admin confirmation, replacement detail and member
+  offer screenshots. Controls and body content remain reachable by scrolling;
+  native navigation titles abbreviate at this size. This does not certify
+  VoiceOver, TalkBack, physical devices or Android API 29.
+- Final recursive Firestore read-back matches all 45 baseline demo documents: cases,
+  credits, effects and inbox records are unchanged after the cancellation journeys.
+  iPad gestures target the list, and screenshots capture the full screen so window
+  coordinates do not crop the evidence. The final iPad rerun passes with all three
+  screenshots reviewed; its long admin navigation title also abbreviates at AX5.
+
+Evidence is local: `/tmp/hu084-acceptance-release-final.xcresult`,
+`/tmp/hu084-acceptance-iphone-se-6.xcresult`,
+`/tmp/hu084-acceptance-ipad-3.xcresult`, and Android connected-result XML/logs.
+The bilingual rehearsal guides retain reproducible opt-in commands.
+
+Next grouped outcome: integrate and test actual OS notification routing and dispatch
+through the existing notification pipeline, keeping the isolated/live boundary.
+Physical assistive-technology acceptance remains pending; shared-writer recovery,
+real entropy selection, assembly ratification and HU-085 still gate live activation.
+No production/shared workbook or real notification service was modified. Issue #268
+stays open.
+
+## Authenticated notification rehearsal checkpoint — 2026-09-13
+
+Commit `c672c76` (`feat(shifts): rehearse coverage effects`) is pushed. Commit `d0dbec5` now publishes the validated equivalent
+iOS/Android inbox-to-case navigation. The server resolves only an authenticated
+recipient's delivered event, binding the completed effect and receipt to the
+current minimal case. Affected helpers/market companions can read that projection
+without administrative reasons, other members' credits or new command privileges.
+Old offers show current state; copied, forged, pending and inactive-user references
+are denied. Refresh retains notification scope, and Back restores the full overview
+even during a pending request, without replaying or discarding an uncertain command.
+Session changes invalidate late reads and navigation intent.
+
+The native fixture now seeds a readable in-memory workbook and drains new effects
+automatically. Native iOS market acceptance produced a completed effect and a third
+simulated workbook batch. A further September 8 delivery vacancy makes restoration
+of the full overview observable. No shared workbook, real Firebase project, FCM
+send or notificationEvents fan-out is involved.
+
+Validation:
+
+- Functions build/lint and 45 coverage units pass; 103 Firestore/Rules and 22 real
+  local Auth/HTTP scenarios pass, including recipient-reference authorization.
+- Android passes 501 unit tests, lint (no coverage findings; unrelated baseline
+  findings remain), and 23 connected tests on Pixel 8 Pro/API 35. The opt-in HU-083
+  Sheets acceptance class is excluded because its separate fixture is not running.
+  Runtime inspection confirms local notices open and refresh accepted delivery.
+- iOS passes 906 tests with one existing opt-in HU-083 skip on iPhone 17/iOS 26.5,
+  four UI-smoke journeys and explicit notification-to-market acceptance. That UI
+  journey verifies Back both before and after acceptance. The final pending-request
+  correction is additionally covered in both native unit suites, including response
+  loss without command replay. SwiftLint is clean.
+- Independent source review resolved recipient access, refresh scope and Back-during-
+  request findings. Xcode MCP did not expose this worktree, so the repository runner
+  and closed native xcresult bundles provide the build/test evidence; no new MCP
+  previews or VoiceOver acceptance are claimed. `git diff --check` is clean.
+
+Next grouped work: reconcile the remaining acceptance matrix and run the full release
+validation, grouping simulator/device, accessibility and role scenarios. Real OS push
+routing/dispatch, governed shared-writer recovery and entropy-provider selection
+still need their integrations and decisions; assembly ratification and HU-085 retain
+the live activation boundary. The story stays open; this is local integration evidence.
+
+## Start checkpoint — 2026-09-12
+
+The maintainer requested grouped implementation on branch
+`codex/hu-084-stable-shift-coverage-and-credits`, based on merged HU-083 (`327e563`),
+and authorized provisional local work on 2026-09-12. Assembly policy and live
+activation remain unratified. This branch has local coverage lifecycle,
+reserve/volunteer selection, committed draws/admin recovery, seasonal credit
+planning and governed forward/inverse publication. Frozen whole-unit omissions and
+inverse recovery were committed and pushed as `1ea675f`.
+
+The authenticated loopback API was committed and pushed as `70a1778`. Its
+verification includes 45 coverage/HTTP unit tests, 31 security tests, 294 planning
+regressions, 87 Firestore/Rules tests and 17 HTTP/Auth/Firestore emulator scenarios.
+
+Commit `99c5777` published the equivalent native repositories and session owners.
+Commit `455d27a` published Debug-only member/admin screens connected to
+isolated Auth-emulator sessions, with absence and offer forms, selection actions,
+completion/failure, own credits/reserves, localized copy and explicit uncertain
+operation retry. Both platforms revalidate session, revision, action and expiry
+before confirming. Minimal names distinguish market vacancies and retain inactive
+future owners for admin absence forms without offering them as replacements.
+
+Validation: Functions lint/build, 45 unit tests and 20 real Auth/Firestore emulator
+scenarios pass. Android passes 495 unit tests and 23 connected tests on Pixel 8 Pro
+API 35; lint passes with no coverage diagnostics and existing unrelated findings.
+iOS iPhone 17/iOS 26.5 passes 900 tests, one existing HU-083 opt-in skip and the four
+UI-smoke journeys; SwiftLint is clean. Explicit native HTTP tests demonstrated iOS
+market acceptance and own-credit read at AX5. Android UI confirmed past delivery
+completion and the replacement's earned credit. Direct local Firestore read-back
+confirmed market accepted rev3, delivery completed rev4 and one pending credit.
+Independent architecture/UI reviews closed all actionable findings; VoiceOver and
+the full adaptive-device matrix remain open.
+
+Rehearsal instructions: `docs/testing/hu084-native-rehearsal.md` and its Spanish
+counterpart. The current backend checkpoint persists atomic command effects,
+projects effective assignees/prospective helpers through the existing HU-083 readable
+adapter and releases generic inbox records only after verified projection. It retains
+exact submissions on uncertain responses, rejects manual conflicts and source drift,
+preserves notes/formulas/owners, and prevents duplicate credits or inbox entries.
+This uses the fixed Firestore demo and an in-memory workbook; the native UI fixture
+does not auto-drain it. No notificationEvents fan-out or FCM dispatch is introduced.
+
+Validation adds 101 Firestore/Rules scenarios (14 effects integrations), 72 Sheets
+scenarios, 45 coverage units, 20 Auth/Firestore HTTP scenarios, 31 backend/security
+scenarios and 294 planning units, with lint/build clean. The planning unit lane has
+51 explicitly emulator-dependent skips. Native sources are unchanged since `455d27a`;
+those gates were not repeated for this backend checkpoint.
+
+Next grouped outcome: authenticated case-specific notification detail/navigation in
+both native rehearsals and integrated reconciliation, then full release/device
+acceptance. Real dispatch, external multi-writer recovery, entropy selection,
+assembly ratification and HU-085 activation remain pending. No live endpoint, shared
+Firebase/Sheets write or notification dispatch was introduced. The story remains
+open. See `plan.md` for current contracts, validation and evidence boundaries.
+
+The operational plan groups work into three complete outcomes: coverage backend
+with persistence/security/tests; credit/membership/atomic-planner integration;
+then equivalent member/admin mobile flows plus Sheets and integrated validation.
+Avoid per-helper/per-test cuts. Reuse HU-082 eligibility, ownership, admission and
+HU-083 projection/event infrastructure. Detailed plan: the existing `plan.md` below.
+
 ## Tracking
 
 - GitHub issue: #268
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/268
-- State: DRAFT / BLOCKED BY ASSEMBLY
+- State: IN PROGRESS / PROVISIONAL LOCAL IMPLEMENTATION
 - Planning branch: `codex/hu-082-shift-operations-planning`
-- Implementation branch: forbidden until the assembly gate is satisfied
+- Implementation branch: `codex/hu-084-stable-shift-coverage-and-credits` (explicitly requested; policy ratification not inferred)
 - Depends on: HU-082 / #266 and HU-083 / #267
 - Independent production activation: HU-085 / #269
 
 ## Summary
 
 Keep every unaffected published assignment stable. Resolve one vacancy through
-the proposed sequence `reserve FIFO -> volunteers -> compensated auditable draw
+the approved sequence `reserve FIFO -> volunteers -> compensated auditable draw
 -> admin`, always with explicit acceptance. A completed coverage earns one
 same-type credit whose first skip attempt is the owner's first eligible
 unactivated occurrence; safe staffing may defer it for retry.
 
-This is a proposal derived from the maintainer's joins/departures/volunteer
-questions. The authoritative requirements reserve the final policy for the
-assembly, so issue creation is traceability, not approval.
+The approved member rules and the technical reconciliation are tracked in the
+[assembly decision record](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md).
 
-## Non-negotiable safety properties in the proposal
+## Coverage integrity requirements
 
 - Never shift everybody's published dates after a join/departure/absence.
 - Keep immutable rotation ownership separate from effective assignment.
@@ -33,9 +473,8 @@ assembly, so issue creation is traceability, not approval.
   previously active/public round.
 - A credit is first attempted at the owner's first eligible unactivated
   occurrence; a safely deferred credit stays pending and retries later.
-- Safe default: one accepted/incomplete same-type coverage or unconsumed credit at a
-  time. The assembly must ratify it or define the stacking cap/proximity, eligibility,
-  ordering, cancellation, and consumption rules.
+- Block a new same-type coverage while one is accepted/incomplete or a credit
+  is pending.
 - One whole delivery slot or three-person market is solved atomically. Resting
   credited owners cannot work that unit; if staffing is impossible, tentative
   consumptions roll back in reverse queue order until feasible. A restored owner
@@ -44,9 +483,8 @@ assembly, so issue creation is traceability, not approval.
   leads. CAS includes adjacent assignment/completion revisions; if N=2 or any other
   case has no valid filler, the credit defers/backtracks or coverage escalates rather
   than creating the same lead/helper.
-- Backtracking is the complete safe proposal. Any alternative coverage fallback
-  requires assembly-approved accounting for both credits, completion/failure,
-  and the original owner ultimately working.
+- Escalate to administration if deferring credits still leaves the physical unit
+  unstaffable.
 - The full same-type ledger version is in the stage digest. Any intervening
   issue/consume/cancel change invalidates activation, which commits selected
   credit and cursor transitions atomically.
@@ -56,20 +494,20 @@ assembly, so issue creation is traceability, not approval.
   cohort never change: public positions use coverage; the safe proposal gives an
   unpublished owner position an `excusedDeparture` tombstone that proposes round
   advancement only through the complete-unit atomic activation below, without a
-  shift, completion, credit, or replacement owner. The
-  assembly may choose coverage instead only with complete slot/cursor/credit rules.
+  shift, completion, credit, or replacement owner. Verify that this internal
+  accounting matches the approved rule for future unpublished turns.
 - A tombstone never advances alone: it commits atomically with cursor/round closure
   and a complete affected physical unit. If delivery N=2, market N=3, or multiple
   losses cannot staff that unit under all invariants, nothing changes and the
   ratified coverage/admin fallback or blocked state applies.
 - Eligibility can change without membership exit. The live HU-082 predicate governs:
   unfrozen rounds deterministically remove/append after invalidating preview/stage;
-  frozen rounds preserve owner/cohort and use ratified reason-specific coverage or
-  `excusedIneligible`. Re-eligibility enters reserve/next unfrozen round and never
-  revives an old tombstone. `Compras Regüerta` remains eligible; real producers do not.
-- The proposed reserve FIFO crosses the seasonal boundary. The assembly must
-  decide whether reserve status ends on future-cohort activation, when the first
-  regular turn is due/completed, or at another explicit boundary.
+  frozen rounds preserve owner/cohort. Verify the mapping of reason-specific
+  coverage and `excusedIneligible` against the approved rules. Re-eligibility
+  enters reserve and the next unfrozen round without reviving an old position.
+  `Compras Regüerta` remains eligible. Real producers are excluded.
+- Reserve FIFO crosses the seasonal boundary. Reserve status ends when the first
+  regular shift of the same type becomes due, or earlier on loss of eligibility.
 - Helper recomputation is prospective: an uncompleted predecessor follows the next
   effective lead; completion freezes its actual helper/revision/time. Later coverage/
   credit or HU-016 swap preserves completed history and rotation ownership.
@@ -82,24 +520,95 @@ assembly, so issue creation is traceability, not approval.
 - Plan: `spec/shifts/hu-084-stable-shift-coverage-and-credits/plan.md`
 - Tasks: `spec/shifts/hu-084-stable-shift-coverage-and-credits/tasks.md`
 
-## Hard gate
+## Develop attempt 06 — 2026-11-11
 
-- [ ] Assembly decision/date and accepted wording linked.
-- [ ] Normal-round tail placement and simultaneous-join ordering explicitly
-  ratified or amended.
-- [ ] Frozen-round unpublished departure handling is ratified: proposed audited
-  tombstone/skip or a complete coverage alternative with physical-slot, owner,
-  cursor, round-closure, completion/failure, and credit accounting.
-- [ ] Tombstone/eligibility skip atomicity with the next complete physical unit and
-  the zero-mutation N=2 delivery/N=3 market/multiple-loss fallback is ratified.
-- [ ] Every HU-082 eligibility-transition reason is mapped across unfrozen/frozen
-  and preview/stage/public states, including re-entry ordering and whether frozen
-  unpublished positions use coverage or reason-coded `excusedIneligible`.
-- [ ] Reserve-exit boundary and deterministic whole-unit credit rollback or
-  fully accounted coverage fallback explicitly ratified.
-- [ ] English/Spanish requirements updated.
-- [ ] Spec/issue reconciled and maintainer-approved.
-- [ ] Only then may an implementation branch or code change begin.
+Attempt 05 was authorized and consumed. The editor grant verified, but collection
+rejected during administrator confirmation; no writer token, barrier or migration
+started. Manual file removal and independent IAM/OAuth/source checks verified
+cleanup. The original terminal and late human reply remain separate from recovery.
+Preparation 06 was delivered in `29ea717c`. The authorized attempt closed at the
+post-permission owner-confirmation deadline; cleanup was fully automatic and
+verified, with unchanged sources, no writer token/barrier/migration and no locks.
+All 31 records remain intact. The reply received after closure is separate and
+not accepted as consent. The subsequent preparation below records the refreshed
+observations and separate authorization for attempt 07.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-06-cerrado-al-vencer-la-confirmación--2026-11-11).
+Issue #268 remains open and PR #278 draft; this checkpoint does not admit migration
+or live coverage activation.
+
+## Develop attempt 07 preparation — 2026-11-11
+
+Refreshed version 295 preserves the reviewed workbook image and the new package
+`7ef0b3f0…d1041c3` retains 203 planned Firestore writes, 53 cells and two
+markers. Read-only admission has one transaction, zero writes and the missing
+window as its sole blocker. Independent review and 28 local tests cover the
+preparation, separate response/commitment deadlines and the owner read-session
+lifetime guard. The user authorized the attempt and confirmed the window, but
+our operator construction omitted the owner session ID and failed before startup.
+OAuth was revoked and the same token denied on both APIs. Independent postflight
+confirmed the exact source unchanged, writer disabled and isolated, zero keys or
+bindings, and no local journal or locks. No permissions, writer token, maintenance
+or migration started. A complete-input preflight passed three local tests, including
+construction of the exact 07 operator in a synthetic copy with stub providers.
+Use the same validated inputs before dating another window and obtain new authorization.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#preparación-del-intento-07--2026-11-11).
+
+## Develop attempt 08 — 2026-11-11
+
+The authorized attempt started with the corrected complete input validation.
+Owner confirmation was recorded in time; the later administrator request had
+about 39 seconds remaining and no reply was recorded before the shared deadline.
+Terminal `inspection-required` has no cleanup failures; the journal has 34
+records and no pending files. No writer token, barrier, Sheets batch, migration
+or production access occurred. Independent postflight verified the unchanged
+source, writer isolation and no local locks. The three consecutive confirmations and shared deadline were explained before the
+subsequent separately authorized attempt 09.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-08-detenido-durante-las-confirmaciones--2026-11-11).
+
+## Develop attempt 09 — 2026-11-11
+
+All three confirmations were recorded within the deadline, but initial
+collection was rejected. Terminal `inspection-required` has no cleanup failures;
+the journal has 39 records and no pending files. Independent postflight verified the unchanged source, writer isolation and no local
+locks. The rejection occurred after the recorded stages; the caught error was not
+retained. Local reproduction found historical-risk acceptance predating ten
+closures, sufficient to reject admission; the first live exception remains
+unproven. A local guard now checks chronology before providers and sanitized
+checkpoints preserve later diagnostics. Fresh explicit risk acceptance must follow reviewed evidence and closures, before
+providers; the 09 quiet confirmation is not risk acceptance. Review changed script
+hashes and obtain separate authorization and window; no retry is authorized.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-09-detenido-tras-las-confirmaciones--2026-11-11).
+
+## Develop attempt 10 — 2026-11-11
+
+The reviewed risk was explicitly accepted separately. Initial evidence sealed,
+the barrier was acquired, admission checks passed and the single writer token
+was minted and positively checked. The executor then stopped without a recorded
+joint-execution intent; 72 journal records have no pending files and permission
+cleanup reports no failures. Independent postflight confirms the exact source unchanged, writer isolated and
+disabled, no maintenance state document and a retained historical barrier
+checkpoint matching the journal. Review reproduced deferred-writer visibility and
+an 88.115-second admission against a 60-second limit; the first live exception
+was not retained. Both have operator fixes, six engine cases and two joint emulator cases with
+synthetic latency; the next operator must incorporate the helper and review new hashes.
+Checkpoint release is not claimed and no further attempt is authorized.
+[Evidence](../../docs-es/testing/hu084-evidencia-inicial-ventana-develop.md#intento-10-detenido-tras-la-admisión--2026-11-11).
+
+## Live activation gate
+
+- [x] Link the [reported decision, date and approved member text](../shifts/hu-084-stable-shift-coverage-and-credits/ratification.md#decision-record-and-follow-up).
+- [ ] Link the official minutes when available.
+- [x] Link the approved policy from [English](../../docs/requirements/mvp-requirements-reguerta-v1.md)
+  and [Spanish](../../docs-es/requirements/requisitos-mvp-reguerta-v1.md) requirements.
+- [ ] Verify joins/order, reserve exit, offers and credit deferral against the
+  approved rules and record evidence for each affected case.
+- [ ] Verify the technical mapping of eligibility, re-entry and unpublished
+  frozen positions, including complete-unit atomicity and the unstaffable
+  delivery/market fallback.
+- [ ] Reconcile the implementation scope with the maintainer.
+- [x] Implementation branch explicitly requested and created on 2026-09-12.
+- [x] Provisional local implementation explicitly authorized on 2026-09-12.
+- [ ] Complete integration and shared acceptance before requesting live activation.
 
 ## Suggested labels
 
@@ -107,3 +616,56 @@ assembly, so issue creation is traceability, not approval.
 - `area:shifts`
 - `platform:cross`
 - `priority:P1`
+
+
+## Governed recovery implementation — 2026-09-13
+
+Approved next grouped outcome: recover fixed-demo projection and push effects using
+HU-082's trusted closed-intake barrier and backend-owned, operator-bound authorization.
+Bind authorization to the exact current evidence, require closed maintenance, verify
+external evidence before committing, and preserve operation history. Reuse HU-083
+read-only inspection: recovery cannot patch Sheets or resend push. Verified current
+projections can release their generic inbox; superseded effects can be retired only
+with exact projected rows still matching canonical assignments. Unverifiable rows
+keep their reservation. Interrupted push submissions remain unknown, never delivered.
+Replays and concurrent recovery must not duplicate inbox, alter credits or reopen
+writers. Validate denial, drift, crashes/unknown outcomes and cross-season projection
+recovery in the existing emulator suites. This does not supply live IAM/Drive controls,
+real destination admission or new client/operator endpoints; those remain HU-085.
+
+## Develop queue/window checkpoint — 2026-10-28
+
+Prior reconciliation is delivered as `4cb216824dc908293311a4f9c496fc2326c0f350`
+with exact remote/draft PR #278 head. Real inspection finds four private retry
+backlogs/payload conflicts; shared missing metrics remain UNKNOWN. A lossless
+schema2 metadata-observation repair preserves twelve original schema1 deliveries
+and all business data. Full Functions build/lint and147 joint tests pass with no
+failures/skips. The four-only packet is reviewed and24 live Function configurations
+remain unchanged; scoped deployment approval/natural-retry acceptance are pending.
+The [queue/window guide](../../docs/testing/hu084-develop-queues-and-maintenance-window.md)
+records five absent bootstrap paths, missing provider/sourceScope composition and
+participant requirements. Window NOT READY; no migration, legacyUntracked reset,
+Sheets/FCM/business operation or production activation is authorized by preparation.
+
+## Authorized capture repair accepted — 2026-10-29
+
+Acceptance on 2026-10-29: four natural HTTP2xx requests are correlated by exact
+CloudEvent ID/source labels, service and new revision; the bounded query has no
+HTTP4xx/5xx or application errors. Four metadata observations differ only in
+traceparent; original183 sources/twelve events/twelve V1 deliveries/chunks and
+versions are preserved. Revision/deliveryCount16, eventCount12. All four source
+archives and controls match; other20 Functions unchanged. Eight unchanged
+executable-input hashes retain build/lint and147 tests. Shared UNKNOWN and bootstrap/
+provider-sourceScope/participant requirements still block maintenance admission.
+The maintainer authorizes source delivery; exact Git/remote evidence is recorded in #268/#269 and draft PR #278.
+
+## Delivered repair and residual reconciliation — 2026-10-29
+
+Repair delivered as `3977fd6f2df13d87748c7db1e3dd31ed36b8db1d`; remote and draft
+PR match. Read-only residual reconciliation observes one provider ack_204/push ACK
+in00:30–00:31 UTC and backlog/oldest-age0 at00:36/00:37 UTC for the private shift
+subscription. Fresh183-source/12-event/16-delivery census is unchanged; no new
+requests/errors in the later bounded query. Historical residual reconciled; recent
+missing metrics remain UNKNOWN and do not admit maintenance. Next: provider/sourceScope
+control and controlled bootstrap before participant/window commitments. See the
+bilingual queue/window guide. Only this new evidence documentation remains local.

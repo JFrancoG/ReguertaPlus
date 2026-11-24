@@ -5,7 +5,7 @@ import {
 
 export const SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION = 1 as const;
 export const SHIFT_PLANNING_WRITER_INVENTORY_REVISION =
-  "hu082-affected-writers-v2" as const;
+  "hu082-affected-writers-v4" as const;
 
 export type ShiftPlanningWriterControl =
   | "rules-deny"
@@ -13,14 +13,17 @@ export type ShiftPlanningWriterControl =
   | "disable-delivery-after-drain"
   | "isolate-causal-delivery"
   | "fence-external-authority"
-  | "activation-version-check";
+  | "activation-version-check"
+  | "cooperative-owner-agreement"
+  | "cooperative-administrator-agreement";
 
 export type ShiftPlanningWriterControlState =
   | "denied"
   | "disabled"
   | "fenced"
   | "isolated"
-  | "version-bound";
+  | "version-bound"
+  | "agreement-recorded";
 
 export type ShiftPlanningWriterShutdownOrder =
   | "before-causal-capture"
@@ -33,6 +36,7 @@ export type ShiftPlanningWriterTarget =
   | "firestore.config"
   | "firestore.shiftPlanningRequests"
   | "firestore.shiftSwapRequests"
+  | "firestore.shiftCoverage"
   | "firestore.shifts"
   | "firestore.users"
   | "notification.delivery"
@@ -54,6 +58,10 @@ export type ShiftPlanningAffectedWriter = {
  * HU-083 retires legacy code locally, but this conservative HU-082 inventory
  * retains its original references/identity until deployed drain is proven.
  * Removing local helpers is not evidence that an external writer disappeared.
+ * Coverage artifacts frozen for reconciliation are not runnable queue work;
+ * that distinction is valid only while dispatch rejects those exact records.
+ * Controls must still prove invocation drain independently: a persisted
+ * submitting receipt or a closed maintenance state is not an in-flight count.
  */
 const affectedWriters = [
   {
@@ -140,6 +148,73 @@ const affectedWriters = [
       "ios/Reguerta/Reguerta/Data/ShiftSwapRequests/" +
         "FirestoreShiftSwapRequestRepository.swift#transition",
       "functions/src/index.ts#transitionShiftSwap",
+    ],
+  },
+  {
+    writerId: "https-shift-coverage",
+    control: "disable-ingress",
+    requiredState: "disabled",
+    shutdownOrder: "before-causal-capture",
+    targets: ["firestore.shifts", "firestore.shiftCoverage"],
+    sourceReferences: [
+      "functions/src/index.ts#shiftCoverage",
+      "functions/src/shift-coverage-store.ts",
+      "functions/src/shift-membership-reconciliation.ts",
+    ],
+  },
+  {
+    writerId: "scheduler-order-reminder-sunday20",
+    control: "disable-ingress",
+    requiredState: "disabled",
+    shutdownOrder: "before-causal-capture",
+    targets: ["notification.delivery"],
+    sourceReferences: [
+      "functions/src/index.ts#sendPendingOrderReminderSunday20",
+      "firebase-schedule-sendPendingOrderReminderSunday20-europe-west1",
+    ],
+  },
+  {
+    writerId: "scheduler-order-reminder-sunday22",
+    control: "disable-ingress",
+    requiredState: "disabled",
+    shutdownOrder: "before-causal-capture",
+    targets: ["notification.delivery"],
+    sourceReferences: [
+      "functions/src/index.ts#sendPendingOrderReminderSunday22",
+      "firebase-schedule-sendPendingOrderReminderSunday22-europe-west1",
+    ],
+  },
+  {
+    writerId: "scheduler-order-reminder-sunday23",
+    control: "disable-ingress",
+    requiredState: "disabled",
+    shutdownOrder: "before-causal-capture",
+    targets: ["notification.delivery"],
+    sourceReferences: [
+      "functions/src/index.ts#sendPendingOrderReminderSunday23",
+      "firebase-schedule-sendPendingOrderReminderSunday23-europe-west1",
+    ],
+  },
+  {
+    writerId: "worker-shift-coverage-effects",
+    control: "disable-delivery-after-drain",
+    requiredState: "disabled",
+    shutdownOrder: "after-causal-drain",
+    targets: ["workbook.shifts", "firestore.shiftCoverage",
+      "notification.delivery"],
+    sourceReferences: [
+      "functions/src/shift-coverage-effects-worker.ts",
+      "functions/src/shift-coverage-inbox.ts",
+    ],
+  },
+  {
+    writerId: "worker-shift-coverage-push",
+    control: "disable-delivery-after-drain",
+    requiredState: "disabled",
+    shutdownOrder: "after-causal-drain",
+    targets: ["notification.delivery", "firestore.shiftCoverage"],
+    sourceReferences: [
+      "functions/src/shift-coverage-push.ts",
     ],
   },
   {
@@ -353,3 +428,84 @@ export const SHIFT_PLANNING_WRITER_INVENTORY = Object.freeze({
 
 export const SHIFT_PLANNING_WRITER_INVENTORY_DIGEST: ShiftPlanningDigest =
   createShiftPlanningDigest(SHIFT_PLANNING_WRITER_INVENTORY);
+
+
+export const SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION =
+  "hu085-owner-agreement-writers-v1" as const;
+export const SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID =
+  "workbook-owner-retained-capability" as const;
+
+/**
+ * ADR-0021 separates the named manual owner from every other human/offline
+ * writer. Owner credentials, scripts, API and privileged paths remain under
+ * their original technical controls. The strict inventory stays independent
+ * of this named owner exception.
+ */
+export const SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS:
+  readonly ShiftPlanningAffectedWriter[] = Object.freeze([
+    ...SHIFT_PLANNING_AFFECTED_WRITERS.map((writer) =>
+      writer.writerId !== "workbook-human-and-offline-editors" ? writer :
+        Object.freeze({...writer, sourceReferences: Object.freeze([
+          "Non-owner Drive editors and their pending offline edits",
+        ])})),
+    Object.freeze({
+      writerId: SHIFT_PLANNING_OWNER_AGREEMENT_OWNER_WRITER_ID,
+      control: "cooperative-owner-agreement" as const,
+      requiredState: "agreement-recorded" as const,
+      shutdownOrder: "before-causal-capture" as const,
+      targets: Object.freeze(["workbook.shifts" as const]),
+      sourceReferences: Object.freeze([
+        "ADR-0021 named manual owner; technical capability remains retained",
+      ]),
+    }),
+  ]);
+export const SHIFT_PLANNING_OWNER_AGREEMENT_INTAKE_WRITERS = Object.freeze(
+  SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS.filter((writer) =>
+    writer.shutdownOrder !== "activation-recheck"),
+);
+export const SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_DIGEST =
+  createShiftPlanningDigest({
+    schemaVersion: SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION,
+    revision: SHIFT_PLANNING_OWNER_AGREEMENT_INVENTORY_REVISION,
+    writers: SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS,
+  });
+
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION =
+  "hu085-develop-administrator-agreement-writers-v1" as const;
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID =
+  "develop-firebase-administrator-retained-capability" as const;
+/** ADR-0022 retains technical fencing of every automated IAM use. */
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS:
+  readonly ShiftPlanningAffectedWriter[] = Object.freeze([
+    ...SHIFT_PLANNING_OWNER_AGREEMENT_WRITERS.map((writer) =>
+      writer.writerId !== "iam-firestore-admin-and-server-writers" ? writer :
+        Object.freeze({...writer, sourceReferences: Object.freeze([
+          "Effective IAM ancestry/conditions/deny policies; only " +
+            "individually confirmed human capability is recorded separately " +
+            "by ADR-0022",
+          "Unmanifested Admin SDK, CI, scripts, jobs, keys and workloads " +
+            "outside separately controlled runtime writers; unknown " +
+            "principals and automated human credentials remain technically " +
+            "controlled",
+        ])})),
+    Object.freeze({
+      writerId: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITER_ID,
+      control: "cooperative-administrator-agreement" as const,
+      requiredState: "agreement-recorded" as const,
+      shutdownOrder: "before-causal-capture" as const,
+      targets: Object.freeze(["firestore.database-wide" as const]),
+      sourceReferences: Object.freeze([
+        "ADR-0022 named develop human administrators; capability retained",
+      ]),
+    }),
+  ]);
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INTAKE_WRITERS =
+  Object.freeze(SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS.filter(
+    (writer) => writer.shutdownOrder !== "activation-recheck",
+  ));
+export const SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_DIGEST =
+  createShiftPlanningDigest({
+    schemaVersion: SHIFT_PLANNING_WRITER_INVENTORY_SCHEMA_VERSION,
+    revision: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_INVENTORY_REVISION,
+    writers: SHIFT_PLANNING_ADMINISTRATOR_AGREEMENT_WRITERS,
+  });

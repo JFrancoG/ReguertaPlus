@@ -7,15 +7,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,13 +40,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
@@ -71,6 +80,7 @@ fun ShiftsRoute(
     onCancelShiftSwapRequest: (String) -> Unit,
     onConfirmShiftSwapRequest: (String, String) -> Unit,
     onDismissShiftSwapActivity: (String) -> Unit,
+    onOpenCoverage: (() -> Unit)? = null,
 ) {
     var selectedSegment by rememberSaveable { mutableStateOf(ShiftBoardSegment.DELIVERY) }
     val currentMemberId = currentMember?.id
@@ -101,49 +111,58 @@ fun ShiftsRoute(
         )
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        if (hasShiftSwapActivity) {
-            ShiftSwapRequestsCard(
-                requests = shiftSwapRequests,
-                dismissedRequestIds = dismissedShiftSwapRequestIds,
-                shifts = shifts,
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val headerMaxHeight = maxHeight * 0.5f
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Long swap activity and large text must leave a scrollable viewport for the board.
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = headerMaxHeight).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                onOpenCoverage?.let { open ->
+                    ReguertaButton(label = stringResource(R.string.coverage_title), variant = ReguertaButtonVariant.SECONDARY,
+                        modifier = Modifier.testTag("shifts.coverage"), onClick = open)
+                }
+                if (hasShiftSwapActivity) {
+                    ShiftSwapRequestsCard(
+                        requests = shiftSwapRequests,
+                        dismissedRequestIds = dismissedShiftSwapRequestIds,
+                        shifts = shifts,
+                        deliveryCalendarOverrides = deliveryCalendarOverrides,
+                        members = members,
+                        currentMemberId = currentMemberId,
+                        isUpdating = isUpdatingShiftSwapRequest,
+                        onAccept = onAcceptShiftSwapRequest,
+                        onReject = onRejectShiftSwapRequest,
+                        onCancel = onCancelShiftSwapRequest,
+                        onConfirm = onConfirmShiftSwapRequest,
+                        onDismissRequest = onDismissShiftSwapActivity,
+                    )
+                }
+
+                MyNextShiftsSection(
+                    shifts = shifts,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
+                    currentMemberId = currentMemberId,
+                    nowMillis = nowMillis,
+                    isLoading = isLoading,
+                )
+            }
+            ShiftBoardSection(
+                modifier = Modifier.weight(1f),
+                selectedSegment = selectedSegment,
+                onSegmentSelected = { selectedSegment = it },
+                deliveryShifts = deliveryShifts,
+                marketShifts = marketShifts,
                 deliveryCalendarOverrides = deliveryCalendarOverrides,
                 members = members,
                 currentMemberId = currentMemberId,
-                isUpdating = isUpdatingShiftSwapRequest,
-                onAccept = onAcceptShiftSwapRequest,
-                onReject = onRejectShiftSwapRequest,
-                onCancel = onCancelShiftSwapRequest,
-                onConfirm = onConfirmShiftSwapRequest,
-                onDismissRequest = onDismissShiftSwapActivity,
+                nowMillis = nowMillis,
+                isLoading = isLoading,
+                blockedShiftSwapShiftIds = blockedShiftSwapShiftIds,
+                onRequestShiftSwap = onRequestShiftSwap,
             )
         }
-
-        MyNextShiftsSection(
-            shifts = shifts,
-            deliveryCalendarOverrides = deliveryCalendarOverrides,
-            currentMemberId = currentMemberId,
-            nowMillis = nowMillis,
-            isLoading = isLoading,
-        )
-
-        ShiftBoardSection(
-            modifier = Modifier.weight(1f),
-            selectedSegment = selectedSegment,
-            onSegmentSelected = { selectedSegment = it },
-            deliveryShifts = deliveryShifts,
-            marketShifts = marketShifts,
-            deliveryCalendarOverrides = deliveryCalendarOverrides,
-            members = members,
-            currentMemberId = currentMemberId,
-            nowMillis = nowMillis,
-            isLoading = isLoading,
-            blockedShiftSwapShiftIds = blockedShiftSwapShiftIds,
-            onRequestShiftSwap = onRequestShiftSwap,
-        )
     }
 }
 
@@ -215,11 +234,7 @@ private fun MyNextShiftsSection(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                    ShiftInfoRow(spacing = 16.dp) {
                         Text(
                             text = stringResource(R.string.shifts_type_delivery),
                             style = MaterialTheme.typography.bodyLarge,
@@ -246,11 +261,7 @@ private fun MyNextShiftsSection(
                         }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                    ShiftInfoRow(spacing = 16.dp) {
                         Text(
                             text = stringResource(R.string.shifts_type_market),
                             style = MaterialTheme.typography.bodyLarge,
@@ -275,13 +286,28 @@ private fun MyNextShiftsSection(
 }
 
 @Composable
+private fun ShiftInfoRow(spacing: Dp, content: @Composable FlowRowScope.() -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val stackColumns = maxWidth < 240.dp * LocalDensity.current.fontScale
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            maxItemsInEachRow = if (stackColumns) 1 else 2,
+            horizontalArrangement = Arrangement.spacedBy(spacing),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
+    }
+}
+
+@Composable
 private fun NextShiftDateLine(
     label: String,
     value: String,
     prominent: Boolean,
     modifier: Modifier = Modifier,
 ): Unit = Text(
-    text = "$value $label",
+    text = stringResource(R.string.shifts_next_role_assignment, label, value),
     modifier = modifier.fillMaxWidth(),
     style = if (prominent) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
     fontWeight = FontWeight.Normal,
@@ -472,11 +498,7 @@ private fun ShiftBoardCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            ShiftInfoRow(spacing = 12.dp) {
                 Column(
                     modifier = Modifier.weight(0.30f),
                     horizontalAlignment = leftAlignment,
@@ -514,8 +536,6 @@ private fun ShiftBoardCard(
                             } else {
                                 MaterialTheme.colorScheme.onSurface
                             },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     if (shift.status != ShiftStatus.PLANNED) {
@@ -547,12 +567,11 @@ private fun ShiftBoardCard(
 }
 
 @Composable
-private fun ShiftAssignment.boardCardContainerColor(window: ShiftBoardWindow): Color =
-    if (window.highlights(id)) {
-        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
-    } else {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-    }
+private fun ShiftAssignment.boardCardContainerColor(window: ShiftBoardWindow): Color {
+    val colors = MaterialTheme.colorScheme
+    val tint = if (window.highlights(id)) colors.tertiary else colors.primary
+    return tint.copy(alpha = 0.10f).compositeOver(colors.surface)
+}
 
 enum class ShiftBoardSegment(@param:StringRes val labelRes: Int) {
     DELIVERY(R.string.shifts_type_delivery),
@@ -628,7 +647,10 @@ fun ShiftSwapRequestRoute(
                 placeholder = { Text(stringResource(R.string.shift_swap_request_reason_placeholder)) },
                 minLines = 4,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 ReguertaButton(
                     label = stringResource(
                         if (isSaving) {

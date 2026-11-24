@@ -206,6 +206,20 @@ test("discovers, claims, authorizes, and completes one exact command", async () 
   }), []);
 });
 
+test("a shared coverage reservation blocks a planning claim without changing its partition", async () => {
+  await seed();
+  const {coverageWorkbookSubmission} = require("./shift-coverage-fixture.cjs");
+  const pointer = firestore.doc(`${root}/shiftPlanningState/sheetsSubmission`);
+  const receipt = coverageWorkbookSubmission({workbookId: "workbook-production", beforeWorkbookRevision: "7"});
+  await pointer.set(receipt);
+  const before = await readPartition();
+  await assert.rejects(repository.claim({environment, commandId: `${bundleRevision}-delivery`,
+    workerId: "planning-worker", attemptId: "planning-attempt"}), {code: "invalid_planning_sync_command"});
+  assert.deepEqual(await readPartition(), before);
+  assert.deepEqual((await pointer.get()).data(), receipt);
+  assert.equal((await firestore.doc(commandPath()).get()).data().state, "pending");
+});
+
 test("serializes competing claims and fences an expired worker", async () => {
   await seed();
   const first = await repository.claim({

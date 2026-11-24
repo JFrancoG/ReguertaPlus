@@ -1,5 +1,11 @@
+import {ShiftCreditPlanningContext} from "./shift-credit-planning-context.js";
+import {parseShiftCoverageActivation, ShiftCoverageActivation} from
+  "./shift-coverage-store-context.js";
+import {captureDeliverySpacingSource} from "./shift-delivery-spacing-store.js";
+import {deliverySpacingAuthorityDigest} from "./shift-delivery-spacing.js";
+import {assertProvisionalShiftMembershipSource,
+  captureShiftCreditPublicationSources} from "./shift-credit-publication.js";
 import {
-  DocumentReference,
   DocumentSnapshot,
   FieldPath,
   Firestore,
@@ -67,6 +73,8 @@ export type ShiftPlanningSourcePolicy = {
   creditLedger: ShiftPlanningCanonicalJsonObject;
   sync: ShiftPlanningCanonicalJsonObject;
   transactionWriteLimit: number;
+  deliverySpacing?: {version: "hu089-delivery-spacing-v1"};
+  coverage?: ShiftCoverageActivation;
 };
 
 export type ShiftPlanningLiveSourceProductionResult = {
@@ -288,6 +296,8 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
     "creditLedger",
     "sync",
     "transactionWriteLimit",
+    ...(policy.deliverySpacing !== undefined ? ["deliverySpacing"] : []),
+    ...(policy.coverage !== undefined ? ["coverage"] : []),
   ], "planning source policy");
   if (policy.schemaVersion !== SHIFT_PLANNING_SOURCE_POLICY_SCHEMA_VERSION) {
     return failSource("Planning source policy schema is unsupported.");
@@ -301,24 +311,44 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
   ) {
     return failSource("Planning source policy write limit exceeds Firestore.");
   }
+  if (policy.deliverySpacing !== undefined) {
+    const spacing = requireRecord(policy.deliverySpacing,
+      "delivery spacing policy");
+    requireExactKeys(spacing, ["version"], "delivery spacing policy");
+    if (spacing.version !== "hu089-delivery-spacing-v1") {
+      return failSource("Delivery spacing policy is unsupported.");
+    }
+  }
+  const coverage = policy.coverage === undefined ? undefined :
+    parseShiftCoverageActivation(policy.coverage,
+      requireEnvironment(policy.environment));
+  if (coverage === null) {
+    return failSource("Coverage activation policy is invalid.");
+  }
   const creditLedger = requireRecord(
     policy.creditLedger,
     "planning source policy creditLedger",
   );
-  requireExactKeys(creditLedger, [
-    "enabled",
-    "revision",
-    "digest",
-    "plannedWriteCount",
-  ], "planning source policy creditLedger");
-  if (
-    creditLedger.enabled !== false ||
-    creditLedger.plannedWriteCount !== 0
-  ) {
-    return failSource("Planning source coverage credits remain disabled.");
+  if (coverage?.enabled && (creditLedger.enabled !== true ||
+      policy.deliverySpacing === undefined)) {
+    return failSource("Active coverage requires credit and spacing policies.");
   }
-  requireIdentifier(creditLedger.revision, "planning credit revision");
-  requireDigest(creditLedger.digest, "planning credit digest");
+  if (creditLedger.enabled === true) {
+    requireExactKeys(creditLedger, ["enabled", "policyRevision"],
+      "provisional credit source policy");
+    if (creditLedger.policyRevision !== "hu084-provisional-v1") {
+      return failSource("Unknown provisional credit policy.");
+    }
+  } else {
+    requireExactKeys(creditLedger, ["enabled", "revision", "digest",
+      "plannedWriteCount"], "planning source policy creditLedger");
+    if (creditLedger.enabled !== false ||
+        creditLedger.plannedWriteCount !== 0) {
+      return failSource("Planning source coverage credits remain disabled.");
+    }
+    requireIdentifier(creditLedger.revision, "planning credit revision");
+    requireDigest(creditLedger.digest, "planning credit digest");
+  }
   const sync = requireRecord(policy.sync, "planning source policy sync");
   requireExactKeys(sync, [
     "leaseDurationMillis",
@@ -382,6 +412,9 @@ const parseSourcePolicy = (value: unknown): ShiftPlanningSourcePolicy => {
       ShiftPlanningCanonicalJsonObject,
     sync: canonicalClone(sync) as ShiftPlanningCanonicalJsonObject,
     transactionWriteLimit,
+    ...(coverage !== undefined ? {coverage} : {}),
+    ...(policy.deliverySpacing !== undefined ? {deliverySpacing:
+      {version: "hu089-delivery-spacing-v1" as const}} : {}),
   };
 };
 
@@ -560,6 +593,7 @@ const buildSourceInTransaction = async (input: {
   firestore: Firestore;
   transaction: Transaction;
   environment: ShiftPlanningEnvironment;
+  creditPlanning?: ShiftCreditPlanningContext;
 }): Promise<ShiftPlanningLiveSourceDocument> => {
   const {firestore, transaction, environment} = input;
   const root = planningRoot(environment);
@@ -635,6 +669,17 @@ const buildSourceInTransaction = async (input: {
     releaseLeaseDurationMillis: policy.releaseLeaseDurationMillis,
     policyRevision: policy.policyRevision,
   };
+  if (policy.creditLedger.enabled !== true) {
+    await assertProvisionalShiftMembershipSource({...input,
+      membershipCandidates: {rotations, users}});
+  }
+  const creditLedger = policy.creditLedger.enabled === true ? {
+    enabled: true, policyRevision: "hu084-provisional-v1",
+    sources: await captureShiftCreditPublicationSources({
+      ...input, rotations, users,
+      prefixes: {delivery: policy.delivery.inheritedTargetPrefix,
+        market: policy.market.inheritedTargetPrefix}}),
+  } : policy.creditLedger;
   const fairnessSnapshot = normalizeShiftPlanningFairnessSnapshot({
     snapshotVersion: 1,
     environment,
@@ -668,7 +713,11 @@ const buildSourceInTransaction = async (input: {
       digest: calendarDigest,
       entries: calendarEntries,
     },
-    creditLedger: policy.creditLedger,
+    creditLedger,
+    ...(policy.deliverySpacing ? {deliverySpacing:
+      await captureDeliverySpacingSource({...input, authorityDigest:
+        deliverySpacingAuthorityDigest(maintenance,
+          rotations.delivery)})} : {}),
     sync: policy.sync,
     migrationBaseline: rotations.delivery.migrationBaseline,
   });
@@ -691,41 +740,72 @@ const buildSourceInTransaction = async (input: {
 export const rebuildShiftPlanningLiveSourceInTransaction =
   buildSourceInTransaction;
 
-/**
- * Loads the cached planning source only when the same read-only transaction can
- * rebuild its governed inputs to the identical digest. This gives preview and
- * stage a current source without adding a derived-state write to their allowed
- * lifecycle effects.
- * @param {object} input Firestore instance and environment to inspect.
- * @return {Promise<ShiftPlanningLiveSourceDocument>} Current governed source.
- */
-export const loadCurrentShiftPlanningLiveSource = async (input: {
+type PlanningSourceScope = {
   firestore: Firestore;
   environment: ShiftPlanningEnvironment;
-}): Promise<ShiftPlanningLiveSourceDocument> => {
+  creditPlanning?: ShiftCreditPlanningContext;
+};
+
+const isSharedCreditSource = (source: ShiftPlanningLiveSourceDocument) => {
+  const snapshot = source.inputs.fairnessSnapshot;
+  if (snapshot.creditLedger.enabled !== true || !snapshot.deliverySpacing) {
+    return false;
+  }
+  const credits = requireRecord(snapshot.creditLedger.sources, "credit source");
+  const spacing = requireRecord(snapshot.deliverySpacing, "spacing source");
+  return credits.environment === source.environment &&
+    spacing.environment === source.environment &&
+    typeof credits.activationDigest === "string" &&
+    credits.activationDigest === spacing.activationDigest;
+};
+
+const resolvePlanningSource = (
+  input: PlanningSourceScope,
+  mode: "read" | "preview" | "refresh",
+): Promise<ShiftPlanningLiveSourceProductionResult> => {
   const environment = requireEnvironment(input.environment);
   return input.firestore.runTransaction(async (transaction) => {
-    const rebuilt = await buildSourceInTransaction({
-      firestore: input.firestore,
-      transaction,
-      environment,
+    const source = await buildSourceInTransaction({
+      ...input, transaction, environment,
     });
-    const cachedSnapshot = await transaction.get(input.firestore.doc(
+    const reference = input.firestore.doc(
       `${planningRoot(environment)}/shiftPlanningState/` +
         SHIFT_PLANNING_LIVE_SOURCE_DOCUMENT_ID,
-    ));
-    const cached = parseShiftPlanningLiveSourceDocument(
-      requireSnapshot(cachedSnapshot, "planning live source").data(),
     );
-    if (
-      cached.environment !== environment ||
-      cached.sourceDigest !== rebuilt.sourceDigest
-    ) {
-      return failSource("Planning live source is stale.");
+    const cached = await transaction.get(reference);
+    if (cached.exists) {
+      const current = parseShiftPlanningLiveSourceDocument(cached.data());
+      if (current.environment !== environment) {
+        return failSource("Planning live source belongs to another scope.");
+      }
+      if (current.sourceDigest === source.sourceDigest) {
+        return {kind: "replayed", source};
+      }
     }
-    return rebuilt;
+    if (mode === "read" || (mode === "preview" &&
+        (!input.creditPlanning || !isSharedCreditSource(source)))) {
+      return failSource("Planning live source is missing or stale.");
+    }
+    if (cached.exists) {
+      transaction.set(reference, source);
+      return {kind: "updated", source};
+    }
+    transaction.create(reference, source);
+    return {kind: "created", source};
   });
 };
+
+/**
+ * A claimed shared preview refreshes the private fairness cache from live
+ * dependencies. Stage and historical planners require an exact cached source.
+ * @param {object} input Server-owned scope and request mode.
+ * @return {Promise<ShiftPlanningLiveSourceDocument>} Current governed source.
+ */
+export const loadCurrentShiftPlanningLiveSource = async (
+  input: PlanningSourceScope & {refreshForPreview?: boolean},
+): Promise<ShiftPlanningLiveSourceDocument> =>
+  (await resolvePlanningSource(input,
+    input.refreshForPreview ? "preview" : "read")).source;
 
 /**
  * Creates a forward resolver that must rebuild every governed source inside
@@ -736,10 +816,12 @@ export const loadCurrentShiftPlanningLiveSource = async (input: {
 export const createGovernedShiftPlanningForwardActivationResolver = (input: {
   environment: ShiftPlanningEnvironment;
   requestId: string;
+  creditPlanning?: ShiftCreditPlanningContext;
 }): ShiftPlanningForwardActivationAttemptResolver =>
   createFirestoreShiftPlanningForwardActivationResolver({
     ...input,
-    rebuildLiveSource: buildSourceInTransaction,
+    rebuildLiveSource: (attempt) => buildSourceInTransaction({
+      ...attempt, creditPlanning: input.creditPlanning}),
   });
 
 /**
@@ -749,33 +831,7 @@ export const createGovernedShiftPlanningForwardActivationResolver = (input: {
  * @param {object} input Firestore instance and environment to refresh.
  * @return {Promise<ShiftPlanningLiveSourceProductionResult>} Exact outcome.
  */
-export const refreshShiftPlanningLiveSource = async (input: {
-  firestore: Firestore;
-  environment: ShiftPlanningEnvironment;
-}): Promise<ShiftPlanningLiveSourceProductionResult> => {
-  const environment = requireEnvironment(input.environment);
-  return input.firestore.runTransaction(async (transaction) => {
-    const source = await buildSourceInTransaction({
-      firestore: input.firestore,
-      transaction,
-      environment,
-    });
-    const reference: DocumentReference = input.firestore.doc(
-      `${planningRoot(environment)}/shiftPlanningState/` +
-        SHIFT_PLANNING_LIVE_SOURCE_DOCUMENT_ID,
-    );
-    const currentSnapshot = await transaction.get(reference);
-    if (currentSnapshot.exists) {
-      const current = parseShiftPlanningLiveSourceDocument(
-        currentSnapshot.data(),
-      );
-      if (current.sourceDigest === source.sourceDigest) {
-        return {kind: "replayed", source};
-      }
-      transaction.set(reference, source);
-      return {kind: "updated", source};
-    }
-    transaction.create(reference, source);
-    return {kind: "created", source};
-  });
-};
+export const refreshShiftPlanningLiveSource = (
+  input: PlanningSourceScope,
+): Promise<ShiftPlanningLiveSourceProductionResult> =>
+  resolvePlanningSource(input, "refresh");

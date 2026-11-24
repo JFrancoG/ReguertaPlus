@@ -1,0 +1,510 @@
+import type {drive_v3 as DriveV3, sheets_v4 as SheetsV4} from "googleapis";
+import {createShiftPlanningDigest} from "./shift-planning-digest.js";
+import {createShiftSheetsWorkbookVersionReader} from
+  "./shift-planning-sheets-consumer.js";
+import {ShiftSheetsConfig} from "./shift-sheets-config.js";
+import {readShiftSheetsSnapshot, SHIFT_SHEETS_LIMITS} from "./shift-sheets.js";
+
+export const SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS = Object.freeze([
+  "control_plane_unavailable",
+  "workbook_human_offline_editors_unverified",
+  "workbook_apps_script_addons_unverified",
+  "workbook_api_oauth_service_accounts_unverified",
+  "workbook_inherited_admin_authority_unverified",
+  "workbook_owner_fence_unverified",
+  "workbook_shared_drive_authority_unverified",
+  "workbook_owner_inventory_mismatch",
+  "observer_cannot_modify_content",
+  "managed_tabs_have_protections",
+  "workbook_permission_inventory_unavailable",
+] as const);
+
+export const SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_STAGES = Object.freeze([
+  "version_before", "file_before", "observer", "permissions", "snapshot",
+  "file_after", "version_after",
+] as const);
+export const SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_FAILURE_CODES = Object.freeze([
+  "workbook_observation_invalid", "workbook_permissions_invalid",
+  "workbook_selected_tabs_invalid", "workbook_observer_identity_unavailable",
+  "workbook_permissions_incomplete", "workbook_observation_unavailable",
+  "workbook_observation_changed", "workbook_selected_tabs_missing",
+  "workbook_content_changed", "workbook_observation_clock_invalid",
+] as const);
+
+type ObservationStage =
+  typeof SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_STAGES[number];
+type Blocker = typeof SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS[number];
+type PrincipalKind = "serviceAccount" | "user" | "unknown";
+type JsonRecord = Record<string, unknown>;
+
+export type ShiftSheetsOperationalPreflightSummary = {
+  schemaVersion: 1;
+  environment: ShiftSheetsConfig["environment"];
+  canApply: false;
+  observedAtMillis: number;
+  workbookVersionBefore: string;
+  workbookVersionAfter: string;
+  observationPrincipalKind: PrincipalKind;
+  selectedTabCount: number;
+  permissionCount: number | null;
+  ownerCount: number | null;
+  contentDigest: string;
+  aclDigest: string;
+  protectionsDigest: string;
+  observationDigest: string;
+  blockers: readonly Blocker[];
+};
+
+/** Fixed diagnostics prevent Google errors from reflecting account data. */
+export class ShiftSheetsOperationalPreflightError extends Error {
+  /**
+   * @param {string} code Stable, non-sensitive rejection category.
+   * @param {string} stage Fixed read stage, without resource diagnostics.
+   */
+  constructor(readonly code: string, readonly stage?: ObservationStage) {
+    super("Workbook operational observation could not be verified.");
+    this.name = "ShiftSheetsOperationalPreflightError";
+  }
+}
+
+const fail = (code: string): never => {
+  throw new ShiftSheetsOperationalPreflightError(code);
+};
+const options = {retry: false, timeout: 15000} as const;
+const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
+const digest = createShiftPlanningDigest;
+const record = (value: unknown): JsonRecord => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return fail("workbook_observation_invalid");
+  }
+  return value as JsonRecord;
+};
+const text = (value: unknown): string | null => {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string" || value.length > 8192) {
+    return fail("workbook_observation_invalid");
+  }
+  return value;
+};
+const boolean = (value: unknown): boolean | null => {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "boolean") return fail("workbook_observation_invalid");
+  return value;
+};
+const integer = (value: unknown): number | null => {
+  if (value === undefined || value === null) return null;
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    return fail("workbook_observation_invalid");
+  }
+  return value as number;
+};
+const texts = (value: unknown): string[] => {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return fail("workbook_observation_invalid");
+  return value.map((item) => text(item) ??
+    fail("workbook_observation_invalid")).sort(compare);
+};
+const list = (value: unknown): unknown[] => {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return fail("workbook_observation_invalid");
+  return Array.from(value);
+};
+const user = (value: unknown) => {
+  const item = record(value);
+  return {permissionId: text(item.permissionId),
+    emailAddress: text(item.emailAddress), me: boolean(item.me)};
+};
+const restriction = (value: unknown) => {
+  const item = record(value);
+  return {readOnly: boolean(item.readOnly), reason: text(item.reason),
+    type: text(item.type), ownerRestricted: boolean(item.ownerRestricted),
+    systemRestricted: boolean(item.systemRestricted),
+    restrictingUser: item.restrictingUser ? user(item.restrictingUser) : null,
+    restrictionTime: text(item.restrictionTime)};
+};
+const range = (value: unknown) => {
+  if (value === undefined || value === null) return null;
+  const item = record(value);
+  return Object.fromEntries(["sheetId", "startRowIndex", "endRowIndex",
+    "startColumnIndex", "endColumnIndex"].map((key) =>
+    [key, integer(item[key])]));
+};
+const protection = (value: unknown) => {
+  const item = record(value);
+  const editors = item.editors ? record(item.editors) : {};
+  return {protectedRangeId: integer(item.protectedRangeId),
+    range: range(item.range), namedRangeId: text(item.namedRangeId),
+    tableId: text(item.tableId), description: text(item.description),
+    warningOnly: boolean(item.warningOnly),
+    requestingUserCanEdit: boolean(item.requestingUserCanEdit),
+    unprotectedRanges: list(item.unprotectedRanges).map(range),
+    editors: {users: texts(editors.users), groups: texts(editors.groups),
+      domainUsersCanEdit: boolean(editors.domainUsersCanEdit)}};
+};
+const cell = (value: unknown, preservation = false) => {
+  if (value === undefined || value === null) return {};
+  const item = record(value);
+  const entered = item.userEnteredValue ? record(item.userEnteredValue) : {};
+  const result: JsonRecord = {};
+  for (const key of ["stringValue", "formulaValue", "boolValue",
+    "numberValue"]) {
+    const scalar = entered[key];
+    if (scalar === undefined || scalar === null) continue;
+    if ((key === "boolValue" && typeof scalar !== "boolean") ||
+      (key === "numberValue" &&
+        (typeof scalar !== "number" || !Number.isFinite(scalar))) ||
+      (["stringValue", "formulaValue"].includes(key) &&
+        typeof scalar !== "string")) {
+      return fail("workbook_observation_invalid");
+    }
+    result[key] = scalar;
+  }
+  if (Object.keys(result).length > 1) {
+    return fail("workbook_observation_invalid");
+  }
+  if (!preservation) return result;
+  const preserved: JsonRecord = {};
+  for (const key of ["userEnteredFormat", "note", "textFormatRuns",
+    "dataValidation"]) {
+    if (item[key] !== undefined && item[key] !== null) {
+      preserved[key] = JSON.parse(JSON.stringify(item[key]));
+    }
+  }
+  return {...(Object.keys(result).length ? {userEnteredValue: result} : {}),
+    ...preserved};
+};
+const sheet = (value: unknown, includeData: boolean, preservation = false) => {
+  const item = record(value); const properties = record(item.properties);
+  const grid = properties.gridProperties ?
+    record(properties.gridProperties) : {};
+  return {properties: {sheetId: integer(properties.sheetId),
+    title: text(properties.title), sheetType: text(properties.sheetType),
+    index: integer(properties.index), hidden: boolean(properties.hidden),
+    gridProperties: Object.fromEntries(["rowCount", "columnCount",
+      "frozenRowCount", "frozenColumnCount"].map((key) =>
+      [key, integer(grid[key])]))},
+  protectedRanges: list(item.protectedRanges).map(protection),
+  merges: list(item.merges).map(range),
+  developerMetadata: list(item.developerMetadata).map((value) => {
+    const meta = record(value);
+    const location = meta.location ? record(meta.location) : {};
+    const dimension = location.dimensionRange ?
+      record(location.dimensionRange) : {};
+    return {metadataId: integer(meta.metadataId),
+      metadataKey: text(meta.metadataKey),
+      metadataValue: text(meta.metadataValue),
+      visibility: text(meta.visibility), location: {
+        spreadsheet: boolean(location.spreadsheet),
+        sheetId: integer(location.sheetId), dimensionRange: {
+          sheetId: integer(dimension.sheetId),
+          dimension: text(dimension.dimension),
+          startIndex: integer(dimension.startIndex),
+          endIndex: integer(dimension.endIndex)}}};
+  }),
+  ...(preservation ? {dataCoverage: includeData ? "complete" :
+    "metadata-only"} : {}),
+  data: includeData ? list(item.data).map((value) => {
+    const data = record(value);
+    return {startRow: integer(data.startRow) ?? 0,
+      startColumn: integer(data.startColumn) ?? 0,
+      rowData: list(data.rowData).map((value) => ({values:
+        list(value ? record(value).values : undefined)
+          .map((value) => cell(value, preservation))}))};
+  }) : []};
+};
+const permission = (value: unknown) => {
+  const item = record(value);
+  const id = text(item.id);
+  const type = text(item.type);
+  const role = text(item.role);
+  if (!id || !["user", "group", "domain", "anyone"].includes(type ?? "") ||
+    !["owner", "organizer", "fileOrganizer", "writer", "commenter", "reader"]
+      .includes(role ?? "")) return fail("workbook_permissions_invalid");
+  return {id, type, role, emailAddress: text(item.emailAddress),
+    domain: text(item.domain), deleted: boolean(item.deleted),
+    allowFileDiscovery: boolean(item.allowFileDiscovery),
+    expirationTime: text(item.expirationTime),
+    pendingOwner: boolean(item.pendingOwner),
+    permissionDetails: list(item.permissionDetails).map((value) => {
+      const detail = record(value);
+      return {permissionType: text(detail.permissionType),
+        role: text(detail.role), inherited: boolean(detail.inherited),
+        inheritedFrom: text(detail.inheritedFrom)};
+    })};
+};
+
+/**
+ * Captures a version-bound read observation, never an exclusion checkpoint.
+ * ACLs describe visible grants and capabilities belong to this observer only.
+ * An observer without sharing authority leaves its permission inventory null;
+ * no permission request is attempted or reported as an empty inventory.
+ * Owners, offline edits, scripts, OAuth and inherited authority stay unproven;
+ * no caller declaration can turn this result into permission to mutate.
+ * Private observations contain identities and cells and must not be returned
+ * or logged by an HTTP boundary. Only the separate summary is wire-safe.
+ * @param {object} input Frozen config and read-only public Google resources.
+ * @return {Promise<object>} Private evidence and a blocked sanitized summary.
+ */
+export const observeShiftSheetsWorkbook = async (input: {
+  config: ShiftSheetsConfig;
+  titles: readonly string[];
+  files: Pick<DriveV3.Resource$Files, "get">;
+  permissions: Pick<DriveV3.Resource$Permissions, "list">;
+  about: Pick<DriveV3.Resource$About, "get">;
+  sheets: Pick<SheetsV4.Resource$Spreadsheets, "get">;
+  nowMillis(): number;
+  expectedContentDigest?: string;
+  includePreservationCells?: boolean;
+  /** Only direct raw Google responses preserve REST's omitted-empty arrays. */
+  collector?: "googleapis-raw";
+  /** Server-owned names derived from the already approved addSheet manifest. */
+  allowMissingReviewedTitles?: readonly string[];
+}) => {
+  const config = {...input.config, aliases: input.config.aliases.map((a) =>
+    ({...a}))};
+  const titles = [...input.titles];
+  const expectedContentDigest = input.expectedContentDigest;
+  const preservation = input.includePreservationCells === true;
+  const directRaw = input.collector === "googleapis-raw";
+  const allowedMissing = [...(input.allowMissingReviewedTitles ?? [])];
+  if (new Set(titles).size !== titles.length) {
+    return fail("workbook_selected_tabs_invalid");
+  }
+  if (new Set(allowedMissing).size !== allowedMissing.length ||
+    allowedMissing.some((title) => !titles.includes(title))) {
+    return fail("workbook_selected_tabs_invalid");
+  }
+  const readVersion = createShiftSheetsWorkbookVersionReader({
+    workbookId: config.workbookId, files: input.files});
+  const readFile = async () => {
+    const {data} = await input.files.get({fileId: config.workbookId,
+      supportsAllDrives: true, fields: "id,mimeType,trashed,version," +
+        "driveId,parents,owners(permissionId,emailAddress,me)," +
+        "contentRestrictions(readOnly,reason,type,ownerRestricted," +
+        "systemRestricted,restrictingUser(permissionId,emailAddress,me)," +
+        "restrictionTime),capabilities(canEdit,canModifyContent,canShare," +
+        "canReadRevisions," +
+        "canModifyEditorContentRestriction,canModifyOwnerContentRestriction," +
+        "canRemoveContentRestriction)"},
+    options);
+    const capabilities = data.capabilities ?? {};
+    return {id: text(data.id), mimeType: text(data.mimeType),
+      trashed: boolean(data.trashed), version: text(data.version),
+      driveId: text(data.driveId), parents: texts(data.parents),
+      owners: list(data.owners).map(user).sort((a, b) =>
+        compare(a.permissionId ?? "", b.permissionId ?? "")),
+      contentRestrictions: data.contentRestrictions === undefined &&
+        directRaw ? [] :
+        data.contentRestrictions == null ? null :
+          list(data.contentRestrictions).map(restriction), capabilities: {
+        canEdit: boolean(capabilities.canEdit),
+        canModifyContent: boolean(capabilities.canModifyContent),
+        canShare: boolean(capabilities.canShare),
+        canReadRevisions: boolean(capabilities.canReadRevisions),
+        canModifyEditorContentRestriction:
+          boolean(capabilities.canModifyEditorContentRestriction),
+        canModifyOwnerContentRestriction:
+          boolean(capabilities.canModifyOwnerContentRestriction),
+        canRemoveContentRestriction:
+          boolean(capabilities.canRemoveContentRestriction)}};
+  };
+  let versionBefore: string; let versionAfter: string;
+  let before: Awaited<ReturnType<typeof readFile>>;
+  let after: Awaited<ReturnType<typeof readFile>>;
+  let principal: ReturnType<typeof user>;
+  let snapshot: SheetsV4.Schema$Spreadsheet;
+  let permissions: ReturnType<typeof permission>[] | null = null;
+  let stage: ObservationStage = "version_before";
+  try {
+    versionBefore = await readVersion();
+    stage = "file_before";
+    before = await readFile();
+    stage = "observer";
+    const about = await input.about.get({fields:
+      "user(permissionId,emailAddress,me)"}, options);
+    principal = user(about.data.user);
+    if (!principal.permissionId || !principal.emailAddress ||
+      !/^[^\s@]+@[^\s@]+$/.test(principal.emailAddress)) {
+      return fail("workbook_observer_identity_unavailable");
+    }
+    if (before.capabilities.canShare === true) {
+      permissions = [];
+      const seen = new Set<string>();
+      let pageToken: string | undefined;
+      let pages = 0;
+      do {
+        pages++;
+        if (pages > 500) return fail("workbook_permissions_incomplete");
+        stage = "permissions";
+        const response = await input.permissions.list({
+          fileId: config.workbookId,
+          supportsAllDrives: true, pageSize: 100, pageToken, fields:
+            "nextPageToken,permissions(id,type,role,emailAddress,domain," +
+            "deleted,allowFileDiscovery,expirationTime,pendingOwner," +
+            "permissionDetails(permissionType,role,inherited,inheritedFrom))"},
+        options);
+        permissions.push(...list(response.data.permissions).map(permission));
+        if (permissions.length > 500) {
+          return fail("workbook_permissions_incomplete");
+        }
+        const next = text(response.data.nextPageToken);
+        if (next && (seen.has(next) || permissions.length >= 500)) {
+          return fail("workbook_permissions_incomplete");
+        }
+        if (next) seen.add(next);
+        pageToken = next ?? undefined;
+      } while (pageToken);
+      if (new Set(permissions.map((p) => p.id)).size !== permissions.length) {
+        return fail("workbook_permissions_incomplete");
+      }
+      permissions.sort((a, b) => compare(a.id, b.id));
+    }
+    stage = "snapshot";
+    snapshot = await readShiftSheetsSnapshot({config,
+      sheets: input.sheets, titles});
+    if (preservation) {
+      const selected = (snapshot.sheets ?? []).filter((sheet) =>
+        titles.includes(sheet.properties?.title ?? ""));
+      let requestedCells = 0;
+      if (selected.length > SHIFT_SHEETS_LIMITS.tabs) {
+        return fail("workbook_observation_invalid");
+      }
+      for (const sheet of selected) {
+        const rows = sheet.properties?.gridProperties?.rowCount;
+        const columns = sheet.properties?.gridProperties?.columnCount;
+        if (!Number.isSafeInteger(rows) || !Number.isSafeInteger(columns) ||
+          (rows ?? 0) < 1 || (columns ?? 0) < 1 ||
+          (rows ?? Infinity) > SHIFT_SHEETS_LIMITS.tabRows ||
+          (columns ?? Infinity) > SHIFT_SHEETS_LIMITS.tabColumns) {
+          return fail("workbook_observation_invalid");
+        }
+        requestedCells += (rows as number) * (columns as number);
+      }
+      if (requestedCells > SHIFT_SHEETS_LIMITS.readCells) {
+        return fail("workbook_observation_invalid");
+      }
+      const column = (count: number): string => count <= 26 ?
+        String.fromCharCode(64 + count) :
+        String.fromCharCode(64 + Math.floor((count - 1) / 26)) +
+          String.fromCharCode(65 + (count - 1) % 26);
+      if (selected.length) {
+        const response = await input.sheets.get({
+          spreadsheetId: config.workbookId,
+          ranges: selected.map((sheet) => "'" +
+            (sheet.properties?.title ?? "").replace(/'/g, "''") + "'!A1:" +
+            column(sheet.properties?.gridProperties?.columnCount ?? 0) +
+            sheet.properties?.gridProperties?.rowCount),
+          fields: "spreadsheetId,sheets(properties,protectedRanges,merges," +
+            "developerMetadata,data(startRow,startColumn,rowData(values(" +
+            "userEnteredValue,userEnteredFormat,note,textFormatRuns," +
+            "dataValidation))))",
+        }, options);
+        if (response.data.spreadsheetId !== config.workbookId ||
+          selected.some((sheet) => {
+            const matches = response.data.sheets?.filter((after) =>
+              after.properties?.sheetId === sheet.properties?.sheetId &&
+              after.properties?.title === sheet.properties?.title) ?? [];
+            return matches.length !== 1 ||
+              digest(matches[0].properties) !== digest(sheet.properties);
+          })) return fail("workbook_observation_changed");
+        snapshot = {...snapshot, sheets: snapshot.sheets?.map((sheet) =>
+          response.data.sheets?.find((after) =>
+            after.properties?.sheetId === sheet.properties?.sheetId) ??
+            sheet)};
+      }
+    }
+    stage = "file_after";
+    after = await readFile();
+    stage = "version_after";
+    versionAfter = await readVersion();
+  } catch (error) {
+    throw new ShiftSheetsOperationalPreflightError(
+      error instanceof ShiftSheetsOperationalPreflightError ?
+        error.code : "workbook_observation_unavailable", stage);
+  }
+  if (before.id !== config.workbookId || after.id !== config.workbookId ||
+    before.mimeType !== "application/vnd.google-apps.spreadsheet" ||
+    after.mimeType !== before.mimeType || before.trashed !== false ||
+    after.trashed !== false || before.version !== versionBefore ||
+    after.version !== versionBefore || versionAfter !== versionBefore ||
+    digest(before) !== digest(after)) {
+    return fail("workbook_observation_changed");
+  }
+  const normalized = {spreadsheetId: config.workbookId,
+    sheets: list(snapshot.sheets).map((value) => {
+      const title = text(record(record(value).properties).title);
+      return sheet(value, titles.includes(title ?? ""), preservation);
+    }).sort((a, b) => compare(a.properties.title ?? "",
+      b.properties.title ?? ""))};
+  const selected = normalized.sheets.filter((s) =>
+    titles.includes(s.properties.title ?? ""));
+  const absentReviewedTitles = titles.filter((title) =>
+    !selected.some((sheet) => sheet.properties.title === title));
+  if (absentReviewedTitles.some((title) => !allowedMissing.includes(title))) {
+    return fail("workbook_selected_tabs_missing");
+  }
+  const contentDigest = digest(selected.map((s) =>
+    ({properties: s.properties, data: s.data})));
+  if (expectedContentDigest !== undefined &&
+    expectedContentDigest !== contentDigest) {
+    return fail("workbook_content_changed");
+  }
+  const observedAtMillis = input.nowMillis();
+  if (!Number.isSafeInteger(observedAtMillis) || observedAtMillis < 0) {
+    return fail("workbook_observation_clock_invalid");
+  }
+  const aclDigest = digest({principal, file: before, permissions});
+  const {version: ignoredVersion, ...authorityFile} = before;
+  void ignoredVersion;
+  const authorityDigest = digest({principal, file: authorityFile, permissions});
+  const protectionsDigest = digest(normalized.sheets.map((s) =>
+    ({sheetId: s.properties.sheetId, protectedRanges: s.protectedRanges,
+      merges: s.merges})));
+  const observationPrincipalKind: PrincipalKind =
+    principal.emailAddress?.endsWith(".gserviceaccount.com") ?
+      "serviceAccount" : principal.emailAddress ? "user" : "unknown";
+  const ownerPermissions = permissions?.filter((p) => p.role === "owner");
+  let ownerCount: number | null = null;
+  const blockers: Blocker[] = [...SHIFT_SHEETS_OPERATIONAL_PREFLIGHT_BLOCKERS
+    .slice(0, 5)];
+  if (permissions === null) {
+    blockers.push("workbook_permission_inventory_unavailable");
+  }
+  if (before.driveId) {
+    blockers.push("workbook_shared_drive_authority_unverified");
+  } else {
+    blockers.push("workbook_owner_fence_unverified");
+    if (ownerPermissions) {
+      if (before.owners.length === 0 || ownerPermissions.length === 0 ||
+        digest(before.owners.map((owner) => owner.permissionId).sort()) !==
+          digest(ownerPermissions.map((owner) => owner.id).sort())) {
+        blockers.push("workbook_owner_inventory_mismatch");
+      } else {
+        ownerCount = ownerPermissions.length;
+      }
+    }
+  }
+  if (before.capabilities.canEdit !== true ||
+    before.capabilities.canModifyContent !== true) {
+    blockers.push("observer_cannot_modify_content");
+  }
+  if (selected.some((s) => s.protectedRanges.length > 0)) {
+    blockers.push("managed_tabs_have_protections");
+  }
+  const privateBody = {schemaVersion: 1, environment: config.environment,
+    workbookVersionBefore: versionBefore, workbookVersionAfter: versionAfter,
+    observedAtMillis, principal, file: before, permissions,
+    snapshot: normalized, absentReviewedTitles,
+    contentDigest, aclDigest, authorityDigest, protectionsDigest};
+  const observationDigest = digest(privateBody);
+  const summary: ShiftSheetsOperationalPreflightSummary = {
+    schemaVersion: 1, environment: config.environment, canApply: false,
+    observedAtMillis, workbookVersionBefore: versionBefore,
+    workbookVersionAfter: versionAfter, observationPrincipalKind,
+    selectedTabCount: selected.length,
+    permissionCount: permissions?.length ?? null,
+    ownerCount,
+    contentDigest, aclDigest, protectionsDigest, observationDigest, blockers,
+  };
+  return {privateObservation: {...privateBody, observationDigest}, summary};
+};

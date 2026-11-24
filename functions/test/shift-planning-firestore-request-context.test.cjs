@@ -7,6 +7,7 @@ const {
   createFirestoreShiftPlanningRequestContextRepository,
 } = require("../lib/shift-planning-firestore-request-context.js");
 
+const {createShiftCreditPlanningContext} = require("../lib/shift-credit-planning-context.js");
 const PROJECT_ID = "demo-reguerta-hu082-request-context";
 const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
 if (!EMULATOR_HOST) {
@@ -84,4 +85,11 @@ test("fails closed for missing or closed state", async () => {
     repository.resolve({schemaVersion: 1, environment}),
     (error) => error.code === "shift_planning_maintenance",
   );
+  const context = {schemaVersion: 1, environment};
+  const before = await firestore.doc(statePath).get();
+  const closed = createShiftCreditPlanningContext({firestore, environment, operationalReady: false});
+  await assert.rejects(repository.resolve(context, closed), {code: "shift_planning_maintenance"});
+  const ready = createShiftCreditPlanningContext({firestore, environment, operationalReady: true});
+  await assert.rejects(repository.resolve(context, ready), {code: "coverage_unavailable"});
+  assert.ok(before.updateTime.isEqual((await firestore.doc(statePath).get()).updateTime));
 });

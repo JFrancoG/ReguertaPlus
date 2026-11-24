@@ -4,9 +4,163 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- 2026-11-24 | ✨ feat(shifts): complete coverage planning and delivery
+
+- 2026-11-02 | ✨ feat(shifts): bind technical and human evidence
+
+- 2026-11-02 | ✨ feat(shifts): collect bounded initial evidence
+
+- 2026-11-02 | ✨ feat(shifts): compose barrier and native permissions
+
+- 2026-11-01 | ✨ feat(shifts): connect original window sessions
+
+- 2026-11-01 | ✨ feat(shifts): persist controlled window recovery
+
+- 2026-11-01 | ✨ feat(shifts): guard joint migration execution
+
+- 2026-11-01 | ✨ feat(shifts): bind full cycle admission evidence
+
+- 2026-11-01 | ✨ feat(shifts): bound the complete copy lifecycle
+
+- 2026-11-01 | ✨ feat(shifts): bind copy recovery admission evidence
+
+- 2026-11-01 | ✨ feat(shifts): prepare inverse-only copy recovery
+
+- 2026-11-01 | ✨ feat(shifts): rehearse full copy permission lifecycle
+
+- 2026-11-01 | ✨ feat(shifts): bind Google reads to helper batches
+
+- 2026-10-31 | ✨ feat(shifts): persist controlled develop barrier acquisition
+
+- 2026-10-30 | 🔧 chore(shifts): prepare isolated writer rehearsal
+
+- 2026-10-30 | 🐛 fix(shifts): bind complete develop config census
+
+- 2026-10-30 | ✨ feat(shifts): connect controlled develop admission
+
+- 2026-10-30 | ✨ feat(shifts): materialize closed migration manifests
+
+- 2026-10-30 | ✨ feat(shifts): bind develop migration review evidence
+
+- 2026-10-30 | ✨ feat(shifts): admit bounded develop historical risk
+
+### Fixed
+
+- 2026-11-24 | 🐛 fix(shifts): scope Develop coverage to the test roster
+
+- 2026-11-20 | 🐛 fix(shifts): complete the Develop migration
+
+- 2026-11-12 | 🐛 fix(shifts): preserve deferred writer and admission timing
+
+- 2026-11-11 | 🐛 fix(shifts): validate risk chronology before collection
+
+- 2026-11-11 | 🐛 fix(shifts): settle native permission outcomes
+
+- 2026-11-11 | 🐛 fix(shifts): wait for native sharing controls
+
+- 2026-11-05 | 🐛 fix(ios): explain rejected shift acceptance
+
+- 2026-11-02 | 🐛 fix(shifts): prepare bounded interactive migration
+
+### Maintenance
+
+- 2026-11-24 | 🔧 chore(shifts): integrate main into coverage candidate
+
+- 2026-10-31 | 🔧 chore(shifts): bind original writer proof to admission
+
+- 2026-10-31 | 🔧 chore(shifts): prepare original writer executor
+
+- 2026-10-31 | 🔧 chore(shifts): bind writer evidence to admission
+
+- 2026-10-30 | 🔧 chore(shifts): prepare isolated IAM diagnostic
+
+- 2026-10-29 | 🔧 chore(shifts): verify develop owner isolation
+
+- 2026-10-29 | 🔧 chore(shifts): bind develop fence to maintenance preparation
+
 ### Documentation
 
+- 2026-11-24 | 📝 docs(shifts): verify remote integration and iOS results
+
+- 2026-11-24 | 📝 docs(shifts): record integration and Develop admission
+
 - 2026-11-10 | 📝 docs(agents): clarify task resource selection
+
+- 2026-11-11 | 📝 docs(shifts): record develop confirmation deadline outcome
+
+- 2026-11-11 | 📝 docs(shifts): record develop startup failure and input preflight
+
+- 2026-11-11 | 📝 docs(shifts): record develop confirmation timeout
+
+- 2026-11-11 | 📝 docs(shifts): bind corrected develop coordinator
+
+- 2026-11-11 | 📝 docs(shifts): record develop coordinator failure
+
+- 2026-11-11 | 📝 docs(shifts): verify disabled writer permission cycle
+
+- 2026-11-11 | 📝 docs(shifts): prepare refreshed develop packet
+
+- 2026-11-11 | 📝 docs(shifts): record real sharing form rehearsal
+
+- 2026-11-05 | 📝 docs(shifts): streamline plan and record iOS rehearsal
+
+- 2026-11-02 | 📝 docs(shifts): record foreground launch containment
+
+- 2026-11-02 | 📝 docs(shifts): record stopped develop window cleanup
+
+- 2026-11-02 | 📝 docs(shifts): renew dated develop admission review
+
+- 2026-11-02 | 📝 docs(shifts): prepare initial evidence and window
+
+- 2026-11-01 | 📝 docs(shifts): prepare concrete develop invocation
+
+- 2026-11-01 | 📝 docs(shifts): record complete copy cycle evidence
+
+- 2026-11-01 | 📝 docs(shifts): record verified copy recovery
+
+- 2026-10-31 | 📝 docs(shifts): prepare develop permissions and window
+
+- 2026-10-31 | 📝 docs(shifts): record original writer rehearsal success
+
+- 2026-10-31 | 📝 docs(shifts): prepare independent raw baseline
+
+- 2026-10-31 | 📝 docs(shifts): diagnose Sheets snapshot fidelity
+
+- 2026-10-31 | 📝 docs(shifts): record original snapshot mismatch
+
+- 2026-10-31 | 📝 docs(shifts): prepare original writer check
+
+- 2026-10-31 | 📝 docs(shifts): record contained copy rehearsal
+
+- 2026-10-31 | 📝 docs(shifts): record contained IAM mint success
+
+- 2026-10-30 | 📝 docs(shifts): plan isolated develop Sheets writer
+
+- 2026-10-30 | 📝 docs(shifts): verify develop controls and Sheets authority
+
+- 2026-10-30 | 📝 docs(shifts): record real develop maintenance evidence
+
+- Reconcile retained develop notice outcomes and propose an explicit historical-risk decision; live admission remains closed.
+
+- 2026-10-29 | 📝 docs(shifts): record remaining develop access and effects
+
+- 2026-10-29 | 📝 docs(shifts): record effective develop write fence
+
+- 2026-10-29 | 📝 docs(shifts): prepare exact develop permission changes
+
+- 2026-10-29 | 📝 docs(shifts): audit develop writer authority
+
+- 2026-10-29 | 📝 docs(shifts): reconcile historical develop effects
+
+- 2026-10-29 | 📝 docs(shifts): reconcile the develop queue residual
+
+- 2026-10-27 | 📝 docs(shifts): prepare preserved develop baseline
+
+- 2026-10-11 | 📝 docs(shifts): record HU-089 parent integration
+
+- 2026-10-04 | 📝 docs(shifts): define coverage ratification proposal
 
 - 2026-09-11 | 📝 docs(shifts): prepare HU-085 evidence handoff
 
@@ -51,6 +205,70 @@ All notable changes to this project will be documented in this file.
 - 2026-08-05 | 💄 style(ios): clear Swift line-length baseline
 
 ### Added
+
+- 2026-10-29 | ✨ feat(shifts): admit develop capture controls
+
+- 2026-10-28 | ✨ feat(shifts): reconcile prior develop operations
+
+- 2026-10-28 | ✨ feat(shifts): govern develop administrator maintenance
+
+- 2026-10-28 | ✨ feat(shifts): close develop client writes
+
+- 2026-10-28 | ✨ feat(shifts): inspect retained develop work
+
+- 2026-10-28 | ✨ feat(shifts): capture develop events durably
+
+- 2026-10-28 | ✨ feat(shifts): guard owner Sheets operations
+
+- 2026-10-28 | ✨ feat(shifts): bind owner maintenance entry
+
+- 2026-10-27 | ✨ feat(shifts): add private develop inspection
+
+- 2026-10-27 | ✨ feat(shifts): initialize reviewed coverage state
+
+- 2026-10-27 | ✨ feat(shifts): coordinate projection effects
+
+- 2026-10-27 | ✨ feat(shifts): connect authenticated coverage routes
+
+- 2026-10-27 | ✨ feat(shifts): add native coverage administration
+
+- 2026-10-11 | ✨ feat(shifts): enforce ordinary delivery spacing
+
+- 2026-10-11 | ✨ feat(shifts): apply reserve and departure lifecycle
+
+- 2026-10-04 | ✨ feat(shifts): connect phased coverage deadlines
+
+- 2026-09-13 | ✨ feat(shifts): reconcile coverage effects behind writer barriers
+
+- 2026-09-13 | ✨ feat(shifts): rehearse coverage push dispatch and routing
+
+- 2026-09-13 | ✨ feat(shifts): open authenticated coverage notifications
+
+- 2026-09-13 | ✨ feat(shifts): rehearse coverage effects
+
+- 2026-09-12 | ✨ feat(shifts): connect native coverage rehearsal screens
+
+- 2026-09-12 | ✨ feat(shifts): add native coverage session clients
+
+- 2026-09-12 | ✨ feat(shifts): add authenticated local coverage API
+
+- 2026-09-12 | ✨ feat(shifts): publish frozen omissions atomically
+
+- 2026-09-12 | ✨ feat(shifts): admit members in new round publication
+
+- 2026-09-12 | ✨ feat(shifts): reconcile membership and reserves
+
+- 2026-09-12 | ✨ feat(shifts): publish and recover seasonal credits
+
+- 2026-09-12 | ✨ feat(shifts): integrate seasonal credit planning
+
+- 2026-09-12 | ✨ feat(shifts): add whole-unit credit rehearsal
+
+- 2026-09-12 | ✨ feat(shifts): add committed draw and admin recovery
+
+- 2026-09-12 | ✨ feat(shifts): add reserve and volunteer selection
+
+- 2026-09-12 | ✨ feat(shifts): add provisional coverage lifecycle
 
 - 2026-09-08 | ✨ feat(sheets): adopt reviewed historical layouts
 
@@ -209,6 +427,46 @@ All notable changes to this project will be documented in this file.
 
 - 2026-11-05 | 🐛 fix(ios): patch Firestore certificate trust
 
+- 2026-11-02 | 🐛 fix(shifts): seal evidence after permission closure
+
+- 2026-11-01 | 🐛 fix(shifts): verify derived Sheets marker locations
+
+- 2026-10-31 | 🐛 fix(shifts): verify parent through workbook owner
+
+- 2026-10-31 | 🐛 fix(shifts): diagnose original writer preflight
+
+- 2026-10-31 | 🐛 fix(shifts): respect original workbook grid bounds
+
+- 2026-10-31 | 🐛 fix(shifts): integrate copy rehearsal IAM controls
+
+- 2026-10-30 | 🐛 fix(shifts): allow scoped IAM grant propagation
+
+- 2026-10-30 | 🐛 fix(shifts): contain IAM lifecycle transitions
+
+- 2026-10-30 | 🐛 fix(shifts): identify IAM admission failures
+
+- 2026-10-30 | 🐛 fix(shifts): retain scoped IAM denial reasons
+
+- 2026-10-30 | 🐛 fix(shifts): wait for scoped mint permission
+
+- 2026-10-30 | 🐛 fix(shifts): retain writer rehearsal diagnostics
+
+- 2026-10-29 | 🐛 fix(shifts): close direct develop reminder admission
+
+- 2026-10-29 | 🐛 fix(shifts): separate contained delivery evidence
+
+- 2026-10-29 | 🐛 fix(shifts): retain delivery metadata observations
+
+- 2026-10-27 | 🐛 fix(shifts): handle limited reader visibility
+
+- 2026-10-27 | 🐛 fix(shifts): isolate develop inspection identities
+
+- 2026-10-11 | 🐛 fix(shifts): keep late admin resolution available
+
+- 2026-09-28 | 🐛 fix(android): keep coverage actions above IME
+
+- 2026-09-28 | 🐛 fix(ios): keep coverage text readable
+
 - 2026-09-09 | 🐛 fix(sheets): close readable integration gaps
 
 - 2026-09-08 | 🐛 fix(sheets): retire legacy shift writers
@@ -320,6 +578,24 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-11-24 | ✅ test(ios): synchronize auth cancellation checkpoints
+
+- 2026-11-01 | ✅ test(shifts): verify concrete window adapters
+
+- 2026-10-28 | ✅ test(shifts): rehearse backend handoff
+
+- 2026-10-28 | ✅ test(shifts): rehearse develop pause and copy lock
+
+- 2026-10-28 | ✅ test(shifts): rehearse reversible develop controls
+
+- 2026-10-27 | ✅ test(shifts): rehearse controlled develop migration
+
+- 2026-10-04 | ✅ test(shifts): validate real coverage push on both platforms
+
+- 2026-09-28 | ✅ test(shifts): validate native notification opening
+
+- 2026-09-13 | ✅ test(shifts): validate native coverage acceptance
+
 - 2026-09-12 | ✅ test(shifts): seal HU-083 deferred acceptance
 
 - 2026-09-12 | ✅ test(shifts): verify native reset acceptance
@@ -383,6 +659,18 @@ All notable changes to this project will be documented in this file.
 - 2026-11-10 | 📦 build(ios): update session fetcher to 5.2.0
 
 - 2026-11-10 | 📦 build(android): refresh toolchain and SDK pins
+
+- 2026-10-29 | 🔧 chore(shifts): prepare develop planner entry
+
+- 2026-10-27 | 📦 build(android): update library versions
+
+- 2026-10-11 | 🔧 chore(shifts): integrate HU-089 policy amendments
+
+- 2026-10-04 | 🔧 chore(shifts): prepare provisional coverage review
+
+- 2026-09-28 | 🔧 chore(shifts): record HU-084 review checkpoint
+
+- 2026-09-28 | 📦 build(android): update AGP and app libraries
 
 - 2026-09-11 | 📦 build(android): update toolchain and platform BOMs
 

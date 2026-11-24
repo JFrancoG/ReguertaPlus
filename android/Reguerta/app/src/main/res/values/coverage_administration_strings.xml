@@ -1,0 +1,26 @@
+<resources>
+    <string name="coverage_admin_title">Manage reserves and exceptions</string>
+    <string name="coverage_admin_source_note">This reconciles existing member records. It does not activate or deactivate accounts. Reserve changes follow the ordinary shift rules.</string>
+    <string name="coverage_admin_membership_closed">Member changes are unavailable while planning maintenance is closed.</string>
+    <string name="coverage_admin_reconcile">Apply current member situation</string>
+    <string name="coverage_admin_departure">Record permanent departure</string>
+    <string name="coverage_admin_spacing_title">Ten-week spacing exceptions</string>
+    <string name="coverage_admin_spacing_proposal">Delivery proposal: %1$s</string>
+    <string name="coverage_admin_spacing_note">Only the proposed pair of ordinary delivery lead shifts can be authorized. No assignment is published by this action.</string>
+    <string name="coverage_admin_no_spacing">There are no spacing exceptions awaiting authorization.</string>
+    <string name="coverage_admin_spacing_unavailable">The planner has no verifiable proposal available. Refresh after preparing it.</string>
+    <string name="coverage_admin_spacing_authorize">Authorize force-majeure exception</string>
+    <string name="coverage_admin_member_active">Account active</string>
+    <string name="coverage_admin_member_inactive">Account inactive</string>
+    <string name="coverage_admin_member_missing">Account record unavailable</string>
+    <string name="coverage_admin_member_eligible">Eligible for ordinary shifts</string>
+    <string name="coverage_admin_member_ineligible">Not eligible for ordinary shifts</string>
+    <string name="coverage_admin_departure_recorded">Permanent departure recorded</string>
+    <string name="coverage_admin_queue_pending">A rotation change is pending publication.</string>
+    <string name="coverage_admin_reserve_entered">In reserve since %1$s</string>
+    <string name="coverage_admin_credit_counts">%1$s · Credits pending: %2$d; used: %3$d; cancelled: %4$d.</string>
+    <string name="coverage_admin_spacing_pair">%1$s (round %2$d) and %3$s (round %4$d).</string>
+    <string name="coverage_admin_spacing_confirmation">Explain the force majeure that requires these two delivery lead shifts less than ten weeks apart. Authorization applies only to this pair and proposal; other published shifts stay unchanged.</string>
+    <string name="coverage_admin_departure_warning">This permanent departure cancels the pending credits shown above and releases their reservations. Inactivity alone does not cancel credits. Existing credit history is kept; returning later does not restore cancelled credits.</string>
+    <string name="coverage_admin_reconcile_confirmation">Apply the account situation to both reserve pools and affected future shifts. Ordinary rules determine reserve entry or exit; this action does not choose a substitute or publish a new rotation. Pending credits are kept unless permanent departure has already been recorded.</string>
+</resources>

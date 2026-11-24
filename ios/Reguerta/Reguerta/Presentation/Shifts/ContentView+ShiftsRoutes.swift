@@ -12,6 +12,7 @@ private struct IncomingShiftSwapOption: Identifiable {
 struct ShiftsRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: ShiftsFeatureViewModel
+    var onOpenCoverage: () -> Void = {}
     let onStartSwapRequestForShift: (String) -> Void
 
     private var shiftSwapCopy: ShiftSwapCopy {
@@ -21,6 +22,10 @@ struct ShiftsRouteView: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                if viewModel.coverage.isEnabled {
+                    reguertaButton("coverage.title", variant: .secondary, fullWidth: true, action: onOpenCoverage)
+                        .accessibilityIdentifier("shifts.coverage")
+                }
                 if viewModel.hasVisibleShiftSwapActivity {
                     ShiftSwapRequestsCardView(
                         tokens: tokens,
@@ -44,6 +49,7 @@ struct ShiftsRouteView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .task { await viewModel.coverage.refreshAccess() }
     }
 }
 

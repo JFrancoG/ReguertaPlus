@@ -427,13 +427,13 @@ Fecha de consolidación: 2026-03-06 (zona horaria Europa/Madrid).
 
 Fecha de consolidación: 2026-03-06 (zona horaria Europa/Madrid).
 
-- `Q22` Resuelta (con punto de gobernanza pendiente):
+- `Q22` Resuelta:
   - Al generar turnos, solo entran socios en alta (se excluyen bajas temporales y definitivas).
   - Altas nuevas o reactivaciones tras estar inactivo: se anaden al final de la cola de turnos.
   - Si alguien causa baja después de publicar turnos:
     - Operativa actual: buscar voluntario.
     - Alternativa propuesta: correr posiciones siguientes.
-  - La política definitiva para cubrir bajas sobrevenidas debe decidirse en asamblea.
+  - En esta ronda quedó pendiente la política para cubrir bajas sobrevenidas. Según comunicó el mantenedor, la asamblea del 18 de noviembre de 2026 aprobó el [escrito de sustituciones de HU-084](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/propuesta-turnos-para-socios.md).
   - Necesidad UX confirmada:
     - Pantalla de consulta general de turnos (todos).
     - Mensaje visible para cada socio con próximos turnos de reparto y mercado.
