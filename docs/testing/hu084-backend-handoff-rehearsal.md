@@ -733,6 +733,20 @@ functions, other Admin/IAM writers or the still-enabled reminder jobs. The accep
 ADR-0022 policy does not mark those controls fenced, prove old work drained or admit
 shared maintenance; `legacyUntracked:true` and `canEnterMaintenance:false` remain.
 
+## Preparing the two normal Develop journeys
+
+Keep the maintenance fence during initialization. The [coverage fence](../../firebase.develop-coverage.json) retains the deployed client-write restrictions and protects private coverage records. Check it against the current shared Rules release before proposing deployment.
+
+For the later journey window, prepare a private JSON array with the canonical member IDs of the agreed testers, including the administrator. Use the existing rotation, helpers and offer order to select a sample whose intended recipients are all in the group. From the repository root run:
+
+```sh
+node functions/scripts/prepare-develop-coverage-journeys.cjs --members /private/approved-members.json --out /private/new-journey-package
+```
+
+The new directory contains the scoped Rules, their Firebase configuration and the matching server settings in `coverage-runtime.json`. The initial deployment setting is disabled. Once authorized, supply the same roster to the access and command Functions and both delivery workers, and set the explicit Develop opt-in for the scoped deployment. The planner uses the same deployment admission. The Rules permit invited members to register their device and mark their own notices, and invited admins to create valid planning requests and inspect candidates. The server rejects an out-of-roster coverage action or recipient before committing the affected command or sending through either worker. Apply the coverage fence again at the end of the approved window.
+
+Before opening, verify the worker's effective write permission, workbook version and tab configuration. The prior migration is complete. The [coverage bootstrap](hu084-initial-state-bootstrap.md) has its own review and verified receipt. Confirm shared ordinary exporters and planner revisions, and keep unrelated notification releases paused during the two journeys. [Integrated candidate and live findings](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md#integrated-candidate-and-develop-admission-on-24-november-2026).
+
 ## Delivery incidents for completed coverage
 
 An active Regüerta administrator can inspect completed coverages through the authenticated `shiftCoverage` function once coverage is enabled in the selected environment. Use the configured function URL and a Firebase ID token from the administrator's current session. The service rechecks the administrator during recovery. The [Spanish runbook](../../docs-es/testing/hu084-relevo-backend.md#incidencias-de-entrega-de-coberturas-completadas) contains an executable shell example.

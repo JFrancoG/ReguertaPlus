@@ -59,6 +59,8 @@ también coordinarse con los escritores de planificación, Sheets y notificacion
   pertenencia. No retirar las barreras provisionales del planificador o de
   publicación para aparentar que esa preparación está terminada.
 
+El 24 de noviembre la candidata incorporó un ajuste de despliegue para los dos recorridos de Develop. La admisión exige `SHIFT_COVERAGE_DEVELOP_ENABLED=true` y una lista válida de socios en `SHIFT_COVERAGE_DEVELOP_MEMBERS`. El paquete de los recorridos prepara la misma lista para Rules y para el servidor. El servidor comprueba la cuenta vinculada y todos los destinatarios del aviso. Si la selección requiere otra persona, detiene ese comando y conserva el orden de la oferta. La API de cobertura, el planificador de créditos y los dos procesos de entrega comparten la decisión. Producción sigue cerrada por código. Cada operación conserva las comprobaciones de política privada, recibo de inicialización, sesión o autoridad del proceso y estado de mantenimiento. El despliegue y la apertura de Develop requieren revisar y autorizar el cambio en el proyecto compartido.
+
 ## Consecuencias
 
 Ambas apps pueden usar el transporte autenticado real y el ámbito de su cuenta

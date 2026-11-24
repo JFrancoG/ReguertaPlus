@@ -82,6 +82,8 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-11-24 | 📝 docs(shifts): record integration and Develop admission
+
 - 2026-11-10 | 📝 docs(agents): clarify task resource selection
 
 - 2026-11-11 | 📝 docs(shifts): record develop confirmation deadline outcome

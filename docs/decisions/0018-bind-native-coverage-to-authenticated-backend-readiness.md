@@ -54,6 +54,8 @@ coordination with existing planning, Sheets and notification writers.
   credit/membership migration remain incomplete. Do not remove the existing
   provisional planner/publication fences as a shortcut.
 
+On 24 November the integration candidate introduced a deployment setting for the two Develop journeys. Admission requires both `SHIFT_COVERAGE_DEVELOP_ENABLED=true` and a valid nonempty `SHIFT_COVERAGE_DEVELOP_MEMBERS` roster. The journey preparation renders the same roster into the client Rules and server configuration. The server verifies the linked caller and every coverage notification recipient. A selection outside the group stops that command and preserves the existing order. Requests, credit planning and both delivery triggers share this decision. Production stays closed in the composition. Every admitted operation still requires its private policy, verified initialization receipt, current session or worker authority, and the appropriate maintenance state. Provisioning and opening Develop require their own reviewed change on the shared project.
+
 ## Consequences
 
 Both native graphs can use the real authenticated transport and account scope

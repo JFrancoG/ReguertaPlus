@@ -778,6 +778,20 @@ Aceptar ADR-0022 no declara esos controles bloqueados, no demuestra vaciado anti
 ni admite mantenimiento compartido; se mantienen `legacyUntracked:true` y
 `canEnterMaintenance:false`.
 
+## Preparar mercado y reparto en Develop
+
+Durante la inicialización se mantiene la barrera de mantenimiento. Las [reglas para esta fase](../../firebase.develop-coverage.json) conservan el cierre de escrituras directas y protegen los registros privados. Antes de solicitar el despliegue hay que comparar la candidata con la versión vigente de Rules del proyecto compartido.
+
+Para la apertura posterior, prepara en privado un array JSON con los identificadores canónicos de los socios de prueba, incluida la cuenta administradora. Escoge mercado y reparto teniendo en cuenta los titulares, ayudantes y el orden real de oferta para que todos los destinatarios previstos estén en el grupo. Desde la raíz del repositorio:
+
+```sh
+node functions/scripts/prepare-develop-coverage-journeys.cjs --members /ruta/privada/socios.json --out /ruta/privada/nuevo-paquete
+```
+
+El directorio nuevo contiene las Rules del ensayo, su configuración de Firebase y los ajustes del servidor en `coverage-runtime.json`. La habilitación sale desactivada. Tras la autorización, el despliegue seleccionado debe usar la misma lista para la consulta de acceso, los comandos y los dos procesos de entrega. El planificador también comprueba la habilitación de Develop. Las Rules permiten a los socios invitados registrar su propio dispositivo y marcar su aviso como leído. La cuenta administradora invitada puede crear solicitudes válidas de planificación y consultar las candidatas. El servidor rechaza una operación de cobertura con un destinatario fuera del grupo antes de confirmar el comando o enviar el aviso. Al terminar la ventana autorizada se vuelve a aplicar la barrera de cobertura.
+
+Antes de abrir, comprobar el permiso efectivo del escritor, la revisión del libro y la configuración de pestañas. La migración estacional ya está terminada. La [inicialización de coberturas](../../docs/testing/hu084-initial-state-bootstrap.md) tiene su propia revisión y recibo. Contrastar también las revisiones de los exportadores ordinarios y del planificador y mantener pausada la liberación de notificaciones ajenas a estos recorridos. [Candidata y estado de Develop](../../spec/shifts/hu-084-stable-shift-coverage-and-credits/review.md#integrated-candidate-and-develop-admission-on-24-november-2026).
+
 ## Incidencias de entrega de coberturas completadas
 
 La cuenta administradora de Regüerta puede consultar los cierres pendientes en la función autenticada `shiftCoverage` una vez habilitadas las coberturas en ese entorno. El endpoint usa la sesión Firebase de la cuenta y comprueba su rol también durante la recuperación. Los ejemplos presuponen que el cliente de operación ya proporciona en memoria `REGUERTA_COVERAGE_URL` y `REGUERTA_FIREBASE_ID_TOKEN` de esa sesión. Elige el endpoint configurado para ese proyecto y entorno.
